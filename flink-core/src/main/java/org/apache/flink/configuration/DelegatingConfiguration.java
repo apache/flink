@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.configuration;
 
 import org.apache.flink.core.memory.DataInputView;
@@ -22,7 +23,11 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -55,8 +60,7 @@ public final class DelegatingConfiguration extends Configuration {
 	 * @param backingConfig The configuration holding the actual config data.
 	 * @param prefix The prefix prepended to all config keys.
 	 */
-	public DelegatingConfiguration(Configuration backingConfig, String prefix)
-	{
+	public DelegatingConfiguration(Configuration backingConfig, String prefix) {
 		this.backingConfig = Preconditions.checkNotNull(backingConfig);
 		this.prefix = prefix;
 	}
@@ -69,8 +73,23 @@ public final class DelegatingConfiguration extends Configuration {
 	}
 
 	@Override
+	public String getString(ConfigOption<String> configOption) {
+		return  this.backingConfig.getString(prefixOption(configOption, prefix));
+	}
+
+	@Override
+	public String getString(ConfigOption<String> configOption, String overrideDefault) {
+		return  this.backingConfig.getString(prefixOption(configOption, prefix), overrideDefault);
+	}
+
+	@Override
 	public void setString(String key, String value) {
 		this.backingConfig.setString(this.prefix + key, value);
+	}
+
+	@Override
+	public void setString(ConfigOption<String> key, String value) {
+		this.backingConfig.setString(prefix + key.key(), value);
 	}
 
 	@Override
@@ -89,8 +108,18 @@ public final class DelegatingConfiguration extends Configuration {
 	}
 
 	@Override
+	public int getInteger(ConfigOption<Integer> configOption) {
+		return  this.backingConfig.getInteger(prefixOption(configOption, prefix));
+	}
+
+	@Override
 	public void setInteger(String key, int value) {
 		this.backingConfig.setInteger(this.prefix + key, value);
+	}
+
+	@Override
+	public void setInteger(ConfigOption<Integer> key, int value) {
+		this.backingConfig.setInteger(prefix + key.key(), value);
 	}
 
 	@Override
@@ -99,8 +128,18 @@ public final class DelegatingConfiguration extends Configuration {
 	}
 
 	@Override
+	public long getLong(ConfigOption<Long> configOption) {
+		return  this.backingConfig.getLong(prefixOption(configOption, prefix));
+	}
+
+	@Override
 	public void setLong(String key, long value) {
 		this.backingConfig.setLong(this.prefix + key, value);
+	}
+
+	@Override
+	public void setLong(ConfigOption<Long> key, long value) {
+		this.backingConfig.setLong(prefix + key.key(), value);
 	}
 
 	@Override
@@ -109,8 +148,18 @@ public final class DelegatingConfiguration extends Configuration {
 	}
 
 	@Override
+	public boolean getBoolean(ConfigOption<Boolean> configOption) {
+		return  this.backingConfig.getBoolean(prefixOption(configOption, prefix));
+	}
+
+	@Override
 	public void setBoolean(String key, boolean value) {
 		this.backingConfig.setBoolean(this.prefix + key, value);
+	}
+
+	@Override
+	public void setBoolean(ConfigOption<Boolean> key, boolean value) {
+		this.backingConfig.setBoolean(prefix + key.key(), value);
 	}
 
 	@Override
@@ -119,8 +168,18 @@ public final class DelegatingConfiguration extends Configuration {
 	}
 
 	@Override
+	public float getFloat(ConfigOption<Float> configOption) {
+		return this.backingConfig.getFloat(prefixOption(configOption, prefix));
+	}
+
+	@Override
 	public void setFloat(String key, float value) {
 		this.backingConfig.setFloat(this.prefix + key, value);
+	}
+
+	@Override
+	public void setFloat(ConfigOption<Float> key, float value) {
+		this.backingConfig.setFloat(prefix + key.key(), value);
 	}
 
 	@Override
@@ -129,8 +188,18 @@ public final class DelegatingConfiguration extends Configuration {
 	}
 
 	@Override
+	public double getDouble(ConfigOption<Double> configOption) {
+		return this.backingConfig.getDouble(prefixOption(configOption, prefix));
+	}
+
+	@Override
 	public void setDouble(String key, double value) {
 		this.backingConfig.setDouble(this.prefix + key, value);
+	}
+
+	@Override
+	public void setDouble(ConfigOption<Double> key, double value) {
+		this.backingConfig.setDouble(prefix + key.key(), value);
 	}
 
 	@Override
@@ -141,6 +210,11 @@ public final class DelegatingConfiguration extends Configuration {
 	@Override
 	public void setBytes(final String key, final byte[] bytes) {
 		this.backingConfig.setBytes(this.prefix + key, bytes);
+	}
+
+	@Override
+	public String getValue(ConfigOption<?> configOption) {
+		return this.backingConfig.getValue(prefixOption(configOption, prefix));
 	}
 
 	@Override
@@ -195,6 +269,27 @@ public final class DelegatingConfiguration extends Configuration {
 		return set;
 	}
 
+	@Override
+	public Configuration clone() {
+		return new DelegatingConfiguration(backingConfig.clone(), prefix);
+	}
+
+	@Override
+	public Map<String, String> toMap() {
+		Map<String, String> map = backingConfig.toMap();
+		Map<String, String> prefixed = new HashMap<>(map.size());
+		for (Map.Entry<String, String> entry : map.entrySet()) {
+			prefixed.put(prefix + entry.getKey(), entry.getValue());
+		}
+
+		return prefixed; 
+	}
+
+	@Override
+	public boolean containsKey(String key) {
+		return backingConfig.containsKey(prefix + key);
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -224,5 +319,24 @@ public final class DelegatingConfiguration extends Configuration {
 		} else {
 			return false;
 		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static <T> ConfigOption<T> prefixOption(ConfigOption<T> option, String prefix) {
+		String key = prefix + option.key();
+
+		List<String> deprecatedKeys;
+		if (option.hasDeprecatedKeys()) {
+			deprecatedKeys = new ArrayList<>();
+			for (String dk : option.deprecatedKeys()) {
+				deprecatedKeys.add(prefix + dk);
+			}
+		} else {
+			deprecatedKeys = Collections.emptyList();
+		}
+
+		String[] deprecated = deprecatedKeys.toArray(new String[deprecatedKeys.size()]);
+		return new ConfigOption<T>(key, option.defaultValue(), deprecated);
 	}
 }
