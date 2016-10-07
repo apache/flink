@@ -45,7 +45,7 @@ abstract class SumAggregate[T: Numeric]
     }
   }
 
-  override def evaluate(buffer: Row, context: AggContext): T = {
+  override def evaluate(buffer: Row): T = {
     buffer.productElement(sumIndex).asInstanceOf[T]
   }
 
@@ -111,7 +111,7 @@ class DecimalSumAggregate extends Aggregate[BigDecimal] {
     }
   }
 
-  override def evaluate(buffer: Row, context: AggContext): BigDecimal = {
+  override def evaluate(buffer: Row): BigDecimal = {
     buffer.productElement(sumIndex).asInstanceOf[BigDecimal]
   }
 

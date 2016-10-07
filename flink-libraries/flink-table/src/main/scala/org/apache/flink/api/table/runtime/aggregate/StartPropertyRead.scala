@@ -18,13 +18,21 @@
 
 package org.apache.flink.api.table.runtime.aggregate
 
-import org.apache.flink.streaming.api.windowing.windows.Window
+import java.sql.Timestamp
 
-/**
-  * Context that aggregates can access during evaluation.
-  */
-class AggContext {
+import org.apache.calcite.runtime.SqlFunctions
+import org.apache.flink.streaming.api.windowing.windows.{TimeWindow, Window}
 
-  var window: Option[Window] = None
+class StartPropertyRead extends PropertyRead[Timestamp] {
 
+  private var ts: Timestamp = _
+
+  override def extract(window: Window): Unit = window match {
+    case timeWindow: TimeWindow =>
+      ts = SqlFunctions.internalToTimestamp(timeWindow.getStart)
+    case _ =>
+      ts = null
+  }
+
+  override def get(): Timestamp = ts
 }

@@ -76,7 +76,7 @@ abstract class MaxAggregate[T](implicit ord: Ordering[T]) extends Aggregate[T] {
    * @param buffer
    * @return
    */
-  override def evaluate(buffer: Row, context: AggContext): T = {
+  override def evaluate(buffer: Row): T = {
     buffer.productElement(maxIndex).asInstanceOf[T]
   }
 
@@ -160,7 +160,7 @@ class DecimalMaxAggregate extends Aggregate[BigDecimal] {
     }
   }
 
-  override def evaluate(buffer: Row, context: AggContext): BigDecimal = {
+  override def evaluate(buffer: Row): BigDecimal = {
     buffer.productElement(minIndex).asInstanceOf[BigDecimal]
   }
 

@@ -49,6 +49,18 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
       .window(Session withGap 100.milli as 'string)
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testInvalidWindowProperty(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val data = new mutable.MutableList[(Long, Int, String)]
+    val stream = env.fromCollection(data)
+    val table = stream.toTable(tEnv, 'long, 'int, 'string)
+
+    table
+      .groupBy('string)
+      .select('string, 'string.start) // property in non windowed table
+  }
 
   @Test(expected = classOf[TableException])
   def testInvalidRowtime1(): Unit = {

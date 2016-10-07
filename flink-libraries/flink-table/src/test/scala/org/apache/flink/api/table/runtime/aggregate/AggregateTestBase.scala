@@ -104,7 +104,7 @@ abstract class AggregateTestBase[T] {
     agg.initiate(aggBuf)
     rows.foreach(v => agg.merge(v, aggBuf))
 
-    agg.evaluate(partialAgg(rows), new AggContext)
+    agg.evaluate(partialAgg(rows))
   }
 
 }

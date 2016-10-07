@@ -22,14 +22,15 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.api.table.expressions.{Expression, Literal}
+import org.apache.flink.api.table.FlinkRelBuilder.NamedProperty
+import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.plan.nodes.FlinkAggregate
-import org.apache.flink.api.table.plan.nodes.datastream.DataStreamAggregate.{createKeyedWindowedStream, createNonKeyedWindowedStream}
+import org.apache.flink.api.table.plan.nodes.datastream.DataStreamAggregate.{createKeyedWindowedStream, createNonKeyedWindowedStream, transformToPropertyReads}
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil._
-import org.apache.flink.api.table.runtime.aggregate.{AggregateAllWindowFunction, AggregateUtil, AggregateWindowFunction}
+import org.apache.flink.api.table.runtime.aggregate._
 import org.apache.flink.api.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.api.table.typeutils.{RowIntervalTypeInfo, RowTypeInfo, TimeIntervalTypeInfo, TypeConverter}
 import org.apache.flink.api.table.{FlinkTypeFactory, Row, StreamTableEnvironment}
@@ -42,6 +43,7 @@ import scala.collection.JavaConverters._
 
 class DataStreamAggregate(
     window: LogicalWindow,
+    namedProperties: Seq[NamedProperty],
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputNode: RelNode,
@@ -58,6 +60,7 @@ class DataStreamAggregate(
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamAggregate(
       window,
+      namedProperties,
       cluster,
       traitSet,
       inputs.get(0),
@@ -68,24 +71,40 @@ class DataStreamAggregate(
   }
 
   override def toString: String = {
-    s"Aggregate(${ if (!grouping.isEmpty) {
-      s"groupBy: (${groupingToString(inputType, grouping)}), "
-    } else {
-      ""
-    }}window: ($window), " +
-      s"select: (${aggregationToString(inputType, grouping, getRowType, namedAggregates)}))"
+    s"Aggregate(${
+      if (!grouping.isEmpty) {
+        s"groupBy: (${groupingToString(inputType, grouping)}), "
+      } else {
+        ""
+      }
+    }window: ($window), " +
+      s"select: (${
+        aggregationToString(
+          inputType,
+          grouping,
+          getRowType,
+          namedAggregates,
+          namedProperties)
+      }))"
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .itemIf("groupBy", groupingToString(inputType, grouping), !grouping.isEmpty)
       .item("window", window)
-      .item("select", aggregationToString(inputType, grouping, getRowType, namedAggregates))
+      .item("select", aggregationToString(
+        inputType,
+        grouping,
+        getRowType,
+        namedAggregates,
+        namedProperties))
   }
 
   override def translateToPlan(
       tableEnv: StreamTableEnvironment,
-      expectedType: Option[TypeInformation[Any]]): DataStream[Any] = {
+      expectedType: Option[TypeInformation[Any]])
+    : DataStream[Any] = {
+    
     val config = tableEnv.getConfig
 
     val groupingKeys = grouping.indices.toArray
@@ -94,8 +113,9 @@ class DataStreamAggregate(
       namedAggregates,
       inputType,
       getRowType,
-      grouping,
-      config)
+      grouping)
+
+    val propertyReads = transformToPropertyReads(namedProperties.map(_.property))
 
     val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(
       tableEnv,
@@ -104,10 +124,16 @@ class DataStreamAggregate(
 
     // get the output types
     val fieldTypes: Array[TypeInformation[_]] = getRowType.getFieldList.asScala
-    .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
-    .toArray
+      .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
+      .toArray
 
-    val aggString = aggregationToString(inputType, grouping, getRowType, namedAggregates)
+    val aggString = aggregationToString(
+      inputType,
+      grouping,
+      getRowType,
+      namedAggregates,
+      namedProperties)
+
     val prepareOpName = s"prepare select: ($aggString)"
     val mappedInput = inputDS
       .map(aggregateResult._1)
@@ -122,32 +148,32 @@ class DataStreamAggregate(
         val aggOpName = s"groupBy: (${groupingToString(inputType, grouping)}), " +
           s"window: ($window), " +
           s"select: ($aggString)"
-        val aggregateFunction = new AggregateWindowFunction(groupReduceFunction)
+        val aggregateFunction = new AggregateWindowFunction(propertyReads, groupReduceFunction)
 
         val keyedStream = mappedInput.keyBy(groupingKeys: _*)
 
         val windowedStream = createKeyedWindowedStream(window, keyedStream)
           .asInstanceOf[WindowedStream[Row, Tuple, DataStreamWindow]]
 
-          windowedStream
-            .apply(aggregateFunction)
-            .returns(rowTypeInfo)
-            .name(aggOpName)
-            .asInstanceOf[DataStream[Any]]
+        windowedStream
+          .apply(aggregateFunction)
+          .returns(rowTypeInfo)
+          .name(aggOpName)
+          .asInstanceOf[DataStream[Any]]
       }
       // global / non-keyed aggregation
       else {
         val aggOpName = s"window: ($window), select: ($aggString)"
-        val aggregateFunction = new AggregateAllWindowFunction(groupReduceFunction)
+        val aggregateFunction = new AggregateAllWindowFunction(propertyReads, groupReduceFunction)
 
         val windowedStream = createNonKeyedWindowedStream(window, mappedInput)
           .asInstanceOf[AllWindowedStream[Row, DataStreamWindow]]
 
         windowedStream
-            .apply(aggregateFunction)
-            .returns(rowTypeInfo)
-            .name(aggOpName)
-            .asInstanceOf[DataStream[Any]]
+          .apply(aggregateFunction)
+          .returns(rowTypeInfo)
+          .name(aggOpName)
+          .asInstanceOf[DataStream[Any]]
       }
     }
 
@@ -163,14 +189,19 @@ class DataStreamAggregate(
           conversionOperatorName = "DataStreamAggregateConversion",
           fieldNames = getRowType.getFieldNames.asScala
         ))
-        .name(mapName)
+          .name(mapName)
       case _ => result
     }
   }
-
 }
 
 object DataStreamAggregate {
+
+  private def transformToPropertyReads(namedProperties: Seq[Property])
+    : Array[PropertyRead[_ <: Any]] =  namedProperties.map {
+      case WindowStart(_) => new StartPropertyRead()
+      case WindowEnd(_) => new EndPropertyRead()
+    }.toArray
 
   private def createKeyedWindowedStream(groupWindow: LogicalWindow, stream: KeyedStream[Row, Tuple])
     : WindowedStream[Row, Tuple, _ <: DataStreamWindow] = groupWindow match {

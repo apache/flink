@@ -27,9 +27,8 @@ import org.apache.calcite.sql.`type`.{SqlTypeFactoryImpl, SqlTypeName}
 import org.apache.calcite.sql.fun._
 import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.expressions.WindowProperty
 import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{FlinkTypeFactory, Row, TableConfig, TableException}
+import org.apache.flink.api.table.{FlinkTypeFactory, Row, TableException}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
@@ -62,10 +61,12 @@ object AggregateUtil {
    * }}}
    *
    */
-  def createOperatorFunctionsForAggregates(namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-      inputType: RelDataType, outputType: RelDataType,
-      groupings: Array[Int],
-      config: TableConfig): (MapFunction[Any, Row], RichGroupReduceFunction[Row, Row] ) = {
+  def createOperatorFunctionsForAggregates(
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupings: Array[Int])
+    : (MapFunction[Any, Row], RichGroupReduceFunction[Row, Row]) = {
 
     val aggregateFunctionsAndFieldIndexes =
       transformToAggregateFunctions(namedAggregates.map(_.getKey), inputType, groupings.length)
@@ -99,12 +100,20 @@ object AggregateUtil {
 
     val reduceGroupFunction =
       if (allPartialAggregate) {
-        new AggregateReduceCombineFunction(aggregates, groupingOffsetMapping,
-          aggOffsetMapping, intermediateRowArity)
+        new AggregateReduceCombineFunction(
+          aggregates,
+          groupingOffsetMapping,
+          aggOffsetMapping,
+          intermediateRowArity,
+          outputType.getFieldCount)
       }
       else {
-        new AggregateReduceGroupFunction(aggregates, groupingOffsetMapping,
-          aggOffsetMapping, intermediateRowArity)
+        new AggregateReduceGroupFunction(
+          aggregates,
+          groupingOffsetMapping,
+          aggOffsetMapping,
+          intermediateRowArity,
+          outputType.getFieldCount)
       }
 
     (mapFunction, reduceGroupFunction)
@@ -228,10 +237,6 @@ object AggregateUtil {
         }
         case _: SqlCountAggFunction =>
           aggregates(index) = new CountAggregate
-        case _: WindowProperty.WindowStartSqlAggFunction =>
-          aggregates(index) = new WindowPropertyAggregate(true)
-        case _: WindowProperty.WindowEndSqlAggFunction =>
-          aggregates(index) = new WindowPropertyAggregate(false)
         case unSupported: SqlAggFunction =>
           throw new TableException("unsupported Function: " + unSupported.getName)
       }

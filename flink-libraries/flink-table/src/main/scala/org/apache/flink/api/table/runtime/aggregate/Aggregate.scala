@@ -70,10 +70,9 @@ trait Aggregate[T] extends Serializable {
     * Calculate the final aggregated result based on aggregate buffer.
     *
     * @param buffer The aggregate buffer from which the final aggregate is computed.
-    * @param context Additional context information such as window metadata.
     * @return The final result of the aggregate.
     */
-  def evaluate(buffer: Row, context: AggContext): T
+  def evaluate(buffer: Row): T
 
   /**
     * Intermediate aggregate value types.

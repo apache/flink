@@ -34,7 +34,7 @@ class CountAggregate extends Aggregate[Long] {
     buffer.setField(countIndex, partialCount + bufferCount)
   }
 
-  override def evaluate(buffer: Row, context: AggContext): Long = {
+  override def evaluate(buffer: Row): Long = {
     buffer.productElement(countIndex).asInstanceOf[Long]
   }
 

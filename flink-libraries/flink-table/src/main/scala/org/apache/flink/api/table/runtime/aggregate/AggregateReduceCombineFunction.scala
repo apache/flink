@@ -43,27 +43,18 @@ class AggregateReduceCombineFunction(
     private val aggregates: Array[Aggregate[_ <: Any]],
     private val groupKeysMapping: Array[(Int, Int)],
     private val aggregateMapping: Array[(Int, Int)],
-    private val intermediateRowArity: Int)
+    private val intermediateRowArity: Int,
+    private val finalRowArity: Int)
     extends RichGroupReduceFunction[Row, Row] with CombineFunction[Row, Row] {
 
   private var aggregateBuffer: Row = _
   private var output: Row = _
-  private var aggContext: AggContext = _
-
-  /**
-    * Sets a new aggregation context used for [[Aggregate.evaluate()]].
-    */
-  def setAggContext(aggContext: AggContext): Unit = {
-    this.aggContext = aggContext
-  }
 
   override def open(config: Configuration): Unit = {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(groupKeysMapping)
-    val finalRowLength: Int = groupKeysMapping.length + aggregateMapping.length
     aggregateBuffer = new Row(intermediateRowArity)
-    output = new Row(finalRowLength)
-    aggContext = new AggContext
+    output = new Row(finalRowArity)
   }
 
   /**
@@ -96,7 +87,7 @@ class AggregateReduceCombineFunction(
     // Evaluate final aggregate value and set to output.
     aggregateMapping.foreach {
       case (after, previous) =>
-        output.setField(after, aggregates(previous).evaluate(aggregateBuffer, aggContext))
+        output.setField(after, aggregates(previous).evaluate(aggregateBuffer))
     }
 
     out.collect(output)

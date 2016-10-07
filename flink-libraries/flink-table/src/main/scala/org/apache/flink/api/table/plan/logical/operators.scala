@@ -506,12 +506,13 @@ case class LogicalRelNode(
 case class WindowAggregate(
     groupingExpressions: Seq[Expression],
     window: LogicalWindow,
+    propertyExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[NamedExpression],
     child: LogicalNode)
   extends UnaryNode {
 
   override def output: Seq[Attribute] = {
-    (groupingExpressions ++ aggregateExpressions) map {
+    (groupingExpressions ++ aggregateExpressions ++ propertyExpressions) map {
       case ne: NamedExpression => ne.toAttribute
       case e => Alias(e, e.toString).toAttribute
     }
@@ -548,6 +549,10 @@ case class WindowAggregate(
     flinkRelBuilder.aggregate(
       window,
       relBuilder.groupKey(groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
+      propertyExpressions.map {
+        case Alias(prop: Property, name) => prop.toNamedProperty(name)(relBuilder)
+        case _ => throw new RuntimeException("This should never happen.")
+      },
       aggregateExpressions.map {
         case Alias(agg: Aggregation, name) => agg.toAggCall(name)(relBuilder)
         case _ => throw new RuntimeException("This should never happen.")

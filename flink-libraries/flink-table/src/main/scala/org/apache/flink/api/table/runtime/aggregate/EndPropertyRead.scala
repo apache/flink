@@ -15,43 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.table.runtime.aggregate
 
 import java.sql.Timestamp
 
 import org.apache.calcite.runtime.SqlFunctions
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.table.Row
 import org.apache.flink.streaming.api.windowing.windows.{TimeWindow, Window}
 
-class WindowPropertyAggregate(start: Boolean) extends Aggregate[Timestamp] {
+class EndPropertyRead extends PropertyRead[Timestamp] {
 
-  override def initiate(intermediate: Row): Unit = {
-    // nothing to do here
+  private var ts: Timestamp = _
+
+  override def extract(window: Window): Unit = window match {
+    case timeWindow: TimeWindow =>
+      ts = SqlFunctions.internalToTimestamp(timeWindow.getEnd)
+    case _ =>
+      ts = null
   }
 
-  override def merge(intermediate: Row, buffer: Row): Unit = {
-    // nothing to do here
-  }
-
-  override def evaluate(buffer: Row, context: AggContext): Timestamp = {
-    context.window match {
-      case Some(timeWindow: TimeWindow) =>
-        val ts = if (start) timeWindow.getStart else timeWindow.getEnd
-        SqlFunctions.internalToTimestamp(ts)
-      case _ => null
-    }
-  }
-
-  override def prepare(value: Any, intermediate: Row): Unit = {
-    // nothing to do here
-  }
-
-  override def intermediateDataType = Array()
-
-  override def supportPartial: Boolean = true
-
-  override def setAggOffsetInRow(aggIndex: Int): Unit = {
-    // nothing to do here
-  }
+  override def get(): Timestamp = ts
 }

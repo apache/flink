@@ -21,13 +21,17 @@ package org.apache.flink.api.table.plan.logical.rel
 import java.util
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.{RelNode, RelShuttle}
 import org.apache.calcite.util.ImmutableBitSet
+import org.apache.flink.api.table.FlinkRelBuilder.NamedProperty
+import org.apache.flink.api.table.FlinkTypeFactory
 import org.apache.flink.api.table.plan.logical.LogicalWindow
 
 class LogicalWindowAggregate(
     window: LogicalWindow,
+    namedProperties: Seq[NamedProperty],
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     child: RelNode,
@@ -46,15 +50,20 @@ class LogicalWindowAggregate(
 
   def getWindow = window
 
+  def getNamedProperties = namedProperties
+
   override def copy(
-    traitSet: RelTraitSet,
-    input: RelNode,
-    indicator: Boolean,
-    groupSet: ImmutableBitSet,
-    groupSets: util.List[ImmutableBitSet],
-    aggCalls: util.List[AggregateCall]): Aggregate = {
+      traitSet: RelTraitSet,
+      input: RelNode,
+      indicator: Boolean,
+      groupSet: ImmutableBitSet,
+      groupSets: util.List[ImmutableBitSet],
+      aggCalls: util.List[AggregateCall])
+    : Aggregate = {
+
     new LogicalWindowAggregate(
       window,
+      namedProperties,
       cluster,
       traitSet,
       input,
@@ -65,15 +74,35 @@ class LogicalWindowAggregate(
   }
 
   override def accept(shuttle: RelShuttle): RelNode = shuttle.visit(this)
+
+  override def deriveRowType(): RelDataType = {
+    val aggregateRowType = super.deriveRowType()
+    val typeFactory = getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    val builder = typeFactory.builder
+    builder.addAll(aggregateRowType.getFieldList)
+    namedProperties.foreach { namedProp =>
+      builder.add(
+        namedProp.name,
+        typeFactory.createTypeFromTypeInfo(namedProp.property.resultType)
+      )
+    }
+    builder.build()
+  }
 }
 
 object LogicalWindowAggregate {
 
-  def create(window: LogicalWindow, aggregate: Aggregate): LogicalWindowAggregate = {
+  def create(
+      window: LogicalWindow,
+      namedProperties: Seq[NamedProperty],
+      aggregate: Aggregate)
+    : LogicalWindowAggregate = {
+
     val cluster: RelOptCluster = aggregate.getCluster
     val traitSet: RelTraitSet = cluster.traitSetOf(Convention.NONE)
     new LogicalWindowAggregate(
       window,
+      namedProperties,
       cluster,
       traitSet,
       aggregate.getInput,

@@ -62,7 +62,7 @@ abstract class IntegralAvgAggregate[T] extends AvgAggregate[T] {
     buffer.setField(partialCountIndex, LongMath.checkedAdd(partialCount, bufferCount))
   }
 
-  override def evaluate(buffer: Row, context: AggContext): T = {
+  override def evaluate(buffer: Row): T = {
     doEvaluate(buffer).asInstanceOf[T]
   }
 
@@ -203,7 +203,7 @@ abstract class FloatingAvgAggregate[T: Numeric] extends AvgAggregate[T] {
     buffer.setField(partialCountIndex, partialCount + bufferCount)
   }
 
-  override def evaluate(buffer: Row, context: AggContext): T = {
+  override def evaluate(buffer: Row): T = {
     doEvaluate(buffer).asInstanceOf[T]
   }
 
@@ -285,7 +285,7 @@ class DecimalAvgAggregate extends AvgAggregate[BigDecimal] {
     buffer.setField(partialCountIndex, LongMath.checkedAdd(partialCount, bufferCount))
   }
 
-  override def evaluate(buffer: Row, context: AggContext): BigDecimal = {
+  override def evaluate(buffer: Row): BigDecimal = {
     val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
     if (bufferCount != 0) {
       val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[BigDecimal]

@@ -66,13 +66,13 @@ class DataSetAggregate(
       s"groupBy: (${groupingToString(inputType, grouping)}), "
     } else {
       ""
-    }}select: (${aggregationToString(inputType, grouping, getRowType, namedAggregates)}))"
+    }}select: (${aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)}))"
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .itemIf("groupBy", groupingToString(inputType, grouping), !grouping.isEmpty)
-      .item("select", aggregationToString(inputType, grouping, getRowType, namedAggregates))
+      .item("select", aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil))
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -92,8 +92,11 @@ class DataSetAggregate(
 
     val groupingKeys = grouping.indices.toArray
     // add grouping fields, position keys in the input, and input type
-    val aggregateResult = AggregateUtil.createOperatorFunctionsForAggregates(namedAggregates,
-      inputType, getRowType, grouping, config)
+    val aggregateResult = AggregateUtil.createOperatorFunctionsForAggregates(
+      namedAggregates,
+      inputType,
+      getRowType,
+      grouping)
 
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(
       tableEnv,
@@ -105,7 +108,7 @@ class DataSetAggregate(
     .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
     .toArray
 
-    val aggString = aggregationToString(inputType, grouping, getRowType, namedAggregates)
+    val aggString = aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)
     val prepareOpName = s"prepare select: ($aggString)"
     val mappedInput = inputDS
       .map(aggregateResult._1)

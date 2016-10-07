@@ -22,6 +22,7 @@ import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTrait
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.api.table.TableException
+import org.apache.flink.api.table.expressions.Alias
 import org.apache.flink.api.table.plan.logical.rel.LogicalWindowAggregate
 import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamAggregate, DataStreamConvention}
 
@@ -60,6 +61,7 @@ class DataStreamAggregateRule
 
     new DataStreamAggregate(
       agg.getWindow,
+      agg.getNamedProperties,
       rel.getCluster,
       traitSet,
       convInput,
