@@ -50,6 +50,12 @@ public abstract class QueryScopeInfo {
      */
 	public abstract byte getCategory();
 
+	protected String concatScopes(String additionalScope) {
+		return scope.isEmpty()
+			? additionalScope
+			: scope + "." + additionalScope;
+	}
+
 	/**
 	 * Container for the job manager scope. Stores no additional information.
      */
@@ -64,7 +70,7 @@ public abstract class QueryScopeInfo {
 
 		@Override
 		public JobManagerQueryScopeInfo copy(String additionalScope) {
-			return new JobManagerQueryScopeInfo(this.scope + additionalScope);
+			return new JobManagerQueryScopeInfo(concatScopes(additionalScope));
 		}
 
 		@Override
@@ -90,7 +96,7 @@ public abstract class QueryScopeInfo {
 
 		@Override
 		public TaskManagerQueryScopeInfo copy(String additionalScope) {
-			return new TaskManagerQueryScopeInfo(this.taskManagerID, this.scope + additionalScope);
+			return new TaskManagerQueryScopeInfo(this.taskManagerID, concatScopes(additionalScope));
 		}
 
 		@Override
@@ -116,7 +122,7 @@ public abstract class QueryScopeInfo {
 
 		@Override
 		public JobQueryScopeInfo copy(String additionalScope) {
-			return new JobQueryScopeInfo(this.jobID, this.scope + additionalScope);
+			return new JobQueryScopeInfo(this.jobID, concatScopes(additionalScope));
 		}
 
 		@Override
@@ -146,7 +152,7 @@ public abstract class QueryScopeInfo {
 
 		@Override
 		public TaskQueryScopeInfo copy(String additionalScope) {
-			return new TaskQueryScopeInfo(this.jobID, this.vertexID, this.subtaskIndex, this.scope + additionalScope);
+			return new TaskQueryScopeInfo(this.jobID, this.vertexID, this.subtaskIndex, concatScopes(additionalScope));
 		}
 
 		@Override
@@ -178,7 +184,7 @@ public abstract class QueryScopeInfo {
 
 		@Override
 		public OperatorQueryScopeInfo copy(String additionalScope) {
-			return new OperatorQueryScopeInfo(this.jobID, this.vertexID, this.subtaskIndex, this.operatorName, this.scope + additionalScope);
+			return new OperatorQueryScopeInfo(this.jobID, this.vertexID, this.subtaskIndex, this.operatorName, concatScopes(additionalScope));
 		}
 
 		@Override
