@@ -249,7 +249,7 @@ public class RemoteInputChannelTest {
 				partitionId,
 				mock(ConnectionID.class),
 				connectionManager,
-				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+				new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 
 		ch.onFailedPartitionRequest();
 
@@ -269,7 +269,7 @@ public class RemoteInputChannelTest {
 				new ResultPartitionID(),
 				mock(ConnectionID.class),
 				connManager,
-				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+				new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 
 		ch.onError(new ProducerFailedException(new RuntimeException("Expected test exception.")));
 
@@ -306,6 +306,6 @@ public class RemoteInputChannelTest {
 			connectionManager,
 			initialAndMaxRequestBackoff._1(),
 			initialAndMaxRequestBackoff._2(),
-			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 	}
 }

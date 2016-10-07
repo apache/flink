@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -81,7 +81,7 @@ public class RemoteInputChannel extends InputChannel {
 			ResultPartitionID partitionId,
 			ConnectionID connectionId,
 			ConnectionManager connectionManager,
-			IOMetricGroup metrics) {
+			TaskIOMetricGroup metrics) {
 
 		this(inputGate, channelIndex, partitionId, connectionId, connectionManager,
 				0, 0, metrics);
@@ -95,7 +95,7 @@ public class RemoteInputChannel extends InputChannel {
 			ConnectionManager connectionManager,
 			int initialBackoff,
 			int maxBackoff,
-			IOMetricGroup metrics) {
+			TaskIOMetricGroup metrics) {
 
 		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInRemoteCounter());
 

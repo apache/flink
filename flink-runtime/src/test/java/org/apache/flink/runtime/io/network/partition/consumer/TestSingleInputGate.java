@@ -67,7 +67,7 @@ public class TestSingleInputGate {
 			0,
 			numberOfInputChannels,
 			mock(TaskActions.class),
-			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 
 		this.inputGate = spy(realGate);
 
