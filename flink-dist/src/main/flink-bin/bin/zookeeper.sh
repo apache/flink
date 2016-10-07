@@ -18,7 +18,7 @@
 ################################################################################
 
 # Start/stop a ZooKeeper quorum peer.
-USAGE="Usage: zookeeper.sh (start peer-id|stop|stop-all)"
+USAGE="Usage: zookeeper.sh ((start|start-foreground) peer-id)|stop|stop-all"
 
 STARTSTOP=$1
 PEER_ID=$2
@@ -34,7 +34,7 @@ if [ ! -f $ZK_CONF ]; then
     exit 1
 fi
 
-if [[ $STARTSTOP == "start" ]]; then
+if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     if [ -z $PEER_ID ]; then
         echo "[ERROR] Missing peer id argument. $USAGE."
         exit 1
@@ -53,4 +53,8 @@ if [[ $STARTSTOP == "start" ]]; then
     args=("--zkConfigFile" "${ZK_CONF}" "--peerId" "${PEER_ID}")
 fi
 
-"${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP zookeeper "${args[@]}"
+if [[ $STARTSTOP == "start-foreground" ]]; then
+    "${FLINK_BIN_DIR}"/flink-console.sh zookeeper "${args[@]}"
+else
+    "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP zookeeper "${args[@]}"
+fi
