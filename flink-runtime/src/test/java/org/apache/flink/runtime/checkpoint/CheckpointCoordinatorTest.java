@@ -135,7 +135,7 @@ public class CheckpointCoordinatorTest {
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// trigger the first checkpoint. this should not succeed
-			assertFalse(coord.triggerCheckpoint(timestamp));
+			assertFalse(coord.triggerCheckpoint(timestamp, false));
 
 			// still, nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -188,7 +188,7 @@ public class CheckpointCoordinatorTest {
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// trigger the first checkpoint. this should not succeed
-			assertFalse(coord.triggerCheckpoint(timestamp));
+			assertFalse(coord.triggerCheckpoint(timestamp, false));
 
 			// still, nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -239,7 +239,7 @@ public class CheckpointCoordinatorTest {
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// trigger the first checkpoint. this should not succeed
-			assertFalse(coord.triggerCheckpoint(timestamp));
+			assertFalse(coord.triggerCheckpoint(timestamp, false));
 
 			// still, nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -290,7 +290,7 @@ public class CheckpointCoordinatorTest {
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// trigger the first checkpoint. this should succeed
-			assertTrue(coord.triggerCheckpoint(timestamp));
+			assertTrue(coord.triggerCheckpoint(timestamp, false));
 
 			// validate that we have a pending checkpoint
 			assertEquals(1, coord.getNumberOfPendingCheckpoints());
@@ -417,10 +417,10 @@ public class CheckpointCoordinatorTest {
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// trigger the first checkpoint. this should succeed
-			assertTrue(coord.triggerCheckpoint(timestamp));
+			assertTrue(coord.triggerCheckpoint(timestamp, false));
 
 			// trigger second checkpoint, should also succeed
-			assertTrue(coord.triggerCheckpoint(timestamp + 2));
+			assertTrue(coord.triggerCheckpoint(timestamp + 2, false));
 
 			// validate that we have a pending checkpoint
 			assertEquals(2, coord.getNumberOfPendingCheckpoints());
@@ -538,7 +538,7 @@ public class CheckpointCoordinatorTest {
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// trigger the first checkpoint. this should succeed
-			assertTrue(coord.triggerCheckpoint(timestamp));
+			assertTrue(coord.triggerCheckpoint(timestamp, false));
 
 			// validate that we have a pending checkpoint
 			assertEquals(1, coord.getNumberOfPendingCheckpoints());
@@ -608,7 +608,7 @@ public class CheckpointCoordinatorTest {
 			// trigger another checkpoint and see that this one replaces the other checkpoint
 			// ---------------
 			final long timestampNew = timestamp + 7;
-			coord.triggerCheckpoint(timestampNew);
+			coord.triggerCheckpoint(timestampNew, false);
 
 			long checkpointIdNew = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
 			CheckpointMetaData checkpointMetaDataNew = new CheckpointMetaData(checkpointIdNew, 0L);
@@ -692,7 +692,7 @@ public class CheckpointCoordinatorTest {
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// trigger the first checkpoint. this should succeed
-			assertTrue(coord.triggerCheckpoint(timestamp1));
+			assertTrue(coord.triggerCheckpoint(timestamp1, false));
 
 			assertEquals(1, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -713,7 +713,7 @@ public class CheckpointCoordinatorTest {
 
 			// start the second checkpoint
 			// trigger the first checkpoint. this should succeed
-			assertTrue(coord.triggerCheckpoint(timestamp2));
+			assertTrue(coord.triggerCheckpoint(timestamp2, false));
 
 			assertEquals(2, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -832,7 +832,7 @@ public class CheckpointCoordinatorTest {
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// trigger the first checkpoint. this should succeed
-			assertTrue(coord.triggerCheckpoint(timestamp1));
+			assertTrue(coord.triggerCheckpoint(timestamp1, false));
 
 			assertEquals(1, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -853,7 +853,7 @@ public class CheckpointCoordinatorTest {
 
 			// start the second checkpoint
 			// trigger the first checkpoint. this should succeed
-			assertTrue(coord.triggerCheckpoint(timestamp2));
+			assertTrue(coord.triggerCheckpoint(timestamp2, false));
 
 			assertEquals(2, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -955,7 +955,7 @@ public class CheckpointCoordinatorTest {
 					new DisabledCheckpointStatsTracker());
 
 			// trigger a checkpoint, partially acknowledged
-			assertTrue(coord.triggerCheckpoint(timestamp));
+			assertTrue(coord.triggerCheckpoint(timestamp, false));
 			assertEquals(1, coord.getNumberOfPendingCheckpoints());
 
 			PendingCheckpoint checkpoint = coord.getPendingCheckpoints().values().iterator().next();
@@ -1023,7 +1023,7 @@ public class CheckpointCoordinatorTest {
 					null,
 					new DisabledCheckpointStatsTracker());
 
-			assertTrue(coord.triggerCheckpoint(timestamp));
+			assertTrue(coord.triggerCheckpoint(timestamp, false));
 
 			long checkpointId = coord.getPendingCheckpoints().keySet().iterator().next();
 
@@ -1431,10 +1431,10 @@ public class CheckpointCoordinatorTest {
 		CheckpointMetaData checkpointMetaDataS1 = new CheckpointMetaData(savepointId1, 0L);
 		assertEquals(1, coord.getNumberOfPendingCheckpoints());
 
-		assertTrue(coord.triggerCheckpoint(timestamp + 1));
+		assertTrue(coord.triggerCheckpoint(timestamp + 1, false));
 		assertEquals(2, coord.getNumberOfPendingCheckpoints());
 
-		assertTrue(coord.triggerCheckpoint(timestamp + 2));
+		assertTrue(coord.triggerCheckpoint(timestamp + 2, false));
 		long checkpointId2 = counter.getLast();
 		assertEquals(3, coord.getNumberOfPendingCheckpoints());
 
@@ -1450,7 +1450,7 @@ public class CheckpointCoordinatorTest {
 		assertFalse(coord.getPendingCheckpoints().get(savepointId1).isDiscarded());
 		assertFalse(savepointFuture1.isDone());
 
-		assertTrue(coord.triggerCheckpoint(timestamp + 3));
+		assertTrue(coord.triggerCheckpoint(timestamp + 3, false));
 		assertEquals(2, coord.getNumberOfPendingCheckpoints());
 
 		Future<CompletedCheckpoint> savepointFuture2 = coord.triggerSavepoint(timestamp + 4, savepointDir);
@@ -1841,7 +1841,7 @@ public class CheckpointCoordinatorTest {
 				new DisabledCheckpointStatsTracker());
 
 		// trigger the checkpoint
-		coord.triggerCheckpoint(timestamp);
+		coord.triggerCheckpoint(timestamp, false);
 
 		assertTrue(coord.getPendingCheckpoints().keySet().size() == 1);
 		long checkpointId = Iterables.getOnlyElement(coord.getPendingCheckpoints().keySet());
@@ -1946,7 +1946,7 @@ public class CheckpointCoordinatorTest {
 				new DisabledCheckpointStatsTracker());
 
 		// trigger the checkpoint
-		coord.triggerCheckpoint(timestamp);
+		coord.triggerCheckpoint(timestamp, false);
 
 		assertTrue(coord.getPendingCheckpoints().keySet().size() == 1);
 		long checkpointId = Iterables.getOnlyElement(coord.getPendingCheckpoints().keySet());
@@ -2061,7 +2061,7 @@ public class CheckpointCoordinatorTest {
 				new DisabledCheckpointStatsTracker());
 
 		// trigger the checkpoint
-		coord.triggerCheckpoint(timestamp);
+		coord.triggerCheckpoint(timestamp, false);
 
 		assertTrue(coord.getPendingCheckpoints().keySet().size() == 1);
 		long checkpointId = Iterables.getOnlyElement(coord.getPendingCheckpoints().keySet());
@@ -2184,7 +2184,7 @@ public class CheckpointCoordinatorTest {
 				new DisabledCheckpointStatsTracker());
 
 		// trigger the checkpoint
-		coord.triggerCheckpoint(timestamp);
+		coord.triggerCheckpoint(timestamp, false);
 
 		assertTrue(coord.getPendingCheckpoints().keySet().size() == 1);
 		long checkpointId = Iterables.getOnlyElement(coord.getPendingCheckpoints().keySet());
@@ -2298,7 +2298,7 @@ public class CheckpointCoordinatorTest {
 					"fake-directory",
 					new DisabledCheckpointStatsTracker());
 
-			assertTrue(coord.triggerCheckpoint(timestamp));
+			assertTrue(coord.triggerCheckpoint(timestamp, false));
 
 			for (PendingCheckpoint checkpoint : coord.getPendingCheckpoints().values()) {
 				CheckpointProperties props = checkpoint.getProps();
@@ -2654,6 +2654,48 @@ public class CheckpointCoordinatorTest {
 		}
 	}
 
+	@Test
+	public void testStopPeriodicScheduler() throws Exception {
+		// create some mock Execution vertices that receive the checkpoint trigger messages
+		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
+		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
+
+		// set up the coordinator and validate the initial state
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+				new JobID(),
+				600000,
+				600000,
+				0,
+				Integer.MAX_VALUE,
+				ExternalizedCheckpointSettings.none(),
+				new ExecutionVertex[] { vertex1 },
+				new ExecutionVertex[] { vertex1 },
+				new ExecutionVertex[] { vertex1 },
+				new StandaloneCheckpointIDCounter(),
+				new StandaloneCompletedCheckpointStore(1),
+				null,
+				new DisabledCheckpointStatsTracker());
+
+		// Periodic
+		CheckpointTriggerResult triggerResult = coord.triggerCheckpoint(
+				System.currentTimeMillis(),
+				CheckpointProperties.forStandardCheckpoint(),
+				null,
+				true);
+
+		assertEquals(true, triggerResult.isFailure());
+		assertEquals(CheckpointDeclineReason.PERIODIC_SCHEDULER_SHUTDOWN, triggerResult.getFailureReason());
+
+		// Not periodic
+		triggerResult = coord.triggerCheckpoint(
+				System.currentTimeMillis(),
+				CheckpointProperties.forStandardCheckpoint(),
+				null,
+				false);
+
+		assertEquals(false, triggerResult.isFailure());
+	}
+
 	private void testCreateKeyGroupPartitions(int maxParallelism, int parallelism) {
 		List<KeyGroupRange> ranges = CheckpointCoordinator.createKeyGroupPartitions(maxParallelism, parallelism);
 		for (int i = 0; i < maxParallelism; ++i) {
@@ -2663,7 +2705,6 @@ public class CheckpointCoordinatorTest {
 			}
 		}
 	}
-
 
 	@Test
 	public void testPartitionableStateRepartitioning() {
@@ -2809,7 +2850,7 @@ public class CheckpointCoordinatorTest {
 		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
 		String targetDirectory = "xjasdkjakshdmmmxna";
 
-		CheckpointTriggerResult triggerResult = coord.triggerCheckpoint(timestamp, props, targetDirectory);
+		CheckpointTriggerResult triggerResult = coord.triggerCheckpoint(timestamp, props, targetDirectory, false);
 		assertEquals(true, triggerResult.isSuccess());
 
 		// validate that we have a pending checkpoint

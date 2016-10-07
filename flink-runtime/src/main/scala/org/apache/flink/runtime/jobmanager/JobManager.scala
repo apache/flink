@@ -578,6 +578,62 @@ class JobManager(
           )
       }
 
+    case CancelJobWithSavepoint(jobId, savepointDirectory) =>
+      try {
+        val targetDirectory = if (savepointDirectory != null) {
+          savepointDirectory
+        } else {
+          defaultSavepointDir
+        }
+
+        log.info(s"Trying to cancel job $jobId with savepoint to $targetDirectory")
+
+        currentJobs.get(jobId) match {
+          case Some((executionGraph, _)) =>
+            // We don't want any checkpoint between the savepoint and cancellation
+            val coord = executionGraph.getCheckpointCoordinator
+            coord.stopCheckpointScheduler()
+
+            // Trigger the savepoint
+            val future = coord.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
+
+            val senderRef = sender()
+            future.handleAsync[Void](
+              new BiFunction[CompletedCheckpoint, Throwable, Void] {
+                override def apply(success: CompletedCheckpoint, cause: Throwable): Void = {
+                  if (success != null) {
+                    val path = success.getExternalPath()
+                    log.info(s"Savepoint stored in $path. Now cancelling $jobId.")
+                    executionGraph.cancel()
+                    senderRef ! decorateMessage(CancellationSuccess(jobId, path))
+                  } else {
+                    val msg = CancellationFailure(
+                      jobId,
+                      new Exception("Failed to trigger savepoint.", cause))
+                    senderRef ! decorateMessage(msg)
+                  }
+                  null
+                }
+              },
+              context.dispatcher)
+
+          case None =>
+            log.info(s"No job found with ID $jobId.")
+            sender ! decorateMessage(
+              CancellationFailure(
+                jobId,
+                new IllegalArgumentException(s"No job found with ID $jobId."))
+            )
+        }
+      } catch {
+        case t: Throwable =>
+          log.info(s"Failure during cancellation of job $jobId with savepoint.", t)
+          sender ! decorateMessage(
+            CancellationFailure(
+              jobId,
+              new Exception(s"Failed to cancel job $jobId with savepoint.", t)))
+      }
+
     case StopJob(jobID) =>
       log.info(s"Trying to stop job with ID $jobID.")
 

@@ -25,6 +25,8 @@ public enum CheckpointDeclineReason {
 
 	COORDINATOR_SHUTDOWN("Checkpoint coordinator is shut down."),
 
+	PERIODIC_SCHEDULER_SHUTDOWN("Periodic checkpoint scheduler is shut down."),
+
 	ALREADY_QUEUED("Another checkpoint request has already been queued."),
 
 	TOO_MANY_CONCURRENT_CHECKPOINTS("The maximum number of concurrent checkpoints is exceeded"),
