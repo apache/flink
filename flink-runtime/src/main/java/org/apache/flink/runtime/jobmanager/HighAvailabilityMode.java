@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.ConfigurationUtil;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 
 /**
  * High availability mode for Flink's cluster execution. Currently supported modes are:
@@ -43,11 +43,7 @@ public enum HighAvailabilityMode {
 	 * configured.
 	 */
 	public static HighAvailabilityMode fromConfig(Configuration config) {
-		String haMode = ConfigurationUtil.getStringWithDeprecatedKeys(
-				config,
-				ConfigConstants.HA_MODE,
-				null,
-				ConfigConstants.RECOVERY_MODE);
+		String haMode = config.getValue(HighAvailabilityOptions.HA_MODE);
 
 		if (haMode == null) {
 			return HighAvailabilityMode.NONE;
