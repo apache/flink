@@ -22,7 +22,7 @@ package org.apache.flink.runtime.io.network.api.serialization;
 import java.io.IOException;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
@@ -76,5 +76,5 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	 *
 	 * @param metrics metric group
 	 */
-	void instantiateMetrics(IOMetricGroup metrics);
+	void instantiateMetrics(TaskIOMetricGroup metrics);
 }
