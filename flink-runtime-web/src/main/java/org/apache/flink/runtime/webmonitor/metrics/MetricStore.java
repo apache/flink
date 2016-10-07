@@ -129,11 +129,11 @@ public class MetricStore {
 		}
 	}
 
-	private void addMetric(Map<String, Object> target, String name, MetricDump metric) {
+	private void addMetric(Map<String, String> target, String name, MetricDump metric) {
 		switch (metric.getCategory()) {
 			case METRIC_CATEGORY_COUNTER:
 				MetricDump.CounterDump counter = (MetricDump.CounterDump) metric;
-				target.put(name, counter.count);
+				target.put(name, String.valueOf(counter.count));
 				break;
 			case METRIC_CATEGORY_GAUGE:
 				MetricDump.GaugeDump gauge = (MetricDump.GaugeDump) metric;
@@ -141,21 +141,21 @@ public class MetricStore {
 				break;
 			case METRIC_CATEGORY_HISTOGRAM:
 				MetricDump.HistogramDump histogram = (MetricDump.HistogramDump) metric;
-				target.put(name + "_min", histogram.min);
-				target.put(name + "_max", histogram.max);
-				target.put(name + "_mean", histogram.mean);
-				target.put(name + "_median", histogram.median);
-				target.put(name + "_stddev", histogram.stddev);
-				target.put(name + "_p75", histogram.p75);
-				target.put(name + "_p90", histogram.p90);
-				target.put(name + "_p95", histogram.p95);
-				target.put(name + "_p98", histogram.p98);
-				target.put(name + "_p99", histogram.p99);
-				target.put(name + "_p999", histogram.p999);
+				target.put(name + "_min", String.valueOf(histogram.min));
+				target.put(name + "_max", String.valueOf(histogram.max));
+				target.put(name + "_mean", String.valueOf(histogram.mean));
+				target.put(name + "_median", String.valueOf(histogram.median));
+				target.put(name + "_stddev", String.valueOf(histogram.stddev));
+				target.put(name + "_p75", String.valueOf(histogram.p75));
+				target.put(name + "_p90", String.valueOf(histogram.p90));
+				target.put(name + "_p95", String.valueOf(histogram.p95));
+				target.put(name + "_p98", String.valueOf(histogram.p98));
+				target.put(name + "_p99", String.valueOf(histogram.p99));
+				target.put(name + "_p999", String.valueOf(histogram.p999));
 				break;
 			case METRIC_CATEGORY_METER:
 				MetricDump.MeterDump meter = (MetricDump.MeterDump) metric;
-				target.put(name, meter.rate);
+				target.put(name, String.valueOf(meter.rate));
 				break;
 		}
 	}
@@ -164,21 +164,21 @@ public class MetricStore {
 	 * Sub-structure containing metrics of the JobManager.
 	 */
 	static class JobManagerMetricStore {
-		public final Map<String, Object> metrics = new HashMap<>();
+		public final Map<String, String> metrics = new HashMap<>();
 	}
 
 	/**
 	 * Sub-structure containing metrics of a single TaskManager.
 	 */
 	static class TaskManagerMetricStore {
-		public final Map<String, Object> metrics = new HashMap<>();
+		public final Map<String, String> metrics = new HashMap<>();
 	}
 
 	/**
 	 * Sub-structure containing metrics of a single Job.
 	 */
 	static class JobMetricStore {
-		public final Map<String, Object> metrics = new HashMap<>();
+		public final Map<String, String> metrics = new HashMap<>();
 		public final Map<String, TaskMetricStore> tasks = new HashMap<>();
 	}
 
@@ -186,6 +186,6 @@ public class MetricStore {
 	 * Sub-structure containing metrics of a single Task.
 	 */
 	static class TaskMetricStore {
-		public final Map<String, Object> metrics = new HashMap<>();
+		public final Map<String, String> metrics = new HashMap<>();
 	}
 }

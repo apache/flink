@@ -141,22 +141,22 @@ public class MetricFetcherTest extends TestLogger {
 		fetcher.update();
 		MetricStore store = fetcher.getMetricStore();
 		synchronized (store) {
-			assertEquals(7L, store.jobManager.metrics.get("abc.hist_min"));
-			assertEquals(6L, store.jobManager.metrics.get("abc.hist_max"));
-			assertEquals(4.0, store.jobManager.metrics.get("abc.hist_mean"));
-			assertEquals(0.5, store.jobManager.metrics.get("abc.hist_median"));
-			assertEquals(5.0, store.jobManager.metrics.get("abc.hist_stddev"));
-			assertEquals(0.75, store.jobManager.metrics.get("abc.hist_p75"));
-			assertEquals(0.9, store.jobManager.metrics.get("abc.hist_p90"));
-			assertEquals(0.95, store.jobManager.metrics.get("abc.hist_p95"));
-			assertEquals(0.98, store.jobManager.metrics.get("abc.hist_p98"));
-			assertEquals(0.99, store.jobManager.metrics.get("abc.hist_p99"));
-			assertEquals(0.999, store.jobManager.metrics.get("abc.hist_p999"));
+			assertEquals("7", store.jobManager.metrics.get("abc.hist_min"));
+			assertEquals("6", store.jobManager.metrics.get("abc.hist_max"));
+			assertEquals("4.0", store.jobManager.metrics.get("abc.hist_mean"));
+			assertEquals("0.5", store.jobManager.metrics.get("abc.hist_median"));
+			assertEquals("5.0", store.jobManager.metrics.get("abc.hist_stddev"));
+			assertEquals("0.75", store.jobManager.metrics.get("abc.hist_p75"));
+			assertEquals("0.9", store.jobManager.metrics.get("abc.hist_p90"));
+			assertEquals("0.95", store.jobManager.metrics.get("abc.hist_p95"));
+			assertEquals("0.98", store.jobManager.metrics.get("abc.hist_p98"));
+			assertEquals("0.99", store.jobManager.metrics.get("abc.hist_p99"));
+			assertEquals("0.999", store.jobManager.metrics.get("abc.hist_p999"));
 
 			assertEquals("x", store.taskManagers.get(tmID.toString()).metrics.get("abc.gauge"));
-			assertEquals(5.0, store.jobs.get(jobID.toString()).metrics.get("abc.jc"));
-			assertEquals(2L, store.jobs.get(jobID.toString()).tasks.get("taskid").metrics.get("2.abc.tc"));
-			assertEquals(1L, store.jobs.get(jobID.toString()).tasks.get("taskid").metrics.get("2.opname.abc.oc"));
+			assertEquals("5.0", store.jobs.get(jobID.toString()).metrics.get("abc.jc"));
+			assertEquals("2", store.jobs.get(jobID.toString()).tasks.get("taskid").metrics.get("2.abc.tc"));
+			assertEquals("1", store.jobs.get(jobID.toString()).tasks.get("taskid").metrics.get("2.opname.abc.oc"));
 		}
 	}
 

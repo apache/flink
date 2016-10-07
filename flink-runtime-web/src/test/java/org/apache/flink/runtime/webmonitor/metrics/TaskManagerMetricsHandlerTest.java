@@ -42,9 +42,9 @@ public class TaskManagerMetricsHandlerTest extends TestLogger {
 		Map<String, String> pathParams = new HashMap<>();
 		pathParams.put(PARAMETER_TM_ID, "tmid");
 
-		Map<String, Object> metrics = handler.getMapFor(pathParams, store);
+		Map<String, String> metrics = handler.getMapFor(pathParams, store);
 
-		assertEquals(1L, metrics.get("abc.metric2"));
+		assertEquals("1", metrics.get("abc.metric2"));
 	}
 
 	@Test
@@ -56,7 +56,7 @@ public class TaskManagerMetricsHandlerTest extends TestLogger {
 
 		Map<String, String> pathParams = new HashMap<>();
 
-		Map<String, Object> metrics = handler.getMapFor(pathParams, store);
+		Map<String, String> metrics = handler.getMapFor(pathParams, store);
 
 		assertNull(metrics);
 	}

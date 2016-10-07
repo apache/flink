@@ -38,7 +38,7 @@ public class JobMetricsHandler extends AbstractMetricsHandler {
 	}
 
 	@Override
-	protected Map<String, Object> getMapFor(Map<String, String> pathParams, MetricStore metrics) {
+	protected Map<String, String> getMapFor(Map<String, String> pathParams, MetricStore metrics) {
 		MetricStore.JobMetricStore job = metrics.jobs.get(pathParams.get(PARAMETER_JOB_ID));
 		if (job == null) {
 			return null;

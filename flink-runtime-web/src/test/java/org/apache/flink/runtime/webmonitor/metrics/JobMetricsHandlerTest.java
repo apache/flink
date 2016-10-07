@@ -42,7 +42,7 @@ public class JobMetricsHandlerTest extends TestLogger {
 		Map<String, String> pathParams = new HashMap<>();
 		pathParams.put(PARAMETER_JOB_ID, "jobid");
 
-		Map<String, Object> metrics = handler.getMapFor(pathParams, store);
+		Map<String, String> metrics = handler.getMapFor(pathParams, store);
 
 		assertEquals(2L, metrics.get("abc.metric3"));
 	}
@@ -56,7 +56,7 @@ public class JobMetricsHandlerTest extends TestLogger {
 
 		Map<String, String> pathParams = new HashMap<>();
 
-		Map<String, Object> metrics = handler.getMapFor(pathParams, store);
+		Map<String, String> metrics = handler.getMapFor(pathParams, store);
 
 		assertNull(metrics);
 	}
