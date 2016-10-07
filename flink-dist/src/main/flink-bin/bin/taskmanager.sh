@@ -18,7 +18,7 @@
 ################################################################################
 
 # Start/stop a Flink TaskManager.
-USAGE="Usage: taskmanager.sh (start|stop|stop-all)"
+USAGE="Usage: taskmanager.sh start|start-foreground|stop|stop-all)"
 
 STARTSTOP=$1
 
@@ -27,7 +27,7 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-if [[ $STARTSTOP == "start" ]]; then
+if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 
     # if memory allocation mode is lazy and no other JVM options are set,
     # set the 'Concurrent Mark Sweep GC'
@@ -96,4 +96,8 @@ if [[ $STARTSTOP == "start" ]]; then
     args=("--configDir" "${FLINK_CONF_DIR}")
 fi
 
-"${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP taskmanager "${args[@]}"
+if [[ $STARTSTOP == "start-foreground" ]]; then
+    "${FLINK_BIN_DIR}"/flink-console.sh taskmanager "${args[@]}"
+else
+    "${FLINK_BIN_DIR}/flink-daemon.sh $STARTSTOP taskmanager ${args[@]}"
+fi
