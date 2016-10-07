@@ -171,7 +171,7 @@ public class CheckpointCoordinator {
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
 			SavepointStore savepointStore,
-			CheckpointStatsTracker statsTracker) throws Exception {
+			CheckpointStatsTracker statsTracker) {
 
 		// sanity checks
 		checkArgument(baseInterval > 0, "Checkpoint timeout must be larger than zero");
@@ -207,7 +207,7 @@ public class CheckpointCoordinator {
 			// issues a blocking call to ZooKeeper.
 			checkpointIDCounter.start();
 		} catch (Throwable t) {
-			throw new Exception("Failed to start checkpoint ID counter: " + t.getMessage(), t);
+			throw new RuntimeException("Failed to start checkpoint ID counter: " + t.getMessage(), t);
 		}
 	}
 
