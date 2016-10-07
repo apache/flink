@@ -27,6 +27,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -134,7 +135,33 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			return o.toString();
 		}
 	}
-	
+
+	/**
+	 * Returns the value associated with the given config option as a string.
+	 *
+	 * @param configOption The configuration option
+	 * @return the (default) value associated with the given config option
+	 */
+	@PublicEvolving
+	public String getString(ConfigOption<String> configOption) {
+		Object o = getValueOrDefaultFromOption(configOption);
+		return o == null ? null : o.toString();
+	}
+
+	/**
+	 * Returns the value associated with the given config option as a string.
+	 * If no value is mapped under any key of the option, it returns the specified
+	 * default instead of the option's default value.
+	 *
+	 * @param configOption The configuration option
+	 * @return the (default) value associated with the given config option
+	 */
+	@PublicEvolving
+	public String getString(ConfigOption<String> configOption, String overrideDefault) {
+		Object o = getRawValueFromOption(configOption);
+		return o == null ? overrideDefault : o.toString();
+	}
+
 	/**
 	 * Adds the given key/value pair to the configuration object.
 	 * 
@@ -145,6 +172,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 */
 	public void setString(String key, String value) {
 		setValueInternal(key, value);
+	}
+
+	/**
+	 * Adds the given value to the configuration object.
+	 * The main key of the config option will be used to map the value.
+	 *
+	 * @param key
+	 *        the option specifying the key to be added
+	 * @param value
+	 *        the value of the key/value pair to be added
+	 */
+	@PublicEvolving
+	public void setString(ConfigOption<String> key, String value) {
+		setValueInternal(key.key(), value);
 	}
 
 	/**
@@ -161,28 +202,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		if (o == null) {
 			return defaultValue;
 		}
-		
-		if (o.getClass() == Integer.class) {
-			return (Integer) o;
-		}
-		else if (o.getClass() == Long.class) {
-			long value = (Long) o;
-			if (value <= Integer.MAX_VALUE && value >= Integer.MIN_VALUE) {
-				return (int) value;
-			} else {
-				LOG.warn("Configuration value {} overflows/underflows the integer type.", value);
-				return defaultValue;
-			}
-		}
-		else {
-			try {
-				return Integer.parseInt(o.toString());
-			}
-			catch (NumberFormatException e) {
-				LOG.warn("Configuration cannot evaluate value {} as an integer number", o);
-				return defaultValue;
-			}
-		}
+
+		return convertToInt(o, defaultValue);
+	}
+
+	/**
+	 * Returns the value associated with the given config option as an integer.
+	 *
+	 * @param configOption The configuration option
+	 * @return the (default) value associated with the given config option
+	 */
+	@PublicEvolving
+	public int getInteger(ConfigOption<Integer> configOption) {
+		Object o = getValueOrDefaultFromOption(configOption);
+		return convertToInt(o, configOption.defaultValue());
 	}
 
 	/**
@@ -195,6 +228,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 */
 	public void setInteger(String key, int value) {
 		setValueInternal(key, value);
+	}
+
+	/**
+	 * Adds the given value to the configuration object.
+	 * The main key of the config option will be used to map the value.
+	 *
+	 * @param key
+	 *        the option specifying the key to be added
+	 * @param value
+	 *        the value of the key/value pair to be added
+	 */
+	@PublicEvolving
+	public void setInteger(ConfigOption<Integer> key, int value) {
+		setValueInternal(key.key(), value);
 	}
 
 	/**
@@ -211,22 +258,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		if (o == null) {
 			return defaultValue;
 		}
-		
-		if (o.getClass() == Long.class) {
-			return (Long) o;
-		}
-		else if (o.getClass() == Integer.class) {
-			return ((Integer) o).longValue();
-		}
-		else {
-			try {
-				return Long.parseLong(o.toString());
-			}
-			catch (NumberFormatException e) {
-				LOG.warn("Configuration cannot evaluate value " + o + " as a long integer number");
-				return defaultValue;
-			}
-		}
+
+		return convertToLong(o, defaultValue);
+	}
+
+	/**
+	 * Returns the value associated with the given config option as a long integer.
+	 *
+	 * @param configOption The configuration option
+	 * @return the (default) value associated with the given config option
+	 */
+	@PublicEvolving
+	public long getLong(ConfigOption<Long> configOption) {
+		Object o = getValueOrDefaultFromOption(configOption);
+		return convertToLong(o, configOption.defaultValue());
 	}
 
 	/**
@@ -239,6 +284,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 */
 	public void setLong(String key, long value) {
 		setValueInternal(key, value);
+	}
+
+	/**
+	 * Adds the given value to the configuration object.
+	 * The main key of the config option will be used to map the value.
+	 *
+	 * @param key
+	 *        the option specifying the key to be added
+	 * @param value
+	 *        the value of the key/value pair to be added
+	 */
+	@PublicEvolving
+	public void setLong(ConfigOption<Long> key, long value) {
+		setValueInternal(key.key(), value);
 	}
 
 	/**
@@ -255,13 +314,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		if (o == null) {
 			return defaultValue;
 		}
-		
-		if (o.getClass() == Boolean.class) {
-			return (Boolean) o;
-		}
-		else {
-			return Boolean.parseBoolean(o.toString());
-		}
+
+		return convertToBoolean(o);
+	}
+
+	/**
+	 * Returns the value associated with the given config option as a boolean.
+	 *
+	 * @param configOption The configuration option
+	 * @return the (default) value associated with the given config option
+	 */
+	@PublicEvolving
+	public boolean getBoolean(ConfigOption<Boolean> configOption) {
+		Object o = getValueOrDefaultFromOption(configOption);
+		return convertToBoolean(o);
 	}
 
 	/**
@@ -274,6 +340,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 */
 	public void setBoolean(String key, boolean value) {
 		setValueInternal(key, value);
+	}
+
+	/**
+	 * Adds the given value to the configuration object.
+	 * The main key of the config option will be used to map the value.
+	 *
+	 * @param key
+	 *        the option specifying the key to be added
+	 * @param value
+	 *        the value of the key/value pair to be added
+	 */
+	@PublicEvolving
+	public void setBoolean(ConfigOption<Boolean> key, boolean value) {
+		setValueInternal(key.key(), value);
 	}
 
 	/**
@@ -290,28 +370,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		if (o == null) {
 			return defaultValue;
 		}
-		
-		if (o.getClass() == Float.class) {
-			return (Float) o;
-		}
-		else if (o.getClass() == Double.class) {
-			double value = ((Double) o);
-			if (value <= Float.MAX_VALUE && value >= Float.MIN_VALUE) {
-				return (float) value;
-			} else {
-				LOG.warn("Configuration value {} overflows/underflows the float type.", value);
-				return defaultValue;
-			}
-		}
-		else {
-			try {
-				return Float.parseFloat(o.toString());
-			}
-			catch (NumberFormatException e) {
-				LOG.warn("Configuration cannot evaluate value {} as a float value", o);
-				return defaultValue;
-			}
-		}
+
+		return convertToFloat(o, defaultValue);
+	}
+
+	/**
+	 * Returns the value associated with the given config option as a float.
+	 *
+	 * @param configOption The configuration option
+	 * @return the (default) value associated with the given config option
+	 */
+	@PublicEvolving
+	public float getFloat(ConfigOption<Float> configOption) {
+		Object o = getValueOrDefaultFromOption(configOption);
+		return convertToFloat(o, configOption.defaultValue());
 	}
 
 	/**
@@ -325,7 +397,21 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	public void setFloat(String key, float value) {
 		setValueInternal(key, value);
 	}
-	
+
+	/**
+	 * Adds the given value to the configuration object.
+	 * The main key of the config option will be used to map the value.
+	 *
+	 * @param key
+	 *        the option specifying the key to be added
+	 * @param value
+	 *        the value of the key/value pair to be added
+	 */
+	@PublicEvolving
+	public void setFloat(ConfigOption<Float> key, float value) {
+		setValueInternal(key.key(), value);
+	}
+
 	/**
 	 * Returns the value associated with the given key as a double.
 	 * 
@@ -340,22 +426,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		if (o == null) {
 			return defaultValue;
 		}
-		
-		if (o.getClass() == Double.class) {
-			return (Double) o;
-		}
-		else if (o.getClass() == Float.class) {
-			return ((Float) o).doubleValue();
-		}
-		else {
-			try {
-				return Double.parseDouble(o.toString());
-			}
-			catch (NumberFormatException e) {
-				LOG.warn("Configuration cannot evaluate value {} as a double value", o);
-				return defaultValue;
-			}
-		}
+
+		return convertToDouble(o, defaultValue);
+	}
+
+	/**
+	 * Returns the value associated with the given config option as a {@code double}.
+	 *
+	 * @param configOption The configuration option
+	 * @return the (default) value associated with the given config option
+	 */
+	@PublicEvolving
+	public double getDouble(ConfigOption<Double> configOption) {
+		Object o = getValueOrDefaultFromOption(configOption);
+		return convertToDouble(o, configOption.defaultValue());
 	}
 
 	/**
@@ -369,7 +453,21 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	public void setDouble(String key, double value) {
 		setValueInternal(key, value);
 	}
-	
+
+	/**
+	 * Adds the given value to the configuration object.
+	 * The main key of the config option will be used to map the value.
+	 *
+	 * @param key
+	 *        the option specifying the key to be added
+	 * @param value
+	 *        the value of the key/value pair to be added
+	 */
+	@PublicEvolving
+	public void setDouble(ConfigOption<Double> key, double value) {
+		setValueInternal(key.key(), value);
+	}
+
 	/**
 	 * Returns the value associated with the given key as a byte array.
 	 * 
@@ -405,6 +503,18 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 */
 	public void setBytes(String key, byte[] bytes) {
 		setValueInternal(key, bytes);
+	}
+
+	/**
+	 * Returns the value associated with the given config option as a string.
+	 *
+	 * @param configOption The configuration option
+	 * @return the (default) value associated with the given config option
+	 */
+	@PublicEvolving
+	public String getValue(ConfigOption<?> configOption) {
+		Object o = getValueOrDefaultFromOption(configOption);
+		return o == null ? null : o.toString();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -523,7 +633,130 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			return this.confData.get(key);
 		}
 	}
-	
+
+	private Object getRawValueFromOption(ConfigOption<?> configOption) {
+		// first try the current key
+		Object o = getRawValue(configOption.key());
+
+		if (o != null) {
+			return o;
+		}
+		else if (configOption.hasDeprecatedKeys()) {
+			for (String deprecatedKey : configOption.deprecatedKeys()) {
+				Object oo = getRawValue(deprecatedKey);
+				if (oo != null) {
+					return oo;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	private Object getValueOrDefaultFromOption(ConfigOption<?> configOption) {
+		Object o = getRawValueFromOption(configOption);
+		return o != null ? o : configOption.defaultValue();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Type conversion
+	// --------------------------------------------------------------------------------------------
+
+	private int convertToInt(Object o, int defaultValue) {
+		if (o.getClass() == Integer.class) {
+			return (Integer) o;
+		}
+		else if (o.getClass() == Long.class) {
+			long value = (Long) o;
+			if (value <= Integer.MAX_VALUE && value >= Integer.MIN_VALUE) {
+				return (int) value;
+			} else {
+				LOG.warn("Configuration value {} overflows/underflows the integer type.", value);
+				return defaultValue;
+			}
+		}
+		else {
+			try {
+				return Integer.parseInt(o.toString());
+			}
+			catch (NumberFormatException e) {
+				LOG.warn("Configuration cannot evaluate value {} as an integer number", o);
+				return defaultValue;
+			}
+		}
+	}
+
+	private long convertToLong(Object o, long defaultValue) {
+		if (o.getClass() == Long.class) {
+			return (Long) o;
+		}
+		else if (o.getClass() == Integer.class) {
+			return ((Integer) o).longValue();
+		}
+		else {
+			try {
+				return Long.parseLong(o.toString());
+			}
+			catch (NumberFormatException e) {
+				LOG.warn("Configuration cannot evaluate value " + o + " as a long integer number");
+				return defaultValue;
+			}
+		}
+	}
+
+	private boolean convertToBoolean(Object o) {
+		if (o.getClass() == Boolean.class) {
+			return (Boolean) o;
+		}
+		else {
+			return Boolean.parseBoolean(o.toString());
+		}
+	}
+
+	private float convertToFloat(Object o, float defaultValue) {
+		if (o.getClass() == Float.class) {
+			return (Float) o;
+		}
+		else if (o.getClass() == Double.class) {
+			double value = ((Double) o);
+			if (value <= Float.MAX_VALUE && value >= Float.MIN_VALUE) {
+				return (float) value;
+			} else {
+				LOG.warn("Configuration value {} overflows/underflows the float type.", value);
+				return defaultValue;
+			}
+		}
+		else {
+			try {
+				return Float.parseFloat(o.toString());
+			}
+			catch (NumberFormatException e) {
+				LOG.warn("Configuration cannot evaluate value {} as a float value", o);
+				return defaultValue;
+			}
+		}
+	}
+
+	private double convertToDouble(Object o, double defaultValue) {
+		if (o.getClass() == Double.class) {
+			return (Double) o;
+		}
+		else if (o.getClass() == Float.class) {
+			return ((Float) o).doubleValue();
+		}
+		else {
+			try {
+				return Double.parseDouble(o.toString());
+			}
+			catch (NumberFormatException e) {
+				LOG.warn("Configuration cannot evaluate value {} as a double value", o);
+				return defaultValue;
+			}
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Serialization
 	// --------------------------------------------------------------------------------------------
 
 	@Override
