@@ -132,18 +132,18 @@ To stop Flink, there is also a `stop-cluster.sh` script.
 
 ### Adding JobManager/TaskManager Instances to a Cluster
 
-You can add both JobManager and TaskManager instances to your running cluster with the `bin/taskmanager.sh` and `bin/jobmanager.sh` scripts.
+You can add both JobManager and TaskManager instances to your running cluster with the `bin/jobmanager.sh` and `bin/taskmanager.sh` scripts.
 
 #### Adding a JobManager
 
 ~~~bash
-bin/jobmanager.sh (start cluster)|stop|stop-all
+bin/jobmanager.sh ((start|start-foreground) cluster)|stop|stop-all
 ~~~
 
 #### Adding a TaskManager
 
 ~~~bash
-bin/taskmanager.sh start|stop|stop-all
+bin/taskmanager.sh start|start-foreground|stop|stop-all
 ~~~
 
 Make sure to call these scripts on the hosts on which you want to start/stop the respective instance.
