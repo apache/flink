@@ -210,7 +210,7 @@ public class PendingCheckpointTest {
 
 	private static PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, String targetDirectory) {
 		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(ACK_TASKS);
-		return new PendingCheckpoint(new JobID(), 0, 1, ackTasks, props, targetDirectory);
+		return new PendingCheckpoint(new JobID(), 0, 1, ackTasks, false, props, targetDirectory);
 	}
 
 	@SuppressWarnings("unchecked")

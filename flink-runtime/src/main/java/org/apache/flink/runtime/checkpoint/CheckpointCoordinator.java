@@ -287,7 +287,7 @@ public class CheckpointCoordinator {
 		checkNotNull(targetDirectory, "Savepoint target directory");
 
 		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
-		CheckpointTriggerResult result = triggerCheckpoint(timestamp, props, targetDirectory);
+		CheckpointTriggerResult result = triggerCheckpoint(timestamp, props, targetDirectory, false);
 
 		if (result.isSuccess()) {
 			return result.getPendingCheckpoint().getCompletionFuture();
@@ -303,13 +303,21 @@ public class CheckpointCoordinator {
 	 * timestamp.
 	 *
 	 * @param timestamp The timestamp for the checkpoint.
+	 * @param isPeriodic Flag indicating whether this triggered checkpoint is
+	 * periodic. If this flag is true, but the periodic scheduler is disabled,
+	 * the checkpoint will be declined.
 	 * @return <code>true</code> if triggering the checkpoint succeeded.
 	 */
-	public boolean triggerCheckpoint(long timestamp) throws Exception {
-		return triggerCheckpoint(timestamp, checkpointProperties, checkpointDirectory).isSuccess();
+	public boolean triggerCheckpoint(long timestamp, boolean isPeriodic) throws Exception {
+		return triggerCheckpoint(timestamp, checkpointProperties, checkpointDirectory, isPeriodic).isSuccess();
 	}
 
-	CheckpointTriggerResult triggerCheckpoint(long timestamp, CheckpointProperties props, String targetDirectory) throws Exception {
+	CheckpointTriggerResult triggerCheckpoint(
+			long timestamp,
+			CheckpointProperties props,
+			String targetDirectory,
+			boolean isPeriodic) throws Exception {
+
 		// Sanity check
 		if (props.externalizeCheckpoint() && targetDirectory == null) {
 			throw new IllegalStateException("No target directory specified to persist checkpoint to.");
@@ -320,6 +328,11 @@ public class CheckpointCoordinator {
 			// abort if the coordinator has been shutdown in the meantime
 			if (shutdown) {
 				return new CheckpointTriggerResult(CheckpointDeclineReason.COORDINATOR_SHUTDOWN);
+			}
+
+			// Don't allow periodic checkpoint if scheduling has been disabled
+			if (isPeriodic && !periodicScheduling) {
+				return new CheckpointTriggerResult(CheckpointDeclineReason.PERIODIC_SCHEDULER_SHUTDOWN);
 			}
 
 			// validate whether the checkpoint can be triggered, with respect to the limit of
@@ -417,6 +430,7 @@ public class CheckpointCoordinator {
 					checkpointID,
 					timestamp,
 					ackTasks,
+					isPeriodic,
 					props,
 					targetDirectory);
 
@@ -580,7 +594,7 @@ public class CheckpointCoordinator {
 				}
 				if (!haveMoreRecentPending && !triggerRequestQueued) {
 					LOG.info("Triggering new checkpoint because of discarded checkpoint " + checkpointId);
-					triggerCheckpoint(System.currentTimeMillis(), checkpoint.getProps(), checkpoint.getTargetDirectory());
+					triggerCheckpoint(System.currentTimeMillis(), checkpoint.getProps(), checkpoint.getTargetDirectory(), checkpoint.isPeriodic());
 				} else if (!haveMoreRecentPending) {
 					LOG.info("Promoting queued checkpoint request because of discarded checkpoint " + checkpointId);
 					triggerQueuedRequests();
@@ -1084,7 +1098,7 @@ public class CheckpointCoordinator {
 		@Override
 		public void run() {
 			try {
-				triggerCheckpoint(System.currentTimeMillis());
+				triggerCheckpoint(System.currentTimeMillis(), true);
 			}
 			catch (Exception e) {
 				LOG.error("Exception while triggering checkpoint", e);

@@ -60,7 +60,6 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.CheckpointStateHandles;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.RetrievableStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -447,9 +446,9 @@ public class JobManagerHARecoveryTest {
 
 		@Override
 		public void setInitialState(
-			ChainedStateHandle<StreamStateHandle> chainedState,
-			List<KeyGroupsStateHandle> keyGroupsState,
-			List<Collection<OperatorStateHandle>> partitionableOperatorState) throws Exception {
+				ChainedStateHandle<StreamStateHandle> chainedState,
+				List<KeyGroupsStateHandle> keyGroupsState,
+				List<Collection<OperatorStateHandle>> partitionableOperatorState) throws Exception {
 			int subtaskIndex = getIndexInSubtaskGroup();
 			if (subtaskIndex < recoveredStates.length) {
 				try (FSDataInputStream in = chainedState.get(0).openInputStream()) {
@@ -465,10 +464,8 @@ public class JobManagerHARecoveryTest {
 						String.valueOf(UUID.randomUUID()),
 						InstantiationUtil.serializeObject(checkpointMetaData.getCheckpointId()));
 
-				RetrievableStreamStateHandle<Long> state = new RetrievableStreamStateHandle<Long>(byteStreamStateHandle);
-
 				ChainedStateHandle<StreamStateHandle> chainedStateHandle =
-						new ChainedStateHandle<StreamStateHandle>(Collections.singletonList(state));
+						new ChainedStateHandle<StreamStateHandle>(Collections.singletonList(byteStreamStateHandle));
 
 				CheckpointStateHandles checkpointStateHandles =
 						new CheckpointStateHandles(chainedStateHandle, null, Collections.<KeyGroupsStateHandle>emptyList());
