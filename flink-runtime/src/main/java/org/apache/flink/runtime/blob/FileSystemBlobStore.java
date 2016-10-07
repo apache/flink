@@ -19,14 +19,17 @@
 package org.apache.flink.runtime.blob;
 
 import com.google.common.io.Files;
+
+import org.apache.commons.lang3.StringUtils;
+
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.util.ConfigurationUtil;
 import org.apache.flink.util.IOUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,16 +55,11 @@ class FileSystemBlobStore implements BlobStore {
 	private final String basePath;
 
 	FileSystemBlobStore(Configuration config) throws IOException {
-		String storagePath = ConfigurationUtil.getStringWithDeprecatedKeys(
-				config,
-				ConfigConstants.HA_ZOOKEEPER_STORAGE_PATH,
-				null,
-				ConfigConstants.ZOOKEEPER_RECOVERY_PATH);
+		String storagePath = config.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
 
-		if (storagePath == null) {
-			throw new IllegalConfigurationException(String.format("Missing configuration for " +
-					"ZooKeeper file system path. Please specify via " +
-					"'%s' key.", ConfigConstants.HA_ZOOKEEPER_STORAGE_PATH));
+		if (storagePath == null || StringUtils.isBlank(storagePath)) {
+			throw new IllegalConfigurationException("Missing high-availability storage path for metadata." +
+					" Specify via configuration key '" + HighAvailabilityOptions.HA_STORAGE_PATH + "'.");
 		}
 
 		this.basePath = storagePath + "/blob";

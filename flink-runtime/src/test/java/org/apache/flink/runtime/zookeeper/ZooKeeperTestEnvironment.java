@@ -22,9 +22,11 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingCluster;
 import org.apache.curator.test.TestingServer;
 import org.apache.curator.utils.ZKPaths;
-import org.apache.flink.configuration.ConfigConstants;
+
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
+
 import org.apache.zookeeper.KeeperException;
 
 import java.util.List;
@@ -58,7 +60,7 @@ public class ZooKeeperTestEnvironment {
 				zooKeeperServer = new TestingServer(true);
 				zooKeeperCluster = null;
 
-				conf.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY,
+				conf.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
 						zooKeeperServer.getConnectString());
 			}
 			else {
@@ -67,7 +69,7 @@ public class ZooKeeperTestEnvironment {
 
 				zooKeeperCluster.start();
 
-				conf.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY,
+				conf.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
 						zooKeeperCluster.getConnectString());
 			}
 
@@ -127,7 +129,7 @@ public class ZooKeeperTestEnvironment {
 	 */
 	public CuratorFramework createClient() {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, getConnectString());
+		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, getConnectString());
 		return ZooKeeperUtils.startCuratorFramework(config);
 	}
 
