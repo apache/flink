@@ -64,6 +64,7 @@ import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
@@ -99,6 +100,9 @@ public class SavepointITCase extends TestLogger {
 
 	@Rule
 	public RetryRule retryRule = new RetryRule();
+
+	@Rule
+	public TemporaryFolder folder= new TemporaryFolder();
 
 	/**
 	 * Tests that it is possible to submit a job, trigger a savepoint, and

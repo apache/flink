@@ -60,7 +60,9 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
+import org.apache.flink.runtime.messages.JobManagerMessages.CancelJobWithSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
+import org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
@@ -556,20 +558,38 @@ public class CliFrontend {
 		}
 
 		String[] cleanedArgs = options.getArgs();
+
+		boolean withSavepoint = options.isWithSavepoint();
+		String targetDirectory = options.getSavepointTargetDirectory();
+
 		JobID jobId;
 
+		// Figure out jobID. This is a little overly complicated, because
+		// we have to figure out whether the optional target directory
+		// is set:
+		// - cancel -s <jobID> => default target dir (JobID parsed as opt arg)
+		// - cancel -s <targetDir> <jobID> => custom target dir (parsed correctly)
 		if (cleanedArgs.length > 0) {
 			String jobIdString = cleanedArgs[0];
 			try {
 				jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				LOG.error("Error: The value for the Job ID is not a valid ID.");
 				System.out.println("Error: The value for the Job ID is not a valid ID.");
 				return 1;
 			}
-		}
-		else {
+		} else if (targetDirectory != null)  {
+			// Try this for case: cancel -s <jobID> (default savepoint target dir)
+			String jobIdString = targetDirectory;
+			try {
+				jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
+				targetDirectory = null;
+			} catch (Exception e) {
+				LOG.error("Missing JobID in the command line arguments.");
+				System.out.println("Error: Specify a Job ID to cancel a job.");
+				return 1;
+			}
+		} else {
 			LOG.error("Missing JobID in the command line arguments.");
 			System.out.println("Error: Specify a Job ID to cancel a job.");
 			return 1;
@@ -577,13 +597,36 @@ public class CliFrontend {
 
 		try {
 			ActorGateway jobManager = getJobManagerGateway(options);
-			Future<Object> response = jobManager.ask(new CancelJob(jobId), clientTimeout);
 
+			Object cancelMsg;
+			if (withSavepoint) {
+				if (targetDirectory == null) {
+					logAndSysout("Cancelling job " + jobId + " with savepoint to default savepoint directory.");
+				} else {
+					logAndSysout("Cancelling job " + jobId + " with savepoint to " + targetDirectory + ".");
+				}
+				cancelMsg = new CancelJobWithSavepoint(jobId, targetDirectory);
+			} else {
+				logAndSysout("Cancelling job " + jobId + ".");
+				cancelMsg = new CancelJob(jobId);
+			}
+
+			Future<Object> response = jobManager.ask(cancelMsg, clientTimeout);
 			final Object rc = Await.result(response, clientTimeout);
 
-			if (rc instanceof CancellationFailure) {
+			if (rc instanceof CancellationSuccess) {
+				if (withSavepoint) {
+					CancellationSuccess success = (CancellationSuccess) rc;
+					String savepointPath = success.savepointPath();
+					logAndSysout("Cancelled job " + jobId + ". Savepoint stored in " + savepointPath + ".");
+				} else {
+					logAndSysout("Cancelled job " + jobId + ".");
+				}
+			} else if (rc instanceof CancellationFailure) {
 				throw new Exception("Canceling the job with ID " + jobId + " failed.",
 						((CancellationFailure) rc).cause());
+			} else {
+				throw new IllegalStateException("Unexpected response: " + rc);
 			}
 
 			return 0;

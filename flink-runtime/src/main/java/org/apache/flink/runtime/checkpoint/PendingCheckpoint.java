@@ -67,6 +67,9 @@ public class PendingCheckpoint {
 
 	private final Map<ExecutionAttemptID, ExecutionVertex> notYetAcknowledgedTasks;
 
+	/** Flag indicating whether the checkpoint is triggered as part of periodic scheduling. */
+	private final boolean isPeriodic;
+
 	/**
 	 * The checkpoint properties. If the checkpoint should be persisted
 	 * externally, it happens in {@link #finalizeCheckpoint()}.
@@ -90,12 +93,14 @@ public class PendingCheckpoint {
 			long checkpointId,
 			long checkpointTimestamp,
 			Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm,
+			boolean isPeriodic,
 			CheckpointProperties props,
 			String targetDirectory) {
 		this.jobId = checkNotNull(jobId);
 		this.checkpointId = checkpointId;
 		this.checkpointTimestamp = checkpointTimestamp;
 		this.notYetAcknowledgedTasks = checkNotNull(verticesToConfirm);
+		this.isPeriodic = isPeriodic;
 		this.taskStates = new HashMap<>();
 		this.props = checkNotNull(props);
 		this.targetDirectory = targetDirectory;
@@ -145,6 +150,10 @@ public class PendingCheckpoint {
 
 	public boolean isDiscarded() {
 		return discarded;
+	}
+
+	boolean isPeriodic() {
+		return isPeriodic;
 	}
 
 	/**

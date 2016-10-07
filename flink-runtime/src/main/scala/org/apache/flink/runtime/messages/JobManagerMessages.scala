@@ -111,6 +111,21 @@ object JobManagerMessages {
   case class CancelJob(jobID: JobID) extends RequiresLeaderSessionID
 
   /**
+    * Cancels the job with the given [[jobID]] at the JobManager. Before cancellation a savepoint
+    * is triggered without any other checkpoints in between. The result of the cancellation is
+    * the path of the triggered savepoint on success or an exception.
+    *
+    * @param jobID ID of the job to cancel
+    * @param savepointDirectory Optional target directory for the savepoint.
+    *                           If no target directory is specified here, the
+    *                           cluster default is used.
+    */
+  case class CancelJobWithSavepoint(
+      jobID: JobID,
+      savepointDirectory: String = null)
+    extends RequiresLeaderSessionID
+
+  /**
    * Stops a (streaming) job with the given [[jobID]] at the JobManager. The result of
    * stopping is sent back to the sender as a [[StoppingResponse]] message.
    *
@@ -280,7 +295,9 @@ object JobManagerMessages {
    * Denotes a successful job cancellation
    * @param jobID
    */
-  case class CancellationSuccess(jobID: JobID) extends CancellationResponse
+  case class CancellationSuccess(
+    jobID: JobID,
+    savepointPath: String = null) extends CancellationResponse
 
   /**
    * Denotes a failed job cancellation
