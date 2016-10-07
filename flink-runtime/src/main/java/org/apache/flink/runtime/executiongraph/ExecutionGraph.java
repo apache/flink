@@ -359,7 +359,7 @@ public class ExecutionGraph {
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore checkpointStore,
 			SavepointStore savepointStore,
-			CheckpointStatsTracker statsTracker) throws Exception {
+			CheckpointStatsTracker statsTracker) {
 
 		// simple sanity checks
 		if (interval < 10 || checkpointTimeout < 10) {
@@ -374,7 +374,11 @@ public class ExecutionGraph {
 		ExecutionVertex[] tasksToCommitTo = collectExecutionVertices(verticesToCommitTo);
 
 		// disable to make sure existing checkpoint coordinators are cleared
-		disableSnaphotCheckpointing();
+		try {
+			disableSnaphotCheckpointing();
+		} catch (Throwable t) {
+			LOG.error("Error while shutting down checkpointer.");
+		}
 
 		checkpointStatsTracker = Objects.requireNonNull(statsTracker, "Checkpoint stats tracker");
 
