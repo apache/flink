@@ -20,8 +20,8 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import com.google.common.collect.Maps;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.taskmanager.TaskActions;
-import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -175,7 +175,7 @@ public class SingleInputGate implements InputGate {
 			int consumedSubpartitionIndex,
 			int numberOfInputChannels,
 			TaskActions taskActions,
-			IOMetricGroup metrics) {
+			TaskIOMetricGroup metrics) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		this.jobId = checkNotNull(jobId);
@@ -506,7 +506,7 @@ public class SingleInputGate implements InputGate {
 			InputGateDeploymentDescriptor igdd,
 			NetworkEnvironment networkEnvironment,
 			TaskActions taskActions,
-			IOMetricGroup metrics) {
+			TaskIOMetricGroup metrics) {
 
 		final IntermediateDataSetID consumedResultId = checkNotNull(igdd.getConsumedResultId());
 
