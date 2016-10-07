@@ -23,7 +23,7 @@ import org.apache.flink.api.table.TumblingWindow;
 /**
  * Helper class for creating a tumbling window. In a tumbling window elements are assigned to
  * non-overlapping windows of a specified fixed length. For example, if you specify a tumbling
- * window of 5 minutes size, elements will be grouped in 5 minute intervals..
+ * window of 5 minutes size, elements will be grouped in 5 minutes intervals.
  */
 public class Tumble {
 
@@ -34,7 +34,7 @@ public class Tumble {
 	/**
 	 * Creates a tumbling window. In a tumbling window elements are assigned to
 	 * non-overlapping windows of a specified fixed length. For example, if you specify a tumbling
-	 * window of 5 minutes size, elements will be grouped in 5 minute intervals.
+	 * window of 5 minutes size, elements will be grouped in 5 minutes intervals.
 	 *
 	 * @param size size of the window either as number of rows or interval of milliseconds
 	 * @return a tumbling window

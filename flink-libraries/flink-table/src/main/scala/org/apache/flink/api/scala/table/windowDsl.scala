@@ -24,14 +24,14 @@ import org.apache.flink.api.table.{SessionWindow, SlideWithSize, TumblingWindow}
 /**
   * Helper object for creating a tumbling window. In a tumbling window elements are assigned to
   * non-overlapping windows of a specified fixed length. For example, if you specify a tumbling
-  * window of 5 minutes size, elements will be grouped in 5 minute intervals.
+  * window of 5 minutes size, elements will be grouped in 5 minutes intervals.
   */
 object Tumble {
 
   /**
     * Creates a tumbling window. In a tumbling window elements are assigned to non-overlapping
     * windows of a specified fixed length. For example, if you specify a tumbling window of
-    * 5 minutes size, elements will be grouped in 5 minute intervals.
+    * 5 minutes size, elements will be grouped in 5 minutes intervals.
     *
     * @param size size of the window either as number of rows or interval of milliseconds
     * @return a tumbling window
@@ -66,7 +66,7 @@ object Slide {
 
 /**
   * Helper object for creating a session window. Session windows are ideal for cases where the
-  * window boundaries need to adjust to the incoming data.In a session window it is possible to
+  * window boundaries need to adjust to the incoming data. In a session window it is possible to
   * have windows that start at individual points in time for each key and that end once there has
   * been a certain period of inactivity.
   */
@@ -74,7 +74,7 @@ object Session {
 
   /**
     * Creates a session window. Session windows are ideal for cases where the
-    * window boundaries need to adjust to the incoming data.In a session window it is possible to
+    * window boundaries need to adjust to the incoming data. In a session window it is possible to
     * have windows that start at individual points in time for each key and that end once there has
     * been a certain period of inactivity.
     *

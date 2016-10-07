@@ -22,7 +22,7 @@ import org.apache.flink.api.table.SessionWindow;
 
 /**
  * Helper class for creating a session window. Session windows are ideal for cases where the
- * window boundaries need to adjust to the incoming data.In a session window it is possible to
+ * window boundaries need to adjust to the incoming data. In a session window it is possible to
  * have windows that start at individual points in time for each key and that end once there has
  * been a certain period of inactivity.
  */
@@ -34,7 +34,7 @@ public class Session {
 
 	/**
 	 * Creates a session window. Session windows are ideal for cases where the
-	 * window boundaries need to adjust to the incoming data.In a session window it is possible to
+	 * window boundaries need to adjust to the incoming data. In a session window it is possible to
 	 * have windows that start at individual points in time for each key and that end once there has
 	 * been a certain period of inactivity.
 	 *

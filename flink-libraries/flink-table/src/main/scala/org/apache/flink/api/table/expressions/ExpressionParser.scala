@@ -75,6 +75,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val MINUTE: Keyword = Keyword("minute")
   lazy val SECOND: Keyword = Keyword("second")
   lazy val MILLI: Keyword = Keyword("milli")
+  lazy val ROWS: Keyword = Keyword("rows")
   lazy val STAR: Keyword = Keyword("*")
 
   def functionIdent: ExpressionParser.Parser[String] =
@@ -265,11 +266,14 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case expr ~ _ ~ MILLI.key => toMilliInterval(expr, 1)
   }
 
+  lazy val suffixRowInterval : PackratParser[Expression] =
+    composite <~ "." ~ ROWS ^^ { e => ExpressionUtils.toRowInterval(e) }
+
   lazy val suffixed: PackratParser[Expression] =
-    suffixTimeInterval | suffixSum | suffixMin | suffixMax | suffixStart |suffixEnd |
-      suffixCount | suffixAvg | suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs |
-      suffixIf | suffixAsc | suffixDesc | suffixToDate | suffixToTimestamp | suffixToTime |
-      suffixExtract | suffixFloor | suffixCeil |
+    suffixTimeInterval | suffixRowInterval | suffixSum | suffixMin | suffixMax | suffixStart |
+      suffixEnd | suffixCount | suffixAvg | suffixCast | suffixAs | suffixTrim |
+      suffixTrimWithoutArgs | suffixIf | suffixAsc | suffixDesc | suffixToDate |
+      suffixToTimestamp | suffixToTime | suffixExtract | suffixFloor | suffixCeil |
       suffixFunctionCall | suffixFunctionCallOneArg // function call must always be at the end
 
   // prefix operators
