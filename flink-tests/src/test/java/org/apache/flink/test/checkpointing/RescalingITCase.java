@@ -30,7 +30,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStoreFactory;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -275,16 +274,10 @@ public class RescalingITCase extends TestLogger {
 			jobID = null;
 
 		} catch (JobExecutionException exception) {
-			if (exception.getCause() instanceof SuppressRestartsException) {
-				SuppressRestartsException suppressRestartsException = (SuppressRestartsException) exception.getCause();
-
-				if (suppressRestartsException.getCause() instanceof IllegalStateException) {
-					// we expect a IllegalStateException wrapped in a SuppressRestartsException wrapped
-					// in a JobExecutionException, because the job containing non-partitioned state
-					// is being rescaled
-				} else {
-					throw exception;
-				}
+			if (exception.getCause() instanceof IllegalStateException) {
+				// we expect a IllegalStateException wrapped
+				// in a JobExecutionException, because the job containing non-partitioned state
+				// is being rescaled
 			} else {
 				throw exception;
 			}
