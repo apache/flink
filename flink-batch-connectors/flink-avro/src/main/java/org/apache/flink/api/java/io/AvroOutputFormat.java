@@ -18,6 +18,7 @@
 package org.apache.flink.api.java.io;
 
 import org.apache.avro.Schema;
+import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.ReflectData;
@@ -25,6 +26,7 @@ import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.core.fs.Path;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -36,6 +38,8 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 	private final Class<E> avroValueType;
 
 	private transient Schema userDefinedSchema = null;
+
+	private transient CodecFactory codecFactory = null;
 	
 	private transient DataFileWriter<E> dataFileWriter;
 
@@ -55,6 +59,15 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 
 	public void setSchema(Schema schema) {
 		this.userDefinedSchema = schema;
+	}
+
+	/**
+	 * Set avro codec for compression.
+	 *
+	 * @param codecFactory avro codec.
+     */
+	public void setCodecFactory(final CodecFactory codecFactory) {
+		this.codecFactory = checkNotNull(codecFactory, "codecFactory can not be null");
 	}
 
 	@Override
@@ -82,6 +95,9 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 			schema = ReflectData.get().getSchema(avroValueType);
 		}
 		dataFileWriter = new DataFileWriter<E>(datumWriter);
+		if (codecFactory != null) {
+			dataFileWriter.setCodec(codecFactory);
+		}
 		if (userDefinedSchema == null) {
 			dataFileWriter.create(schema, stream);
 		} else {
