@@ -34,8 +34,8 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<hbase.hadoop1.version>0.98.11-hadoop1</hbase.hadoop1.version>
-		<hbase.hadoop2.version>1.1.2</hbase.hadoop2.version>
+		<hbase.hadoop1.version>0.98.22-hadoop1</hbase.hadoop1.version>
+		<hbase.hadoop2.version>1.2.3</hbase.hadoop2.version>
 	</properties>
 
 	<build>
@@ -198,45 +198,6 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.hbase</groupId>
-			<artifactId>hbase-server</artifactId>
-			<version>${hbase.version}</version>
-			<classifier>tests</classifier>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-minicluster</artifactId>
-			<version>${hadoop.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-		 	<groupId>org.apache.hadoop</groupId>
-		 	<artifactId>hadoop-hdfs</artifactId>
-		 	<version>${hadoop.version}</version>
-		 	<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.hbase</groupId>
-			<artifactId>hbase-hadoop-compat</artifactId>
-			<version>${hbase.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.hbase</groupId>
-			<artifactId>hbase-hadoop2-compat</artifactId>
-			<version>${hbase.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
-
 	</dependencies>
 
 	<profiles>
@@ -250,7 +211,13 @@ under the License.
 			</activation>
 			<properties>
 				<hbase.version>${hbase.hadoop1.version}</hbase.version>
+				<!--
+				Required test dependencies are only available for Hadoop-2.
+				Disabling tests for Hadoop-1 profile.
+				-->
+				<maven.test.skip>true</maven.test.skip>
 			</properties>
+
 		</profile>
 
 		<profile>
@@ -276,6 +243,49 @@ under the License.
 			<properties>
 				<hbase.version>${hbase.hadoop2.version}</hbase.version>
 			</properties>
+
+			<dependencies>
+				<!-- Test dependencies are only available for Hadoop-2. -->
+				<dependency>
+					<groupId>org.apache.hbase</groupId>
+					<artifactId>hbase-server</artifactId>
+					<version>${hbase.version}</version>
+					<classifier>tests</classifier>
+					<scope>test</scope>
+				</dependency>
+
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-minicluster</artifactId>
+					<version>${hadoop.version}</version>
+					<scope>test</scope>
+				</dependency>
+
+				<dependency>
+					<groupId>org.apache.hbase</groupId>
+					<artifactId>hbase-hadoop-compat</artifactId>
+					<version>${hbase.version}</version>
+					<scope>test</scope>
+					<type>test-jar</type>
+				</dependency>
+
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs</artifactId>
+					<version>${hadoop.version}</version>
+					<type>test-jar</type>
+					<scope>test</scope>
+				</dependency>
+
+				<dependency>
+					<groupId>org.apache.hbase</groupId>
+					<artifactId>hbase-hadoop2-compat</artifactId>
+					<version>${hbase.version}</version>
+					<scope>test</scope>
+					<type>test-jar</type>
+				</dependency>
+			</dependencies>
+
 		</profile>
 
 		<profile>
