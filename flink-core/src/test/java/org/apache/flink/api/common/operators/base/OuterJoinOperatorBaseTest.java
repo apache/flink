@@ -18,16 +18,17 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
+
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
@@ -67,7 +68,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
 
 	@Test
 	public void testFullOuterJoinWithEmptyLeftInput() throws Exception {
-		final List<String> leftInput = Arrays.asList();
+		final List<String> leftInput = Collections.emptyList();
 		final List<String> rightInput = Arrays.asList("foo", "bar", "foobar");
 		baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
 		List<String> expected = Arrays.asList("null,bar", "null,foo", "null,foobar");
@@ -77,7 +78,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
 	@Test
 	public void testFullOuterJoinWithEmptyRightInput() throws Exception {
 		final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
-		final List<String> rightInput = Arrays.asList();
+		final List<String> rightInput = Collections.emptyList();
 		baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
 		List<String> expected = Arrays.asList("bar,null", "foo,null", "foobar,null");
 		testOuterJoin(leftInput, rightInput, expected);

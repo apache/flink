@@ -21,17 +21,18 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.junit.Test;
@@ -66,7 +67,7 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 				@Override
 				public void open(Configuration parameters) throws Exception {
 					super.open(parameters);
-					getRuntimeContext().getKeyValueState("test", String.class, "");
+					getRuntimeContext().getState(new ValueStateDescriptor<Integer>("Test", Integer.class, 0));
 				}
 
 				@Override
@@ -99,7 +100,8 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public <K> KeyedStateBackend<K> createKeyedStateBackend(Environment env,
+		public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
+				Environment env,
 				JobID jobID,
 				String operatorIdentifier,
 				TypeSerializer<K> keySerializer,
@@ -110,7 +112,8 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public <K> KeyedStateBackend<K> restoreKeyedStateBackend(Environment env,
+		public <K> AbstractKeyedStateBackend<K> restoreKeyedStateBackend(
+				Environment env,
 				JobID jobID,
 				String operatorIdentifier,
 				TypeSerializer<K> keySerializer,

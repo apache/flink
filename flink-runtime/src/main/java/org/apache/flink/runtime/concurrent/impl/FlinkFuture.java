@@ -28,6 +28,7 @@ import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.util.Preconditions;
 import scala.Option;
+import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.Duration;
@@ -81,6 +82,8 @@ public class FlinkFuture<T> implements Future<T> {
 			return Await.result(scalaFuture, Duration.Inf());
 		} catch (InterruptedException e) {
 			throw e;
+		} catch (FlinkFuture.ThrowableWrapperException e) {
+			throw new ExecutionException(e.getCause());
 		} catch (Exception e) {
 			throw new ExecutionException(e);
 		}
@@ -171,10 +174,12 @@ public class FlinkFuture<T> implements Future<T> {
 	}
 
 	@Override
-	public <R> Future<R> thenComposeAsync(final ApplyFunction<? super T, Future<? extends R>> applyFunction, final Executor executor) {
+	public <R> Future<R> thenComposeAsync(final ApplyFunction<? super T, ? extends Future<R>> applyFunction, Executor executor) {
 		Preconditions.checkNotNull(scalaFuture);
 		Preconditions.checkNotNull(applyFunction);
 		Preconditions.checkNotNull(executor);
+
+		final ExecutionContext executionContext = createExecutionContext(executor);
 
 		scala.concurrent.Future<R> flatMappedFuture = scalaFuture.flatMap(new Mapper<T, scala.concurrent.Future<R>>() {
 			@Override
@@ -190,12 +195,21 @@ public class FlinkFuture<T> implements Future<T> {
 					return Futures.future(new Callable<R>() {
 						@Override
 						public R call() throws Exception {
-							return future.get();
+							try {
+								return future.get();
+							} catch (ExecutionException e) {
+								// unwrap the execution exception if it's not a throwable
+								if (e.getCause() instanceof Exception) {
+									throw (Exception) e.getCause();
+								} else {
+									throw new FlinkFuture.ThrowableWrapperException(e.getCause());
+								}
+							}
 						}
-					}, createExecutionContext(executor));
+					}, executionContext);
 				}
 			}
-		}, createExecutionContext(executor));
+		}, executionContext);
 
 		return new FlinkFuture<>(flatMappedFuture);
 	}
@@ -206,6 +220,8 @@ public class FlinkFuture<T> implements Future<T> {
 		Preconditions.checkNotNull(biFunction);
 		Preconditions.checkNotNull(executor);
 
+		final ExecutionContext executionContext = createExecutionContext(executor);
+
 		scala.concurrent.Future<R> mappedFuture = scalaFuture.map(new Mapper<T, R>() {
 			@Override
 			public R checkedApply(T value) throws Exception {
@@ -215,7 +231,7 @@ public class FlinkFuture<T> implements Future<T> {
 					throw new FlinkFuture.WrapperException(t);
 				}
 			}
-		}, createExecutionContext(executor));
+		}, executionContext);
 
 		scala.concurrent.Future<R> recoveredFuture = mappedFuture.recover(new Recover<R>() {
 			@Override
@@ -226,10 +242,50 @@ public class FlinkFuture<T> implements Future<T> {
 					return biFunction.apply(null, failure);
 				}
 			}
-		}, createExecutionContext(executor));
-
+		}, executionContext);
 
 		return new FlinkFuture<>(recoveredFuture);
+	}
+
+	@Override
+	public <U, R> Future<R> thenCombineAsync(final Future<U> other, final BiFunction<? super T, ? super U, ? extends R> biFunction, final Executor executor) {
+		Preconditions.checkNotNull(other);
+		Preconditions.checkNotNull(biFunction);
+		Preconditions.checkNotNull(executor);
+
+		final ExecutionContext executionContext = createExecutionContext(executor);
+
+		final scala.concurrent.Future<U> thatScalaFuture;
+
+		if (other instanceof FlinkFuture) {
+			thatScalaFuture = ((FlinkFuture<U>) other).scalaFuture;
+		} else {
+			thatScalaFuture = Futures.future(new Callable<U>() {
+				@Override
+				public U call() throws Exception {
+					try {
+						return other.get();
+					} catch (ExecutionException e) {
+						// unwrap the execution exception if the cause is an Exception
+						if (e.getCause() instanceof Exception) {
+							throw (Exception) e.getCause();
+						} else {
+							// it's an error or a throwable which we have to wrap for the moment
+							throw new FlinkFuture.ThrowableWrapperException(e.getCause());
+						}
+					}
+				}
+			}, executionContext);
+		}
+
+		scala.concurrent.Future<R>  result = scalaFuture.zip(thatScalaFuture).map(new Mapper<Tuple2<T, U>, R>() {
+			@Override
+			public R apply(Tuple2<T, U> tuple2) {
+				return biFunction.apply(tuple2._1, tuple2._2);
+			}
+		}, executionContext);
+
+		return new FlinkFuture<>(result);
 	}
 
 	//-----------------------------------------------------------------------------------
@@ -267,6 +323,19 @@ public class FlinkFuture<T> implements Future<T> {
 
 		WrapperException(Throwable cause) {
 			super(cause);
+		}
+	}
+
+	/**
+	 * Wrapper for {@link Throwable} which is used to emit the proper exception when calling
+	 * {@link Future#get}.
+	 */
+	private static class ThrowableWrapperException extends Exception {
+
+		private static final long serialVersionUID = 3855668690181179801L;
+
+		ThrowableWrapperException(Throwable throwable) {
+			super(Preconditions.checkNotNull(throwable));
 		}
 	}
 }

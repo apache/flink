@@ -154,9 +154,9 @@ public class FlinkFutureTest extends TestLogger {
 
 		final int expectedValue = 42;
 
-		Future<Integer> composedFuture = initialFuture.thenComposeAsync(new ApplyFunction<Integer, Future<? extends Integer>>() {
+		Future<Integer> composedFuture = initialFuture.thenComposeAsync(new ApplyFunction<Integer, Future<Integer>>() {
 			@Override
-			public Future<? extends Integer> apply(Integer value) {
+			public Future<Integer> apply(Integer value) {
 				return FlinkFuture.supplyAsync(new Callable<Integer>() {
 					@Override
 					public Integer call() throws Exception {
@@ -171,6 +171,84 @@ public class FlinkFutureTest extends TestLogger {
 		int actualValue = composedFuture.get();
 
 		assertEquals(expectedValue, actualValue);
+	}
+
+	@Test
+	public void testCombine() throws ExecutionException, InterruptedException {
+		CompletableFuture<Integer> leftFuture = new FlinkCompletableFuture<>();
+		CompletableFuture<String> rightFuture = new FlinkCompletableFuture<>();
+
+		final int expectedLeftValue = 42;
+		final String expectedRightValue = "foobar";
+
+
+		Future<String> resultFuture = leftFuture.thenCombineAsync(rightFuture, new BiFunction<Integer, String, String>() {
+			@Override
+			public String apply(Integer integer, String s) {
+				return s + integer;
+			}
+		}, executor);
+
+		leftFuture.complete(expectedLeftValue);
+		rightFuture.complete(expectedRightValue);
+
+		String result = resultFuture.get();
+
+		assertEquals(expectedRightValue + expectedLeftValue, result);
+	}
+
+	@Test
+	public void testCombineLeftFailure() throws InterruptedException {
+		CompletableFuture<Integer> leftFuture = new FlinkCompletableFuture<>();
+		CompletableFuture<String> rightFuture = new FlinkCompletableFuture<>();
+
+		final String expectedRightValue = "foobar";
+		final TestException testException = new TestException("barfoo");
+
+
+		Future<String> resultFuture = leftFuture.thenCombineAsync(rightFuture, new BiFunction<Integer, String, String>() {
+			@Override
+			public String apply(Integer integer, String s) {
+				return s + integer;
+			}
+		}, executor);
+
+		leftFuture.completeExceptionally(testException);
+		rightFuture.complete(expectedRightValue);
+
+		try {
+			resultFuture.get();
+			fail("We should have caught an ExecutionException.");
+		} catch (ExecutionException e) {
+			assertEquals(testException, e.getCause());
+		}
+	}
+
+	@Test
+	public void testCombineRightFailure() throws ExecutionException, InterruptedException {
+		CompletableFuture<Integer> leftFuture = new FlinkCompletableFuture<>();
+		CompletableFuture<String> rightFuture = new FlinkCompletableFuture<>();
+
+		final int expectedLeftValue = 42;
+		final TestException testException = new TestException("barfoo");
+
+
+		Future<String> resultFuture = leftFuture.thenCombineAsync(rightFuture, new BiFunction<Integer, String, String>() {
+			@Override
+			public String apply(Integer integer, String s) {
+				return s + integer;
+			}
+		}, executor);
+
+		leftFuture.complete(expectedLeftValue);
+		rightFuture.completeExceptionally(testException);
+
+		try {
+			resultFuture.get();
+			fail("We should have caught an ExecutionException.");
+		} catch (ExecutionException e) {
+			assertEquals(testException, e.getCause());
+		}
 	}
 
 	@Test

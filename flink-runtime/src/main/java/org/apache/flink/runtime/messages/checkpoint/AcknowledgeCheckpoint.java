@@ -19,12 +19,9 @@
 package org.apache.flink.runtime.messages.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
-
-import java.util.List;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -32,7 +29,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * This message is sent from the {@link org.apache.flink.runtime.taskmanager.TaskManager} to the
  * {@link org.apache.flink.runtime.jobmanager.JobManager} to signal that the checkpoint of an
  * individual task is completed.
- * 
+ * <p>
  * <p>This message may carry the handle to the task's chained operator state and the key group
  * state.
  */
@@ -40,125 +37,91 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 
 	private static final long serialVersionUID = -7606214777192401493L;
 
-	private final ChainedStateHandle<StreamStateHandle> stateHandle;
 
-	private final List<KeyGroupsStateHandle> keyGroupsStateHandle;
+	private final CheckpointStateHandles checkpointStateHandles;
 
-	/** The duration (in milliseconds) that the synchronous part of the checkpoint took */
-	private final long synchronousDurationMillis;
-
-	/** The duration (in milliseconds) that the asynchronous part of the checkpoint took */
-	private final long asynchronousDurationMillis;
-
-	/** The number of bytes that were buffered during the checkpoint alignment phase */
-	private final long bytesBufferedInAlignment;
-
-	/** The duration (in nanoseconds) that the alignment phase of the task's checkpoint took */
-	private final long alignmentDurationNanos;
+	private final CheckpointMetaData checkpointMetaData;
 
 	// ------------------------------------------------------------------------
 
 	public AcknowledgeCheckpoint(
 			JobID job,
 			ExecutionAttemptID taskExecutionId,
-			long checkpointId) {
-		this(job, taskExecutionId, checkpointId, null, null);
+			CheckpointMetaData checkpointMetaData) {
+		this(job, taskExecutionId, checkpointMetaData, null);
 	}
 
 	public AcknowledgeCheckpoint(
 			JobID job,
 			ExecutionAttemptID taskExecutionId,
-			long checkpointId,
-			ChainedStateHandle<StreamStateHandle> state,
-			List<KeyGroupsStateHandle> keyGroupStateAndSizes) {
-		this(job, taskExecutionId, checkpointId, state, keyGroupStateAndSizes, -1L, -1L, -1L, -1L);
-	}
+			CheckpointMetaData checkpointMetaData,
+			CheckpointStateHandles checkpointStateHandles) {
 
-	public AcknowledgeCheckpoint(
-			JobID job,
-			ExecutionAttemptID taskExecutionId,
-			long checkpointId,
-			ChainedStateHandle<StreamStateHandle> state,
-			List<KeyGroupsStateHandle> keyGroupStateAndSizes,
-			long synchronousDurationMillis,
-			long asynchronousDurationMillis,
-			long bytesBufferedInAlignment,
-			long alignmentDurationNanos) {
+		super(job, taskExecutionId, checkpointMetaData.getCheckpointId());
 
-		super(job, taskExecutionId, checkpointId);
-
-		// these may be null in cases where the operator has no state
-		this.stateHandle = state;
-		this.keyGroupsStateHandle = keyGroupStateAndSizes;
-
+		this.checkpointStateHandles = checkpointStateHandles;
+		this.checkpointMetaData = checkpointMetaData;
 		// these may be "-1", in case the values are unknown or not set
-		checkArgument(synchronousDurationMillis >= -1);
-		checkArgument(asynchronousDurationMillis >= -1);
-		checkArgument(bytesBufferedInAlignment >= -1);
-		checkArgument(alignmentDurationNanos >= -1);
-
-		this.synchronousDurationMillis = synchronousDurationMillis;
-		this.asynchronousDurationMillis = asynchronousDurationMillis;
-		this.bytesBufferedInAlignment = bytesBufferedInAlignment;
-		this.alignmentDurationNanos = alignmentDurationNanos;
+		checkArgument(checkpointMetaData.getSyncDurationMillis() >= -1);
+		checkArgument(checkpointMetaData.getAsyncDurationMillis() >= -1);
+		checkArgument(checkpointMetaData.getBytesBufferedInAlignment() >= -1);
+		checkArgument(checkpointMetaData.getAlignmentDurationNanos() >= -1);
 	}
 
 	// ------------------------------------------------------------------------
 	//  properties
 	// ------------------------------------------------------------------------
 
-	public ChainedStateHandle<StreamStateHandle> getStateHandle() {
-		return stateHandle;
-	}
-
-	public List<KeyGroupsStateHandle> getKeyGroupsStateHandle() {
-		return keyGroupsStateHandle;
+	public CheckpointStateHandles getCheckpointStateHandles() {
+		return checkpointStateHandles;
 	}
 
 	public long getSynchronousDurationMillis() {
-		return synchronousDurationMillis;
+		return checkpointMetaData.getSyncDurationMillis();
 	}
 
 	public long getAsynchronousDurationMillis() {
-		return asynchronousDurationMillis;
+		return checkpointMetaData.getAsyncDurationMillis();
 	}
 
 	public long getBytesBufferedInAlignment() {
-		return bytesBufferedInAlignment;
+		return checkpointMetaData.getBytesBufferedInAlignment();
 	}
 
 	public long getAlignmentDurationNanos() {
-		return alignmentDurationNanos;
+		return checkpointMetaData.getAlignmentDurationNanos();
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public int hashCode() {
-		return super.hashCode();
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (!(o instanceof AcknowledgeCheckpoint)) {
+			return false;
+		}
+		if (!super.equals(o)) {
+			return false;
+		}
+
+		AcknowledgeCheckpoint that = (AcknowledgeCheckpoint) o;
+		return checkpointStateHandles != null ?
+				checkpointStateHandles.equals(that.checkpointStateHandles) : that.checkpointStateHandles == null;
+
 	}
 
 	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true ;
-		}
-		else if (o instanceof AcknowledgeCheckpoint) {
-			AcknowledgeCheckpoint that = (AcknowledgeCheckpoint) o;
-			return super.equals(o) &&
-					(this.stateHandle == null ? that.stateHandle == null : 
-							(that.stateHandle != null && this.stateHandle.equals(that.stateHandle))) &&
-					(this.keyGroupsStateHandle == null ? that.keyGroupsStateHandle == null : 
-							(that.keyGroupsStateHandle != null && this.keyGroupsStateHandle.equals(that.keyGroupsStateHandle)));
-		}
-		else {
-			return false;
-		}
+	public int hashCode() {
+		int result = super.hashCode();
+		result = 31 * result + (checkpointStateHandles != null ? checkpointStateHandles.hashCode() : 0);
+		return result;
 	}
 
 	@Override
 	public String toString() {
-		return String.format("Confirm Task Checkpoint %d for (%s/%s) - state=%s keyGroupState=%s",
-				getCheckpointId(), getJob(), getTaskExecutionId(), stateHandle, keyGroupsStateHandle);
+		return String.format("Confirm Task Checkpoint %d for (%s/%s) - state=%s",
+				getCheckpointId(), getJob(), getTaskExecutionId(), checkpointStateHandles);
 	}
 }

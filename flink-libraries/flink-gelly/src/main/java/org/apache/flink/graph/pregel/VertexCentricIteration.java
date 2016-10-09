@@ -18,24 +18,21 @@
 
 package org.apache.flink.graph.pregel;
 
-import java.util.Iterator;
-import java.util.Map;
-
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.functions.RichCoGroupFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.operators.CoGroupOperator;
-import org.apache.flink.api.java.operators.DeltaIteration;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -49,6 +46,9 @@ import org.apache.flink.types.Either;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
+
+import java.util.Iterator;
+import java.util.Map;
 
 /**
  * This class represents iterative graph computations, programmed in a vertex-centric perspective.
@@ -158,14 +158,14 @@ public class VertexCentricIteration<K, VV, EV, Message>
 		// prepare the type information
 		TypeInformation<K> keyType = ((TupleTypeInfo<?>) initialVertices.getType()).getTypeAt(0);
 		TypeInformation<Tuple2<K, Message>> messageTypeInfo =
-			new TupleTypeInfo<Tuple2<K, Message>>(keyType, messageType);
+			new TupleTypeInfo<>(keyType, messageType);
 		TypeInformation<Vertex<K, VV>> vertexType = initialVertices.getType();
 		TypeInformation<Either<Vertex<K, VV>, Tuple2<K, Message>>> intermediateTypeInfo =
-			new EitherTypeInfo<Vertex<K, VV>, Tuple2<K, Message>>(vertexType, messageTypeInfo);
+			new EitherTypeInfo<>(vertexType, messageTypeInfo);
 		TypeInformation<Either<NullValue, Message>> nullableMsgTypeInfo =
-				new EitherTypeInfo<NullValue, Message>(TypeExtractor.getForClass(NullValue.class), messageType);
+			new EitherTypeInfo<>(TypeExtractor.getForClass(NullValue.class), messageType);
 		TypeInformation<Tuple2<K, Either<NullValue, Message>>> workSetTypeInfo =
-			new TupleTypeInfo<Tuple2<K, Either<NullValue, Message>>>(keyType, nullableMsgTypeInfo);
+			new TupleTypeInfo<>(keyType, nullableMsgTypeInfo);
 
 		DataSet<Tuple2<K, Either<NullValue, Message>>> initialWorkSet = initialVertices.map(
 				new InitializeWorkSet<K, VV, Message>()).returns(workSetTypeInfo);
@@ -183,7 +183,7 @@ public class VertexCentricIteration<K, VV, EV, Message>
 						vertexType, nullableMsgTypeInfo));
 
 		VertexComputeUdf<K, VV, EV, Message> vertexUdf =
-				new VertexComputeUdf<K, VV, EV, Message>(computeFunction, intermediateTypeInfo); 
+			new VertexComputeUdf<>(computeFunction, intermediateTypeInfo);
 
 		CoGroupOperator<?, ?, Either<Vertex<K, VV>, Tuple2<K, Message>>> superstepComputation =
 				verticesWithMsgs.coGroup(edgesWithValue)
@@ -204,7 +204,7 @@ public class VertexCentricIteration<K, VV, EV, Message>
 		if (combineFunction != null) {
 
 			MessageCombinerUdf<K, Message> combinerUdf =
-					new MessageCombinerUdf<K, Message>(combineFunction, workSetTypeInfo);
+				new MessageCombinerUdf<>(combineFunction, workSetTypeInfo);
 
 			DataSet<Tuple2<K, Either<NullValue, Message>>> combinedMessages = allMessages
 					.groupBy(0).reduceGroup(combinerUdf)
@@ -237,12 +237,12 @@ public class VertexCentricIteration<K, VV, EV, Message>
 	 * 
 	 * @return An instance of the vertex-centric graph computation operator.
 	 */
-	public static final <K, VV, EV, Message> VertexCentricIteration<K, VV, EV, Message> withEdges(
+	public static <K, VV, EV, Message> VertexCentricIteration<K, VV, EV, Message> withEdges(
 		DataSet<Edge<K, EV>> edgesWithValue, ComputeFunction<K, VV, EV, Message> cf,
 		int maximumNumberOfIterations) {
 
-		return new VertexCentricIteration<K, VV, EV, Message>(cf, edgesWithValue, null,
-				maximumNumberOfIterations);
+		return new VertexCentricIteration<>(cf, edgesWithValue, null,
+			maximumNumberOfIterations);
 	}
 
 	/**
@@ -260,12 +260,12 @@ public class VertexCentricIteration<K, VV, EV, Message>
 	 * 
 	 * @return An instance of the vertex-centric graph computation operator.
 	 */
-	public static final <K, VV, EV, Message> VertexCentricIteration<K, VV, EV, Message> withEdges(
+	public static <K, VV, EV, Message> VertexCentricIteration<K, VV, EV, Message> withEdges(
 		DataSet<Edge<K, EV>> edgesWithValue, ComputeFunction<K, VV, EV, Message> cf,
 		MessageCombiner<K, Message> mc, int maximumNumberOfIterations) {
 
-		return new VertexCentricIteration<K, VV, EV, Message>(cf, edgesWithValue, mc,
-				maximumNumberOfIterations);
+		return new VertexCentricIteration<>(cf, edgesWithValue, mc,
+			maximumNumberOfIterations);
 	}
 
 	/**
@@ -297,23 +297,23 @@ public class VertexCentricIteration<K, VV, EV, Message>
 
 		@Override
 		public void open(Configuration parameters) {
-			outTuple = new Tuple2<K, Either<NullValue, Message>>();
+			outTuple = new Tuple2<>();
 			nullMessage = Either.Left(NullValue.getInstance());
-			outTuple.setField(nullMessage, 1);
+			outTuple.f1 = nullMessage;
 		}
 
 		public Tuple2<K, Either<NullValue, Message>> map(Vertex<K, VV> vertex) {
-			outTuple.setField(vertex.getId(), 0);
+			outTuple.f0 = vertex.getId();
 			return outTuple;
 		}
 }
 	
-	@SuppressWarnings("serial")
 	/**
 	 * This coGroup class wraps the user-defined compute function.
 	 * The first input holds a Tuple2 containing the vertex state and its inbox.
 	 * The second input is an iterator of the out-going edges of this vertex.
 	 */
+	@SuppressWarnings("serial")
 	private static class VertexComputeUdf<K, VV, EV, Message> extends RichCoGroupFunction<
 		Tuple2<Vertex<K, VV>, Either<NullValue, Message>>, Edge<K, EV>,
 		Either<Vertex<K, VV>, Tuple2<K, Message>>>
@@ -469,14 +469,13 @@ public class VertexCentricIteration<K, VV, EV, Message>
 			JoinFunction<Vertex<K, VV>, Tuple2<K, Either<NullValue, Message>>,
 					Tuple2<Vertex<K, VV>, Either<NullValue, Message>>> {
 
-		private Tuple2<Vertex<K, VV>, Either<NullValue, Message>> outTuple =
-				new Tuple2<Vertex<K, VV>, Either<NullValue, Message>>();
+		private Tuple2<Vertex<K, VV>, Either<NullValue, Message>> outTuple = new Tuple2<>();
 
 		public Tuple2<Vertex<K, VV>, Either<NullValue, Message>> join(
 				Vertex<K, VV> vertex, Tuple2<K, Either<NullValue, Message>> message) {
 
-			outTuple.setField(vertex, 0);
-			outTuple.setField(message.f1, 1);
+			outTuple.f0 = vertex;
+			outTuple.f1 = message.f1;
 			return outTuple;
 		}
 	}
@@ -498,15 +497,15 @@ public class VertexCentricIteration<K, VV, EV, Message>
 	private static final class ProjectMessages<K, VV, Message> implements
 			FlatMapFunction<Either<Vertex<K, VV>, Tuple2<K, Message>>, Tuple2<K, Either<NullValue, Message>>> {
 
-		private Tuple2<K, Either<NullValue, Message>> outTuple = new Tuple2<K, Either<NullValue, Message>>();
+		private Tuple2<K, Either<NullValue, Message>> outTuple = new Tuple2<>();
 
 		public void flatMap(Either<Vertex<K, VV>, Tuple2<K, Message>> value,
 				Collector<Tuple2<K, Either<NullValue, Message>>> out) {
 
 			if (value.isRight()) {
 				Tuple2<K, Message> message = value.right();
-				outTuple.setField(message.f0, 0);
-				outTuple.setField(Either.Right(message.f1), 1);
+				outTuple.f0 = message.f0;
+				outTuple.f1 = Either.Right(message.f1);
 				out.collect(outTuple);
 			}
 		}

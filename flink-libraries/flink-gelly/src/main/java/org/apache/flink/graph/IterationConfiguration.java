@@ -37,7 +37,7 @@ public abstract class IterationConfiguration {
 	private int parallelism = -1;
 
 	/** the iteration aggregators **/
-	private Map<String, Aggregator<?>> aggregators = new HashMap<String, Aggregator<?>>();
+	private Map<String, Aggregator<?>> aggregators = new HashMap<>();
 
 	/** flag that defines whether the solution set is kept in managed memory **/
 	private boolean unmanagedSolutionSet = false;

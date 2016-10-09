@@ -141,7 +141,7 @@ public abstract class GatherFunction<K, VV, Message> implements Serializable {
 	 * @return The aggregator registered under this name, or null, if no aggregator was registered.
 	 */
 	public <T extends Aggregator<?>> T getIterationAggregator(String name) {
-		return this.runtimeContext.<T>getIterationAggregator(name);
+		return this.runtimeContext.getIterationAggregator(name);
 	}
 
 	/**
@@ -151,7 +151,7 @@ public abstract class GatherFunction<K, VV, Message> implements Serializable {
 	 * @return The aggregated value of the previous iteration.
 	 */
 	public <T extends Value> T getPreviousIterationAggregate(String name) {
-		return this.runtimeContext.<T>getPreviousIterationAggregate(name);
+		return this.runtimeContext.getPreviousIterationAggregate(name);
 	}
 
 	/**
@@ -163,7 +163,7 @@ public abstract class GatherFunction<K, VV, Message> implements Serializable {
 	 * @return The broadcast data set.
 	 */
 	public <T> Collection<T> getBroadcastSet(String name) {
-		return this.runtimeContext.<T>getBroadcastVariable(name);
+		return this.runtimeContext.getBroadcastVariable(name);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -243,8 +243,8 @@ public abstract class GatherFunction<K, VV, Message> implements Serializable {
 	<VertexWithDegree> void updateVertexFromScatterGatherIteration(Vertex<K, VertexWithDegree> vertexState,
 												MessageIterator<Message> inMessages) throws Exception {
 
-		Vertex<K, VV> vertex = new Vertex<K, VV>(vertexState.f0,
-				((Tuple3<VV, Long, Long>)vertexState.getValue()).f0);
+		Vertex<K, VV> vertex = new Vertex<>(vertexState.f0,
+			((Tuple3<VV, Long, Long>) vertexState.getValue()).f0);
 
 		updateVertex(vertex, inMessages);
 	}

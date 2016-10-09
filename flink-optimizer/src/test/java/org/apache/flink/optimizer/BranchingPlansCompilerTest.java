@@ -505,7 +505,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 
 		loopRes.output(new DiscardingOutputFormat<Long>());
 		loopRes.map(new IdentityMapper<Long>())
-				.output(new DiscardingOutputFormat<Long>());;
+				.output(new DiscardingOutputFormat<Long>());
 
 		Plan plan = env.createProgramPlan();
 

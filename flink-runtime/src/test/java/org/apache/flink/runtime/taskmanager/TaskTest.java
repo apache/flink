@@ -35,6 +35,7 @@ import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -60,6 +61,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -250,15 +252,14 @@ public class TaskTest {
 			// mock a network manager that rejects registration
 			ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 			ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
+			PartitionStateChecker partitionStateChecker = mock(PartitionStateChecker.class);
+			Executor executor = mock(Executor.class);
 			NetworkEnvironment network = mock(NetworkEnvironment.class);
 			when(network.getResultPartitionManager()).thenReturn(partitionManager);
 			when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 			doThrow(new RuntimeException("buffers")).when(network).registerTask(any(Task.class));
 
-			JobManagerCommunicationFactory jobManagerCommunicationFactory = mock(JobManagerCommunicationFactory.class);
-			when(jobManagerCommunicationFactory.createResultPartitionConsumableNotifier(any(Task.class))).thenReturn(consumableNotifier);
-			
-			Task task = createTask(TestInvokableCorrect.class, libCache, network, jobManagerCommunicationFactory);
+			Task task = createTask(TestInvokableCorrect.class, libCache, network, consumableNotifier, partitionStateChecker, executor);
 
 			task.registerExecutionListener(listener);
 
@@ -606,23 +607,24 @@ public class TaskTest {
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
+		PartitionStateChecker partitionStateChecker = mock(PartitionStateChecker.class);
+		Executor executor = mock(Executor.class);
 		NetworkEnvironment network = mock(NetworkEnvironment.class);
-		JobManagerCommunicationFactory jobManagerCommunicationFactory = mock(JobManagerCommunicationFactory.class);
 		when(network.getResultPartitionManager()).thenReturn(partitionManager);
 		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 		when(network.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
 
-		when(jobManagerCommunicationFactory.createResultPartitionConsumableNotifier(any(Task.class))).thenReturn(consumableNotifier);
-		
-		return createTask(invokable, libCache, network, jobManagerCommunicationFactory);
+		return createTask(invokable, libCache, network, consumableNotifier, partitionStateChecker, executor);
 	}
 	
 	private Task createTask(
 		Class<? extends AbstractInvokable> invokable,
 		LibraryCacheManager libCache,
 		NetworkEnvironment networkEnvironment,
-		JobManagerCommunicationFactory jobManagerCommunicationFactory) {
+		ResultPartitionConsumableNotifier consumableNotifier,
+		PartitionStateChecker partitionStateChecker,
+		Executor executor) {
 		
 		TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(invokable);
 
@@ -640,7 +642,6 @@ public class TaskTest {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			networkEnvironment,
-			jobManagerCommunicationFactory,
 			mock(BroadcastVariableManager.class),
 			taskManagerConnection,
 			inputSplitProvider,
@@ -648,7 +649,10 @@ public class TaskTest {
 			libCache,
 			mock(FileCache.class),
 			new TaskManagerRuntimeInfo("localhost", new Configuration(), System.getProperty("java.io.tmpdir")),
-			mock(TaskMetricGroup.class));
+			mock(TaskMetricGroup.class),
+			consumableNotifier,
+			partitionStateChecker,
+			executor);
 	}
 
 	private TaskDeploymentDescriptor createTaskDeploymentDescriptor(Class<? extends AbstractInvokable> invokable) {

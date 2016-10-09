@@ -27,12 +27,11 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
@@ -66,7 +65,6 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
@@ -89,7 +87,7 @@ public class RocksDBAsyncSnapshotTest {
 	}
 
 	/**
-	 * This ensures that asynchronous state handles are actually materialized asynchonously.
+	 * This ensures that asynchronous state handles are actually materialized asynchronously.
 	 *
 	 * <p>We use latches to block at various stages and see if the code still continues through
 	 * the parts that are not asynchronous. If the checkpoint is not done asynchronously the
@@ -137,15 +135,10 @@ public class RocksDBAsyncSnapshotTest {
 
 			@Override
 			public void acknowledgeCheckpoint(
-					long checkpointId,
-					ChainedStateHandle<StreamStateHandle> chainedStateHandle, 
-					List<KeyGroupsStateHandle> keyGroupStateHandles,
-					long synchronousDurationMillis, long asynchronousDurationMillis,
-					long bytesBufferedInAlignment, long alignmentDurationNanos) {
+					CheckpointMetaData checkpointMetaData,
+					CheckpointStateHandles checkpointStateHandles) {
 
-				super.acknowledgeCheckpoint(checkpointId, chainedStateHandle, keyGroupStateHandles,
-						synchronousDurationMillis, asynchronousDurationMillis,
-						bytesBufferedInAlignment, alignmentDurationNanos);
+				super.acknowledgeCheckpoint(checkpointMetaData);
 
 				// block on the latch, to verify that triggerCheckpoint returns below,
 				// even though the async checkpoint would not finish
@@ -156,7 +149,7 @@ public class RocksDBAsyncSnapshotTest {
 				}
 
 				// should be only one k/v state
-				assertEquals(1, keyGroupStateHandles.size());
+				assertEquals(1, checkpointStateHandles.getKeyGroupsStateHandle().size());
 
 				// we now know that the checkpoint went through
 				ensureCheckpointLatch.trigger();
@@ -172,11 +165,10 @@ public class RocksDBAsyncSnapshotTest {
 				while (!field.getBoolean(task)) {
 					Thread.sleep(10);
 				}
-
 			}
 		}
 
-		task.triggerCheckpoint(42, 17);
+		task.triggerCheckpoint(new CheckpointMetaData(42, 17));
 
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 
@@ -193,7 +185,9 @@ public class RocksDBAsyncSnapshotTest {
 		Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
 
 		testHarness.waitForTaskCompletion();
-		task.checkTimerException();
+		if (mockEnv.wasFailedExternally()) {
+			Assert.fail("Unexpected exception during execution.");
+		}
 	}
 
 	/**
@@ -253,7 +247,7 @@ public class RocksDBAsyncSnapshotTest {
 			}
 		}
 
-		task.triggerCheckpoint(42, 17);
+		task.triggerCheckpoint(new CheckpointMetaData(42, 17));
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 		BlockingStreamMemoryStateBackend.waitFirstWriteLatch.await();
 		task.cancel();
@@ -265,8 +259,10 @@ public class RocksDBAsyncSnapshotTest {
 			threadPool.shutdown();
 			Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
 			testHarness.waitForTaskCompletion();
-			task.checkTimerException();
 
+			if (mockEnv.wasFailedExternally()) {
+				throw new AsynchronousException(new InterruptedException("Exception was thrown as expected."));
+			}
 			Assert.fail("Operation completed. Cancel failed.");
 		} catch (Exception expected) {
 			AsynchronousException asynchronousException = null;

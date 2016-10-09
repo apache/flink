@@ -24,7 +24,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.Delayed;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * This is a {@link TimeServiceProvider} used <b>strictly for testing</b> the
@@ -32,35 +36,39 @@ import java.util.concurrent.ScheduledFuture;
  * */
 public class TestTimeServiceProvider extends TimeServiceProvider {
 
-	private long currentTime = 0;
+	private volatile long currentTime = 0;
 
-	private boolean isTerminated = false;
+	private volatile boolean isTerminated;
+	private volatile boolean isQuiesced;
 
 	// sorts the timers by timestamp so that they are processed in the correct order.
-	private Map<Long, List<Triggerable>> registeredTasks = new TreeMap<>();
+	private final Map<Long, List<Triggerable>> registeredTasks = new TreeMap<>();
 
+	
 	public void setCurrentTime(long timestamp) throws Exception {
 		this.currentTime = timestamp;
 
-		// decide which timers to fire and put them in a list
-		// we do not fire them here to be able to accommodate timers
-		// that register other timers.
-
-		Iterator<Map.Entry<Long, List<Triggerable>>> it = registeredTasks.entrySet().iterator();
-		List<Map.Entry<Long, List<Triggerable>>> toRun = new ArrayList<>();
-		while (it.hasNext()) {
-			Map.Entry<Long, List<Triggerable>> t = it.next();
-			if (t.getKey() <= this.currentTime) {
-				toRun.add(t);
-				it.remove();
+		if (!isQuiesced) {
+			// decide which timers to fire and put them in a list
+			// we do not fire them here to be able to accommodate timers
+			// that register other timers.
+	
+			Iterator<Map.Entry<Long, List<Triggerable>>> it = registeredTasks.entrySet().iterator();
+			List<Map.Entry<Long, List<Triggerable>>> toRun = new ArrayList<>();
+			while (it.hasNext()) {
+				Map.Entry<Long, List<Triggerable>> t = it.next();
+				if (t.getKey() <= this.currentTime) {
+					toRun.add(t);
+					it.remove();
+				}
 			}
-		}
-
-		// now do the actual firing.
-		for (Map.Entry<Long, List<Triggerable>> tasks: toRun) {
-			long now = tasks.getKey();
-			for (Triggerable task: tasks.getValue()) {
-				task.trigger(now);
+	
+			// now do the actual firing.
+			for (Map.Entry<Long, List<Triggerable>> tasks: toRun) {
+				long now = tasks.getKey();
+				for (Triggerable task: tasks.getValue()) {
+					task.trigger(now);
+				}
 			}
 		}
 	}
@@ -72,13 +80,28 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 
 	@Override
 	public ScheduledFuture<?> registerTimer(long timestamp, Triggerable target) {
+		if (isTerminated) {
+			throw new IllegalStateException("terminated");
+		}
+		if (isQuiesced) {
+			return new DummyFuture();
+		}
+
+		if (timestamp <= currentTime) {
+			try {
+				target.trigger(timestamp);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		}
 		List<Triggerable> tasks = registeredTasks.get(timestamp);
 		if (tasks == null) {
 			tasks = new ArrayList<>();
 			registeredTasks.put(timestamp, tasks);
 		}
 		tasks.add(target);
-		return null;
+
+		return new DummyFuture();
 	}
 
 	@Override
@@ -86,7 +109,20 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 		return isTerminated;
 	}
 
-	public int getNoOfRegisteredTimers() {
+	@Override
+	public void quiesceAndAwaitPending() {
+		if (!isTerminated) {
+			isQuiesced = true;
+			registeredTasks.clear();
+		}
+	}
+
+	@Override
+	public void shutdownService() {
+		this.isTerminated = true;
+	}
+
+	public int getNumRegisteredTimers() {
 		int count = 0;
 		for (List<Triggerable> tasks: registeredTasks.values()) {
 			count += tasks.size();
@@ -94,8 +130,43 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 		return count;
 	}
 
-	@Override
-	public void shutdownService() throws Exception {
-		this.isTerminated = true;
+	// ------------------------------------------------------------------------
+
+	private static class DummyFuture implements ScheduledFuture<Object> {
+
+		@Override
+		public long getDelay(TimeUnit unit) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public int compareTo(Delayed o) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public boolean cancel(boolean mayInterruptIfRunning) {
+			return true;
+		}
+
+		@Override
+		public boolean isCancelled() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public boolean isDone() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Object get() throws InterruptedException, ExecutionException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Object get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+			throw new UnsupportedOperationException();
+		}
 	}
 }

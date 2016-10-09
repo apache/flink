@@ -64,7 +64,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		final Object lock = getCheckpointLock();
 		
 		while (running && inputProcessor.processInput(operator, lock)) {
-			checkTimerException();
+			// all the work happens in the "processInput" method
 		}
 	}
 

@@ -17,19 +17,19 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import java.io.IOException;
-import java.util.ArrayDeque;
-
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
-import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.ArrayDeque;
 
 /**
  * The barrier buffer is {@link CheckpointBarrierHandler} that blocks inputs with barriers until
@@ -219,9 +219,13 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 			releaseBlocks();
 
 			if (toNotifyOnCheckpoint != null) {
-				toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
-						receivedBarrier.getId(), receivedBarrier.getTimestamp(),
-						bufferSpiller.getBytesWritten(), latestAlignmentDurationNanos);
+				CheckpointMetaData checkpointMetaData =
+						new CheckpointMetaData(receivedBarrier.getId(), receivedBarrier.getTimestamp());
+				checkpointMetaData.
+						setBytesBufferedInAlignment(bufferSpiller.getBytesWritten()).
+						setAlignmentDurationNanos(latestAlignmentDurationNanos);
+
+				toNotifyOnCheckpoint.triggerCheckpointOnBarrier(checkpointMetaData);
 			}
 		}
 	}

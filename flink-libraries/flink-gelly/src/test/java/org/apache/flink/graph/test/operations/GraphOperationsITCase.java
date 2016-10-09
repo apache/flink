@@ -18,11 +18,6 @@
 
 package org.apache.flink.graph.test.operations;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import com.google.common.collect.Lists;
-
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -38,6 +33,9 @@ import org.apache.flink.types.NullValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class GraphOperationsITCase extends MultipleProgramsTestBase {
@@ -363,32 +361,29 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		@SuppressWarnings("unchecked")
-		List<Edge<Long, Long>> edges1 = Lists.newArrayList(
-				new Edge<>(1L, 3L, 12L),
-				new Edge<>(1L, 3L, 13L), // needs to be in the output
-				new Edge<>(1L, 3L, 14L)
-		);
+		List<Edge<Long, Long>> edges1 = new ArrayList<>();
+		edges1.add(new Edge<>(1L, 3L, 12L));
+		edges1.add(new Edge<>(1L, 3L, 13L)); // needs to be in the output
+		edges1.add(new Edge<>(1L, 3L, 14L));
 
 		@SuppressWarnings("unchecked")
-		List<Edge<Long, Long>> edges2 = Lists.newArrayList(
-				new Edge<>(1L, 3L, 13L)
-		);
+		List<Edge<Long, Long>> edges2 = new ArrayList<>();
+		edges2.add(new Edge<>(1L, 3L, 13L));
 
 		Graph<Long, NullValue, Long> graph1 = Graph.fromCollection(edges1, env);
 		Graph<Long, NullValue, Long> graph2 = Graph.fromCollection(edges2, env);
 
 		Graph<Long, NullValue, Long> intersect = graph1.intersect(graph2, true);
 
-		List<Vertex<Long, NullValue>> vertices = Lists.newArrayList();
-		List<Edge<Long, Long>> edges = Lists.newArrayList();
+		List<Vertex<Long, NullValue>> vertices = new ArrayList<>();
+		List<Edge<Long, Long>> edges = new ArrayList<>();
 
 		intersect.getVertices().output(new LocalCollectionOutputFormat<>(vertices));
 		intersect.getEdges().output(new LocalCollectionOutputFormat<>(edges));
 
 		env.execute();
 
-		String expectedVertices = "1,(null)\n" +
-				"3,(null)\n";
+		String expectedVertices = "1,(null)\n" + "3,(null)\n";
 
 		String expectedEdges = "1,3,13\n";
 
@@ -401,28 +396,26 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		@SuppressWarnings("unchecked")
-		List<Edge<Long, Long>> edges1 = Lists.newArrayList(
-				new Edge<>(1L, 3L, 12L),
-				new Edge<>(1L, 3L, 13L),
-				new Edge<>(1L, 3L, 13L), // output
-				new Edge<>(1L, 3L, 13L), // output
-				new Edge<>(1L, 3L, 14L)  // output
-		);
+		List<Edge<Long, Long>> edges1 = new ArrayList<>();
+		edges1.add(new Edge<>(1L, 3L, 12L));
+		edges1.add(new Edge<>(1L, 3L, 13L));
+		edges1.add(new Edge<>(1L, 3L, 13L)); // output
+		edges1.add(new Edge<>(1L, 3L, 13L)); // output
+		edges1.add(new Edge<>(1L, 3L, 14L)); // output
 
 		@SuppressWarnings("unchecked")
-		List<Edge<Long, Long>> edges2 = Lists.newArrayList(
-				new Edge<>(1L, 3L, 13L), // output
-				new Edge<>(1L, 3L, 13L), // output
-				new Edge<>(1L, 3L, 14L)  // output
-		);
+		List<Edge<Long, Long>> edges2 = new ArrayList<>();
+		edges2.add(new Edge<>(1L, 3L, 13L)); // output
+		edges2.add(new Edge<>(1L, 3L, 13L)); // output
+		edges2.add(new Edge<>(1L, 3L, 14L)); // output
 
 		Graph<Long, NullValue, Long> graph1 = Graph.fromCollection(edges1, env);
 		Graph<Long, NullValue, Long> graph2 = Graph.fromCollection(edges2, env);
 
 		Graph<Long, NullValue, Long> intersect = graph1.intersect(graph2, false);
 
-		List<Vertex<Long, NullValue>> vertices = Lists.newArrayList();
-		List<Edge<Long, Long>> edges = Lists.newArrayList();
+		List<Vertex<Long, NullValue>> vertices = new ArrayList<>();
+		List<Edge<Long, Long>> edges = new ArrayList<>();
 
 		intersect.getVertices().output(new LocalCollectionOutputFormat<>(vertices));
 		intersect.getEdges().output(new LocalCollectionOutputFormat<>(edges));

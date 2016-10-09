@@ -39,14 +39,16 @@ import org.junit.runners.Parameterized
 import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
-class TableSourceITCase(mode: TestExecutionMode)
-  extends MultipleProgramsTestBase(mode) {
+class TableSourceITCase(
+    mode: TestExecutionMode,
+    configMode: TableConfigMode)
+  extends TableProgramsTestBase(mode, configMode) {
 
   @Test
   def testBatchTableSourceTableAPI(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     tEnv.registerTableSource("MyTestTable", new TestBatchTableSource())
     val results = tEnv
@@ -65,7 +67,7 @@ class TableSourceITCase(mode: TestExecutionMode)
   def testBatchTableSourceSQL(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     tEnv.registerTableSource("MyTestTable", new TestBatchTableSource())
     val results = tEnv.sql(
@@ -100,7 +102,7 @@ class TableSourceITCase(mode: TestExecutionMode)
     tmpWriter.close()
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val csvTable = new CsvTableSource(
       tempFile.getAbsolutePath,

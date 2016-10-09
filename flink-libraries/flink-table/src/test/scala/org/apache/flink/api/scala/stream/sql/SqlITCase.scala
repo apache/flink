@@ -39,7 +39,7 @@ class SqlITCase extends StreamingMultipleProgramsTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
 
-    val sqlQuery = "SELECT STREAM a * 2, b - 1 FROM MyTable"
+    val sqlQuery = "SELECT a * 2, b - 1 FROM MyTable"
 
     val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("MyTable", t)
@@ -60,7 +60,7 @@ class SqlITCase extends StreamingMultipleProgramsTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
 
-    val sqlQuery = "SELECT STREAM * FROM MyTable WHERE a = 3"
+    val sqlQuery = "SELECT * FROM MyTable WHERE a = 3"
 
     val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("MyTable", t)
@@ -81,7 +81,7 @@ class SqlITCase extends StreamingMultipleProgramsTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
 
-    val sqlQuery = "SELECT STREAM * FROM MyTable WHERE _1 = 3"
+    val sqlQuery = "SELECT * FROM MyTable WHERE _1 = 3"
 
     val t = StreamTestData.getSmall3TupleDataStream(env)
     tEnv.registerDataStream("MyTable", t)
@@ -101,9 +101,9 @@ class SqlITCase extends StreamingMultipleProgramsTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
 
-    val sqlQuery = "SELECT STREAM * FROM T1 " +
+    val sqlQuery = "SELECT * FROM T1 " +
       "UNION ALL " +
-      "SELECT STREAM * FROM T2"
+      "SELECT * FROM T2"
 
     val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("T1", t1)
@@ -128,9 +128,9 @@ class SqlITCase extends StreamingMultipleProgramsTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
 
-    val sqlQuery = "SELECT STREAM * FROM T1 WHERE a = 3 " +
+    val sqlQuery = "SELECT * FROM T1 WHERE a = 3 " +
       "UNION ALL " +
-      "SELECT STREAM * FROM T2 WHERE a = 2"
+      "SELECT * FROM T2 WHERE a = 2"
 
     val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("T1", t1)
@@ -154,9 +154,9 @@ class SqlITCase extends StreamingMultipleProgramsTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
 
-    val sqlQuery = "SELECT STREAM c FROM T1 WHERE a = 3 " +
+    val sqlQuery = "SELECT c FROM T1 WHERE a = 3 " +
       "UNION ALL " +
-      "SELECT STREAM c FROM T2 WHERE a = 2"
+      "SELECT c FROM T2 WHERE a = 2"
 
     val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("T1", t1)

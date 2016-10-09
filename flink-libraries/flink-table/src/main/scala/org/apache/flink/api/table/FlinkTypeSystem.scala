@@ -19,6 +19,7 @@
 package org.apache.flink.api.table
 
 import org.apache.calcite.rel.`type`.RelDataTypeSystemImpl
+import org.apache.calcite.sql.`type`.SqlTypeName
 
 /**
   * Custom type system for Flink.
@@ -32,5 +33,13 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
   // we cannot use Int.MaxValue because of an overflow in Calcites type inference logic
   // half should be enough for all use cases
   override def getMaxNumericPrecision: Int = Int.MaxValue / 2
+
+  override def getDefaultPrecision(typeName: SqlTypeName): Int = typeName match {
+    // by default all VARCHARs can have the Java default length
+    case SqlTypeName.VARCHAR =>
+      Int.MaxValue
+    case _ =>
+      super.getDefaultPrecision(typeName)
+  }
 
 }

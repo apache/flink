@@ -22,7 +22,7 @@ import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeSystem}
 import org.apache.calcite.sql.SqlIntervalQualifier
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName, SqlTypeUtil}
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
@@ -65,6 +65,16 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     // for storing the original TypeInformation
     else {
       seenTypes.getOrElseUpdate(typeInfo, canonize(createAdvancedType(typeInfo)))
+    }
+  }
+
+  override def createSqlType(typeName: SqlTypeName, precision: Int): RelDataType = {
+    // it might happen that inferred VARCHAR types overflow as we set them to Int.MaxValue
+    // always set those to default value
+    if (typeName == VARCHAR && precision < 0) {
+      createSqlType(typeName, getTypeSystem.getDefaultPrecision(typeName))
+    } else {
+      super.createSqlType(typeName, precision)
     }
   }
 

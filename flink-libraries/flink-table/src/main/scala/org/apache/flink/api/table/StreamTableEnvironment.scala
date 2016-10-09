@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.Programs
 
@@ -31,8 +32,7 @@ import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamConvention, DataStreamRel}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.sinks.{StreamTableSink, TableSink}
-import org.apache.flink.api.table.plan.schema.
-  {StreamableTableSourceTable, TransStreamTable, DataStreamTable}
+import org.apache.flink.api.table.plan.schema.{TableSourceTable, DataStreamTable}
 import org.apache.flink.api.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
@@ -111,7 +111,7 @@ abstract class StreamTableEnvironment(
   def registerTableSource(name: String, tableSource: StreamTableSource[_]): Unit = {
 
     checkValidTableName(name)
-    registerTableInternal(name, new StreamableTableSourceTable(tableSource))
+    registerTableInternal(name, new TableSourceTable(tableSource))
   }
 
   /**
@@ -165,14 +165,11 @@ abstract class StreamTableEnvironment(
     *
     * @param name The name under which the table is registered in the catalog.
     * @param dataStream The [[DataStream]] to register as table in the catalog.
-    * @param wrapper True if the registration has to wrap the datastreamTable
-    *                into a [[org.apache.calcite.schema.StreamableTable]]
     * @tparam T the type of the [[DataStream]].
     */
   protected def registerDataStreamInternal[T](
     name: String,
-    dataStream: DataStream[T],
-    wrapper: Boolean): Unit = {
+    dataStream: DataStream[T]): Unit = {
 
     val (fieldNames, fieldIndexes) = getFieldInfo[T](dataStream.getType)
     val dataStreamTable = new DataStreamTable[T](
@@ -180,16 +177,7 @@ abstract class StreamTableEnvironment(
       fieldIndexes,
       fieldNames
     )
-    // when registering a DataStream, we need to wrap it into a TransStreamTable
-    // so that the SQL validation phase won't fail
-    if (wrapper) {
-      registerTableInternal(name, dataStreamTable)
-      val t = ingest(name)
-      replaceRegisteredTable(name, new TransStreamTable(t.getRelNode, true))
-    }
-    else {
-      registerTableInternal(name, dataStreamTable)
-    }
+    registerTableInternal(name, dataStreamTable)
   }
 
   /**
@@ -199,15 +187,12 @@ abstract class StreamTableEnvironment(
     * @param name The name under which the table is registered in the catalog.
     * @param dataStream The [[DataStream]] to register as table in the catalog.
     * @param fields The field expressions to define the field names of the table.
-    * @param wrapper True if the registration has to wrap the datastreamTable
-    *                into a [[org.apache.calcite.schema.StreamableTable]]
     * @tparam T The type of the [[DataStream]].
     */
   protected def registerDataStreamInternal[T](
     name: String,
     dataStream: DataStream[T],
-    fields: Array[Expression],
-    wrapper: Boolean): Unit = {
+    fields: Array[Expression]): Unit = {
 
     val (fieldNames, fieldIndexes) = getFieldInfo[T](dataStream.getType, fields.toArray)
     val dataStreamTable = new DataStreamTable[T](
@@ -215,35 +200,16 @@ abstract class StreamTableEnvironment(
       fieldIndexes.toArray,
       fieldNames.toArray
     )
-    // when registering a DataStream, we need to wrap it into a StreamableTable
-    // so that the SQL validation phase won't fail
-    if (wrapper) {
-      registerTableInternal(name, dataStreamTable)
-      val t = ingest(name)
-      replaceRegisteredTable(name, new TransStreamTable(t.getRelNode, true))
-    }
-    else {
-      registerTableInternal(name, dataStreamTable)
-    }
+    registerTableInternal(name, dataStreamTable)
   }
 
   /**
-    * Translates a [[Table]] into a [[DataStream]].
+    * Generates the optimized [[RelNode]] tree from the original relational node tree.
     *
-    * The transformation involves optimizing the relational expression tree as defined by
-    * Table API calls and / or SQL queries and generating corresponding [[DataStream]] operators.
-    *
-    * @param table The root node of the relational expression tree.
-    * @param tpe The [[TypeInformation]] of the resulting [[DataStream]].
-    * @tparam A The type of the resulting [[DataStream]].
-    * @return The [[DataStream]] that corresponds to the translated [[Table]].
+    * @param relNode The root node of the relational expression tree.
+    * @return The optimized [[RelNode]] tree
     */
-  protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataStream[A] = {
-
-    validateType(tpe)
-
-    val relNode = table.getRelNode
-
+  private[flink] def optimize(relNode: RelNode): RelNode = {
     // decorrelate
     val decorPlan = RelDecorrelator.decorrelateQuery(relNode)
 
@@ -262,6 +228,26 @@ abstract class StreamTableEnvironment(
             s"This exception indicates that the query uses an unsupported SQL feature.\n" +
             s"Please check the documentation for the set of currently supported SQL features.")
     }
+    dataStreamPlan
+  }
+
+
+  /**
+    * Translates a [[Table]] into a [[DataStream]].
+    *
+    * The transformation involves optimizing the relational expression tree as defined by
+    * Table API calls and / or SQL queries and generating corresponding [[DataStream]] operators.
+    *
+    * @param table The root node of the relational expression tree.
+    * @param tpe The [[TypeInformation]] of the resulting [[DataStream]].
+    * @tparam A The type of the resulting [[DataStream]].
+    * @return The [[DataStream]] that corresponds to the translated [[Table]].
+    */
+  protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataStream[A] = {
+
+    validateType(tpe)
+
+   val dataStreamPlan = optimize(table.getRelNode)
 
     dataStreamPlan match {
       case node: DataStreamRel =>

@@ -153,9 +153,4 @@ public class CompletedCheckpoint implements StateObject {
 	public String toString() {
 		return String.format("Checkpoint %d @ %d for %s", checkpointID, timestamp, job);
 	}
-
-	@Override
-	public void close() throws IOException {
-		StateUtil.bestEffortCloseAllStateObjects(taskStates.values());
-	}
 }

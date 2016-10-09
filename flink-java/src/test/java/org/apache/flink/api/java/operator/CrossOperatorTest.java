@@ -18,18 +18,18 @@
 
 package org.apache.flink.api.java.operator;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-
-import org.junit.Assert;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 
 public class CrossOperatorTest {
 
@@ -450,7 +450,7 @@ public class CrossOperatorTest {
 		public long myLong;
 		public String myString;
 
-		public CustomType() {};
+		public CustomType() {}
 
 		public CustomType(int i, long l, String s) {
 			myInt = i;

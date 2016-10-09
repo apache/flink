@@ -112,7 +112,7 @@ public class LabelPropagation<K, VV extends Comparable<VV>, EV>
 	public static final class UpdateVertexLabel<K, VV extends Comparable<VV>> extends GatherFunction<K, VV, VV> {
 
 		public void updateVertex(Vertex<K, VV> vertex, MessageIterator<VV> inMessages) {
-			Map<VV, Long> labelsWithFrequencies = new HashMap<VV, Long>();
+			Map<VV, Long> labelsWithFrequencies = new HashMap<>();
 
 			long maxFrequency = 1;
 			VV mostFrequentLabel = vertex.getValue();

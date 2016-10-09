@@ -19,7 +19,7 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import java.sql.Date;
-import java.sql.Timestamp;
+
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;

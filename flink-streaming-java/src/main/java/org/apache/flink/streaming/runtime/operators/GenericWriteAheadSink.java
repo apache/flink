@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.disk.InputViewIterator;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.util.ReusingMutableToRegularIteratorWrapper;
+import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -51,7 +52,9 @@ import java.util.UUID;
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
+public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<IN>
+		implements OneInputStreamOperator<IN, IN>, StreamCheckpointedOperator {
+
 	private static final long serialVersionUID = 1L;
 
 	protected static final Logger LOG = LoggerFactory.getLogger(GenericWriteAheadSink.class);
@@ -110,7 +113,6 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	public void snapshotState(FSDataOutputStream out,
 			long checkpointId,
 			long timestamp) throws Exception {
-		super.snapshotState(out, checkpointId, timestamp);
 
 		saveHandleInState(checkpointId, timestamp);
 
@@ -119,7 +121,6 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 
 	@Override
 	public void restoreState(FSDataInputStream in) throws Exception {
-		super.restoreState(in);
 
 		this.state = InstantiationUtil.deserializeObject(in, getUserCodeClassloader());
 	}
@@ -151,11 +152,19 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 					try {
 						if (!committer.isCheckpointCommitted(pastCheckpointId)) {
 							Tuple2<Long, StreamStateHandle> handle = state.pendingHandles.get(pastCheckpointId);
-							FSDataInputStream in = handle.f1.openInputStream();
-							boolean success = sendValues(new ReusingMutableToRegularIteratorWrapper<>(new InputViewIterator<>(new DataInputViewStreamWrapper(in), serializer), serializer), handle.f0);
-							if (success) { //if the sending has failed we will retry on the next notify
-								committer.commitCheckpoint(pastCheckpointId);
-								checkpointsToRemove.add(pastCheckpointId);
+							try (FSDataInputStream in = handle.f1.openInputStream()) {
+								boolean success = sendValues(
+										new ReusingMutableToRegularIteratorWrapper<>(
+												new InputViewIterator<>(
+														new DataInputViewStreamWrapper(
+																in),
+														serializer),
+												serializer),
+										handle.f0);
+								if (success) { //if the sending has failed we will retry on the next notify
+									committer.commitCheckpoint(pastCheckpointId);
+									checkpointsToRemove.add(pastCheckpointId);
+								}
 							}
 						} else {
 							checkpointsToRemove.add(pastCheckpointId);

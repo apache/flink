@@ -138,12 +138,13 @@ public interface Future<T> {
 	 * @param <R> type of the returned future's value
 	 * @return future representing the flattened return value of the apply function
 	 */
-	<R> Future<R> thenComposeAsync(ApplyFunction<? super T, Future<? extends R>> composeFunction, Executor executor);
+	<R> Future<R> thenComposeAsync(ApplyFunction<? super T, ? extends Future<R>> composeFunction, Executor executor);
 
 	/**
 	 * Applies the given handle function to the result of the future. The result can either be the
 	 * future's value or the exception with which the future has been completed. The two cases are
-	 * mutually exclusive. The result of the handle function is the returned future's value.
+	 * mutually exclusive. This means that either the left or right argument of the handle function
+	 * are non null. The result of the handle function is the returned future's value.
 	 * <p>
 	 * The handle function is executed asynchronously by the given executor.
 	 *
@@ -153,4 +154,19 @@ public interface Future<T> {
 	 * @return future representing the handle function's return value
 	 */
 	<R> Future<R> handleAsync(BiFunction<? super T, Throwable, ? extends R> biFunction, Executor executor);
+
+	/**
+	 * Applies the given function to the result of this and the other future after both futures
+	 * have completed. The result of the bi-function is the result of the returned future.
+	 * <p>
+	 * The bi-function is executed asynchronously by the given executor.
+	 *
+	 * @param other future whose result is the right input to the bi-function
+	 * @param biFunction applied to the result of this and that future
+	 * @param executor used to execute the bi-function asynchronously
+	 * @param <U> type of that future's return value
+	 * @param <R> type of the bi-function's return value
+	 * @return future representing the bi-function's return value
+	 */
+	<U, R> Future<R> thenCombineAsync(Future<U> other, BiFunction<? super T, ? super U, ? extends R> biFunction, Executor executor);
 }
