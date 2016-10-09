@@ -339,7 +339,7 @@ public class CheckpointCoordinator {
 					nextCheckpointEarliest = Long.MAX_VALUE;
 				}
 
-				if (nextCheckpointEarliest > timestamp) {
+				if (nextCheckpointEarliest > timestamp && baseInterval != Long.MAX_VALUE) {
 					if (currentPeriodicTrigger != null) {
 						currentPeriodicTrigger.cancel();
 						currentPeriodicTrigger = null;
@@ -461,7 +461,7 @@ public class CheckpointCoordinator {
 							nextCheckpointEarliest = Long.MAX_VALUE;
 						}
 
-						if (nextCheckpointEarliest > timestamp) {
+						if (nextCheckpointEarliest > timestamp && baseInterval != Long.MAX_VALUE) {
 							if (currentPeriodicTrigger != null) {
 								currentPeriodicTrigger.cancel();
 								currentPeriodicTrigger = null;

@@ -622,7 +622,7 @@ public class SavepointITCase extends TestLogger {
 		// Temporary directory for file state backend
 		final File tmpDir = CommonTestUtils.createTempDirectory();
 
-		ForkableFlinkMiniCluster flink = null;
+		TestingCluster flink = null;
 
 		try {
 			final File checkpointDir = new File(tmpDir, "checkpoints");
@@ -645,7 +645,7 @@ public class SavepointITCase extends TestLogger {
 			LOG.info("Flink configuration: " + config + ".");
 
 			// Start Flink
-			flink = new ForkableFlinkMiniCluster(config);
+			flink = new TestingCluster(config);
 			LOG.info("Starting Flink cluster.");
 			flink.start();
 
@@ -660,8 +660,8 @@ public class SavepointITCase extends TestLogger {
 			int numberOfRetries = 1000;
 
 			// Submit the job
-			// checkpoint interval of 0 means disable checkpoint
-			final JobGraph jobGraph = createJobGraph(parallelism, numberOfRetries, 3600000, 0);
+			// checkpoint interval of Integer.MAX_VALUE means disable checkpoint
+			final JobGraph jobGraph = createJobGraph(parallelism, numberOfRetries, 3600000, Long.MAX_VALUE);
 
 			LOG.info("Submitting job " + jobGraph.getJobID() + " in detached mode.");
 
@@ -717,13 +717,11 @@ public class SavepointITCase extends TestLogger {
 			int parallelism,
 			int numberOfRetries,
 			long restartDelay,
-			int checkpointingInterval) {
+			long checkpointingInterval) {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
-		if (checkpointingInterval > 0) {
-			env.enableCheckpointing(checkpointingInterval);
-		}
+		env.enableCheckpointing(checkpointingInterval);
 		env.disableOperatorChaining();
 		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(numberOfRetries, restartDelay));
 		env.getConfig().disableSysoutLogging();
