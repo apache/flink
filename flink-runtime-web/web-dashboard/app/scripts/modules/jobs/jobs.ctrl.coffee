@@ -90,7 +90,7 @@ angular.module('flinkApp')
 
 # --------------------------------------
 
-.controller 'JobPlanController', ($scope, $state, $stateParams, JobsService) ->
+.controller 'JobPlanController', ($scope, $state, $stateParams, $window, JobsService) ->
   console.log 'JobPlanController'
 
   $scope.nodeid = null
