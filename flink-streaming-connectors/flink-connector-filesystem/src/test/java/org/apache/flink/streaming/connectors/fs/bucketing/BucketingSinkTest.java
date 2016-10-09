@@ -70,7 +70,7 @@ public class BucketingSinkTest {
 	private static org.apache.hadoop.fs.FileSystem dfs;
 	private static String hdfsURI;
 
-	private OneInputStreamOperatorTestHarness<String, Object> createTestSink(File dataDir, TimeServiceProvider clock) {
+	private OneInputStreamOperatorTestHarness<String, Object> createTestSink(File dataDir, TestTimeServiceProvider clock) {
 		BucketingSink<String> sink = new BucketingSink<String>(dataDir.getAbsolutePath())
 			.setBucketer(new Bucketer<String>() {
 				private static final long serialVersionUID = 1L;
@@ -91,7 +91,7 @@ public class BucketingSinkTest {
 	}
 
 	private <T> OneInputStreamOperatorTestHarness<T, Object> createTestSink(BucketingSink<T> sink,
-																			TimeServiceProvider clock) {
+																			TestTimeServiceProvider clock) {
 		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), new ExecutionConfig(), clock);
 	}
 

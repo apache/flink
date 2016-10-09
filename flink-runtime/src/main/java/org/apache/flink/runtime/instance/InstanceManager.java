@@ -29,6 +29,7 @@ import java.util.UUID;
 
 import akka.actor.ActorRef;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -137,8 +138,7 @@ public class InstanceManager {
 	 * for the job execution.
 	 *
 	 * @param taskManager ActorRef to the TaskManager which wants to be registered
-	 * @param resourceID The resource id of the TaskManager
-	 * @param connectionInfo ConnectionInfo of the TaskManager
+	 * @param taskManagerLocation Location info of the TaskManager
 	 * @param resources Hardware description of the TaskManager
 	 * @param numberOfSlots Number of available slots on the TaskManager
 	 * @param leaderSessionID The current leader session ID of the JobManager
@@ -146,12 +146,12 @@ public class InstanceManager {
 	 */
 	public InstanceID registerTaskManager(
 			ActorRef taskManager,
-			ResourceID resourceID,
-			InstanceConnectionInfo connectionInfo,
+			TaskManagerLocation taskManagerLocation,
 			HardwareDescription resources,
 			int numberOfSlots,
-			UUID leaderSessionID){
-		synchronized(this.lock){
+			UUID leaderSessionID) {
+		
+		synchronized (this.lock) {
 			if (this.isShutdown) {
 				throw new IllegalStateException("InstanceManager is shut down.");
 			}
@@ -173,12 +173,11 @@ public class InstanceManager {
 
 			InstanceID instanceID = new InstanceID();
 
-			Instance host = new Instance(actorGateway, connectionInfo, resourceID, instanceID,
-				resources, numberOfSlots);
+			Instance host = new Instance(actorGateway, taskManagerLocation, instanceID, resources, numberOfSlots);
 
 			registeredHostsById.put(instanceID, host);
 			registeredHostsByConnection.put(taskManager, host);
-			registeredHostsByResource.put(resourceID, host);
+			registeredHostsByResource.put(taskManagerLocation.getResourceID(), host);
 
 			totalNumberOfAliveTaskSlots += numberOfSlots;
 
@@ -186,7 +185,7 @@ public class InstanceManager {
 				LOG.info(String.format("Registered TaskManager at %s (%s) as %s. " +
 								"Current number of registered hosts is %d. " +
 								"Current number of alive task slots is %d.",
-						connectionInfo.getHostname(),
+						taskManagerLocation.getHostname(),
 						taskManager.path(),
 						instanceID,
 						registeredHostsById.size(),
@@ -216,7 +215,7 @@ public class InstanceManager {
 
 			registeredHostsByConnection.remove(host);
 			registeredHostsById.remove(instance.getId());
-			registeredHostsByResource.remove(instance.getResourceId());
+			registeredHostsByResource.remove(instance.getTaskManagerID());
 
 			if (terminated) {
 				deadHosts.add(instance.getActorGateway().actor());

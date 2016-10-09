@@ -20,14 +20,15 @@ package org.apache.flink.api.scala.batch
 
 import java.io.File
 
-import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.{ExecutionEnvironment, _}
+import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
+import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.table.TableEnvironment
 import org.apache.flink.api.table.sinks.CsvTableSink
-import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -35,8 +36,9 @@ import org.junit.runners.Parameterized
 
 @RunWith(classOf[Parameterized])
 class TableSinkITCase(
-    mode: TestExecutionMode)
-  extends MultipleProgramsTestBase(mode) {
+    mode: TestExecutionMode,
+    configMode: TableConfigMode)
+  extends TableProgramsTestBase(mode, configMode) {
 
   @Test
   def testBatchTableSink(): Unit = {
@@ -46,7 +48,7 @@ class TableSinkITCase(
     val path = tmpFile.toURI.toString
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
     env.setParallelism(4)
 
     val input = CollectionDataSets.get3TupleDataSet(env)

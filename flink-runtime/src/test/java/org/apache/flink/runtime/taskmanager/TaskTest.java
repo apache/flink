@@ -35,6 +35,7 @@ import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -42,6 +43,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -59,6 +61,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -93,6 +96,9 @@ public class TaskTest {
 	private ActorGateway jobManagerGateway;
 	private ActorGateway listenerGateway;
 
+	private ActorGatewayTaskExecutionStateListener listener;
+	private ActorGatewayTaskManagerConnection taskManagerConnection;
+
 	private BlockingQueue<Object> taskManagerMessages;
 	private BlockingQueue<Object> jobManagerMessages;
 	private BlockingQueue<Object> listenerMessages;
@@ -105,6 +111,9 @@ public class TaskTest {
 		taskManagerGateway = new ForwardingActorGateway(taskManagerMessages);
 		jobManagerGateway = new ForwardingActorGateway(jobManagerMessages);
 		listenerGateway = new ForwardingActorGateway(listenerMessages);
+
+		listener = new ActorGatewayTaskExecutionStateListener(listenerGateway);
+		taskManagerConnection = new ActorGatewayTaskManagerConnection(taskManagerGateway);
 		
 		awaitLatch = new OneShotLatch();
 		triggerLatch = new OneShotLatch();
@@ -135,7 +144,7 @@ public class TaskTest {
 			assertFalse(task.isCanceledOrFailed());
 			assertNull(task.getFailureCause());
 			
-			task.registerExecutionListener(listenerGateway);
+			task.registerExecutionListener(listener);
 			
 			// go into the run method. we should switch to DEPLOYING, RUNNING, then
 			// FINISHED, and all should be good
@@ -210,7 +219,7 @@ public class TaskTest {
 			assertFalse(task.isCanceledOrFailed());
 			assertNull(task.getFailureCause());
 
-			task.registerExecutionListener(listenerGateway);
+			task.registerExecutionListener(listener);
 
 			// should fail
 			task.run();
@@ -243,15 +252,16 @@ public class TaskTest {
 			// mock a network manager that rejects registration
 			ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 			ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
+			PartitionStateChecker partitionStateChecker = mock(PartitionStateChecker.class);
+			Executor executor = mock(Executor.class);
 			NetworkEnvironment network = mock(NetworkEnvironment.class);
-			when(network.getPartitionManager()).thenReturn(partitionManager);
-			when(network.getPartitionConsumableNotifier()).thenReturn(consumableNotifier);
+			when(network.getResultPartitionManager()).thenReturn(partitionManager);
 			when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 			doThrow(new RuntimeException("buffers")).when(network).registerTask(any(Task.class));
-			
-			Task task = createTask(TestInvokableCorrect.class, libCache, network);
 
-			task.registerExecutionListener(listenerGateway);
+			Task task = createTask(TestInvokableCorrect.class, libCache, network, consumableNotifier, partitionStateChecker, executor);
+
+			task.registerExecutionListener(listener);
 
 			task.run();
 
@@ -272,7 +282,7 @@ public class TaskTest {
 	public void testInvokableInstantiationFailed() {
 		try {
 			Task task = createTask(InvokableNonInstantiable.class);
-			task.registerExecutionListener(listenerGateway);
+			task.registerExecutionListener(listener);
 
 			task.run();
 
@@ -293,7 +303,7 @@ public class TaskTest {
 	public void testExecutionFailsInInvoke() {
 		try {
 			Task task = createTask(InvokableWithExceptionInInvoke.class);
-			task.registerExecutionListener(listenerGateway);
+			task.registerExecutionListener(listener);
 			
 			task.run();
 
@@ -317,7 +327,7 @@ public class TaskTest {
 	public void testCancelDuringInvoke() {
 		try {
 			Task task = createTask(InvokableBlockingInInvoke.class);
-			task.registerExecutionListener(listenerGateway);
+			task.registerExecutionListener(listener);
 
 			// run the task asynchronous
 			task.startTaskThread();
@@ -351,7 +361,7 @@ public class TaskTest {
 	public void testFailExternallyDuringInvoke() {
 		try {
 			Task task = createTask(InvokableBlockingInInvoke.class);
-			task.registerExecutionListener(listenerGateway);
+			task.registerExecutionListener(listener);
 
 			// run the task asynchronous
 			task.startTaskThread();
@@ -384,7 +394,7 @@ public class TaskTest {
 	public void testCanceledAfterExecutionFailedInInvoke() {
 		try {
 			Task task = createTask(InvokableWithExceptionInInvoke.class);
-			task.registerExecutionListener(listenerGateway);
+			task.registerExecutionListener(listener);
 
 			task.run();
 
@@ -411,7 +421,7 @@ public class TaskTest {
 	public void testExecutionFailesAfterCanceling() {
 		try {
 			Task task = createTask(InvokableWithExceptionOnTrigger.class);
-			task.registerExecutionListener(listenerGateway);
+			task.registerExecutionListener(listener);
 
 			// run the task asynchronous
 			task.startTaskThread();
@@ -448,7 +458,7 @@ public class TaskTest {
 	public void testExecutionFailsAfterTaskMarkedFailed() {
 		try {
 			Task task = createTask(InvokableWithExceptionOnTrigger.class);
-			task.registerExecutionListener(listenerGateway);
+			task.registerExecutionListener(listener);
 
 			// run the task asynchronous
 			task.startTaskThread();
@@ -597,35 +607,52 @@ public class TaskTest {
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
+		PartitionStateChecker partitionStateChecker = mock(PartitionStateChecker.class);
+		Executor executor = mock(Executor.class);
 		NetworkEnvironment network = mock(NetworkEnvironment.class);
-		when(network.getPartitionManager()).thenReturn(partitionManager);
-		when(network.getPartitionConsumableNotifier()).thenReturn(consumableNotifier);
+		when(network.getResultPartitionManager()).thenReturn(partitionManager);
 		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 		when(network.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
-		
-		return createTask(invokable, libCache, network);
+
+		return createTask(invokable, libCache, network, consumableNotifier, partitionStateChecker, executor);
 	}
 	
-	private Task createTask(Class<? extends AbstractInvokable> invokable,
-							LibraryCacheManager libCache,
-							NetworkEnvironment networkEnvironment) {
+	private Task createTask(
+		Class<? extends AbstractInvokable> invokable,
+		LibraryCacheManager libCache,
+		NetworkEnvironment networkEnvironment,
+		ResultPartitionConsumableNotifier consumableNotifier,
+		PartitionStateChecker partitionStateChecker,
+		Executor executor) {
 		
 		TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(invokable);
+
+		InputSplitProvider inputSplitProvider = new TaskInputSplitProvider(
+			jobManagerGateway,
+			tdd.getJobID(),
+			tdd.getVertexID(),
+			tdd.getExecutionId(),
+			new FiniteDuration(60, TimeUnit.SECONDS));
+
+		CheckpointResponder checkpointResponder = new ActorGatewayCheckpointResponder(jobManagerGateway);
 		
 		return new Task(
-				tdd,
-				mock(MemoryManager.class),
-				mock(IOManager.class),
-				networkEnvironment,
-				mock(BroadcastVariableManager.class),
-				taskManagerGateway,
-				jobManagerGateway,
-				new FiniteDuration(60, TimeUnit.SECONDS),
-				libCache,
-				mock(FileCache.class),
-				new TaskManagerRuntimeInfo("localhost", new Configuration(), System.getProperty("java.io.tmpdir")),
-				mock(TaskMetricGroup.class));
+			tdd,
+			mock(MemoryManager.class),
+			mock(IOManager.class),
+			networkEnvironment,
+			mock(BroadcastVariableManager.class),
+			taskManagerConnection,
+			inputSplitProvider,
+			checkpointResponder,
+			libCache,
+			mock(FileCache.class),
+			new TaskManagerRuntimeInfo("localhost", new Configuration(), System.getProperty("java.io.tmpdir")),
+			mock(TaskMetricGroup.class),
+			consumableNotifier,
+			partitionStateChecker,
+			executor);
 	}
 
 	private TaskDeploymentDescriptor createTaskDeploymentDescriptor(Class<? extends AbstractInvokable> invokable) {

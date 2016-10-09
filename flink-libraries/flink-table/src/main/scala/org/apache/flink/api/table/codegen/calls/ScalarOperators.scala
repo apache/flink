@@ -384,6 +384,38 @@ object ScalarOperators {
     }
   }
 
+  def generateIsTrue(operand: GeneratedExpression): GeneratedExpression = {
+    GeneratedExpression(
+      operand.resultTerm, // unknown is always false by default
+      GeneratedExpression.NEVER_NULL,
+      operand.code,
+      BOOLEAN_TYPE_INFO)
+  }
+
+  def generateIsNotTrue(operand: GeneratedExpression): GeneratedExpression = {
+    GeneratedExpression(
+      s"(!${operand.resultTerm})", // unknown is always false by default
+      GeneratedExpression.NEVER_NULL,
+      operand.code,
+      BOOLEAN_TYPE_INFO)
+  }
+
+  def generateIsFalse(operand: GeneratedExpression): GeneratedExpression = {
+    GeneratedExpression(
+      s"(!${operand.resultTerm} && !${operand.nullTerm})",
+      GeneratedExpression.NEVER_NULL,
+      operand.code,
+      BOOLEAN_TYPE_INFO)
+  }
+
+  def generateIsNotFalse(operand: GeneratedExpression): GeneratedExpression = {
+    GeneratedExpression(
+      s"(${operand.resultTerm} || ${operand.nullTerm})",
+      GeneratedExpression.NEVER_NULL,
+      operand.code,
+      BOOLEAN_TYPE_INFO)
+  }
+
   def generateCast(
       nullCheck: Boolean,
       operand: GeneratedExpression,

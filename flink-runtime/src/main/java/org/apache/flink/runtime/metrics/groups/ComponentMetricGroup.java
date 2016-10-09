@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 
 import java.util.HashMap;
@@ -38,6 +39,7 @@ import java.util.Map;
  * 
  * @param <P> The type of the parent MetricGroup.
  */
+@Internal
 public abstract class ComponentMetricGroup<P extends AbstractMetricGroup<?>> extends AbstractMetricGroup<P> {
 
 	/**

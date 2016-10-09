@@ -40,7 +40,7 @@ public class SqlTimeComparatorTest extends ComparatorTestBase<Time> {
 	protected Time[] getSortedTestData() {
 		return new Time[] {
 			Time.valueOf("00:00:00"),
-			Time.valueOf("02:42:85"),
+			Time.valueOf("02:42:25"),
 			Time.valueOf("14:15:59"),
 			Time.valueOf("18:00:45")
 		};

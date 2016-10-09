@@ -108,7 +108,7 @@ public class CompletedCheckpoint implements StateObject {
 	}
 
 	@Override
-	public long getStateSize() throws Exception {
+	public long getStateSize() throws IOException {
 		long result = 0L;
 
 		for (TaskState taskState : taskStates.values()) {
@@ -152,10 +152,5 @@ public class CompletedCheckpoint implements StateObject {
 	@Override
 	public String toString() {
 		return String.format("Checkpoint %d @ %d for %s", checkpointID, timestamp, job);
-	}
-
-	@Override
-	public void close() throws IOException {
-		StateUtil.bestEffortCloseAllStateObjects(taskStates.values());
 	}
 }

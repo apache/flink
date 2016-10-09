@@ -139,3 +139,35 @@ This now provides a list of Elasticsearch Nodes
 to which the sink should connect via a `TransportClient`.
 
 More information about Elasticsearch can be found [here](https://elastic.co).
+
+
+#### Packaging the Elasticsearch Connector into an Uber-jar
+
+For the execution of your Flink program,
+it is recommended to build a so-called uber-jar (executable jar) containing all your dependencies
+(see [here]({{site.baseurl}}/dev/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution) for further information).
+
+However,
+when an uber-jar containing an Elasticsearch sink is executed,
+an `IllegalArgumentException` may occur,
+which is caused by conflicting files of Elasticsearch and it's dependencies
+in `META-INF/services`:
+
+```
+IllegalArgumentException[An SPI class of type org.apache.lucene.codecs.PostingsFormat with name 'Lucene50' does not exist.  You need to add the corresponding JAR file supporting this SPI to your classpath.  The current classpath supports the following names: [es090, completion090, XBloomFilter]]
+```
+
+If the uber-jar is build by means of maven,
+this issue can be avoided by adding the following bits to the pom file:
+
+```
+<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+    <resource>META-INF/services/org.apache.lucene.codecs.Codec</resource>
+</transformer>
+<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+    <resource>META-INF/services/org.apache.lucene.codecs.DocValuesFormat</resource>
+</transformer>
+<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+   <resource>META-INF/services/org.apache.lucene.codecs.PostingsFormat</resource>
+</transformer>
+```

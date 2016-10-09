@@ -146,7 +146,7 @@ public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<O
 					return true;
 				}
 
-				InputSplit split = provider.getNextInputSplit();
+				InputSplit split = provider.getNextInputSplit(getRuntimeContext().getUserCodeClassLoader());
 
 				if (split != null) {
 					this.nextSplit = split;

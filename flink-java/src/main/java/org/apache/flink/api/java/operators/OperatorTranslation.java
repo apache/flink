@@ -19,15 +19,8 @@
 package org.apache.flink.api.java.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.DataSet;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.AbstractUdfOperator;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
@@ -35,17 +28,23 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.configuration.Configuration;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Internal
 public class OperatorTranslation {
 	
 	/** The already translated operations */
-	private Map<DataSet<?>, Operator<?>> translated = new HashMap<DataSet<?>, Operator<?>>();
+	private Map<DataSet<?>, Operator<?>> translated = new HashMap<>();
 	
 	
 	public Plan translateToPlan(List<DataSink<?>> sinks, String jobName) {
-		List<GenericDataSinkBase<?>> planSinks = new ArrayList<GenericDataSinkBase<?>>();
+		List<GenericDataSinkBase<?>> planSinks = new ArrayList<>();
 		
 		for (DataSink<?> sink : sinks) {
 			planSinks.add(translate(sink));
@@ -70,13 +69,23 @@ public class OperatorTranslation {
 	
 	
 	private <T> Operator<T> translate(DataSet<T> dataSet) {
-		
+		while (dataSet instanceof NoOpOperator) {
+			dataSet = ((NoOpOperator<T>) dataSet).getInput();
+		}
+
 		// check if we have already translated that data set (operation or source)
-		Operator<?> previous = (Operator<?>) this.translated.get(dataSet);
+		Operator<?> previous = this.translated.get(dataSet);
 		if (previous != null) {
-			@SuppressWarnings("unchecked")
-			Operator<T> typedPrevious = (Operator<T>) previous;
-			return typedPrevious;
+
+			// Union operators may only have a single output.
+			// We ensure this by not reusing previously created union operators.
+			// The optimizer will merge subsequent binary unions into one n-ary union.
+			if (!(dataSet instanceof UnionOperator)) {
+				// all other operators are reused.
+				@SuppressWarnings("unchecked")
+				Operator<T> typedPrevious = (Operator<T>) previous;
+				return typedPrevious;
+			}
 		}
 		
 		Operator<T> dataFlowOp;
@@ -188,7 +197,7 @@ public class OperatorTranslation {
 		BulkIterationResultSet<T> iterationEnd = (BulkIterationResultSet<T>) untypedIterationEnd;
 		
 		BulkIterationBase<T> iterationOperator =
-				new BulkIterationBase<T>(new UnaryOperatorInformation<T, T>(iterationEnd.getType(), iterationEnd.getType()), "Bulk Iteration");
+				new BulkIterationBase<>(new UnaryOperatorInformation<>(iterationEnd.getType(), iterationEnd.getType()), "Bulk Iteration");
 		IterativeDataSet<T> iterationHead = iterationEnd.getIterationHead();
 
 		translated.put(iterationHead, iterationOperator.getPartialSolution());
@@ -214,7 +223,7 @@ public class OperatorTranslation {
 		
 		String name = iterationHead.getName() == null ? "Unnamed Delta Iteration" : iterationHead.getName();
 		
-		DeltaIterationBase<D, W> iterationOperator = new DeltaIterationBase<D, W>(new BinaryOperatorInformation<D, W, D>(iterationEnd.getType(), iterationEnd.getWorksetType(), iterationEnd.getType()),
+		DeltaIterationBase<D, W> iterationOperator = new DeltaIterationBase<>(new BinaryOperatorInformation<>(iterationEnd.getType(), iterationEnd.getWorksetType(), iterationEnd.getType()),
 				iterationEnd.getKeyPositions(), name);
 		
 		iterationOperator.setMaximumNumberOfIterations(iterationEnd.getMaxIterations());

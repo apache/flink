@@ -31,6 +31,8 @@ import java.util.Iterator;
  */
 public class KeyGroupRangeOffsets implements Iterable<Tuple2<Integer, Long>> , Serializable {
 
+	private static final long serialVersionUID = 6595415219136429696L;
+
 	/** the range of key-groups */
 	private final KeyGroupRange keyGroupRange;
 

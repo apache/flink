@@ -38,14 +38,14 @@ class DataStreamScan(
     rowType: RelDataType)
   extends StreamScan(cluster, traitSet, table, rowType) {
 
-  val dataStreamTable: DataStreamTable[Any] = table.unwrap(classOf[DataStreamTable[Any]])
+  val dataStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamScan(
       cluster,
       traitSet,
-      table,
-      rowType
+      getTable,
+      getRowType
     )
   }
 

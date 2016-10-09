@@ -51,7 +51,7 @@ public class SingleSourceShortestPaths<K> implements GraphAlgorithm<K, Double, D
 	@Override
 	public DataSet<Vertex<K, Double>> run(Graph<K, Double, Double> input) {
 
-		return input.mapVertices(new InitVerticesMapper<K>(srcVertexId))
+		return input.mapVertices(new InitVerticesMapper<>(srcVertexId))
 				.runScatterGatherIteration(new MinDistanceMessenger<K>(), new VertexDistanceUpdater<K>(),
 				maxIterations).getVertices();
 	}

@@ -116,10 +116,10 @@ public class LocalFileSystemTest {
 
 			assertEquals(testfile1.length(), 5L);
 
-			final FileInputStream fisfile1 = new FileInputStream(testfile1);
 			byte[] testbytestest = new byte[5];
-			assertEquals(testbytestest.length, fisfile1.read(testbytestest));
-			fisfile1.close();
+			try (FileInputStream fisfile1 = new FileInputStream(testfile1)) {
+				assertEquals(testbytestest.length, fisfile1.read(testbytestest));
+			}
 			
 			assertArrayEquals(testbytes, testbytestest);
 

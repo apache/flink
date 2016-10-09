@@ -53,6 +53,20 @@ under the License.
 			<!-- managed version -->
 		</dependency>
 
+		<!-- The common collections are needed for some hash tables used in the collection execution -->
+		<dependency>
+			<groupId>commons-collections</groupId>
+			<artifactId>commons-collections</artifactId>
+			<!-- managed version -->
+		</dependency>
+
+		<!-- Commons compression, for additional decompressors -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-compress</artifactId>
+			<!-- managed version -->
+		</dependency>
+
 		<!-- Avro is needed for the interoperability with Avro types for serialization -->
 		<dependency>
 			<groupId>org.apache.avro</groupId>
@@ -63,21 +77,10 @@ under the License.
 					<groupId>org.xerial.snappy</groupId>
 					<artifactId>snappy-java</artifactId>
 				</exclusion>
-				<exclusion>
-					<groupId>org.apache.commons</groupId>
-					<artifactId>commons-compress</artifactId>
-				</exclusion>
 			</exclusions>
 		</dependency>
 
-		<!-- The common collections are needed for some hash tables used in the collection execution -->
-		<dependency>
-			<groupId>commons-collections</groupId>
-			<artifactId>commons-collections</artifactId>
-		</dependency>
-		
 		<!-- test dependencies -->
-
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>

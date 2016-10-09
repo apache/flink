@@ -606,8 +606,8 @@ public class GroupingTest {
 		public String myString;
 		public Nest nested;
 		
-		public CustomType() {};
-		
+		public CustomType() {}
+
 		public CustomType(int i, long l, String s) {
 			myInt = i;
 			myLong = l;

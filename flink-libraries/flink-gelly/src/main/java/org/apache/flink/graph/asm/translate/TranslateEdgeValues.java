@@ -21,7 +21,7 @@ package org.apache.flink.graph.asm.translate;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingGraph;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingGraph;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
@@ -36,7 +36,7 @@ import static org.apache.flink.graph.asm.translate.Translate.translateEdgeValues
  * @param <NEW> new edge value type
  */
 public class TranslateEdgeValues<K, VV, OLD, NEW>
-extends GraphAlgorithmDelegatingGraph<K, VV, OLD, K, VV, NEW> {
+extends GraphAlgorithmWrappingGraph<K, VV, OLD, K, VV, NEW> {
 
 	// Required configuration
 	private TranslateFunction<OLD,NEW> translator;
@@ -76,7 +76,7 @@ extends GraphAlgorithmDelegatingGraph<K, VV, OLD, K, VV, NEW> {
 	}
 
 	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmDelegatingGraph other) {
+	protected boolean mergeConfiguration(GraphAlgorithmWrappingGraph other) {
 		Preconditions.checkNotNull(other);
 
 		if (! TranslateEdgeValues.class.isAssignableFrom(other.getClass())) {
@@ -93,7 +93,8 @@ extends GraphAlgorithmDelegatingGraph<K, VV, OLD, K, VV, NEW> {
 
 		// merge configurations
 
-		parallelism = Math.min(parallelism, rhs.parallelism);
+		parallelism = (parallelism == PARALLELISM_DEFAULT) ? rhs.parallelism :
+			((rhs.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, rhs.parallelism));
 
 		return true;
 	}

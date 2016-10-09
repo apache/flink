@@ -23,10 +23,11 @@ import static org.mockito.Mockito.when;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -35,7 +36,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -52,7 +53,8 @@ public class SchedulerTestUtils {
 			throw new IllegalArgumentException();
 		}
 		
-		InetAddress address;
+		final ResourceID resourceID = ResourceID.generate();
+		final InetAddress address;
 		try {
 			address = InetAddress.getByName("127.0.0.1");
 		}
@@ -62,13 +64,12 @@ public class SchedulerTestUtils {
 		
 		int dataPort = port.getAndIncrement();
 		
-		InstanceConnectionInfo ci = new InstanceConnectionInfo(address, dataPort);
+		TaskManagerLocation ci = new TaskManagerLocation(resourceID, address, dataPort);
 		
 		final long GB = 1024L*1024*1024;
 		HardwareDescription resources = new HardwareDescription(4, 4*GB, 3*GB, 2*GB);
 		
-		return new Instance(DummyActorGateway.INSTANCE, ci, ResourceID.generate(),
-			new InstanceID(), resources, numSlots);
+		return new Instance(DummyActorGateway.INSTANCE, ci, new InstanceID(), resources, numSlots);
 	}
 	
 	
@@ -82,8 +83,21 @@ public class SchedulerTestUtils {
 		
 		return execution;
 	}
+
+	public static Execution getTestVertex(Instance... preferredInstances) {
+		List<TaskManagerLocation> locations = new ArrayList<>(preferredInstances.length);
+		for (Instance i : preferredInstances) {
+			locations.add(i.getTaskManagerLocation());
+		}
+		return getTestVertex(locations);
+	}
+
+	public static Execution getTestVertex(TaskManagerLocation... preferredLocations) {
+		return getTestVertex(Arrays.asList(preferredLocations));
+	}
 	
-	public static Execution getTestVertex(Iterable<Instance> preferredLocations) {
+	
+	public static Execution getTestVertex(Iterable<TaskManagerLocation> preferredLocations) {
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		
 		when(vertex.getPreferredLocations()).thenReturn(preferredLocations);
@@ -113,10 +127,12 @@ public class SchedulerTestUtils {
 		
 		return execution;
 	}
-	
-	public static Execution getTestVertexWithLocation(JobVertexID jid, int taskIndex, int numTasks, Instance... locations) {
+
+	public static Execution getTestVertexWithLocation(
+			JobVertexID jid, int taskIndex, int numTasks, TaskManagerLocation... locations) {
+
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
-		
+
 		when(vertex.getPreferredLocations()).thenReturn(Arrays.asList(locations));
 		when(vertex.getJobId()).thenReturn(new JobID());
 		when(vertex.getJobvertexId()).thenReturn(jid);
@@ -124,10 +140,10 @@ public class SchedulerTestUtils {
 		when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(numTasks);
 		when(vertex.getMaxParallelism()).thenReturn(numTasks);
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
-		
+
 		Execution execution = mock(Execution.class);
 		when(execution.getVertex()).thenReturn(vertex);
-		
+
 		return execution;
 	}
 	
@@ -142,20 +158,5 @@ public class SchedulerTestUtils {
 		Collections.addAll(set, obj);
 		
 		return set.size() == obj.length;
-	}
-	
-	public static boolean areSameSets(Collection<Object> set1, Collection<Object> set2) {
-		if (set1 == null || set2 == null) {
-			throw new IllegalArgumentException();
-		}
-		
-		HashSet<Object> set = new HashSet<Object>(set1);
-		for (Object o : set2) {
-			if (!set.remove(o)) {
-				return false;
-			}
-		}
-		
-		return set.isEmpty();
 	}
 }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.query;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.query.netty.KvStateServer;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.taskmanager.Task;
 
@@ -59,6 +60,13 @@ public class KvStateRegistry {
 	}
 
 	/**
+	 * Unregisters the listener with the registry
+	 */
+	public void unregisterListener() {
+		listener.set(null);
+	}
+
+	/**
 	 * Registers the KvState instance identified by the given 4-tuple of JobID,
 	 * JobVertexID, key group index, and registration name.
 	 *
@@ -73,7 +81,7 @@ public class KvStateRegistry {
 	 *
 	 * @param jobId            JobId the KvState instance belongs to
 	 * @param jobVertexId      JobVertexID the KvState instance belongs to
-	 * @param keyGroupIndex    Key group index the KvState instance belongs to
+	 * @param keyGroupRange    Key group range the KvState instance belongs to
 	 * @param registrationName Name under which the KvState is registered
 	 * @param kvState          KvState instance to be registered
 	 * @return Assigned KvStateID
@@ -81,7 +89,7 @@ public class KvStateRegistry {
 	public KvStateID registerKvState(
 			JobID jobId,
 			JobVertexID jobVertexId,
-			int keyGroupIndex,
+			KeyGroupRange keyGroupRange,
 			String registrationName,
 			KvState<?> kvState) {
 
@@ -93,7 +101,7 @@ public class KvStateRegistry {
 				listener.notifyKvStateRegistered(
 						jobId,
 						jobVertexId,
-						keyGroupIndex,
+						keyGroupRange,
 						registrationName,
 						kvStateId);
 			}
@@ -109,11 +117,12 @@ public class KvStateRegistry {
 	 *
 	 * @param jobId     JobId the KvState instance belongs to
 	 * @param kvStateId KvStateID to identify the KvState instance
+	 * @param keyGroupRange    Key group range the KvState instance belongs to
 	 */
 	public void unregisterKvState(
 			JobID jobId,
 			JobVertexID jobVertexId,
-			int keyGroupIndex,
+			KeyGroupRange keyGroupRange,
 			String registrationName,
 			KvStateID kvStateId) {
 
@@ -123,7 +132,7 @@ public class KvStateRegistry {
 				listener.notifyKvStateUnregistered(
 						jobId,
 						jobVertexId,
-						keyGroupIndex,
+						keyGroupRange,
 						registrationName);
 			}
 		}

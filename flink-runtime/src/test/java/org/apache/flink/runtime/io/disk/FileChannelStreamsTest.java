@@ -85,10 +85,8 @@ public class FileChannelStreamsTest {
 			FileIOChannel.ID channel = ioManager.createChannel();
 			
 			// add some test data
-			{
-				FileWriter wrt = new FileWriter(channel.getPath());
+			try (FileWriter wrt = new FileWriter(channel.getPath())) {
 				wrt.write("test data");
-				wrt.close();
 			}
 			
 			BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);

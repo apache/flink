@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,6 +80,8 @@ public class ResultPartition implements BufferPoolOwner {
 	
 	private final String owningTaskName;
 
+	private final TaskActions taskActions;
+
 	private final JobID jobId;
 
 	private final ResultPartitionID partitionId;
@@ -92,7 +95,7 @@ public class ResultPartition implements BufferPoolOwner {
 	 * <p>If <code>true</code>, the consumers are deployed as soon as the
 	 * runtime result is registered at the result manager of the task manager.
 	 */
-	private final boolean eagerlyDeployConsumers;
+	private final boolean doEagerDeployment;
 
 	/** The subpartitions of this partition. At least one. */
 	private final ResultSubpartition[] subpartitions;
@@ -129,22 +132,24 @@ public class ResultPartition implements BufferPoolOwner {
 	private long totalNumberOfBytes;
 
 	public ResultPartition(
-			String owningTaskName,
-			JobID jobId,
-			ResultPartitionID partitionId,
-			ResultPartitionType partitionType,
-			boolean eagerlyDeployConsumers,
-			int numberOfSubpartitions,
-			ResultPartitionManager partitionManager,
-			ResultPartitionConsumableNotifier partitionConsumableNotifier,
-			IOManager ioManager,
-			IOMode defaultIoMode) {
+		String owningTaskName,
+		TaskActions taskActions, // actions on the owning task
+		JobID jobId,
+		ResultPartitionID partitionId,
+		ResultPartitionType partitionType,
+		boolean doEagerDeployment,
+		int numberOfSubpartitions,
+		ResultPartitionManager partitionManager,
+		ResultPartitionConsumableNotifier partitionConsumableNotifier,
+		IOManager ioManager,
+		IOMode defaultIoMode) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
+		this.taskActions = checkNotNull(taskActions);
 		this.jobId = checkNotNull(jobId);
 		this.partitionId = checkNotNull(partitionId);
 		this.partitionType = checkNotNull(partitionType);
-		this.eagerlyDeployConsumers = eagerlyDeployConsumers;
+		this.doEagerDeployment = doEagerDeployment;
 		this.subpartitions = new ResultSubpartition[numberOfSubpartitions];
 		this.partitionManager = checkNotNull(partitionManager);
 		this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
@@ -209,16 +214,6 @@ public class ResultPartition implements BufferPoolOwner {
 
 	public int getNumberOfSubpartitions() {
 		return subpartitions.length;
-	}
-
-	/**
-	 * Returns whether consumers should be deployed eagerly (as soon as they
-	 * are registered at the result manager of the task manager).
-	 *
-	 * @return Whether consumers should be deployed eagerly
-	 */
-	public boolean getEagerlyDeployConsumers() {
-		return eagerlyDeployConsumers;
 	}
 
 	public BufferProvider getBufferProvider() {
@@ -357,6 +352,15 @@ public class ResultPartition implements BufferPoolOwner {
 	}
 
 	/**
+	 * Deploys consumers if eager deployment is activated
+	 */
+	public void deployConsumers() {
+		if (doEagerDeployment) {
+			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionId, taskActions);
+		}
+	}
+
+	/**
 	 * Releases buffers held by this result partition.
 	 *
 	 * <p> This is a callback from the buffer pool, which is registered for result partitions, which
@@ -437,9 +441,9 @@ public class ResultPartition implements BufferPoolOwner {
 	/**
 	 * Notifies pipelined consumers of this result partition once.
 	 */
-	private void notifyPipelinedConsumers() throws IOException {
+	private void notifyPipelinedConsumers() {
 		if (partitionType.isPipelined() && !hasNotifiedPipelinedConsumers) {
-			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionId);
+			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionId, taskActions);
 
 			hasNotifiedPipelinedConsumers = true;
 		}

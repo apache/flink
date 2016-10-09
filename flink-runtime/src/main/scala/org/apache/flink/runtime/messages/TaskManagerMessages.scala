@@ -130,6 +130,16 @@ object TaskManagerMessages {
     */
   case class RequestTaskManagerLog(requestType : LogTypeRequest)
 
+  /** Requests the number of active connections at the ConnectionManager */
+  case object RequestNumActiveConnections
+
+  case class ResponseNumActiveConnections(number: Int)
+
+  /** Requests the number of broadcast variables with references */
+  case object RequestBroadcastVariablesWithReferences
+
+  case class ResponseBroadcastVariablesWithReferences(number: Int)
+
 
   // --------------------------------------------------------------------------
   //  Utility getters for case objects to simplify access from Java
@@ -165,5 +175,21 @@ object TaskManagerMessages {
     */
   def getRequestTaskManagerStdout(): AnyRef = {
     RequestTaskManagerLog(StdOutFileRequest)
+  }
+
+  /**
+    * Accessor for the case object instance, to simplify Java interoperability.
+    * @return The RequestBroadcastVariablesWithReferences case object instance.
+    */
+  def getRequestBroadcastVariablesWithReferences(): RequestBroadcastVariablesWithReferences.type = {
+    RequestBroadcastVariablesWithReferences
+  }
+
+  /**
+    * Accessor for the case object instance, to simplify Java interoperability.
+    * @return The RequestNumActiveConnections case object instance.
+    */
+  def getRequestNumActiveConnections(): RequestNumActiveConnections.type  = {
+    RequestNumActiveConnections
   }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -27,6 +28,7 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +58,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * 
  * @param <A> The type of the parent MetricGroup
  */
+@Internal
 public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> implements MetricGroup {
 
 	/** shared logger */
@@ -85,6 +88,9 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	/** The metrics scope represented by this group, as a concatenated string, lazily computed.
 	 * For example: "host-7.taskmanager-2.window_word_count.my-mapper" */
 	private String scopeString;
+
+	/** The metrics query service scope represented by this group, lazily computed. */
+	protected QueryScopeInfo queryServiceScopeInfo;
 
 	/** Flag indicating whether this group has been closed */
 	private volatile boolean closed;
@@ -121,6 +127,27 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	public String[] getScopeComponents() {
 		return scopeComponents;
 	}
+
+	/**
+	 * Returns the metric query service scope for this group.
+	 * 
+	 * @param filter character filter
+	 * @return query service scope
+     */
+	public QueryScopeInfo getQueryServiceMetricInfo(CharacterFilter filter) {
+		if (queryServiceScopeInfo == null) {
+			queryServiceScopeInfo = createQueryServiceMetricInfo(filter);
+		}
+		return queryServiceScopeInfo;
+	}
+
+	/**
+	 * Creates the metric query service scope for this group.
+	 *
+	 * @param filter character filter
+	 * @return query service scope
+     */
+	protected abstract QueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter);
 
 	/**
 	 * Returns the fully qualified metric name, for example

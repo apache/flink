@@ -32,43 +32,47 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.FallbackLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.filecache.FileCache;
-import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.AbstractCloseableHandle;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.RetrievableStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.runtime.taskmanager.TaskManagerConnection;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.SerializedValue;
-
 import org.junit.Test;
-
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URL;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executor;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * This test checks that task restores that get stuck in the presence of interrupts
@@ -121,6 +125,7 @@ public class InterruptSensitiveRestoreTest {
 
 		ChainedStateHandle<StreamStateHandle> operatorState = new ChainedStateHandle<>(Collections.singletonList(state));
 		List<KeyGroupsStateHandle> keyGroupState = Collections.emptyList();
+		List<Collection<OperatorStateHandle>> partitionableOperatorState = Collections.emptyList();
 
 		return new TaskDeploymentDescriptor(
 				new JobID(),
@@ -139,9 +144,10 @@ public class InterruptSensitiveRestoreTest {
 				Collections.<URL>emptyList(),
 				0,
 				operatorState,
-				keyGroupState);
+				keyGroupState,
+				partitionableOperatorState);
 	}
-	
+
 	private static Task createTask(TaskDeploymentDescriptor tdd) throws IOException {
 		NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
 		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
@@ -153,25 +159,32 @@ public class InterruptSensitiveRestoreTest {
 				mock(IOManager.class),
 				networkEnvironment,
 				mock(BroadcastVariableManager.class),
-				mock(ActorGateway.class),
-				mock(ActorGateway.class),
-				new FiniteDuration(10, TimeUnit.SECONDS),
+				mock(TaskManagerConnection.class),
+				mock(InputSplitProvider.class),
+				mock(CheckpointResponder.class),
 				new FallbackLibraryCacheManager(),
 				new FileCache(new Configuration()),
 				new TaskManagerRuntimeInfo(
 						"localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
-				new UnregisteredTaskMetricsGroup());
-		
+				new UnregisteredTaskMetricsGroup(),
+				mock(ResultPartitionConsumableNotifier.class),
+				mock(PartitionStateChecker.class),
+				mock(Executor.class));
+
 	}
 
 	// ------------------------------------------------------------------------
 
 	@SuppressWarnings("serial")
-	private static class InterruptLockingStateHandle extends AbstractCloseableHandle implements StreamStateHandle {
+	private static class InterruptLockingStateHandle implements StreamStateHandle {
+
+		private volatile boolean closed;
 
 		@Override
 		public FSDataInputStream openInputStream() throws IOException {
-			ensureNotClosed();
+
+			closed = false;
+
 			FSDataInputStream is = new FSDataInputStream() {
 
 				@Override
@@ -188,8 +201,14 @@ public class InterruptSensitiveRestoreTest {
 					block();
 					throw new EOFException();
 				}
+
+				@Override
+				public void close() throws IOException {
+					super.close();
+					closed = true;
+				}
 			};
-			registerCloseable(is);
+
 			return is;
 		}
 
@@ -199,11 +218,12 @@ public class InterruptSensitiveRestoreTest {
 			// an interrupt on a waiting object leads to an infinite loop
 			try {
 				synchronized (this) {
+					//noinspection WaitNotInLoop
 					wait();
 				}
 			}
 			catch (InterruptedException e) {
-				while (!isClosed()) {
+				while (!closed) {
 					try {
 						synchronized (this) {
 							wait();
@@ -217,13 +237,13 @@ public class InterruptSensitiveRestoreTest {
 		public void discardState() throws Exception {}
 
 		@Override
-		public long getStateSize() throws Exception {
+		public long getStateSize() throws IOException {
 			return 0;
 		}
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	private static class TestSource implements SourceFunction<Object>, Checkpointed<Serializable> {
 		private static final long serialVersionUID = 1L;
 

@@ -205,6 +205,70 @@ public class MergingWindowSetTest {
 		assertThat(windowSet.getStateWindow(new TimeWindow(0, 13)), anyOf(is(new TimeWindow(0, 3)), is(new TimeWindow(5, 8)), is(new TimeWindow(10, 13))));
 	}
 
+	/**
+	 * Test merging of a large new window that covers one existing windows.
+	 */
+	@Test
+	public void testMergeLargeWindowCoveringSingleWindow() throws Exception {
+		MergingWindowSet<TimeWindow> windowSet = new MergingWindowSet<>(EventTimeSessionWindows.withGap(Time.milliseconds(3)));
+
+		TestingMergeFunction mergeFunction = new TestingMergeFunction();
+
+		// add an initial small window
+
+		mergeFunction.reset();
+		assertEquals(new TimeWindow(1, 2), windowSet.addWindow(new TimeWindow(1, 2), mergeFunction));
+		assertFalse(mergeFunction.hasMerged());
+		assertEquals(new TimeWindow(1, 2), windowSet.getStateWindow(new TimeWindow(1, 2)));
+
+		// add a new window that completely covers the existing window
+
+		mergeFunction.reset();
+		assertEquals(new TimeWindow(0, 3), windowSet.addWindow(new TimeWindow(0, 3), mergeFunction));
+		assertTrue(mergeFunction.hasMerged());
+		assertEquals(new TimeWindow(1, 2), windowSet.getStateWindow(new TimeWindow(0, 3)));
+	}
+
+	/**
+	 * Test merging of a large new window that covers multiple existing windows.
+	 */
+	@Test
+	public void testMergeLargeWindowCoveringMultipleWindows() throws Exception {
+		MergingWindowSet<TimeWindow> windowSet = new MergingWindowSet<>(EventTimeSessionWindows.withGap(Time.milliseconds(3)));
+
+		TestingMergeFunction mergeFunction = new TestingMergeFunction();
+
+		// add several non-overlapping initial windoww
+
+		mergeFunction.reset();
+		assertEquals(new TimeWindow(1, 3), windowSet.addWindow(new TimeWindow(1, 3), mergeFunction));
+		assertFalse(mergeFunction.hasMerged());
+		assertEquals(new TimeWindow(1, 3), windowSet.getStateWindow(new TimeWindow(1, 3)));
+
+		mergeFunction.reset();
+		assertEquals(new TimeWindow(5, 8), windowSet.addWindow(new TimeWindow(5, 8), mergeFunction));
+		assertFalse(mergeFunction.hasMerged());
+		assertEquals(new TimeWindow(5, 8), windowSet.getStateWindow(new TimeWindow(5, 8)));
+
+		mergeFunction.reset();
+		assertEquals(new TimeWindow(10, 13), windowSet.addWindow(new TimeWindow(10, 13), mergeFunction));
+		assertFalse(mergeFunction.hasMerged());
+		assertEquals(new TimeWindow(10, 13), windowSet.getStateWindow(new TimeWindow(10, 13)));
+
+		// add a new window that completely covers the existing windows
+
+		mergeFunction.reset();
+		assertEquals(new TimeWindow(0, 13), windowSet.addWindow(new TimeWindow(0, 13), mergeFunction));
+		assertTrue(mergeFunction.hasMerged());
+		assertThat(mergeFunction.mergedStateWindows(), anyOf(
+				containsInAnyOrder(new TimeWindow(0, 3), new TimeWindow(5, 8)),
+				containsInAnyOrder(new TimeWindow(0, 3), new TimeWindow(10, 13)),
+				containsInAnyOrder(new TimeWindow(5, 8), new TimeWindow(10, 13))));
+		assertThat(windowSet.getStateWindow(new TimeWindow(0, 13)), anyOf(is(new TimeWindow(1, 3)), is(new TimeWindow(5, 8)), is(new TimeWindow(10, 13))));
+
+	}
+
+
 	private static class TestingMergeFunction implements MergingWindowSet.MergeFunction<TimeWindow> {
 		private TimeWindow target = null;
 		private Collection<TimeWindow> sources = null;

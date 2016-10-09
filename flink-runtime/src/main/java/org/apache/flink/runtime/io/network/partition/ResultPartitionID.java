@@ -33,6 +33,8 @@ import java.io.Serializable;
  */
 public final class ResultPartitionID implements Serializable {
 
+	private static final long serialVersionUID = -902516386203787826L;
+
 	private final IntermediateResultPartitionID partitionId;
 
 	private final ExecutionAttemptID producerId;

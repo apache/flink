@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import java.io.Serializable;
 
@@ -85,8 +84,7 @@ public abstract class WindowAssigner<T, W extends Window> implements Serializabl
 	public abstract static class WindowAssignerContext {
 
 		/**
-		 * Returns the current processing time, as returned by
-		 * the {@link StreamTask#getCurrentProcessingTime()}.
+		 * Returns the current processing time.
 		 */
 		public abstract long getCurrentProcessingTime();
 

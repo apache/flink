@@ -95,18 +95,35 @@ These options are useful for debugging a Flink application for memory and garbag
 
 ### Kerberos
 
-Flink supports Kerberos authentication of Hadoop services such as HDFS, YARN, or HBase.
+Flink supports Kerberos authentication for the following services 
+
++ Hadoop Components: such as HDFS, YARN, or HBase.
++ Kafka Connectors (version 0.9+)
++ Zookeeper Server/Client
+
+Hadoop components relies on the UserGroupInformation (UGI) implementation to handle Kerberos authentication, whereas Kafka and Zookeeper services handles Kerberos authentication through SASL/JAAS implementation.
 
 **Kerberos is only properly supported in Hadoop version 2.6.1 and above. All
   other versions have critical bugs which might fail the Flink job
   unexpectedly.**
 
+**Ticket cache** and **Keytab** modes are supported for all above mentioned services.
+
+> Ticket cache (Supported only to provide backward compatibility support. Keytab is the preferred approach for long running jobs)
+
 While Hadoop uses Kerberos tickets to authenticate users with services initially, the authentication process continues differently afterwards. Instead of saving the ticket to authenticate on a later access, Hadoop creates its own security tokens (DelegationToken) that it passes around. These are authenticated to Kerberos periodically but are independent of the token renewal time. The tokens have a maximum life span identical to the Kerberos ticket maximum life span.
 
-Please make sure to set the maximum ticket life span high long running jobs. The renewal time of the ticket, on the other hand, is not important because Hadoop abstracts this away using its own security tocken renewal system. Hadoop makes sure that tickets are renewed in time and you can be sure to be authenticated until the end of the ticket life time.
+While using ticket cache mode, please make sure to set the maximum ticket life span high long running jobs. 
 
 If you are on YARN, then it is sufficient to authenticate the client with Kerberos. On a Flink standalone cluster you need to ensure that, initially, all nodes are authenticated with Kerberos using the `kinit` tool.
 
+> Keytab (security principal and keytab can be configured through Flink configuration file)
+- `security.keytab`: Path to Keytab file
+- `security.principal`: Principal associated with the keytab
+
+Kerberos ticket renewal is abstracted and automatically handled by the Hadoop/Kafka/ZK login modules and ensures that tickets are renewed in time and you can be sure to be authenticated until the end of the ticket life time.
+
+For Kafka and ZK, process-wide JAAS config will be created using the provided security credentials and the Kerberos authentication will be handled by Kafka/ZK login handlers.
 
 ### Other
 
@@ -314,6 +331,12 @@ Previously this key was named `recovery.mode` and the default value was `standal
 - `high-availability.zookeeper.client.max-retry-attempts`: (Default `3`) Defines the number of connection retries before the client gives up. Previously this key was named `recovery.zookeeper.client.max-retry-attempts`.
 
 - `high-availability.job.delay`: (Default `akka.ask.timeout`) Defines the delay before persisted jobs are recovered in case of a master recovery situation. Previously this key was named `recovery.job.delay`.
+
+### ZooKeeper-Security
+
+- `zookeeper.sasl.disable`: (Default: `true`) Defines if SASL based authentication needs to be enabled or disabled. The configuration value can be set to "true" if ZooKeeper cluster is running in secure mode (Kerberos)
+
+- `zookeeper.sasl.service-name`: (Default: `zookeeper`) If the ZooKeeper server is configured with a different service name (default:"zookeeper") then it can be supplied using this configuration. A mismatch in service name between client and server configuration will cause the authentication to fail. 
 
 ## Environment
 

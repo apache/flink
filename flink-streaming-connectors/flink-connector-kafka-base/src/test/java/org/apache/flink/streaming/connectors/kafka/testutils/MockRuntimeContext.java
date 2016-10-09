@@ -32,64 +32,54 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
-import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
-import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledFuture;
 
 @SuppressWarnings("deprecation")
 public class MockRuntimeContext extends StreamingRuntimeContext {
 
 	private final int numberOfParallelSubtasks;
 	private final int indexOfThisSubtask;
-	
+
 	private final ExecutionConfig execConfig;
-	private final Object checkpointLock;
 
-	private final TimeServiceProvider timerService;
-
+	private final TimeServiceProvider timeServiceProvider;
+	
 	public MockRuntimeContext(int numberOfParallelSubtasks, int indexOfThisSubtask) {
-		this(numberOfParallelSubtasks, indexOfThisSubtask, new ExecutionConfig(), null);
+		this(numberOfParallelSubtasks, indexOfThisSubtask, new ExecutionConfig());
 	}
 
 	public MockRuntimeContext(
-		int numberOfParallelSubtasks, int indexOfThisSubtask,
-		ExecutionConfig execConfig,
-		Object checkpointLock) {
-
-		this(numberOfParallelSubtasks, indexOfThisSubtask, execConfig, checkpointLock,
-			DefaultTimeServiceProvider.create(Executors.newSingleThreadScheduledExecutor()));
+			int numberOfParallelSubtasks,
+			int indexOfThisSubtask,
+			ExecutionConfig execConfig) {
+		this(numberOfParallelSubtasks, indexOfThisSubtask, execConfig, null);
 	}
-
+	
 	public MockRuntimeContext(
-			int numberOfParallelSubtasks, int indexOfThisSubtask,
+			int numberOfParallelSubtasks,
+			int indexOfThisSubtask,
 			ExecutionConfig execConfig,
-			Object checkpointLock,
-			TimeServiceProvider timerService) {
-
-		super(new MockStreamOperator(),
-				new MockEnvironment("no", 4 * MemoryManager.DEFAULT_PAGE_SIZE, null, 16),
-				Collections.<String, Accumulator<?, ?>>emptyMap());
+			TimeServiceProvider timeServiceProvider) {
 		
+		super(new MockStreamOperator(),
+			new MockEnvironment("no", 4 * MemoryManager.DEFAULT_PAGE_SIZE, null, 16),
+			Collections.<String, Accumulator<?, ?>>emptyMap());
+
 		this.numberOfParallelSubtasks = numberOfParallelSubtasks;
 		this.indexOfThisSubtask = indexOfThisSubtask;
 		this.execConfig = execConfig;
-		this.checkpointLock = checkpointLock;
-		this.timerService = timerService;
+		this.timeServiceProvider = timeServiceProvider;
 	}
 
 	@Override
@@ -183,16 +173,6 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 	}
 
 	@Override
-	public <S> org.apache.flink.api.common.state.OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public <S> org.apache.flink.api.common.state.OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
 	public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
 		throw new UnsupportedOperationException();
 	}
@@ -208,28 +188,12 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 	}
 
 	@Override
-	public long getCurrentProcessingTime() {
-		Preconditions.checkNotNull(timerService, "The processing time timer has not been initialized.");
-		return timerService.getCurrentProcessingTime();
-	}
-
-	@Override
-	public ScheduledFuture<?> registerTimer(final long time, final Triggerable target) {
-		Preconditions.checkNotNull(timerService, "The processing time timer has not been initialized.");
-		
-		return timerService.registerTimer(time, new Runnable() {
-			@Override
-			public void run() {
-				synchronized (checkpointLock) {
-					try {
-						target.trigger(time);
-					} catch (Throwable t) {
-						System.err.println("!!! Caught exception while processing timer. !!!");
-						t.printStackTrace();
-					}
-				}
-			}
-		});
+	public TimeServiceProvider getTimeServiceProvider() {
+		if (timeServiceProvider == null) {
+			throw new UnsupportedOperationException();
+		} else {
+			return timeServiceProvider;
+		}
 	}
 
 	// ------------------------------------------------------------------------

@@ -177,7 +177,6 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			this.localStateThreshold = localStateThreshold;
 		}
 
-
 		@Override
 		public void write(int b) throws IOException {
 			if (pos >= writeBuffer.length) {
@@ -219,7 +218,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		@Override
 		public long getPos() throws IOException {
-			return outStream == null ? pos : outStream.getPos();
+			return pos + (outStream == null ? 0 : outStream.getPos());
 		}
 
 		@Override
@@ -233,7 +232,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 					Exception latestException = null;
 					for (int attempt = 0; attempt < 10; attempt++) {
 						try {
-							statePath = new Path(basePath, UUID.randomUUID().toString());
+							statePath = createStatePath();
 							outStream = fs.create(statePath, false);
 							break;
 						}
@@ -297,19 +296,30 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 					if (outStream == null && pos <= localStateThreshold) {
 						closed = true;
 						byte[] bytes = Arrays.copyOf(writeBuffer, pos);
-						return new ByteStreamStateHandle(bytes);
+						return new ByteStreamStateHandle(createStatePath().toString(), bytes);
 					}
 					else {
 						flush();
+
+						long size = -1;
+						// make a best effort attempt to figure out the size
+						try {
+							size = outStream.getPos();
+						} catch (Exception ignored) {}
+						
 						outStream.close();
 						closed = true;
-						return new FileStateHandle(statePath);
+						return new FileStateHandle(statePath, size);
 					}
 				}
 				else {
 					throw new IOException("Stream has already been closed and discarded.");
 				}
 			}
+		}
+
+		private Path createStatePath() {
+			return new Path(basePath, UUID.randomUUID().toString());
 		}
 	}
 }

@@ -189,6 +189,25 @@ object AkkaUtils {
     ConfigFactory.parseString(config)
   }
 
+  def testDispatcherConfig: Config = {
+    val config =
+      s"""
+         |akka {
+         |  actor {
+         |    default-dispatcher {
+         |      fork-join-executor {
+         |        parallelism-factor = 1.0
+         |        parallelism-min = 1
+         |        parallelism-max = 4
+         |      }
+         |    }
+         |  }
+         |}
+      """.stripMargin
+
+    ConfigFactory.parseString(config)
+  }
+
   /**
    * Creates a Akka config for a remote actor system listening on port on the network interface
    * identified by hostname.

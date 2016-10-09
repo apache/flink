@@ -35,6 +35,14 @@ under the License.
 	<packaging>jar</packaging>
 
 	<dependencies>
+
+		<!-- explicitly include commons-compress to force Flink's managed version -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-compress</artifactId>
+			<!-- managed version -->
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-common</artifactId>
@@ -620,6 +628,10 @@ under the License.
 				<exclusion>
 					<groupId>com.sun.jersey.contribs</groupId>
 					<artifactId>jersey-guice</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.inject</groupId>
+					<artifactId>guice</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>

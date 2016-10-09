@@ -18,9 +18,6 @@
 
 package org.apache.flink.optimizer.dataproperties;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -36,6 +33,9 @@ import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * This class represents global properties of the data at a certain point in the plan.
@@ -224,7 +224,7 @@ public class GlobalProperties implements Cloneable {
 			}
 			
 			for (int i = 0; i < this.ordering.getNumberOfFields(); i++) {
-				if (this.ordering.getFieldNumber(i) != o.getFieldNumber(i)) {
+				if (!this.ordering.getFieldNumber(i).equals(o.getFieldNumber(i))) {
 					return false;
 				}
 				

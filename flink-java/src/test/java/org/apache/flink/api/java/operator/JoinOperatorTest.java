@@ -18,10 +18,6 @@
 
 package org.apache.flink.api.java.operator;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.operators.SemanticProperties;
@@ -32,7 +28,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.JoinOperator;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -43,6 +38,10 @@ import org.apache.hadoop.io.Writable;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 
@@ -1167,7 +1166,7 @@ public class JoinOperatorTest {
 
 		public int myInt;
 
-		public Nested() {};
+		public Nested() {}
 
 		public Nested(int i, long l, String s) {
 			myInt = i;
@@ -1188,7 +1187,7 @@ public class JoinOperatorTest {
 		public String myString;
 		public Nested nest;
 		
-		public NestedCustomType() {};
+		public NestedCustomType() {}
 
 		public NestedCustomType(int i, long l, String s) {
 			myInt = i;
@@ -1214,8 +1213,8 @@ public class JoinOperatorTest {
 		public List<String> countries;
 		public Writable interfaceTest;
 		
-		public CustomType() {};
-		
+		public CustomType() {}
+
 		public CustomType(int i, long l, String s) {
 			myInt = i;
 			myLong = l;
@@ -1242,8 +1241,8 @@ public class JoinOperatorTest {
 		public String myString;
 		public Tuple2<Integer, String> intByString;
 		
-		public CustomTypeWithTuple() {};
-		
+		public CustomTypeWithTuple() {}
+
 		public CustomTypeWithTuple(int i, long l, String s) {
 			myInt = i;
 			myLong = l;

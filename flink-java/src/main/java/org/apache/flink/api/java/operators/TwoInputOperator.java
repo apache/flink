@@ -21,6 +21,7 @@ package org.apache.flink.api.java.operators;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Base class for operations that operates on two input data sets.
@@ -37,8 +38,8 @@ public abstract class TwoInputOperator<IN1, IN2, OUT, O extends TwoInputOperator
 	
 	
 	protected TwoInputOperator(DataSet<IN1> input1, DataSet<IN2> input2, TypeInformation<OUT> resultType) {
-		super(input1.getExecutionEnvironment(), resultType);
-		
+		super(Preconditions.checkNotNull(input1, "input1 is null").getExecutionEnvironment(), resultType);
+		Preconditions.checkNotNull(input2, "input2 is null");
 		DataSet.checkSameExecutionContext(input1, input2);
 		this.input1 = input1;
 		this.input2 = input2;

@@ -183,13 +183,8 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		}
 
 		@Override
-		public long getStateSize() throws Exception {
+		public long getStateSize() throws IOException {
 			return 0;
-		}
-
-		@Override
-		public void close() throws IOException {
-			
 		}
 	}
 }

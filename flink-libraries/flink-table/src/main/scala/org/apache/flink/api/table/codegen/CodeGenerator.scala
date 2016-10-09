@@ -20,6 +20,7 @@ package org.apache.flink.api.table.codegen
 
 import java.math.{BigDecimal => JBigDecimal}
 
+import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
@@ -106,6 +107,10 @@ class CodeGenerator(
   // we use a LinkedHashSet to keep the insertion order
   private val reusableInitStatements = mutable.LinkedHashSet[String]()
 
+  // set of statements that will be added only once per record
+  // we use a LinkedHashSet to keep the insertion order
+  private val reusablePerRecordStatements = mutable.LinkedHashSet[String]()
+
   // map of initial input unboxing expressions that will be added only once
   // (inputTerm, index) -> expr
   private val reusableInputUnboxingExprs = mutable.Map[(String, Int), GeneratedExpression]()
@@ -123,6 +128,13 @@ class CodeGenerator(
     */
   def reuseInitCode(): String = {
     reusableInitStatements.mkString("", "\n", "\n")
+  }
+
+  /**
+    * @return code block of statements that need to be placed in the SAM of the Function
+    */
+  def reusePerRecordCode(): String = {
+    reusablePerRecordStatements.mkString("", "\n", "\n")
   }
 
   /**
@@ -234,6 +246,7 @@ class CodeGenerator(
         @Override
         public ${samHeader._1} throws Exception {
           ${samHeader._2.mkString("\n")}
+          ${reusePerRecordCode()}
           ${reuseInputUnboxingCode()}
           $bodyCode
         }
@@ -532,7 +545,9 @@ class CodeGenerator(
     generateInputAccess(input._1, input._2, index)
   }
 
-  override def visitFieldAccess(rexFieldAccess: RexFieldAccess): GeneratedExpression = ???
+  override def visitFieldAccess(rexFieldAccess: RexFieldAccess): GeneratedExpression =
+    throw new CodeGenException("Accesses to fields are not supported yet.")
+
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
     val resultType = FlinkTypeFactory.toTypeInfo(literal.getType)
@@ -623,7 +638,7 @@ class CodeGenerator(
       case TIMESTAMP =>
         generateNonNullLiteral(resultType, value.toString + "L")
 
-      case INTERVAL_YEAR_MONTH =>
+      case typeName if YEAR_INTERVAL_TYPES.contains(typeName) =>
         val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidInt) {
           generateNonNullLiteral(resultType, decimal.intValue().toString)
@@ -631,7 +646,7 @@ class CodeGenerator(
           throw new CodeGenException("Decimal can not be converted to interval of months.")
         }
 
-      case INTERVAL_DAY_TIME =>
+      case typeName if DAY_INTERVAL_TYPES.contains(typeName) =>
         val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidLong) {
           generateNonNullLiteral(resultType, decimal.longValue().toString + "L")
@@ -644,13 +659,17 @@ class CodeGenerator(
     }
   }
 
-  override def visitCorrelVariable(correlVariable: RexCorrelVariable): GeneratedExpression = ???
+  override def visitCorrelVariable(correlVariable: RexCorrelVariable): GeneratedExpression =
+    throw new CodeGenException("Correlating variables are not supported yet.")
 
-  override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression = ???
+  override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression =
+    throw new CodeGenException("Local variables are not supported yet.")
 
-  override def visitRangeRef(rangeRef: RexRangeRef): GeneratedExpression = ???
+  override def visitRangeRef(rangeRef: RexRangeRef): GeneratedExpression =
+    throw new CodeGenException("Range references are not supported yet.")
 
-  override def visitDynamicParam(dynamicParam: RexDynamicParam): GeneratedExpression = ???
+  override def visitDynamicParam(dynamicParam: RexDynamicParam): GeneratedExpression =
+    throw new CodeGenException("Dynamic parameter references are not supported yet.")
 
   override def visitCall(call: RexCall): GeneratedExpression = {
     val operands = call.getOperands.map(_.accept(this))
@@ -797,6 +816,26 @@ class CodeGenerator(
       case CASE =>
         generateIfElse(nullCheck, operands, resultType)
 
+      case IS_TRUE =>
+        val operand = operands.head
+        requireBoolean(operand)
+        generateIsTrue(operand)
+
+      case IS_NOT_TRUE =>
+        val operand = operands.head
+        requireBoolean(operand)
+        generateIsNotTrue(operand)
+
+      case IS_FALSE =>
+        val operand = operands.head
+        requireBoolean(operand)
+        generateIsFalse(operand)
+
+      case IS_NOT_FALSE =>
+        val operand = operands.head
+        requireBoolean(operand)
+        generateIsNotFalse(operand)
+
       // casting
       case CAST | REINTERPRET =>
         val operand = operands.head
@@ -820,7 +859,9 @@ class CodeGenerator(
           operands.map(_.resultType),
           resultType)
         callGen
-          .getOrElse(throw new CodeGenException(s"Unsupported call: $sqlOperator"))
+          .getOrElse(throw new CodeGenException(s"Unsupported call: $sqlOperator \n" +
+            s"If you think this function should be supported, " +
+            s"you can create an issue and start a discussion for it."))
           .generate(this, operands)
 
       // unknown or invalid
@@ -829,9 +870,11 @@ class CodeGenerator(
     }
   }
 
-  override def visitOver(over: RexOver): GeneratedExpression = ???
+  override def visitOver(over: RexOver): GeneratedExpression =
+    throw new CodeGenException("Aggregate functions over windows are not supported yet.")
 
-  override def visitSubQuery(subQuery: RexSubQuery): GeneratedExpression = ???
+  override def visitSubQuery(subQuery: RexSubQuery): GeneratedExpression =
+    throw new CodeGenException("Subqueries are not supported yet.")
 
   // ----------------------------------------------------------------------------------------------
   // generator helping methods
@@ -1221,6 +1264,95 @@ class CodeGenerator(
         |$fieldTerm = ($classQualifier) $constructorTerm.newInstance();
        """.stripMargin
     reusableInitStatements.add(constructorAccessibility)
+    fieldTerm
+  }
+
+  /**
+    * Adds a reusable timestamp to the beginning of the SAM of the generated [[Function]].
+    */
+  def addReusableTimestamp(): String = {
+    val fieldTerm = s"timestamp"
+
+    val field =
+      s"""
+        |final long $fieldTerm = java.lang.System.currentTimeMillis();
+        |""".stripMargin
+    reusablePerRecordStatements.add(field)
+    fieldTerm
+  }
+
+    /**
+    * Adds a reusable local timestamp to the beginning of the SAM of the generated [[Function]].
+    */
+  def addReusableLocalTimestamp(): String = {
+    val fieldTerm = s"localtimestamp"
+
+    val timestamp = addReusableTimestamp()
+
+    val field =
+      s"""
+        |final long $fieldTerm = $timestamp + java.util.TimeZone.getDefault().getOffset(timestamp);
+        |""".stripMargin
+    reusablePerRecordStatements.add(field)
+    fieldTerm
+  }
+
+  /**
+    * Adds a reusable time to the beginning of the SAM of the generated [[Function]].
+    */
+  def addReusableTime(): String = {
+    val fieldTerm = s"time"
+
+    val timestamp = addReusableTimestamp()
+
+    // adopted from org.apache.calcite.runtime.SqlFunctions.currentTime()
+    val field =
+      s"""
+        |final int $fieldTerm = (int) ($timestamp % ${DateTimeUtils.MILLIS_PER_DAY});
+        |if (time < 0) {
+        |  time += ${DateTimeUtils.MILLIS_PER_DAY};
+        |}
+        |""".stripMargin
+    reusablePerRecordStatements.add(field)
+    fieldTerm
+  }
+
+  /**
+    * Adds a reusable local time to the beginning of the SAM of the generated [[Function]].
+    */
+  def addReusableLocalTime(): String = {
+    val fieldTerm = s"localtime"
+
+    val localtimestamp = addReusableLocalTimestamp()
+
+    // adopted from org.apache.calcite.runtime.SqlFunctions.localTime()
+    val field =
+      s"""
+        |final int $fieldTerm = (int) ($localtimestamp % ${DateTimeUtils.MILLIS_PER_DAY});
+        |""".stripMargin
+    reusablePerRecordStatements.add(field)
+    fieldTerm
+  }
+
+
+  /**
+    * Adds a reusable date to the beginning of the SAM of the generated [[Function]].
+    */
+  def addReusableDate(): String = {
+    val fieldTerm = s"date"
+
+    val timestamp = addReusableTimestamp()
+    val time = addReusableTime()
+
+    // adopted from org.apache.calcite.runtime.SqlFunctions.currentDate()
+    val field =
+      s"""
+        |final int $fieldTerm = (int) ($timestamp / ${DateTimeUtils.MILLIS_PER_DAY});
+        |if ($time < 0) {
+        |  $fieldTerm -= 1;
+        |}
+        |""".stripMargin
+    reusablePerRecordStatements.add(field)
     fieldTerm
   }
 }

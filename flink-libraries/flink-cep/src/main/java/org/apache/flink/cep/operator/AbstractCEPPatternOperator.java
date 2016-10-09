@@ -104,7 +104,6 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 
 	@Override
 	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
-		super.snapshotState(out, checkpointId, timestamp);
 		final ObjectOutputStream oos = new ObjectOutputStream(out);
 
 		oos.writeObject(nfa);
@@ -119,7 +118,6 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 	@Override
 	@SuppressWarnings("unchecked")
 	public void restoreState(FSDataInputStream state) throws Exception {
-		super.restoreState(state);
 		final ObjectInputStream ois = new ObjectInputStream(state);
 
 		nfa = (NFA<IN>)ois.readObject();

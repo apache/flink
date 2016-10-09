@@ -36,7 +36,7 @@ Stage 6 : Data Source
 			Partitioning : RANDOM_PARTITIONED
 
 			Stage 1 : FlatMap
-				content : select: (a, c AS b)
+				content : select: (a, c)
 				ship_strategy : Forward
 				exchange_mode : PIPELINED
 				driver_strategy : FlatMap

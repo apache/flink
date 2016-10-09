@@ -22,16 +22,23 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.types.Either;
+import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
 /**
@@ -90,8 +97,18 @@ public class Summarization<K, VV, EV>
 
 	@Override
 	public Graph<K, VertexValue<VV>, EdgeValue<EV>> run(Graph<K, VV, EV> input) throws Exception {
+		// create type infos for correct return type definitions
+		// Note: this use of type hints is only required due to
+		// limitations of the type parser for the Either type
+		// which are being fixed in FLINK-4673
+		TypeInformation<K> keyType = ((TupleTypeInfo<?>) input.getVertices().getType()).getTypeAt(0);
+		TypeInformation<VV> valueType = ((TupleTypeInfo<?>) input.getVertices().getType()).getTypeAt(1);
+		@SuppressWarnings("unchecked")
+		TupleTypeInfo<Vertex<K, VertexValue<VV>>> vertexType = (TupleTypeInfo<Vertex<K, VertexValue<VV>>>) new TupleTypeInfo(
+			Vertex.class, keyType, new TupleTypeInfo(VertexValue.class, valueType, BasicTypeInfo.LONG_TYPE_INFO));
+
 		// -------------------------
-		// build summarized vertices
+		// build super vertices
 		// -------------------------
 
 		// group vertices by value
@@ -100,19 +117,20 @@ public class Summarization<K, VV, EV>
 		// reduce vertex group and create vertex group items
 		GroupReduceOperator<Vertex<K, VV>, VertexGroupItem<K, VV>> vertexGroupItems = vertexUnsortedGrouping
 				.reduceGroup(new VertexGroupReducer<K, VV>());
-		// create summarized vertices
+		// create super vertices
 		DataSet<Vertex<K, VertexValue<VV>>> summarizedVertices = vertexGroupItems
 				.filter(new VertexGroupItemToSummarizedVertexFilter<K, VV>())
-				.map(new VertexGroupItemToSummarizedVertexMapper<K, VV>());
+				.map(new VertexGroupItemToSummarizedVertexMapper<K, VV>())
+				.returns(vertexType);
+
+		// -------------------------
+		// build super edges
+		// -------------------------
+
 		// create mapping between vertices and their representative
 		DataSet<VertexWithRepresentative<K>> vertexToRepresentativeMap = vertexGroupItems
-				.filter(new VertexGroupItemToRepresentativeFilter<K, VV>())
-				.map(new VertexGroupItemToVertexWithRepresentativeMapper<K, VV>());
-
-		// -------------------------
-		// build summarized edges
-		// -------------------------
-
+			.filter(new VertexGroupItemToRepresentativeFilter<K, VV>())
+			.map(new VertexGroupItemToVertexWithRepresentativeMapper<K, VV>());
 		// join edges with vertex representatives and update source and target identifiers
 		DataSet<Edge<K, EV>> edgesForGrouping = input.getEdges()
 				.join(vertexToRepresentativeMap)
@@ -123,7 +141,7 @@ public class Summarization<K, VV, EV>
 				.where(1) 	// target vertex id
 				.equalTo(0) // vertex id
 				.with(new TargetVertexJoinFunction<K, EV>());
-		// create summarized edges
+		// create super edges
 		DataSet<Edge<K, EdgeValue<EV>>> summarizedEdges = edgesForGrouping
 				.groupBy(0, 1, 2) // group by source id (0), target id (1) and edge value (2)
 				.reduceGroup(new EdgeGroupReducer<K, EV>());
@@ -203,10 +221,12 @@ public class Summarization<K, VV, EV>
 	 * @param <VGV> vertex group value type
 	 */
 	@SuppressWarnings("serial")
-	public static final class VertexGroupItem<K, VGV> extends Tuple4<K, K, VGV, Long> {
+	public static final class VertexGroupItem<K, VGV> extends Tuple4<K, K, Either<VGV, NullValue>, Long> {
+
+		private final Either.Right<VGV, NullValue> nullValue = new Either.Right<>(NullValue.getInstance());
 
 		public VertexGroupItem() {
-			setVertexGroupCount(0L);
+			reset();
 		}
 
 		public K getVertexId() {
@@ -226,11 +246,15 @@ public class Summarization<K, VV, EV>
 		}
 
 		public VGV getVertexGroupValue() {
-			return f2;
+			return f2.isLeft() ? f2.left() : null;
 		}
 
 		public void setVertexGroupValue(VGV vertexGroupValue) {
-			f2 = vertexGroupValue;
+			if (vertexGroupValue == null) {
+				f2 = nullValue;
+			} else {
+				f2 = new Either.Left<>(vertexGroupValue);
+			}
 		}
 
 		public Long getVertexGroupCount() {
@@ -247,7 +271,7 @@ public class Summarization<K, VV, EV>
 		public void reset() {
 			f0 = null;
 			f1 = null;
-			f2 = null;
+			f2 = nullValue;
 			f3 = 0L;
 		}
 	}
@@ -290,11 +314,13 @@ public class Summarization<K, VV, EV>
 	 */
 	@SuppressWarnings("serial")
 	private static final class VertexGroupReducer<K, VV>
-			implements GroupReduceFunction<Vertex<K, VV>, VertexGroupItem<K, VV>> {
+			extends RichGroupReduceFunction<Vertex<K, VV>, VertexGroupItem<K, VV>> {
 
-		private final VertexGroupItem<K, VV> reuseVertexGroupItem;
+		private transient VertexGroupItem<K, VV> reuseVertexGroupItem;
 
-		private VertexGroupReducer() {
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
 			this.reuseVertexGroupItem = new VertexGroupItem<>();
 		}
 
@@ -329,12 +355,10 @@ public class Summarization<K, VV, EV>
 		 * group.
 		 *
 		 * @param vertexGroupRepresentativeId group representative vertex identifier
-		 * @param vertexGroupValue  					group property value
-		 * @param vertexGroupCount          	total group count
+		 * @param vertexGroupValue  		  group property value
+		 * @param vertexGroupCount            total group count
 		 */
-		private void createGroupRepresentativeTuple(K vertexGroupRepresentativeId,
-																								VV vertexGroupValue,
-																								Long vertexGroupCount) {
+		private void createGroupRepresentativeTuple(K vertexGroupRepresentativeId, VV vertexGroupValue, Long vertexGroupCount) {
 			reuseVertexGroupItem.setVertexId(vertexGroupRepresentativeId);
 			reuseVertexGroupItem.setVertexGroupValue(vertexGroupValue);
 			reuseVertexGroupItem.setVertexGroupCount(vertexGroupCount);
@@ -511,9 +535,9 @@ public class Summarization<K, VV, EV>
 	@FunctionAnnotation.ForwardedFieldsSecond("f1") 	// vertex group id -> edge target id
 	private static final class TargetVertexJoinFunction<K, EV>
 			implements JoinFunction<Edge<K, EV>, VertexWithRepresentative<K>, Edge<K, EV>> {
+
 		@Override
-		public Edge<K, EV> join(Edge<K, EV> edge,
-														VertexWithRepresentative<K> vertexRepresentative) throws Exception {
+		public Edge<K, EV> join(Edge<K, EV> edge, VertexWithRepresentative<K> vertexRepresentative) throws Exception {
 			edge.setTarget(vertexRepresentative.getGroupRepresentativeId());
 			return edge;
 		}

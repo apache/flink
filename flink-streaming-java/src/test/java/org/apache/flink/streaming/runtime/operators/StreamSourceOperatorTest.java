@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -45,12 +46,9 @@ import org.mockito.stubbing.Answer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ScheduledFuture;
 
 import static org.junit.Assert.*;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -184,16 +182,17 @@ public class StreamSourceOperatorTest {
 
 		long watermarkInterval = 10;
 		TestTimeServiceProvider timeProvider = new TestTimeServiceProvider();
+		timeProvider.setCurrentTime(0);
+
 		setupSourceOperator(operator, TimeCharacteristic.IngestionTime, watermarkInterval, timeProvider);
 
 		final List<StreamElement> output = new ArrayList<>();
 
-		StreamSource.AutomaticWatermarkContext<String> ctx =
-			new StreamSource.AutomaticWatermarkContext<>(
-				operator,
-				operator.getContainingTask().getCheckpointLock(),
-				new CollectorOutput<String>(output),
-				operator.getExecutionConfig().getAutoWatermarkInterval());
+		StreamSourceContexts.getSourceContext(TimeCharacteristic.IngestionTime,
+			operator.getContainingTask().getTimerService(),
+			operator.getContainingTask().getCheckpointLock(),
+			new CollectorOutput<String>(output),
+			operator.getExecutionConfig().getAutoWatermarkInterval());
 
 		// periodically emit the watermarks
 		// even though we start from 1 the watermark are still
@@ -219,7 +218,7 @@ public class StreamSourceOperatorTest {
 	private static <T> void setupSourceOperator(StreamSource<T, ?> operator,
 												TimeCharacteristic timeChar,
 												long watermarkInterval,
-												final TimeServiceProvider timeProvider) {
+												final TestTimeServiceProvider timeProvider) {
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setAutoWatermarkInterval(watermarkInterval);
@@ -239,40 +238,12 @@ public class StreamSourceOperatorTest {
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
 		when(mockTask.getAccumulatorMap()).thenReturn(Collections.<String, Accumulator<?, ?>>emptyMap());
 
-		doAnswer(new Answer<ScheduledFuture>() {
+		doAnswer(new Answer<TimeServiceProvider>() {
 			@Override
-			public ScheduledFuture answer(InvocationOnMock invocation) throws Throwable {
-				final long execTime = (Long) invocation.getArguments()[0];
-				final Triggerable target = (Triggerable) invocation.getArguments()[1];
-
-				if (timeProvider == null) {
-					throw new RuntimeException("The time provider is null");
-				}
-
-				timeProvider.registerTimer(execTime, new Runnable() {
-
-					@Override
-					public void run() {
-						try {
-							target.trigger(execTime);
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-					}
-				});
-				return null;
+			public TimeServiceProvider answer(InvocationOnMock invocation) throws Throwable {
+				return timeProvider;
 			}
-		}).when(mockTask).registerTimer(anyLong(), any(Triggerable.class));
-
-		doAnswer(new Answer<Long>() {
-			@Override
-			public Long answer(InvocationOnMock invocation) throws Throwable {
-				if (timeProvider == null) {
-					throw new RuntimeException("The time provider is null");
-				}
-				return timeProvider.getCurrentProcessingTime();
-			}
-		}).when(mockTask).getCurrentProcessingTime();
+		}).when(mockTask).getTimerService();
 
 		operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
 	}

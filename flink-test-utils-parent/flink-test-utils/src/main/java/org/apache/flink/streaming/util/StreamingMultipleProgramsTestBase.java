@@ -19,12 +19,14 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.test.util.AbstractTestBase;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.test.util.TestBaseUtils;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Base class for streaming unit tests that run multiple tests and want to reuse the same
@@ -61,11 +63,13 @@ public class StreamingMultipleProgramsTestBase extends AbstractTestBase {
 
 	protected static final int DEFAULT_PARALLELISM = 4;
 
-	protected static ForkableFlinkMiniCluster cluster;
+	protected static LocalFlinkMiniCluster cluster;
 
 	public StreamingMultipleProgramsTestBase() {
 		super(new Configuration());
 	}
+
+	protected static final Logger LOG = LoggerFactory.getLogger(StreamingMultipleProgramsTestBase.class);
 
 	// ------------------------------------------------------------------------
 	//  Cluster setup & teardown
@@ -73,12 +77,14 @@ public class StreamingMultipleProgramsTestBase extends AbstractTestBase {
 
 	@BeforeClass
 	public static void setup() throws Exception {
+		LOG.info("In StreamingMultipleProgramsTestBase: Starting FlinkMiniCluster ");
 		cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM, false, false, true);
 		TestStreamEnvironment.setAsContext(cluster, DEFAULT_PARALLELISM);
 	}
 
 	@AfterClass
 	public static void teardown() throws Exception {
+		LOG.info("In StreamingMultipleProgramsTestBase: Closing FlinkMiniCluster ");
 		TestStreamEnvironment.unsetAsContext();
 		stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
 	}

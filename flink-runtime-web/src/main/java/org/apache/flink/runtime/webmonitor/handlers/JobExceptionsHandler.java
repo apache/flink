@@ -21,7 +21,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -66,7 +66,7 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 					break;
 				}
 
-				InstanceConnectionInfo location = task.getCurrentAssignedResourceLocation();
+				TaskManagerLocation location = task.getCurrentAssignedResourceLocation();
 				String locationString = location != null ?
 						location.getFQDNHostname() + ':' + location.dataPort() : "(unassigned)";
 

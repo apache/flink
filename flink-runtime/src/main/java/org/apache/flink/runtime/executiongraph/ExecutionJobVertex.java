@@ -29,6 +29,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -37,7 +38,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.util.Preconditions;
@@ -165,10 +165,17 @@ public class ExecutionJobVertex {
 			InputSplitSource<InputSplit> splitSource = (InputSplitSource<InputSplit>) jobVertex.getInputSplitSource();
 			
 			if (splitSource != null) {
-				inputSplits = splitSource.createInputSplits(numTaskVertices);
-				
-				if (inputSplits != null) {
-					splitAssigner = splitSource.getInputSplitAssigner(inputSplits);
+				Thread currentThread = Thread.currentThread();
+				ClassLoader oldContextClassLoader = currentThread.getContextClassLoader();
+				currentThread.setContextClassLoader(graph.getUserClassLoader());
+				try {
+					inputSplits = splitSource.createInputSplits(numTaskVertices);
+
+					if (inputSplits != null) {
+						splitAssigner = splitSource.getInputSplitAssigner(inputSplits);
+					}
+				} finally {
+					currentThread.setContextClassLoader(oldContextClassLoader);
 				}
 			}
 			else {
@@ -289,12 +296,13 @@ public class ExecutionJobVertex {
 	//  Actions
 	//---------------------------------------------------------------------------------------------
 	
-	public void scheduleAll(Scheduler scheduler, boolean queued) throws NoResourceAvailableException {
+	public void scheduleAll(SlotProvider slotProvider, boolean queued) throws NoResourceAvailableException {
+		
 		ExecutionVertex[] vertices = this.taskVertices;
 
 		// kick off the tasks
 		for (ExecutionVertex ev : vertices) {
-			ev.scheduleForExecution(scheduler, queued);
+			ev.scheduleForExecution(slotProvider, queued);
 		}
 	}
 

@@ -196,7 +196,7 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 	 * 
 	 * @return An in stance of the scatter-gather graph computation operator.
 	 */
-	public static final <K, VV, Message, EV> ScatterGatherIteration<K, VV, Message, EV> withEdges(
+	public static <K, VV, Message, EV> ScatterGatherIteration<K, VV, Message, EV> withEdges(
 		DataSet<Edge<K, EV>> edgesWithValue, ScatterFunction<K, VV, Message, EV> sf,
 		GatherFunction<K, VV, Message> gf, int maximumNumberOfIterations)
 	{
@@ -310,8 +310,8 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 			if (stateIter.hasNext()) {
 				Vertex<K, Tuple3<VV, LongValue, LongValue>> vertexWithDegrees = stateIter.next();
 
-				nextVertex.setField(vertexWithDegrees.f0, 0);
-				nextVertex.setField(vertexWithDegrees.f1.f0, 1);
+				nextVertex.f0 = vertexWithDegrees.f0;
+				nextVertex.f1 = vertexWithDegrees.f1.f0;
 
 				scatterFunction.setInDegree(vertexWithDegrees.f1.f1.getValue());
 				scatterFunction.setOutDegree(vertexWithDegrees.f1.f2.getValue());
@@ -588,8 +588,7 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 				throw new IllegalArgumentException("Illegal edge direction");
 		}
 
-		GatherUdf<K, VV, Message> updateUdf =
-				new GatherUdfSimpleVV<K, VV, Message>(gatherFunction, vertexTypes);
+		GatherUdf<K, VV, Message> updateUdf = new GatherUdfSimpleVV<>(gatherFunction, vertexTypes);
 
 		// build the update function (co group)
 		CoGroupOperator<?, ?, Vertex<K, VV>> updates =

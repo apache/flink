@@ -27,7 +27,6 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import java.io.Serializable;
 
@@ -128,8 +127,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	public interface TriggerContext {
 
 		/**
-		 * Returns the current processing time, as returned by
-		 * the {@link StreamTask#getCurrentProcessingTime()}.
+		 * Returns the current processing time.
 		 */
 		long getCurrentProcessingTime();
 

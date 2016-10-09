@@ -18,12 +18,14 @@
 
 package org.apache.flink.api.table
 
+import java.lang.reflect.Modifier
 import java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.calcite.config.Lex
 import org.apache.calcite.plan.RelOptPlanner
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.schema.SchemaPlus
+import org.apache.calcite.rex.RexExecutorImpl
+import org.apache.calcite.schema.{Schemas, SchemaPlus}
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql.SqlOperatorTable
 import org.apache.calcite.sql.parser.SqlParser
@@ -38,7 +40,7 @@ import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
 import org.apache.flink.api.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.api.table.functions.{ScalarFunction, UserDefinedFunction}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
-import org.apache.flink.api.table.plan.schema.{RelTable, TransStreamTable}
+import org.apache.flink.api.table.plan.schema.RelTable
 import org.apache.flink.api.table.sinks.TableSink
 import org.apache.flink.api.table.validate.FunctionCatalog
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
@@ -63,7 +65,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   private val tables: SchemaPlus = Frameworks.createRootSchema(true)
 
   // Table API/SQL function catalog
-  private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuildIns
+  private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuiltIns
 
   // SQL operator and function catalog
   private val sqlOperatorTable: SqlOperatorTable = functionCatalog.getSqlOperatorTable
@@ -76,6 +78,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     .costFactory(new DataSetCostFactory)
     .typeSystem(new FlinkTypeSystem)
     .operatorTable(sqlOperatorTable)
+    // set the executor to evaluate constant expressions
+    .executor(new RexExecutorImpl(Schemas.createDataContext(null)))
     .build
 
   // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
@@ -126,16 +130,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
 
     checkValidTableName(name)
-
-    table.tableEnv match {
-      case e: BatchTableEnvironment =>
-        val tableTable = new RelTable(table.getRelNode)
-        registerTableInternal(name, tableTable)
-      case e: StreamTableEnvironment =>
-        val sTableTable = new TransStreamTable(table.getRelNode, true)
-        tables.add(name, sTableTable)
-    }
-
+    val tableTable = new RelTable(table.getRelNode)
+    registerTableInternal(name, tableTable)
   }
 
   /**
@@ -242,6 +238,16 @@ abstract class TableEnvironment(val config: TableConfig) {
     frameworkConfig
   }
 
+  protected def validateType(typeInfo: TypeInformation[_]): Unit = {
+    val clazz = typeInfo.getTypeClass
+    if ((clazz.isMemberClass && !Modifier.isStatic(clazz.getModifiers)) ||
+        !Modifier.isPublic(clazz.getModifiers) ||
+        clazz.getCanonicalName == null) {
+      throw TableException(s"Class '$clazz' described in type information '$typeInfo' must be " +
+        s"static and globally accessible.")
+    }
+  }
+
   /**
     * Returns field names and field positions for a given [[TypeInformation]].
     *
@@ -257,6 +263,8 @@ abstract class TableEnvironment(val config: TableConfig) {
   protected[flink] def getFieldInfo[A](inputType: TypeInformation[A]):
       (Array[String], Array[Int]) =
   {
+    validateType(inputType)
+
     val fieldNames: Array[String] = inputType match {
       case t: TupleTypeInfo[A] => t.getFieldNames
       case c: CaseClassTypeInfo[A] => c.getFieldNames
@@ -285,6 +293,8 @@ abstract class TableEnvironment(val config: TableConfig) {
   protected[flink] def getFieldInfo[A](
     inputType: TypeInformation[A],
     exprs: Array[Expression]): (Array[String], Array[Int]) = {
+
+    validateType(inputType)
 
     val indexedNames: Array[(Int, String)] = inputType match {
       case a: AtomicType[A] =>

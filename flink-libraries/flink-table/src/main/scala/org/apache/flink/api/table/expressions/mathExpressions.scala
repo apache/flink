@@ -114,3 +114,16 @@ case class Power(left: Expression, right: Expression) extends BinaryExpression w
     relBuilder.call(SqlStdOperatorTable.POWER, left.toRexNode, right.toRexNode)
   }
 }
+
+case class Sqrt(child: Expression) extends UnaryExpression with InputTypeSpec {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    Seq(DOUBLE_TYPE_INFO)
+
+  override def toString: String = s"sqrt($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.POWER, child.toRexNode, Literal(0.5).toRexNode)
+  }
+}

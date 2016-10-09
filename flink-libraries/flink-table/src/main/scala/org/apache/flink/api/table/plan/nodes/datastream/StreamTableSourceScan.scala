@@ -23,7 +23,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.StreamTableEnvironment
-import org.apache.flink.api.table.plan.schema.StreamableTableSourceTable
+import org.apache.flink.api.table.plan.schema.TableSourceTable
 import org.apache.flink.api.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.DataStream
 
@@ -35,7 +35,7 @@ class StreamTableSourceScan(
     rowType: RelDataType)
   extends StreamScan(cluster, traitSet, table, rowType) {
 
-  val tableSourceTable = table.unwrap(classOf[StreamableTableSourceTable])
+  val tableSourceTable = table.unwrap(classOf[TableSourceTable])
   val tableSource = tableSourceTable.tableSource.asInstanceOf[StreamTableSource[_]]
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {

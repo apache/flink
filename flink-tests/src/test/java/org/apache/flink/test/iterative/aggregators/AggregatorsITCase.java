@@ -91,9 +91,9 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testDistributedCacheWithIterations() throws Exception{
 		File tempFile = new File(testPath);
-		FileWriter writer = new FileWriter(tempFile);
-		writer.write(testString);
-		writer.close();
+		try (FileWriter writer = new FileWriter(tempFile)) {
+			writer.write(testString);
+		}
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.registerCachedFile(resultPath, testName);

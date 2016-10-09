@@ -34,4 +34,10 @@ case class GeneratedExpression(
     code: String,
     resultType: TypeInformation[_])
 
+object GeneratedExpression {
+  val ALWAYS_NULL = "true"
+  val NEVER_NULL = "false"
+  val NO_CODE = ""
+}
+
 case class GeneratedFunction[T](name: String, returnType: TypeInformation[Any], code: String)

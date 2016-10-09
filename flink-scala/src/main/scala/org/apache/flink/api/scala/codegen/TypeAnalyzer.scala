@@ -51,6 +51,9 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
           case TypeParameter() => TypeParameterDescriptor(id, tpe)
 
+          // type or super type defines type information factory
+          case FactoryType(baseType) => analyzeFactoryType(id, tpe, baseType)
+
           case PrimitiveType(default, wrapper) => PrimitiveDescriptor(id, tpe, default, wrapper)
 
           case BoxedPrimitiveType(default, wrapper, box, unbox) =>
@@ -89,6 +92,19 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
           case _ => analyzePojo(id, tpe)
         }
       }
+    }
+
+    private def analyzeFactoryType(
+        id: Int,
+        tpe: Type,
+        baseType: Type): UDTDescriptor = {
+      val params: Seq[UDTDescriptor] = baseType match {
+        case TypeRef(_, _, args) =>
+          args.map(analyze)
+        case _ =>
+          Seq[UDTDescriptor]()
+      }
+      FactoryTypeDescriptor(id, tpe, baseType, params)
     }
 
     private def analyzeArray(
@@ -436,6 +452,15 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
     private object JavaTupleType {
       def unapply(tpe: Type): Boolean = tpe <:< typeOf[org.apache.flink.api.java.tuple.Tuple]
+    }
+
+    private object FactoryType {
+      def unapply(tpe: Type): Option[Type] = {
+        val definingType = tpe.typeSymbol.asClass.baseClasses find {
+          _.annotations.exists(_.tpe =:= typeOf[org.apache.flink.api.common.typeinfo.TypeInfo])
+        }
+        definingType.map(tpe.baseType)
+      }
     }
 
     private class UDTAnalyzerCache {

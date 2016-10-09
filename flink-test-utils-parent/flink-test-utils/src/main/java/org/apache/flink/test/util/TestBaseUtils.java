@@ -32,7 +32,8 @@ import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
+import org.apache.flink.runtime.messages.TaskManagerMessages;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -104,7 +105,7 @@ public class TestBaseUtils extends TestLogger {
 	}
 	
 	
-	public static ForkableFlinkMiniCluster startCluster(
+	public static LocalFlinkMiniCluster startCluster(
 		int numTaskManagers,
 		int taskManagerNumSlots,
 		boolean startWebserver,
@@ -126,7 +127,7 @@ public class TestBaseUtils extends TestLogger {
 		return startCluster(config, singleActorSystem);
 	}
 
-	public static ForkableFlinkMiniCluster startCluster(
+	public static LocalFlinkMiniCluster startCluster(
 		Configuration config,
 		boolean singleActorSystem) throws Exception {
 
@@ -147,7 +148,7 @@ public class TestBaseUtils extends TestLogger {
 		
 		config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, logFile.toString());
 
-		ForkableFlinkMiniCluster cluster =  new ForkableFlinkMiniCluster(config, singleActorSystem);
+		LocalFlinkMiniCluster cluster =  new LocalFlinkMiniCluster(config, singleActorSystem);
 
 		cluster.start();
 
@@ -155,7 +156,7 @@ public class TestBaseUtils extends TestLogger {
 	}
 
 
-	public static void stopCluster(ForkableFlinkMiniCluster executor, FiniteDuration timeout) throws Exception {
+	public static void stopCluster(LocalFlinkMiniCluster executor, FiniteDuration timeout) throws Exception {
 		if (logDir != null) {
 			FileUtils.deleteDirectory(logDir);
 		}
@@ -169,11 +170,15 @@ public class TestBaseUtils extends TestLogger {
 				List<Future<Object>> numActiveConnectionsResponseFutures = new ArrayList<>();
 
 				for (ActorRef tm : tms) {
-					bcVariableManagerResponseFutures.add(Patterns.ask(tm, TestingTaskManagerMessages
-							.RequestBroadcastVariablesWithReferences$.MODULE$, new Timeout(timeout)));
+					bcVariableManagerResponseFutures.add(Patterns.ask(
+						tm,
+						TaskManagerMessages.getRequestBroadcastVariablesWithReferences(),
+						new Timeout(timeout)));
 
-					numActiveConnectionsResponseFutures.add(Patterns.ask(tm, TestingTaskManagerMessages
-							.RequestNumActiveConnections$.MODULE$, new Timeout(timeout)));
+					numActiveConnectionsResponseFutures.add(Patterns.ask(
+						tm,
+						TaskManagerMessages.getRequestNumActiveConnections(),
+						new Timeout(timeout)));
 				}
 
 				Future<Iterable<Object>> bcVariableManagerFutureResponses = Futures.sequence(
@@ -182,8 +187,7 @@ public class TestBaseUtils extends TestLogger {
 				Iterable<Object> responses = Await.result(bcVariableManagerFutureResponses, timeout);
 
 				for (Object response : responses) {
-					numUnreleasedBCVars += ((TestingTaskManagerMessages
-							.ResponseBroadcastVariablesWithReferences) response).number();
+					numUnreleasedBCVars += ((TaskManagerMessages.ResponseBroadcastVariablesWithReferences) response).number();
 				}
 
 				Future<Iterable<Object>> numActiveConnectionsFutureResponses = Futures.sequence(
@@ -192,8 +196,7 @@ public class TestBaseUtils extends TestLogger {
 				responses = Await.result(numActiveConnectionsFutureResponses, timeout);
 
 				for (Object response : responses) {
-					numActiveConnections += ((TestingTaskManagerMessages
-							.ResponseNumActiveConnections) response).number();
+					numActiveConnections += ((TaskManagerMessages.ResponseNumActiveConnections) response).number();
 				}
 			}
 

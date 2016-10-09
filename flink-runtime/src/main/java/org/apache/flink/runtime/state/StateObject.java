@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import java.io.IOException;
+
 /**
  * Base of all types that represent checkpointed state. Specializations are for
  * example {@link StateHandle StateHandles} (directly resolve to state).
@@ -26,13 +28,9 @@ package org.apache.flink.runtime.state;
  * <ul>
  *     <li><b>Discard State</b>: The {@link #discardState()} method defines how state is permanently
  *         disposed/deleted. After that method call, state may not be recoverable any more.</li>
- 
- *     <li><b>Close the current state access</b>: The {@link #close()} method defines how to
- *         stop the current access or recovery to the state. Called for example when an operation is
- *         canceled during recovery.</li>
  * </ul>
  */
-public interface StateObject extends java.io.Closeable, java.io.Serializable {
+public interface StateObject extends java.io.Serializable {
 
 	/**
 	 * Discards the state referred to by this handle, to free up resources in
@@ -47,7 +45,7 @@ public interface StateObject extends java.io.Closeable, java.io.Serializable {
 	 * <p>If the the size is not known, return {@code 0}.
 	 *
 	 * @return Size of the state in bytes.
-	 * @throws Exception If the operation fails during size retrieval.
+	 * @throws IOException If the operation fails during size retrieval.
 	 */
-	long getStateSize() throws Exception;
+	long getStateSize() throws IOException;
 }

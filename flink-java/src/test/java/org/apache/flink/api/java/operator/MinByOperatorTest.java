@@ -212,7 +212,7 @@ public class MinByOperatorTest {
 		public String myString;
 
 		public CustomType() {
-		};
+		}
 
 		public CustomType(int i, long l, String s) {
 			myInt = i;

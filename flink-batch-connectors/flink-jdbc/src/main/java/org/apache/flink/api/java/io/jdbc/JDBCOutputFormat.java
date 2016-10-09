@@ -108,7 +108,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	@Override
 	public void writeRecord(Row row) throws IOException {
 
-		if (typesArray != null && typesArray.length > 0 && typesArray.length == row.productArity()) {
+		if (typesArray != null && typesArray.length > 0 && typesArray.length != row.productArity()) {
 			LOG.warn("Column SQL types array doesn't match arity of passed Row! Check the passed array...");
 		} 
 		try {

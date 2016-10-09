@@ -17,12 +17,11 @@
  */
 package org.apache.flink.api.java.table
 
-import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.{ExecutionEnvironment, DataSet}
 import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.api.table.expressions.ExpressionParser
-import org.apache.flink.api.table.{Row, TableConfig, Table}
+import org.apache.flink.api.table.{Table, TableConfig}
 
 /**
   * The [[org.apache.flink.api.table.TableEnvironment]] for a Java batch [[DataSet]]

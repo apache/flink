@@ -607,7 +607,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 						else {
 							final int constant = tagged(values.get(2)).getIntConstant();
 
-							if (constant < 0 || Integer.valueOf(methodOwner.split("Tuple")[1]) <= constant ) {
+							if (constant < 0 || Integer.parseInt(methodOwner.split("Tuple")[1]) <= constant ) {
 								analyzer.handleInvalidTupleAccess();
 							}
 

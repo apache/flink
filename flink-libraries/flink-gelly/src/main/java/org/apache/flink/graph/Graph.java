@@ -66,6 +66,7 @@ import org.apache.flink.util.Collector;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -160,7 +161,7 @@ public class Graph<K, VV, EV> {
 	public static <K, VV, EV> Graph<K, VV, EV> fromDataSet(DataSet<Vertex<K, VV>> vertices,
 			DataSet<Edge<K, EV>> edges, ExecutionEnvironment context) {
 
-		return new Graph<K, VV, EV>(vertices, edges, context);
+		return new Graph<>(vertices, edges, context);
 	}
 
 	/**
@@ -177,15 +178,15 @@ public class Graph<K, VV, EV> {
 
 		DataSet<Vertex<K, NullValue>> vertices = edges.flatMap(new EmitSrcAndTarget<K, EV>()).distinct();
 
-		return new Graph<K, NullValue, EV>(vertices, edges, context);
+		return new Graph<>(vertices, edges, context);
 	}
 
 	private static final class EmitSrcAndTarget<K, EV> implements FlatMapFunction<
 			Edge<K, EV>, Vertex<K, NullValue>> {
 
 		public void flatMap(Edge<K, EV> edge, Collector<Vertex<K, NullValue>> out) {
-			out.collect(new Vertex<K, NullValue>(edge.f0, NullValue.getInstance()));
-			out.collect(new Vertex<K, NullValue>(edge.f1, NullValue.getInstance()));
+			out.collect(new Vertex<>(edge.f0, NullValue.getInstance()));
+			out.collect(new Vertex<>(edge.f1, NullValue.getInstance()));
 		}
 	}
 
@@ -216,19 +217,19 @@ public class Graph<K, VV, EV> {
 				.flatMap(new EmitSrcAndTargetAsTuple1<K, EV>()).distinct()
 				.map(new MapFunction<Tuple1<K>, Vertex<K, VV>>() {
 					public Vertex<K, VV> map(Tuple1<K> value) throws Exception {
-						return new Vertex<K, VV>(value.f0, vertexValueInitializer.map(value.f0));
+						return new Vertex<>(value.f0, vertexValueInitializer.map(value.f0));
 					}
 				}).returns(returnType).withForwardedFields("f0");
 
-		return new Graph<K, VV, EV>(vertices, edges, context);
+		return new Graph<>(vertices, edges, context);
 	}
 
 	private static final class EmitSrcAndTargetAsTuple1<K, EV> implements FlatMapFunction<
 		Edge<K, EV>, Tuple1<K>> {
 
 		public void flatMap(Edge<K, EV> edge, Collector<Tuple1<K>> out) {
-			out.collect(new Tuple1<K>(edge.f0));
-			out.collect(new Tuple1<K>(edge.f1));
+			out.collect(new Tuple1<>(edge.f0));
+			out.collect(new Tuple1<>(edge.f1));
 		}
 	}
 
@@ -316,7 +317,7 @@ public class Graph<K, VV, EV> {
 				new MapFunction<Tuple2<K, K>, Edge<K, NullValue>>() {
 
 					public Edge<K, NullValue> map(Tuple2<K, K> input) {
-						return new Edge<K, NullValue>(input.f0, input.f1, NullValue.getInstance());
+						return new Edge<>(input.f0, input.f1, NullValue.getInstance());
 					}
 		}).withForwardedFields("f0; f1");
 		return fromDataSet(edgeDataSet, context);
@@ -344,7 +345,7 @@ public class Graph<K, VV, EV> {
 				new MapFunction<Tuple2<K, K>, Edge<K, NullValue>>() {
 
 					public Edge<K, NullValue> map(Tuple2<K, K> input) {
-						return new Edge<K, NullValue>(input.f0, input.f1, NullValue.getInstance());
+						return new Edge<>(input.f0, input.f1, NullValue.getInstance());
 					}
 				}).withForwardedFields("f0; f1");
 		return fromDataSet(edgeDataSet, vertexValueInitializer, context);
@@ -472,7 +473,7 @@ public class Graph<K, VV, EV> {
 		public void join(Vertex<K, VV> vertex, Edge<K, EV> edge, Collector<Tuple4<K, K, VV, EV>> collector)
 				throws Exception {
 
-			collector.collect(new Tuple4<K, K, VV, EV>(edge.getSource(), edge.getTarget(), vertex.getValue(),
+			collector.collect(new Tuple4<>(edge.getSource(), edge.getTarget(), vertex.getValue(),
 					edge.getValue()));
 		}
 	}
@@ -486,7 +487,7 @@ public class Graph<K, VV, EV> {
 		public void join(Tuple4<K, K, VV, EV> tripletWithSrcValSet,
 						Vertex<K, VV> vertex, Collector<Triplet<K, VV, EV>> collector) throws Exception {
 
-			collector.collect(new Triplet<K, VV, EV>(tripletWithSrcValSet.f0, tripletWithSrcValSet.f1,
+			collector.collect(new Triplet<>(tripletWithSrcValSet.f0, tripletWithSrcValSet.f1,
 					tripletWithSrcValSet.f2, vertex.getValue(), tripletWithSrcValSet.f3));
 		}
 	}
@@ -521,13 +522,13 @@ public class Graph<K, VV, EV> {
 		DataSet<Vertex<K, NV>> mappedVertices = vertices.map(
 				new MapFunction<Vertex<K, VV>, Vertex<K, NV>>() {
 					public Vertex<K, NV> map(Vertex<K, VV> value) throws Exception {
-						return new Vertex<K, NV>(value.f0, mapper.map(value));
+						return new Vertex<>(value.f0, mapper.map(value));
 					}
 				})
 				.returns(returnType)
 				.withForwardedFields("f0");
 
-		return new Graph<K, NV, EV>(mappedVertices, this.edges, this.context);
+		return new Graph<>(mappedVertices, this.edges, this.context);
 	}
 
 	/**
@@ -596,14 +597,13 @@ public class Graph<K, VV, EV> {
 		DataSet<Edge<K, NV>> mappedEdges = edges.map(
 				new MapFunction<Edge<K, EV>, Edge<K, NV>>() {
 					public Edge<K, NV> map(Edge<K, EV> value) throws Exception {
-						return new Edge<K, NV>(value.f0, value.f1, mapper
-								.map(value));
+						return new Edge<>(value.f0, value.f1, mapper.map(value));
 					}
 				})
 				.returns(returnType)
 				.withForwardedFields("f0; f1");
 
-		return new Graph<K, VV, NV>(this.vertices, mappedEdges, this.context);
+		return new Graph<>(this.vertices, mappedEdges, this.context);
 	}
 
 	/**
@@ -628,7 +628,7 @@ public class Graph<K, VV, EV> {
 		DataSet<Vertex<K, VV>> resultedVertices = this.getVertices()
 				.coGroup(inputDataSet).where(0).equalTo(0)
 				.with(new ApplyCoGroupToVertexValues<K, VV, T>(vertexJoinFunction));
-		return new Graph<K, VV, EV>(resultedVertices, this.edges, this.context);
+		return new Graph<>(resultedVertices, this.edges, this.context);
 	}
 
 	private static final class ApplyCoGroupToVertexValues<K, VV, T>
@@ -651,7 +651,7 @@ public class Graph<K, VV, EV> {
 				if (inputIterator.hasNext()) {
 					final Tuple2<K, T> inputNext = inputIterator.next();
 
-					collector.collect(new Vertex<K, VV>(inputNext.f0, vertexJoinFunction
+					collector.collect(new Vertex<>(inputNext.f0, vertexJoinFunction
 							.vertexJoin(vertexIterator.next().f1, inputNext.f1)));
 				} else {
 					collector.collect(vertexIterator.next());
@@ -681,7 +681,7 @@ public class Graph<K, VV, EV> {
 		DataSet<Edge<K, EV>> resultedEdges = this.getEdges()
 				.coGroup(inputDataSet).where(0, 1).equalTo(0, 1)
 				.with(new ApplyCoGroupToEdgeValues<K, EV, T>(edgeJoinFunction));
-		return new Graph<K, VV, EV>(this.vertices, resultedEdges, this.context);
+		return new Graph<>(this.vertices, resultedEdges, this.context);
 	}
 
 	private static final class ApplyCoGroupToEdgeValues<K, EV, T>
@@ -704,7 +704,7 @@ public class Graph<K, VV, EV> {
 				if (inputIterator.hasNext()) {
 					final Tuple3<K, K, T> inputNext = inputIterator.next();
 
-					collector.collect(new Edge<K, EV>(inputNext.f0,
+					collector.collect(new Edge<>(inputNext.f0,
 							inputNext.f1, edgeJoinFunction.edgeJoin(
 									edgesIterator.next().f2, inputNext.f2)));
 				} else {
@@ -736,7 +736,7 @@ public class Graph<K, VV, EV> {
 				.coGroup(inputDataSet).where(0).equalTo(0)
 				.with(new ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget<K, EV, T>(edgeJoinFunction));
 
-		return new Graph<K, VV, EV>(this.vertices, resultedEdges, this.context);
+		return new Graph<>(this.vertices, resultedEdges, this.context);
 	}
 
 	private static final class ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget<K, EV, T>
@@ -761,7 +761,7 @@ public class Graph<K, VV, EV> {
 				while (edgesIterator.hasNext()) {
 					Edge<K, EV> edgesNext = edgesIterator.next();
 
-					collector.collect(new Edge<K, EV>(edgesNext.f0,
+					collector.collect(new Edge<>(edgesNext.f0,
 							edgesNext.f1, edgeJoinFunction.edgeJoin(edgesNext.f2, inputNext.f1)));
 				}
 
@@ -795,7 +795,7 @@ public class Graph<K, VV, EV> {
 				.coGroup(inputDataSet).where(1).equalTo(0)
 				.with(new ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget<K, EV, T>(edgeJoinFunction));
 
-		return new Graph<K, VV, EV>(this.vertices, resultedEdges, this.context);
+		return new Graph<>(this.vertices, resultedEdges, this.context);
 	}
 
 	/**
@@ -817,8 +817,7 @@ public class Graph<K, VV, EV> {
 
 		DataSet<Edge<K, EV>> filteredEdges = remainingEdges.filter(edgeFilter);
 
-		return new Graph<K, VV, EV>(filteredVertices, filteredEdges,
-				this.context);
+		return new Graph<>(filteredVertices, filteredEdges, this.context);
 	}
 
 	/**
@@ -837,7 +836,7 @@ public class Graph<K, VV, EV> {
 				.join(filteredVertices).where(1).equalTo(0)
 				.with(new ProjectEdge<K, VV, EV>());
 
-		return new Graph<K, VV, EV>(filteredVertices, remainingEdges, this.context);
+		return new Graph<>(filteredVertices, remainingEdges, this.context);
 	}
 
 	/**
@@ -850,7 +849,7 @@ public class Graph<K, VV, EV> {
 	public Graph<K, VV, EV> filterOnEdges(FilterFunction<Edge<K, EV>> edgeFilter) {
 		DataSet<Edge<K, EV>> filteredEdges = this.edges.filter(edgeFilter);
 
-		return new Graph<K, VV, EV>(this.vertices, filteredEdges, this.context);
+		return new Graph<>(this.vertices, filteredEdges, this.context);
 	}
 
 	@ForwardedFieldsFirst("f0; f1; f2")
@@ -924,7 +923,7 @@ public class Graph<K, VV, EV> {
 	public Graph<K, VV, EV> getUndirected() {
 
 		DataSet<Edge<K, EV>> undirectedEdges = edges.flatMap(new RegularAndReversedEdgesMap<K, EV>());
-		return new Graph<K, VV, EV>(vertices, undirectedEdges, this.context);
+		return new Graph<>(vertices, undirectedEdges, this.context);
 	}
 
 	/**
@@ -947,13 +946,13 @@ public class Graph<K, VV, EV> {
 		switch (direction) {
 		case IN:
 			return vertices.coGroup(edges).where(0).equalTo(1)
-					.with(new ApplyCoGroupFunction<K, VV, EV, T>(edgesFunction));
+					.with(new ApplyCoGroupFunction<>(edgesFunction));
 		case OUT:
 			return vertices.coGroup(edges).where(0).equalTo(0)
-					.with(new ApplyCoGroupFunction<K, VV, EV, T>(edgesFunction));
+					.with(new ApplyCoGroupFunction<>(edgesFunction));
 		case ALL:
 			return vertices.coGroup(edges.flatMap(new EmitOneEdgePerNode<K, VV, EV>()))
-					.where(0).equalTo(0).with(new ApplyCoGroupFunctionOnAllEdges<K, VV, EV, T>(edgesFunction));
+					.where(0).equalTo(0).with(new ApplyCoGroupFunctionOnAllEdges<>(edgesFunction));
 		default:
 			throw new IllegalArgumentException("Illegal edge direction");
 		}
@@ -980,13 +979,13 @@ public class Graph<K, VV, EV> {
 		switch (direction) {
 			case IN:
 				return vertices.coGroup(edges).where(0).equalTo(1)
-						.with(new ApplyCoGroupFunction<K, VV, EV, T>(edgesFunction)).returns(typeInfo);
+						.with(new ApplyCoGroupFunction<>(edgesFunction)).returns(typeInfo);
 			case OUT:
 				return vertices.coGroup(edges).where(0).equalTo(0)
-						.with(new ApplyCoGroupFunction<K, VV, EV, T>(edgesFunction)).returns(typeInfo);
+						.with(new ApplyCoGroupFunction<>(edgesFunction)).returns(typeInfo);
 			case ALL:
 				return vertices.coGroup(edges.flatMap(new EmitOneEdgePerNode<K, VV, EV>()))
-						.where(0).equalTo(0).with(new ApplyCoGroupFunctionOnAllEdges<K, VV, EV, T>(edgesFunction)).returns(typeInfo);
+						.where(0).equalTo(0).with(new ApplyCoGroupFunctionOnAllEdges<>(edgesFunction)).returns(typeInfo);
 			default:
 				throw new IllegalArgumentException("Illegal edge direction");
 		}
@@ -1013,14 +1012,14 @@ public class Graph<K, VV, EV> {
 		case IN:
 			return edges.map(new ProjectVertexIdMap<K, EV>(1))
 					.withForwardedFields("f1->f0")
-					.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction));
+					.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<>(edgesFunction));
 		case OUT:
 			return edges.map(new ProjectVertexIdMap<K, EV>(0))
 					.withForwardedFields("f0")
-					.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction));
+					.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<>(edgesFunction));
 		case ALL:
 			return edges.flatMap(new EmitOneEdgePerNode<K, VV, EV>())
-					.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction));
+					.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<>(edgesFunction));
 		default:
 			throw new IllegalArgumentException("Illegal edge direction");
 		}
@@ -1048,14 +1047,14 @@ public class Graph<K, VV, EV> {
 			case IN:
 				return edges.map(new ProjectVertexIdMap<K, EV>(1))
 						.withForwardedFields("f1->f0")
-						.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction)).returns(typeInfo);
+						.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<>(edgesFunction)).returns(typeInfo);
 			case OUT:
 				return edges.map(new ProjectVertexIdMap<K, EV>(0))
 						.withForwardedFields("f0")
-						.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction)).returns(typeInfo);
+						.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<>(edgesFunction)).returns(typeInfo);
 			case ALL:
 				return edges.flatMap(new EmitOneEdgePerNode<K, VV, EV>())
-						.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction)).returns(typeInfo);
+						.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<>(edgesFunction)).returns(typeInfo);
 			default:
 				throw new IllegalArgumentException("Illegal edge direction");
 		}
@@ -1072,7 +1071,7 @@ public class Graph<K, VV, EV> {
 
 		@SuppressWarnings("unchecked")
 		public Tuple2<K, Edge<K, EV>> map(Edge<K, EV> edge) {
-			return new Tuple2<K, Edge<K, EV>>((K) edge.getField(fieldPosition),	edge);
+			return new Tuple2<>((K) edge.getField(fieldPosition), edge);
 		}
 	}
 
@@ -1087,7 +1086,7 @@ public class Graph<K, VV, EV> {
 
 		@SuppressWarnings("unchecked")
 		public Tuple2<K, EV> map(Edge<K, EV> edge) {
-			return new Tuple2<K, EV>((K) edge.getField(fieldPosition),	edge.getValue());
+			return new Tuple2<>((K) edge.getField(fieldPosition), edge.getValue());
 		}
 	}
 
@@ -1114,8 +1113,8 @@ public class Graph<K, VV, EV> {
 		Edge<K, EV>, Tuple2<K, Edge<K, EV>>> {
 
 		public void flatMap(Edge<K, EV> edge, Collector<Tuple2<K, Edge<K, EV>>> out) {
-			out.collect(new Tuple2<K, Edge<K, EV>>(edge.getSource(), edge));
-			out.collect(new Tuple2<K, Edge<K, EV>>(edge.getTarget(), edge));
+			out.collect(new Tuple2<>(edge.getSource(), edge));
+			out.collect(new Tuple2<>(edge.getTarget(), edge));
 		}
 	}
 
@@ -1123,8 +1122,8 @@ public class Graph<K, VV, EV> {
 		Edge<K, EV>, Tuple2<K, EV>> {
 
 		public void flatMap(Edge<K, EV> edge, Collector<Tuple2<K, EV>> out) {
-			out.collect(new Tuple2<K, EV>(edge.getSource(), edge.getValue()));
-			out.collect(new Tuple2<K, EV>(edge.getTarget(), edge.getValue()));
+			out.collect(new Tuple2<>(edge.getSource(), edge.getValue()));
+			out.collect(new Tuple2<>(edge.getTarget(), edge.getValue()));
 		}
 	}
 
@@ -1132,8 +1131,8 @@ public class Graph<K, VV, EV> {
 		Edge<K, EV>, Tuple3<K, K, Edge<K, EV>>> {
 
 		public void flatMap(Edge<K, EV> edge, Collector<Tuple3<K, K, Edge<K, EV>>> out) {
-			out.collect(new Tuple3<K, K, Edge<K, EV>>(edge.getSource(), edge.getTarget(), edge));
-			out.collect(new Tuple3<K, K, Edge<K, EV>>(edge.getTarget(), edge.getSource(), edge));
+			out.collect(new Tuple3<>(edge.getSource(), edge.getTarget(), edge));
+			out.collect(new Tuple3<>(edge.getTarget(), edge.getSource(), edge));
 		}
 	}
 
@@ -1224,7 +1223,7 @@ public class Graph<K, VV, EV> {
 			implements MapFunction<Edge<K, EV>, Edge<K, EV>> {
 
 		public Edge<K, EV> map(Edge<K, EV> value) {
-			return new Edge<K, EV>(value.f1, value.f0, value.f2);
+			return new Edge<>(value.f1, value.f0, value.f2);
 		}
 	}
 
@@ -1233,8 +1232,8 @@ public class Graph<K, VV, EV> {
 
 		@Override
 		public void flatMap(Edge<K, EV> edge, Collector<Edge<K, EV>> out) throws Exception {
-			out.collect(new Edge<K, EV>(edge.f0, edge.f1, edge.f2));
-			out.collect(new Edge<K, EV>(edge.f1, edge.f0, edge.f2));
+			out.collect(new Edge<>(edge.f0, edge.f1, edge.f2));
+			out.collect(new Edge<>(edge.f1, edge.f0, edge.f2));
 		}
 	}
 
@@ -1246,7 +1245,7 @@ public class Graph<K, VV, EV> {
 	 */
 	public Graph<K, VV, EV> reverse() throws UnsupportedOperationException {
 		DataSet<Edge<K, EV>> reversedEdges = edges.map(new ReverseEdgesMap<K, EV>());
-		return new Graph<K, VV, EV>(vertices, reversedEdges, this.context);
+		return new Graph<>(vertices, reversedEdges, this.context);
 	}
 
 	/**
@@ -1290,7 +1289,7 @@ public class Graph<K, VV, EV> {
 			implements MapFunction<Edge<K, EV>, Tuple2<K, K>> {
 		@Override
 		public Tuple2<K, K> map(Edge<K, EV> edge) throws Exception {
-			return new Tuple2<K, K>(edge.f0, edge.f1);
+			return new Tuple2<>(edge.f0, edge.f1);
 		}
 	}
 
@@ -1302,7 +1301,7 @@ public class Graph<K, VV, EV> {
 	 * @return the new graph containing the existing vertices as well as the one just added
 	 */
 	public Graph<K, VV, EV> addVertex(final Vertex<K, VV> vertex) {
-		List<Vertex<K, VV>> newVertex = new ArrayList<Vertex<K, VV>>();
+		List<Vertex<K, VV>> newVertex = new ArrayList<>();
 		newVertex.add(vertex);
 
 		return addVertices(newVertex);
@@ -1353,7 +1352,7 @@ public class Graph<K, VV, EV> {
 	 */
 	public Graph<K, VV, EV> addEdge(Vertex<K, VV> source, Vertex<K, VV> target, EV edgeValue) {
 		Graph<K, VV, EV> partialGraph = fromCollection(Arrays.asList(source, target),
-				Arrays.asList(new Edge<K, EV>(source.f0, target.f0, edgeValue)),
+				Collections.singletonList(new Edge<>(source.f0, target.f0, edgeValue)),
 				this.context);
 		return this.union(partialGraph);
 	}
@@ -1408,7 +1407,7 @@ public class Graph<K, VV, EV> {
 	 */
 	public Graph<K, VV, EV> removeVertex(Vertex<K, VV> vertex) {
 
-		List<Vertex<K, VV>> vertexToBeRemoved = new ArrayList<Vertex<K, VV>>();
+		List<Vertex<K, VV>> vertexToBeRemoved = new ArrayList<>();
 		vertexToBeRemoved.add(vertex);
 
 		return removeVertices(vertexToBeRemoved);
@@ -1445,7 +1444,7 @@ public class Graph<K, VV, EV> {
 				.join(newVertices).where(1).equalTo(0)
 				.with(new ProjectEdge<K, VV, EV>());
 
-		return new Graph<K, VV, EV>(newVertices, newEdges, context);
+		return new Graph<>(newVertices, newEdges, context);
 	}
 
 	private static final class VerticesRemovalCoGroup<K, VV> implements CoGroupFunction<Vertex<K, VV>, Vertex<K, VV>, Vertex<K, VV>> {
@@ -1515,7 +1514,7 @@ public class Graph<K, VV, EV> {
 		DataSet<Edge<K, EV>> newEdges = getEdges().coGroup(this.context.fromCollection(edgesToBeRemoved))
 				.where(0,1).equalTo(0,1).with(new EdgeRemovalCoGroup<K, EV>());
 
-		return new Graph<K, VV, EV>(this.vertices, newEdges, context);
+		return new Graph<>(this.vertices, newEdges, context);
 	}
 
 	private static final class EdgeRemovalCoGroup<K,EV> implements CoGroupFunction<Edge<K, EV>, Edge<K, EV>, Edge<K, EV>> {
@@ -1541,7 +1540,7 @@ public class Graph<K, VV, EV> {
 	public Graph<K, VV, EV> union(Graph<K, VV, EV> graph) {
 		DataSet<Vertex<K, VV>> unionedVertices = graph.getVertices().union(this.getVertices()).distinct();
 		DataSet<Edge<K, EV>> unionedEdges = graph.getEdges().union(this.getEdges());
-		return new Graph<K, VV, EV>(unionedVertices, unionedEdges, this.context);
+		return new Graph<>(unionedVertices, unionedEdges, this.context);
 	}
 
 	/**
@@ -1689,7 +1688,7 @@ public class Graph<K, VV, EV> {
 
 		DataSet<Vertex<K, VV>> newVertices = this.getVertices().runOperation(iteration);
 
-		return new Graph<K, VV, EV>(newVertices, this.edges, this.context);
+		return new Graph<>(newVertices, this.edges, this.context);
 	}
 
 	/**
@@ -1706,7 +1705,7 @@ public class Graph<K, VV, EV> {
 	 * after maximumNumberOfIterations.
 	 */
 	public <M> Graph<K, VV, EV> runGatherSumApplyIteration(
-			org.apache.flink.graph.gsa.GatherFunction gatherFunction, SumFunction<VV, EV, M> sumFunction,
+			org.apache.flink.graph.gsa.GatherFunction<VV, EV, M> gatherFunction, SumFunction<VV, EV, M> sumFunction,
 			ApplyFunction<K, VV, M> applyFunction, int maximumNumberOfIterations) {
 
 		return this.runGatherSumApplyIteration(gatherFunction, sumFunction, applyFunction,
@@ -1727,7 +1726,7 @@ public class Graph<K, VV, EV> {
 	 * after maximumNumberOfIterations.
 	 */
 	public <M> Graph<K, VV, EV> runGatherSumApplyIteration(
-			org.apache.flink.graph.gsa.GatherFunction gatherFunction, SumFunction<VV, EV, M> sumFunction,
+			org.apache.flink.graph.gsa.GatherFunction<VV, EV, M> gatherFunction, SumFunction<VV, EV, M> sumFunction,
 			ApplyFunction<K, VV, M> applyFunction, int maximumNumberOfIterations,
 			GSAConfiguration parameters) {
 
@@ -1738,7 +1737,7 @@ public class Graph<K, VV, EV> {
 
 		DataSet<Vertex<K, VV>> newVertices = vertices.runOperation(iteration);
 
-		return new Graph<K, VV, EV>(newVertices, this.edges, this.context);
+		return new Graph<>(newVertices, this.edges, this.context);
 	}
 
 	/**
@@ -1776,10 +1775,10 @@ public class Graph<K, VV, EV> {
 			VertexCentricConfiguration parameters) {
 
 		VertexCentricIteration<K, VV, EV, M> iteration = VertexCentricIteration.withEdges(
-				edges, computeFunction, maximumNumberOfIterations);
+				edges, computeFunction, combiner, maximumNumberOfIterations);
 		iteration.configure(parameters);
 		DataSet<Vertex<K, VV>> newVertices = this.getVertices().runOperation(iteration);
-		return new Graph<K, VV, EV>(newVertices, this.edges, this.context);
+		return new Graph<>(newVertices, this.edges, this.context);
 	}
 
 	/**
@@ -1831,14 +1830,14 @@ public class Graph<K, VV, EV> {
 					.join(this.vertices).where(0).equalTo(0);
 			return vertices.coGroup(edgesWithSources)
 					.where(0).equalTo("f0.f1")
-					.with(new ApplyNeighborCoGroupFunction<K, VV, EV, T>(neighborsFunction));
+					.with(new ApplyNeighborCoGroupFunction<>(neighborsFunction));
 		case OUT:
 			// create <edge-targetVertex> pairs
 			DataSet<Tuple2<Edge<K, EV>, Vertex<K, VV>>> edgesWithTargets = edges
 					.join(this.vertices).where(1).equalTo(0);
 			return vertices.coGroup(edgesWithTargets)
 					.where(0).equalTo("f0.f0")
-					.with(new ApplyNeighborCoGroupFunction<K, VV, EV, T>(neighborsFunction));
+					.with(new ApplyNeighborCoGroupFunction<>(neighborsFunction));
 		case ALL:
 			// create <edge-sourceOrTargetVertex> pairs
 			DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithNeighbors = edges
@@ -1848,7 +1847,7 @@ public class Graph<K, VV, EV> {
 
 			return vertices.coGroup(edgesWithNeighbors)
 					.where(0).equalTo(0)
-					.with(new ApplyCoGroupFunctionOnAllNeighbors<K, VV, EV, T>(neighborsFunction));
+					.with(new ApplyCoGroupFunctionOnAllNeighbors<>(neighborsFunction));
 		default:
 			throw new IllegalArgumentException("Illegal edge direction");
 		}
@@ -1879,14 +1878,14 @@ public class Graph<K, VV, EV> {
 						.join(this.vertices).where(0).equalTo(0);
 				return vertices.coGroup(edgesWithSources)
 						.where(0).equalTo("f0.f1")
-						.with(new ApplyNeighborCoGroupFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+						.with(new ApplyNeighborCoGroupFunction<>(neighborsFunction)).returns(typeInfo);
 			case OUT:
 				// create <edge-targetVertex> pairs
 				DataSet<Tuple2<Edge<K, EV>, Vertex<K, VV>>> edgesWithTargets = edges
 						.join(this.vertices).where(1).equalTo(0);
 				return vertices.coGroup(edgesWithTargets)
 						.where(0).equalTo("f0.f0")
-						.with(new ApplyNeighborCoGroupFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+						.with(new ApplyNeighborCoGroupFunction<>(neighborsFunction)).returns(typeInfo);
 			case ALL:
 				// create <edge-sourceOrTargetVertex> pairs
 				DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithNeighbors = edges
@@ -1896,7 +1895,7 @@ public class Graph<K, VV, EV> {
 
 				return vertices.coGroup(edgesWithNeighbors)
 						.where(0).equalTo(0)
-						.with(new ApplyCoGroupFunctionOnAllNeighbors<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+						.with(new ApplyCoGroupFunctionOnAllNeighbors<>(neighborsFunction)).returns(typeInfo);
 			default:
 				throw new IllegalArgumentException("Illegal edge direction");
 		}
@@ -1927,7 +1926,7 @@ public class Graph<K, VV, EV> {
 					.with(new ProjectVertexIdJoin<K, VV, EV>(1))
 					.withForwardedFieldsFirst("f1->f0");
 			return edgesWithSources.groupBy(0).reduceGroup(
-					new ApplyNeighborGroupReduceFunction<K, VV, EV, T>(neighborsFunction));
+				new ApplyNeighborGroupReduceFunction<>(neighborsFunction));
 		case OUT:
 			// create <edge-targetVertex> pairs
 			DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithTargets = edges
@@ -1935,7 +1934,7 @@ public class Graph<K, VV, EV> {
 					.with(new ProjectVertexIdJoin<K, VV, EV>(0))
 					.withForwardedFieldsFirst("f0");
 			return edgesWithTargets.groupBy(0).reduceGroup(
-					new ApplyNeighborGroupReduceFunction<K, VV, EV, T>(neighborsFunction));
+				new ApplyNeighborGroupReduceFunction<>(neighborsFunction));
 		case ALL:
 			// create <edge-sourceOrTargetVertex> pairs
 			DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithNeighbors = edges
@@ -1944,7 +1943,7 @@ public class Graph<K, VV, EV> {
 					.with(new ProjectEdgeWithNeighbor<K, VV, EV>());
 
 			return edgesWithNeighbors.groupBy(0).reduceGroup(
-					new ApplyNeighborGroupReduceFunction<K, VV, EV, T>(neighborsFunction));
+				new ApplyNeighborGroupReduceFunction<>(neighborsFunction));
 		default:
 			throw new IllegalArgumentException("Illegal edge direction");
 		}
@@ -1976,7 +1975,7 @@ public class Graph<K, VV, EV> {
 						.with(new ProjectVertexIdJoin<K, VV, EV>(1))
 						.withForwardedFieldsFirst("f1->f0");
 				return edgesWithSources.groupBy(0).reduceGroup(
-						new ApplyNeighborGroupReduceFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+					new ApplyNeighborGroupReduceFunction<>(neighborsFunction)).returns(typeInfo);
 			case OUT:
 				// create <edge-targetVertex> pairs
 				DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithTargets = edges
@@ -1984,7 +1983,7 @@ public class Graph<K, VV, EV> {
 						.with(new ProjectVertexIdJoin<K, VV, EV>(0))
 						.withForwardedFieldsFirst("f0");
 				return edgesWithTargets.groupBy(0).reduceGroup(
-						new ApplyNeighborGroupReduceFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+					new ApplyNeighborGroupReduceFunction<>(neighborsFunction)).returns(typeInfo);
 			case ALL:
 				// create <edge-sourceOrTargetVertex> pairs
 				DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithNeighbors = edges
@@ -1993,7 +1992,7 @@ public class Graph<K, VV, EV> {
 						.with(new ProjectEdgeWithNeighbor<K, VV, EV>());
 
 				return edgesWithNeighbors.groupBy(0).reduceGroup(
-						new ApplyNeighborGroupReduceFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+					new ApplyNeighborGroupReduceFunction<>(neighborsFunction)).returns(typeInfo);
 			default:
 				throw new IllegalArgumentException("Illegal edge direction");
 		}
@@ -2031,7 +2030,7 @@ public class Graph<K, VV, EV> {
 		@SuppressWarnings("unchecked")
 		public void join(Edge<K, EV> edge, Vertex<K, VV> otherVertex, 
 				Collector<Tuple2<K, VV>> out) {
-			out.collect(new Tuple2<K, VV>((K) edge.getField(fieldPosition), otherVertex.getValue()));
+			out.collect(new Tuple2<>((K) edge.getField(fieldPosition), otherVertex.getValue()));
 		}
 	}
 
@@ -2047,7 +2046,7 @@ public class Graph<K, VV, EV> {
 		@SuppressWarnings("unchecked")
 		public void join(Edge<K, EV> edge, Vertex<K, VV> otherVertex,
 						Collector<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> out) {
-			out.collect(new Tuple3<K, Edge<K, EV>, Vertex<K, VV>>((K) edge.getField(fieldPosition), edge, otherVertex));
+			out.collect(new Tuple3<>((K) edge.getField(fieldPosition), edge, otherVertex));
 		}
 	}
 
@@ -2059,7 +2058,7 @@ public class Graph<K, VV, EV> {
 		public void join(Tuple3<K, K, Edge<K, EV>> keysWithEdge, Vertex<K, VV> neighbor,
 				Collector<Tuple2<K, VV>> out) {
 
-			out.collect(new Tuple2<K, VV>(keysWithEdge.f0, neighbor.getValue()));
+			out.collect(new Tuple2<>(keysWithEdge.f0, neighbor.getValue()));
 		}
 	}
 
@@ -2070,7 +2069,7 @@ public class Graph<K, VV, EV> {
 
 		public void join(Tuple3<K, K, Edge<K, EV>> keysWithEdge, Vertex<K, VV> neighbor,
 						Collector<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> out) {
-			out.collect(new Tuple3<K, Edge<K, EV>, Vertex<K, VV>>(keysWithEdge.f0, keysWithEdge.f2, neighbor));
+			out.collect(new Tuple3<>(keysWithEdge.f0, keysWithEdge.f2, neighbor));
 		}
 	}
 
@@ -2119,7 +2118,7 @@ public class Graph<K, VV, EV> {
 				@Override
 				public Tuple2<Edge<K, EV>, Vertex<K, VV>> next() {
 					Tuple3<K, Edge<K, EV>, Vertex<K, VV>> next = keysWithEdgesIterator.next();
-					return new Tuple2<Edge<K, EV>, Vertex<K, VV>>(next.f1, next.f2);
+					return new Tuple2<>(next.f1, next.f2);
 				}
 
 				@Override
@@ -2207,7 +2206,7 @@ public class Graph<K, VV, EV> {
 
 		@Override
 		public Tuple2<K, VV> reduce(Tuple2<K, VV> first, Tuple2<K, VV> second) throws Exception {
-			first.setField(function.reduceNeighbors(first.f1, second.f1), 1);
+			first.f1 = function.reduceNeighbors(first.f1, second.f1);
 			return first;
 		}
 	}
@@ -2257,7 +2256,7 @@ public class Graph<K, VV, EV> {
 
 		@Override
 		public Tuple2<K, EV> reduce(Tuple2<K, EV> first, Tuple2<K, EV> second) throws Exception {
-			first.setField(function.reduceEdges(first.f1, second.f1), 1);
+			first.f1 = function.reduceEdges(first.f1, second.f1);
 			return first;
 		}
 	}

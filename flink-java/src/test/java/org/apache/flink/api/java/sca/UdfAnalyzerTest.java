@@ -27,6 +27,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -35,7 +36,6 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
-import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -700,7 +700,7 @@ public class UdfAnalyzerTest {
 		@SuppressWarnings("unchecked")
 		@Override
 		public Tuple1<Tuple1<String>> map(Tuple1<Tuple1<String>> value) throws Exception {
-			((Tuple1<String>) value.getField(Integer.valueOf("2."))).f0 = "Hello";
+			((Tuple1<String>) value.getField(Integer.parseInt("2."))).f0 = "Hello";
 			return value;
 		}
 	}
@@ -751,7 +751,7 @@ public class UdfAnalyzerTest {
 		}
 
 		private MyPojo recursiveFunction(MyPojo value) {
-			if (value.field == "xyz") {
+			if (value.field.equals("xyz")) {
 				value.field = value.field + "x";
 				return recursiveFunction(value);
 			}
@@ -1101,7 +1101,7 @@ public class UdfAnalyzerTest {
 	public static class Reduce2 implements ReduceFunction<MyPojo> {
 		@Override
 		public MyPojo reduce(MyPojo value1, MyPojo value2) throws Exception {
-			if (value1.field == "") {
+			if (value1.field != null && value1.field.isEmpty()) {
 				return value2;
 			}
 			return value1;

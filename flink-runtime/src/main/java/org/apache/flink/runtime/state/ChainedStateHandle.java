@@ -26,7 +26,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Handle to the non-partitioned states for the operators in an operator chain.
+ * Handle to state handles for the operators in an operator chain.
  */
 public class ChainedStateHandle<T extends StateObject> implements StateObject {
 
@@ -85,7 +85,7 @@ public class ChainedStateHandle<T extends StateObject> implements StateObject {
 	}
 
 	@Override
-	public long getStateSize() throws Exception {
+	public long getStateSize() throws IOException {
 		long sumStateSize = 0;
 
 		if (operatorStateHandles != null) {
@@ -122,10 +122,5 @@ public class ChainedStateHandle<T extends StateObject> implements StateObject {
 
 	public static <T extends StateObject> ChainedStateHandle<T> wrapSingleHandle(T stateHandleToWrap) {
 		return new ChainedStateHandle<T>(Collections.singletonList(stateHandleToWrap));
-	}
-
-	@Override
-	public void close() throws IOException {
-		StateUtil.bestEffortCloseAllStateObjects(operatorStateHandles);
 	}
 }

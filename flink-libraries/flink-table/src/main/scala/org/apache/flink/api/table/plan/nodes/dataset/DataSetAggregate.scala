@@ -40,13 +40,13 @@ class DataSetAggregate(
     traitSet: RelTraitSet,
     input: RelNode,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    rowType: RelDataType,
+    rowRelDataType: RelDataType,
     inputType: RelDataType,
     grouping: Array[Int])
   extends SingleRel(cluster, traitSet, input)
   with DataSetRel {
 
-  override def deriveRowType() = rowType
+  override def deriveRowType() = rowRelDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataSetAggregate(
@@ -54,7 +54,7 @@ class DataSetAggregate(
       traitSet,
       inputs.get(0),
       namedAggregates,
-      rowType,
+      getRowType,
       inputType,
       grouping)
   }
@@ -91,15 +91,15 @@ class DataSetAggregate(
     val groupingKeys = grouping.indices.toArray
     // add grouping fields, position keys in the input, and input type
     val aggregateResult = AggregateUtil.createOperatorFunctionsForAggregates(namedAggregates,
-      inputType, rowType, grouping, config)
+      inputType, getRowType, grouping, config)
 
-    val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(
+    val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(
       tableEnv,
       // tell the input operator that this operator currently only supports Rows as input
       Some(TypeConverter.DEFAULT_ROW_TYPE))
 
     // get the output types
-    val fieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
+    val fieldTypes: Array[TypeInformation[_]] = getRowType.getFieldList.asScala
     .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
     .toArray
 
@@ -138,14 +138,14 @@ class DataSetAggregate(
     // if the expected type is not a Row, inject a mapper to convert to the expected type
     expectedType match {
       case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
-        val mapName = s"convert: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
+        val mapName = s"convert: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
         result.map(getConversionMapper(
-          config,
-          false,
-          rowTypeInfo.asInstanceOf[TypeInformation[Any]],
-          expectedType.get,
-          "DataSetAggregateConversion",
-          rowType.getFieldNames.asScala
+          config = config,
+          nullableInput = false,
+          inputType = rowTypeInfo.asInstanceOf[TypeInformation[Any]],
+          expectedType = expectedType.get,
+          conversionOperatorName = "DataSetAggregateConversion",
+          fieldNames = getRowType.getFieldNames.asScala
         ))
         .name(mapName)
       case _ => result
@@ -161,7 +161,7 @@ class DataSetAggregate(
   private def aggregationToString: String = {
 
     val inFields = inputType.getFieldNames.asScala
-    val outFields = rowType.getFieldNames.asScala
+    val outFields = getRowType.getFieldNames.asScala
 
     val groupStrings = grouping.map( inFields(_) )
 

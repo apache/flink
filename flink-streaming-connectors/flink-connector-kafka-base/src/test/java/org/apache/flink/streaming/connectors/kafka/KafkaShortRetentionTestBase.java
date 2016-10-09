@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -30,12 +31,13 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
+import org.junit.ClassRule;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +60,12 @@ public class KafkaShortRetentionTestBase implements Serializable {
 	
 	private static KafkaTestEnvironment kafkaServer;
 	private static Properties standardProps;
-	private static ForkableFlinkMiniCluster flink;
+	private static LocalFlinkMiniCluster flink;
+
+	@ClassRule
+	public static TemporaryFolder tempFolder = new TemporaryFolder();
+
+	protected static Properties secureProps = new Properties();
 
 	@BeforeClass
 	public static void prepare() throws IOException, ClassNotFoundException {
@@ -66,29 +73,34 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		LOG.info("    Starting KafkaShortRetentionTestBase ");
 		LOG.info("-------------------------------------------------------------------------");
 
+		Configuration flinkConfig = new Configuration();
+
 		// dynamically load the implementation for the test
 		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
 		kafkaServer = (KafkaTestEnvironment) InstantiationUtil.instantiate(clazz);
 
 		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
 
+		if(kafkaServer.isSecureRunSupported()) {
+			secureProps = kafkaServer.getSecureProperties();
+		}
+
 		Properties specificProperties = new Properties();
 		specificProperties.setProperty("log.retention.hours", "0");
 		specificProperties.setProperty("log.retention.minutes", "0");
 		specificProperties.setProperty("log.retention.ms", "250");
 		specificProperties.setProperty("log.retention.check.interval.ms", "100");
-		kafkaServer.prepare(1, specificProperties);
+		kafkaServer.prepare(1, specificProperties, false);
 
 		standardProps = kafkaServer.getStandardProperties();
 
 		// start also a re-usable Flink mini cluster
-		Configuration flinkConfig = new Configuration();
 		flinkConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
 		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 16);
 		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
 
-		flink = new ForkableFlinkMiniCluster(flinkConfig, false);
+		flink = new LocalFlinkMiniCluster(flinkConfig, false);
 		flink.start();
 	}
 
@@ -98,6 +110,8 @@ public class KafkaShortRetentionTestBase implements Serializable {
 			flink.shutdown();
 		}
 		kafkaServer.shutdown();
+
+		secureProps.clear();
 	}
 
 	/**
@@ -151,12 +165,17 @@ public class KafkaShortRetentionTestBase implements Serializable {
 				running = false;
 			}
 		});
-		stream.addSink(kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), standardProps, null));
+
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+
+		stream.addSink(kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), props, null));
 
 		// ----------- add consumer dataflow ----------
 
 		NonContinousOffsetsDeserializationSchema deserSchema = new NonContinousOffsetsDeserializationSchema();
-		FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, deserSchema, standardProps);
+		FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, deserSchema, props);
 
 		DataStreamSource<String> consuming = env.addSource(source);
 		consuming.addSink(new DiscardingSink<String>());
@@ -224,6 +243,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 
 		Properties customProps = new Properties();
 		customProps.putAll(standardProps);
+		customProps.putAll(secureProps);
 		customProps.setProperty("auto.offset.reset", "none"); // test that "none" leads to an exception
 		FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, new SimpleStringSchema(), customProps);
 
@@ -255,6 +275,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 
 		Properties customProps = new Properties();
 		customProps.putAll(standardProps);
+		customProps.putAll(secureProps);
 		customProps.setProperty("auto.offset.reset", "none"); // test that "none" leads to an exception
 		
 		try {

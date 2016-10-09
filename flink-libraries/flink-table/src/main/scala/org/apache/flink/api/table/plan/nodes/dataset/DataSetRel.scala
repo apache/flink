@@ -62,8 +62,8 @@ trait DataSetRel extends RelNode with FlinkRel {
         case SqlTypeName.VARCHAR => s + 12
         case SqlTypeName.CHAR => s + 1
         case SqlTypeName.DECIMAL => s + 12
-        case SqlTypeName.INTERVAL_DAY_TIME => s + 8
-        case SqlTypeName.INTERVAL_YEAR_MONTH => s + 4
+        case typeName if SqlTypeName.YEAR_INTERVAL_TYPES.contains(typeName) => s + 8
+        case typeName if SqlTypeName.DAY_INTERVAL_TYPES.contains(typeName) => s + 4
         case SqlTypeName.TIME | SqlTypeName.TIMESTAMP | SqlTypeName.DATE => s + 12
         case _ => throw TableException(s"Unsupported data type encountered: $t")
       }

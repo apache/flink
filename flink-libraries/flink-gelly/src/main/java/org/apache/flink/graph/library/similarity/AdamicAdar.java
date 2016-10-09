@@ -37,7 +37,7 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
 import org.apache.flink.graph.library.similarity.AdamicAdar.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
-import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.FloatValue;
 import org.apache.flink.types.IntValue;
@@ -71,7 +71,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class AdamicAdar<K extends CopyableValue<K>, VV, EV>
-extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
+extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	private static final int GROUP_SIZE = 64;
 
@@ -133,7 +133,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 	}
 
 	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
 		if (! AdamicAdar.class.isAssignableFrom(other.getClass())) {
@@ -151,7 +151,8 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 
 		// merge configurations
 
-		littleParallelism = Math.min(littleParallelism, rhs.littleParallelism);
+		littleParallelism = (littleParallelism == PARALLELISM_DEFAULT) ? rhs.littleParallelism :
+			((rhs.littleParallelism == PARALLELISM_DEFAULT) ? littleParallelism : Math.min(littleParallelism, rhs.littleParallelism));
 
 		return true;
 	}
