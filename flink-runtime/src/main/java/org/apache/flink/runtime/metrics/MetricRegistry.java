@@ -28,6 +28,7 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
@@ -135,10 +136,11 @@ public class MetricRegistry {
 	 * Initializes the MetricQueryService.
 	 * 
 	 * @param actorSystem ActorSystem to create the MetricQueryService on
+	 * @param resourceID resource ID used to disambiguate the actor name
      */
-	public void startQueryService(ActorSystem actorSystem) {
+	public void startQueryService(ActorSystem actorSystem, ResourceID resourceID) {
 		try {
-			queryService = MetricQueryService.startMetricQueryService(actorSystem);
+			queryService = MetricQueryService.startMetricQueryService(actorSystem, resourceID);
 		} catch (Exception e) {
 			LOG.warn("Could not start MetricDumpActor. No metrics will be submitted to the WebInterface.", e);
 		}

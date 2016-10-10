@@ -26,6 +26,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -73,12 +74,14 @@ public class MetricFetcherTest extends TestLogger {
 		// ========= setup TaskManager =================================================================================
 		JobID jobID = new JobID();
 		InstanceID tmID = new InstanceID();
+		ResourceID tmRID = new ResourceID(tmID.toString());
 		ActorGateway taskManagerGateway = mock(ActorGateway.class);
 		when(taskManagerGateway.path()).thenReturn("/tm/address");
 
 		Instance taskManager = mock(Instance.class);
 		when(taskManager.getActorGateway()).thenReturn(taskManagerGateway);
 		when(taskManager.getId()).thenReturn(tmID);
+		when(taskManager.getTaskManagerID()).thenReturn(tmRID);
 
 		// ========= setup JobManager ==================================================================================
 		JobDetails details = mock(JobDetails.class);
@@ -106,7 +109,7 @@ public class MetricFetcherTest extends TestLogger {
 
 		ActorSystem actorSystem = mock(ActorSystem.class);
 		when(actorSystem.actorFor(eq("/jm/" + METRIC_QUERY_SERVICE_NAME))).thenReturn(jmQueryService);
-		when(actorSystem.actorFor(eq("/tm/" + METRIC_QUERY_SERVICE_NAME))).thenReturn(tmQueryService);
+		when(actorSystem.actorFor(eq("/tm/" + METRIC_QUERY_SERVICE_NAME + "_" + tmRID.toString()))).thenReturn(tmQueryService);
 
 		MetricFetcher.BasicGateway jmQueryServiceGateway = mock(MetricFetcher.BasicGateway.class);
 		when(jmQueryServiceGateway.ask(any(MetricQueryService.getCreateDump().getClass()), any(FiniteDuration.class)))

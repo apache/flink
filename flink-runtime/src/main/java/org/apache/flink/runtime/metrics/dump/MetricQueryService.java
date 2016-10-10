@@ -29,6 +29,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -159,10 +160,14 @@ public class MetricQueryService extends UntypedActor {
 	 * Starts the MetricQueryService actor in the given actor system.
 	 *
 	 * @param actorSystem The actor system running the MetricQueryService
+	 * @param resourceID resource ID to disambiguate the actor name
 	 * @return actor reference to the MetricQueryService
 	 */
-	public static ActorRef startMetricQueryService(ActorSystem actorSystem) {
-		return actorSystem.actorOf(Props.create(MetricQueryService.class), METRIC_QUERY_SERVICE_NAME);
+	public static ActorRef startMetricQueryService(ActorSystem actorSystem, ResourceID resourceID) {
+		String actorName = resourceID == null
+			? METRIC_QUERY_SERVICE_NAME
+			: METRIC_QUERY_SERVICE_NAME + "_" + resourceID.toString();
+		return actorSystem.actorOf(Props.create(MetricQueryService.class), actorName);
 	}
 
 	/**
