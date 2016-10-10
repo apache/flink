@@ -26,6 +26,7 @@ import org.mockito.Mockito;
 
 import java.util.Iterator;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 
 public class TestingSlotManager extends SlotManager {
@@ -59,6 +60,13 @@ public class TestingSlotManager extends SlotManager {
 	}
 
 	private static class TestingResourceManagerServices implements ResourceManagerServices {
+
+		private final UUID leaderID = UUID.randomUUID();
+
+		@Override
+		public UUID getLeaderID() {
+			return leaderID;
+		}
 
 		@Override
 		public void allocateResource(ResourceProfile resourceProfile) {
