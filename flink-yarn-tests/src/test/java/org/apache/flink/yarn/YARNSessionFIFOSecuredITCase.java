@@ -90,9 +90,6 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 	public void testQueryCluster() {}
 
 	@Override
-	public void testNonexistingQueue() {}
-
-	@Override
 	public void testResourceComputation() {}
 
 	@Override
