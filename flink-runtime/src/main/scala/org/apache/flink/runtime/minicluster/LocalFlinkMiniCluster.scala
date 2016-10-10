@@ -219,7 +219,7 @@ class LocalFlinkMiniCluster(
       leaderRetrievalService,
       metricsRegistry)
 
-    metricsRegistry.startQueryService(system)
+    metricsRegistry.startQueryService(system, resourceID)
 
     system.actorOf(props, taskManagerActorName)
   }

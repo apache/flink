@@ -1876,7 +1876,7 @@ object TaskManager {
       leaderRetrievalService,
       metricsRegistry)
 
-    metricsRegistry.startQueryService(actorSystem)
+    metricsRegistry.startQueryService(actorSystem, resourceID)
 
     taskManagerActorName match {
       case Some(actorName) => actorSystem.actorOf(tmProps, actorName)

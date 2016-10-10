@@ -2698,7 +2698,7 @@ object JobManager {
     
     metricsRegistry match {
       case Some(registry) =>
-        registry.startQueryService(actorSystem)
+        registry.startQueryService(actorSystem, null)
       case None =>
     }
 
