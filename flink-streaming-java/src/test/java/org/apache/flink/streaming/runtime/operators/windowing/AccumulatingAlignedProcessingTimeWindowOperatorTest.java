@@ -521,7 +521,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			}
 
 			// draw a snapshot and dispose the window
-			System.out.println("GOT: " + testHarness.getOutput());
 			int beforeSnapShot = testHarness.getOutput().size();
 			StreamStateHandle state = testHarness.snapshot(1L, System.currentTimeMillis());
 			List<Integer> resultAtSnapshot = extractFromStreamRecords(testHarness.getOutput());
