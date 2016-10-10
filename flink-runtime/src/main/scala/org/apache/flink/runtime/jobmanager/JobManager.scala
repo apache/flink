@@ -51,6 +51,7 @@ import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex, StatusListenerMessenger}
 import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceManager}
+import org.apache.flink.runtime.io.network.PartitionState
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertexID}
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGraphListener
@@ -62,18 +63,18 @@ import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{Heartbeat, SendStackTrace}
-import org.apache.flink.runtime.messages.TaskMessages.{PartitionState, UpdateTaskExecutionState}
+import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState
 import org.apache.flink.runtime.messages.accumulators.{AccumulatorMessage, AccumulatorResultStringsFound, AccumulatorResultsErroneous, AccumulatorResultsFound, RequestAccumulatorResults, RequestAccumulatorResultsStringified}
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, AcknowledgeCheckpoint, DeclineCheckpoint}
 import org.apache.flink.runtime.messages.webmonitor.InfoMessage
 import org.apache.flink.runtime.messages.webmonitor._
-import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
+import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.query.{KvStateMessage, UnknownKvStateLocation}
 import org.apache.flink.runtime.query.KvStateMessage.{LookupKvStateLocation, NotifyKvStateRegistered, NotifyKvStateUnregistered}
-import org.apache.flink.runtime.security.SecurityUtils
-import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
+import org.apache.flink.runtime.security.SecurityContext.{FlinkSecuredRunner, SecurityConfiguration}
+import org.apache.flink.runtime.security.SecurityContext
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
@@ -873,8 +874,7 @@ class JobManager(
       }
 
       sender ! decorateMessage(
-        PartitionState(
-          taskExecutionId,
+        new PartitionState(
           taskResultId,
           partitionId.getPartitionId,
           state)
@@ -1024,8 +1024,15 @@ class JobManager(
       // send resource manager the ok
       currentResourceManager match {
         case Some(rm) =>
-          // inform rm
-          rm ! decorateMessage(msg)
+          try {
+            // inform rm and wait for it to confirm
+            val waitTime = FiniteDuration(5, TimeUnit.SECONDS)
+            val answer = (rm ? decorateMessage(msg))(waitTime)
+            Await.ready(answer, waitTime)
+          } catch {
+            case e: TimeoutException =>
+            case e: InterruptedException =>
+          }
         case None =>
           // ResourceManager not available
           // we choose not to wait here beacuse it might block the shutdown forever
@@ -1500,7 +1507,7 @@ class JobManager(
 
               graph.getKvStateLocationRegistry.notifyKvStateRegistered(
                 msg.getJobVertexId,
-                msg.getKeyGroupIndex,
+                msg.getKeyGroupRange,
                 msg.getRegistrationName,
                 msg.getKvStateId,
                 msg.getKvStateServerAddress)
@@ -1519,7 +1526,7 @@ class JobManager(
             try {
               graph.getKvStateLocationRegistry.notifyKvStateUnregistered(
                 msg.getJobVertexId,
-                msg.getKeyGroupIndex,
+                msg.getKeyGroupRange,
                 msg.getRegistrationName)
             } catch {
               case t: Throwable =>
@@ -2019,6 +2026,7 @@ object JobManager {
     // startup checks and logging
     EnvironmentInformation.logEnvironmentInfo(LOG.logger, "JobManager", args)
     SignalHandler.register(LOG.logger)
+    JvmShutdownSafeguard.installAsShutdownHook(LOG.logger)
 
     // parsing the command line arguments
     val (configuration: Configuration,
@@ -2061,26 +2069,18 @@ object JobManager {
     }
 
     // run the job manager
+    SecurityContext.install(new SecurityConfiguration().setFlinkConfiguration(configuration))
+
     try {
-      if (SecurityUtils.isSecurityEnabled) {
-        LOG.info("Security is enabled. Starting secure JobManager.")
-        SecurityUtils.runSecured(new FlinkSecuredRunner[Unit] {
-          override def run(): Unit = {
-            runJobManager(
-              configuration,
-              executionMode,
-              listeningHost,
-              listeningPortRange)
-          }
-        })
-      } else {
-        LOG.info("Security is not enabled. Starting non-authenticated JobManager.")
-        runJobManager(
-          configuration,
-          executionMode,
-          listeningHost,
-          listeningPortRange)
-      }
+      SecurityContext.getInstalled.runSecured(new FlinkSecuredRunner[Unit] {
+        override def run(): Unit = {
+          runJobManager(
+            configuration,
+            executionMode,
+            listeningHost,
+            listeningPortRange)
+        }
+      })
     } catch {
       case t: Throwable =>
         LOG.error("Failed to run JobManager.", t)
@@ -2635,7 +2635,7 @@ object JobManager {
     }
 
     val metricRegistry = try {
-      Option(new FlinkMetricRegistry(configuration))
+      Option(new FlinkMetricRegistry(MetricRegistryConfiguration.fromConfiguration(configuration)))
     } catch {
       case _: Exception =>
         None
@@ -2749,6 +2749,12 @@ object JobManager {
     val jobManager: ActorRef = jobManagerActorName match {
       case Some(actorName) => actorSystem.actorOf(jobManagerProps, actorName)
       case None => actorSystem.actorOf(jobManagerProps)
+    }
+    
+    metricsRegistry match {
+      case Some(registry) =>
+        registry.startQueryService(actorSystem)
+      case None =>
     }
 
     (jobManager, archive)

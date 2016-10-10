@@ -36,8 +36,8 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -188,15 +188,15 @@ public class StreamingRuntimeContextTest {
 					public ListState<String> answer(InvocationOnMock invocationOnMock) throws Throwable {
 						ListStateDescriptor<String> descr =
 								(ListStateDescriptor<String>) invocationOnMock.getArguments()[0];
-						KeyedStateBackend<Integer> backend = new MemoryStateBackend().createKeyedStateBackend(
+
+						AbstractKeyedStateBackend<Integer> backend = new MemoryStateBackend().createKeyedStateBackend(
 								new DummyEnvironment("test_task", 1, 0),
 								new JobID(),
 								"test_op",
 								IntSerializer.INSTANCE,
 								1,
 								new KeyGroupRange(0, 0),
-								new KvStateRegistry().createTaskRegistry(new JobID(),
-										new JobVertexID()));
+								new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
 						backend.setCurrentKey(0);
 						return backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descr);
 					}

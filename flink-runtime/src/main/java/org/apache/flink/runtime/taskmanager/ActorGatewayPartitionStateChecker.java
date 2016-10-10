@@ -19,12 +19,18 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.io.network.PartitionState;
 import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.util.Preconditions;
+import scala.concurrent.duration.FiniteDuration;
+import scala.reflect.ClassTag$;
 
 /**
  * This implementation uses {@link ActorGateway} to trigger the partition state check at the job
@@ -33,27 +39,29 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 public class ActorGatewayPartitionStateChecker implements PartitionStateChecker {
 
 	private final ActorGateway jobManager;
+	private final FiniteDuration timeout;
 
-	private final ActorGateway taskManager;
-
-	public ActorGatewayPartitionStateChecker(ActorGateway jobManager, ActorGateway taskManager) {
-		this.jobManager = jobManager;
-		this.taskManager = taskManager;
+	public ActorGatewayPartitionStateChecker(ActorGateway jobManager, FiniteDuration timeout) {
+		this.jobManager = Preconditions.checkNotNull(jobManager);
+		this.timeout = Preconditions.checkNotNull(timeout);
 	}
 
 	@Override
-	public void triggerPartitionStateCheck(
-		JobID jobId,
-		ExecutionAttemptID executionAttemptID,
-		IntermediateDataSetID resultId,
-		ResultPartitionID partitionId) {
-
+	public Future<PartitionState> requestPartitionState(
+			JobID jobId,
+			ExecutionAttemptID executionAttemptId,
+			IntermediateDataSetID resultId,
+			ResultPartitionID partitionId) {
 		JobManagerMessages.RequestPartitionState msg = new JobManagerMessages.RequestPartitionState(
 			jobId,
 			partitionId,
-			executionAttemptID,
+			executionAttemptId,
 			resultId);
 
-		jobManager.tell(msg, taskManager);
+		scala.concurrent.Future<PartitionState> futureResponse = jobManager
+			.ask(msg, timeout)
+			.mapTo(ClassTag$.MODULE$.<PartitionState>apply(PartitionState.class));
+
+		return new FlinkFuture<>(futureResponse);
 	}
 }

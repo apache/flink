@@ -38,14 +38,14 @@ class DataSetScan(
     rowType: RelDataType)
   extends BatchScan(cluster, traitSet, table, rowType) {
 
-  val dataSetTable: DataSetTable[Any] = table.unwrap(classOf[DataSetTable[Any]])
+  val dataSetTable: DataSetTable[Any] = getTable.unwrap(classOf[DataSetTable[Any]])
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataSetScan(
       cluster,
       traitSet,
-      table,
-      rowType
+      getTable,
+      getRowType
     )
   }
 

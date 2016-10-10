@@ -43,7 +43,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		if (numberOfInputs > 0) {
 			InputGate[] inputGates = getEnvironment().getAllInputGates();
 			inputProcessor = new StreamInputProcessor<IN>(inputGates, inSerializer,
-					getCheckpointBarrierListener(), 
+					this, 
 					configuration.getCheckpointMode(),
 					getEnvironment().getIOManager(),
 					isSerializingTimestamps());
@@ -64,7 +64,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		final Object lock = getCheckpointLock();
 		
 		while (running && inputProcessor.processInput(operator, lock)) {
-			checkTimerException();
+			// all the work happens in the "processInput" method
 		}
 	}
 

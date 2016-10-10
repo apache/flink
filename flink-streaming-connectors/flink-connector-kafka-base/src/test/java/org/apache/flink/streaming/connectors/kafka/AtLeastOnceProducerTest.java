@@ -37,13 +37,14 @@ import org.junit.Test;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.mockito.Mockito.mock;
 
 /**
  * Test ensuring that the producer is not dropping buffered records
@@ -111,7 +112,7 @@ public class AtLeastOnceProducerTest {
 		Thread threadB = new Thread(confirmer);
 		threadB.start();
 		// this should block:
-		producer.snapshotState(0, 0);
+		producer.prepareSnapshot(0, 0);
 		synchronized (threadA) {
 			threadA.notifyAll(); // just in case, to let the test fail faster
 		}
@@ -130,6 +131,8 @@ public class AtLeastOnceProducerTest {
 
 
 	private static class TestingKafkaProducer<T> extends FlinkKafkaProducerBase<T> {
+		private static final long serialVersionUID = -1759403646061180067L;
+
 		private MockProducer prod;
 		private AtomicBoolean snapshottingFinished;
 
@@ -145,12 +148,11 @@ public class AtLeastOnceProducerTest {
 		}
 
 		@Override
-		public Serializable snapshotState(long checkpointId, long checkpointTimestamp) {
+		public void prepareSnapshot(long checkpointId, long timestamp) throws Exception {
 			// call the actual snapshot state
-			Serializable ret = super.snapshotState(checkpointId, checkpointTimestamp);
+			super.prepareSnapshot(checkpointId, timestamp);
 			// notify test that snapshotting has been done
 			snapshottingFinished.set(true);
-			return ret;
 		}
 
 		@Override

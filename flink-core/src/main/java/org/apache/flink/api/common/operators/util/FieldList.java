@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.common.operators.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
-import org.apache.flink.annotation.Internal;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -166,7 +166,7 @@ public class FieldList extends FieldSet {
 			return false;
 		} else {
 			for (int i = 0; i < this.size(); i++) {
-				if (this.get(i) != list.get(i)) {
+				if (!this.get(i).equals(list.get(i))) {
 					return false;
 				}
 			}

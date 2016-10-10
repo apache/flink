@@ -21,29 +21,29 @@ package org.apache.flink.runtime.state.filesystem;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.AbstractCloseableHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.IOException;
 
-import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 
 /**
  * {@link StreamStateHandle} for state that was written to a file stream. The written data is
  * identifier by the file path. The state can be read again by calling {@link #openInputStream()}.
  */
-public class FileStateHandle extends AbstractCloseableHandle implements StreamStateHandle {
+public class FileStateHandle implements StreamStateHandle {
 
 	private static final long serialVersionUID = 350284443258002355L;
 
-	/**
-	 * The path to the file in the filesystem, fully describing the file system
-	 */
+	/** The path to the file in the filesystem, fully describing the file system */
 	private final Path filePath;
 
-	/**
-	 * Cached file system handle
-	 */
+	/** The size of the state in the file */
+	private final long stateSize;
+
+	/** Cached file system handle */
 	private transient FileSystem fs;
 
 	/**
@@ -51,8 +51,10 @@ public class FileStateHandle extends AbstractCloseableHandle implements StreamSt
 	 *
 	 * @param filePath The path to the file that stores the state.
 	 */
-	public FileStateHandle(Path filePath) {
-		this.filePath = requireNonNull(filePath);
+	public FileStateHandle(Path filePath, long stateSize) {
+		checkArgument(stateSize >= -1);
+		this.filePath = checkNotNull(filePath);
+		this.stateSize = stateSize;
 	}
 
 	/**
@@ -66,10 +68,7 @@ public class FileStateHandle extends AbstractCloseableHandle implements StreamSt
 
 	@Override
 	public FSDataInputStream openInputStream() throws IOException {
-		ensureNotClosed();
-		FSDataInputStream inputStream = getFileSystem().open(filePath);
-		registerCloseable(inputStream);
-		return inputStream;
+		return getFileSystem().open(filePath);
 	}
 
 	/**
@@ -86,8 +85,7 @@ public class FileStateHandle extends AbstractCloseableHandle implements StreamSt
 		// fail (and be ignored) when some files still exist
 		try {
 			getFileSystem().delete(filePath.getParent(), false);
-		} catch (IOException ignored) {
-		}
+		} catch (IOException ignored) {}
 	}
 
 	/**
@@ -98,7 +96,7 @@ public class FileStateHandle extends AbstractCloseableHandle implements StreamSt
 	 */
 	@Override
 	public long getStateSize() throws IOException {
-		return getFileSystem().getFileStatus(filePath).getLen();
+		return stateSize;
 	}
 
 	/**
@@ -114,6 +112,7 @@ public class FileStateHandle extends AbstractCloseableHandle implements StreamSt
 		return fs;
 	}
 
+	// ------------------------------------------------------------------------
 
 	@Override
 	public boolean equals(Object o) {
@@ -132,5 +131,10 @@ public class FileStateHandle extends AbstractCloseableHandle implements StreamSt
 	@Override
 	public int hashCode() {
 		return filePath.hashCode();
+	}
+
+	@Override
+	public String toString() {
+		return String.format("File State: %s [%d bytes]", filePath, stateSize);
 	}
 }

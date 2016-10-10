@@ -73,20 +73,19 @@ active key (i.e. the key of the input element).
 It is important to keep in mind that these state objects are only used for interfacing
 with state. The state is not necessarily stored inside but might reside on disk or somewhere else.
 The second thing to keep in mind is that the value you get from the state
-depend on the key of the input element. So the value you get in one invocation of your
-user function can be different from the one you get in another invocation if the key of
-the element is different.
+depends on the key of the input element. So the value you get in one invocation of your
+user function can differ from the value in another invocation if the keys involved are different.
 
-To get a state handle you have to create a `StateDescriptor` this holds the name of the state
+To get a state handle you have to create a `StateDescriptor`. This holds the name of the state
 (as we will later see you can create several states, and they have to have unique names so
-that you can reference them), the type of the values that the state holds and possibly
+that you can reference them), the type of the values that the state holds, and possibly
 a user-specified function, such as a `ReduceFunction`. Depending on what type of state you
-want to retrieve you create one of `ValueStateDescriptor`, `ListStateDescriptor` or
-`ReducingStateDescriptor`.
+want to retrieve, you create either a `ValueStateDescriptor`, a `ListStateDescriptor` or
+a `ReducingStateDescriptor`.
 
 State is accessed using the `RuntimeContext`, so it is only possible in *rich functions*.
 Please see [here]({{ site.baseurl }}/apis/common/#specifying-transformation-functions) for
-information about that but we will also see an example shortly. The `RuntimeContext` that
+information about that, but we will also see an example shortly. The `RuntimeContext` that
 is available in a `RichFunction` has these methods for accessing state:
 
 * `ValueState<T> getState(ValueStateDescriptor<T>)`
@@ -147,7 +146,7 @@ env.fromElements(Tuple2.of(1L, 3L), Tuple2.of(1L, 5L), Tuple2.of(1L, 7L), Tuple2
 
 This example implements a poor man's counting window. We key the tuples by the first field
 (in the example all have the same key `1`). The function stores the count and a running sum in
-a `ValueState`, once the count reaches 2 it will emit the average and clear the state so that
+a `ValueState`. Once the count reaches 2 it will emit the average and clear the state so that
 we start over from `0`. Note that this would keep a different state value for each different input
 key if we had tuples with different values in the first field.
 

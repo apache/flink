@@ -51,7 +51,7 @@ public class GSASingleSourceShortestPaths<K> implements
 	@Override
 	public DataSet<Vertex<K, Double>> run(Graph<K, Double, Double> input) {
 
-		return input.mapVertices(new InitVerticesMapper<K>(srcVertexId))
+		return input.mapVertices(new InitVerticesMapper<>(srcVertexId))
 				.runGatherSumApplyIteration(new CalculateDistances(), new ChooseMinDistance(),
 						new UpdateDistance<K>(), maxIterations)
 						.getVertices();
@@ -85,7 +85,7 @@ public class GSASingleSourceShortestPaths<K> implements
 		public Double gather(Neighbor<Double, Double> neighbor) {
 			return neighbor.getNeighborValue() + neighbor.getEdgeValue();
 		}
-	};
+	}
 
 	@SuppressWarnings("serial")
 	private static final class ChooseMinDistance extends SumFunction<Double, Double, Double> {
@@ -93,7 +93,7 @@ public class GSASingleSourceShortestPaths<K> implements
 		public Double sum(Double newValue, Double currentValue) {
 			return Math.min(newValue, currentValue);
 		}
-	};
+	}
 
 	@SuppressWarnings("serial")
 	private static final class UpdateDistance<K> extends ApplyFunction<K, Double, Double> {

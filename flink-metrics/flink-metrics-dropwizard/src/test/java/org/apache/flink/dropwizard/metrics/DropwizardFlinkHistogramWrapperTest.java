@@ -32,11 +32,11 @@ import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -102,8 +102,10 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 
 		MetricRegistry registry = null;
 
+		MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
+
 		try {
-			registry = new MetricRegistry(config);
+			registry = new MetricRegistry(metricRegistryConfiguration);
 			DropwizardHistogramWrapper histogramWrapper = new DropwizardHistogramWrapper(
 				new com.codahale.metrics.Histogram(new SlidingWindowReservoir(size)));
 

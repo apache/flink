@@ -30,7 +30,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAnalytic;
 import org.apache.flink.graph.GraphCsvReader;
-import org.apache.flink.graph.asm.translate.LongValueToIntValue;
+import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
 import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
@@ -102,6 +102,7 @@ public class ClusteringCoefficient {
 
 		// global and local clustering coefficient results
 		GraphAnalytic gcc;
+		GraphAnalytic acc;
 		DataSet lcc;
 
 		switch (parameters.get("input", "")) {
@@ -127,12 +128,18 @@ public class ClusteringCoefficient {
 							gcc = graph
 								.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<LongValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
+							acc = graph
+								.run(new org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient<LongValue, NullValue, NullValue>()
+									.setLittleParallelism(little_parallelism));
 							lcc = graph
 								.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<LongValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
 						} else {
 							gcc = graph
 								.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<LongValue, NullValue, NullValue>()
+									.setLittleParallelism(little_parallelism));
+							acc = graph
+								.run(new org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoefficient<LongValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
 							lcc = graph
 								.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<LongValue, NullValue, NullValue>()
@@ -148,12 +155,18 @@ public class ClusteringCoefficient {
 							gcc = graph
 								.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<StringValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
+							acc = graph
+								.run(new org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient<StringValue, NullValue, NullValue>()
+									.setLittleParallelism(little_parallelism));
 							lcc = graph
 								.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<StringValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
 						} else {
 							gcc = graph
 								.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<StringValue, NullValue, NullValue>()
+									.setLittleParallelism(little_parallelism));
+							acc = graph
+								.run(new org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoefficient<StringValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
 							lcc = graph
 								.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<StringValue, NullValue, NullValue>()
@@ -189,19 +202,25 @@ public class ClusteringCoefficient {
 						gcc = newGraph
 							.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<LongValue, NullValue, NullValue>()
 								.setLittleParallelism(little_parallelism));
+						acc = newGraph
+							.run(new org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient<LongValue, NullValue, NullValue>()
+								.setLittleParallelism(little_parallelism));
 						lcc = newGraph
 							.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<LongValue, NullValue, NullValue>()
 								.setIncludeZeroDegreeVertices(false)
 								.setLittleParallelism(little_parallelism));
 					} else {
 						Graph<IntValue, NullValue, NullValue> newGraph = graph
-							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue())
+							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToUnsignedIntValue())
 								.setParallelism(little_parallelism))
 							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<IntValue, NullValue, NullValue>()
 								.setParallelism(little_parallelism));
 
 						gcc = newGraph
 							.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<IntValue, NullValue, NullValue>()
+								.setLittleParallelism(little_parallelism));
+						acc = newGraph
+							.run(new org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient<IntValue, NullValue, NullValue>()
 								.setLittleParallelism(little_parallelism));
 						lcc = newGraph
 							.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<IntValue, NullValue, NullValue>()
@@ -219,19 +238,25 @@ public class ClusteringCoefficient {
 						gcc = newGraph
 							.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<LongValue, NullValue, NullValue>()
 								.setLittleParallelism(little_parallelism));
+						acc = newGraph
+							.run(new org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoefficient<LongValue, NullValue, NullValue>()
+								.setLittleParallelism(little_parallelism));
 						lcc = newGraph
 							.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<LongValue, NullValue, NullValue>()
 								.setIncludeZeroDegreeVertices(false)
 								.setLittleParallelism(little_parallelism));
 					} else {
 						Graph<IntValue, NullValue, NullValue> newGraph = graph
-							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue())
+							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToUnsignedIntValue())
 								.setParallelism(little_parallelism))
 							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<IntValue, NullValue, NullValue>(clipAndFlip)
 								.setParallelism(little_parallelism));
 
 						gcc = newGraph
 							.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<IntValue, NullValue, NullValue>()
+								.setLittleParallelism(little_parallelism));
+						acc = newGraph
+							.run(new org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoefficient<IntValue, NullValue, NullValue>()
 								.setLittleParallelism(little_parallelism));
 						lcc = newGraph
 							.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<IntValue, NullValue, NullValue>()
@@ -262,11 +287,13 @@ public class ClusteringCoefficient {
 					}
 				}
 				System.out.println(gcc.getResult());
+				System.out.println(acc.getResult());
 				break;
 
 			case "hash":
 				System.out.println(DataSetUtils.checksumHashCode(lcc));
 				System.out.println(gcc.getResult());
+				System.out.println(acc.getResult());
 				break;
 
 			case "csv":
@@ -280,7 +307,10 @@ public class ClusteringCoefficient {
 
 				lcc.writeAsCsv(filename, lineDelimiter, fieldDelimiter);
 
-				System.out.println(gcc.execute());
+				env.execute("Clustering Coefficient");
+
+				System.out.println(gcc.getResult());
+				System.out.println(acc.getResult());
 				break;
 
 			default:

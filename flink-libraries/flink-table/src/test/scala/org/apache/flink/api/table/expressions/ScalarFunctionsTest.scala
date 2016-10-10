@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{Row, Types}
+import org.apache.flink.api.table.{Row, Types, ValidationException}
 import org.junit.Test
 
 class ScalarFunctionsTest extends ExpressionTestBase {
@@ -83,6 +83,12 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "SUBSTRING(f0, 1, f7)",
       "Thi")
 
+    testAllApis(
+      'f0.substring(1.cast(Types.BYTE), 'f7),
+      "f0.substring(1.cast(BYTE), f7)",
+      "SUBSTRING(f0, CAST(1 AS TINYINT), f7)",
+      "Thi")
+
     testSqlApi(
       "SUBSTRING(f0 FROM 2 FOR 1)",
       "h")
@@ -90,6 +96,18 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testSqlApi(
       "SUBSTRING(f0 FROM 2)",
       "his is a test String.")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidSubstring1(): Unit = {
+    // Must fail. Parameter of substring must be an Integer not a Double.
+    testTableApi("test".substring(2.0.toExpr), "FAIL", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidSubstring2(): Unit = {
+    // Must fail. Parameter of substring must be an Integer not a String.
+    testTableApi("test".substring("test".toExpr), "FAIL", "FAIL")
   }
 
   @Test
@@ -230,6 +248,10 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "false")
   }
 
+  // ----------------------------------------------------------------------------------------------
+  // Math functions
+  // ----------------------------------------------------------------------------------------------
+
   @Test
   def testMod(): Unit = {
     testAllApis(
@@ -355,6 +377,21 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "f4.power(f5)",
       "POWER(f4, f5)",
       math.pow(44.toLong, 4.5.toFloat).toString)
+  }
+
+  @Test
+  def testSqrt(): Unit = {
+    testAllApis(
+      25.sqrt(),
+      "25.sqrt()",
+      "SQRT(25)",
+      "5.0")
+
+    testAllApis(
+      2.2.sqrt(),
+      "2.2.sqrt()",
+      "POWER(CAST(2.2 AS DOUBLE), CAST(0.5 AS DOUBLE))", // TODO fix FLINK-4621
+      math.sqrt(2.2).toString)
   }
 
   @Test
@@ -497,6 +534,10 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "CEIL(f15)",
       "-1231")
   }
+
+  // ----------------------------------------------------------------------------------------------
+  // Temporal functions
+  // ----------------------------------------------------------------------------------------------
 
   @Test
   def testExtract(): Unit = {
@@ -733,6 +774,112 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   }
 
   @Test
+  def testCurrentTimePoint(): Unit = {
+
+    // current time points are non-deterministic
+    // we just test the format of the output
+    // manual test can be found in NonDeterministicTests
+
+    testAllApis(
+      currentDate().cast(Types.STRING).charLength() >= 5,
+      "currentDate().cast(STRING).charLength() >= 5",
+      "CHAR_LENGTH(CAST(CURRENT_DATE AS VARCHAR)) >= 5",
+      "true")
+
+    testAllApis(
+      currentTime().cast(Types.STRING).charLength() >= 5,
+      "currentTime().cast(STRING).charLength() >= 5",
+      "CHAR_LENGTH(CAST(CURRENT_TIME AS VARCHAR)) >= 5",
+      "true")
+
+    testAllApis(
+      currentTimestamp().cast(Types.STRING).charLength() >= 12,
+      "currentTimestamp().cast(STRING).charLength() >= 12",
+      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR)) >= 12",
+      "true")
+
+    testAllApis(
+      localTimestamp().cast(Types.STRING).charLength() >= 12,
+      "localTimestamp().cast(STRING).charLength() >= 12",
+      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR)) >= 12",
+      "true")
+
+    testAllApis(
+      localTime().cast(Types.STRING).charLength() >= 5,
+      "localTime().cast(STRING).charLength() >= 5",
+      "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR)) >= 5",
+      "true")
+
+    // comparisons are deterministic
+    testAllApis(
+      localTimestamp() === localTimestamp(),
+      "localTimestamp() === localTimestamp()",
+      "LOCALTIMESTAMP = LOCALTIMESTAMP",
+      "true")
+  }
+
+  @Test
+  def testOverlaps(): Unit = {
+    testAllApis(
+      temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hour),
+      "temporalOverlaps('2:55:00'.toTime, 1.hour, '3:30:00'.toTime, 2.hour)",
+      "(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)",
+      "true")
+
+    testAllApis(
+      temporalOverlaps("9:00:00".toTime, "9:30:00".toTime, "9:29:00".toTime, "9:31:00".toTime),
+      "temporalOverlaps('9:00:00'.toTime, '9:30:00'.toTime, '9:29:00'.toTime, '9:31:00'.toTime)",
+      "(TIME '9:00:00', TIME '9:30:00') OVERLAPS (TIME '9:29:00', TIME '9:31:00')",
+      "true")
+
+    testAllApis(
+      temporalOverlaps("9:00:00".toTime, "10:00:00".toTime, "10:15:00".toTime, 3.hour),
+      "temporalOverlaps('9:00:00'.toTime, '10:00:00'.toTime, '10:15:00'.toTime, 3.hour)",
+      "(TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR)",
+      "false")
+
+    testAllApis(
+      temporalOverlaps("2011-03-10".toDate, 10.day, "2011-03-19".toDate, 10.day),
+      "temporalOverlaps('2011-03-10'.toDate, 10.day, '2011-03-19'.toDate, 10.day)",
+      "(DATE '2011-03-10', INTERVAL '10' DAY) OVERLAPS (DATE '2011-03-19', INTERVAL '10' DAY)",
+      "true")
+
+    testAllApis(
+      temporalOverlaps("2011-03-10 02:02:02.001".toTimestamp, 0.milli,
+        "2011-03-10 02:02:02.002".toTimestamp, "2011-03-10 02:02:02.002".toTimestamp),
+      "temporalOverlaps('2011-03-10 02:02:02.001'.toTimestamp, 0.milli, " +
+        "'2011-03-10 02:02:02.002'.toTimestamp, '2011-03-10 02:02:02.002'.toTimestamp)",
+      "(TIMESTAMP '2011-03-10 02:02:02.001', INTERVAL '0' SECOND) OVERLAPS " +
+        "(TIMESTAMP '2011-03-10 02:02:02.002', TIMESTAMP '2011-03-10 02:02:02.002')",
+      "false")
+  }
+
+  @Test
+  def testQuarter(): Unit = {
+    testAllApis(
+      "1997-01-27".toDate.quarter(),
+      "'1997-01-27'.toDate.quarter()",
+      "QUARTER(DATE '1997-01-27')",
+      "1")
+
+    testAllApis(
+      "1997-04-27".toDate.quarter(),
+      "'1997-04-27'.toDate.quarter()",
+      "QUARTER(DATE '1997-04-27')",
+      "2")
+
+    testAllApis(
+      "1997-12-31".toDate.quarter(),
+      "'1997-12-31'.toDate.quarter()",
+      "QUARTER(DATE '1997-12-31')",
+      "4")
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Other functions
+  // ----------------------------------------------------------------------------------------------
+
+  @Test
   def testIsTrueIsFalse(): Unit = {
     testAllApis(
       'f1.isTrue,
@@ -781,72 +928,6 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "!f21.isFalse",
       "f21 IS NOT FALSE",
       "true")
-  }
-
-  @Test
-  def testCurrentTimePoint(): Unit = {
-
-    // current time points are non-deterministic
-    // we just test the format of the output
-    // manual test can be found in NonDeterministicTests
-
-    testAllApis(
-      currentDate().cast(Types.STRING).charLength() >= 5,
-      "currentDate().cast(STRING).charLength() >= 5",
-      "CHAR_LENGTH(CAST(CURRENT_DATE AS VARCHAR)) >= 5",
-      "true")
-
-    testAllApis(
-      currentTime().cast(Types.STRING).charLength() >= 5,
-      "currentTime().cast(STRING).charLength() >= 5",
-      "CHAR_LENGTH(CAST(CURRENT_TIME AS VARCHAR)) >= 5",
-      "true")
-
-    testAllApis(
-      currentTimestamp().cast(Types.STRING).charLength() >= 12,
-      "currentTimestamp().cast(STRING).charLength() >= 12",
-      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR)) >= 12",
-      "true")
-
-    testAllApis(
-      localTimestamp().cast(Types.STRING).charLength() >= 12,
-      "localTimestamp().cast(STRING).charLength() >= 12",
-      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR)) >= 12",
-      "true")
-
-    testAllApis(
-      localTime().cast(Types.STRING).charLength() >= 5,
-      "localTime().cast(STRING).charLength() >= 5",
-      "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR)) >= 5",
-      "true")
-
-    // comparisons are deterministic
-    testAllApis(
-      localTimestamp() === localTimestamp(),
-      "localTimestamp() === localTimestamp()",
-      "LOCALTIMESTAMP = LOCALTIMESTAMP",
-      "true")
-  }
-
-  @Test
-  def testQuarter(): Unit = {
-    testAllApis(
-      "1997-01-27".toDate.quarter(),
-      "'1997-01-27'.toDate.quarter()",
-      "QUARTER(DATE '1997-01-27')",
-      "1")
-
-    testAllApis(
-      "1997-04-27".toDate.quarter(),
-      "'1997-04-27'.toDate.quarter()",
-      "QUARTER(DATE '1997-04-27')",
-      "2")
-
-    testAllApis(
-      "1997-12-31".toDate.quarter(),
-      "'1997-12-31'.toDate.quarter()",
-      "QUARTER(DATE '1997-12-31')",
-      "4")
   }
 
   // ----------------------------------------------------------------------------------------------

@@ -46,7 +46,7 @@ public class Edge<K, V> extends Tuple3<K, K, V>{
 	 * and the target is the original Edge's source.
 	 */
 	public Edge<K, V> reverse() {
-			return new Edge<K, V>(this.f1, this.f0, this.f2);
+			return new Edge<>(this.f1, this.f0, this.f2);
 	}
 
 	public void setSource(K src) {

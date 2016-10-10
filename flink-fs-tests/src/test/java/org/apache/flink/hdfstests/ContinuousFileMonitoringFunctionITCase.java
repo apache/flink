@@ -120,7 +120,7 @@ public class ContinuousFileMonitoringFunctionITCase extends StreamingProgramTest
 
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(1);
+			env.setParallelism(4);
 
 			format.setFilesFilter(FilePathFilter.createDefaultFilter());
 			ContinuousFileMonitoringFunction<String> monitoringFunction =
@@ -130,7 +130,7 @@ public class ContinuousFileMonitoringFunctionITCase extends StreamingProgramTest
 
 			TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
 			ContinuousFileReaderOperator<String, ?> reader = new ContinuousFileReaderOperator<>(format);
-			TestingSinkFunction sink = new TestingSinkFunction(monitoringFunction);
+			TestingSinkFunction sink = new TestingSinkFunction();
 
 			DataStream<FileInputSplit> splits = env.addSource(monitoringFunction);
 			splits.transform("FileSplitReader", typeInfo, reader).addSink(sink).setParallelism(1);
@@ -161,15 +161,9 @@ public class ContinuousFileMonitoringFunctionITCase extends StreamingProgramTest
 
 	private static class TestingSinkFunction extends RichSinkFunction<String> {
 
-		private final ContinuousFileMonitoringFunction src;
-
 		private int elementCounter = 0;
 		private Map<Integer, Integer> elementCounters = new HashMap<>();
 		private Map<Integer, List<String>> collectedContent = new HashMap<>();
-
-		TestingSinkFunction(ContinuousFileMonitoringFunction monitoringFunction) {
-			this.src = monitoringFunction;
-		}
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
@@ -200,13 +194,6 @@ public class ContinuousFileMonitoringFunctionITCase extends StreamingProgramTest
 				Assert.assertEquals(cntntStr.toString(), expectedContents.get(fileIdx));
 			}
 			expectedContents.clear();
-
-			src.cancel();
-			try {
-				src.close();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
 		}
 
 		private int getLineNo(String line) {

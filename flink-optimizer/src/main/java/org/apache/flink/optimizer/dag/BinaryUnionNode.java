@@ -98,6 +98,12 @@ public class BinaryUnionNode extends TwoInputNode {
 	
 	@Override
 	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
+
+		// check that union has only a single successor
+		if (this.getOutgoingConnections().size() > 1) {
+			throw new CompilerException("BinaryUnionNode has more than one successor.");
+		}
+
 		// check if we have a cached version
 		if (this.cachedPlans != null) {
 			return this.cachedPlans;
@@ -173,7 +179,7 @@ public class BinaryUnionNode extends TwoInputNode {
 						}
 					}
 					
-					// create a candidate channel for the first input. mark it cached, if the connection says so
+					// create a candidate channel for the second input. mark it cached, if the connection says so
 					Channel c2 = new Channel(child2, this.input2.getMaterializationMode());
 					if (this.input2.getShipStrategy() == null) {
 						// free to choose the ship strategy

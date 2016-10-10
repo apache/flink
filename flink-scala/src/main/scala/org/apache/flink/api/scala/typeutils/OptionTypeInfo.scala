@@ -44,7 +44,7 @@ class OptionTypeInfo[A, T <: Option[A]](private val elemTypeInfo: TypeInformatio
   @PublicEvolving
   override def getTypeClass = classOf[Option[_]].asInstanceOf[Class[T]]
   @PublicEvolving
-  override def getGenericParameters = List[TypeInformation[_]](elemTypeInfo).asJava
+  override def getGenericParameters = Map[String, TypeInformation[_]]("A" -> elemTypeInfo).asJava
 
   @PublicEvolving
   override def createComparator(ascending: Boolean, executionConfig: ExecutionConfig) = {

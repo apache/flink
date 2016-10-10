@@ -192,7 +192,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			if (first) {
-				registerTimer(System.currentTimeMillis() + 100, this);
+				getTimerService().registerTimer(System.currentTimeMillis() + 100, this);
 				first = false;
 			}
 			numElements++;
@@ -209,7 +209,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 			try {
 				numTimers++;
 				throwIfDone();
-				registerTimer(System.currentTimeMillis() + 1, this);
+				getTimerService().registerTimer(System.currentTimeMillis() + 1, this);
 			} finally {
 				semaphore.release();
 			}
@@ -251,7 +251,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			if (first) {
-				registerTimer(System.currentTimeMillis() + 100, this);
+				getTimerService().registerTimer(System.currentTimeMillis() + 100, this);
 				first = false;
 			}
 			numElements++;
@@ -266,7 +266,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			if (first) {
-				registerTimer(System.currentTimeMillis() + 100, this);
+				getTimerService().registerTimer(System.currentTimeMillis() + 100, this);
 				first = false;
 			}
 			numElements++;
@@ -284,7 +284,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 			try {
 				numTimers++;
 				throwIfDone();
-				registerTimer(System.currentTimeMillis() + 1, this);
+				getTimerService().registerTimer(System.currentTimeMillis() + 1, this);
 			} finally {
 				semaphore.release();
 			}

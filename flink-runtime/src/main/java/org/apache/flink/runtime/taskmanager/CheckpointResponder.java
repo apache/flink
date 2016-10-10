@@ -19,12 +19,9 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
-
-import java.util.List;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 
 /**
  * Responder for checkpoint acknowledge and decline messages in the {@link Task}.
@@ -34,30 +31,31 @@ public interface CheckpointResponder {
 	/**
 	 * Acknowledges the given checkpoint.
 	 *
-	 * @param jobID Job ID of the running job
-	 * @param executionAttemptID Execution attempt ID of the running task
-	 * @param checkpointID Checkpoint ID of the checkpoint
-	 * @param chainedStateHandle Chained state handle
-	 * @param keyGroupStateHandles State handles for key groups
+	 * @param jobID
+	 *             Job ID of the running job
+	 * @param executionAttemptID
+	 *             Execution attempt ID of the running task
+	 * @param checkpointStateHandles
+	 *             State handles for the checkpoint
+	 * @param checkpointMetaData
+	 *             Meta data for this checkpoint
+	 *
 	 */
 	void acknowledgeCheckpoint(
 		JobID jobID,
 		ExecutionAttemptID executionAttemptID,
-		long checkpointID,
-		ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-		List<KeyGroupsStateHandle> keyGroupStateHandles);
+		CheckpointMetaData checkpointMetaData,
+		CheckpointStateHandles checkpointStateHandles);
 
 	/**
 	 * Declines the given checkpoint.
 	 *
 	 * @param jobID Job ID of the running job
 	 * @param executionAttemptID Execution attempt ID of the running task
-	 * @param checkpointID Checkpoint ID of the checkpoint
-	 * @param checkpointTimestamp Timestamp of the checkpoint
+	 * @param checkpointMetaData Meta data for this checkpoint
 	 */
 	void declineCheckpoint(
 		JobID jobID,
 		ExecutionAttemptID executionAttemptID,
-		long checkpointID,
-		long checkpointTimestamp);
+		CheckpointMetaData checkpointMetaData);
 }

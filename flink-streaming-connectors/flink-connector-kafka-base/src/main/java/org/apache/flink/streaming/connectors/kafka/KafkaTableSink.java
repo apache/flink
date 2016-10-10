@@ -42,6 +42,7 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 	protected final KafkaPartitioner<Row> partitioner;
 	protected String[] fieldNames;
 	protected TypeInformation[] fieldTypes;
+
 	/**
 	 * Creates KafkaTableSink
 	 *

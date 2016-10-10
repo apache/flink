@@ -78,5 +78,13 @@ under the License.
 			<scope>compile</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-minikdc</artifactId>
+			<version>${minikdc.version}</version>
+			<scope>compile</scope>
+		</dependency>
+
 	</dependencies>
+
 </project>

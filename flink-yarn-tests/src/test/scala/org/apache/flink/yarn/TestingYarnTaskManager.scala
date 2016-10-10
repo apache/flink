@@ -23,7 +23,8 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
-import org.apache.flink.runtime.taskmanager.{TaskManagerLocation, TaskManagerConfiguration}
+import org.apache.flink.runtime.metrics.MetricRegistry
+import org.apache.flink.runtime.taskmanager.{TaskManagerConfiguration, TaskManagerLocation}
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerLike
 
 /** [[YarnTaskManager]] implementation which mixes in the [[TestingTaskManagerLike]] mixin.
@@ -49,7 +50,8 @@ class TestingYarnTaskManager(
                               ioManager: IOManager,
                               network: NetworkEnvironment,
                               numberOfSlots: Int,
-                              leaderRetrievalService: LeaderRetrievalService)
+                              leaderRetrievalService: LeaderRetrievalService,
+                              metricRegistry : MetricRegistry)
   extends YarnTaskManager(
     config,
     resourceID,
@@ -58,7 +60,8 @@ class TestingYarnTaskManager(
     ioManager,
     network,
     numberOfSlots,
-    leaderRetrievalService)
+    leaderRetrievalService,
+    metricRegistry)
   with TestingTaskManagerLike {
 
   object YarnTaskManager {

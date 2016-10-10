@@ -27,6 +27,7 @@ import java.util.Properties;
  * Kafka 0.8 {@link KafkaTableSink} that serializes data in JSON format.
  */
 public class Kafka08JsonTableSink extends KafkaJsonTableSink {
+
 	/**
 	 * Creates {@link KafkaTableSink} for Kafka 0.8
 	 *

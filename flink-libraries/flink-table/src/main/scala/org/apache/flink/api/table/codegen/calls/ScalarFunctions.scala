@@ -159,6 +159,12 @@ object ScalarFunctions {
     DOUBLE_TYPE_INFO,
     BuiltInMethods.POWER)
 
+  addSqlFunctionMethod(
+    POWER,
+    Seq(DOUBLE_TYPE_INFO, BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.POWER_DEC)
+
   addSqlFunction(
     ABS,
     Seq(DOUBLE_TYPE_INFO),

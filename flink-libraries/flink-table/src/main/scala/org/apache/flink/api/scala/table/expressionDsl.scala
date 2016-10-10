@@ -133,6 +133,11 @@ trait ImplicitExpressionOperations {
   def power(other: Expression) = Power(expr, other)
 
   /**
+    * Calculates the square root of a given value.
+    */
+  def sqrt() = Sqrt(expr)
+
+  /**
     * Calculates the absolute value of given value.
     */
   def abs() = Abs(expr)
@@ -500,6 +505,34 @@ object localTimestamp {
     */
   def apply(): Expression = {
     LocalTimestamp()
+  }
+}
+
+/**
+  * Determines whether two anchored time intervals overlap. Time point and temporal are
+  * transformed into a range defined by two time points (start, end). The function
+  * evaluates <code>leftEnd >= rightStart && rightEnd >= leftStart</code>.
+  *
+  * It evaluates: leftEnd >= rightStart && rightEnd >= leftStart
+  *
+  * e.g. temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hour) leads to true
+  */
+object temporalOverlaps {
+
+  /**
+    * Determines whether two anchored time intervals overlap. Time point and temporal are
+    * transformed into a range defined by two time points (start, end).
+    *
+    * It evaluates: leftEnd >= rightStart && rightEnd >= leftStart
+    *
+    * e.g. temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hour) leads to true
+    */
+  def apply(
+      leftTimePoint: Expression,
+      leftTemporal: Expression,
+      rightTimePoint: Expression,
+      rightTemporal: Expression): Expression = {
+    TemporalOverlaps(leftTimePoint, leftTemporal, rightTimePoint, rightTemporal)
   }
 }
 

@@ -18,8 +18,6 @@
 
 package org.apache.flink.optimizer.dataproperties;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
@@ -27,6 +25,10 @@ import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.junit.Test;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class GlobalPropertiesMatchingTest {
 
@@ -180,12 +182,12 @@ public class GlobalPropertiesMatchingTest {
 			assertFalse(req.isMetBy(gp3));
 
 			GlobalProperties gp4 = new GlobalProperties();
-			gp3.setAnyPartitioning(new FieldList(6, 1));
-			assertFalse(req.isMetBy(gp3));
+			gp4.setAnyPartitioning(new FieldList(6, 1));
+			assertFalse(req.isMetBy(gp4));
 
 			GlobalProperties gp5 = new GlobalProperties();
-			gp4.setAnyPartitioning(new FieldList(2));
-			assertFalse(req.isMetBy(gp4));
+			gp5.setAnyPartitioning(new FieldList(2));
+			assertFalse(req.isMetBy(gp5));
 		}
 
 		// match hash partitioning

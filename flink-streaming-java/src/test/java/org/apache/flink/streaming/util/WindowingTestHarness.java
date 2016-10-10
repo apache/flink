@@ -22,8 +22,6 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -81,8 +79,6 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 				new InternalIterableWindowFunction<>(new PassThroughFunction()),
 				trigger,
 				allowedLateness);
-
-		operator.setInputType(inputType, executionConfig);
 
 		timeServiceProvider = new TestTimeServiceProvider();
 		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, executionConfig, timeServiceProvider, keySelector, keyType);

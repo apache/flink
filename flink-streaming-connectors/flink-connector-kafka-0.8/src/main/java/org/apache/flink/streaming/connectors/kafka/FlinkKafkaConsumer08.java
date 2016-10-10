@@ -177,7 +177,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer08(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
-		super(deserializer);
+		super(topics, deserializer);
 
 		checkNotNull(topics, "topics");
 		this.kafkaProperties = checkNotNull(props, "props");
@@ -187,22 +187,6 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 
 		this.invalidOffsetBehavior = getInvalidOffsetBehavior(props);
 		this.autoCommitInterval = PropertiesUtil.getLong(props, "auto.commit.interval.ms", 60000);
-
-		// Connect to a broker to get the partitions for all topics
-		List<KafkaTopicPartition> partitionInfos = 
-				KafkaTopicPartition.dropLeaderData(getPartitionsForTopic(topics, props));
-
-		if (partitionInfos.size() == 0) {
-			throw new RuntimeException(
-					"Unable to retrieve any partitions for the requested topics " + topics + 
-							". Please check previous log entries");
-		}
-
-		if (LOG.isInfoEnabled()) {
-			logPartitionInfo(LOG, partitionInfos);
-		}
-
-		setSubscribedPartitions(partitionInfos);
 	}
 
 	@Override
@@ -219,6 +203,25 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 				watermarksPeriodic, watermarksPunctuated,
 				runtimeContext, deserializer, kafkaProperties,
 				invalidOffsetBehavior, autoCommitInterval, useMetrics);
+	}
+
+	@Override
+	protected List<KafkaTopicPartition> getKafkaPartitions(List<String> topics) {
+		// Connect to a broker to get the partitions for all topics
+		List<KafkaTopicPartition> partitionInfos =
+			KafkaTopicPartition.dropLeaderData(getPartitionsForTopic(topics, kafkaProperties));
+
+		if (partitionInfos.size() == 0) {
+			throw new RuntimeException(
+				"Unable to retrieve any partitions for the requested topics " + topics +
+					". Please check previous log entries");
+		}
+
+		if (LOG.isInfoEnabled()) {
+			logPartitionInfo(LOG, partitionInfos);
+		}
+
+		return partitionInfos;
 	}
 
 	// ------------------------------------------------------------------------

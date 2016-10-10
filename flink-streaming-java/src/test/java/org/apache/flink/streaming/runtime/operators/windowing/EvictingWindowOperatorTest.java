@@ -82,8 +82,6 @@ public class EvictingWindowOperatorTest {
 				CountEvictor.of(WINDOW_SIZE),
 				0);
 
-		operator.setInputType(inputType, new ExecutionConfig());
-
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
@@ -152,8 +150,6 @@ public class EvictingWindowOperatorTest {
 			CountEvictor.of(WINDOW_SIZE),
 			0);
 
-		operator.setInputType(inputType, new ExecutionConfig());
-
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
@@ -220,8 +216,6 @@ public class EvictingWindowOperatorTest {
 			EventTimeTrigger.create(),
 			CountEvictor.of(WINDOW_SIZE),
 			0);
-
-		operator.setInputType(inputType, new ExecutionConfig());
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);

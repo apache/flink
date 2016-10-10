@@ -47,6 +47,8 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 
@@ -128,6 +130,8 @@ public class TaskManagerComponentsStartupShutdownTest {
 
 			LeaderRetrievalService leaderRetrievalService = new StandaloneLeaderRetrievalService(jobManager.path().toString());
 
+			MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
+
 			// create the task manager
 			final Props tmProps = Props.create(
 				TaskManager.class,
@@ -138,7 +142,8 @@ public class TaskManagerComponentsStartupShutdownTest {
 				ioManager,
 				network,
 				numberOfSlots,
-				leaderRetrievalService);
+				leaderRetrievalService,
+				new MetricRegistry(metricRegistryConfiguration));
 
 			final ActorRef taskManager = actorSystem.actorOf(tmProps);
 

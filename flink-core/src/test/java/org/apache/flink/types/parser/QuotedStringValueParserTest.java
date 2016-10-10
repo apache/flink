@@ -20,8 +20,6 @@
 package org.apache.flink.types.parser;
 
 import org.apache.flink.types.StringValue;
-import org.apache.flink.types.parser.FieldParser;
-import org.apache.flink.types.parser.StringValueParser;
 
 
 public class QuotedStringValueParserTest extends ParserTestBase<StringValue> {

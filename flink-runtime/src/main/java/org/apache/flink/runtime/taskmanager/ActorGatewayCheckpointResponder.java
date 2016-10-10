@@ -19,16 +19,13 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 import org.apache.flink.util.Preconditions;
-
-import java.util.List;
 
 /**
  * Implementation using {@link ActorGateway} to forward the messages.
@@ -43,18 +40,14 @@ public class ActorGatewayCheckpointResponder implements CheckpointResponder {
 
 	@Override
 	public void acknowledgeCheckpoint(
-		JobID jobID,
-		ExecutionAttemptID executionAttemptID,
-		long checkpointID,
-		ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-		List<KeyGroupsStateHandle> keyGroupStateHandles) {
+			JobID jobID,
+			ExecutionAttemptID executionAttemptID,
+			CheckpointMetaData checkpointMetaData,
+			CheckpointStateHandles checkpointStateHandles) {
 
 		AcknowledgeCheckpoint message = new AcknowledgeCheckpoint(
-			jobID,
-			executionAttemptID,
-			checkpointID,
-			chainedStateHandle,
-			keyGroupStateHandles);
+				jobID, executionAttemptID, checkpointMetaData,
+				checkpointStateHandles);
 
 		actorGateway.tell(message);
 	}
@@ -63,14 +56,13 @@ public class ActorGatewayCheckpointResponder implements CheckpointResponder {
 	public void declineCheckpoint(
 		JobID jobID,
 		ExecutionAttemptID executionAttemptID,
-		long checkpointID,
-		long checkpointTimestamp) {
+		CheckpointMetaData checkpointMetaData) {
 
 		DeclineCheckpoint decline = new DeclineCheckpoint(
 			jobID,
 			executionAttemptID,
-			checkpointID,
-			checkpointTimestamp);
+			checkpointMetaData.getCheckpointId(),
+			checkpointMetaData.getTimestamp());
 
 		actorGateway.tell(decline);
 

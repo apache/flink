@@ -47,24 +47,20 @@ public class ActorGatewayResultPartitionConsumableNotifier implements ResultPart
 
 	private final ActorGateway jobManager;
 
-	private final Task owningTask;
-
 	private final FiniteDuration jobManagerMessageTimeout;
 
 	public ActorGatewayResultPartitionConsumableNotifier(
 		ExecutionContext executionContext,
 		ActorGateway jobManager,
-		Task owningTask,
 		FiniteDuration jobManagerMessageTimeout) {
 
 		this.executionContext = Preconditions.checkNotNull(executionContext);
 		this.jobManager = Preconditions.checkNotNull(jobManager);
-		this.owningTask = Preconditions.checkNotNull(owningTask);
 		this.jobManagerMessageTimeout = Preconditions.checkNotNull(jobManagerMessageTimeout);
 	}
 
 	@Override
-	public void notifyPartitionConsumable(JobID jobId, final ResultPartitionID partitionId) {
+	public void notifyPartitionConsumable(JobID jobId, final ResultPartitionID partitionId, final TaskActions taskActions) {
 
 		final JobManagerMessages.ScheduleOrUpdateConsumers msg = new JobManagerMessages.ScheduleOrUpdateConsumers(jobId, partitionId);
 
@@ -75,7 +71,7 @@ public class ActorGatewayResultPartitionConsumableNotifier implements ResultPart
 			public void onFailure(Throwable failure) {
 				LOG.error("Could not schedule or update consumers at the JobManager.", failure);
 
-				owningTask.failExternally(new RuntimeException("Could not notify JobManager to schedule or update consumers", failure));
+				taskActions.failExternally(new RuntimeException("Could not notify JobManager to schedule or update consumers", failure));
 			}
 		}, executionContext);
 	}

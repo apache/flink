@@ -23,13 +23,12 @@ import org.apache.flink.annotation.Internal;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
-import java.util.zip.InflaterInputStream;
 
 /**
  * Creates a new instance of a certain subclass of {@link java.util.zip.InflaterInputStream}.
  */
 @Internal
-public interface InflaterInputStreamFactory<T extends InflaterInputStream> {
+public interface InflaterInputStreamFactory<T extends InputStream> {
 
 	/**
 	 * Creates a {@link java.util.zip.InflaterInputStream} that wraps the given input stream.

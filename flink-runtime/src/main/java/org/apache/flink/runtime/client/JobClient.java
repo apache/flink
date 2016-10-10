@@ -33,6 +33,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -54,7 +55,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
@@ -228,7 +228,7 @@ public class JobClient {
 				allURLs[pos++] = url;
 			}
 
-			return new URLClassLoader(allURLs, JobClient.class.getClassLoader());
+			return new FlinkUserCodeClassLoader(allURLs, JobClient.class.getClassLoader());
 		} else if (jmAnswer instanceof JobManagerMessages.JobNotFound) {
 			throw new JobRetrievalException(jobID, "Couldn't retrieve class loader. Job " + jobID + " not found");
 		} else {

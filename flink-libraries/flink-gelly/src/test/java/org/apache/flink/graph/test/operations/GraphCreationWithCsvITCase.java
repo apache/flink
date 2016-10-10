@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.test.operations;
 
-import com.google.common.base.Charsets;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -30,10 +29,12 @@ import org.apache.flink.types.NullValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.nio.charset.Charset;
 import java.util.List;
 
 @RunWith(Parameterized.class)
@@ -193,7 +194,7 @@ public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {
 		tempFile.deleteOnExit();
 
 		OutputStreamWriter wrt = new OutputStreamWriter(
-				new FileOutputStream(tempFile), Charsets.UTF_8
+				new FileOutputStream(tempFile), Charset.forName("UTF-8")
 		);
 		wrt.write(content);
 		wrt.close();

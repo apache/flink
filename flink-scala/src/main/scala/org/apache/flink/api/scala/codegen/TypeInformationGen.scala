@@ -52,6 +52,9 @@ private[flink] trait TypeInformationGen[C <: Context] {
   // We have this for internal use so that we can use it to recursively generate a tree of
   // TypeInformation from a tree of UDTDescriptor
   def mkTypeInfo[T: c.WeakTypeTag](desc: UDTDescriptor): c.Expr[TypeInformation[T]] = desc match {
+
+    case f: FactoryTypeDescriptor => mkTypeInfoFromFactory(f)
+
     case cc@CaseClassDescriptor(_, tpe, _, _, _) =>
       mkCaseClassTypeInfo(cc)(c.WeakTypeTag(tpe).asInstanceOf[c.WeakTypeTag[Product]])
         .asInstanceOf[c.Expr[TypeInformation[T]]]
@@ -91,6 +94,25 @@ private[flink] trait TypeInformationGen[C <: Context] {
     case javaTuple: JavaTupleDescriptor => mkJavaTuple(javaTuple)
 
     case d => mkGenericTypeInfo(d)
+  }
+
+  def mkTypeInfoFromFactory[T: c.WeakTypeTag](desc: FactoryTypeDescriptor)
+    : c.Expr[TypeInformation[T]] = {
+
+    val tpeClazz = c.Expr[Class[T]](Literal(Constant(desc.tpe)))
+    val baseClazz = c.Expr[Class[T]](Literal(Constant(desc.baseType)))
+
+    val typeInfos = desc.params map { p => mkTypeInfo(p)(c.WeakTypeTag(p.tpe)).tree }
+    val typeInfosList = c.Expr[List[TypeInformation[_]]](mkList(typeInfos.toList))
+
+    reify {
+      val factory = TypeExtractor.getTypeInfoFactory[T](baseClazz.splice)
+      val genericParameters = typeInfosList.splice
+        .zip(baseClazz.splice.getTypeParameters).map { case (typeInfo, typeParam) =>
+          typeParam.getName -> typeInfo
+        }.toMap[String, TypeInformation[_]]
+      factory.createTypeInfo(tpeClazz.splice, genericParameters.asJava)
+    }
   }
 
   def mkCaseClassTypeInfo[T <: Product : c.WeakTypeTag](

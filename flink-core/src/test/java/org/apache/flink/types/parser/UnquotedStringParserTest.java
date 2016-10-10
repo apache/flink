@@ -19,9 +19,6 @@
 
 package org.apache.flink.types.parser;
 
-import org.apache.flink.types.parser.StringParser;
-import org.apache.flink.types.parser.FieldParser;
-
 
 public class UnquotedStringParserTest extends ParserTestBase<String> {
 

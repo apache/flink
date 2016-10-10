@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.util.AbstractID;
 
@@ -33,6 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * 
  * <p>Contains extra logic for adding operators.
  */
+@Internal
 public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGroup> {
 
 	private final Map<String, OperatorMetricGroup> operators = new HashMap<>();
@@ -43,12 +47,12 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 	private final AbstractID executionId;
 
 	@Nullable
-	private final AbstractID vertexId;
+	protected final AbstractID vertexId;
 	
 	@Nullable
 	private final String taskName;
 
-	private final int subtaskIndex;
+	protected final int subtaskIndex;
 
 	private final int attemptNumber;
 
@@ -111,6 +115,14 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 	 */
 	public IOMetricGroup getIOMetricGroup() {
 		return ioMetrics;
+	}
+
+	@Override
+	protected QueryScopeInfo.TaskQueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
+		return new QueryScopeInfo.TaskQueryScopeInfo(
+			this.parent.jobId.toString(),
+			this.vertexId.toString(),
+			this.subtaskIndex);
 	}
 
 	// ------------------------------------------------------------------------

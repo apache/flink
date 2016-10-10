@@ -20,6 +20,7 @@ package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.util.Preconditions;
 
@@ -52,15 +53,15 @@ public class TaskKvStateRegistry {
 	/**
 	 * Registers the KvState instance at the KvStateRegistry.
 	 *
-	 * @param keyGroupIndex    KeyGroupIndex the KvState instance belongs to
+	 * @param keyGroupRange    Key group range the KvState instance belongs to
 	 * @param registrationName The registration name (not necessarily the same
 	 *                         as the KvState name defined in the state
 	 *                         descriptor used to create the KvState instance)
 	 * @param kvState          The
 	 */
-	public void registerKvState(int keyGroupIndex, String registrationName, KvState<?> kvState) {
-		KvStateID kvStateId = registry.registerKvState(jobId, jobVertexId, keyGroupIndex, registrationName, kvState);
-		registeredKvStates.add(new KvStateInfo(keyGroupIndex, registrationName, kvStateId));
+	public void registerKvState(KeyGroupRange keyGroupRange, String registrationName, KvState<?> kvState) {
+		KvStateID kvStateId = registry.registerKvState(jobId, jobVertexId, keyGroupRange, registrationName, kvState);
+		registeredKvStates.add(new KvStateInfo(keyGroupRange, registrationName, kvStateId));
 	}
 
 	/**
@@ -68,7 +69,7 @@ public class TaskKvStateRegistry {
 	 */
 	public void unregisterAll() {
 		for (KvStateInfo kvState : registeredKvStates) {
-			registry.unregisterKvState(jobId, jobVertexId, kvState.keyGroupIndex, kvState.registrationName, kvState.kvStateId);
+			registry.unregisterKvState(jobId, jobVertexId, kvState.keyGroupRange, kvState.registrationName, kvState.kvStateId);
 		}
 	}
 
@@ -77,14 +78,14 @@ public class TaskKvStateRegistry {
 	 */
 	private static class KvStateInfo {
 
-		private final int keyGroupIndex;
+		private final KeyGroupRange keyGroupRange;
 
 		private final String registrationName;
 
 		private final KvStateID kvStateId;
 
-		public KvStateInfo(int keyGroupIndex, String registrationName, KvStateID kvStateId) {
-			this.keyGroupIndex = keyGroupIndex;
+		public KvStateInfo(KeyGroupRange keyGroupRange, String registrationName, KvStateID kvStateId) {
+			this.keyGroupRange = keyGroupRange;
 			this.registrationName = registrationName;
 			this.kvStateId = kvStateId;
 		}

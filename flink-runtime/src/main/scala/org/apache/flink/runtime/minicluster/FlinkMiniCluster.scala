@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent._
-import scala.concurrent.forkjoin.ForkJoinPool
 
 /**
  * Abstract base class for Flink's mini cluster. The mini cluster starts a
@@ -266,17 +265,20 @@ abstract class FlinkMiniCluster(
 
   def startResourceManagerActorSystem(index: Int): ActorSystem = {
     val config = getResourceManagerAkkaConfig(index)
-    AkkaUtils.createActorSystem(config)
+    val testConfig = AkkaUtils.testDispatcherConfig.withFallback(config)
+    AkkaUtils.createActorSystem(testConfig)
   }
 
   def startJobManagerActorSystem(index: Int): ActorSystem = {
     val config = getJobManagerAkkaConfig(index)
-    AkkaUtils.createActorSystem(config)
+    val testConfig = AkkaUtils.testDispatcherConfig.withFallback(config)
+    AkkaUtils.createActorSystem(testConfig)
   }
 
   def startTaskManagerActorSystem(index: Int): ActorSystem = {
     val config = getTaskManagerAkkaConfig(index)
-    AkkaUtils.createActorSystem(config)
+    val testConfig = AkkaUtils.testDispatcherConfig.withFallback(config)
+    AkkaUtils.createActorSystem(testConfig)
   }
 
   def startJobClientActorSystem(jobID: JobID): ActorSystem = {
