@@ -244,12 +244,21 @@ public class ContinuousFileMonitoringFunction<OUT>
 	 * method to decide which parts of the file to be processed, and forward them downstream.
 	 */
 	private List<FileStatus> listEligibleFiles(FileSystem fileSystem) throws IOException {
-		List<FileStatus> files = new ArrayList<>();
 
-		FileStatus[] statuses = fileSystem.listStatus(new Path(path));
+		final FileStatus[] statuses;
+		try {
+			statuses = fileSystem.listStatus(new Path(path));
+		} catch (IOException e) {
+			// we may run into an IOException if files are moved while listing their status
+			// delay the check for eligible files in this case
+			return Collections.emptyList();
+		}
+
 		if (statuses == null) {
 			LOG.warn("Path does not exist: {}", path);
+			return Collections.emptyList();
 		} else {
+			List<FileStatus> files = new ArrayList<>();
 			// handle the new files
 			for (FileStatus status : statuses) {
 				Path filePath = status.getPath();
@@ -258,8 +267,8 @@ public class ContinuousFileMonitoringFunction<OUT>
 					files.add(status);
 				}
 			}
+			return files;
 		}
-		return files;
 	}
 
 	/**
