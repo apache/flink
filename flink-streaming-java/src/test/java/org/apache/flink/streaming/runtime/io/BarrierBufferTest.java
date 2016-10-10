@@ -442,10 +442,9 @@ public class BarrierBufferTest {
 			check(sequence[20], buffer.getNextNonBlocked());
 			check(sequence[23], buffer.getNextNonBlocked());
 
-			validateAlignmentTime(startTs, buffer);
-
 			// checkpoint 2 completed
 			check(sequence[12], buffer.getNextNonBlocked());
+			validateAlignmentTime(startTs, buffer);
 			check(sequence[25], buffer.getNextNonBlocked());
 			check(sequence[27], buffer.getNextNonBlocked());
 			check(sequence[30], buffer.getNextNonBlocked());
