@@ -61,14 +61,14 @@ public interface ResourceManagerGateway extends RpcGateway {
 	/**
 	 * Requests a slot from the resource manager.
 	 *
-	 * @param jobMasterLeaderID leader id of the JobMaster
 	 * @param resourceManagerLeaderID leader if of the ResourceMaster
+	 * @param jobMasterLeaderID leader if of the JobMaster
 	 * @param slotRequest The slot to request
 	 * @return The confirmation that the slot gets allocated
 	 */
 	Future<RMSlotRequestReply> requestSlot(
-		UUID jobMasterLeaderID,
 		UUID resourceManagerLeaderID,
+		UUID jobMasterLeaderID,
 		SlotRequest slotRequest,
 		@RpcTimeout Time timeout);
 
