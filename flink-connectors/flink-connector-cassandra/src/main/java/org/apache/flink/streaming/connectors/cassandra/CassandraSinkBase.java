@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @param <IN> Type of the elements emitted by this sink
  */
 public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
-	protected static final Logger LOG = LoggerFactory.getLogger(CassandraSinkBase.class);
+	protected final Logger log = LoggerFactory.getLogger(getClass());
 	protected transient Cluster cluster;
 	protected transient Session session;
 
@@ -48,7 +48,7 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 
 	private final AtomicInteger updatesPending = new AtomicInteger();
 
-	protected CassandraSinkBase(ClusterBuilder builder) {
+	CassandraSinkBase(ClusterBuilder builder) {
 		this.builder = builder;
 		ClosureCleaner.clean(builder, true);
 	}
@@ -76,7 +76,7 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 				}
 				exception = t;
 				
-				LOG.error("Error while sending value.", t);
+				log.error("Error while sending value.", t);
 			}
 		};
 		this.cluster = builder.getCluster();
@@ -107,21 +107,24 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 					updatesPending.wait();
 				}
 			}
-			
+
+			if (exception != null) {
+				throw new IOException("Error while sending value.", exception);
+			}
 		} finally {
 			try {
 				if (session != null) {
 					session.close();
 				}
 			} catch (Exception e) {
-				LOG.error("Error while closing session.", e);
+				log.error("Error while closing session.", e);
 			}
 			try {
 				if (cluster != null) {
 					cluster.close();
 				}
 			} catch (Exception e) {
-				LOG.error("Error while closing cluster.", e);
+				log.error("Error while closing cluster.", e);
 			}
 		}
 	}

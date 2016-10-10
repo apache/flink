@@ -31,14 +31,20 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo;
 import org.apache.flink.batch.connectors.cassandra.CassandraInputFormat;
 import org.apache.flink.batch.connectors.cassandra.CassandraOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
 
 import org.junit.AfterClass;
@@ -49,6 +55,8 @@ import org.junit.Test;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.collection.JavaConverters;
+import scala.collection.Seq;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -419,5 +427,52 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 	private String injectTableName(String target) {
 		return target.replace(TABLE_NAME_VARIABLE, TABLE_NAME_PREFIX + tableID);
+	}
+
+	@Test
+	public void testCassandraScalaTupleAtLeastOnceSinkBuilderDetection() throws Exception {
+		Class<scala.Tuple1<String>> c = (Class<scala.Tuple1<String>>) new scala.Tuple1<>("hello").getClass();
+		Seq<TypeInformation<?>> typeInfos = JavaConverters.asScalaBufferConverter(
+			Collections.<TypeInformation<?>>singletonList(BasicTypeInfo.STRING_TYPE_INFO)).asScala();
+		Seq<String> fieldNames = JavaConverters.asScalaBufferConverter(
+			Collections.singletonList("_1")).asScala();
+
+		CaseClassTypeInfo<scala.Tuple1<String>> typeInfo = new CaseClassTypeInfo<scala.Tuple1<String>>(c, null, typeInfos, fieldNames) {
+			@Override
+			public TypeSerializer<scala.Tuple1<String>> createSerializer(ExecutionConfig config) {
+				return null;
+			}
+		};
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<scala.Tuple1<String>> input = env.fromElements(new scala.Tuple1<>("hello"));
+
+		CassandraSink.CassandraSinkBuilder<scala.Tuple1<String>> sinkBuilder = CassandraSink.addSink(input);
+		assertTrue(sinkBuilder instanceof CassandraSink.CassandraScalaProductSinkBuilder);
+	}
+
+	@Test
+	public void testCassandraScalaTupleAtLeastSink() throws Exception {
+		CassandraScalaProductSink<scala.Tuple3<String, Integer, Integer>> sink = new CassandraScalaProductSink<>(INSERT_DATA_QUERY, builder);
+
+		List<scala.Tuple3<String, Integer, Integer>> scalaTupleCollection = new ArrayList<>(20);
+		for (int i = 0; i < 20; i++) {
+			scalaTupleCollection.add(new scala.Tuple3<>(UUID.randomUUID().toString(), i, 0));
+		}
+
+		sink.open(new Configuration());
+		for (scala.Tuple3<String, Integer, Integer> value : scalaTupleCollection) {
+			sink.invoke(value);
+		}
+		sink.close();
+
+		ResultSet rs = session.execute(SELECT_DATA_QUERY);
+		List<Row> rows = rs.all();
+		assertEquals(scalaTupleCollection.size(), rows.size());
+
+		for (Row row : rows) {
+			scalaTupleCollection.remove(new scala.Tuple3<>(row.getString("id"), row.getInt("counter"), row.getInt("batch_id")));
+		}
+		assertEquals(0, scalaTupleCollection.size());
 	}
 }
