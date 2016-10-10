@@ -98,10 +98,12 @@ public abstract class SiddhiStream {
 		}
 
 		/**
+		 * Siddhi Continuous Query Language (CQL)
+		 *
 		 * @param executionPlan Siddhi SQL-Like execution plan query
          * @return ExecutionSiddhiStream context
          */
-		public ExecutionSiddhiStream sql(String executionPlan) {
+		public ExecutionSiddhiStream cql(String executionPlan) {
 			Preconditions.checkNotNull(executionPlan,"executionPlan");
 			return new ExecutionSiddhiStream(this.toDataStream(), executionPlan, getCepEnvironment());
 		}

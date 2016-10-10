@@ -94,7 +94,7 @@ public class SiddhiOperatorContext implements Serializable {
 	}
 
 	/**
-	 * @return Siddhi CEP sql-like execution plan
+	 * @return Siddhi CEP cql-like execution plan
      */
 	public String getExecutionPlan() {
 		return executionPlan;

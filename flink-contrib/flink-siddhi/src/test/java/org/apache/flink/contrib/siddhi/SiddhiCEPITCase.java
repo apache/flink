@@ -67,7 +67,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<Event> output = SiddhiCEP
 			.define("inputStream", input, "id", "name", "price")
-			.sql("from inputStream insert into  outputStream")
+			.cql("from inputStream insert into  outputStream")
 			.returns("outputStream", Event.class);
 		String path = tempFolder.newFile().toURI().toString();
 		output.writeAsText(path);
@@ -81,7 +81,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<Tuple4<Long, Integer, String, Double>> output = SiddhiCEP
 			.define("inputStream", input, "id", "name", "price", "timestamp")
-			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
+			.cql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returns("outputStream");
 
 		DataStream<Integer> following = output.map(new MapFunction<Tuple4<Long, Integer, String, Double>, Integer>() {
@@ -103,7 +103,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<Tuple4<Long, Integer, String, Double>> output = SiddhiCEP
 			.define("inputStream", input, "id", "name", "price", "timestamp")
-			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
+			.cql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returns("outputStream");
 
 		String resultPath = tempFolder.newFile().toURI().toString();
@@ -119,7 +119,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<Tuple1<String>> output = SiddhiCEP
 			.define("wordStream", input, "words")
-			.sql("from wordStream select words insert into  outputStream")
+			.cql("from wordStream select words insert into  outputStream")
 			.returns("outputStream");
 
 		String resultPath = tempFolder.newFile().toURI().toString();
@@ -135,7 +135,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<Tuple5<Long, Integer, String, Double, Long>> output = SiddhiCEP
 			.define("inputStream", input, "id", "name", "price", "timestamp")
-			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
+			.cql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returns("outputStream");
 
 		DataStream<Long> following = output.map(new MapFunction<Tuple5<Long, Integer, String, Double, Long>, Long>() {
@@ -161,7 +161,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<Map<String, Object>> output = SiddhiCEP
 			.define("inputStream", input, "id", "name", "price", "timestamp")
-			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
+			.cql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returnAsMap("outputStream");
 
 		String resultPath = tempFolder.newFile().toURI().toString();
@@ -183,7 +183,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<Event> output = SiddhiCEP
 			.define("inputStream", input, "id", "name", "price", "timestamp")
-			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
+			.cql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returns("outputStream", Event.class);
 
 		String resultPath = tempFolder.newFile().toURI().toString();
@@ -203,7 +203,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 			.define("inputStream1", input1, "id", "name", "price", "timestamp")
 			.union("inputStream2", input2, "id", "name", "price", "timestamp")
 			.union("inputStream3", input3, "id", "name", "price", "timestamp")
-			.sql(
+			.cql(
 				"from inputStream1 select timestamp, id, name, price insert into outputStream;"
 					+ "from inputStream2 select timestamp, id, name, price insert into outputStream;"
 					+ "from inputStream3 select timestamp, id, name, price insert into outputStream;"
@@ -228,7 +228,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 		DataStream<? extends Map> output = SiddhiCEP
 			.define("inputStream1", input1.keyBy("id"), "id", "name", "price", "timestamp")
 			.union("inputStream2", input2.keyBy("id"), "id", "name", "price", "timestamp")
-			.sql(
+			.cql(
 				"from inputStream1#window.length(5) as s1 "
 					+ "join inputStream2#window.time(500) as s2 "
 					+ "on s1.id == s2.id "
@@ -255,7 +255,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 		DataStream<Map<String, Object>> output = SiddhiCEP
 			.define("inputStream1", input1.keyBy("name"), "id", "name", "price", "timestamp")
 			.union("inputStream2", input2.keyBy("name"), "id", "name", "price", "timestamp")
-			.sql(
+			.cql(
 				"from every s1 = inputStream1[id == 2] "
 					+ " -> s2 = inputStream2[id == 3] "
 					+ "select s1.id as id_1, s1.name as name_1, s2.id as id_2, s2.name as name_2 "
@@ -280,7 +280,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 		DataStream<Map<String, Object>> output = SiddhiCEP
 			.define("inputStream1", input1.keyBy("name"), "id", "name", "price", "timestamp")
 			.union("inputStream2", input1.keyBy("name"), "id", "name", "price", "timestamp")
-			.sql(
+			.cql(
 				"from every s1 = inputStream1[id == 2]+ , "
 					+ "s2 = inputStream2[id == 3]? "
 					+ "within 1000 second "
@@ -311,7 +311,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<Map<String, Object>> output = cep
 			.from("inputStream", input, "id", "name", "price", "timestamp")
-			.sql("from inputStream select timestamp, id, name, custom:plus(price,price) as doubled_price insert into  outputStream")
+			.cql("from inputStream select timestamp, id, name, custom:plus(price,price) as doubled_price insert into  outputStream")
 			.returnAsMap("outputStream");
 
 		String resultPath = tempFolder.newFile().toURI().toString();
@@ -334,7 +334,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<Tuple4<Long, String, Double, Double>> output = cep
 			.from("inputStream1").union("inputStream2")
-			.sql(
+			.cql(
 				"from inputStream1#window.length(5) as s1 "
 					+ "join inputStream2#window.time(500) as s2 "
 					+ "on s1.id == s2.id "
@@ -359,7 +359,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<Map<String, Object>> output = cep
 			.from("inputStream1").union("inputStream2")
-			.sql(
+			.cql(
 				"from inputStream1#window.length(5) as s1 "
 					+ "join inputStream2#window.time(500) as s2 "
 					+ "on s1.id == s2.id "
