@@ -28,12 +28,13 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 public class CsvOutputFormatTest {
 
-	private static final Path PATH = new Path("csv_output_test_file.csv");
+	private static final Path PATH = getFilePathInTemp("csv_output_test_file",".csv");
 
 	@Test
 	public void testNullAllow() throws Exception {
@@ -66,6 +67,17 @@ public class CsvOutputFormatTest {
 		final FileSystem fs = PATH.getFileSystem();
 		if(fs.exists(PATH)){
 			fs.delete(PATH, true);
+		}
+	}
+
+	private static Path getFilePathInTemp(String fileNamePrefix, String fileNameSuffix){
+		try {
+			File file = File.createTempFile(fileNamePrefix,fileNameSuffix);
+			String absolutePath = file.getAbsolutePath();
+			file.delete();
+			return new Path(absolutePath);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
 		}
 	}
 
