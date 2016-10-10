@@ -42,7 +42,7 @@ public class JobManagerMetricsHandlerTest extends TestLogger {
 
 		Map<String, String> metrics = handler.getMapFor(pathParams, store);
 
-		assertEquals(0L, metrics.get("abc.metric1"));
+		assertEquals("0", metrics.get("abc.metric1"));
 	}
 
 	@Test
