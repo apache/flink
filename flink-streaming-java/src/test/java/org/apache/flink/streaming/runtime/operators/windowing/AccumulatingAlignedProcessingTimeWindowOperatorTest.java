@@ -264,6 +264,8 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			// get and verify the result
 			out.waitForNElements(numElements, 60_000);
 
+			timerService.quiesceAndAwaitPending();
+
 			synchronized (lock) {
 				op.close();
 			}
@@ -321,6 +323,8 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 				}
 				Thread.sleep(1);
 			}
+
+			timerService.quiesceAndAwaitPending();
 
 			synchronized (lock) {
 				op.close();
@@ -407,6 +411,8 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			Collections.sort(result);
 			assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6), result);
 
+			timerService.quiesceAndAwaitPending();
+
 			synchronized (lock) {
 				op.close();
 			}
@@ -462,6 +468,8 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			
 			Collections.sort(result);
 			assertEquals(Arrays.asList(1, 1, 1, 2, 2, 2), result);
+
+			timerService.quiesceAndAwaitPending();
 
 			synchronized (lock) {
 				op.close();
