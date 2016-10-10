@@ -498,10 +498,18 @@ public class SlotManagerTest {
 
 		private static class TestingRmServices implements ResourceManagerServices {
 
-			private List<ResourceProfile> allocatedContainers;
+			private final UUID leaderID;
+
+			private final List<ResourceProfile> allocatedContainers;
 
 			public TestingRmServices() {
+				this.leaderID = UUID.randomUUID();
 				this.allocatedContainers = new LinkedList<>();
+			}
+
+			@Override
+			public UUID getLeaderID() {
+				return leaderID;
 			}
 
 			@Override
