@@ -44,7 +44,7 @@ public class MetricQueryServiceTest extends TestLogger {
 	public void testCreateDump() throws Exception {
 
 		ActorSystem s = AkkaUtils.createLocalActorSystem(new Configuration());
-		ActorRef serviceActor = MetricQueryService.startMetricQueryService(s);
+		ActorRef serviceActor = MetricQueryService.startMetricQueryService(s, null);
 		TestActorRef testActorRef = TestActorRef.create(s, Props.create(TestActor.class));
 		TestActor testActor = (TestActor) testActorRef.underlyingActor();
 
