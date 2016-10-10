@@ -41,7 +41,6 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -85,9 +84,6 @@ public abstract class SlotManager {
 
 	private final Time timeout;
 
-	/** The current leader id set by the ResourceManager */
-	private UUID leaderID;
-
 	public SlotManager(ResourceManagerServices rmServices) {
 		this.rmServices = checkNotNull(rmServices);
 		this.registeredSlots = new HashMap<>(16);
@@ -96,7 +92,6 @@ public abstract class SlotManager {
 		this.allocationMap = new AllocationMap();
 		this.taskManagers = new HashMap<>();
 		this.timeout = Time.seconds(10);
-		this.leaderID = new UUID(0, 0);
 	}
 
 	// ------------------------------------------------------------------------
@@ -303,7 +298,7 @@ public abstract class SlotManager {
 		final TaskExecutorRegistration registration = freeSlot.getTaskExecutorRegistration();
 		final Future<TMSlotRequestReply> slotRequestReplyFuture =
 			registration.getTaskExecutorGateway()
-				.requestSlot(freeSlot.getSlotId(), allocationID, leaderID, timeout);
+				.requestSlot(freeSlot.getSlotId(), allocationID, rmServices.getLeaderID(), timeout);
 
 		slotRequestReplyFuture.handleAsync(new BiFunction<TMSlotRequestReply, Throwable, Void>() {
 			@Override
@@ -488,15 +483,6 @@ public abstract class SlotManager {
 		pendingSlotRequests.clear();
 		freeSlots.clear();
 		allocationMap.clear();
-		leaderID = new UUID(0, 0);
-	}
-
-	// ------------------------------------------------------------------------
-	//  High availability (called by the ResourceManager)
-	// ------------------------------------------------------------------------
-
-	public void setLeaderUUID(UUID leaderSessionID) {
-		this.leaderID = leaderSessionID;
 	}
 
 	// ------------------------------------------------------------------------
