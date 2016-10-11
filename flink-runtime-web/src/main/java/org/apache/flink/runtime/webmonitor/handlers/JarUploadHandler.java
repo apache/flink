@@ -27,7 +27,7 @@ import java.util.UUID;
 /**
  * Handles requests for uploading of jars.
  */
-public class JarUploadHandler implements RequestHandler {
+public class JarUploadHandler extends AbstractJsonRequestHandler {
 
 	private final File jarDir;
 
@@ -36,7 +36,7 @@ public class JarUploadHandler implements RequestHandler {
 	}
 
 	@Override
-	public String handleRequest(
+	public String handleJsonRequest(
 				Map<String, String> pathParams,
 				Map<String, String> queryParams,
 				ActorGateway jobManager) throws Exception {
