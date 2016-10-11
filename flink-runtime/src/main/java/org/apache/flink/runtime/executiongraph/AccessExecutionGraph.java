@@ -21,6 +21,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -106,6 +107,14 @@ public interface AccessExecutionGraph {
 	 * @return timestamp for the given job status
 	 */
 	long getStatusTimestamp(JobStatus status);
+
+	/**
+	 * Returns the {@link CheckpointCoordinator} for this execution graph.
+	 *
+	 * @return CheckpointCoordinator for this execution graph or <code>null</code>
+	 * if none is available.
+	 */
+	CheckpointCoordinator getCheckpointCoordinator();
 
 	/**
 	 * Returns the {@link CheckpointStatsTracker} for this execution graph.
