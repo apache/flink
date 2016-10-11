@@ -128,8 +128,8 @@ under the License.
 		
 	</dependencies>
 
-	<!-- See main pom.xml for explanation of profiles -->
 	<profiles>
+		<!-- See main pom.xml for explanation of Hadoop profiles -->
 		<profile>
 			<id>include-yarn</id>
 			<activation>
@@ -146,6 +146,57 @@ under the License.
 				</dependency>
 			</dependencies>
 		</profile>
+
+		<profile>
+			<!-- Creates/Removes the 'build-target' symlink in the root directory (only Unix systems) -->
+			<id>symlink-build-target</id>
+			<activation>
+				<os>
+					<family>unix</family>
+				</os>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>exec-maven-plugin</artifactId>
+						<version>1.5.0</version>
+						<executions>
+							<execution>
+								<id>remove-build-target-link</id>
+								<phase>clean</phase>
+								<goals>
+									<goal>exec</goal>
+								</goals>
+								<configuration>
+									<executable>rm</executable>
+									<arguments>
+										<argument>-f</argument>
+										<argument>${project.basedir}/../build-target</argument>
+									</arguments>
+								</configuration>
+							</execution>
+							<execution>
+								<id>create-build-target-link</id>
+								<phase>package</phase>
+								<goals>
+									<goal>exec</goal>
+								</goals>
+								<configuration>
+									<executable>ln</executable>
+									<arguments>
+										<argument>-sf</argument>
+										<argument>${project.basedir}/target/flink-${project.version}-bin/flink-${project.version}</argument>
+										<argument>${project.basedir}/../build-target</argument>
+									</arguments>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
 	</profiles>
 
 	<build>
@@ -270,4 +321,5 @@ under the License.
 
 		</plugins>
 	</build>
+
 </project>
