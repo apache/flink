@@ -30,7 +30,7 @@ import java.util.Map;
  * Base class for request handlers whose response depends on an ExecutionGraph
  * that can be retrieved via "jobid" parameter.
  */
-public abstract class AbstractExecutionGraphRequestHandler implements RequestHandler {
+public abstract class AbstractExecutionGraphRequestHandler extends AbstractJsonRequestHandler {
 	
 	private final ExecutionGraphHolder executionGraphHolder;
 	
@@ -39,7 +39,7 @@ public abstract class AbstractExecutionGraphRequestHandler implements RequestHan
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		String jidString = pathParams.get("jobid");
 		if (jidString == null) {
 			throw new RuntimeException("JobId parameter missing");
