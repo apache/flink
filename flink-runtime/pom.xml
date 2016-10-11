@@ -149,6 +149,19 @@ under the License.
 			<groupId>com.twitter</groupId>
 			<artifactId>chill_${scala.binary.version}</artifactId>
 			<version>${chill.version}</version>
+			<exclusions>
+				<!-- Exclude Kryo dependency from Chill -->
+				<exclusion>
+					<groupId>com.esotericsoftware</groupId>
+					<artifactId>kryo-shaded</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- Include our own version of Kryo -->
+		<dependency>
+			<groupId>com.esotericsoftware.kryo</groupId>
+			<artifactId>kryo</artifactId>
 		</dependency>
 
 		<dependency>
