@@ -34,7 +34,7 @@ import org.junit.Assert._
 import org.junit.Test
 import org.scalatest.junit.JUnitSuiteLike
 
-class TypeInfoFactoryTest  extends TestLogger with JUnitSuiteLike {
+class TypeInfoFactoryTest extends TestLogger with JUnitSuiteLike {
 
   @Test
   def testSimpleType(): Unit = {
