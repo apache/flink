@@ -18,35 +18,56 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
 import org.apache.flink.runtime.instance.ActorGateway;
 
+import java.nio.charset.Charset;
 import java.util.Map;
 
 /**
- * Base interface for all request handlers.
- *
- * <p>Most handlers will want to use the {@link AbstractJsonRequestHandler}
- * as a starting point, which produces a valid HTTP response.
+ * Base class for most request handlers. The handlers must produce a JSON response.
  */
-public interface RequestHandler {
+public abstract class AbstractJsonRequestHandler implements RequestHandler {
+
+	private static final Charset ENCODING = Charset.forName("UTF-8");
+
+	@Override
+	public FullHttpResponse handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+		String result = handleJsonRequest(pathParams, queryParams, jobManager);
+		byte[] bytes = result.getBytes(ENCODING);
+
+		DefaultFullHttpResponse response = new DefaultFullHttpResponse(
+				HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.wrappedBuffer(bytes));
+
+		response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "application/json");
+		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
+
+		return response;
+	}
 
 	/**
 	 * Core method that handles the request and generates the response. The method needs to
-	 * respond with a full http response, including content-type, content-length, etc.
+	 * respond with a valid JSON string. Exceptions may be thrown and will be handled.
 	 *
-	 * <p>Exceptions may be throws and will be handled.
-	 * 
 	 * @param pathParams The map of REST path parameters, decoded by the router.
 	 * @param queryParams The map of query parameters.
 	 * @param jobManager The JobManager actor.
 	 *
-	 * @return The full http response.
-	 * 
+	 * @return The JSON string that is the HTTP response.
+	 *
 	 * @throws Exception Handlers may forward exceptions. Exceptions of type
 	 *         {@link org.apache.flink.runtime.webmonitor.NotFoundException} will cause a HTTP 404
 	 *         response with the exception message, other exceptions will cause a HTTP 500 response
 	 *         with the exception stack trace.
 	 */
-	FullHttpResponse handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception;
+	public abstract String handleJsonRequest(
+			Map<String, String> pathParams,
+			Map<String, String> queryParams,
+			ActorGateway jobManager) throws Exception;
+
 }

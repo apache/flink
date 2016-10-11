@@ -47,7 +47,7 @@ import java.util.Map;
 /**
  * Abstract handler for fetching plan for a jar or running a jar.
  */
-public abstract class JarActionHandler implements RequestHandler {
+public abstract class JarActionHandler extends AbstractJsonRequestHandler {
 	
 	private final File jarDir;
 

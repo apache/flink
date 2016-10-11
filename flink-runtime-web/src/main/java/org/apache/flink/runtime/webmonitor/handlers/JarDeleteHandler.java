@@ -29,7 +29,7 @@ import java.util.Map;
 /**
  * Handles requests for deletion of jars.
  */
-public class JarDeleteHandler implements RequestHandler {
+public class JarDeleteHandler extends AbstractJsonRequestHandler {
 
 	private final File jarDir;
 
@@ -38,7 +38,7 @@ public class JarDeleteHandler implements RequestHandler {
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		final String file = pathParams.get("jarid");
 		try {
 			File[] list = jarDir.listFiles(new FilenameFilter() {
