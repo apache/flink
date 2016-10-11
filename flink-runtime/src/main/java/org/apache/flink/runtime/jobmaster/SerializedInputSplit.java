@@ -16,26 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.configuration.Configuration;
+import java.io.Serializable;
 
-/**
- * Interface to access {@link TaskManager} information.
- */
-public interface TaskManagerRuntimeInfo {
+public class SerializedInputSplit implements Serializable {
+	private static final long serialVersionUID = -2063021844254152064L;
 
-	/**
-	 * Gets the configuration that the TaskManager was started with.
-	 *
-	 * @return The configuration that the TaskManager was started with.
-	 */
-	Configuration getConfiguration();
+	private final byte[] inputSplitData;
 
-	/**
-	 * Gets the list of temporary file directories.
-	 * 
-	 * @return The list of temporary file directories.
-	 */
-	String[] getTmpDirectories();
+	public SerializedInputSplit(byte[] inputSplitData) {
+		this.inputSplitData = inputSplitData;
+	}
+
+	public byte[] getInputSplitData() {
+		return inputSplitData;
+	}
+
+	public boolean isEmpty() {
+		return inputSplitData == null || inputSplitData.length == 0;
+	}
 }

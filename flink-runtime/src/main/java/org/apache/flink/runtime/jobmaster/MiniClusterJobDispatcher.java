@@ -356,7 +356,7 @@ public class MiniClusterJobDispatcher {
 			final Throwable runnerException = this.runnerException;
 			final JobExecutionResult result = this.result;
 
-			// (1) we check if teh job terminated with an exception
+			// (1) we check if the job terminated with an exception
 			// (2) we check whether the job completed successfully
 			// (3) we check if we have exceptions from the JobManagers. the job may still have
 			//     completed successfully in that case, if multiple JobMasters were running

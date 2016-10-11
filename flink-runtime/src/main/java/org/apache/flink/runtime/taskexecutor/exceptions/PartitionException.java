@@ -16,26 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.runtime.taskexecutor.exceptions;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 
 /**
- * Interface to access {@link TaskManager} information.
+ * Exception indicating a problem with the result partitions on the {@link TaskExecutor} side.
  */
-public interface TaskManagerRuntimeInfo {
+public class PartitionException extends TaskManagerException {
 
-	/**
-	 * Gets the configuration that the TaskManager was started with.
-	 *
-	 * @return The configuration that the TaskManager was started with.
-	 */
-	Configuration getConfiguration();
+	private static final long serialVersionUID = 6248696963418276618L;
 
-	/**
-	 * Gets the list of temporary file directories.
-	 * 
-	 * @return The list of temporary file directories.
-	 */
-	String[] getTmpDirectories();
+	public PartitionException(String message) {
+		super(message);
+	}
+
+	public PartitionException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public PartitionException(Throwable cause) {
+		super(cause);
+	}
 }

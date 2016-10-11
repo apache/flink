@@ -16,26 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.runtime.taskexecutor.exceptions;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 
 /**
- * Interface to access {@link TaskManager} information.
+ * Exception indicating a task related problem on the {@link TaskExecutor}.
  */
-public interface TaskManagerRuntimeInfo {
+public class TaskException extends TaskManagerException {
 
-	/**
-	 * Gets the configuration that the TaskManager was started with.
-	 *
-	 * @return The configuration that the TaskManager was started with.
-	 */
-	Configuration getConfiguration();
+	private static final long serialVersionUID = 968001398103156856L;
 
-	/**
-	 * Gets the list of temporary file directories.
-	 * 
-	 * @return The list of temporary file directories.
-	 */
-	String[] getTmpDirectories();
+	public TaskException(String message) {
+		super(message);
+	}
+
+	public TaskException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public TaskException(Throwable cause) {
+		super(cause);
+	}
 }

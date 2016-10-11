@@ -21,7 +21,9 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,13 +34,13 @@ import java.io.File;
 /**
  * Configuration object for {@link TaskExecutor}.
  */
-public class TaskManagerConfiguration {
+public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerConfiguration.class);
 
 	private final int numberSlots;
 
-	private final String[] tmpDirPaths;
+	private final String[] tmpDirectories;
 
 	private final Time timeout;
 	// null indicates an infinite duration
@@ -49,12 +51,11 @@ public class TaskManagerConfiguration {
 
 	private final long cleanupInterval;
 
-	// TODO: remove necessity for complete configuration object
-	private final Configuration configuration;
+	private final UnmodifiableConfiguration configuration;
 
 	public TaskManagerConfiguration(
 		int numberSlots,
-		String[] tmpDirPaths,
+		String[] tmpDirectories,
 		Time timeout,
 		Time maxRegistrationDuration,
 		Time initialRegistrationPause,
@@ -64,22 +65,18 @@ public class TaskManagerConfiguration {
 		Configuration configuration) {
 
 		this.numberSlots = numberSlots;
-		this.tmpDirPaths = Preconditions.checkNotNull(tmpDirPaths);
+		this.tmpDirectories = Preconditions.checkNotNull(tmpDirectories);
 		this.timeout = Preconditions.checkNotNull(timeout);
 		this.maxRegistrationDuration = maxRegistrationDuration;
 		this.initialRegistrationPause = Preconditions.checkNotNull(initialRegistrationPause);
 		this.maxRegistrationPause = Preconditions.checkNotNull(maxRegistrationPause);
 		this.refusedRegistrationPause = Preconditions.checkNotNull(refusedRegistrationPause);
 		this.cleanupInterval = Preconditions.checkNotNull(cleanupInterval);
-		this.configuration = Preconditions.checkNotNull(configuration);
+		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
 	}
 
 	public int getNumberSlots() {
 		return numberSlots;
-	}
-
-	public String[] getTmpDirPaths() {
-		return tmpDirPaths;
 	}
 
 	public Time getTimeout() {
@@ -106,8 +103,14 @@ public class TaskManagerConfiguration {
 		return cleanupInterval;
 	}
 
+	@Override
 	public Configuration getConfiguration() {
 		return configuration;
+	}
+
+	@Override
+	public String[] getTmpDirectories() {
+		return tmpDirectories;
 	}
 
 	// --------------------------------------------------------------------------------------------

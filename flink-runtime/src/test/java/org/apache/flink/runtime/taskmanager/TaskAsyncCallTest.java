@@ -49,6 +49,7 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.SerializedValue;
 import org.junit.Before;
 import org.junit.Test;
@@ -174,12 +175,12 @@ public class TaskAsyncCallTest {
 			mock(IOManager.class),
 			networkEnvironment,
 			mock(BroadcastVariableManager.class),
-			mock(TaskManagerConnection.class),
+			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
 			libCache,
 			mock(FileCache.class),
-			new TaskManagerRuntimeInfo("localhost", new Configuration(), System.getProperty("java.io.tmpdir")),
+			new TestingTaskManagerRuntimeInfo(),
 			mock(TaskMetricGroup.class),
 			consumableNotifier,
 			partitionStateChecker,

@@ -16,26 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 
 /**
- * Interface to access {@link TaskManager} information.
+ * Exceptions thrown by operations on the {@link ExecutionGraph} by the {@link JobMaster}.
  */
-public interface TaskManagerRuntimeInfo {
+public class ExecutionGraphException extends JobManagerException {
 
-	/**
-	 * Gets the configuration that the TaskManager was started with.
-	 *
-	 * @return The configuration that the TaskManager was started with.
-	 */
-	Configuration getConfiguration();
+	private static final long serialVersionUID = -5439002256464886357L;
 
-	/**
-	 * Gets the list of temporary file directories.
-	 * 
-	 * @return The list of temporary file directories.
-	 */
-	String[] getTmpDirectories();
+	public ExecutionGraphException(String message) {
+		super(message);
+	}
+
+	public ExecutionGraphException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public ExecutionGraphException(Throwable cause) {
+		super(cause);
+	}
 }

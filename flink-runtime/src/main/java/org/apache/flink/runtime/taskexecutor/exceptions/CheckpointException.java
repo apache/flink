@@ -16,26 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.runtime.taskexecutor.exceptions;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 
 /**
- * Interface to access {@link TaskManager} information.
+ * Exception indicating a problem with checkpointing on the {@link TaskExecutor} side.
  */
-public interface TaskManagerRuntimeInfo {
+public class CheckpointException extends TaskManagerException {
 
-	/**
-	 * Gets the configuration that the TaskManager was started with.
-	 *
-	 * @return The configuration that the TaskManager was started with.
-	 */
-	Configuration getConfiguration();
+	private static final long serialVersionUID = 3366394086880327955L;
 
-	/**
-	 * Gets the list of temporary file directories.
-	 * 
-	 * @return The list of temporary file directories.
-	 */
-	String[] getTmpDirectories();
+	public CheckpointException(String message) {
+		super(message);
+	}
+
+	public CheckpointException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public CheckpointException(Throwable cause) {
+		super(cause);
+	}
 }

@@ -16,26 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 
-/**
- * Interface to access {@link TaskManager} information.
- */
-public interface TaskManagerRuntimeInfo {
+public interface CheckpointCoordinatorGateway extends RpcGateway {
 
-	/**
-	 * Gets the configuration that the TaskManager was started with.
-	 *
-	 * @return The configuration that the TaskManager was started with.
-	 */
-	Configuration getConfiguration();
+	void acknowledgeCheckpoint(
+		JobID jobID,
+		ExecutionAttemptID executionAttemptID,
+		long checkpointID,
+		CheckpointStateHandles checkpointStateHandles,
+		long synchronousDurationMillis,
+		long asynchronousDurationMillis,
+		long bytesBufferedInAlignment,
+		long alignmentDurationNanos);
 
-	/**
-	 * Gets the list of temporary file directories.
-	 * 
-	 * @return The list of temporary file directories.
-	 */
-	String[] getTmpDirectories();
+	void declineCheckpoint(
+		JobID jobID,
+		ExecutionAttemptID executionAttemptID,
+		long checkpointID,
+		long checkpointTimestamp);
 }

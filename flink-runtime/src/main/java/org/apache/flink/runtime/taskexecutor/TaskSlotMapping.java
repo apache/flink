@@ -16,26 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.util.Preconditions;
 
 /**
- * Interface to access {@link TaskManager} information.
+ * Mapping between a {@link Task} and its {@link TaskSlot}.
  */
-public interface TaskManagerRuntimeInfo {
+public class TaskSlotMapping {
 
-	/**
-	 * Gets the configuration that the TaskManager was started with.
-	 *
-	 * @return The configuration that the TaskManager was started with.
-	 */
-	Configuration getConfiguration();
+	private final Task task;
+	private final TaskSlot taskSlot;
 
-	/**
-	 * Gets the list of temporary file directories.
-	 * 
-	 * @return The list of temporary file directories.
-	 */
-	String[] getTmpDirectories();
+	public TaskSlotMapping(Task task, TaskSlot taskSlot) {
+		this.task = Preconditions.checkNotNull(task);
+		this.taskSlot = Preconditions.checkNotNull(taskSlot);
+	}
+
+	public Task getTask() {
+		return task;
+	}
+
+	public TaskSlot getTaskSlot() {
+		return taskSlot;
+	}
 }

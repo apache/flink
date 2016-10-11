@@ -48,6 +48,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.SerializedValue;
 import org.junit.After;
 import org.junit.Before;
@@ -97,7 +98,7 @@ public class TaskTest {
 	private ActorGateway listenerGateway;
 
 	private ActorGatewayTaskExecutionStateListener listener;
-	private ActorGatewayTaskManagerConnection taskManagerConnection;
+	private ActorGatewayTaskManagerActions taskManagerConnection;
 
 	private BlockingQueue<Object> taskManagerMessages;
 	private BlockingQueue<Object> jobManagerMessages;
@@ -113,7 +114,7 @@ public class TaskTest {
 		listenerGateway = new ForwardingActorGateway(listenerMessages);
 
 		listener = new ActorGatewayTaskExecutionStateListener(listenerGateway);
-		taskManagerConnection = new ActorGatewayTaskManagerConnection(taskManagerGateway);
+		taskManagerConnection = new ActorGatewayTaskManagerActions(taskManagerGateway);
 		
 		awaitLatch = new OneShotLatch();
 		triggerLatch = new OneShotLatch();
@@ -648,7 +649,7 @@ public class TaskTest {
 			checkpointResponder,
 			libCache,
 			mock(FileCache.class),
-			new TaskManagerRuntimeInfo("localhost", new Configuration(), System.getProperty("java.io.tmpdir")),
+			new TestingTaskManagerRuntimeInfo(),
 			mock(TaskMetricGroup.class),
 			consumableNotifier,
 			partitionStateChecker,
