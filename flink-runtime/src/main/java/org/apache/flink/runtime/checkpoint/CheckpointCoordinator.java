@@ -835,6 +835,10 @@ public class CheckpointCoordinator {
 		return checkpointIdCounter;
 	}
 
+	public long getCheckpointTimeout() {
+		return checkpointTimeout;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Periodic scheduling of checkpoints
 	// --------------------------------------------------------------------------------------------

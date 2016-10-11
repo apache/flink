@@ -100,7 +100,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		pathParams.put("jobid", "nonexistent");
 
 		try {
-			assertEquals("", handler.handleRequest(pathParams, queryParams, null));
+			assertEquals("", handler.handleJsonRequest(pathParams, queryParams, null));
 		} catch (Exception e) {
 			fail();
 		}
@@ -126,7 +126,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		queryParams.put("get", "");
 
 		try {
-			assertEquals("", handler.handleRequest(pathParams, queryParams, null));
+			assertEquals("", handler.handleJsonRequest(pathParams, queryParams, null));
 		} catch (Exception e) {
 			fail(e.getMessage());
 		}
@@ -136,7 +136,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		queryParams.put("get", "subindex.opname.abc.metric5");
 
 		try {
-			assertEquals("", handler.handleRequest(pathParams, queryParams, null));
+			assertEquals("", handler.handleJsonRequest(pathParams, queryParams, null));
 		} catch (Exception e) {
 			fail(e.getMessage());
 		}
@@ -146,7 +146,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		queryParams.put("get", "subindex.opname.abc.nonexistant");
 
 		try {
-			assertEquals("", handler.handleRequest(pathParams, queryParams, null));
+			assertEquals("", handler.handleJsonRequest(pathParams, queryParams, null));
 		} catch (Exception e) {
 			fail(e.getMessage());
 		}
