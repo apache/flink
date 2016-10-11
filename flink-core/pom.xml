@@ -80,6 +80,13 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- ASM is needed for type extraction -->
+		<dependency>
+			<groupId>org.ow2.asm</groupId>
+			<artifactId>asm-all</artifactId>
+			<version>${asm.version}</version>
+		</dependency>
+
 		<!-- test dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
