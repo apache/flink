@@ -18,27 +18,36 @@
 
 package org.apache.flink.test.streaming.api;
 
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.util.MathUtils;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.operators.async.AsyncCollector;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
-
+import org.apache.flink.util.MathUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase {
 
@@ -162,18 +171,19 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 		DataStream<Tuple2<Integer, NonSerializable>> input = env.addSource(new NonSerializableTupleSource(numElements));
 
+		FoldFunction<Tuple2<Integer, NonSerializable>, NonSerializable> function = new FoldFunction<Tuple2<Integer, NonSerializable>, NonSerializable>() {
+			private static final long serialVersionUID = 2705497830143608897L;
+
+			@Override
+			public NonSerializable fold(NonSerializable accumulator, Tuple2<Integer, NonSerializable> value) throws Exception {
+				return new NonSerializable(accumulator.value + value.f1.value);
+			}
+		};
+
 		input
 			.keyBy(0)
 			.fold(
-				new NonSerializable(42),
-				new FoldFunction<Tuple2<Integer, NonSerializable>, NonSerializable>() {
-					private static final long serialVersionUID = 2705497830143608897L;
-
-					@Override
-					public NonSerializable fold(NonSerializable accumulator, Tuple2<Integer, NonSerializable> value) throws Exception {
-						return new NonSerializable(accumulator.value + value.f1.value);
-					}
-			})
+				new NonSerializable(42), function)
 			.map(new MapFunction<NonSerializable, Integer>() {
 				private static final long serialVersionUID = 6906984044674568945L;
 
@@ -184,6 +194,20 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 			})
 			.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
 
+		FilterFunction<String> function2 = new FilterFunction<String>() {
+			@Override
+			public boolean filter(String value) throws Exception {
+				return false;
+			}
+		};
+
+		try {
+			new ObjectOutputStream(new ByteArrayOutputStream()).writeObject(function);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		StringBuilder builder = new StringBuilder();
 
 		for (int i = 0; i < numElements; i++) {
@@ -191,6 +215,64 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		}
 
 		expected1 = builder.toString();
+
+		env.execute();
+	}
+
+	@Test
+	public void testAsyncWaitOperator() throws Exception {
+		final int numElements = 10;
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Tuple2<Integer, NonSerializable>> input = env.addSource(new NonSerializableTupleSource(numElements)).setParallelism(1);
+
+		AsyncFunction<Tuple2<Integer, NonSerializable>, Integer> function = new AsyncFunction<Tuple2<Integer, NonSerializable>, Integer>() {
+			transient ExecutorService executorService;
+
+			@Override
+			public void asyncInvoke(final Tuple2<Integer, NonSerializable> input,
+									final AsyncCollector<Tuple2<Integer, NonSerializable>, Integer> collector) throws Exception {
+				this.executorService.submit(new Runnable() {
+					@Override
+					public void run() {
+						// wait for while to simulate async operation here
+						int sleep = (int) (new Random().nextFloat() * 1000);
+						try {
+							Thread.sleep(sleep);
+							List<Integer> ret = new ArrayList<>();
+							ret.add(input.f0+input.f0);
+							collector.collect(ret);
+						}
+						catch (InterruptedException e) {
+							collector.collect(new ArrayList<Integer>(0));
+						}
+					}
+				});
+			}
+
+			private void readObject(java.io.ObjectInputStream in)
+				throws IOException, ClassNotFoundException {
+				in.defaultReadObject();
+				executorService = Executors.newFixedThreadPool(numElements);
+			}
+		};
+
+		DataStream<Integer> orderedResult = AsyncDataStream.orderedWait(input, function, 2).setParallelism(1);
+		orderedResult.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE).setParallelism(1);
+
+		DataStream<Integer> unorderedResult = AsyncDataStream.unorderedWait(input, function, 2).setParallelism(1);
+		unorderedResult.writeAsText(resultPath2, FileSystem.WriteMode.OVERWRITE);
+
+		StringBuilder builder = new StringBuilder();
+
+		for (int i = 0; i < numElements; i++) {
+			builder.append(i+i + "\n");
+		}
+
+		expected1 = builder.toString();
+
+		expected2 = expected1;
 
 		env.execute();
 	}
