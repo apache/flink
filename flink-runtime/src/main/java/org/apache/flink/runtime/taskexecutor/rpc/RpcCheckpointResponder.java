@@ -51,6 +51,6 @@ public class RpcCheckpointResponder implements CheckpointResponder {
 
 	@Override
 	public void declineCheckpoint(JobID jobID, ExecutionAttemptID executionAttemptID, CheckpointMetaData checkpoint) {
-		checkpointCoordinatorGateway.declineCheckpoint(jobID, executionAttemptID, checkpoint);
+		checkpointCoordinatorGateway.declineCheckpoint(jobID, executionAttemptID, checkpoint.getCheckpointId());
 	}
 }

@@ -34,5 +34,5 @@ public interface CheckpointCoordinatorGateway extends RpcGateway {
 	void declineCheckpoint(
 			final JobID jobID,
 			final ExecutionAttemptID executionAttemptID,
-			final CheckpointMetaData checkpoint);
+			final long checkpointID);
 }
