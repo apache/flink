@@ -544,7 +544,7 @@ class DataSet(object):
     def partition_by_hash(self, *fields):
         f = None
         if len(fields) == 0:
-            f = lambda x: (x,)
+            raise ValueError("fields argument must not be empty.")
         if isinstance(fields[0], TYPES.FunctionType):
             f = lambda x: (fields[0](x),)
         if isinstance(fields[0], KeySelectorFunction):
