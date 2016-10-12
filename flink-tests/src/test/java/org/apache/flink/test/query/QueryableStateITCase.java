@@ -553,12 +553,13 @@ public class QueryableStateITCase extends TestLogger {
 							.mapTo(ClassTag$.MODULE$.<JobFound>apply(JobFound.class)),
 					deadline.timeLeft());
 
-			Throwable failureCause = ((ExecutionGraph)jobFound.executionGraph()).getFailureCause();
+			String failureCause = jobFound.executionGraph().getFailureCauseAsString();
 
-			assertTrue("Not instance of SuppressRestartsException", failureCause instanceof SuppressRestartsException);
-			assertTrue("Not caused by IllegalStateException", failureCause.getCause() instanceof IllegalStateException);
-			Throwable duplicateException = failureCause.getCause();
-			assertTrue("Exception does not contain registration name", duplicateException.getMessage().contains(queryName));
+			assertTrue("Not instance of SuppressRestartsException", failureCause.startsWith("org.apache.flink.runtime.execution.SuppressRestartsException"));
+			int causedByIndex = failureCause.indexOf("Caused by: ");
+			String subFailureCause = failureCause.substring(causedByIndex + "Caused by: ".length());
+			assertTrue("Not caused by IllegalStateException", subFailureCause.startsWith("java.lang.IllegalStateException"));
+			assertTrue("Exception does not contain registration name", subFailureCause.contains(queryName));
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
