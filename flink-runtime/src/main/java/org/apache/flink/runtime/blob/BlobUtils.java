@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 
 import java.io.EOFException;
@@ -73,7 +74,7 @@ public class BlobUtils {
 	 */
 	static File initStorageDirectory(String storageDirectory) {
 		File baseDir;
-		if (storageDirectory == null || storageDirectory.trim().isEmpty()) {
+		if (StringUtils.isNullOrWhitespaceOnly(storageDirectory)) {
 			baseDir = new File(System.getProperty("java.io.tmpdir"));
 		}
 		else {
@@ -81,10 +82,9 @@ public class BlobUtils {
 		}
 
 		File storageDir;
-		final int MAX_ATTEMPTS = 10;
-		int attempt;
 
-		for(attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+		final int MAX_ATTEMPTS = 10;
+		for(int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
 			storageDir = new File(baseDir, String.format(
 					"blobStore-%s", UUID.randomUUID().toString()));
 

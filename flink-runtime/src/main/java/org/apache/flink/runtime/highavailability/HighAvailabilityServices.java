@@ -19,10 +19,13 @@
 package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+
+import java.io.IOException;
 
 /**
  * This class gives access to all services needed for
@@ -72,4 +75,14 @@ public interface HighAvailabilityServices {
 	 * Gets the submitted job graph store for the job manager
 	 */
 	SubmittedJobGraphStore getSubmittedJobGraphStore() throws Exception;
+
+	/**
+	 * Gets the registry that holds information about whether jobs are currently running.
+	 */
+	RunningJobsRegistry getRunningJobsRegistry() throws Exception;
+
+	/**
+	 * Creates the BLOB store in which BLOBs are stored in a highly-available fashion.
+	 */
+	BlobStore createBlobStore() throws IOException;
 }

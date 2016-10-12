@@ -23,21 +23,23 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.state.CheckpointStateHandles;
 
+import java.util.UUID;
+
 public interface CheckpointCoordinatorGateway extends RpcGateway {
 
 	void acknowledgeCheckpoint(
-		JobID jobID,
-		ExecutionAttemptID executionAttemptID,
-		long checkpointID,
-		CheckpointStateHandles checkpointStateHandles,
-		long synchronousDurationMillis,
-		long asynchronousDurationMillis,
-		long bytesBufferedInAlignment,
-		long alignmentDurationNanos);
+			final JobID jobID,
+			final ExecutionAttemptID executionAttemptID,
+			final long checkpointID,
+			final CheckpointStateHandles checkpointStateHandles,
+			final long synchronousDurationMillis,
+			final long asynchronousDurationMillis,
+			final long bytesBufferedInAlignment,
+			final long alignmentDurationNanos);
 
 	void declineCheckpoint(
-		JobID jobID,
-		ExecutionAttemptID executionAttemptID,
-		long checkpointID,
-		long checkpointTimestamp);
+			final JobID jobID,
+			final ExecutionAttemptID executionAttemptID,
+			final long checkpointID,
+			final long checkpointTimestamp);
 }
