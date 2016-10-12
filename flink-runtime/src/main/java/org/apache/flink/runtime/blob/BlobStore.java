@@ -25,7 +25,7 @@ import java.io.File;
 /**
  * A blob store.
  */
-interface BlobStore {
+public interface BlobStore {
 
 	/**
 	 * Copies the local file to the blob store.
@@ -93,5 +93,4 @@ interface BlobStore {
 	 * Cleans up the store and deletes all blobs.
 	 */
 	void cleanUp();
-
 }

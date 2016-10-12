@@ -58,7 +58,7 @@ import static org.junit.Assert.assertFalse;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({Task.class, ResultPartitionWriter.class})
-@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
+@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*", "org.apache.log4j.*"})
 public class DataSinkTaskTest extends TaskTestBase {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(DataSinkTaskTest.class);

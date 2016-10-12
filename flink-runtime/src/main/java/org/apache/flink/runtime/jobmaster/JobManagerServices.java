@@ -19,13 +19,20 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.util.ExceptionUtils;
+
+import scala.concurrent.duration.FiniteDuration;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -40,34 +47,81 @@ public class JobManagerServices {
 
 	public final RestartStrategyFactory restartStrategyFactory;
 
-	public final SavepointStore savepointStore;
-
-	public final Time timeout;
-
-	public final JobManagerMetricGroup jobManagerMetricGroup;
+	public final Time rpcAskTimeout;
 
 	public JobManagerServices(
 			ExecutorService executorService,
 			BlobLibraryCacheManager libraryCacheManager,
 			RestartStrategyFactory restartStrategyFactory,
-			SavepointStore savepointStore,
-			Time timeout,
-			JobManagerMetricGroup jobManagerMetricGroup) {
+			Time rpcAskTimeout) {
 
 		this.executorService = checkNotNull(executorService);
 		this.libraryCacheManager = checkNotNull(libraryCacheManager);
 		this.restartStrategyFactory = checkNotNull(restartStrategyFactory);
-		this.savepointStore = checkNotNull(savepointStore);
-		this.timeout = checkNotNull(timeout);
-		this.jobManagerMetricGroup = checkNotNull(jobManagerMetricGroup);
+		this.rpcAskTimeout = checkNotNull(rpcAskTimeout);
+	}
+
+	/**
+	 * 
+	 * <p>This method makes sure all services are closed or shut down, even when an exception occurred
+	 * in the shutdown of one component. The first encountered exception is thrown, with successive
+	 * exceptions added as suppressed exceptions.
+	 * 
+	 * @throws Exception The first Exception encountered during shutdown.
+	 */
+	public void shutdown() throws Exception {
+		Throwable firstException = null;
+
+		try {
+			executorService.shutdownNow();
+		} catch (Throwable t) {
+			firstException = t;
+		}
+
+		try {
+			libraryCacheManager.shutdown();
+		}
+		catch (Throwable t) {
+			if (firstException == null) {
+				firstException = t;
+			} else {
+				firstException.addSuppressed(t);
+			}
+		}
+
+		if (firstException != null) {
+			ExceptionUtils.rethrowException(firstException, "Error while shutting down JobManager services");
+		}
 	}
 
 	// ------------------------------------------------------------------------
 	//  Creating the components from a configuration 
 	// ------------------------------------------------------------------------
 	
-	public static JobManagerServices fromConfiguration(Configuration config) throws Exception {
-		// TODO not yet implemented
-		return null;
+
+	public static JobManagerServices fromConfiguration(
+			Configuration config,
+			HighAvailabilityServices haServices) throws Exception {
+
+		final BlobServer blobServer = new BlobServer(config, haServices);
+
+		final long cleanupInterval = config.getLong(
+			ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
+			ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000;
+
+		final BlobLibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(blobServer, cleanupInterval);
+
+		final FiniteDuration timeout;
+		try {
+			timeout = AkkaUtils.getTimeout(config);
+		} catch (NumberFormatException e) {
+			throw new IllegalConfigurationException(AkkaUtils.formatDurationParingErrorMessage());
+		}
+
+		return new JobManagerServices(
+			new ForkJoinPool(),
+			libraryCacheManager,
+			RestartStrategyFactory.createRestartStrategyFactory(config),
+			Time.of(timeout.length(), timeout.unit()));
 	}
 }

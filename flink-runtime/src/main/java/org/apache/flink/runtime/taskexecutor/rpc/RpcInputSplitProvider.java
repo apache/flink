@@ -31,7 +31,10 @@ import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
+import java.util.UUID;
+
 public class RpcInputSplitProvider implements InputSplitProvider {
+	private final UUID jobMasterLeaderId;
 	private final JobMasterGateway jobMasterGateway;
 	private final JobID jobID;
 	private final JobVertexID jobVertexID;
@@ -39,11 +42,13 @@ public class RpcInputSplitProvider implements InputSplitProvider {
 	private final Time timeout;
 
 	public RpcInputSplitProvider(
+			UUID jobMasterLeaderId,
 			JobMasterGateway jobMasterGateway,
 			JobID jobID,
 			JobVertexID jobVertexID,
 			ExecutionAttemptID executionAttemptID,
 			Time timeout) {
+		this.jobMasterLeaderId = Preconditions.checkNotNull(jobMasterLeaderId);
 		this.jobMasterGateway = Preconditions.checkNotNull(jobMasterGateway);
 		this.jobID = Preconditions.checkNotNull(jobID);
 		this.jobVertexID = Preconditions.checkNotNull(jobVertexID);
@@ -56,7 +61,8 @@ public class RpcInputSplitProvider implements InputSplitProvider {
 	public InputSplit getNextInputSplit(ClassLoader userCodeClassLoader) throws InputSplitProviderException {
 		Preconditions.checkNotNull(userCodeClassLoader);
 
-		Future<SerializedInputSplit> futureInputSplit = jobMasterGateway.requestNextInputSplit(jobVertexID, executionAttemptID);
+		Future<SerializedInputSplit> futureInputSplit = jobMasterGateway.requestNextInputSplit(
+				jobMasterLeaderId, jobVertexID, executionAttemptID);
 
 		try {
 			SerializedInputSplit serializedInputSplit = futureInputSplit.get(timeout.getSize(), timeout.getUnit());
