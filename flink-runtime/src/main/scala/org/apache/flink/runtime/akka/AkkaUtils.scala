@@ -668,8 +668,8 @@ object AkkaUtils {
   }
 
   def formatDurationParingErrorMessage: String = {
-    "Duration format must be \"val unit\", where 'val' is a number and 'unit' is " + 
-      "(d|day)|(h|hour)|(min|minute)|s|sec|second)|(ms|milli|millisecond)|"+
+    "Duration format must be \"val unit\", where 'val' is a number and 'unit' is " +
+      "(d|day)|(h|hour)|(min|minute)|s|sec|second)|(ms|milli|millisecond)|" +
       "(µs|micro|microsecond)|(ns|nano|nanosecond)"
   }
   
