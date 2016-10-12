@@ -20,12 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import com.google.common.io.Files;
 
-import org.apache.commons.lang3.StringUtils;
-
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.IOUtils;
@@ -38,7 +33,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URI;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -47,25 +41,24 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>This is used in addition to the local blob storage for high availability.
  */
-class FileSystemBlobStore implements BlobStore {
+public class FileSystemBlobStore implements BlobStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileSystemBlobStore.class);
 
+	/** The file system in which blobs are stored */
+	private final FileSystem fileSystem;
+	
 	/** The base path of the blob store */
 	private final String basePath;
 
-	FileSystemBlobStore(Configuration config) throws IOException {
-		String storagePath = config.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
+	public FileSystemBlobStore(FileSystem fileSystem, String storagePath) throws IOException {
+		this.fileSystem = checkNotNull(fileSystem);
+		this.basePath = checkNotNull(storagePath) + "/blob";
 
-		if (storagePath == null || StringUtils.isBlank(storagePath)) {
-			throw new IllegalConfigurationException("Missing high-availability storage path for metadata." +
-					" Specify via configuration key '" + HighAvailabilityOptions.HA_STORAGE_PATH + "'.");
-		}
+		LOG.info("Creating highly available BLOB storage directory at {}", basePath);
 
-		this.basePath = storagePath + "/blob";
-
-		FileSystem.get(new Path(basePath).toUri()).mkdirs(new Path(basePath));
-		LOG.info("Created blob directory {}.", basePath);
+		fileSystem.mkdirs(new Path(basePath));
+		LOG.debug("Created highly available BLOB storage directory at {}", basePath);
 	}
 
 	// - Put ------------------------------------------------------------------
@@ -81,9 +74,7 @@ class FileSystemBlobStore implements BlobStore {
 	}
 
 	private void put(File fromFile, String toBlobPath) throws Exception {
-		try (OutputStream os = FileSystem.get(new URI(toBlobPath))
-				.create(new Path(toBlobPath), true)) {
-
+		try (OutputStream os = fileSystem.create(new Path(toBlobPath), true)) {
 			LOG.debug("Copying from {} to {}.", fromFile, toBlobPath);
 			Files.copy(fromFile, os);
 		}
@@ -106,16 +97,15 @@ class FileSystemBlobStore implements BlobStore {
 		checkNotNull(toFile, "File");
 
 		if (!toFile.exists() && !toFile.createNewFile()) {
-			throw new IllegalStateException("Failed to create target file to copy to");
+			throw new IOException("Failed to create target file to copy to");
 		}
 
-		final URI fromUri = new URI(fromBlobPath);
 		final Path fromPath = new Path(fromBlobPath);
 
-		if (FileSystem.get(fromUri).exists(fromPath)) {
-			try (InputStream is = FileSystem.get(fromUri).open(fromPath)) {
-				FileOutputStream fos = new FileOutputStream(toFile);
-
+		if (fileSystem.exists(fromPath)) {
+			try (InputStream is = fileSystem.open(fromPath);
+				FileOutputStream fos = new FileOutputStream(toFile))
+			{
 				LOG.debug("Copying from {} to {}.", fromBlobPath, toFile);
 				IOUtils.copyBytes(is, fos); // closes the streams
 			}
@@ -145,17 +135,16 @@ class FileSystemBlobStore implements BlobStore {
 	private void delete(String blobPath) {
 		try {
 			LOG.debug("Deleting {}.", blobPath);
-
-			FileSystem fs = FileSystem.get(new URI(blobPath));
+			
 			Path path = new Path(blobPath);
 
-			fs.delete(path, true);
+			fileSystem.delete(path, true);
 
 			// send a call to delete the directory containing the file. This will
 			// fail (and be ignored) when some files still exist.
 			try {
-				fs.delete(path.getParent(), false);
-				fs.delete(new Path(basePath), false);
+				fileSystem.delete(path.getParent(), false);
+				fileSystem.delete(new Path(basePath), false);
 			} catch (IOException ignored) {}
 		}
 		catch (Exception e) {
@@ -168,7 +157,7 @@ class FileSystemBlobStore implements BlobStore {
 		try {
 			LOG.debug("Cleaning up {}.", basePath);
 
-			FileSystem.get(new URI(basePath)).delete(new Path(basePath), true);
+			fileSystem.delete(new Path(basePath), true);
 		}
 		catch (Exception e) {
 			LOG.error("Failed to clean up recovery directory.");

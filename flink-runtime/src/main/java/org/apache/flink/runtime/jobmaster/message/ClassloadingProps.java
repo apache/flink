@@ -23,7 +23,6 @@ import org.apache.flink.runtime.blob.BlobKey;
 import java.io.Serializable;
 import java.net.URL;
 import java.util.Collection;
-import java.util.List;
 
 /**
  * The response of classloading props request to JobManager.
