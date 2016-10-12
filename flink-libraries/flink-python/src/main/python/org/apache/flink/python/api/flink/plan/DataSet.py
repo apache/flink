@@ -51,7 +51,7 @@ class CsvStringify(MapFunction):
 
     def _map(self, value):
         if isinstance(value, (tuple, list)):
-            return "(" + b", ".join([self._map(x) for x in value]) + ")"
+            return "(" + ", ".join([self._map(x) for x in value]) + ")"
         else:
             return str(value)
 
