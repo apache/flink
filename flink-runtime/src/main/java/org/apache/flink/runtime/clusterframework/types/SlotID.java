@@ -33,11 +33,11 @@ public class SlotID implements ResourceIDRetrievable, Serializable {
 	private final ResourceID resourceId;
 
 	/** The numeric id for single slot */
-	private final int slotId;
+	private final int slotNumber;
 
-	public SlotID(ResourceID resourceId, int slotId) {
+	public SlotID(ResourceID resourceId, int slotNumber) {
 		this.resourceId = checkNotNull(resourceId, "ResourceID must not be null");
-		this.slotId = slotId;
+		this.slotNumber = slotNumber;
 	}
 
 	// ------------------------------------------------------------------------
@@ -45,6 +45,10 @@ public class SlotID implements ResourceIDRetrievable, Serializable {
 	@Override
 	public ResourceID getResourceID() {
 		return resourceId;
+	}
+
+	public int getSlotNumber() {
+		return slotNumber;
 	}
 
 	// ------------------------------------------------------------------------
@@ -60,7 +64,7 @@ public class SlotID implements ResourceIDRetrievable, Serializable {
 
 		SlotID slotID = (SlotID) o;
 
-		if (slotId != slotID.slotId) {
+		if (slotNumber != slotID.slotNumber) {
 			return false;
 		}
 		return resourceId.equals(slotID.resourceId);
@@ -69,13 +73,13 @@ public class SlotID implements ResourceIDRetrievable, Serializable {
 	@Override
 	public int hashCode() {
 		int result = resourceId.hashCode();
-		result = 31 * result + slotId;
+		result = 31 * result + slotNumber;
 		return result;
 	}
 
 	@Override
 	public String toString() {
-		return resourceId + "_" + slotId;
+		return resourceId + "_" + slotNumber;
 	}
 
 	/**
