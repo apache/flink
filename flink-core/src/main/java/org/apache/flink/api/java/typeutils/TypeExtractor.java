@@ -382,7 +382,12 @@ public class TypeExtractor {
 		String functionName,
 		boolean allowMissing) {
 		try {
-			final LambdaExecutable exec = checkAndExtractLambda(function);
+			final LambdaExecutable exec;
+			try {
+				exec = checkAndExtractLambda(function);
+			} catch (TypeExtractionException e) {
+				throw new InvalidTypesException("Internal error occurred.", e);
+			}
 			if (exec != null) {
 				// check for lambda type erasure
 				validateLambdaGenericParameters(exec);
@@ -498,7 +503,12 @@ public class TypeExtractor {
 		String functionName,
 		boolean allowMissing) {
 		try {
-			final LambdaExecutable exec = checkAndExtractLambda(function);
+			final LambdaExecutable exec;
+			try {
+				exec = checkAndExtractLambda(function);
+			} catch (TypeExtractionException e) {
+				throw new InvalidTypesException("Internal error occurred.", e);
+			}
 			if (exec != null) {
 				// check for lambda type erasure
 				validateLambdaGenericParameters(exec);

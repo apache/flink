@@ -22,6 +22,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Function;
@@ -80,7 +81,7 @@ public class TypeExtractionUtils {
 		}
 	}
 
-	public static LambdaExecutable checkAndExtractLambda(Function function) {
+	public static LambdaExecutable checkAndExtractLambda(Function function) throws TypeExtractionException {
 		try {
 			// get serialized lambda
 			Object serializedLambda = null;
@@ -98,7 +99,7 @@ public class TypeExtractionUtils {
 							Class.forName("java.lang.invoke.SerializedLambda");
 						}
 						catch (Exception e) {
-							throw new UnsupportedOperationException("User code tries to use lambdas, but framework is running with a Java version < 8");
+							throw new TypeExtractionException("User code tries to use lambdas, but framework is running with a Java version < 8");
 						}
 						serializedLambda = serialVersion;
 						break;
@@ -143,10 +144,11 @@ public class TypeExtractionUtils {
 					}
 				}
 			}
-			throw new Exception("No lambda method found.");
+			throw new TypeExtractionException("No lambda method found.");
 		}
 		catch (Exception e) {
-			throw new RuntimeException("Could not extract lambda method out of function: " + e.getClass().getSimpleName() + " - " + e.getMessage(), e);
+			throw new TypeExtractionException("Could not extract lambda method out of function: " +
+				e.getClass().getSimpleName() + " - " + e.getMessage(), e);
 		}
 	}
 
@@ -157,9 +159,7 @@ public class TypeExtractionUtils {
 		List<Method> result = new ArrayList<>();
 		while (clazz != null) {
 			Method[] methods = clazz.getDeclaredMethods();
-			for (Method method : methods) {
-				result.add(method);
-			}
+			Collections.addAll(result, methods);
 			clazz = clazz.getSuperclass();
 		}
 		return result;
