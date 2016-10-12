@@ -17,9 +17,11 @@
  */
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 
@@ -34,6 +36,14 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 		extends AbstractStreamOperatorTestHarness<OUT> {
 
 	private final OneInputStreamOperator<IN, OUT> oneInputOperator;
+
+	public OneInputStreamOperatorTestHarness(
+			OneInputStreamOperator<IN, OUT> operator,
+			TypeSerializer<IN> typeSerializerIn) throws Exception {
+		this(operator, 1, 1, 0);
+
+		config.setTypeSerializerIn1(Preconditions.checkNotNull(typeSerializerIn));
+	}
 
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) throws Exception {
 		this(operator, 1, 1, 0);

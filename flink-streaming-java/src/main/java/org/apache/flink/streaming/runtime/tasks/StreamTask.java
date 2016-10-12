@@ -773,8 +773,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					keyGroupRange,
 					restoreStateHandles.getManagedKeyedState(),
 					getEnvironment().getTaskKvStateRegistry());
-
-			restoreStateHandles = null; // GC friendliness
 		} else {
 			keyedStateBackend = stateBackend.createKeyedStateBackend(
 					getEnvironment(),
@@ -1076,6 +1074,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					outStream.close();
 				}
 			}
+
 			nonPartitionedStates.add(stateHandle);
 		}
 
