@@ -17,9 +17,8 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.table.Row
-import org.apache.flink.streaming.api.windowing.windows.Window
 
 class CountAggregate extends Aggregate[Long] {
   private var countIndex: Int = _

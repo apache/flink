@@ -29,8 +29,8 @@ import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.tools.Frameworks.PlannerAction
 import org.apache.calcite.tools.RelBuilder.{AggCall, GroupKey}
 import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RelBuilder}
-import org.apache.flink.api.table.FlinkRelBuilder.NamedProperty
-import org.apache.flink.api.table.expressions.{NamedExpression, Property}
+import org.apache.flink.api.table.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.api.table.expressions.{NamedExpression, WindowProperty}
 import org.apache.flink.api.table.plan.logical.LogicalWindow
 import org.apache.flink.api.table.plan.logical.rel.LogicalWindowAggregate
 
@@ -56,7 +56,7 @@ class FlinkRelBuilder(
   def aggregate(
       window: LogicalWindow,
       groupKey: GroupKey,
-      namedProperties: Seq[NamedProperty],
+      namedProperties: Seq[NamedWindowProperty],
       aggCalls: Iterable[AggCall])
     : RelBuilder = {
     // build logical aggregate
@@ -113,6 +113,6 @@ object FlinkRelBuilder {
     *
     * Similar to [[RelBuilder.AggCall]] or [[RelBuilder.GroupKey]].
     */
-  case class NamedProperty(name: String, property: Property)
+  case class NamedWindowProperty(name: String, property: WindowProperty)
 
 }

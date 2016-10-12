@@ -550,7 +550,7 @@ case class WindowAggregate(
       window,
       relBuilder.groupKey(groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
       propertyExpressions.map {
-        case Alias(prop: Property, name) => prop.toNamedProperty(name)(relBuilder)
+        case Alias(prop: WindowProperty, name) => prop.toNamedWindowProperty(name)(relBuilder)
         case _ => throw new RuntimeException("This should never happen.")
       },
       aggregateExpressions.map {

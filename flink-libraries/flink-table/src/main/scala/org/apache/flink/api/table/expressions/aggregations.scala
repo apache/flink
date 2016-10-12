@@ -18,15 +18,11 @@
 package org.apache.flink.api.table.expressions
 
 import org.apache.calcite.rex.RexNode
-import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.sql._
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.typeutils.TypeCheckUtils
-import org.apache.flink.api.table.validate.{ValidationFailure, ValidationSuccess}
 
 abstract sealed class Aggregation extends UnaryExpression {
 

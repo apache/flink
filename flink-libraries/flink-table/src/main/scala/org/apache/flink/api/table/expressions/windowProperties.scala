@@ -21,15 +21,15 @@ package org.apache.flink.api.table.expressions
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
-import org.apache.flink.api.table.FlinkRelBuilder.NamedProperty
+import org.apache.flink.api.table.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.api.table.validate.{ValidationFailure, ValidationSuccess}
 
-abstract class Property(child: Expression) extends UnaryExpression {
+abstract class WindowProperty(child: Expression) extends UnaryExpression {
 
-  override def toString = s"Property($child)"
+  override def toString = s"WindowProperty($child)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
-    throw new UnsupportedOperationException("Property cannot be transformed to RexNode.")
+    throw new UnsupportedOperationException("WindowProperty cannot be transformed to RexNode.")
 
   override private[flink] def validateInput() =
     if (child.isInstanceOf[WindowReference]) {
@@ -38,18 +38,18 @@ abstract class Property(child: Expression) extends UnaryExpression {
       ValidationFailure("Child must be a window reference.")
     }
 
-  private[flink] def toNamedProperty(name: String)(implicit relBuilder: RelBuilder)
-    : NamedProperty = NamedProperty(name, this)
+  private[flink] def toNamedWindowProperty(name: String)(implicit relBuilder: RelBuilder)
+    : NamedWindowProperty = NamedWindowProperty(name, this)
 }
 
-case class WindowStart(child: Expression) extends Property(child) {
+case class WindowStart(child: Expression) extends WindowProperty(child) {
 
   override private[flink] def resultType = SqlTimeTypeInfo.TIMESTAMP
 
   override def toString: String = s"start($child)"
 }
 
-case class WindowEnd(child: Expression) extends Property(child) {
+case class WindowEnd(child: Expression) extends WindowProperty(child) {
 
   override private[flink] def resultType = SqlTimeTypeInfo.TIMESTAMP
 

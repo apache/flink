@@ -25,13 +25,13 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.{RelNode, RelShuttle}
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.api.table.FlinkRelBuilder.NamedProperty
+import org.apache.flink.api.table.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.api.table.FlinkTypeFactory
 import org.apache.flink.api.table.plan.logical.LogicalWindow
 
 class LogicalWindowAggregate(
     window: LogicalWindow,
-    namedProperties: Seq[NamedProperty],
+    namedProperties: Seq[NamedWindowProperty],
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     child: RelNode,
@@ -94,7 +94,7 @@ object LogicalWindowAggregate {
 
   def create(
       window: LogicalWindow,
-      namedProperties: Seq[NamedProperty],
+      namedProperties: Seq[NamedWindowProperty],
       aggregate: Aggregate)
     : LogicalWindowAggregate = {
 

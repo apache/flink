@@ -21,7 +21,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.expressions.{Asc, Expression, ExpressionParser, Ordering, UnresolvedAlias}
-import org.apache.flink.api.table.plan.RexNodeTranslator._
+import org.apache.flink.api.table.plan.ProjectionTranslator._
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
 

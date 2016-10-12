@@ -25,7 +25,7 @@ import org.apache.flink.util.Collector
   * Adds properties to the end of a row before it emits it to the final collector.
   * The collector assumes that the row has placeholders at the end that can be filled.
   */
-class PropertyCollector(properties: Array[PropertyRead[_ <: Any]]) extends Collector[Row] {
+class PropertyCollector(properties: Array[WindowPropertyRead[_ <: Any]]) extends Collector[Row] {
   var finalCollector: Collector[Row] = _
 
   override def collect(record: Row): Unit = {

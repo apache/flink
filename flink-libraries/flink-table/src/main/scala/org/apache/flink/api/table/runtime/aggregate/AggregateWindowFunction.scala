@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
 
 class AggregateWindowFunction(
-    propertyReads: Array[PropertyRead[_ <: Any]],
+    propertyReads: Array[WindowPropertyRead[_ <: Any]],
     groupReduceFunction: RichGroupReduceFunction[Row, Row])
   extends RichWindowFunction[Row, Row, Tuple, Window] {
 

@@ -18,10 +18,8 @@
 package org.apache.flink.api.table.runtime.aggregate
 
 import java.math.BigDecimal
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.Row
-import org.apache.flink.streaming.api.windowing.windows.Window
 
 abstract class MinAggregate[T](implicit ord: Ordering[T]) extends Aggregate[T] {
 

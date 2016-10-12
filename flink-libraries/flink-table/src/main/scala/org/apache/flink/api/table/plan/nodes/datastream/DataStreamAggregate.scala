@@ -24,7 +24,7 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.api.table.FlinkRelBuilder.NamedProperty
+import org.apache.flink.api.table.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.plan.nodes.FlinkAggregate
@@ -43,7 +43,7 @@ import scala.collection.JavaConverters._
 
 class DataStreamAggregate(
     window: LogicalWindow,
-    namedProperties: Seq[NamedProperty],
+    namedProperties: Seq[NamedWindowProperty],
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputNode: RelNode,
@@ -197,10 +197,10 @@ class DataStreamAggregate(
 
 object DataStreamAggregate {
 
-  private def transformToPropertyReads(namedProperties: Seq[Property])
-    : Array[PropertyRead[_ <: Any]] =  namedProperties.map {
-      case WindowStart(_) => new StartPropertyRead()
-      case WindowEnd(_) => new EndPropertyRead()
+  private def transformToPropertyReads(namedProperties: Seq[WindowProperty])
+    : Array[WindowPropertyRead[_ <: Any]] =  namedProperties.map {
+      case WindowStart(_) => new WindowStartRead()
+      case WindowEnd(_) => new WindowEndRead()
     }.toArray
 
   private def createKeyedWindowedStream(groupWindow: LogicalWindow, stream: KeyedStream[Row, Tuple])

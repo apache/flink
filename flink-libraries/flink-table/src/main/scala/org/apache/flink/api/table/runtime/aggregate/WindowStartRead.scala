@@ -23,13 +23,13 @@ import java.sql.Timestamp
 import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.streaming.api.windowing.windows.{TimeWindow, Window}
 
-class EndPropertyRead extends PropertyRead[Timestamp] {
+class WindowStartRead extends WindowPropertyRead[Timestamp] {
 
   private var ts: Timestamp = _
 
   override def extract(window: Window): Unit = window match {
     case timeWindow: TimeWindow =>
-      ts = SqlFunctions.internalToTimestamp(timeWindow.getEnd)
+      ts = SqlFunctions.internalToTimestamp(timeWindow.getStart)
     case _ =>
       ts = null
   }

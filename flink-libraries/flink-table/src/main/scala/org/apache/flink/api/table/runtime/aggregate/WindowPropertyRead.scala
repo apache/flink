@@ -18,21 +18,16 @@
 
 package org.apache.flink.api.table.runtime.aggregate
 
-import java.sql.Timestamp
+import org.apache.flink.streaming.api.windowing.windows.Window
 
-import org.apache.calcite.runtime.SqlFunctions
-import org.apache.flink.streaming.api.windowing.windows.{TimeWindow, Window}
+/**
+  * Base class for reading a window property. The property will be extracted once and
+  * can be read multiple times.
+  */
+trait WindowPropertyRead[T] extends Serializable {
 
-class StartPropertyRead extends PropertyRead[Timestamp] {
+  def extract(window: Window): Unit
 
-  private var ts: Timestamp = _
+  def get(): T
 
-  override def extract(window: Window): Unit = window match {
-    case timeWindow: TimeWindow =>
-      ts = SqlFunctions.internalToTimestamp(timeWindow.getStart)
-    case _ =>
-      ts = null
-  }
-
-  override def get(): Timestamp = ts
 }

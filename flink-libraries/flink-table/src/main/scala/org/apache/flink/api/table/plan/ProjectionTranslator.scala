@@ -24,7 +24,7 @@ import org.apache.flink.api.table.plan.logical.LogicalNode
 
 import scala.collection.mutable.ListBuffer
 
-object RexNodeTranslator {
+object ProjectionTranslator {
 
   /**
     * Extracts all aggregation and property expressions (zero, one, or more) from an expression,
@@ -41,7 +41,7 @@ object RexNodeTranslator {
         val aggCall = Alias(agg, name)
         val fieldExp = UnresolvedFieldReference(name)
         (fieldExp, List(aggCall), Nil)
-      case prop: Property =>
+      case prop: WindowProperty =>
         val name = tableEnv.createUniqueAttributeName()
         val propCall = Alias(prop, name)
         val fieldExp = UnresolvedFieldReference(name)
@@ -49,7 +49,7 @@ object RexNodeTranslator {
       case n @ Alias(agg: Aggregation, name) =>
         val fieldExp = UnresolvedFieldReference(name)
         (fieldExp, List(n), Nil)
-      case n @ Alias(prop: Property, name) =>
+      case n @ Alias(prop: WindowProperty, name) =>
         val fieldExp = UnresolvedFieldReference(name)
         (fieldExp, Nil, List(n))
       case l: LeafExpression =>

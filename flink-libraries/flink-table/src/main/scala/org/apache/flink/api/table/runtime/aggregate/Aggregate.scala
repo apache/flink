@@ -19,7 +19,6 @@ package org.apache.flink.api.table.runtime.aggregate
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.Row
-import org.apache.flink.streaming.api.windowing.windows.Window
 
 /**
  * The interface for all Flink aggregate functions, which expressed in terms of initiate(),

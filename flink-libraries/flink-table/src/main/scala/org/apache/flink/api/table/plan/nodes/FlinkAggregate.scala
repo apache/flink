@@ -20,7 +20,7 @@ package org.apache.flink.api.table.plan.nodes
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.flink.api.table.FlinkRelBuilder.NamedProperty
+import org.apache.flink.api.table.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil._
 
 import scala.collection.JavaConverters._
@@ -38,7 +38,7 @@ trait FlinkAggregate {
       grouping: Array[Int],
       rowType: RelDataType,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-      namedProperties: Seq[NamedProperty])
+      namedProperties: Seq[NamedWindowProperty])
     : String = {
 
     val inFields = inputType.getFieldNames.asScala
