@@ -23,8 +23,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.state.CheckpointStateHandles;
 
-import java.util.UUID;
-
 public interface CheckpointCoordinatorGateway extends RpcGateway {
 
 	void acknowledgeCheckpoint(
