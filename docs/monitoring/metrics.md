@@ -376,7 +376,6 @@ Flink exposes the following system metrics:
       <th class="text-left">Description</th>
     </tr>
   </thead>
-
   <tbody>
     <tr>
       <th rowspan="1"><strong>JobManager</strong></th>
@@ -475,52 +474,76 @@ Flink exposes the following system metrics:
       <td></td>
     </tr>
     <tr>
-      <tr>
-        <th rowspan="7"><strong>Task</strong></t>
-        <td>currentLowWatermark</td>
-        <td>The lowest watermark a task has received.</td>
-      </tr>
-      <tr>
-        <td>lastCheckpointDuration</td>
-        <td>The time it took to complete the last checkpoint.</td>
-      </tr>
-      <tr>
-        <td>lastCheckpointSize</td>
-        <td>The total size of the last checkpoint.</td>
-      </tr>
-      <tr>
-        <td>restartingTime</td>
-        <td>The time it took to restart the job.</td>
-      </tr>
-      <tr>
-        <td>numBytesInLocal</td>
-        <td>The total number of bytes this task has read from a local source.</td>
-      </tr>
-      <tr>
-        <td>numBytesInRemote</td>
-        <td>The total number of bytes this task has read from a remote source.</td>
-      </tr>
-      <tr>
-        <td>numBytesOut</td>
-        <td>The total number of bytes this task has emitted.</td>
-      </tr>
+      <th rowspan="7"><strong>Task</strong></th>
+      <td>currentLowWatermark</td>
+      <td>The lowest watermark a task has received.</td>
     </tr>
     <tr>
-      <tr>
-        <th rowspan="3"><strong>Operator</strong></th>
-        <td>numRecordsIn</td>
-        <td>The total number of records this operator has received.</td>
-      </tr>
-      <tr>
-        <td>numRecordsOut</td>
-        <td>The total number of records this operator has emitted.</td>
-      </tr>
-      <tr>
-        <td>numSplitsProcessed</td>
-        <td>The total number of InputSplits this data source has processed.</td>
-      </tr>
+      <td>lastCheckpointDuration</td>
+      <td>The time it took to complete the last checkpoint.</td>
+    </tr>
+    <tr>
+      <td>lastCheckpointSize</td>
+      <td>The total size of the last checkpoint.</td>
+    </tr>
+    <tr>
+      <td>restartingTime</td>
+      <td>The time it took to restart the job.</td>
+    </tr>
+    <tr>
+      <td>numBytesInLocal</td>
+      <td>The total number of bytes this task has read from a local source.</td>
+    </tr>
+    <tr>
+      <td>numBytesInRemote</td>
+      <td>The total number of bytes this task has read from a remote source.</td>
+    </tr>
+    <tr>
+      <td>numBytesOut</td>
+      <td>The total number of bytes this task has emitted.</td>
+    </tr>
+    <tr>
+      <th rowspan="4"><strong>Operator</strong></th>
+      <td>numRecordsIn</td>
+      <td>The total number of records this operator has received.</td>
+    </tr>
+    <tr>
+      <td>numRecordsOut</td>
+      <td>The total number of records this operator has emitted.</td>
+    </tr>
+    <tr>
+      <td>numSplitsProcessed</td>
+      <td>The total number of InputSplits this data source has processed (if the operator is a data source).</td>
+    </tr>
+    <tr>
+      <td>latency</td>
+      <td>A latency gauge reporting the latency distribution from the different sources.</td>
     </tr>
   </tbody>
 </table>
+
+
+### Latency tracking
+
+Flink allows to track the latency of records traveling through the system. To enable the latency tracking
+a `latencyTrackingInterval` (in milliseconds) has to be set to a positive value in the `ExecutionConfig`.
+
+At the `latencyTrackingInterval`, the sources will periodically emit a special record, called a `LatencyMarker`.
+The marker contains a timestamp from the time when the record has been emitted at the sources.
+Latency markers can not overtake regular user records, thus if records are queuing up in front of an operator, 
+it will add to the latency tracked by the marker.
+
+Note that the latency markers are not accounting for the time user records spend in operators as they are
+bypassing them. In particular the markers are not accounting for the time records spend for example in window buffers.
+Only if operators are not able to accept new records, thus they are queuing up, the latency measured using
+the markers will reflect that.
+
+All intermediate operators keep a list of the last `n` latencies from each source to compute 
+a latency distribution.
+The sink operators keep a list from each source, and each parallel source instance to allow detecting 
+latency issues caused by individual machines.
+
+Currently, Flink assumes that the clocks of all machines in the cluster are in sync. We recommend setting
+up an automated clock synchronisation service (like NTP) to avoid false latency results.
 
 {% top %}

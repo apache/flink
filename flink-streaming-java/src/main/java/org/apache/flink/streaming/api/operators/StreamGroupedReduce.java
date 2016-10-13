@@ -70,5 +70,4 @@ public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, Reduc
 		output.emitWatermark(mark);
 	}
 
-
 }

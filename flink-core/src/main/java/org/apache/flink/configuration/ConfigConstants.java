@@ -868,6 +868,10 @@ public final class ConfigConstants {
 	/** The scope format string that is applied to all metrics scoped to an operator. */
 	public static final String METRICS_SCOPE_NAMING_OPERATOR = "metrics.scope.operator";
 
+	/** The number of measured latencies to maintain at each operator */
+	public static final String METRICS_LATENCY_HISTORY_SIZE = "metrics.latency.history-size";
+
+
 	// ------------------------------------------------------------------------
 	//                            Default Values
 	// ------------------------------------------------------------------------
@@ -1279,6 +1283,11 @@ public final class ConfigConstants {
 
 	/** Default retry delay on location lookup failures. */
 	public static final int DEFAULT_QUERYABLE_STATE_CLIENT_LOOKUP_RETRY_DELAY = 1000;
+
+	// ----------------------------- Metrics ----------------------------
+
+	/** The default number of measured latencies to maintain at each operator */
+	public static final int DEFAULT_METRICS_LATENCY_HISTORY_SIZE = 128;
 
 	// ----------------------------- Environment Variables ----------------------------
 

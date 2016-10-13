@@ -40,7 +40,6 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 
 import java.io.IOException;
@@ -97,7 +96,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			StatefulTask checkpointedTask,
 			CheckpointingMode checkpointMode,
 			IOManager ioManager,
-			boolean enableWatermarkMultiplexing) throws IOException {
+			boolean enableMultiplexing) throws IOException {
 		
 		final InputGate inputGate = InputGateUtil.createInputGate(inputGates1, inputGates2);
 
@@ -115,24 +114,24 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			this.barrierHandler.registerCheckpointEventHandler(checkpointedTask);
 		}
 		
-		if (enableWatermarkMultiplexing) {
-			MultiplexingStreamRecordSerializer<IN1> ser = new MultiplexingStreamRecordSerializer<IN1>(inputSerializer1);
-			this.deserializationDelegate1 = new NonReusingDeserializationDelegate<StreamElement>(ser);
+		if (enableMultiplexing) {
+			MultiplexingStreamRecordSerializer<IN1> ser = new MultiplexingStreamRecordSerializer<>(inputSerializer1);
+			this.deserializationDelegate1 = new NonReusingDeserializationDelegate<>(ser);
 		}
 		else {
-			StreamRecordSerializer<IN1> ser = new StreamRecordSerializer<IN1>(inputSerializer1);
+			StreamRecordSerializer<IN1> ser = new StreamRecordSerializer<>(inputSerializer1);
 			this.deserializationDelegate1 = (DeserializationDelegate<StreamElement>)
-					(DeserializationDelegate<?>) new NonReusingDeserializationDelegate<StreamRecord<IN1>>(ser);
+					(DeserializationDelegate<?>) new NonReusingDeserializationDelegate<>(ser);
 		}
 		
-		if (enableWatermarkMultiplexing) {
-			MultiplexingStreamRecordSerializer<IN2> ser = new MultiplexingStreamRecordSerializer<IN2>(inputSerializer2);
-			this.deserializationDelegate2 = new NonReusingDeserializationDelegate<StreamElement>(ser);
+		if (enableMultiplexing) {
+			MultiplexingStreamRecordSerializer<IN2> ser = new MultiplexingStreamRecordSerializer<>(inputSerializer2);
+			this.deserializationDelegate2 = new NonReusingDeserializationDelegate<>(ser);
 		}
 		else {
-			StreamRecordSerializer<IN2> ser = new StreamRecordSerializer<IN2>(inputSerializer2);
+			StreamRecordSerializer<IN2> ser = new StreamRecordSerializer<>(inputSerializer2);
 			this.deserializationDelegate2 = (DeserializationDelegate<StreamElement>)
-					(DeserializationDelegate<?>) new NonReusingDeserializationDelegate<StreamRecord<IN2>>(ser);
+					(DeserializationDelegate<?>) new NonReusingDeserializationDelegate<>(ser);
 		}
 
 		// Initialize one deserializer per input channel
@@ -185,7 +184,13 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 					if (currentChannel < numInputChannels1) {
 						StreamElement recordOrWatermark = deserializationDelegate1.getInstance();
 						if (recordOrWatermark.isWatermark()) {
-							handleWatermark(streamOperator, (Watermark) recordOrWatermark, currentChannel, lock);
+							handleWatermark(streamOperator, recordOrWatermark.asWatermark(), currentChannel, lock);
+							continue;
+						}
+						else if (recordOrWatermark.isLatencyMarker()) {
+							synchronized (lock) {
+								streamOperator.processLatencyMarker1(recordOrWatermark.asLatencyMarker());
+							}
 							continue;
 						}
 						else {
@@ -201,6 +206,12 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 						StreamElement recordOrWatermark = deserializationDelegate2.getInstance();
 						if (recordOrWatermark.isWatermark()) {
 							handleWatermark(streamOperator, recordOrWatermark.asWatermark(), currentChannel, lock);
+							continue;
+						}
+						else if (recordOrWatermark.isLatencyMarker()) {
+							synchronized (lock) {
+								streamOperator.processLatencyMarker2(recordOrWatermark.asLatencyMarker());
+							}
 							continue;
 						}
 						else {
