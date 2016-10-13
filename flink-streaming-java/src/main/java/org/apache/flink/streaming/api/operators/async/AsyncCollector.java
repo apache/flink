@@ -73,8 +73,9 @@ public class AsyncCollector<IN, OUT> {
 	 * @throws RuntimeException RuntimeException wrapping errors from user codes.
 	 */
 	public List<OUT> getResult() throws RuntimeException {
-		if (error != null)
+		if (error != null) {
 			throw new RuntimeException(error);
+		}
 		return result;
 	}
 

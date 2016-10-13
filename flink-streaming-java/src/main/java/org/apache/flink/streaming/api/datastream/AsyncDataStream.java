@@ -42,8 +42,8 @@ public class AsyncDataStream {
 	private static final int DEFAULT_BUFFER_SIZE = 100;
 
 	private static <IN, OUT> SingleOutputStreamOperator<OUT> addOperator(DataStream<IN> in,
-																		 AsyncFunction<IN, OUT> func,
-																		 int bufSize, OutputMode mode) {
+																		AsyncFunction<IN, OUT> func,
+																		int bufSize, OutputMode mode) {
 		TypeInformation<OUT> outTypeInfo =
 			TypeExtractor.getUnaryOperatorReturnType((Function) func, AsyncFunction.class, false,
 				true, in.getType(), Utils.getCallLocationName(), true);
@@ -77,13 +77,13 @@ public class AsyncDataStream {
 	 * @return A new {@link SingleOutputStreamOperator}.
 	 */
 	public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWait(DataStream<IN> in,
-																		  AsyncFunction<IN, OUT> func,
-																		  int bufSize) {
+																		AsyncFunction<IN, OUT> func,
+																		int bufSize) {
 		return addOperator(in, func, bufSize, OutputMode.UNORDERED);
 	}
 
 	public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWait(DataStream<IN> in,
-																		  AsyncFunction<IN, OUT> func) {
+																		AsyncFunction<IN, OUT> func) {
 		return addOperator(in, func, DEFAULT_BUFFER_SIZE, OutputMode.UNORDERED);
 	}
 

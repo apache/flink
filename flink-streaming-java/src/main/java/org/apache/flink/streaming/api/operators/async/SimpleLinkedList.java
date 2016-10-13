@@ -44,10 +44,12 @@ public class SimpleLinkedList<E> {
 		final Node<E> l = last;
 		final Node<E> newNode = new Node<>(l, e, null);
 		last = newNode;
-		if (l == null)
+		if (l == null) {
 			first = newNode;
-		else
+		}
+		else {
 			l.next = newNode;
+		}
 		size++;
 
 		return newNode;
@@ -182,8 +184,9 @@ public class SimpleLinkedList<E> {
 	}
 
 	private void checkElementIndex(int index) {
-		if (!isElementIndex(index))
+		if (!isElementIndex(index)) {
 			throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
+		}
 	}
 
 	/**

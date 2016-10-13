@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.operators.async;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.operators.Output;
@@ -26,6 +25,7 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +63,7 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	 */
 	private Map<AsyncCollector<IN, OUT>, StreamElement> collectorToStreamElement = new HashMap<>();
 	/**
-	 * A hash map keeping {@link AsyncCollector} and their node references in queue.
+	 * A hash map keeping {@link AsyncCollector} and their node references in the #queue.
 	 */
 	private Map<AsyncCollector<IN, OUT>, SimpleLinkedList.Node> collectorToQueue = new HashMap<>();
 
@@ -111,7 +111,7 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	/**
 	 * Add an {@link StreamRecord} into the buffer. A new {@link AsyncCollector} will be created and returned
 	 * corresponding to the input StreamRecord.
-	 * </p>
+	 * <p>
 	 * If buffer is full, caller will wait until new space is available.
 	 *
 	 * @param record StreamRecord
@@ -129,8 +129,9 @@ public class AsyncCollectorBuffer<IN, OUT> {
 			}
 
 			// propagate error to the main thread
-			if (error != null)
+			if (error != null) {
 				throw error;
+			}
 
 			AsyncCollector<IN, OUT> collector = new AsyncCollector(this);
 
@@ -146,6 +147,7 @@ public class AsyncCollectorBuffer<IN, OUT> {
 
 	/**
 	 * Add a {@link Watermark} into queue. A new AsyncCollector will be created and returned.
+	 * <p>
 	 * If queue is full, caller will be blocked here.
 	 *
 	 * @param watermark Watermark
@@ -161,8 +163,9 @@ public class AsyncCollectorBuffer<IN, OUT> {
 			while (queue.size() >= bufferSize)
 				notFull.await();
 
-			if (error != null)
+			if (error != null) {
 				throw error;
+			}
 
 			AsyncCollector<IN, OUT> collector = new AsyncCollector(this, true);
 
@@ -180,7 +183,7 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	}
 
 	/**
-	 * Notify the Emitter Thread that a AsyncCollector has completed.
+	 * Notify the Emitter Thread that an AsyncCollector has completed.
 	 *
 	 * @param collector Completed AsyncCollector
 	 */
@@ -188,8 +191,9 @@ public class AsyncCollectorBuffer<IN, OUT> {
 		try {
 			lock.lock();
 
-			if (mode == AsyncDataStream.OutputMode.UNORDERED)
+			if (mode == AsyncDataStream.OutputMode.UNORDERED) {
 				finishedCollectors.add(collector);
+			}
 
 			taskDone.signal();
 		}
@@ -212,8 +216,9 @@ public class AsyncCollectorBuffer<IN, OUT> {
 			while (queue.size() != 0)
 				isEmpty.await();
 
-			if (error != null)
+			if (error != null) {
 				throw error;
+			}
 		}
 		finally {
 			lock.unlock();
@@ -225,17 +230,20 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	}
 
 	public void stopEmitterThread() {
-		if (emitter != null)
+		if (emitter != null) {
 			emitter.stop();
+		}
 
-		if (emitThread != null)
+		if (emitThread != null) {
 			emitThread.interrupt();
+		}
 	}
 
 	/**
 	 * Get all StreamElements in the AsyncCollector queue.
-	 *
-	 * Note checkpoint thread or main thread will hold the lock if this method is called.
+	 * <p>
+	 * Emitter Thread can not output records and will wait for a while due to isCheckpointing flag
+	 * until doing checkpoint has done.
 	 *
 	 * @return A List containing StreamElements.
 	 */
@@ -243,6 +251,7 @@ public class AsyncCollectorBuffer<IN, OUT> {
 		try {
 			lock.lock();
 
+			// stop emitter thread
 			isCheckpointing = true;
 
 			List<StreamElement> ret = new ArrayList<>();
@@ -283,7 +292,11 @@ public class AsyncCollectorBuffer<IN, OUT> {
 				throw new RuntimeException("No input stream record or watermark for current AsyncCollector: "+collector);
 			}
 
-			if (element.isRecord() && (result != null)) {
+			if (element.isRecord()) {
+				if (result == null) {
+					throw new RuntimeException("Result for stream record "+element+" is null");
+				}
+
 				timestampedCollector.setTimestamp(element.asRecord());
 				for (OUT val : result) {
 					timestampedCollector.collect(val);
@@ -300,14 +313,15 @@ public class AsyncCollectorBuffer<IN, OUT> {
 		}
 
 		/**
-		 * Emit results from the finished head collector and other finished ones next to its previous finished collector.
+		 * Emit results from the finished head collector and its following finished ones.
 		 */
 		private void orderedProcess() {
 			while (queue.size() > 0) {
 				try {
 					AsyncCollector collector = queue.get(0);
-					if (!collector.isDone())
+					if (!collector.isDone()) {
 						break;
+					}
 
 					output(collector);
 
@@ -389,23 +403,28 @@ public class AsyncCollectorBuffer<IN, OUT> {
 			}
 
 			// check head element of the queue
-			if (collectorToStreamElement.get(queue.get(0)).isWatermark())
+			if (collectorToStreamElement.get(queue.get(0)).isWatermark()) {
 				return false;
+			}
 
 			if (mode == AsyncDataStream.OutputMode.UNORDERED) {
 				// no finished async collector...
-				if (finishedCollectors.size() == 0)
+				if (finishedCollectors.size() == 0) {
 					return true;
-				else
+				}
+				else {
 					return false;
+				}
 			}
 			else {
 				// for ORDERED mode, make sure the first collector in the queue has been done.
 				AsyncCollector collector = queue.get(0);
-				if (collector.isDone() == false)
+				if (collector.isDone() == false) {
 					return true;
-				else
+				}
+				else {
 					return false;
+				}
 			}
 		}
 
@@ -425,10 +444,12 @@ public class AsyncCollectorBuffer<IN, OUT> {
 						while (nothingToDo())
 							taskDone.await();
 
-						if (mode == AsyncDataStream.OutputMode.ORDERED)
+						if (mode == AsyncDataStream.OutputMode.ORDERED) {
 							orderedProcess();
-						else
+						}
+						else {
 							unorderedProcess();
+						}
 					}
 				}
 				catch (InterruptedException e) {

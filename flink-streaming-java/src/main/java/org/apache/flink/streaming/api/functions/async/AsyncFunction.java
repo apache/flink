@@ -26,6 +26,15 @@ import java.io.Serializable;
 /**
  * A function to trigger Async I/O operation.
  * <p>
+ * For each #asyncInvoke, an async io operation can be triggered, and once it has been done,
+ * the result can be collected by calling {@link AsyncCollector#collect}. For each async
+ * operations, their contexts are buffered in the operator immediately after invoking
+ * #asyncInvoke, leading to no blocking for each stream input as long as internal buffer is not full.
+ * <p>
+ * {@link AsyncCollector} can be passed into callbacks or futures provided by async client to
+ * fetch result data. Any error can also be propagate to the operator by {@link AsyncCollector#collect(Throwable)}.
+ *
+ * <p>
  * Typical usage for callback:
  * <pre>{@code
  * public class HBaseAsyncFunc implements AsyncFunction<String, String> {
@@ -38,6 +47,7 @@ import java.io.Serializable;
  * }
  * }
  * </pre>
+ *
  * <p>
  * Typical usage for {@link com.google.common.util.concurrent.ListenableFuture}
  * <pre>{@code

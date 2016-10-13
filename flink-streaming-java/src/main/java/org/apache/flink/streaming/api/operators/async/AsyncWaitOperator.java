@@ -37,8 +37,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -49,8 +47,6 @@ public class AsyncWaitOperator<IN, OUT>
 	extends AbstractUdfStreamOperator<OUT, AsyncFunction<IN, OUT>>
 	implements OneInputStreamOperator<IN, OUT>
 {
-	private static final Logger LOG = LoggerFactory.getLogger(AsyncWaitOperator.class);
-
 	private final int DEFAULT_BUFFER_SIZE = 1000;
 
 	private static final long serialVersionUID = 1L;
@@ -74,7 +70,7 @@ public class AsyncWaitOperator<IN, OUT>
 	}
 
 	public void setBufferSize(int size) {
-		Preconditions.checkArgument(size > 0, "The number of concurrent async operation should not be less than 0.");
+		Preconditions.checkArgument(size > 0, "The number of concurrent async operation should be greater than 0.");
 		bufferSize = size;
 	}
 
@@ -121,22 +117,21 @@ public class AsyncWaitOperator<IN, OUT>
 	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
 		List<StreamElement> elements = buffer.getStreamElementsInBuffer();
 
-		// LOG.info("number of elements in buffer: {}", elements.size());
 		serializeStreamElements(elements, out);
 	}
 
 	@Override
 	public void restoreState(FSDataInputStream in) throws Exception {
 		List<StreamElement> input = deserializeStreamElements(in);
-		int num = 0;
+
 		for (StreamElement element : input) {
-			num += 1;
-			if (element.isRecord())
+			if (element.isRecord()) {
 				processElement(element.<IN>asRecord());
-			else
+			}
+			else {
 				processWatermark(element.asWatermark());
+			}
 		}
-		// LOG.info("number of restored stream elements: {}", num);
 	}
 
 	@Override
@@ -155,8 +150,9 @@ public class AsyncWaitOperator<IN, OUT>
 	}
 
 	private void serializeStreamElements(List<StreamElement> input,
-										 FSDataOutputStream stream) throws IOException {
+										FSDataOutputStream stream) throws IOException {
 		stream.write(input.size());
+
 		for (StreamElement element : input) {
 			if (element.isRecord()) {
 				stream.write(1);
@@ -168,38 +164,45 @@ public class AsyncWaitOperator<IN, OUT>
 				outputSerializer.writeLong(record.getTimestamp());
 				outputSerializer.writeBoolean(record.hasTimestamp());
 
-				stream.write(outputSerializer.getByteArray());
+				stream.write(outputSerializer.getCopyOfBuffer());
 			}
 			else {
 				stream.write(0);
 
 				Watermark watermark = element.asWatermark();
+
 				outputSerializer.clear();
 				outputSerializer.writeLong(watermark.getTimestamp());
-				stream.write(outputSerializer.getByteArray());
+
+				stream.write(outputSerializer.getCopyOfBuffer());
 			}
 		}
 	}
 
 	private List<StreamElement> deserializeStreamElements(FSDataInputStream stream) throws IOException {
 		DataInputViewStreamWrapper wrapper = new DataInputViewStreamWrapper(stream);
+
 		int size = wrapper.read();
+
 		List<StreamElement> ret = new ArrayList<>(size);
 		for (int i = 0; i < size; ++i) {
 			int flag = wrapper.read();
+
 			if (flag == 1) {
 				IN val = inTypeSerializer.deserialize(wrapper);
 				long ts = wrapper.readLong();
 				boolean hasTS = wrapper.readBoolean();
 
 				StreamRecord<IN> record = new StreamRecord<>(val, ts);
-				if (!hasTS)
+				if (!hasTS) {
 					record.eraseTimestamp();
+				}
 
 				ret.add(record);
 			}
 			else {
 				long ts = wrapper.readLong();
+
 				ret.add(new Watermark(ts));
 			}
 		}

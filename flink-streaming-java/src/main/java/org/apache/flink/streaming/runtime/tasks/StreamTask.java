@@ -602,12 +602,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				final long startOfSyncPart = System.nanoTime();
 
-				// Since both state checkpointing and downstream barrier emission occurs in this
-				// lock scope, they are an atomic operation regardless of the order in which they occur.
-				// Given this, we immediately emit the checkpoint barriers, so the downstream operators
-				// can start their checkpoint work as soon as possible
-				operatorChain.broadcastCheckpointBarrier(checkpointId, timestamp);
-
 				// now draw the state snapshot
 				final StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
 
@@ -678,6 +672,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						new ChainedStateHandle<>(operatorStates);
 
 				LOG.debug("Finished synchronous checkpoints for checkpoint {} on task {}", checkpointId, getName());
+
+				// broadcast barriers after snapshot operators' states.
+				operatorChain.broadcastCheckpointBarrier(checkpointId, timestamp);
 
 				final long syncEndNanos = System.nanoTime();
 				final long syncDurationMillis = (syncEndNanos - startOfSyncPart) / 1_000_000;
