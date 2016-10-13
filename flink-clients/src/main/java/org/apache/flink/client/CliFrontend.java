@@ -39,6 +39,7 @@ import org.apache.flink.client.cli.StopOptions;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -826,6 +827,8 @@ public class CliFrontend {
 		JobSubmissionResult result;
 		try {
 			result = client.run(program, parallelism);
+		} catch (ProgramParametrizationException e) {
+			return handleParametrizationException(e);
 		} catch (ProgramInvocationException e) {
 			return handleError(e);
 		} finally {
@@ -971,6 +974,20 @@ public class CliFrontend {
 		System.out.println(e.getMessage());
 		System.out.println();
 		System.out.println("Use the help option (-h or --help) to get help on the command.");
+		return 1;
+	}
+
+	/**
+	 * Displays an optional exception message for incorrect program parametrization.
+	 *
+	 * @param e The exception to display.
+	 * @return The return code for the process.
+	 */
+	private int handleParametrizationException(ProgramParametrizationException e) {
+		String message = e.getMessage();
+		if (message != null) {
+			System.err.println(message);
+		}
 		return 1;
 	}
 
