@@ -19,6 +19,7 @@
 package org.apache.flink.graph.examples;
 
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -27,11 +28,12 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphCsvReader;
 import org.apache.flink.graph.asm.simple.undirected.Simplify;
-import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
 import org.apache.flink.graph.asm.translate.TranslateGraphIds;
+import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
@@ -62,24 +64,29 @@ public class JaccardIndex {
 
 	public static final boolean DEFAULT_CLIP_AND_FLIP = true;
 
-	private static void printUsage() {
-		System.out.println(WordUtils.wrap("The Jaccard Index measures the similarity between vertex" +
-			" neighborhoods and is computed as the number of shared neighbors divided by the number of" +
-			" distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all neighbors are" +
-			" shared).", 80));
-		System.out.println();
-		System.out.println(WordUtils.wrap("This algorithm returns 4-tuples containing two vertex IDs, the" +
-			" number of shared neighbors, and the number of distinct neighbors.", 80));
-		System.out.println();
-		System.out.println("usage: JaccardIndex --input <csv | rmat [options]> --output <print | hash | csv [options]>");
-		System.out.println();
-		System.out.println("options:");
-		System.out.println("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
-		System.out.println("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]");
-		System.out.println();
-		System.out.println("  --output print");
-		System.out.println("  --output hash");
-		System.out.println("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]");
+	private static String getUsage(String message) {
+		return new StrBuilder()
+			.appendNewLine()
+			.appendln(WordUtils.wrap("The Jaccard Index measures the similarity between vertex" +
+				" neighborhoods and is computed as the number of shared neighbors divided by the number of" +
+				" distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all neighbors are" +
+				" shared).", 80))
+			.appendNewLine()
+			.appendln(WordUtils.wrap("This algorithm returns 4-tuples containing two vertex IDs, the" +
+				" number of shared neighbors, and the number of distinct neighbors.", 80))
+			.appendNewLine()
+			.appendln("usage: JaccardIndex --input <csv | rmat [options]> --output <print | hash | csv [options]>")
+			.appendNewLine()
+			.appendln("options:")
+			.appendln("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]")
+			.appendln("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]")
+			.appendNewLine()
+			.appendln("  --output print")
+			.appendln("  --output hash")
+			.appendln("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]")
+			.appendNewLine()
+			.appendln("Usage error: " + message)
+			.toString();
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -123,8 +130,7 @@ public class JaccardIndex {
 					} break;
 
 					default:
-						printUsage();
-						return;
+						throw new ProgramParametrizationException(getUsage("invalid CSV type"));
 				}
 				} break;
 
@@ -161,8 +167,7 @@ public class JaccardIndex {
 				} break;
 
 			default:
-				printUsage();
-				return;
+				throw new ProgramParametrizationException(getUsage("invalid input type"));
 		}
 
 		switch (parameters.get("output", "")) {
@@ -192,8 +197,7 @@ public class JaccardIndex {
 				break;
 
 			default:
-				printUsage();
-				return;
+				throw new ProgramParametrizationException(getUsage("invalid output type"));
 		}
 
 		JobExecutionResult result = env.getLastJobExecutionResult();
