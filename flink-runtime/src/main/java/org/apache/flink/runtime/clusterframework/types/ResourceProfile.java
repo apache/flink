@@ -70,4 +70,12 @@ public class ResourceProfile implements Serializable {
 	public boolean isMatching(ResourceProfile required) {
 		return cpuCores >= required.getCpuCores() && memoryInMB >= required.getMemoryInMB();
 	}
+
+	@Override
+	public String toString() {
+		return "ResourceProfile{" +
+			"cpuCores=" + cpuCores +
+			", memoryInMB=" + memoryInMB +
+			'}';
+	}
 }

@@ -581,4 +581,10 @@ object AkkaUtils {
         throw new Exception(s"Could not retrieve InetSocketAddress from Akka URL $akkaURL")
     }
   }
+
+  def formatDurationParingErrorMessage: String = {
+    "Duration format must be \"val unit\", where 'val' is a number and 'unit' is " + 
+      "(d|day)|(h|hour)|(min|minute)|s|sec|second)|(ms|milli|millisecond)|"+
+      "(µs|micro|microsecond)|(ns|nano|nanosecond)"
+  }
 }

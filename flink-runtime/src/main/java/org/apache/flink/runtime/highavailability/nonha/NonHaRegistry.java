@@ -16,46 +16,47 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.blob;
+package org.apache.flink.runtime.highavailability.nonha;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 
-import java.io.File;
+import java.util.HashSet;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A blob store doing nothing.
+ * A registry for running jobs, not-highly available.
  */
-public class VoidBlobStore implements BlobStore {
+public class NonHaRegistry implements RunningJobsRegistry {
+
+	/** The currently running jobs */
+	private final HashSet<JobID> running = new HashSet<>();
 
 	@Override
-	public void put(File localFile, BlobKey blobKey) throws Exception {
+	public void setJobRunning(JobID jobID) {
+		checkNotNull(jobID);
+
+		synchronized (running) {
+			running.add(jobID);
+		}
 	}
 
 	@Override
-	public void put(File localFile, JobID jobId, String key) throws Exception {
+	public void setJobFinished(JobID jobID) {
+		checkNotNull(jobID);
+
+		synchronized (running) {
+			running.remove(jobID);
+		}
 	}
 
 	@Override
-	public void get(BlobKey blobKey, File localFile) throws Exception {
-	}
+	public boolean isJobRunning(JobID jobID) {
+		checkNotNull(jobID);
 
-	@Override
-	public void get(JobID jobId, String key, File localFile) throws Exception {
-	}
-
-	@Override
-	public void delete(BlobKey blobKey) {
-	}
-
-	@Override
-	public void delete(JobID jobId, String key) {
-	}
-
-	@Override
-	public void deleteAll(JobID jobId) {
-	}
-
-	@Override
-	public void cleanUp() {
+		synchronized (running) {
+			return running.contains(jobID);
+		}
 	}
 }
