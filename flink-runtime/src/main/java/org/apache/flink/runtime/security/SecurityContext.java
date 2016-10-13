@@ -104,6 +104,7 @@ public class SecurityContext {
 
 		if(UserGroupInformation.isSecurityEnabled() &&
 				config.keytab != null && !StringUtils.isBlank(config.principal)) {
+			LOG.info("Hadoop security is enabled");
 			String keytabPath = (new File(config.keytab)).getAbsolutePath();
 
 			UserGroupInformation.loginUserFromKeytab(config.principal, keytabPath);

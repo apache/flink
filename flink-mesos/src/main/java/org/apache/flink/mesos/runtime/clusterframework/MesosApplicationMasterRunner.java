@@ -24,6 +24,7 @@ import akka.actor.Address;
 import akka.actor.Props;
 
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -43,6 +44,7 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.process.ProcessReaper;
+import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
@@ -63,7 +65,6 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.net.InetAddress;
 import java.net.URL;
-import java.security.PrivilegedAction;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -119,7 +120,7 @@ public class MesosApplicationMasterRunner {
 
 	/**
 	 * The instance entry point for the Mesos AppMaster. Obtains user group
-	 * information and calls the main work method {@link #runPrivileged()} as a
+	 * information and calls the main work method {@link #runPrivileged(Configuration)} as a
 	 * privileged action.
 	 *
 	 * @param args The command line arguments.
@@ -129,20 +130,27 @@ public class MesosApplicationMasterRunner {
 		try {
 			LOG.debug("All environment variables: {}", ENV);
 
-			final UserGroupInformation currentUser;
-			try {
-				currentUser = UserGroupInformation.getCurrentUser();
-			} catch (Throwable t) {
-				throw new Exception("Cannot access UserGroupInformation information for current user", t);
-			}
+			final String workingDir = ENV.get(MesosConfigKeys.ENV_MESOS_SANDBOX);
+			checkState(workingDir != null, "Sandbox directory variable (%s) not set", MesosConfigKeys.ENV_MESOS_SANDBOX);
 
-			LOG.info("Running Flink as user {}", currentUser.getShortUserName());
+			// Flink configuration
+			final Configuration dynamicProperties =
+					FlinkMesosSessionCli.decodeDynamicProperties(ENV.get(MesosConfigKeys.ENV_DYNAMIC_PROPERTIES));
+			LOG.debug("Mesos dynamic properties: {}", dynamicProperties);
 
-			// run the actual work in a secured privileged action
-			return currentUser.doAs(new PrivilegedAction<Integer>() {
+			final Configuration configuration = createConfiguration(workingDir, dynamicProperties);
+
+			SecurityContext.SecurityConfiguration sc = new SecurityContext.SecurityConfiguration();
+			sc.setFlinkConfiguration(configuration);
+			sc.setHadoopConfiguration(HadoopUtils.getHadoopConfiguration());
+			SecurityContext.install(sc);
+
+			LOG.info("Running Flink as user {}", UserGroupInformation.getCurrentUser().getShortUserName());
+
+			return SecurityContext.getInstalled().runSecured(new SecurityContext.FlinkSecuredRunner<Integer>() {
 				@Override
 				public Integer run() {
-					return runPrivileged();
+					return runPrivileged(configuration);
 				}
 			});
 		}
@@ -162,7 +170,7 @@ public class MesosApplicationMasterRunner {
 	 *
 	 * @return The return code for the Java process.
 	 */
-	protected int runPrivileged() {
+	protected int runPrivileged(Configuration config) {
 
 		ActorSystem actorSystem = null;
 		WebMonitor webMonitor = null;
@@ -175,7 +183,6 @@ public class MesosApplicationMasterRunner {
 			// configuration problem occurs
 
 			final String workingDir = ENV.get(MesosConfigKeys.ENV_MESOS_SANDBOX);
-			checkState(workingDir != null, "Sandbox directory variable (%s) not set", MesosConfigKeys.ENV_MESOS_SANDBOX);
 
 			final String sessionID = ENV.get(MesosConfigKeys.ENV_SESSION_ID);
 			checkState(sessionID != null, "Session ID (%s) not set", MesosConfigKeys.ENV_SESSION_ID);
@@ -184,13 +191,6 @@ public class MesosApplicationMasterRunner {
 			// we use the hostnames consistently throughout akka.
 			// for akka "localhost" and "localhost.localdomain" are different actors.
 			final String appMasterHostname = InetAddress.getLocalHost().getHostName();
-
-			// Flink configuration
-			final Configuration dynamicProperties =
-				FlinkMesosSessionCli.decodeDynamicProperties(ENV.get(MesosConfigKeys.ENV_DYNAMIC_PROPERTIES));
-			LOG.debug("Mesos dynamic properties: {}", dynamicProperties);
-
-			final Configuration config = createConfiguration(workingDir, dynamicProperties);
 
 			// Mesos configuration
 			final MesosConfiguration mesosConfig = createMesosConfig(config, appMasterHostname);
@@ -421,9 +421,7 @@ public class MesosApplicationMasterRunner {
 	private static Configuration createConfiguration(String baseDirectory, Configuration additional) {
 		LOG.info("Loading config from directory {}", baseDirectory);
 
-		Configuration configuration = GlobalConfiguration.loadConfiguration(baseDirectory);
-
-		configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, baseDirectory);
+		Configuration configuration = GlobalConfiguration.loadConfiguration();
 
 		// add dynamic properties to JobManager configuration.
 		configuration.addAll(additional);
@@ -552,15 +550,51 @@ public class MesosApplicationMasterRunner {
 		String shipListString = env.get(MesosConfigKeys.ENV_CLIENT_SHIP_FILES);
 		checkState(shipListString != null, "Environment variable %s not set", MesosConfigKeys.ENV_CLIENT_SHIP_FILES);
 
-		String clientUsername = env.get(MesosConfigKeys.ENV_CLIENT_USERNAME);
-		checkState(clientUsername != null, "Environment variable %s not set", MesosConfigKeys.ENV_CLIENT_USERNAME);
-
 		String classPathString = env.get(MesosConfigKeys.ENV_FLINK_CLASSPATH);
 		checkState(classPathString != null, "Environment variable %s not set", MesosConfigKeys.ENV_FLINK_CLASSPATH);
 
 		// register the Flink jar
 		final File flinkJarFile = new File(workingDirectory, "flink.jar");
 		cmd.addUris(uri(artifactServer.addFile(flinkJarFile, "flink.jar"), true));
+
+		String hadoopConfDir = env.get("HADOOP_CONF_DIR");
+		LOG.debug("ENV: hadoopConfDir = {}", hadoopConfDir);
+
+		//upload Hadoop configurations to artifact server
+		boolean hadoopConf = false;
+		if(hadoopConfDir != null && hadoopConfDir.length() != 0) {
+			File source = new File(hadoopConfDir);
+			if(source.exists() && source.isDirectory()) {
+				hadoopConf = true;
+				File[] fileList = source.listFiles();
+				for(File file: fileList) {
+					if(file.getName().equals("core-site.xml") || file.getName().equals("hdfs-site.xml")) {
+						LOG.debug("Adding local file: [{}] to artifact server", file);
+						File f = new File(hadoopConfDir, file.getName());
+						cmd.addUris(uri(artifactServer.addFile(f, file.getName()), true));
+					}
+				}
+			}
+		}
+
+		//upload keytab to the artifact server
+		String keytabFileName = null;
+		String keytab = flinkConfig.getString(ConfigConstants.SECURITY_KEYTAB_KEY, null);
+		if(keytab != null) {
+			File source = new File(keytab);
+			if(source.exists()) {
+				LOG.debug("Adding keytab file: [{}] to artifact server", source);
+				keytabFileName = source.getName();
+				cmd.addUris(uri(artifactServer.addFile(source, source.getName()), true));
+			}
+		}
+
+		String principal = flinkConfig.getString(ConfigConstants.SECURITY_PRINCIPAL_KEY, null);
+		if(keytabFileName != null && principal != null) {
+			//reset the configurations since we will use in-memory reference from within the TM instance
+			taskManagerConfig.setString(ConfigConstants.SECURITY_KEYTAB_KEY,"");
+			taskManagerConfig.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY,"");
+		}
 
 		// register the TaskManager configuration
 		final File taskManagerConfigFile =
@@ -595,7 +629,20 @@ public class MesosApplicationMasterRunner {
 			envBuilder.addVariables(variable(entry.getKey(), entry.getValue()));
 		}
 		envBuilder.addVariables(variable(MesosConfigKeys.ENV_CLASSPATH, classPathString));
-		envBuilder.addVariables(variable(MesosConfigKeys.ENV_CLIENT_USERNAME, clientUsername));
+
+		//add hadoop config directory to the environment
+		if(hadoopConf) {
+			envBuilder.addVariables(variable(MesosConfigKeys.ENV_HADOOP_CONF_DIR, "."));
+		}
+
+		//add keytab and principal to environment
+		if(keytabFileName != null && principal != null) {
+			envBuilder.addVariables(variable(MesosConfigKeys.ENV_KEYTAB, keytabFileName));
+			envBuilder.addVariables(variable(MesosConfigKeys.ENV_KEYTAB_PRINCIPAL, principal));
+		}
+
+		envBuilder.addVariables(variable(MesosConfigKeys.ENV_HADOOP_USER_NAME,
+				UserGroupInformation.getCurrentUser().getUserName()));
 
 		cmd.setEnvironment(envBuilder);
 
