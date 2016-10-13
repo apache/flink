@@ -75,10 +75,11 @@ object FlinkRuleSets {
     SortRemoveRule.INSTANCE,
 
     // simplify expressions rules
-    ReduceExpressionsRule.FILTER_INSTANCE,
-    ReduceExpressionsRule.PROJECT_INSTANCE,
-    ReduceExpressionsRule.CALC_INSTANCE,
-    ReduceExpressionsRule.JOIN_INSTANCE,
+    // TODO uncomment if FLINK-4825 is solved
+    // ReduceExpressionsRule.FILTER_INSTANCE,
+    // ReduceExpressionsRule.PROJECT_INSTANCE,
+    // ReduceExpressionsRule.CALC_INSTANCE,
+    // ReduceExpressionsRule.JOIN_INSTANCE,
 
     // prune empty results rules
     PruneEmptyRules.AGGREGATE_INSTANCE,
@@ -136,9 +137,10 @@ object FlinkRuleSets {
       ProjectRemoveRule.INSTANCE,
 
       // simplify expressions rules
-      ReduceExpressionsRule.FILTER_INSTANCE,
-      ReduceExpressionsRule.PROJECT_INSTANCE,
-      ReduceExpressionsRule.CALC_INSTANCE,
+      // TODO uncomment if FLINK-4825 is solved
+      // ReduceExpressionsRule.FILTER_INSTANCE,
+      // ReduceExpressionsRule.PROJECT_INSTANCE,
+      // ReduceExpressionsRule.CALC_INSTANCE,
 
       // merge and push unions rules
       UnionEliminatorRule.INSTANCE,

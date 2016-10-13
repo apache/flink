@@ -355,13 +355,13 @@ case class TemporalOverlaps(
     : RexNode = {
     // leftT = leftP + leftT if leftT is an interval
     val convLeftT = if (isTimeInterval(leftTemporal.resultType)) {
-        relBuilder.call(SqlStdOperatorTable.PLUS, leftP, leftT)
+        relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, leftP, leftT)
       } else {
         leftT
       }
     // rightT = rightP + rightT if rightT is an interval
     val convRightT = if (isTimeInterval(rightTemporal.resultType)) {
-        relBuilder.call(SqlStdOperatorTable.PLUS, rightP, rightT)
+        relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, rightP, rightT)
       } else {
         rightT
       }
