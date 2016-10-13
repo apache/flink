@@ -41,7 +41,7 @@ class DataSetCalc(
     traitSet: RelTraitSet,
     input: RelNode,
     rowRelDataType: RelDataType,
-    calcProgram: RexProgram,
+    private[flink] val calcProgram: RexProgram, // for tests
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, input)
   with FlinkCalc

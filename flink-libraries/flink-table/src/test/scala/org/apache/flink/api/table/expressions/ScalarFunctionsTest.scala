@@ -845,13 +845,24 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "true")
 
     testAllApis(
-      temporalOverlaps("2011-03-10 02:02:02.001".toTimestamp, 0.milli,
-        "2011-03-10 02:02:02.002".toTimestamp, "2011-03-10 02:02:02.002".toTimestamp),
-      "temporalOverlaps('2011-03-10 02:02:02.001'.toTimestamp, 0.milli, " +
-        "'2011-03-10 02:02:02.002'.toTimestamp, '2011-03-10 02:02:02.002'.toTimestamp)",
-      "(TIMESTAMP '2011-03-10 02:02:02.001', INTERVAL '0' SECOND) OVERLAPS " +
-        "(TIMESTAMP '2011-03-10 02:02:02.002', TIMESTAMP '2011-03-10 02:02:02.002')",
+      temporalOverlaps("2011-03-10 05:02:02".toTimestamp, 0.milli,
+        "2011-03-10 05:02:02".toTimestamp, "2011-03-10 05:02:01".toTimestamp),
+      "temporalOverlaps('2011-03-10 05:02:02'.toTimestamp, 0.milli, " +
+        "'2011-03-10 05:02:02'.toTimestamp, '2011-03-10 05:02:01'.toTimestamp)",
+      "(TIMESTAMP '2011-03-10 05:02:02', INTERVAL '0' SECOND) OVERLAPS " +
+        "(TIMESTAMP '2011-03-10 05:02:02', TIMESTAMP '2011-03-10 05:02:01')",
       "false")
+
+    // TODO enable once CALCITE-1435 is fixed
+    // comparison of timestamps based on milliseconds is buggy
+    //testAllApis(
+    //  temporalOverlaps("2011-03-10 02:02:02.001".toTimestamp, 0.milli,
+    //    "2011-03-10 02:02:02.002".toTimestamp, "2011-03-10 02:02:02.002".toTimestamp),
+    //  "temporalOverlaps('2011-03-10 02:02:02.001'.toTimestamp, 0.milli, " +
+    //    "'2011-03-10 02:02:02.002'.toTimestamp, '2011-03-10 02:02:02.002'.toTimestamp)",
+    //  "(TIMESTAMP '2011-03-10 02:02:02.001', INTERVAL '0' SECOND) OVERLAPS " +
+    //    "(TIMESTAMP '2011-03-10 02:02:02.002', TIMESTAMP '2011-03-10 02:02:02.002')",
+    //  "false")
   }
 
   @Test
@@ -906,26 +917,26 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "false")
 
     testAllApis(
-      !'f1.isTrue,
-      "!f1.isTrue",
+      'f1.isNotTrue,
+      "f1.isNotTrue",
       "f1 IS NOT TRUE",
       "false")
 
     testAllApis(
-      !'f21.isTrue,
-      "!f21.isTrue",
+      'f21.isNotTrue,
+      "f21.isNotTrue",
       "f21 IS NOT TRUE",
       "true")
 
     testAllApis(
-      !false.isFalse,
-      "!false.isFalse",
+      false.isNotFalse,
+      "false.isNotFalse",
       "FALSE IS NOT FALSE",
       "false")
 
     testAllApis(
-      !'f21.isFalse,
-      "!f21.isFalse",
+      'f21.isNotFalse,
+      "f21.isNotFalse",
       "f21 IS NOT FALSE",
       "true")
   }

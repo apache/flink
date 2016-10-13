@@ -123,6 +123,8 @@ object FunctionCatalog {
     "isNotNull" -> classOf[IsNotNull],
     "isTrue" -> classOf[IsTrue],
     "isFalse" -> classOf[IsFalse],
+    "isNotTrue" -> classOf[IsNotTrue],
+    "isNotFalse" -> classOf[IsNotFalse],
 
     // aggregate functions
     "avg" -> classOf[Avg],

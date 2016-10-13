@@ -141,3 +141,23 @@ case class IsFalse(child: Expression) extends UnaryExpression {
 
   override private[flink] def resultType = BOOLEAN_TYPE_INFO
 }
+
+case class IsNotTrue(child: Expression) extends UnaryExpression {
+  override def toString = s"($child).isNotTrue"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.IS_NOT_TRUE, child.toRexNode)
+  }
+
+  override private[flink] def resultType = BOOLEAN_TYPE_INFO
+}
+
+case class IsNotFalse(child: Expression) extends UnaryExpression {
+  override def toString = s"($child).isNotFalse"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.IS_NOT_FALSE, child.toRexNode)
+  }
+
+  override private[flink] def resultType = BOOLEAN_TYPE_INFO
+}
