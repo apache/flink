@@ -117,9 +117,6 @@ public abstract class AbstractStreamOperator<OUT>
 	/** Metric group for the operator */
 	protected MetricGroup metrics;
 
-	/** Flag indicating if this operator is a sink */
-	protected transient boolean isSink = false;
-
 	protected LatencyGauge latencyGauge;
 
 	// ------------------------------------------------------------------------
@@ -127,14 +124,13 @@ public abstract class AbstractStreamOperator<OUT>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output, boolean isSink) {
+	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		this.container = containingTask;
 		this.config = config;
 		String operatorName = containingTask.getEnvironment().getTaskInfo().getTaskName().split("->")[config.getChainIndex()].trim();
 		
 		this.metrics = container.getEnvironment().getMetricGroup().addOperator(operatorName);
 		this.output = new CountingOutput(output, this.metrics.counter("numRecordsOut"));
-		this.isSink = isSink;
 		Configuration taskManagerConfig = container.getEnvironment().getTaskManagerInfo().getConfiguration();
 		int historySize = taskManagerConfig.getInteger(ConfigConstants.METRICS_LATENCY_HISTORY_SIZE, ConfigConstants.DEFAULT_METRICS_LATENCY_HISTORY_SIZE);
 		if (historySize <= 0) {
@@ -142,7 +138,7 @@ public abstract class AbstractStreamOperator<OUT>
 			historySize = ConfigConstants.DEFAULT_METRICS_LATENCY_HISTORY_SIZE;
 		}
 
-		latencyGauge = this.metrics.gauge("latency", new LatencyGauge(historySize, !isSink));
+		latencyGauge = this.metrics.gauge("latency", new LatencyGauge(historySize));
 		this.runtimeContext = new StreamingRuntimeContext(this, container.getEnvironment(), container.getAccumulatorMap());
 
 		stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
@@ -414,11 +410,10 @@ public abstract class AbstractStreamOperator<OUT>
 
 	protected void reportOrForwardLatencyMarker(LatencyMarker maker) {
 		// all operators are tracking latencies
-		this.latencyGauge.reportLatency(maker);
-		if (!isSink) {
-			// everything except sinks forwards latency markers
-			this.output.emitLatencyMarker(maker);
-		}
+		this.latencyGauge.reportLatency(maker, false);
+
+		// everything except sinks forwards latency markers
+		this.output.emitLatencyMarker(maker);
 	}
 
 	// ----------------------- Helper classes -----------------------
@@ -428,18 +423,16 @@ public abstract class AbstractStreamOperator<OUT>
 	 * The gauge uses a HashMap internally to avoid classloading issues when accessing
 	 * the values using JMX.
 	 */
-	private static class LatencyGauge implements Gauge<Map<String, HashMap<String, Double>>> {
+	protected static class LatencyGauge implements Gauge<Map<String, HashMap<String, Double>>> {
 		private final Map<LatencySourceDescriptor, DescriptiveStatistics> latencyStats = new HashMap<>();
 		private final int historySize;
-		private final boolean ignoreSubtaskIndex;
 
-		LatencyGauge(int historySize, boolean ignoreSubtaskIndex) {
+		LatencyGauge(int historySize) {
 			this.historySize = historySize;
-			this.ignoreSubtaskIndex = ignoreSubtaskIndex;
 		}
 
-		public void reportLatency(LatencyMarker marker) {
-			LatencySourceDescriptor sourceDescriptor = LatencySourceDescriptor.of(marker, this.ignoreSubtaskIndex);
+		public void reportLatency(LatencyMarker marker, boolean isSink) {
+			LatencySourceDescriptor sourceDescriptor = LatencySourceDescriptor.of(marker, !isSink);
 			DescriptiveStatistics sourceStats = latencyStats.get(sourceDescriptor);
 			if (sourceStats == null) {
 				// 512 element window (4 kb)

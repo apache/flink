@@ -153,7 +153,7 @@ public class StreamOperatorChainingTest {
 				mockTask,
 				mock(AccumulatorRegistry.Reporter.class));
 
-		headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint(), false);
+		headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
 
 		for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
 			if (operator != null) {
@@ -295,7 +295,7 @@ public class StreamOperatorChainingTest {
 				mockTask,
 				mock(AccumulatorRegistry.Reporter.class));
 
-		headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint(), false);
+		headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
 
 		for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
 			if (operator != null) {

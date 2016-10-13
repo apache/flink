@@ -203,7 +203,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	 * {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, StreamConfig, Output)} ()}
 	 */
 	public void setup() throws Exception {
-		operator.setup(mockTask, config, new MockOutput(), false);
+		operator.setup(mockTask, config, new MockOutput());
 		setupCalled = true;
 	}
 

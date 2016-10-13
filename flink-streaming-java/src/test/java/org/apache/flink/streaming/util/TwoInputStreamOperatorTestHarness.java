@@ -74,7 +74,7 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 		when(mockTask.getEnvironment()).thenReturn(env);
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
 
-		operator.setup(mockTask, new StreamConfig(new Configuration()), new MockOutput(), false);
+		operator.setup(mockTask, new StreamConfig(new Configuration()), new MockOutput());
 	}
 
 	/**

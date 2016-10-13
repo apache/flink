@@ -464,7 +464,7 @@ public class StreamGraphGeneratorTest {
 		}
 
 		@Override
-		public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<Integer>> output, boolean isSink) {}
+		public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<Integer>> output) {}
 	}
 
 	private static class OutputTypeConfigurableOperationWithOneInput

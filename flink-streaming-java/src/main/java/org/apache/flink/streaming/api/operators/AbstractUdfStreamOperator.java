@@ -89,8 +89,8 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 
 
 	@Override
-	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output, boolean isSink) {
-		super.setup(containingTask, config, output, isSink);
+	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
+		super.setup(containingTask, config, output);
 		
 		FunctionUtils.setFunctionRuntimeContext(userFunction, getRuntimeContext());
 	}

@@ -193,7 +193,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 			op = new AccumulatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 5000, 1000);
-			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut, false);
+			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
 			op.open();
 			assertTrue(op.getNextSlideTime() % 1000 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
@@ -201,7 +201,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 			op = new AccumulatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1000, 1000);
-			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut, false);
+			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
 			op.open();
 			assertTrue(op.getNextSlideTime() % 1000 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
@@ -209,7 +209,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 			op = new AccumulatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1500, 1000);
-			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut, false);
+			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
 			op.open();
 			assertTrue(op.getNextSlideTime() % 500 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
@@ -217,7 +217,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 			op = new AccumulatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1200, 1100);
-			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut, false);
+			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
 			op.open();
 			assertTrue(op.getNextSlideTime() % 100 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1100 == 0);
@@ -249,7 +249,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 							windowSize, windowSize);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out, false);
+			op.setup(mockTask, new StreamConfig(new Configuration()), out);
 			op.open();
 
 			final int numElements = 1000;
@@ -312,7 +312,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							validatingIdentityFunction, identitySelector,
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE, 150, 50);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out, false);
+			op.setup(mockTask, new StreamConfig(new Configuration()), out);
 			op.open();
 
 			final int numElements = 1000;
@@ -384,7 +384,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							validatingIdentityFunction, identitySelector,
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE, 50, 50);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out, false);
+			op.setup(mockTask, new StreamConfig(new Configuration()), out);
 			op.open();
 
 			synchronized (lock) {
@@ -451,7 +451,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							validatingIdentityFunction, identitySelector,
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE, 150, 50);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out, false);
+			op.setup(mockTask, new StreamConfig(new Configuration()), out);
 			op.open();
 
 			synchronized (lock) {

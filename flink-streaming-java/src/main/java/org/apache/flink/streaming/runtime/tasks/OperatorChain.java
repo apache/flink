@@ -111,7 +111,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 					chainedConfigs, userCodeClassloader, streamOutputMap, allOps);
 
 			if (headOperator != null) {
-				headOperator.setup(containingTask, configuration, getChainEntryPoint(), streamOutputs.length == 0);
+				headOperator.setup(containingTask, configuration, getChainEntryPoint());
 			}
 
 			// add head operator to end of chain
@@ -290,7 +290,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 
 		// now create the operator and give it the output collector to write its output to
 		OneInputStreamOperator<IN, OUT> chainedOperator = operatorConfig.getStreamOperator(userCodeClassloader);
-		chainedOperator.setup(containingTask, operatorConfig, output, streamOutputs.size() == 0);
+		chainedOperator.setup(containingTask, operatorConfig, output);
 
 		allOperators.add(chainedOperator);
 

@@ -59,7 +59,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 		LOG.info("Iteration tail {} acquired feedback queue {}", getName(), brokerID);
 		
 		this.headOperator = new RecordPusher<>();
-		this.headOperator.setup(this, getConfiguration(), new IterationTailOutput<>(dataChannel, iterationWaitTime), false); // TODO is 'false' here correct?
+		this.headOperator.setup(this, getConfiguration(), new IterationTailOutput<>(dataChannel, iterationWaitTime));
 	}
 
 	private static class RecordPusher<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {

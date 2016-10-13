@@ -291,7 +291,7 @@ public class StreamSourceOperatorTest {
 			}
 		}).when(mockTask).getTimerService();
 
-		operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class), false);
+		operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
 	}
 
 	// ------------------------------------------------------------------------
