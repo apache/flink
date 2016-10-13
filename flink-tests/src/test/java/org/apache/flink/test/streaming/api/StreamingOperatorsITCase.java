@@ -173,12 +173,12 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 			.fold(
 				new NonSerializable(42),
 				new FoldFunction<Tuple2<Integer, NonSerializable>, NonSerializable>() {
-			private static final long serialVersionUID = 2705497830143608897L;
+					private static final long serialVersionUID = 2705497830143608897L;
 
-			@Override
-			public NonSerializable fold(NonSerializable accumulator, Tuple2<Integer, NonSerializable> value) throws Exception {
-				return new NonSerializable(accumulator.value + value.f1.value);
-			}
+					@Override
+					public NonSerializable fold(NonSerializable accumulator, Tuple2<Integer, NonSerializable> value) throws Exception {
+						return new NonSerializable(accumulator.value + value.f1.value);
+					}
 			})
 			.map(new MapFunction<NonSerializable, Integer>() {
 				private static final long serialVersionUID = 6906984044674568945L;
