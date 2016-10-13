@@ -16,15 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.api.common.JobExecutionResult;
-
-public interface OnCompletionActions {
-
-	void jobFinished(JobExecutionResult result);
-
-	void jobFailed(Throwable cause);
-
-	void jobFinishedByOther();
+public class JobManagerRunnerTest {
+	
+	// TODO: Test that 
 }

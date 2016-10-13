@@ -30,8 +30,14 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.query.KvStateID;
+import org.apache.flink.runtime.query.KvStateLocation;
+import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 
 import java.util.UUID;
@@ -41,52 +47,56 @@ import java.util.UUID;
  */
 public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 
-	/**
-	 * Starting the job under the given leader session ID.
-	 */
-	void startJob(final UUID leaderSessionID);
+	// ------------------------------------------------------------------------
+	//  Job start and stop methods
+	// ------------------------------------------------------------------------
 
-	/**
-	 * Suspending job, all the running tasks will be cancelled, and runtime status will be cleared.
-	 * Should re-submit the job before restarting it.
-	 *
-	 * @param cause The reason of why this job been suspended.
-	 */
-	void suspendJob(final Throwable cause);
+	void startJobExecution();
+
+	void suspendExecution(Throwable cause);
+
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Updates the task execution state for a given task.
 	 *
+	 * @param leaderSessionID    The leader id of JobManager
 	 * @param taskExecutionState New task execution state for a given task
 	 * @return Future flag of the task execution state update result
 	 */
-	Future<Acknowledge> updateTaskExecutionState(TaskExecutionState taskExecutionState);
+	Future<Acknowledge> updateTaskExecutionState(
+			final UUID leaderSessionID,
+			final TaskExecutionState taskExecutionState);
 
 	/**
 	 * Requesting next input split for the {@link ExecutionJobVertex}. The next input split is sent back to the sender
 	 * as a {@link SerializedInputSplit} message.
 	 *
+	 * @param leaderSessionID  The leader id of JobManager
 	 * @param vertexID         The job vertex id
 	 * @param executionAttempt The execution attempt id
 	 * @return The future of the input split. If there is no further input split, will return an empty object.
 	 */
 	Future<SerializedInputSplit> requestNextInputSplit(
-		final JobVertexID vertexID,
-		final ExecutionAttemptID executionAttempt);
+			final UUID leaderSessionID,
+			final JobVertexID vertexID,
+			final ExecutionAttemptID executionAttempt);
 
 	/**
 	 * Requests the current state of the partition.
 	 * The state of a partition is currently bound to the state of the producing execution.
 	 *
+	 * @param leaderSessionID The leader id of JobManager
 	 * @param partitionId     The partition ID of the partition to request the state of.
 	 * @param taskExecutionId The execution attempt ID of the task requesting the partition state.
 	 * @param taskResultId    The input gate ID of the task requesting the partition state.
 	 * @return The future of the partition state
 	 */
 	Future<PartitionState> requestPartitionState(
-		final ResultPartitionID partitionId,
-		final ExecutionAttemptID taskExecutionId,
-		final IntermediateDataSetID taskResultId);
+			final UUID leaderSessionID,
+			final ResultPartitionID partitionId,
+			final ExecutionAttemptID taskExecutionId,
+			final IntermediateDataSetID taskResultId);
 
 	/**
 	 * Notifies the JobManager about available data for a produced partition.
@@ -97,11 +107,15 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * <p>
 	 * The JobManager then can decide when to schedule the partition consumers of the given session.
 	 *
-	 * @param partitionID The partition which has already produced data
-	 * @param timeout before the rpc call fails
+	 * @param leaderSessionID The leader id of JobManager
+	 * @param partitionID     The partition which has already produced data
+	 * @param timeout         before the rpc call fails
 	 * @return Future acknowledge of the schedule or update operation
 	 */
-	Future<Acknowledge> scheduleOrUpdateConsumers(final ResultPartitionID partitionID, @RpcTimeout final Time timeout);
+	Future<Acknowledge> scheduleOrUpdateConsumers(
+			final UUID leaderSessionID,
+			final ResultPartitionID partitionID,
+			@RpcTimeout final Time timeout);
 
 	/**
 	 * Disconnects the given {@link org.apache.flink.runtime.taskexecutor.TaskExecutor} from the
@@ -110,4 +124,49 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * @param resourceID identifying the TaskManager to disconnect
 	 */
 	void disconnectTaskManager(ResourceID resourceID);
+
+	/**
+	 * Requests a {@link KvStateLocation} for the specified {@link KvState} registration name.
+	 *
+	 * @param registrationName Name under which the KvState has been registered.
+	 * @return Future of the requested {@link KvState} location
+	 */
+	Future<KvStateLocation> lookupKvStateLocation(final String registrationName);
+
+	/**
+	 * @param jobVertexId          JobVertexID the KvState instance belongs to.
+	 * @param keyGroupRange        Key group range the KvState instance belongs to.
+	 * @param registrationName     Name under which the KvState has been registered.
+	 * @param kvStateId            ID of the registered KvState instance.
+	 * @param kvStateServerAddress Server address where to find the KvState instance.
+	 */
+	void notifyKvStateRegistered(
+			final JobVertexID jobVertexId,
+			final KeyGroupRange keyGroupRange,
+			final String registrationName,
+			final KvStateID kvStateId,
+			final KvStateServerAddress kvStateServerAddress);
+
+	/**
+	 * @param jobVertexId      JobVertexID the KvState instance belongs to.
+	 * @param keyGroupRange    Key group index the KvState instance belongs to.
+	 * @param registrationName Name under which the KvState has been registered.
+	 */
+	void notifyKvStateUnregistered(
+			JobVertexID jobVertexId,
+			KeyGroupRange keyGroupRange,
+			String registrationName);
+
+	/**
+	 * Notifies the JobManager to trigger a savepoint for this job.
+	 *
+	 * @param leaderSessionID The leader id of JobManager
+	 * @return The savepoint path
+	 */
+	Future<String> triggerSavepoint(final UUID leaderSessionID);
+
+	/**
+	 * Request the classloading props of this job.
+	 */
+	Future<ClassloadingProps> requestClassloadingProps();
 }

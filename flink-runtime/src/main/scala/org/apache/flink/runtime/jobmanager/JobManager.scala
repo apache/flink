@@ -29,8 +29,9 @@ import akka.actor.Status.{Failure, Success}
 import akka.actor._
 import akka.pattern.ask
 import grizzled.slf4j.Logger
-import org.apache.flink.api.common.{ExecutionConfig, JobID}
-import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
+import org.apache.flink.api.common.JobID
+import org.apache.flink.api.common.time.Time
+import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration, HighAvailabilityOptions}
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.metrics.{Gauge, MetricGroup}
@@ -49,11 +50,10 @@ import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceMa
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
-import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex, StatusListenerMessenger}
+import org.apache.flink.runtime.executiongraph.{ExecutionGraphBuilder, ExecutionGraph, ExecutionJobVertex, StatusListenerMessenger}
 import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceManager}
 import org.apache.flink.runtime.io.network.PartitionState
-import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator
-import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertexID}
+import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus}
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGraphListener
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.leaderelection.{LeaderContender, LeaderElectionService, StandaloneLeaderElectionService}
@@ -1114,7 +1114,7 @@ class JobManager(
           Option(jobGraph.getSerializedExecutionConfig()
             .deserializeValue(userCodeLoader)
             .getRestartStrategy())
-            .map(RestartStrategyFactory.createRestartStrategy(_)) match {
+            .map(RestartStrategyFactory.createRestartStrategy) match {
             case Some(strategy) => strategy
             case None => restartStrategyFactory.createRestartStrategy()
           }
@@ -1131,148 +1131,34 @@ class JobManager(
             new UnregisteredMetricsGroup()
         }
 
-        // see if there already exists an ExecutionGraph for the corresponding job ID
-        executionGraph = currentJobs.get(jobGraph.getJobID) match {
-          case Some((graph, currentJobInfo)) =>
-            currentJobInfo.setLastActive()
-            graph
-          case None =>
-            val graph = new ExecutionGraph(
-              executionContext,
-              jobGraph.getJobID,
-              jobGraph.getName,
-              jobGraph.getJobConfiguration,
-              jobGraph.getSerializedExecutionConfig,
-              timeout,
-              restartStrategy,
-              jobGraph.getUserJarBlobKeys,
-              jobGraph.getClasspaths,
-              userCodeLoader,
-              jobMetrics)
-
-            currentJobs.put(jobGraph.getJobID, (graph, jobInfo))
-            graph
-        }
-
-        executionGraph.setScheduleMode(jobGraph.getScheduleMode())
-        executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling())
-
-        try {
-          executionGraph.setJsonPlan(JsonPlanGenerator.generatePlan(jobGraph))
-        }
-        catch {
-          case t: Throwable =>
-            log.warn("Cannot create JSON plan for job", t)
-            executionGraph.setJsonPlan("{}")
-        }
-
-        // initialize the vertices that have a master initialization hook
-        // file output formats create directories here, input formats create splits
-        if (log.isDebugEnabled) {
-          log.debug(s"Running initialization on master for job $jobId ($jobName).")
-        }
-
         val numSlots = scheduler.getTotalNumberOfSlots()
 
-        for (vertex <- jobGraph.getVertices.asScala) {
-          val executableClass = vertex.getInvokableClassName
-          if (executableClass == null || executableClass.length == 0) {
-            throw new JobSubmissionException(jobId,
-              s"The vertex ${vertex.getID} (${vertex.getName}) has no invokable class.")
-          }
-
-          if (vertex.getParallelism() == ExecutionConfig.PARALLELISM_AUTO_MAX) {
-            vertex.setParallelism(numSlots)
-          }
-
-          try {
-            vertex.initializeOnMaster(userCodeLoader)
-          }
-          catch {
-            case t: Throwable =>
-              throw new JobExecutionException(jobId,
-                "Cannot initialize task '" + vertex.getName() + "': " + t.getMessage, t)
-          }
+        // see if there already exists an ExecutionGraph for the corresponding job ID
+        val registerNewGraph = currentJobs.get(jobGraph.getJobID) match {
+          case Some((graph, currentJobInfo)) =>
+            executionGraph = graph
+            currentJobInfo.setLastActive()
+            false
+          case None =>
+            true
         }
 
-        // topologically sort the job vertices and attach the graph to the existing one
-        val sortedTopology = jobGraph.getVerticesSortedTopologicallyFromSources()
-        if (log.isDebugEnabled) {
-          log.debug(s"Adding ${sortedTopology.size()} vertices from " +
-            s"job graph $jobId ($jobName).")
-        }
-        executionGraph.attachJobGraph(sortedTopology)
-
-        if (log.isDebugEnabled) {
-          log.debug("Successfully created execution graph from job " +
-            s"graph $jobId ($jobName).")
-        }
-
-        // configure the state checkpointing
-        val snapshotSettings = jobGraph.getSnapshotSettings
-        if (snapshotSettings != null) {
-          val jobId = jobGraph.getJobID()
-
-          val idToVertex: JobVertexID => ExecutionJobVertex = id => {
-            val vertex = executionGraph.getJobVertex(id)
-            if (vertex == null) {
-              throw new JobSubmissionException(jobId,
-                "The snapshot checkpointing settings refer to non-existent vertex " + id)
-            }
-            vertex
-          }
-
-          val triggerVertices: java.util.List[ExecutionJobVertex] =
-            snapshotSettings.getVerticesToTrigger().asScala.map(idToVertex).asJava
-
-          val ackVertices: java.util.List[ExecutionJobVertex] =
-            snapshotSettings.getVerticesToAcknowledge().asScala.map(idToVertex).asJava
-
-          val confirmVertices: java.util.List[ExecutionJobVertex] =
-            snapshotSettings.getVerticesToConfirm().asScala.map(idToVertex).asJava
-
-          val completedCheckpoints = checkpointRecoveryFactory
-            .createCheckpointStore(jobId, userCodeLoader)
-
-          val checkpointIdCounter = checkpointRecoveryFactory.createCheckpointIDCounter(jobId)
-
-          // Checkpoint stats tracker
-          val isStatsDisabled: Boolean = flinkConfiguration.getBoolean(
-            ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_DISABLE,
-            ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_DISABLE)
-
-          val checkpointStatsTracker : CheckpointStatsTracker =
-            if (isStatsDisabled) {
-              new DisabledCheckpointStatsTracker()
-            } else {
-              val historySize: Int = flinkConfiguration.getInteger(
-                ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE,
-                ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE)
-
-              new SimpleCheckpointStatsTracker(historySize, ackVertices, jobMetrics)
-            }
-
-          val jobParallelism = jobGraph.getSerializedExecutionConfig
-            .deserializeValue(userCodeLoader).getParallelism()
-
-          val parallelism = if (jobParallelism == ExecutionConfig.PARALLELISM_AUTO_MAX) {
-            numSlots
-          } else {
-            jobParallelism
-          }
-
-          executionGraph.enableSnapshotCheckpointing(
-            snapshotSettings.getCheckpointInterval,
-            snapshotSettings.getCheckpointTimeout,
-            snapshotSettings.getMinPauseBetweenCheckpoints,
-            snapshotSettings.getMaxConcurrentCheckpoints,
-            triggerVertices,
-            ackVertices,
-            confirmVertices,
-            checkpointIdCounter,
-            completedCheckpoints,
-            savepointStore,
-            checkpointStatsTracker)
+        executionGraph = ExecutionGraphBuilder.buildGraph(
+          executionGraph,
+          jobGraph,
+          flinkConfiguration,
+          executionContext,
+          userCodeLoader,
+          checkpointRecoveryFactory,
+          savepointStore,
+          Time.of(timeout.length, timeout.unit),
+          restartStrategy,
+          jobMetrics,
+          numSlots,
+          log.logger)
+        
+        if (registerNewGraph) {
+          currentJobs.put(jobGraph.getJobID, (executionGraph, jobInfo))
         }
 
         // get notified about job status changes
@@ -2481,9 +2367,7 @@ object JobManager {
         configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 0)
 
         // The port range of allowed job manager ports or 0 for random
-        configuration.getString(
-          ConfigConstants.RECOVERY_JOB_MANAGER_PORT,
-          ConfigConstants.DEFAULT_HA_JOB_MANAGER_PORT)
+        configuration.getValue(HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE)
       }
       else {
         LOG.info("Starting JobManager without high-availability")
@@ -2615,11 +2499,7 @@ object JobManager {
 
     val savepointStore = SavepointStoreFactory.createFromConfig(configuration)
 
-    val jobRecoveryTimeoutStr = ConfigurationUtil.getStringWithDeprecatedKeys(
-      configuration,
-      ConfigConstants.HA_JOB_DELAY,
-      null,
-      ConfigConstants.RECOVERY_JOB_DELAY)
+    val jobRecoveryTimeoutStr = configuration.getValue(HighAvailabilityOptions.HA_JOB_DELAY)
 
     val jobRecoveryTimeout = if (jobRecoveryTimeoutStr == null || jobRecoveryTimeoutStr.isEmpty) {
       timeout
@@ -2629,7 +2509,7 @@ object JobManager {
       } catch {
         case n: NumberFormatException =>
           throw new Exception(
-            s"Invalid config value for ${ConfigConstants.HA_JOB_DELAY}: " +
+            s"Invalid config value for ${HighAvailabilityOptions.HA_JOB_DELAY.key()}: " +
               s"$jobRecoveryTimeoutStr. Value must be a valid duration (such as '10 s' or '1 min')")
       }
     }
