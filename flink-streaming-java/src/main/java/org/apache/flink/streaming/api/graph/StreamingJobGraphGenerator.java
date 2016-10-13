@@ -466,38 +466,12 @@ public class StreamingJobGraphGenerator {
 	
 	private void configureCheckpointing() {
 		CheckpointConfig cfg = streamGraph.getCheckpointConfig();
-		
+
+		long interval = cfg.getCheckpointInterval();
 		if (cfg.isCheckpointingEnabled()) {
-			long interval = cfg.getCheckpointInterval();
 			if (interval < 1) {
 				throw new IllegalArgumentException("The checkpoint interval must be positive");
 			}
-
-			// collect the vertices that receive "trigger checkpoint" messages.
-			// currently, these are all the sources
-			List<JobVertexID> triggerVertices = new ArrayList<>();
-
-			// collect the vertices that need to acknowledge the checkpoint
-			// currently, these are all vertices
-			List<JobVertexID> ackVertices = new ArrayList<>(jobVertices.size());
-
-			// collect the vertices that receive "commit checkpoint" messages
-			// currently, these are all vertices
-			List<JobVertexID> commitVertices = new ArrayList<>();
-			
-			for (JobVertex vertex : jobVertices.values()) {
-				if (vertex.isInputVertex()) {
-					triggerVertices.add(vertex.getID());
-				}
-				commitVertices.add(vertex.getID());
-				ackVertices.add(vertex.getID());
-			}
-
-			JobSnapshottingSettings settings = new JobSnapshottingSettings(
-					triggerVertices, ackVertices, commitVertices, interval,
-					cfg.getCheckpointTimeout(), cfg.getMinPauseBetweenCheckpoints(),
-					cfg.getMaxConcurrentCheckpoints());
-			jobGraph.setSnapshotSettings(settings);
 
 			// check if a restart strategy has been set, if not then set the FixedDelayRestartStrategy
 			if (streamGraph.getExecutionConfig().getRestartStrategy() == null) {
@@ -505,7 +479,37 @@ public class StreamingJobGraphGenerator {
 				streamGraph.getExecutionConfig().setRestartStrategy(
 					RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, DEFAULT_RESTART_DELAY));
 			}
+		} else {
+			// interval of max value means disable periodic checkpoint
+			interval = Long.MAX_VALUE;
 		}
+
+		// collect the vertices that receive "trigger checkpoint" messages.
+		// currently, these are all the sources
+		List<JobVertexID> triggerVertices = new ArrayList<>();
+
+		// collect the vertices that need to acknowledge the checkpoint
+		// currently, these are all vertices
+		List<JobVertexID> ackVertices = new ArrayList<>(jobVertices.size());
+
+		// collect the vertices that receive "commit checkpoint" messages
+		// currently, these are all vertices
+		List<JobVertexID> commitVertices = new ArrayList<>();
+
+		for (JobVertex vertex : jobVertices.values()) {
+			if (vertex.isInputVertex()) {
+				triggerVertices.add(vertex.getID());
+			}
+			commitVertices.add(vertex.getID());
+			ackVertices.add(vertex.getID());
+		}
+
+		JobSnapshottingSettings settings = new JobSnapshottingSettings(
+			triggerVertices, ackVertices, commitVertices, interval,
+			cfg.getCheckpointTimeout(), cfg.getMinPauseBetweenCheckpoints(),
+			cfg.getMaxConcurrentCheckpoints());
+		jobGraph.setSnapshotSettings(settings);
+
 	}
 
 	// ------------------------------------------------------------------------

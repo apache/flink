@@ -50,7 +50,7 @@ public class JobSnapshottingSettings implements java.io.Serializable{
 
 	/** Path to savepoint to reset state back to (optional, can be null) */
 	private String savepointPath;
-	
+
 	public JobSnapshottingSettings(List<JobVertexID> verticesToTrigger,
 									List<JobVertexID> verticesToAcknowledge,
 									List<JobVertexID> verticesToConfirm,

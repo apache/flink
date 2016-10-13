@@ -30,16 +30,19 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStoreFactory;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
@@ -75,6 +78,7 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.Serializable;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -606,6 +610,102 @@ public class SavepointITCase extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testSavepointWithDisabledCheckpoint() throws Exception {
+		// Config
+		int numTaskManagers = 1;
+		int numSlotsPerTaskManager = 1;
+		int parallelism = numTaskManagers * numSlotsPerTaskManager;
+
+		// Test deadline
+		final Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
+		// Temporary directory for file state backend
+		final File tmpDir = CommonTestUtils.createTempDirectory();
+
+		TestingCluster flink = null;
+
+		try {
+			final File checkpointDir = new File(tmpDir, "checkpoints");
+			final File savepointDir = new File(tmpDir, "savepoints");
+
+			// Flink configuration
+			final Configuration config = new Configuration();
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
+			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
+			config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "jobmanager");
+			config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
+			config.setString(
+				FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,
+				checkpointDir.toURI().toString());
+			config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "filesystem");
+			config.setString(
+				SavepointStoreFactory.SAVEPOINT_DIRECTORY_KEY,
+				savepointDir.toURI().toString());
+
+			LOG.info("Flink configuration: " + config + ".");
+
+			// Start Flink
+			flink = new TestingCluster(config);
+			LOG.info("Starting Flink cluster.");
+			flink.start();
+
+			// Retrieve the job manager
+			LOG.info("Retrieving JobManager.");
+			ActorGateway jobManager = Await.result(
+				flink.leaderGateway().future(),
+				deadline.timeLeft());
+			LOG.info("JobManager: " + jobManager + ".");
+
+			// High value to ensure timeouts if restarted.
+			int numberOfRetries = 1000;
+
+			// Submit the job
+			// checkpoint interval of Integer.MAX_VALUE means disable checkpoint
+			final JobGraph jobGraph = createJobGraph(parallelism, numberOfRetries, 3600000, Long.MAX_VALUE);
+
+			LOG.info("Submitting job " + jobGraph.getJobID() + " in detached mode.");
+
+			flink.submitJobDetached(jobGraph);
+
+			InfiniteTestSource.StartRunningLatch.await();
+
+			// get the execution graph and make sure the coordinator is properly shut down
+			Future<Object> jobRequestFuture = jobManager.ask(
+				new JobManagerMessages.RequestJob(jobGraph.getJobID()),
+				deadline.timeLeft());
+
+			ExecutionGraph graph = ((JobManagerMessages.JobFound) Await.result(
+				jobRequestFuture, deadline.timeLeft())).executionGraph();
+
+			CheckpointCoordinator coord = graph.getCheckpointCoordinator();
+			assertNotNull(coord);
+
+			Field field = coord.getClass().getDeclaredField("currentPeriodicTrigger");
+			field.setAccessible(true);
+			assertNull(field.get(coord));
+
+			// Trigger savepoint for job with disabled checkpointing
+			LOG.info("Triggering a savepoint.");
+
+			Future<Object> savepointPathFuture = jobManager.ask(
+				new TriggerSavepoint(jobGraph.getJobID()), deadline.timeLeft());
+
+			final String savepointPath = ((TriggerSavepointSuccess) Await
+				.result(savepointPathFuture, deadline.timeLeft())).savepointPath();
+
+			LOG.info("Retrieved savepoint path: " + savepointPath + ".");
+		} catch (Exception e) {
+			fail(e.getMessage());
+		} finally {
+			if (flink != null) {
+				flink.shutdown();
+			}
+			if (tmpDir != null) {
+				FileUtils.deleteDirectory(tmpDir);
+			}
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	// Test program
 	// ------------------------------------------------------------------------
@@ -617,7 +717,7 @@ public class SavepointITCase extends TestLogger {
 			int parallelism,
 			int numberOfRetries,
 			long restartDelay,
-			int checkpointingInterval) {
+			long checkpointingInterval) {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
@@ -644,9 +744,11 @@ public class SavepointITCase extends TestLogger {
 
 		// Test control
 		private static CountDownLatch CheckpointCompleteLatch = new CountDownLatch(1);
+		private static CountDownLatch StartRunningLatch = new CountDownLatch(1);
 
 		@Override
 		public void run(SourceContext<Integer> ctx) throws Exception {
+			StartRunningLatch.countDown();
 			while (running) {
 				ctx.collect(1);
 			}
