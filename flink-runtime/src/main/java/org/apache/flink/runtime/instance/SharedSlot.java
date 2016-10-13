@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.instance;
 
+import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
@@ -50,11 +51,14 @@ public class SharedSlot extends Slot {
 	/** The set os sub-slots allocated from this shared slot */
 	private final Set<Slot> subSlots;
 
+	// ------------------------------------------------------------------------
+	//  Old Constructors (prior FLIP-6)
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates a new shared slot that has no parent (is a root slot) and does not belong to any task group.
 	 * This constructor is used to create a slot directly from an instance. 
-	 * 
+	 *
 	 * @param jobID The ID of the job that the slot is created for.
 	 * @param owner The component from which this slot is allocated.
 	 * @param location The location info of the TaskManager where the slot was allocated from
@@ -73,7 +77,7 @@ public class SharedSlot extends Slot {
 	/**
 	 * Creates a new shared slot that has is a sub-slot of the given parent shared slot, and that belongs
 	 * to the given task group.
-	 * 
+	 *
 	 * @param jobID The ID of the job that the slot is created for.
 	 * @param owner The component from which this slot is allocated.
 	 * @param location The location info of the TaskManager where the slot was allocated from
@@ -90,6 +94,51 @@ public class SharedSlot extends Slot {
 			@Nullable SharedSlot parent, @Nullable AbstractID groupId) {
 
 		super(jobID, owner, location, slotNumber, taskManagerActorGateway, parent, groupId);
+
+		this.assignmentGroup = checkNotNull(assignmentGroup);
+		this.subSlots = new HashSet<Slot>();
+	}
+
+	// ------------------------------------------------------------------------
+	//  Constructors
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Creates a new shared slot that has no parent (is a root slot) and does not belong to any task group.
+	 * This constructor is used to create a slot directly from an instance.
+	 * 
+	 * @param allocatedSlot The allocated slot that this slot represents.
+	 * @param owner The component from which this slot is allocated.
+	 * @param assignmentGroup The assignment group that this shared slot belongs to.
+	 */
+	public SharedSlot(AllocatedSlot allocatedSlot, SlotOwner owner, SlotSharingGroupAssignment assignmentGroup) {
+		this(allocatedSlot, owner, allocatedSlot.getSlotNumber(), assignmentGroup, null, null);
+	}
+
+	/**
+	 * Creates a new shared slot that is a sub-slot of the given parent shared slot, and that belongs
+	 * to the given task group.
+	 * 
+	 * @param parent The parent slot of this slot.
+	 * @param owner The component from which this slot is allocated.
+	 * @param slotNumber The number of the slot.
+	 * @param assignmentGroup The assignment group that this shared slot belongs to.
+	 * @param groupId The assignment group of this slot.
+	 */
+	public SharedSlot(
+			SharedSlot parent, SlotOwner owner, int slotNumber,
+			SlotSharingGroupAssignment assignmentGroup,
+			AbstractID groupId) {
+
+		this(parent.getAllocatedSlot(), owner, slotNumber, assignmentGroup, parent, groupId);
+	}
+
+	private SharedSlot(
+			AllocatedSlot allocatedSlot, SlotOwner owner, int slotNumber,
+			SlotSharingGroupAssignment assignmentGroup,
+			@Nullable SharedSlot parent, @Nullable AbstractID groupId) {
+
+		super(allocatedSlot, owner, slotNumber, parent, groupId);
 
 		this.assignmentGroup = checkNotNull(assignmentGroup);
 		this.subSlots = new HashSet<Slot>();
