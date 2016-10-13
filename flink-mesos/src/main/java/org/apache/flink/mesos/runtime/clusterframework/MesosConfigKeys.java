@@ -30,7 +30,7 @@ public class MesosConfigKeys {
 	public static final String ENV_TM_COUNT = "_CLIENT_TM_COUNT";
 	public static final String ENV_SLOTS = "_SLOTS";
 	public static final String ENV_CLIENT_SHIP_FILES = "_CLIENT_SHIP_FILES";
-	public static final String ENV_CLIENT_USERNAME = "_CLIENT_USERNAME";
+	public static final String ENV_HADOOP_USER_NAME = "HADOOP_USER_NAME";
 	public static final String ENV_DYNAMIC_PROPERTIES = "_DYNAMIC_PROPERTIES";
 	public static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
 	public static final String ENV_FLINK_TMP_DIR = "_FLINK_TMP_DIR";
@@ -38,6 +38,9 @@ public class MesosConfigKeys {
 	public static final String ENV_CLASSPATH = "CLASSPATH";
 	public static final String ENV_MESOS_SANDBOX = "MESOS_SANDBOX";
 	public static final String ENV_SESSION_ID = "_CLIENT_SESSION_ID";
+	public static final String ENV_HADOOP_CONF_DIR = "HADOOP_CONF_DIR";
+	public static final String ENV_KEYTAB = "_KEYTAB_FILE";
+	public static final String ENV_KEYTAB_PRINCIPAL = "_KEYTAB_PRINCIPAL";
 
 	/** Private constructor to prevent instantiation */
 	private MesosConfigKeys() {}
