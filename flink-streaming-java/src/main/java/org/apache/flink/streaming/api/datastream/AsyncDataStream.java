@@ -93,7 +93,7 @@ public class AsyncDataStream {
 	 * @param in Input data stream
 	 * @param func {@link AsyncFunction}
 	 * @bufSize The max number of async i/o operation that can be triggered
-	 * @return A new {@link DataStream}.
+	 * @return A new {@link SingleOutputStreamOperator}.
 	 */
 	public static <IN, OUT> SingleOutputStreamOperator<OUT> orderedWait(DataStream<IN> in,
 																		AsyncFunction<IN, OUT> func,

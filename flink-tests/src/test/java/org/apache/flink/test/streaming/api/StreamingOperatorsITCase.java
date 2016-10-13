@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.streaming.api;
 
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -40,9 +39,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -171,19 +168,18 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 		DataStream<Tuple2<Integer, NonSerializable>> input = env.addSource(new NonSerializableTupleSource(numElements));
 
-		FoldFunction<Tuple2<Integer, NonSerializable>, NonSerializable> function = new FoldFunction<Tuple2<Integer, NonSerializable>, NonSerializable>() {
+		input
+			.keyBy(0)
+			.fold(
+				new NonSerializable(42),
+				new FoldFunction<Tuple2<Integer, NonSerializable>, NonSerializable>() {
 			private static final long serialVersionUID = 2705497830143608897L;
 
 			@Override
 			public NonSerializable fold(NonSerializable accumulator, Tuple2<Integer, NonSerializable> value) throws Exception {
 				return new NonSerializable(accumulator.value + value.f1.value);
 			}
-		};
-
-		input
-			.keyBy(0)
-			.fold(
-				new NonSerializable(42), function)
+			})
 			.map(new MapFunction<NonSerializable, Integer>() {
 				private static final long serialVersionUID = 6906984044674568945L;
 
@@ -193,20 +189,6 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 				}
 			})
 			.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
-
-		FilterFunction<String> function2 = new FilterFunction<String>() {
-			@Override
-			public boolean filter(String value) throws Exception {
-				return false;
-			}
-		};
-
-		try {
-			new ObjectOutputStream(new ByteArrayOutputStream()).writeObject(function);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-		}
 
 		StringBuilder builder = new StringBuilder();
 
