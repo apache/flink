@@ -18,14 +18,16 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
+import java.io.File;
 import java.io.IOException;
-import java.security.PrivilegedAction;
 import java.util.Map;
 
+import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.cli.FlinkMesosSessionCli;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
@@ -33,8 +35,6 @@ import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.security.token.TokenIdentifier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,7 +73,7 @@ public class MesosTaskManagerRunner {
 
 		// read the environment variables
 		final Map<String, String> envs = System.getenv();
-		final String effectiveUsername = envs.get(MesosConfigKeys.ENV_CLIENT_USERNAME);
+		final String effectiveUsername = envs.get(MesosConfigKeys.ENV_HADOOP_USER_NAME);
 		final String tmpDirs = envs.get(MesosConfigKeys.ENV_FLINK_TMP_DIR);
 
 		// configure local directory
@@ -87,34 +87,55 @@ public class MesosTaskManagerRunner {
 			configuration.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, tmpDirs);
 		}
 
-		LOG.info("Mesos task runs as '{}', setting user to execute Flink TaskManager to '{}'",
-			UserGroupInformation.getCurrentUser().getShortUserName(), effectiveUsername);
+		final String keytab = envs.get(MesosConfigKeys.ENV_KEYTAB);
+		LOG.info("Keytab file:{}", keytab);
+
+		final String principal = envs.get(MesosConfigKeys.ENV_KEYTAB_PRINCIPAL);
+		LOG.info("Keytab principal:{}", principal);
+
+		if(keytab != null && keytab.length() != 0) {
+			File f = new File(".", keytab);
+			if(!f.exists()) {
+				LOG.error("Could not locate keytab file:[" + keytab + "]");
+				System.exit(TaskManager.STARTUP_FAILURE_RETURN_CODE());
+			}
+			configuration.setString(ConfigConstants.SECURITY_KEYTAB_KEY, keytab);
+			configuration.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY, principal);
+		}
 
 		// tell akka to die in case of an error
 		configuration.setBoolean(ConfigConstants.AKKA_JVM_EXIT_ON_FATAL_ERROR, true);
-
-		UserGroupInformation ugi = UserGroupInformation.createRemoteUser(effectiveUsername);
-		for (Token<? extends TokenIdentifier> toks : UserGroupInformation.getCurrentUser().getTokens()) {
-			ugi.addToken(toks);
-		}
 
 		// Infer the resource identifier from the environment variable
 		String containerID = Preconditions.checkNotNull(envs.get(MesosConfigKeys.ENV_FLINK_CONTAINER_ID));
 		final ResourceID resourceId = new ResourceID(containerID);
 		LOG.info("ResourceID assigned for this container: {}", resourceId);
 
-		ugi.doAs(new PrivilegedAction<Object>() {
-			@Override
-			public Object run() {
-				try {
+		String hadoopConfDir = envs.get(MesosConfigKeys.ENV_HADOOP_CONF_DIR);
+		LOG.info("hadoopConfDir: {}", hadoopConfDir);
+
+		SecurityContext.SecurityConfiguration sc = new SecurityContext.SecurityConfiguration();
+		sc.setFlinkConfiguration(configuration);
+		if(hadoopConfDir != null && hadoopConfDir.length() != 0) {
+			sc.setHadoopConfiguration(HadoopUtils.getHadoopConfiguration());
+		}
+
+		try {
+			SecurityContext.install(sc);
+			LOG.info("Mesos task runs as '{}', setting user to execute Flink TaskManager to '{}'",
+					UserGroupInformation.getCurrentUser().getShortUserName(), effectiveUsername);
+			SecurityContext.getInstalled().runSecured(new SecurityContext.FlinkSecuredRunner<Object>() {
+				@Override
+				public Object run() throws Exception {
 					TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration, resourceId, taskManager);
+					return null;
 				}
-				catch (Throwable t) {
-					LOG.error("Error while starting the TaskManager", t);
-					System.exit(TaskManager.STARTUP_FAILURE_RETURN_CODE());
-				}
-				return null;
-			}
-		});
+			});
+		}
+		catch (Throwable t) {
+			LOG.error("Error while starting the TaskManager", t);
+			System.exit(TaskManager.STARTUP_FAILURE_RETURN_CODE());
+		}
+
 	}
 }
