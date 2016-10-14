@@ -72,6 +72,7 @@ import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testutils.StoppableInvokable;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.NetUtils;
@@ -1121,7 +1122,7 @@ public class TaskManagerTest extends TestLogger {
 						0,
 						new Configuration(),
 						new Configuration(),
-						Tasks.BlockingNoOpInvokable.class.getName(),
+						BlockingNoOpInvokable.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
 						Collections.<BlobKey>emptyList(),
@@ -1227,7 +1228,7 @@ public class TaskManagerTest extends TestLogger {
 									// Look for BlockingNoOpInvokable#invoke
 									for (StackTraceElement elem : trace) {
 										if (elem.getClassName().equals(
-												Tasks.BlockingNoOpInvokable.class.getName())) {
+												BlockingNoOpInvokable.class.getName())) {
 
 											assertEquals("invoke", elem.getMethodName());
 											success = true;
