@@ -144,6 +144,12 @@ jobmanager.web.port: 8081
 # high-availability.zookeeper.quorum: localhost:2181
 # high-availability.zookeeper.storageDir: hdfs:///flink/ha/
 
+# ACL options are based on https://zookeeper.apache.org/doc/r3.1.2/zookeeperProgrammers.html#sc_BuiltinACLSchemes
+# It can be either "creator" (ZOO_CREATE_ALL_ACL) or "open" (ZOO_OPEN_ACL_UNSAFE)
+# The default value is "open" and it can be changed to "creator" if ZK security is enabled
+#
+# high-availability.zookeeper.client.acl: open
+
 #==============================================================================
 # Flink Cluster Security Configuration (optional configuration)
 #==============================================================================

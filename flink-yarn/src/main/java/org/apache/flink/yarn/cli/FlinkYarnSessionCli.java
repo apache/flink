@@ -572,6 +572,15 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		} else if (cmd.hasOption(APPLICATION_ID.getOpt())) {
 
 			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor();
+
+			//configure ZK namespace depending on the value passed
+			String zkNamespace = cmd.hasOption(ZOOKEEPER_NAMESPACE.getOpt()) ?
+									cmd.getOptionValue(ZOOKEEPER_NAMESPACE.getOpt())
+									:yarnDescriptor.getFlinkConfiguration()
+									.getString(HA_ZOOKEEPER_NAMESPACE_KEY, cmd.getOptionValue(APPLICATION_ID.getOpt()));
+			LOG.info("Going to use the ZK namespace: {}", zkNamespace);
+			yarnDescriptor.getFlinkConfiguration().setString(HA_ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
+
 			try {
 				yarnCluster = yarnDescriptor.retrieve(cmd.getOptionValue(APPLICATION_ID.getOpt()));
 			} catch (Exception e) {
