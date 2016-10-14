@@ -699,7 +699,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			StreamOperator<?> op, Collection<OperatorStateHandle> restoreStateHandles) throws Exception {
 
 		Environment env = getEnvironment();
-		String opId = createOperatorIdentifier(op, configuration.getVertexID());
+		String opId = createOperatorIdentifier(op, getConfiguration().getVertexID());
 
 		OperatorStateBackend newBackend = restoreStateHandles == null ?
 				stateBackend.createOperatorStateBackend(env, opId)

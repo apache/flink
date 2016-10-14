@@ -23,12 +23,15 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.checkpoint.SnapshotInProgressSubtaskState;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.ClosableRegistry;
+import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -66,7 +69,7 @@ import static org.mockito.Mockito.when;
  */
 public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
-	protected static final int MAX_PARALLELISM = 10;
+	public static final int MAX_PARALLELISM = 10;
 
 	final OneInputStreamOperator<IN, OUT> operator;
 
@@ -91,6 +94,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	 * Whether setup() was called on the operator. This is reset when calling close().
 	 */
 	private boolean setupCalled = false;
+	private boolean initializeCalled = false;
 
 	private volatile boolean wasFailedExternally = false;
 
@@ -159,6 +163,26 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 			throw new RuntimeException(e.getMessage(), e);
 		}
 
+		try {
+			doAnswer(new Answer<OperatorStateBackend>() {
+				@Override
+				public OperatorStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
+					final StreamOperator<?> operator = (StreamOperator<?>) invocationOnMock.getArguments()[0];
+					final Collection<OperatorStateHandle> stateHandles = (Collection<OperatorStateHandle>) invocationOnMock.getArguments()[1];
+					OperatorStateBackend osb;
+					if (null == stateHandles) {
+						osb = stateBackend.createOperatorStateBackend(env, operator.getClass().getSimpleName());
+					} else {
+						osb = stateBackend.restoreOperatorStateBackend(env, operator.getClass().getSimpleName(), stateHandles);
+					}
+					mockTask.getCancelables().registerClosable(osb);
+					return osb;
+				}
+			}).when(mockTask).createOperatorStateBackend(any(StreamOperator.class), any(Collection.class));
+		} catch (Exception e) {
+			throw new RuntimeException(e.getMessage(), e);
+		}
+
 		timeServiceProvider = testTimeProvider != null ? testTimeProvider :
 			new DefaultTimeServiceProvider(mockTask, this.checkpointLock);
 
@@ -204,8 +228,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	/**
-	 * Calls
-	 * {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, StreamConfig, Output)} ()}
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, StreamConfig, Output)} ()}
 	 */
 	public void setup() throws Exception {
 		operator.setup(mockTask, config, new MockOutput());
@@ -213,22 +236,48 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open()}. This also
-	 * calls {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, StreamConfig, Output)}
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState(OperatorStateHandles)}.
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, StreamConfig, Output)}
 	 * if it was not called before.
 	 */
-	public void open() throws Exception {
+	public void initializeState(OperatorStateHandles operatorStateHandles) throws Exception {
 		if (!setupCalled) {
 			setup();
 		}
-		operator.initializeState(mock(OperatorStateHandles.class));
+		operator.initializeState(operatorStateHandles);
+		initializeCalled = true;
+	}
+
+	/**
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open()}.
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState(OperatorStateHandles)} if it
+	 * was not called before.
+	 */
+	public void open() throws Exception {
+		if (!initializeCalled) {
+			initializeState(null);
+		}
 		operator.open();
 	}
 
 	/**
 	 *
 	 */
-	public StreamStateHandle snapshot(long checkpointId, long timestamp) throws Exception {
+	public SnapshotInProgressSubtaskState snapshot(long checkpointId, long timestamp) throws Exception {
+
+		CheckpointStreamFactory streamFactory = stateBackend.createStreamFactory(
+				new JobID(),
+				"test_op");
+
+		return operator.snapshotState(checkpointId, timestamp, streamFactory);
+	}
+
+	/**
+	 *
+	 */
+	@Deprecated
+	public StreamStateHandle snapshotLegacy(long checkpointId, long timestamp) throws Exception {
+
 		CheckpointStreamFactory.CheckpointStateOutputStream outStream = stateBackend.createStreamFactory(
 				new JobID(),
 				"test_op").createCheckpointStateOutputStream(checkpointId, timestamp);
@@ -250,6 +299,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	/**
 	 *
 	 */
+	@Deprecated
 	public void restore(StreamStateHandle snapshot) throws Exception {
 		if(operator instanceof StreamCheckpointedOperator) {
 			try (FSDataInputStream in = snapshot.openInputStream()) {

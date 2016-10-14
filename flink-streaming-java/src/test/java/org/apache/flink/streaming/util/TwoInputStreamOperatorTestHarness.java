@@ -60,6 +60,8 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 
 	final ClosableRegistry closableRegistry;
 
+	boolean initializeCalled = false;
+
 	public TwoInputStreamOperatorTestHarness(TwoInputStreamOperator<IN1, IN2, OUT> operator) {
 		this(operator, new StreamConfig(new Configuration()));
 	}
@@ -93,10 +95,21 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 	}
 
 	/**
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState(OperatorStateHandles)}.
+	 */
+	public void initializeState(OperatorStateHandles operatorStateHandles) throws Exception {
+		operator.initializeState(operatorStateHandles);
+		initializeCalled = true;
+	}
+
+	/**
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open()}.
 	 */
 	public void open() throws Exception {
-		operator.initializeState(mock(OperatorStateHandles.class));
+		if(!initializeCalled) {
+			initializeState(mock(OperatorStateHandles.class));
+		}
+
 		operator.open();
 	}
 
