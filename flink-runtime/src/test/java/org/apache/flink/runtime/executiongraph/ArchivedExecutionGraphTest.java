@@ -31,7 +31,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.savepoint.HeapSavepointStore;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStats;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.JobCheckpointStats;
@@ -42,6 +41,7 @@ import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 import org.junit.BeforeClass;
@@ -110,12 +110,13 @@ public class ArchivedExecutionGraphTest {
 			100,
 			100,
 			1,
+			ExternalizedCheckpointSettings.none(),
 			Collections.<ExecutionJobVertex>emptyList(),
 			Collections.<ExecutionJobVertex>emptyList(),
 			Collections.<ExecutionJobVertex>emptyList(),
 			new StandaloneCheckpointIDCounter(),
-			new StandaloneCompletedCheckpointStore(1, null),
-			new HeapSavepointStore(),
+			new StandaloneCompletedCheckpointStore(1),
+			null,
 			new TestCheckpointStatsTracker());
 
 		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators = new HashMap<>();
@@ -376,6 +377,11 @@ public class ArchivedExecutionGraphTest {
 		@Override
 		public long getCount() {
 			return 1;
+		}
+
+		@Override
+		public String getExternalPath() {
+			return null;
 		}
 
 		@Override
