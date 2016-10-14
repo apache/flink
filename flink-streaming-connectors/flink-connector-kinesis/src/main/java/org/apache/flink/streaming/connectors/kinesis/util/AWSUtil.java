@@ -51,8 +51,9 @@ public class AWSUtil {
 		awsClientConfig.setUserAgent("Apache Flink " + EnvironmentInformation.getVersion() +
 			" (" + EnvironmentInformation.getRevisionInformation().commitId + ") Kinesis Connector");
 
+		// utilize automatic refreshment of credentials by directly passing the AWSCredentialsProvider
 		AmazonKinesisClient client = new AmazonKinesisClient(
-			AWSUtil.getCredentialsProvider(configProps).getCredentials(), awsClientConfig);
+			AWSUtil.getCredentialsProvider(configProps), awsClientConfig);
 
 		client.setRegion(Region.getRegion(Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION))));
 		if (configProps.containsKey(AWSConfigConstants.AWS_ENDPOINT)) {
