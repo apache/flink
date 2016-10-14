@@ -24,6 +24,23 @@ import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 
 public class HighAvailabilityServicesUtils {
 
+	public static HighAvailabilityServices createAvailableOrEmbeddedServices(Configuration config) throws Exception {
+		HighAvailabilityMode highAvailabilityMode = LeaderRetrievalUtils.getRecoveryMode(config);
+
+		switch (highAvailabilityMode) {
+			case NONE:
+				return new EmbeddedNonHaServices();
+
+			case ZOOKEEPER:
+				throw new UnsupportedOperationException("ZooKeeper high availability services " +
+						"have not been implemented yet.");
+
+			default:
+				throw new Exception("High availability mode " + highAvailabilityMode + " is not supported.");
+		}
+	}
+	
+	
 	public static HighAvailabilityServices createHighAvailabilityServices(Configuration configuration) throws Exception {
 		HighAvailabilityMode highAvailabilityMode = LeaderRetrievalUtils.getRecoveryMode(configuration);
 
