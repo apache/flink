@@ -49,11 +49,10 @@ public interface HighAvailabilityServices {
 	 * Gets the leader retriever for the job JobMaster which is responsible for the given job
 	 *
 	 * @param jobID The identifier of the job.
-	 * @param defaultAddress address under which the job manager is reachable
 	 * @return
 	 * @throws Exception
 	 */
-	LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID, String defaultAddress) throws Exception;
+	LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) throws Exception;
 
 	/**
 	 * Gets the leader election service for the cluster's resource manager.
@@ -86,4 +85,8 @@ public interface HighAvailabilityServices {
 	 * Creates the BLOB store in which BLOBs are stored in a highly-available fashion.
 	 */
 	BlobStore createBlobStore() throws IOException;
+
+	// ------------------------------------------------------------------------
+
+	void shutdown() throws Exception;
 }

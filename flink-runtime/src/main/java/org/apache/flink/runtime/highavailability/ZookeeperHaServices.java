@@ -86,7 +86,8 @@ public class ZookeeperHaServices implements HighAvailabilityServices {
 	private static final String JOB_MANAGER_LEADER_PATH = "/job_manager_lock";
 
 	// ------------------------------------------------------------------------
-
+	
+	
 	/** The ZooKeeper client to use */
 	private final CuratorFramework client;
 
@@ -166,6 +167,15 @@ public class ZookeeperHaServices implements HighAvailabilityServices {
 		}
 
 		return new FileSystemBlobStore(fileSystem, storagePath);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Shutdown
+	// ------------------------------------------------------------------------
+
+	@Override
+	public void shutdown() throws Exception {
+		client.close();
 	}
 
 	// ------------------------------------------------------------------------

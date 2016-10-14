@@ -154,4 +154,13 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	public BlobStore createBlobStore() throws IOException {
 		return new VoidBlobStore();
 	}
+
+	// ------------------------------------------------------------------------
+	//  Shutdown
+	// ------------------------------------------------------------------------
+
+	@Override
+	public void shutdown() throws Exception {
+		// nothing to do, since this should not shut down individual services, but cross service parts
+	}
 }
