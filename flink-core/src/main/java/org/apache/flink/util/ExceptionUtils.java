@@ -110,8 +110,6 @@ public final class ExceptionUtils {
 		}
 	}
 
-
-
 	/**
 	 * Throws the given {@code Throwable} in scenarios where the signatures do not allow you to
 	 * throw an arbitrary Throwable. Errors and RuntimeExceptions are thrown directly, other exceptions
@@ -214,10 +212,8 @@ public final class ExceptionUtils {
 		}
 	}
 
-	/**
-	 * Private constructor to prevent instantiation.
-	 */
-	private ExceptionUtils() {
-		throw new RuntimeException();
-	}
+	// ------------------------------------------------------------------------
+
+	/** Private constructor to prevent instantiation. */
+	private ExceptionUtils() {}
 }

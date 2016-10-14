@@ -289,7 +289,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	@Override
 	public void jobFinishedByOther() {
 		try {
-			unregisterJobFromHighAvailability();
 			shutdownInternally();
 		}
 		finally {
