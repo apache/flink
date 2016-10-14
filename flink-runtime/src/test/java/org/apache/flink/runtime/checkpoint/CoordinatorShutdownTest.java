@@ -28,11 +28,13 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
-import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testtasks.NoOpInvokable;
+
 import org.junit.Test;
+
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -58,7 +60,7 @@ public class CoordinatorShutdownTest {
 			
 			// build a test graph with snapshotting enabled
 			JobVertex vertex = new JobVertex("Test Vertex");
-			vertex.setInvokableClass(Tasks.NoOpInvokable.class);
+			vertex.setInvokableClass(NoOpInvokable.class);
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 			
 			JobGraph testGraph = new JobGraph("test job", vertex);
@@ -110,7 +112,7 @@ public class CoordinatorShutdownTest {
 			
 			// build a test graph with snapshotting enabled
 			JobVertex vertex = new JobVertex("Test Vertex");
-			vertex.setInvokableClass(Tasks.NoOpInvokable.class);
+			vertex.setInvokableClass(NoOpInvokable.class);
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 
 			JobGraph testGraph = new JobGraph("test job", vertex);

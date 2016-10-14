@@ -80,6 +80,7 @@ import org.apache.flink.runtime.testingUtils.TestingMemoryArchivist;
 import org.apache.flink.runtime.testingUtils.TestingTaskManager;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testutils.StoppableInvokable;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -169,7 +170,7 @@ public class JobManagerTest {
 						// Create a task
 						final JobVertex sender = new JobVertex("Sender");
 						sender.setParallelism(1);
-						sender.setInvokableClass(Tasks.BlockingNoOpInvokable.class); // just block
+						sender.setInvokableClass(BlockingNoOpInvokable.class); // just block
 						sender.createAndAddResultDataSet(rid, PIPELINED);
 
 						final JobGraph jobGraph = new JobGraph("Blocking test job", sender);
@@ -340,7 +341,7 @@ public class JobManagerTest {
 						// Create a task
 						final JobVertex sender = new JobVertex("Sender");
 						sender.setParallelism(1);
-						sender.setInvokableClass(Tasks.BlockingNoOpInvokable.class); // just block
+						sender.setInvokableClass(BlockingNoOpInvokable.class); // just block
 
 						final JobGraph jobGraph = new JobGraph("Non-Stoppable batching test job", sender);
 						final JobID jid = jobGraph.getJobID();
@@ -442,11 +443,11 @@ public class JobManagerTest {
 		JobGraph jobGraph = new JobGraph("croissant");
 		JobVertex jobVertex1 = new JobVertex("cappuccino");
 		jobVertex1.setParallelism(4);
-		jobVertex1.setInvokableClass(Tasks.BlockingNoOpInvokable.class);
+		jobVertex1.setInvokableClass(BlockingNoOpInvokable.class);
 
 		JobVertex jobVertex2 = new JobVertex("americano");
 		jobVertex2.setParallelism(4);
-		jobVertex2.setInvokableClass(Tasks.BlockingNoOpInvokable.class);
+		jobVertex2.setInvokableClass(BlockingNoOpInvokable.class);
 
 		jobGraph.addVertex(jobVertex1);
 		jobGraph.addVertex(jobVertex2);

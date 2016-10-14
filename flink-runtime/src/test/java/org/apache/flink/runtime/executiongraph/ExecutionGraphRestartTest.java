@@ -36,15 +36,16 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
@@ -102,8 +103,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 		scheduler.newInstanceAvailable(instance);
 
-		JobVertex groupVertex = newJobVertex("Task1", NUM_TASKS, Tasks.NoOpInvokable.class);
-		JobVertex groupVertex2 = newJobVertex("Task2", NUM_TASKS, Tasks.NoOpInvokable.class);
+		JobVertex groupVertex = newJobVertex("Task1", NUM_TASKS, NoOpInvokable.class);
+		JobVertex groupVertex2 = newJobVertex("Task2", NUM_TASKS, NoOpInvokable.class);
 
 		SlotSharingGroup sharingGroup = new SlotSharingGroup();
 		groupVertex.setSlotSharingGroup(sharingGroup);
@@ -237,7 +238,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			new FixedDelayRestartStrategy(Integer.MAX_VALUE, Long.MAX_VALUE));
 
 		JobVertex jobVertex = new JobVertex("NoOpInvokable");
-		jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
+		jobVertex.setInvokableClass(NoOpInvokable.class);
 		jobVertex.setParallelism(NUM_TASKS);
 
 		JobGraph jobGraph = new JobGraph("TestJob", jobVertex);
@@ -369,8 +370,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 		scheduler.newInstanceAvailable(instance);
 
-		JobVertex sender = newJobVertex("Task1", 1, Tasks.NoOpInvokable.class);
-		JobVertex receiver = newJobVertex("Task2", 1, Tasks.NoOpInvokable.class);
+		JobVertex sender = newJobVertex("Task1", 1, NoOpInvokable.class);
+		JobVertex receiver = newJobVertex("Task2", 1, NoOpInvokable.class);
 		JobGraph jobGraph = new JobGraph("Pointwise job", sender, receiver);
 		ExecutionGraph eg = newExecutionGraph(new FixedDelayRestartStrategy(1, 1000));
 		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
@@ -432,7 +433,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 		scheduler.newInstanceAvailable(instance);
 
-		JobVertex vertex = newJobVertex("Test Vertex", 1, Tasks.NoOpInvokable.class);
+		JobVertex vertex = newJobVertex("Test Vertex", 1, NoOpInvokable.class);
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(
@@ -477,7 +478,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 		scheduler.newInstanceAvailable(instance);
 
-		JobVertex vertex = newJobVertex("Test Vertex", 1, Tasks.NoOpInvokable.class);
+		JobVertex vertex = newJobVertex("Test Vertex", 1, NoOpInvokable.class);
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(
@@ -525,7 +526,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		scheduler.newInstanceAvailable(instance);
 
 		JobVertex sender = new JobVertex("Task");
-		sender.setInvokableClass(Tasks.NoOpInvokable.class);
+		sender.setInvokableClass(NoOpInvokable.class);
 		sender.setParallelism(NUM_TASKS);
 
 		JobGraph jobGraph = new JobGraph("Pointwise job", sender);
@@ -639,7 +640,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 		scheduler.newInstanceAvailable(instance);
 
-		JobVertex sender = newJobVertex("Task", NUM_TASKS, Tasks.NoOpInvokable.class);
+		JobVertex sender = newJobVertex("Task", NUM_TASKS, NoOpInvokable.class);
 
 		JobGraph jobGraph = new JobGraph("Pointwise job", sender);
 
@@ -656,7 +657,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		return new Tuple2<>(eg, instance);
 	}
 
-	private static JobVertex newJobVertex(String task1, int numTasks, Class<Tasks.NoOpInvokable> invokable) {
+	private static JobVertex newJobVertex(String task1, int numTasks, Class<NoOpInvokable> invokable) {
 		JobVertex groupVertex = new JobVertex(task1);
 		groupVertex.setInvokableClass(invokable);
 		groupVertex.setParallelism(numTasks);

@@ -67,6 +67,7 @@ import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testutils.StoppableInvokable;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.SerializedValue;
@@ -1099,25 +1100,25 @@ public class TaskManagerTest extends TestLogger {
 
 				// Single blocking task
 				final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
-					new JobID(),
-					new AllocationID(),
-					"Job",
-					new JobVertexID(),
-					new ExecutionAttemptID(),
-					new SerializedValue<>(new ExecutionConfig()),
-					"Task",
-					1,
-					0,
-					1,
-					0,
-					new Configuration(),
-					new Configuration(),
-					Tasks.BlockingNoOpInvokable.class.getName(),
-					Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-					Collections.<InputGateDeploymentDescriptor>emptyList(),
-					Collections.<BlobKey>emptyList(),
-					Collections.<URL>emptyList(),
-					0);
+						new JobID(),
+						new AllocationID(),
+						"Job",
+						new JobVertexID(),
+						new ExecutionAttemptID(),
+						new SerializedValue<>(new ExecutionConfig()),
+						"Task",
+						1,
+						0,
+						1,
+						0,
+						new Configuration(),
+						new Configuration(),
+						BlockingNoOpInvokable.class.getName(),
+						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+						Collections.<InputGateDeploymentDescriptor>emptyList(),
+						Collections.<BlobKey>emptyList(),
+						Collections.<URL>emptyList(),
+						0);
 
 				// Submit the task
 				new Within(d) {
@@ -1220,7 +1221,7 @@ public class TaskManagerTest extends TestLogger {
 									// Look for BlockingNoOpInvokable#invoke
 									for (StackTraceElement elem : trace) {
 										if (elem.getClassName().equals(
-												Tasks.BlockingNoOpInvokable.class.getName())) {
+												BlockingNoOpInvokable.class.getName())) {
 
 											assertEquals("invoke", elem.getMethodName());
 											success = true;
