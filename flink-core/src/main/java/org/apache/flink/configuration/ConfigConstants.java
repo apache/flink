@@ -1303,6 +1303,12 @@ public final class ConfigConstants {
 	/** Default retry delay on location lookup failures. */
 	public static final int DEFAULT_QUERYABLE_STATE_CLIENT_LOOKUP_RETRY_DELAY = 1000;
 
+	// ----------------------------- Metrics ----------------------------
+
+	/** The default number of measured latencies to maintain at each operator */
+	public static final int DEFAULT_METRICS_LATENCY_HISTORY_SIZE = 128;
+
+
 	// ----------------------------- Environment Variables ----------------------------
 
 	/** The environment variable name which contains the location of the configuration directory */
