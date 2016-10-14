@@ -20,9 +20,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
@@ -37,8 +35,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -49,10 +45,9 @@ public class JobVertexCheckpointsHandlerTest {
 		JobVertexCheckpointsHandler handler = new JobVertexCheckpointsHandler(
 				mock(ExecutionGraphHolder.class));
 
-		ExecutionGraph graph = mock(ExecutionGraph.class);
 		ExecutionJobVertex vertex = mock(ExecutionJobVertex.class);
-
-		when(vertex.getGraph()).thenReturn(graph);
+		when(vertex.getCheckpointStats())
+			.thenReturn(Option.<OperatorCheckpointStats>empty());
 
 		String response = handler.handleRequest(vertex, Collections.<String, String>emptyMap());
 
@@ -65,15 +60,10 @@ public class JobVertexCheckpointsHandlerTest {
 		JobVertexCheckpointsHandler handler = new JobVertexCheckpointsHandler(
 				mock(ExecutionGraphHolder.class));
 
-		ExecutionGraph graph = mock(ExecutionGraph.class);
 		ExecutionJobVertex vertex = mock(ExecutionJobVertex.class);
-		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
-
-		when(vertex.getGraph()).thenReturn(graph);
-		when(graph.getCheckpointStatsTracker()).thenReturn(tracker);
 
 		// No stats
-		when(tracker.getOperatorStats(any(JobVertexID.class)))
+		when(vertex.getCheckpointStats())
 				.thenReturn(Option.<OperatorCheckpointStats>empty());
 
 		String response = handler.handleRequest(vertex, Collections.<String, String>emptyMap());
@@ -89,13 +79,9 @@ public class JobVertexCheckpointsHandlerTest {
 
 		JobVertexID vertexId = new JobVertexID();
 
-		ExecutionGraph graph = mock(ExecutionGraph.class);
 		ExecutionJobVertex vertex = mock(ExecutionJobVertex.class);
-		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
 
 		when(vertex.getJobVertexId()).thenReturn(vertexId);
-		when(vertex.getGraph()).thenReturn(graph);
-		when(graph.getCheckpointStatsTracker()).thenReturn(tracker);
 
 		long[][] subTaskStats = new long[][] {
 				new long[] { 1, 10 },
@@ -113,7 +99,7 @@ public class JobVertexCheckpointsHandlerTest {
 		OperatorCheckpointStats stats = new OperatorCheckpointStats(
 				3, 6812, 2800, 1024, subTaskStats);
 
-		when(tracker.getOperatorStats(eq(vertexId)))
+		when(vertex.getCheckpointStats())
 				.thenReturn(Option.apply(stats));
 
 		// Request stats

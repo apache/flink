@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -32,14 +33,16 @@ import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.checkpoint.ArchivedCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.stats.JobCheckpointStats;
+import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
-import org.apache.flink.runtime.executiongraph.archive.ExecutionConfigSummary;
+import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -58,8 +61,10 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.FiniteDuration;
+import scala.Option;
 
 import java.io.IOException;
 import java.net.URL;
@@ -102,7 +107,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *         address the message receiver.</li>
  * </ul>
  */
-public class ExecutionGraph {
+public class ExecutionGraph implements AccessExecutionGraph, Archiveable<ArchivedExecutionGraph> {
 
 	private static final AtomicReferenceFieldUpdater<ExecutionGraph, JobStatus> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(ExecutionGraph.class, JobStatus.class, "state");
@@ -180,9 +185,6 @@ public class ExecutionGraph {
 	 * from results than need to be materialized. */
 	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
 
-	/** Flag to indicate whether the Graph has been archived */
-	private boolean isArchived = false;
-
 	// ------ Execution status and progress. These values are volatile, and accessed under the lock -------
 
 	/** Current status of the job execution */
@@ -221,9 +223,6 @@ public class ExecutionGraph {
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private String jsonPlan;
-
-	/** Serializable summary of all job config values, e.g. for web interface */
-	private ExecutionConfigSummary executionConfigSummary;
 
 	// --------------------------------------------------------------------------------------------
 	//   Constructors
@@ -304,16 +303,6 @@ public class ExecutionGraph {
 		metricGroup.gauge(RESTARTING_TIME_METRIC_NAME, new RestartTimeGauge());
 
 		this.kvStateLocationRegistry = new KvStateLocationRegistry(jobId, getAllVertices());
-
-		// create a summary of all relevant data accessed in the web interface's JobConfigHandler
-		try {
-			ExecutionConfig executionConfig = serializedConfig.deserializeValue(userClassLoader);
-			if (executionConfig != null) {
-				this.executionConfigSummary = new ExecutionConfigSummary(executionConfig);
-			}
-		} catch (IOException | ClassNotFoundException e) {
-			LOG.error("Couldn't create ExecutionConfigSummary for job {} ", jobID, e);
-		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -344,8 +333,9 @@ public class ExecutionGraph {
 		return scheduleMode;
 	}
 
+	@Override
 	public boolean isArchived() {
-		return isArchived;
+		return false;
 	}
 
 	public void enableSnapshotCheckpointing(
@@ -434,6 +424,7 @@ public class ExecutionGraph {
 		return restartStrategy;
 	}
 
+	@Override
 	public CheckpointStatsTracker getCheckpointStatsTracker() {
 		return checkpointStatsTracker;
 	}
@@ -484,6 +475,7 @@ public class ExecutionGraph {
 		this.jsonPlan = jsonPlan;
 	}
 
+	@Override
 	public String getJsonPlan() {
 		return jsonPlan;
 	}
@@ -492,14 +484,17 @@ public class ExecutionGraph {
 		return slotProvider;
 	}
 
+	@Override
 	public JobID getJobID() {
 		return jobID;
 	}
 
+	@Override
 	public String getJobName() {
 		return jobName;
 	}
 
+	@Override
 	public boolean isStoppable() {
 		return this.isStoppable;
 	}
@@ -512,6 +507,7 @@ public class ExecutionGraph {
 		return this.userClassLoader;
 	}
 
+	@Override
 	public JobStatus getState() {
 		return state;
 	}
@@ -520,14 +516,22 @@ public class ExecutionGraph {
 		return failureCause;
 	}
 
+	@Override
+	public String getFailureCauseAsString() {
+		return ExceptionUtils.stringifyException(failureCause);
+	}
+
+	@Override
 	public ExecutionJobVertex getJobVertex(JobVertexID id) {
 		return this.tasks.get(id);
 	}
 
+	@Override
 	public Map<JobVertexID, ExecutionJobVertex> getAllVertices() {
 		return Collections.unmodifiableMap(this.tasks);
 	}
 
+	@Override
 	public Iterable<ExecutionJobVertex> getVerticesTopologically() {
 		// we return a specific iterator that does not fail with concurrent modifications
 		// the list is append only, so it is safe for that
@@ -566,6 +570,7 @@ public class ExecutionGraph {
 		return Collections.unmodifiableMap(this.intermediateResults);
 	}
 
+	@Override
 	public Iterable<ExecutionVertex> getAllExecutionVertices() {
 		return new Iterable<ExecutionVertex>() {
 			@Override
@@ -575,6 +580,7 @@ public class ExecutionGraph {
 		};
 	}
 
+	@Override
 	public long getStatusTimestamp(JobStatus status) {
 		return this.stateTimestamps[status.ordinal()];
 	}
@@ -592,6 +598,7 @@ public class ExecutionGraph {
 	 * Gets the internal flink accumulator map of maps which contains some metrics.
 	 * @return A map of accumulators for every executed task.
 	 */
+	@Override
 	public Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?,?>>> getFlinkAccumulators() {
 		Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators =
 				new HashMap<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>>();
@@ -627,6 +634,7 @@ public class ExecutionGraph {
 	 * @return The accumulator map with serialized accumulator values.
 	 * @throws IOException
 	 */
+	@Override
 	public Map<String, SerializedValue<Object>> getAccumulatorsSerialized() throws IOException {
 
 		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
@@ -643,6 +651,7 @@ public class ExecutionGraph {
 	 * Returns the a stringified version of the user-defined accumulators.
 	 * @return an Array containing the StringifiedAccumulatorResult objects
 	 */
+	@Override
 	public StringifiedAccumulatorResult[] getAccumulatorResultsStringified() {
 		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
 		return StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
@@ -926,51 +935,20 @@ public class ExecutionGraph {
 	}
 
 	/**
-	 * This method cleans fields that are irrelevant for the archived execution attempt.
+	 * Returns the serializable ArchivedExecutionConfig
+	 * @return ArchivedExecutionConfig which may be null in case of errors
 	 */
-	public void prepareForArchiving() {
-		if (!state.isGloballyTerminalState()) {
-			throw new IllegalStateException("Can only archive the job from a terminal state");
-		}
-
-		// clear the non-serializable fields
-		restartStrategy = null;
-		slotProvider = null;
-		checkpointCoordinator = null;
-		executionContext = null;
-		kvStateLocationRegistry = null;
-
-		for (ExecutionJobVertex vertex : verticesInCreationOrder) {
-			vertex.prepareForArchiving();
-		}
-
-		intermediateResults.clear();
-		currentExecutions.clear();
-		requiredJarFiles.clear();
-		requiredClasspaths.clear();
-		jobStatusListeners.clear();
-		executionListeners.clear();
-
-		if (userClassLoader instanceof FlinkUserCodeClassLoader) {
-			try {
-				// close the classloader to free space of user jars immediately
-				// otherwise we have to wait until garbage collection
-				((FlinkUserCodeClassLoader) userClassLoader).close();
-			} catch (IOException e) {
-				LOG.warn("Failed to close the user classloader for job {}", jobID, e);
+	public ArchivedExecutionConfig getArchivedExecutionConfig() {
+		// create a summary of all relevant data accessed in the web interface's JobConfigHandler
+		try {
+			ExecutionConfig executionConfig = getSerializedExecutionConfig().deserializeValue(userClassLoader);
+			if (executionConfig != null) {
+				return executionConfig.archive();
 			}
-		}
-		userClassLoader = null;
-
-		isArchived = true;
-	}
-
-	/**
-	 * Returns the serializable ExecutionConfigSummary
-	 * @return ExecutionConfigSummary which may be null in case of errors
-	 */
-	public ExecutionConfigSummary getExecutionConfigSummary() {
-		return executionConfigSummary;
+		} catch (IOException | ClassNotFoundException e) {
+			LOG.error("Couldn't create ArchivedExecutionConfig for job {} ", jobID, e);
+		};
+		return null;
 	}
 
 	/**
@@ -1281,5 +1259,54 @@ public class ExecutionGraph {
 				return System.currentTimeMillis() - restartingTimestamp;
 			}
 		}
+	}
+
+	@Override
+	public ArchivedExecutionGraph archive() {
+		Map<JobVertexID, OperatorCheckpointStats> operatorStats = new HashMap<>();
+		Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = new HashMap<>();
+		List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder = new ArrayList<>();
+		for (ExecutionJobVertex task : verticesInCreationOrder) {
+			ArchivedExecutionJobVertex archivedTask = task.archive();
+			archivedVerticesInCreationOrder.add(archivedTask);
+			archivedTasks.put(task.getJobVertexId(), archivedTask);
+			Option<OperatorCheckpointStats> statsOption = task.getCheckpointStats();
+			if (statsOption.isDefined()) {
+				operatorStats.put(task.getJobVertexId(), statsOption.get());
+			}
+		}
+
+		Option<JobCheckpointStats> jobStats;
+		if (getCheckpointStatsTracker() == null) {
+			jobStats = Option.empty();
+		} else {
+			jobStats = getCheckpointStatsTracker().getJobStats();
+		}
+
+		ArchivedCheckpointStatsTracker statsTracker = new ArchivedCheckpointStatsTracker(jobStats, operatorStats);
+
+		Map<String, SerializedValue<Object>> serializedUserAccumulators;
+		try {
+			serializedUserAccumulators = getAccumulatorsSerialized();
+		} catch (Exception e) {
+			LOG.warn("Error occurred while archiving user accumulators.", e);
+			serializedUserAccumulators = Collections.emptyMap();
+		}
+
+		return new ArchivedExecutionGraph(
+			getJobID(),
+			getJobName(),
+			archivedTasks,
+			archivedVerticesInCreationOrder,
+			stateTimestamps,
+			getState(),
+			getFailureCauseAsString(),
+			getJsonPlan(),
+			getAccumulatorResultsStringified(),
+			serializedUserAccumulators,
+			getArchivedExecutionConfig(),
+			isStoppable(),
+			statsTracker
+		);
 	}
 }

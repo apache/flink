@@ -201,7 +201,7 @@ public class JobManagerTest {
 						// Request the execution graph to get the runtime info
 						jobManagerGateway.tell(new RequestExecutionGraph(jid), testActorGateway);
 
-						final ExecutionGraph eg = expectMsgClass(ExecutionGraphFound.class)
+						final ExecutionGraph eg = (ExecutionGraph) expectMsgClass(ExecutionGraphFound.class)
 							.executionGraph();
 
 						final ExecutionVertex vertex = eg.getJobVertex(sender.getID())

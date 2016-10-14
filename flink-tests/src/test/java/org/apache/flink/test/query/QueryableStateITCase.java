@@ -40,7 +40,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -396,7 +395,7 @@ public class QueryableStateITCase extends TestLogger {
 					.map(new Mapper<TestingJobManagerMessages.ExecutionGraphFound, ExecutionGraph>() {
 						@Override
 						public ExecutionGraph apply(ExecutionGraphFound found) {
-							return found.executionGraph();
+							return (ExecutionGraph) found.executionGraph();
 						}
 					}, TEST_ACTOR_SYSTEM.dispatcher());
 			ExecutionGraph eg = Await.result(egFuture, deadline.timeLeft());
@@ -553,12 +552,13 @@ public class QueryableStateITCase extends TestLogger {
 							.mapTo(ClassTag$.MODULE$.<JobFound>apply(JobFound.class)),
 					deadline.timeLeft());
 
-			Throwable failureCause = jobFound.executionGraph().getFailureCause();
+			String failureCause = jobFound.executionGraph().getFailureCauseAsString();
 
-			assertTrue("Not instance of SuppressRestartsException", failureCause instanceof SuppressRestartsException);
-			assertTrue("Not caused by IllegalStateException", failureCause.getCause() instanceof IllegalStateException);
-			Throwable duplicateException = failureCause.getCause();
-			assertTrue("Exception does not contain registration name", duplicateException.getMessage().contains(queryName));
+			assertTrue("Not instance of SuppressRestartsException", failureCause.startsWith("org.apache.flink.runtime.execution.SuppressRestartsException"));
+			int causedByIndex = failureCause.indexOf("Caused by: ");
+			String subFailureCause = failureCause.substring(causedByIndex + "Caused by: ".length());
+			assertTrue("Not caused by IllegalStateException", subFailureCause.startsWith("java.lang.IllegalStateException"));
+			assertTrue("Exception does not contain registration name", subFailureCause.contains(queryName));
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {

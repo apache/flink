@@ -21,8 +21,8 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import com.fasterxml.jackson.core.JsonGenerator;
 
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
@@ -41,7 +41,7 @@ public class SubtasksTimesHandler extends AbstractJobVertexRequestHandler {
 	}
 
 	@Override
-	public String handleRequest(ExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
 		final long now = System.currentTimeMillis();
 
 		StringWriter writer = new StringWriter();
@@ -50,13 +50,13 @@ public class SubtasksTimesHandler extends AbstractJobVertexRequestHandler {
 		gen.writeStartObject();
 
 		gen.writeStringField("id", jobVertex.getJobVertexId().toString());
-		gen.writeStringField("name", jobVertex.getJobVertex().getName());
+		gen.writeStringField("name", jobVertex.getName());
 		gen.writeNumberField("now", now);
 		
 		gen.writeArrayFieldStart("subtasks");
 
 		int num = 0;
-		for (ExecutionVertex vertex : jobVertex.getTaskVertices()) {
+		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
 			
 			long[] timestamps = vertex.getCurrentExecutionAttempt().getStateTimestamps();
 			ExecutionState status = vertex.getExecutionState();

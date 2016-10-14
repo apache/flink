@@ -15,26 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.api.common;
 
-package org.apache.flink.runtime.webmonitor.handlers;
+import java.io.Serializable;
 
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
-
-import java.util.Map;
-
-/**
- * Request handler that returns the JSON program plan of a job graph.
- */
-public class JobPlanHandler extends AbstractExecutionGraphRequestHandler {
-
-	
-	public JobPlanHandler(ExecutionGraphHolder executionGraphHolder) {
-		super(executionGraphHolder);
-	}
-
-	@Override
-	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
-		return graph.getJsonPlan();
-	}
+public interface Archiveable<T extends Serializable> {
+	T archive();
 }

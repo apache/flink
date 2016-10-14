@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.checkpoint.stats;
 
+import java.io.Serializable;
+
 /**
  * Statistics for a specific checkpoint.
  */
-public class CheckpointStats {
+public class CheckpointStats implements Serializable {
 
 	/** ID of the checkpoint. */
 	private final long checkpointId;

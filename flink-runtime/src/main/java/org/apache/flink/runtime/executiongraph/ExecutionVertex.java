@@ -27,6 +27,7 @@ import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescript
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -42,6 +43,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -72,7 +74,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
  * The ExecutionVertex is a parallel subtask of the execution. It may be executed once, or several times, each of
  * which time it spawns an {@link Execution}.
  */
-public class ExecutionVertex {
+public class ExecutionVertex implements AccessExecutionVertex, Archiveable<ArchivedExecutionVertex> {
 
 	private static final Logger LOG = ExecutionGraph.LOG;
 
@@ -176,6 +178,7 @@ public class ExecutionVertex {
 		return this.jobVertex.getJobVertex().getName();
 	}
 
+	@Override
 	public String getTaskNameWithSubtaskIndex() {
 		return this.taskNameWithSubtask;
 	}
@@ -188,6 +191,7 @@ public class ExecutionVertex {
 		return this.jobVertex.getMaxParallelism();
 	}
 
+	@Override
 	public int getParallelSubtaskIndex() {
 		return this.subTaskIndex;
 	}
@@ -207,16 +211,24 @@ public class ExecutionVertex {
 		return locationConstraint;
 	}
 
+	@Override
 	public Execution getCurrentExecutionAttempt() {
 		return currentExecution;
 	}
 
+	@Override
 	public ExecutionState getExecutionState() {
 		return currentExecution.getState();
 	}
 
+	@Override
 	public long getStateTimestamp(ExecutionState state) {
 		return currentExecution.getStateTimestamp(state);
+	}
+
+	@Override
+	public String getFailureCauseAsString() {
+		return ExceptionUtils.stringifyException(getFailureCause());
 	}
 
 	public Throwable getFailureCause() {
@@ -227,10 +239,12 @@ public class ExecutionVertex {
 		return currentExecution.getAssignedResource();
 	}
 
+	@Override
 	public TaskManagerLocation getCurrentAssignedResourceLocation() {
 		return currentExecution.getAssignedResourceLocation();
 	}
 
+	@Override
 	public Execution getPriorExecutionAttempt(int attemptNumber) {
 		if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
 			return priorExecutions.get(attemptNumber);
@@ -238,6 +252,10 @@ public class ExecutionVertex {
 		else {
 			throw new IllegalArgumentException("attempt does not exist");
 		}
+	}
+
+	List<Execution> getPriorExecutions() {
+		return priorExecutions;
 	}
 
 	public ExecutionGraph getExecutionGraph() {
@@ -537,31 +555,6 @@ public class ExecutionVertex {
 		}
 	}
 
-	/**
-	 * This method cleans fields that are irrelevant for the archived execution attempt.
-	 */
-	public void prepareForArchiving() throws IllegalStateException {
-		Execution execution = currentExecution;
-
-		// sanity check
-		if (!execution.isFinished()) {
-			throw new IllegalStateException("Cannot archive ExecutionVertex that is not in a finished state.");
-		}
-
-		// prepare the current execution for archiving
-		execution.prepareForArchiving();
-
-		// prepare previous executions for archiving
-		for (Execution exec : priorExecutions) {
-			exec.prepareForArchiving();
-		}
-
-		// clear the unnecessary fields in this class
-		this.resultPartitions = null;
-		this.inputEdges = null;
-		this.locationConstraint = null;
-	}
-
 	public void cachePartitionInfo(PartialInputChannelDeploymentDescriptor partitionInfo){
 		getCurrentExecutionAttempt().cachePartitionInfo(partitionInfo);
 	}
@@ -707,5 +700,10 @@ public class ExecutionVertex {
 	@Override
 	public String toString() {
 		return getSimpleName();
+	}
+
+	@Override
+	public ArchivedExecutionVertex archive() {
+		return new ArchivedExecutionVertex(this);
 	}
 }
