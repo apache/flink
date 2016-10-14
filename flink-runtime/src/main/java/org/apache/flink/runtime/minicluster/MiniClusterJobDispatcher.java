@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster;
+package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -25,6 +25,8 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
+import org.apache.flink.runtime.jobmaster.JobManagerRunner;
+import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -55,8 +57,8 @@ public class MiniClusterJobDispatcher {
 	/** the configuration with which the mini cluster was started */
 	private final Configuration configuration;
 
-	/** the RPC service to use by the job managers */
-	private final RpcService rpcService;
+	/** the RPC services to use by the job managers */
+	private final RpcService[] rpcServices;
 
 	/** services for discovery, leader election, and recovery */
 	private final HighAvailabilityServices haServices;
@@ -93,7 +95,7 @@ public class MiniClusterJobDispatcher {
 			RpcService rpcService,
 			HighAvailabilityServices haServices,
 			MetricRegistry metricRegistry) throws Exception {
-		this(config, rpcService, haServices, metricRegistry, 1);
+		this(config, haServices, metricRegistry, 1, new RpcService[] { rpcService });
 	}
 
 	/**
@@ -110,14 +112,16 @@ public class MiniClusterJobDispatcher {
 	 */
 	public MiniClusterJobDispatcher(
 			Configuration config,
-			RpcService rpcService,
 			HighAvailabilityServices haServices,
 			MetricRegistry metricRegistry,
-			int numJobManagers) throws Exception {
-
+			int numJobManagers,
+			RpcService[] rpcServices) throws Exception {
+		
 		checkArgument(numJobManagers >= 1);
+		checkArgument(rpcServices.length == numJobManagers);
+		
 		this.configuration = checkNotNull(config);
-		this.rpcService = checkNotNull(rpcService);
+		this.rpcServices = rpcServices;
 		this.haServices = checkNotNull(haServices);
 		this.metricRegistry = checkNotNull(metricRegistry);
 		this.numJobManagers = numJobManagers;
@@ -191,7 +195,7 @@ public class MiniClusterJobDispatcher {
 	 * @param job  The Flink job to execute 
 	 * @return The result of the job execution
 	 *
-	 * @throws JobExecutionException Thrown if anything went amiss during initial job lauch,
+	 * @throws JobExecutionException Thrown if anything went amiss during initial job launch,
 	 *         or if the job terminally failed.
 	 */
 	public JobExecutionResult runJobBlocking(JobGraph job) throws JobExecutionException, InterruptedException {
@@ -220,13 +224,25 @@ public class MiniClusterJobDispatcher {
 			JobGraph job,
 			OnCompletionActions onCompletion,
 			FatalErrorHandler errorHandler) throws JobExecutionException {
+
 		LOG.info("Starting {} JobMaster(s) for job {} ({})", numJobManagers, job.getName(), job.getJobID());
 
+		// we first need to mark the job as running in the HA services, so that the
+		// JobManager leader will recognize that it as work to do
+		try {
+			haServices.getRunningJobsRegistry().setJobRunning(job.getJobID());
+		}
+		catch (Throwable t) {
+			throw new JobExecutionException(job.getJobID(),
+					"Could not register the job at the high-availability services", t);
+		}
+
+		// start all JobManagers
 		JobManagerRunner[] runners = new JobManagerRunner[numJobManagers];
 		for (int i = 0; i < numJobManagers; i++) {
 			try {
 				runners[i] = new JobManagerRunner(job, configuration,
-						rpcService, haServices, jobManagerServices, metricRegistry, 
+						rpcServices[i], haServices, jobManagerServices, metricRegistry, 
 						onCompletion, errorHandler);
 				runners[i].start();
 			}
@@ -240,6 +256,14 @@ public class MiniClusterJobDispatcher {
 					} catch (Throwable ignored) {
 						// silent shutdown
 					}
+				}
+
+				// un-register the job from the high.availability services
+				try {
+					haServices.getRunningJobsRegistry().setJobFinished(job.getJobID());
+				}
+				catch (Throwable tt) {
+					LOG.warn("Could not properly unregister job from high-availability services", tt);
 				}
 
 				throw new JobExecutionException(job.getJobID(), "Could not start the JobManager(s) for the job", t);
