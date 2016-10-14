@@ -19,50 +19,44 @@
 package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.runtime.highavailability.nonha.AbstractNonHaServices;
+import org.apache.flink.runtime.highavailability.nonha.EmbeddedLeaderService;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
-
-import java.util.UUID;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An implementation of the {@link HighAvailabilityServices} for the non-high-availability case.
- * This implementation can be used for testing, and for cluster setups that do not
- * tolerate failures of the master processes (JobManager, ResourceManager).
- * 
+ * An implementation of the {@link HighAvailabilityServices} for the non-high-availability case
+ * where all participants (ResourceManager, JobManagers, TaskManagers) run in the same process.
+ *
  * <p>This implementation has no dependencies on any external services. It returns a fix
  * pre-configured ResourceManager, and stores checkpoints and metadata simply on the heap or
  * on a local file system and therefore in a storage without guarantees.
  */
-public class NonHaServices extends AbstractNonHaServices implements HighAvailabilityServices {
+public class EmbeddedNonHaServices extends AbstractNonHaServices implements HighAvailabilityServices {
 
-	/** The fix address of the ResourceManager */
-	private final String resourceManagerAddress;
+	private final EmbeddedLeaderService resourceManagerLeaderService;
 
-	/**
-	 * Creates a new services class for the fix pre-defined leaders.
-	 * 
-	 * @param resourceManagerAddress    The fix address of the ResourceManager
-	 */
-	public NonHaServices(String resourceManagerAddress) {
+	public EmbeddedNonHaServices() {
 		super();
-		this.resourceManagerAddress = checkNotNull(resourceManagerAddress);
+		this.resourceManagerLeaderService = new EmbeddedLeaderService(getExecutorService());
 	}
 
-	// ------------------------------------------------------------------------
-	//  Services
 	// ------------------------------------------------------------------------
 
 	@Override
 	public LeaderRetrievalService getResourceManagerLeaderRetriever() throws Exception {
-		return new StandaloneLeaderRetrievalService(resourceManagerAddress, new UUID(0, 0));
+		return resourceManagerLeaderService.createLeaderRetrievalService();
 	}
 
 	@Override
 	public LeaderElectionService getResourceManagerLeaderElectionService() throws Exception {
-		return new StandaloneLeaderElectionService();
+		return resourceManagerLeaderService.createLeaderElectionService();
+	}
+
+	// ------------------------------------------------------------------------
+
+	@Override
+	public void shutdown() throws Exception {
+		super.shutdown();
+		resourceManagerLeaderService.shutdown();
 	}
 }
