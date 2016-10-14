@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.apache.flink.runtime.testtasks.NoOpInvokable
 import org.apache.flink.util.SerializedValue
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -48,7 +49,7 @@ class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
         scheduler.newInstanceAvailable(instance2)
 
         val sender = new JobVertex("Task")
-        sender.setInvokableClass(classOf[Tasks.NoOpInvokable])
+        sender.setInvokableClass(classOf[NoOpInvokable])
         sender.setParallelism(20)
 
         val jobGraph = new JobGraph("Pointwise job", sender)
