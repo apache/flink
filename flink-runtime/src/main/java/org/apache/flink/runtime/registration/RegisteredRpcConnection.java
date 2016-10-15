@@ -35,7 +35,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * This utility class implements the basis of RPC connecting from one component to another component,
  * for example the RPC connection from TaskExecutor to ResourceManager.
- * This {@code RegisteredRpcConnection} implements registration and get target gateway .
+ * This {@code RegisteredRpcConnection} implements registration and get target gateway.
  *
  * <p>The registration gives access to a future that is completed upon successful registration.
  * The RPC connection can be closed, for example when the target where it tries to register

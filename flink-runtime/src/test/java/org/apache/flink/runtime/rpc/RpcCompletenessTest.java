@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -287,17 +288,27 @@ public class RpcCompletenessTest extends TestLogger {
 				if (!futureClass.equals(RpcCompletenessTest.futureClass)) {
 					return false;
 				} else {
-					Class<?> valueClass = ReflectionUtil.getTemplateType1(gatewayMethod.getGenericReturnType());
+					ReflectionUtil.FullTypeInfo fullValueTypeInfo = ReflectionUtil.getFullTemplateType(gatewayMethod.getGenericReturnType(), 0);
 
 					if (endpointMethod.getReturnType().equals(futureClass)) {
-						Class<?> rpcEndpointValueClass = ReflectionUtil.getTemplateType1(endpointMethod.getGenericReturnType());
+						ReflectionUtil.FullTypeInfo fullRpcEndpointValueTypeInfo = ReflectionUtil.getFullTemplateType(endpointMethod.getGenericReturnType(), 0);
 
 						// check if we have the same future value types
-						if (valueClass != null && rpcEndpointValueClass != null && !checkType(valueClass, rpcEndpointValueClass)) {
-							return false;
+						if (fullValueTypeInfo != null && fullRpcEndpointValueTypeInfo != null) {
+							Iterator<Class<?>> valueClasses = fullValueTypeInfo.getClazzIterator();
+							Iterator<Class<?>> rpcClasses = fullRpcEndpointValueTypeInfo.getClazzIterator();
+
+							while (valueClasses.hasNext() && rpcClasses.hasNext()) {
+								if (!checkType(valueClasses.next(), rpcClasses.next())) {
+									return false;
+								}
+							}
+
+							// both should be empty
+							return !valueClasses.hasNext() && !rpcClasses.hasNext();
 						}
 					} else {
-						if (valueClass != null && !checkType(valueClass, endpointMethod.getReturnType())) {
+						if (fullValueTypeInfo != null && !checkType(fullValueTypeInfo.getClazz(), endpointMethod.getReturnType())) {
 							return false;
 						}
 					}
@@ -342,16 +353,16 @@ public class RpcCompletenessTest extends TestLogger {
 		if (method.getReturnType().equals(Void.TYPE)) {
 			builder.append("void").append(" ");
 		} else if (method.getReturnType().equals(futureClass)) {
-			Class<?> valueClass = ReflectionUtil.getTemplateType1(method.getGenericReturnType());
+			ReflectionUtil.FullTypeInfo fullTypeInfo = ReflectionUtil.getFullTemplateType(method.getGenericReturnType(), 0);
 
 			builder
 				.append(futureClass.getSimpleName())
 				.append("<")
-				.append(valueClass != null ? valueClass.getSimpleName() : "")
+				.append(fullTypeInfo != null ? fullTypeInfo.toString() : "")
 				.append(">");
 
-			if (valueClass != null) {
-				builder.append("/").append(valueClass.getSimpleName());
+			if (fullTypeInfo != null) {
+				builder.append("/").append(fullTypeInfo);
 			}
 
 			builder.append(" ");

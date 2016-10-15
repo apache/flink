@@ -27,6 +27,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -220,17 +221,19 @@ public class StreamTaskTest {
 				.thenReturn(mock(TaskKvStateRegistry.class));
 
 		TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
-				new JobID(), "Job Name", new JobVertexID(), new ExecutionAttemptID(),
-				new SerializedValue<>(new ExecutionConfig()),
-				"Test Task", 1, 0, 1, 0,
-				new Configuration(),
-				taskConfig.getConfiguration(),
-				invokable.getName(),
-				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-				Collections.<InputGateDeploymentDescriptor>emptyList(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				0);
+			new JobID(),
+			new AllocationID(),
+			"Job Name", new JobVertexID(), new ExecutionAttemptID(),
+			new SerializedValue<>(new ExecutionConfig()),
+			"Test Task", 1, 0, 1, 0,
+			new Configuration(),
+			taskConfig.getConfiguration(),
+			invokable.getName(),
+			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+			Collections.<InputGateDeploymentDescriptor>emptyList(),
+			Collections.<BlobKey>emptyList(),
+			Collections.<URL>emptyList(),
+			0);
 
 		return new Task(
 			tdd,

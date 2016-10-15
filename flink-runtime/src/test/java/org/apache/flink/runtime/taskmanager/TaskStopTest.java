@@ -69,7 +69,7 @@ public class TaskStopTest {
 		when(tddMock.getTaskConfiguration()).thenReturn(mock(Configuration.class));
 		when(tddMock.getSerializedExecutionConfig()).thenReturn(mock(SerializedValue.class));
 		when(tddMock.getInvokableClassName()).thenReturn("className");
-		when(tddMock.getAllocationID()).thenReturn(mock(AllocationID.class));
+		when(tddMock.getAllocationId()).thenReturn(mock(AllocationID.class));
 
 		task = new Task(
 			tddMock,
