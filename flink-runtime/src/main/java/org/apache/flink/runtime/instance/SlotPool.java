@@ -135,7 +135,6 @@ public class SlotPool implements SlotOwner {
 
 		internalAllocateSlot(jobID, allocationID, resourceProfile, future);
 
-		final SlotOwner owner = this;
 		return future.thenApplyAsync(
 			new ApplyFunction<SlotDescriptor, SimpleSlot>() {
 				@Override

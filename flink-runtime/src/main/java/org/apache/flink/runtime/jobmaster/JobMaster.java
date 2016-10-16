@@ -50,6 +50,7 @@ import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.Slot;
+import org.apache.flink.runtime.instance.SlotPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -57,7 +58,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.jobmanager.slots.PooledSlotProvider;
 import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -84,7 +85,6 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedValue;
-
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -93,6 +93,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -145,6 +146,9 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	/** The execution graph of this job */
 	private final ExecutionGraph executionGraph;
 
+	private final SlotPool slotPool;
+
+	private final Time allocationTimeout;
 
 	private volatile UUID leaderSessionID;
 
@@ -156,8 +160,6 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	/** Connection with ResourceManager, null if not located address yet or we close it initiative */
 	private ResourceManagerConnection resourceManagerConnection;
 
-	// TODO - we need to replace this with the slot pool
-	private final Scheduler scheduler;
 
 	// ------------------------------------------------------------------------
 
@@ -240,8 +242,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 				-1,
 				log);
 
-		// TODO - temp fix
-		this.scheduler = new Scheduler(executorService);
+		this.slotPool = new SlotPool(executorService);
+		this.allocationTimeout = Time.of(5, TimeUnit.SECONDS);
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -263,6 +265,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		if (LEADER_ID_UPDATER.compareAndSet(this, null, leaderSessionID)) {
 			super.start();
 
+			slotPool.setJobManagerLeaderId(leaderSessionID);
 			log.info("Starting JobManager for job {} ({})", jobGraph.getName(), jobGraph.getJobID());
 			getSelf().startJobExecution();
 		} else {
@@ -338,7 +341,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			@Override
 			public void run() {
 				try {
-					executionGraph.scheduleForExecution(scheduler);
+					executionGraph.scheduleForExecution(new PooledSlotProvider(slotPool, allocationTimeout));
 				} catch (Throwable t) {
 					executionGraph.fail(t);
 				}
@@ -366,6 +369,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		((StartStoppable) getSelf()).stop();
 
 		leaderSessionID = null;
+		slotPool.setJobManagerLeaderId(null);
 		executionGraph.suspend(cause);
 
 		// disconnect from resource manager:
@@ -777,9 +781,12 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 				// TODO - add tests for comment in https://github.com/apache/flink/pull/2565
 				// verify the response with current connection
 				if (resourceManagerConnection != null
-						&& resourceManagerConnection.getTargetLeaderId().equals(success.getResourceManagerLeaderId())) {
+						&& resourceManagerConnection.getTargetLeaderId().equals(success.getResourceManagerLeaderId()))
+				{
 					log.info("JobManager successfully registered at ResourceManager, leader id: {}.",
 							success.getResourceManagerLeaderId());
+					slotPool.setResourceManager(success.getResourceManagerLeaderId(),
+							resourceManagerConnection.getTargetGateway());
 				}
 			}
 		});
@@ -790,6 +797,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			resourceManagerConnection.close();
 			resourceManagerConnection = null;
 		}
+		slotPool.disconnectResourceManager();
 	}
 
 	//----------------------------------------------------------------------------------------------
