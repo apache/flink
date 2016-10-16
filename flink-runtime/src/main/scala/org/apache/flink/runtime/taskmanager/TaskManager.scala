@@ -2373,13 +2373,15 @@ object TaskManager {
   }
 
   /**
-   * Gets the hostname and port of the JobManager from the configuration. Also checks that
+   * Gets the protocol, hostname and port of the JobManager from the configuration. Also checks that
    * the hostname is not null and the port non-negative.
    *
    * @param configuration The configuration to read the config values from.
-   * @return A 2-tuple (hostname, port).
+   * @return A 3-tuple (protocol, hostname, port).
    */
-  def getAndCheckJobManagerAddress(configuration: Configuration) : (String, Int) = {
+  def getAndCheckJobManagerAddress(configuration: Configuration) : (String, String, Int) = {
+
+    val protocol = AkkaUtils.getAkkaProtocol(configuration)
 
     val hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
 
@@ -2397,7 +2399,7 @@ object TaskManager {
         ".  it must be great than 0 and less than 65536.")
     }
 
-    (hostname, port)
+    (protocol, hostname, port)
   }
 
 

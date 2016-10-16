@@ -50,16 +50,21 @@ public abstract class RuntimeMonitorHandlerBase extends SimpleChannelInboundHand
 
 	protected final FiniteDuration timeout;
 
+	/** Whether the web service has https enabled */
+	protected final boolean httpsEnabled;
+
 	protected String localJobManagerAddress;
 	
 	public RuntimeMonitorHandlerBase(
 		JobManagerRetriever retriever,
 		Future<String> localJobManagerAddressFuture,
-		FiniteDuration timeout) {
+		FiniteDuration timeout,
+		boolean httpsEnabled) {
 
 		this.retriever = checkNotNull(retriever);
 		this.localJobManagerAddressFuture = checkNotNull(localJobManagerAddressFuture);
 		this.timeout = checkNotNull(timeout);
+		this.httpsEnabled = httpsEnabled;
 	}
 
 	@Override
@@ -77,7 +82,8 @@ public abstract class RuntimeMonitorHandlerBase extends SimpleChannelInboundHand
 					localJobManagerAddress, gatewayPort);
 
 				if (redirectAddress != null) {
-					HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(redirectAddress, routed.path());
+					HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(redirectAddress, routed.path(),
+						httpsEnabled);
 					KeepAliveWrite.flush(ctx, routed.request(), redirect);
 				}
 				else {

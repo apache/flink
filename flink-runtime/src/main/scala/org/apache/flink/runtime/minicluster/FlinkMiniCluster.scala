@@ -513,6 +513,7 @@ abstract class FlinkMiniCluster(
      try {
      JobClient.submitJobAndWait(
        clientActorSystem,
+       configuration,
        leaderRetrievalService,
        jobGraph,
        timeout,
@@ -541,6 +542,7 @@ abstract class FlinkMiniCluster(
     }
 
     JobClient.submitJobDetached(jobManagerGateway,
+      configuration,
       jobGraph,
       timeout,
       this.getClass.getClassLoader())

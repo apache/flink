@@ -32,6 +32,7 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -331,8 +332,14 @@ public class YarnApplicationMasterRunner {
 			LOG.debug("Starting Web Frontend");
 
 			webMonitor = BootstrapTools.startWebMonitorIfConfigured(config, actorSystem, jobManager, LOG);
+
+			String protocol = "http://";
+			if (config.getBoolean(ConfigConstants.JOB_MANAGER_WEB_SSL_ENABLED,
+				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_SSL_ENABLED) && SSLUtils.getSSLEnabled(config)) {
+				protocol = "https://";
+			}
 			final String webMonitorURL = webMonitor == null ? null :
-				"http://" + appMasterHostname + ":" + webMonitor.getServerPort();
+				protocol + appMasterHostname + ":" + webMonitor.getServerPort();
 
 			// 3: Flink's Yarn ResourceManager
 			LOG.debug("Starting YARN Flink Resource Manager");

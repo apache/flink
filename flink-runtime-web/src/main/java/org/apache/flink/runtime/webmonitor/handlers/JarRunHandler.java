@@ -21,6 +21,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -38,10 +39,12 @@ import java.util.Map;
 public class JarRunHandler extends JarActionHandler {
 
 	private final FiniteDuration timeout;
+	private final Configuration clientConfig;
 
-	public JarRunHandler(File jarDirectory, FiniteDuration timeout) {
+	public JarRunHandler(File jarDirectory, FiniteDuration timeout, Configuration clientConfig) {
 		super(jarDirectory);
 		this.timeout = timeout;
+		this.clientConfig = clientConfig;
 	}
 
 	@Override
@@ -49,13 +52,13 @@ public class JarRunHandler extends JarActionHandler {
 		try {
 			Tuple2<JobGraph, ClassLoader> graph = getJobGraphAndClassLoader(pathParams, queryParams);
 			try {
-				graph.f0.uploadUserJars(jobManager, timeout);
+				graph.f0.uploadUserJars(jobManager, timeout, clientConfig);
 			} catch (IOException e) {
 				throw new ProgramInvocationException("Failed to upload jar files to the job manager", e);
 			}
 
 			try {
-				JobClient.submitJobDetached(jobManager, graph.f0, timeout, graph.f1);
+				JobClient.submitJobDetached(jobManager, clientConfig, graph.f0, timeout, graph.f1);
 			} catch (JobExecutionException e) {
 				throw new ProgramInvocationException("Failed to submit the job to the job manager", e);
 			}

@@ -78,7 +78,7 @@ public class BlobRecoveryITCase {
 				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
 			}
 
-			client = new BlobClient(serverAddress[0]);
+			client = new BlobClient(serverAddress[0], config);
 
 			// Random data
 			byte[] expected = new byte[1024];
@@ -98,7 +98,7 @@ public class BlobRecoveryITCase {
 
 			// Close the client and connect to the other server
 			client.close();
-			client = new BlobClient(serverAddress[1]);
+			client = new BlobClient(serverAddress[1], config);
 
 			// Verify request 1
 			try (InputStream is = client.get(keys[0])) {

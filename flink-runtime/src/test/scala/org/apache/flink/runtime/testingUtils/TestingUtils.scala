@@ -471,7 +471,8 @@ object TestingUtils {
   def submitJobAndWait(
       actorSystem: ActorSystem,
       jobManager: ActorGateway,
-      jobGraph: JobGraph)
+      jobGraph: JobGraph,
+      config: Configuration)
     : JobExecutionResult = {
 
     val jobManagerURL = AkkaUtils.getAkkaURL(actorSystem, jobManager.actor)
@@ -479,6 +480,7 @@ object TestingUtils {
 
     JobClient.submitJobAndWait(
       actorSystem,
+      config,
       leaderRetrievalService,
       jobGraph,
       TESTING_DURATION,

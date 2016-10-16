@@ -81,7 +81,7 @@ public class BlobLibraryCacheRecoveryITCase {
 			List<BlobKey> keys = new ArrayList<>(2);
 
 			// Upload some data (libraries)
-			try (BlobClient client = new BlobClient(serverAddress[0])) {
+			try (BlobClient client = new BlobClient(serverAddress[0], config)) {
 				keys.add(client.put(expected)); // Request 1
 				keys.add(client.put(expected, 32, 256)); // Request 2
 			}
@@ -139,7 +139,7 @@ public class BlobLibraryCacheRecoveryITCase {
 			}
 
 			// Remove blobs again
-			try (BlobClient client = new BlobClient(serverAddress[1])) {
+			try (BlobClient client = new BlobClient(serverAddress[1], config)) {
 				client.delete(keys.get(0));
 				client.delete(keys.get(1));
 			}

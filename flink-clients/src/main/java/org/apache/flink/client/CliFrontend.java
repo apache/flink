@@ -768,7 +768,7 @@ public class CliFrontend {
 
 						logAndSysout("Uploading JAR files.");
 						LOG.debug("JAR files: " + libPaths);
-						blobKeys = BlobClient.uploadJarFiles(jobManager, clientTimeout, libPaths);
+						blobKeys = BlobClient.uploadJarFiles(jobManager, clientTimeout, config, libPaths);
 						LOG.debug("Blob keys: " + blobKeys.toString());
 					}
 				} finally {

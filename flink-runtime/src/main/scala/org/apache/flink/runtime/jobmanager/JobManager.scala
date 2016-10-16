@@ -2746,16 +2746,22 @@ object JobManager {
    * Builds the akka actor path for the JobManager actor, given the socket address
    * where the JobManager's actor system runs.
    *
+   * @param protocol The protocol to be used to connect to the remote JobManager's actor system.
    * @param address The address of the JobManager's actor system.
    * @return The akka URL of the JobManager actor.
    */
   def getRemoteJobManagerAkkaURL(
+      protocol: String,
       address: InetSocketAddress,
       name: Option[String] = None)
     : String = {
+
+    require(protocol == "akka.tcp" || protocol == "akka.ssl.tcp",
+        "protocol field should be either akka.tcp or akka.ssl.tcp")
+
     val hostPort = NetUtils.socketAddressToUrlString(address)
 
-    getJobManagerAkkaURLHelper(s"akka.tcp://flink@$hostPort", name)
+    getJobManagerAkkaURLHelper(s"$protocol://flink@$hostPort", name)
   }
 
   /**
@@ -2765,7 +2771,7 @@ object JobManager {
    * @return JobManager actor remote Akka URL
    */
   def getRemoteJobManagerAkkaURL(config: Configuration) : String = {
-    val (hostname, port) = TaskManager.getAndCheckJobManagerAddress(config)
+    val (protocol, hostname, port) = TaskManager.getAndCheckJobManagerAddress(config)
 
     var hostPort: InetSocketAddress = null
 
@@ -2779,7 +2785,7 @@ object JobManager {
           s"specified in the configuration")
     }
 
-    JobManager.getRemoteJobManagerAkkaURL(hostPort, Option.empty)
+    JobManager.getRemoteJobManagerAkkaURL(protocol, hostPort, Option.empty)
   }
 
   /**
@@ -2801,11 +2807,12 @@ object JobManager {
   }
 
   def getJobManagerActorRefFuture(
+      protocol: String,
       address: InetSocketAddress,
       system: ActorSystem,
       timeout: FiniteDuration)
     : Future[ActorRef] = {
-    AkkaUtils.getActorRefFuture(getRemoteJobManagerAkkaURL(address), system, timeout)
+    AkkaUtils.getActorRefFuture(getRemoteJobManagerAkkaURL(protocol, address), system, timeout)
   }
 
   /**
@@ -2829,6 +2836,7 @@ object JobManager {
   /**
    * Resolves the JobManager actor reference in a blocking fashion.
    *
+   * @param protocol The protocol to be used to connect to the remote JobManager's actor system.
    * @param address The socket address of the JobManager's actor system.
    * @param system The local actor system that should perform the lookup.
    * @param timeout The maximum time to wait until the lookup fails.
@@ -2837,12 +2845,13 @@ object JobManager {
    */
   @throws(classOf[IOException])
   def getJobManagerActorRef(
+      protocol: String,
       address: InetSocketAddress,
       system: ActorSystem,
       timeout: FiniteDuration)
     : ActorRef = {
 
-    val jmAddress = getRemoteJobManagerAkkaURL(address)
+    val jmAddress = getRemoteJobManagerAkkaURL(protocol, address)
     getJobManagerActorRef(jmAddress, system, timeout)
   }
 
@@ -2863,6 +2872,7 @@ object JobManager {
     : ActorRef = {
 
     val timeout = AkkaUtils.getLookupTimeout(config)
-    getJobManagerActorRef(address, system, timeout)
+    val protocol = AkkaUtils.getAkkaProtocol(config)
+    getJobManagerActorRef(protocol, address, system, timeout)
   }
 }

@@ -157,6 +157,8 @@ will be used under the directory specified by jobmanager.web.tmpdir.
 
 - `blob.server.port`: Port definition for the blob server (serving user jar's) on the Taskmanagers. By default the port is set to 0, which means that the operating system is picking an ephemeral port. Flink also accepts a list of ports ("50100,50101"), ranges ("50100-50200") or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple JobManagers are running on the same machine.
 
+- `blob.service.ssl.enabled`: Flag to enable ssl for the blob client/server communication. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: true).
+
 - `restart-strategy`: Default restart strategy to use in case that no restart strategy has been specified for the submitted job.
 Currently, it can be chosen from fixed delay restart strategy, failure rate restart strategy or no restart strategy.
 To use the fixed delay strategy you have to specify "fixed-delay".
@@ -198,6 +200,7 @@ The following parameters configure Flink's JobManager and TaskManagers.
 - `taskmanager.hostname`: The hostname of the network interface that the TaskManager binds to. By default, the TaskManager searches for network interfaces that can connect to the JobManager and other TaskManagers. This option can be used to define a hostname if that strategy fails for some reason. Because different TaskManagers need different values for this option, it usually is specified in an additional non-shared TaskManager-specific config file.
 - `taskmanager.rpc.port`: The task manager's IPC port (DEFAULT: **0**, which lets the OS choose a free port).
 - `taskmanager.data.port`: The task manager's port used for data exchange operations (DEFAULT: **0**, which lets the OS choose a free port).
+- `taskmanager.data.ssl.enabled`: Enable SSL support for the taskmanager data transport. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: **true**)
 - `jobmanager.heap.mb`: JVM heap size (in megabytes) for the JobManager (DEFAULT: **256**).
 - `taskmanager.heap.mb`: JVM heap size (in megabytes) for the TaskManagers, which are the parallel workers of the system. In contrast to Hadoop, Flink runs operators (e.g., join, aggregate) and user-defined functions (e.g., Map, Reduce, CoGroup) inside the TaskManager (including sorting/hashing/caching), so this value should be as large as possible (DEFAULT: **512**). On YARN setups, this value is automatically configured to the size of the TaskManager's YARN container, minus a certain tolerance value.
 - `taskmanager.numberOfTaskSlots`: The number of parallel operator or user function instances that a single TaskManager can run (DEFAULT: **1**). If this value is larger than 1, a single TaskManager takes multiple instances of a function or operator. That way, the TaskManager can utilize multiple CPU cores, but at the same time, the available memory is divided between the different operator or function instances. This value is typically proportional to the number of physical CPU cores that the TaskManager's machine has (e.g., equal to the number of cores, or half the number of cores).
@@ -228,6 +231,19 @@ The following parameters configure Flink's JobManager and TaskManagers.
 - `akka.throughput`: Number of messages that are processed in a batch before returning the thread to the pool. Low values denote a fair scheduling whereas high values can increase the performance at the cost of unfairness (DEFAULT: **15**).
 - `akka.log.lifecycle.events`: Turns on the Akka's remote logging of events. Set this value to 'true' in case of debugging (DEFAULT: **false**).
 - `akka.startup-timeout`: Timeout after which the startup of a remote component is considered being failed (DEFAULT: **akka.ask.timeout**).
+- `akka.ssl.enabled`: Turns on SSL for Akka's remote communication. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: **true**).
+
+### SSL Settings
+
+- `security.ssl.enabled`: Turns on SSL for internal network communication. This can be optionally overridden by flags defined in different transport modules (DEFAULT: **false**).
+- `security.ssl.keystore`: The Java keystore file to be used by the flink endpoint for its SSL Key and Certificate.
+- `security.ssl.keystore-password`: The secret to decrypt the keystore file.
+- `security.ssl.key-password`: The secret to decrypt the server key in the keystore.
+- `security.ssl.truststore`: The truststore file containing the public CA certificates to be used by flink endpoints to verify the peer's certificate.
+- `security.ssl.truststore-password`: The secret to decrypt the truststore.
+- `security.ssl.protocol`: The SSL protocol version to be supported for the ssl transport (DEFAULT: **TLSv1.2**).
+- `security.ssl.algorithms`: The comma separated list of standard SSL algorithms to be supported. Read more [here](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites) (DEFAULT: **TLS_RSA_WITH_AES_128_CBC_SHA**).
+- `security.ssl.verify-hostname`: Flag to enable peer's hostname verification during ssl handshake (DEFAULT: **true**).
 
 ### JobManager Web Frontend
 
@@ -239,6 +255,7 @@ The following parameters configure Flink's JobManager and TaskManagers.
 - `jobmanager.web.backpressure.refresh-interval`: Time after which available stats are deprecated and need to be refreshed (DEFAULT: `60000`, 1 min).
 - `jobmanager.web.backpressure.num-samples`: Number of stack trace samples to take to determine back pressure (DEFAULT: `100`).
 - `jobmanager.web.backpressure.delay-between-samples`: Delay between stack trace samples to determine back pressure (DEFAULT: `50`, 50 ms).
+- `jobmanager.web.ssl.enabled`: Enable https access to the web frontend. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: `true`).
 
 ### File Systems
 

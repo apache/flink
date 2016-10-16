@@ -24,10 +24,12 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -60,6 +62,12 @@ public class BlobServer extends Thread implements BlobService {
 	/** The server socket listening for incoming connections. */
 	private final ServerSocket serverSocket;
 
+	/** The SSL server context if ssl is enabled for the connections */
+	private SSLContext serverSSLContext = null;
+
+	/** Blob Server configuration */
+	private final Configuration blobServiceConfiguration;
+
 	/** Indicates whether a shutdown of server component has been requested. */
 	private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
@@ -91,6 +99,8 @@ public class BlobServer extends Thread implements BlobService {
 		checkNotNull(config, "Configuration");
 
 		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
+
+		this.blobServiceConfiguration = config;
 
 		// configure and create the storage directory
 		String storageDirectory = config.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
@@ -133,6 +143,15 @@ public class BlobServer extends Thread implements BlobService {
 			this.shutdownHook = null;
 		}
 
+		if (config.getBoolean(ConfigConstants.BLOB_SERVICE_SSL_ENABLED,
+				ConfigConstants.DEFAULT_BLOB_SERVICE_SSL_ENABLED)) {
+			try {
+				serverSSLContext = SSLUtils.createSSLServerContext(config);
+			} catch (Exception e) {
+				throw new IOException("Failed to initialize SSLContext for the blob server", e);
+			}
+		}
+
 		//  ----------------------- start the server -------------------
 
 		String serverPortRange = config.getString(ConfigConstants.BLOB_SERVER_PORT, ConfigConstants.DEFAULT_BLOB_SERVER_PORT);
@@ -143,7 +162,12 @@ public class BlobServer extends Thread implements BlobService {
 		ServerSocket socketAttempt = NetUtils.createSocketFromPorts(ports, new NetUtils.SocketFactory() {
 			@Override
 			public ServerSocket createSocket(int port) throws IOException {
-				return new ServerSocket(port, finalBacklog);
+				if (serverSSLContext == null) {
+					return new ServerSocket(port, finalBacklog);
+				} else {
+					LOG.info("Enabling ssl for the blob server");
+					return serverSSLContext.getServerSocketFactory().createServerSocket(port, finalBacklog);
+				}
 			}
 		});
 
@@ -320,7 +344,8 @@ public class BlobServer extends Thread implements BlobService {
 
 	@Override
 	public BlobClient createClient() throws IOException {
-		return new BlobClient(new InetSocketAddress(serverSocket.getInetAddress(), getPort()));
+		return new BlobClient(new InetSocketAddress(serverSocket.getInetAddress(), getPort()),
+			blobServiceConfiguration);
 	}
 
 	/**
