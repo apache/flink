@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.table.utils
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{DataSet => JDataSet}
@@ -29,7 +27,6 @@ import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.{Table, TableEnvironment}
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.mockito.Mockito.{mock, when}
 
