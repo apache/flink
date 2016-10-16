@@ -41,6 +41,7 @@ import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.util.UUID;
 
@@ -184,15 +185,13 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	/**
 	 * Register the task manager at the job manager.
 	 *
-	 * @param taskManagerAddress address of the task manager
-	 * @param taskManagerProcessId identifying the task manager
-	 * @param leaderId identifying the job leader
-	 * @param timeout for the rpc call
+	 * @param taskManagerLocation location of the task manager
+	 * @param leaderId            identifying the job leader
+	 * @param timeout             for the rpc call
 	 * @return Future registration response indicating whether the registration was successful or not
 	 */
 	Future<RegistrationResponse> registerTaskManager(
-		final String taskManagerAddress,
-		final ResourceID taskManagerProcessId,
-		final UUID leaderId,
-		@RpcTimeout final Time timeout);
+			final TaskManagerLocation taskManagerLocation,
+			final UUID leaderId,
+			@RpcTimeout final Time timeout);
 }

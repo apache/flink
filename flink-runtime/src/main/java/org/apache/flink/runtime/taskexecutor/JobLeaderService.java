@@ -21,7 +21,6 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
@@ -32,6 +31,7 @@ import org.apache.flink.runtime.registration.RegisteredRpcConnection;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,17 +53,14 @@ public class JobLeaderService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JobLeaderService.class);
 
-	/** Process id of the owning process */
-	private final ResourceID ownerProcessId;
+	/** Self's location, used for the job manager connection */
+	private final TaskManagerLocation ownLocation;
 
 	/** The leader retrieval service and listener for each registered job */
 	private final Map<JobID, Tuple2<LeaderRetrievalService, JobLeaderService.JobManagerLeaderListener>> jobLeaderServices;
 
 	/** Internal state of the service */
 	private volatile JobLeaderService.State state;
-
-	/** Address of the owner of this service. This address is used for the job manager connection */
-	private String ownerAddress;
 
 	/** Rpc service to use for establishing connections */
 	private RpcService rpcService;
@@ -74,14 +71,13 @@ public class JobLeaderService {
 	/** Job leader listener listening for job leader changes */
 	private JobLeaderListener jobLeaderListener;
 
-	public JobLeaderService(ResourceID ownerProcessId) {
-		this.ownerProcessId = Preconditions.checkNotNull(ownerProcessId);
+	public JobLeaderService(TaskManagerLocation location) {
+		this.ownLocation = Preconditions.checkNotNull(location);
 
 		jobLeaderServices = new HashMap<>(4);
 
 		state = JobLeaderService.State.CREATED;
 
-		ownerAddress = null;
 		rpcService = null;
 		highAvailabilityServices = null;
 		jobLeaderListener = null;
@@ -94,13 +90,11 @@ public class JobLeaderService {
 	/**
 	 * Start the job leader service with the given services.
 	 *
-	 * @param initialOwnerAddress to be used for establishing connections (source address)
 	 * @param initialRpcService to be used to create rpc connections
 	 * @param initialHighAvailabilityServices to create leader retrieval services for the different jobs
 	 * @param initialJobLeaderListener listening for job leader changes
 	 */
 	public void start(
-		final String initialOwnerAddress,
 		final RpcService initialRpcService,
 		final HighAvailabilityServices initialHighAvailabilityServices,
 		final JobLeaderListener initialJobLeaderListener) {
@@ -110,7 +104,6 @@ public class JobLeaderService {
 		} else {
 			LOG.info("Start job leader service.");
 
-			this.ownerAddress = Preconditions.checkNotNull(initialOwnerAddress);
 			this.rpcService = Preconditions.checkNotNull(initialRpcService);
 			this.highAvailabilityServices = Preconditions.checkNotNull(initialHighAvailabilityServices);
 			this.jobLeaderListener = Preconditions.checkNotNull(initialJobLeaderListener);
@@ -311,14 +304,13 @@ public class JobLeaderService {
 			@Override
 			protected RetryingRegistration<JobMasterGateway, JMTMRegistrationSuccess> generateRegistration() {
 				return new JobLeaderService.JobManagerRetryingRegistration(
-					LOG,
-					rpcService,
-					"JobManager",
-					JobMasterGateway.class,
-					getTargetAddress(),
-					getTargetLeaderId(),
-					ownerAddress,
-					ownerProcessId);
+						LOG,
+						rpcService,
+						"JobManager",
+						JobMasterGateway.class,
+						getTargetAddress(),
+						getTargetLeaderId(),
+						ownLocation);
 			}
 
 			@Override
@@ -349,10 +341,11 @@ public class JobLeaderService {
 	/**
 	 * Retrying registration for the job manager <--> task manager connection.
 	 */
-	private static final class JobManagerRetryingRegistration extends RetryingRegistration<JobMasterGateway, JMTMRegistrationSuccess> {
+	private static final class JobManagerRetryingRegistration
+			extends RetryingRegistration<JobMasterGateway, JMTMRegistrationSuccess>
+	{
 
-		private final String taskManagerAddress;
-		private final ResourceID taskManagerProcessId;
+		private final TaskManagerLocation taskManagerLocation;
 
 		JobManagerRetryingRegistration(
 			Logger log,
@@ -361,22 +354,18 @@ public class JobLeaderService {
 			Class<JobMasterGateway> targetType,
 			String targetAddress,
 			UUID leaderId,
-			String taskManagerAddress,
-			ResourceID taskManagerProcessId) {
+			TaskManagerLocation taskManagerLocation) {
 
 			super(log, rpcService, targetName, targetType, targetAddress, leaderId);
 
-			this.taskManagerAddress = Preconditions.checkNotNull(taskManagerAddress);
-			this.taskManagerProcessId = Preconditions.checkNotNull(taskManagerProcessId);
+			this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		}
 
 		@Override
-		protected Future<RegistrationResponse> invokeRegistration(JobMasterGateway gateway, UUID leaderId, long timeoutMillis) throws Exception {
-			return gateway.registerTaskManager(
-				taskManagerAddress,
-				taskManagerProcessId,
-				leaderId,
-				Time.milliseconds(timeoutMillis));
+		protected Future<RegistrationResponse> invokeRegistration(
+				JobMasterGateway gateway, UUID leaderId, long timeoutMillis) throws Exception
+		{
+			return gateway.registerTaskManager(taskManagerLocation, leaderId, Time.milliseconds(timeoutMillis));
 		}
 	}
 

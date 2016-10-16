@@ -210,7 +210,7 @@ public class TaskManagerServices {
 
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 
-		final JobLeaderService jobLeaderService = new JobLeaderService(resourceID);
+		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
 		
 		return new TaskManagerServices(
 			taskManagerLocation,

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -36,7 +37,9 @@ import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -81,7 +84,9 @@ import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.StartStoppable;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedValue;
@@ -89,8 +94,10 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -122,6 +129,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	/** Configuration of the JobManager */
 	private final Configuration configuration;
 
+	private final Time rpcTimeout;
+
 	/** Service to contend for and retrieve the leadership of JM and RM */
 	private final HighAvailabilityServices highAvailabilityServices;
 
@@ -152,7 +161,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 	private volatile UUID leaderSessionID;
 
-	// --------- resource manager --------
+	// --------- ResourceManager --------
 
 	/** Leader retriever service used to locate ResourceManager's address */
 	private LeaderRetrievalService resourceManagerLeaderRetriever;
@@ -160,6 +169,9 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	/** Connection with ResourceManager, null if not located address yet or we close it initiative */
 	private ResourceManagerConnection resourceManagerConnection;
 
+	// --------- TaskManagers --------
+
+	private final Map<ResourceID, Tuple2<TaskManagerLocation, TaskExecutorGateway>> registeredTaskManagers;
 
 	// ------------------------------------------------------------------------
 
@@ -181,6 +193,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 		this.jobGraph = checkNotNull(jobGraph);
 		this.configuration = checkNotNull(configuration);
+		this.rpcTimeout = rpcAskTimeout;
 		this.highAvailabilityServices = checkNotNull(highAvailabilityService);
 		this.libraryCacheManager = checkNotNull(libraryCacheManager);
 		this.executionContext = checkNotNull(executorService);
@@ -244,6 +257,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 		this.slotPool = new SlotPool(executorService);
 		this.allocationTimeout = Time.of(5, TimeUnit.SECONDS);
+
+		this.registeredTaskManagers = new HashMap<>(4);
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -380,8 +395,10 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		}
 		closeResourceManagerConnection();
 
-		// TODO: disconnect from all registered task managers
-
+		for (ResourceID taskManagerId : registeredTaskManagers.keySet()) {
+			slotPool.releaseResource(taskManagerId);
+		}
+		registeredTaskManagers.clear();
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -656,11 +673,53 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	}
 
 	@RpcMethod
-	public RegistrationResponse registerTaskManager(
-		final String taskManagerAddress,
-		final ResourceID taskManagerProcessId,
-		final UUID leaderId) {
-		throw new UnsupportedOperationException("Has to be implemented.");
+	public Future<RegistrationResponse> registerTaskManager(
+			final TaskManagerLocation taskManagerLocation,
+			final UUID leaderId) throws Exception
+	{
+		if (!JobMaster.this.leaderSessionID.equals(leaderId)) {
+			log.warn("Discard registration from TaskExecutor {} at ({}) because the expected " +
+							"leader session ID {} did not equal the received leader session ID {}.",
+					taskManagerLocation.getResourceID(), taskManagerLocation.addressString(),
+					JobMaster.this.leaderSessionID, leaderId);
+			throw new Exception("Leader id not match, expected: " + JobMaster.this.leaderSessionID
+					+ ", actual: " + leaderId);
+		}
+
+		final ResourceID taskManagerId = taskManagerLocation.getResourceID();
+
+		if (registeredTaskManagers.containsKey(taskManagerId)) {
+			final RegistrationResponse response = new JMTMRegistrationSuccess(
+					taskManagerId, libraryCacheManager.getBlobServerPort());
+			return FlinkCompletableFuture.completed(response);
+		} else {
+			return getRpcService().execute(new Callable<TaskExecutorGateway>() {
+				@Override
+				public TaskExecutorGateway call() throws Exception {
+					return getRpcService().connect(taskManagerLocation.addressString(), TaskExecutorGateway.class)
+							.get(rpcTimeout.getSize(), rpcTimeout.getUnit());
+				}
+			}).handleAsync(new BiFunction<TaskExecutorGateway, Throwable, RegistrationResponse>() {
+				@Override
+				public RegistrationResponse apply(TaskExecutorGateway taskExecutorGateway, Throwable throwable) {
+					if (throwable != null) {
+						return new RegistrationResponse.Decline(throwable.getMessage());
+					}
+
+					if (!JobMaster.this.leaderSessionID.equals(leaderId)) {
+						log.warn("Discard registration from TaskExecutor {} at ({}) because the expected " +
+										"leader session ID {} did not equal the received leader session ID {}.",
+								taskManagerLocation.getResourceID(), taskManagerLocation.addressString(),
+								JobMaster.this.leaderSessionID, leaderId);
+						return new RegistrationResponse.Decline("Invalid leader session id");
+					}
+
+					slotPool.registerResource(taskManagerId);
+					registeredTaskManagers.put(taskManagerId, Tuple2.of(taskManagerLocation, taskExecutorGateway));
+					return new JMTMRegistrationSuccess(taskManagerId, libraryCacheManager.getBlobServerPort());
+				}
+			}, getMainThreadExecutor());
+		}
 	}
 
 	//----------------------------------------------------------------------------------------------
