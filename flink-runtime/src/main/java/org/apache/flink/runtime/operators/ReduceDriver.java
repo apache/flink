@@ -62,7 +62,7 @@ public class ReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 	@Override
 	public void setup(TaskContext<ReduceFunction<T>, T> context) {
 		this.taskContext = context;
-		this.cancelled = true;
+		this.cancelled = false;
 	}
 	
 	@Override
