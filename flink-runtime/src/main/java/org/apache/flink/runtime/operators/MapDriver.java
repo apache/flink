@@ -42,7 +42,7 @@ public class MapDriver<IT, OT> implements Driver<MapFunction<IT, OT>, OT> {
 	
 	private TaskContext<MapFunction<IT, OT>, OT> taskContext;
 	
-	private volatile boolean running;
+	private volatile boolean cancelled;
 
 	private boolean objectReuseEnabled = false;
 	
@@ -50,7 +50,7 @@ public class MapDriver<IT, OT> implements Driver<MapFunction<IT, OT>, OT> {
 	@Override
 	public void setup(TaskContext<MapFunction<IT, OT>, OT> context) {
 		this.taskContext = context;
-		this.running = true;
+		this.cancelled = false;
 
 		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
 		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
@@ -90,7 +90,7 @@ public class MapDriver<IT, OT> implements Driver<MapFunction<IT, OT>, OT> {
 		if (objectReuseEnabled) {
 			IT record = this.taskContext.<IT>getInputSerializer(0).getSerializer().createInstance();
 	
-			while (this.running && ((record = input.next(record)) != null)) {
+			while (!this.cancelled && ((record = input.next(record)) != null)) {
 				numRecordsIn.inc();
 				output.collect(function.map(record));
 			}
@@ -98,7 +98,7 @@ public class MapDriver<IT, OT> implements Driver<MapFunction<IT, OT>, OT> {
 		else {
 			IT record = null;
 			
-			while (this.running && ((record = input.next()) != null)) {
+			while (!this.cancelled && ((record = input.next()) != null)) {
 				numRecordsIn.inc();
 				output.collect(function.map(record));
 			}
@@ -112,6 +112,6 @@ public class MapDriver<IT, OT> implements Driver<MapFunction<IT, OT>, OT> {
 
 	@Override
 	public void cancel() {
-		this.running = false;
+		this.cancelled = true;
 	}
 }

@@ -83,7 +83,7 @@ public class IterationIntermediateTask<S extends Function, OT> extends AbstractI
 		
 		SuperstepKickoffLatch nextSuperstepLatch = SuperstepKickoffLatchBroker.instance().get(brokerKey());
 
-		while (this.running && !terminationRequested()) {
+		while (!this.cancelled && !terminationRequested()) {
 
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("starting iteration [" + currentIteration() + "]"));

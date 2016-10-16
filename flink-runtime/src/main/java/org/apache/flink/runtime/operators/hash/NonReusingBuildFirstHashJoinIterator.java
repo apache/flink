@@ -57,7 +57,7 @@ public class NonReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIte
 
 	private final boolean buildSideOuterJoin;
 
-	private volatile boolean running = true;
+	private volatile boolean cancelled = false;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -137,7 +137,7 @@ public class NonReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIte
 					probeCopy = this.probeSideSerializer.copy(probeRecord);
 					matchFunction.join(tmpRec, probeCopy, collector);
 					
-					while (this.running && ((nextBuildSideRecord = buildSideIterator.next()) != null)) {
+					while (!this.cancelled && ((nextBuildSideRecord = buildSideIterator.next()) != null)) {
 						// call match on the next pair
 						// make sure we restore the value of the probe side record
 						probeCopy = this.probeSideSerializer.copy(probeRecord);
@@ -159,7 +159,7 @@ public class NonReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIte
 				if (buildSideOuterJoin && probeRecord == null && nextBuildSideRecord != null) {
 					matchFunction.join(nextBuildSideRecord, null, collector);
 
-					while (this.running && ((nextBuildSideRecord = buildSideIterator.next()) != null)) {
+					while (!this.cancelled && ((nextBuildSideRecord = buildSideIterator.next()) != null)) {
 						matchFunction.join(nextBuildSideRecord, null, collector);
 					}
 				}
@@ -174,7 +174,7 @@ public class NonReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIte
 
 	@Override
 	public void abort() {
-		this.running = false;
+		this.cancelled = true;
 		this.hashJoin.abort();
 	}
 }

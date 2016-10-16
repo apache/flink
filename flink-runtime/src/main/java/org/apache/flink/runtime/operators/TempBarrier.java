@@ -155,7 +155,7 @@ public class TempBarrier<T> implements CloseableInputProvider<T> {
 		
 		private final SpillingBuffer buffer;
 		
-		private volatile boolean running = true;
+		private volatile boolean cancelled = false;
 		
 		private TempWritingThread(MutableObjectIterator<T> input, TypeSerializer<T> serializer, SpillingBuffer buffer) {
 			super("Temp writer");
@@ -175,7 +175,7 @@ public class TempBarrier<T> implements CloseableInputProvider<T> {
 			try {
 				T record = serializer.createInstance();
 				
-				while (this.running && ((record = input.next(record)) != null)) {
+				while (!this.cancelled && ((record = input.next(record)) != null)) {
 					serializer.serialize(record, buffer);
 				}
 				
@@ -187,7 +187,7 @@ public class TempBarrier<T> implements CloseableInputProvider<T> {
 		}
 		
 		public void shutdown() {
-			this.running = false;
+			this.cancelled = true;
 			this.interrupt();
 		}
 	}

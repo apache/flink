@@ -77,7 +77,7 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 
 	private List<MemorySegment> memory;
 
-	private volatile boolean running = true;
+	private volatile boolean cancelled = false;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -134,14 +134,14 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 		}
 		this.parent.getEnvironment().getMemoryManager().release(this.memory);
 
-		if (this.running) {
+		if (!this.cancelled) {
 			BatchTask.closeUserCode(this.reducer);
 		}
 	}
 
 	@Override
 	public void cancelTask() {
-		this.running = false;
+		this.cancelled = true;
 
 		if (this.sorter != null) {
 			try {
@@ -215,7 +215,7 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 				final Collector<OUT> output = this.outputCollector;
 
 				// run stub implementation
-				while (this.running && keyIter.nextKey()) {
+				while (!this.cancelled && keyIter.nextKey()) {
 					stub.reduce(keyIter.getValues(), output);
 				}
 			}
@@ -232,7 +232,7 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 				final Collector<OUT> output = this.outputCollector;
 
 				// run stub implementation
-				while (this.running && keyIter.nextKey()) {
+				while (!this.cancelled && keyIter.nextKey()) {
 					stub.reduce(keyIter.getValues(), output);
 				}
 			}

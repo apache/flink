@@ -173,7 +173,7 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 		final FlatJoinFunction<IT1, IT2, OT> matchStub = this.taskContext.getStub();
 		final Collector<OT> collector = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 		
-		while (this.running && matchIterator != null && matchIterator.callWithNextKey(matchStub, collector));
+		while (!this.cancelled && matchIterator != null && matchIterator.callWithNextKey(matchStub, collector));
 	}
 
 	@Override
@@ -208,7 +208,7 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 
 	@Override
 	public void teardown() {
-		this.running = false;
+		this.cancelled= true;
 		if (this.matchIterator != null) {
 			this.matchIterator.close();
 		}
@@ -216,7 +216,7 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 
 	@Override
 	public void cancel() {
-		this.running = false;
+		this.cancelled = true;
 		if (this.matchIterator != null) {
 			this.matchIterator.abort();
 		}

@@ -39,14 +39,14 @@ public class NoOpDriver<T> implements Driver<AbstractRichFunction, T> {
 
 	private TaskContext<AbstractRichFunction, T> taskContext;
 	
-	private volatile boolean running;
+	private volatile boolean cancelled;
 
 	private boolean objectReuseEnabled = false;
 
 	@Override
 	public void setup(TaskContext<AbstractRichFunction, T> context) {
 		this.taskContext = context;
-		this.running = true;
+		this.cancelled = false;
 	}
 
 	@Override
@@ -85,13 +85,13 @@ public class NoOpDriver<T> implements Driver<AbstractRichFunction, T> {
 		if (objectReuseEnabled) {
 			T record = this.taskContext.<T>getInputSerializer(0).getSerializer().createInstance();
 
-			while (this.running && ((record = input.next(record)) != null)) {
+			while (!this.cancelled && ((record = input.next(record)) != null)) {
 				numRecordsIn.inc();
 				output.collect(record);
 			}
 		} else {
 			T record;
-			while (this.running && ((record = input.next()) != null)) {
+			while (!this.cancelled && ((record = input.next()) != null)) {
 				numRecordsIn.inc();
 				output.collect(record);
 			}
@@ -104,6 +104,6 @@ public class NoOpDriver<T> implements Driver<AbstractRichFunction, T> {
 
 	@Override
 	public void cancel() {
-		this.running = false;
+		this.cancelled = true;
 	}
 }

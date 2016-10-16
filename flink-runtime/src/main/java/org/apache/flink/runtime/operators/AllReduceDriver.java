@@ -51,7 +51,7 @@ public class AllReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 
 	private TypeSerializer<T> serializer;
 	
-	private boolean running;
+	private boolean cancelled;
 
 	private boolean objectReuseEnabled = false;
 
@@ -60,7 +60,7 @@ public class AllReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 	@Override
 	public void setup(TaskContext<ReduceFunction<T>, T> context) {
 		this.taskContext = context;
-		this.running = true;
+		this.cancelled = false;
 	}
 	
 	@Override
@@ -128,7 +128,7 @@ public class AllReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 
 			T value = val1;
 
-			while (running && (val2 = input.next(val2)) != null) {
+			while (!cancelled && (val2 = input.next(val2)) != null) {
 				numRecordsIn.inc();
 				value = stub.reduce(value, val2);
 
@@ -144,7 +144,7 @@ public class AllReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 			collector.collect(value);
 		} else {
 			T val2;
-			while (running && (val2 = input.next()) != null) {
+			while (!cancelled && (val2 = input.next()) != null) {
 				numRecordsIn.inc();
 				val1 = stub.reduce(val1, val2);
 			}
@@ -158,6 +158,6 @@ public class AllReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 
 	@Override
 	public void cancel() {
-		this.running = false;
+		this.cancelled = true;
 	}
 }

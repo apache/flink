@@ -48,7 +48,7 @@ public class JoinWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resettable
 	private IT2 solutionSideRecord;
 	private IT1 probeSideRecord;
 	
-	protected volatile boolean running;
+	protected volatile boolean cancelled;
 
 	private boolean objectReuseEnabled = false;
 
@@ -57,7 +57,7 @@ public class JoinWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resettable
 	@Override
 	public void setup(TaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
-		this.running = true;
+		this.cancelled = false;
 	}
 	
 	@Override
@@ -167,7 +167,7 @@ public class JoinWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resettable
 
 				IT2 buildSideRecord = this.solutionSideRecord;
 
-				while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
+				while (!this.cancelled && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
 					IT2 matchedRecord = prober.getMatchFor(probeSideRecord, buildSideRecord);
 					joinFunction.join(probeSideRecord, matchedRecord, collector);
 				}
@@ -176,7 +176,7 @@ public class JoinWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resettable
 				final JoinHashMap<IT2>.Prober<IT1> prober = this.objectMap.createProber(probeSideComparator, pairComparator);
 				final TypeSerializer<IT2> buildSerializer = hashTable.getBuildSerializer();
 
-				while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
+				while (!this.cancelled && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
 					IT2 match = prober.lookupMatch(probeSideRecord);
 					joinFunction.join(probeSideRecord, buildSerializer.copy(match), collector);
 				}
@@ -193,7 +193,7 @@ public class JoinWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resettable
 
 				IT2 buildSideRecord;
 
-				while (this.running && ((probeSideRecord = probeSideInput.next()) != null)) {
+				while (!this.cancelled && ((probeSideRecord = probeSideInput.next()) != null)) {
 					buildSideRecord = prober.getMatchFor(probeSideRecord);
 					joinFunction.join(probeSideRecord, buildSideRecord, collector);
 				}
@@ -202,7 +202,7 @@ public class JoinWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resettable
 				final JoinHashMap<IT2>.Prober<IT1> prober = this.objectMap.createProber(probeSideComparator, pairComparator);
 				final TypeSerializer<IT2> buildSerializer = hashTable.getBuildSerializer();
 
-				while (this.running && ((probeSideRecord = probeSideInput.next()) != null)) {
+				while (!this.cancelled && ((probeSideRecord = probeSideInput.next()) != null)) {
 					IT2 match = prober.lookupMatch(probeSideRecord);
 					joinFunction.join(probeSideRecord, buildSerializer.copy(match), collector);
 				}
@@ -226,6 +226,6 @@ public class JoinWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resettable
 
 	@Override
 	public void cancel() {
-		this.running = false;
+		this.cancelled = true;
 	}
 }

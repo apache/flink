@@ -31,13 +31,13 @@ public class UnionWithTempOperator<T> implements Driver<Function, T> {
 	
 	private TaskContext<Function, T> taskContext;
 	
-	private volatile boolean running;
+	private volatile boolean cancelled;
 	
 	
 	@Override
 	public void setup(TaskContext<Function, T> context) {
 		this.taskContext = context;
-		this.running = true;
+		this.cancelled = false;
 	}
 
 	@Override
@@ -68,13 +68,13 @@ public class UnionWithTempOperator<T> implements Driver<Function, T> {
 		T record;
 		
 		final MutableObjectIterator<T> input = this.taskContext.getInput(STREAMED_INPUT);
-		while (this.running && ((record = input.next(reuse)) != null)) {
+		while (!this.cancelled && ((record = input.next(reuse)) != null)) {
 			numRecordsIn.inc();
 			output.collect(record);
 		}
 		
 		final MutableObjectIterator<T> cache = this.taskContext.getInput(CACHED_INPUT);
-		while (this.running && ((record = cache.next(reuse)) != null)) {
+		while (!this.cancelled && ((record = cache.next(reuse)) != null)) {
 			numRecordsIn.inc();
 			output.collect(record);
 		}
@@ -85,6 +85,6 @@ public class UnionWithTempOperator<T> implements Driver<Function, T> {
 
 	@Override
 	public void cancel() {
-		this.running = false;
+		this.cancelled = true;
 	}
 }

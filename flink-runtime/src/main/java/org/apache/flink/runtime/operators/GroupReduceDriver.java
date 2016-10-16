@@ -55,7 +55,7 @@ public class GroupReduceDriver<IT, OT> implements Driver<GroupReduceFunction<IT,
 
 	private TypeComparator<IT> comparator;
 
-	private volatile boolean running;
+	private volatile boolean cancelled;
 
 	private boolean objectReuseEnabled = false;
 
@@ -64,7 +64,7 @@ public class GroupReduceDriver<IT, OT> implements Driver<GroupReduceFunction<IT,
 	@Override
 	public void setup(TaskContext<GroupReduceFunction<IT, OT>, OT> context) {
 		this.taskContext = context;
-		this.running = true;
+		this.cancelled = false;
 	}
 	
 	@Override
@@ -120,14 +120,14 @@ public class GroupReduceDriver<IT, OT> implements Driver<GroupReduceFunction<IT,
 		if (objectReuseEnabled) {
 			final ReusingKeyGroupedIterator<IT> iter = new ReusingKeyGroupedIterator<IT>(this.input, this.serializer, this.comparator);
 			// run stub implementation
-			while (this.running && iter.nextKey()) {
+			while (!this.cancelled && iter.nextKey()) {
 				stub.reduce(iter.getValues(), output);
 			}
 		}
 		else {
 			final NonReusingKeyGroupedIterator<IT> iter = new NonReusingKeyGroupedIterator<IT>(this.input, this.comparator);
 			// run stub implementation
-			while (this.running && iter.nextKey()) {
+			while (!this.cancelled && iter.nextKey()) {
 				stub.reduce(iter.getValues(), output);
 			}
 		}
@@ -138,6 +138,6 @@ public class GroupReduceDriver<IT, OT> implements Driver<GroupReduceFunction<IT,
 
 	@Override
 	public void cancel() {
-		this.running = false;
+		this.cancelled = true;
 	}
 }

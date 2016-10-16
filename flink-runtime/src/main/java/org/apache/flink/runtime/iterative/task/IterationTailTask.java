@@ -98,7 +98,7 @@ public class IterationTailTask<S extends Function, OT> extends AbstractIterative
 		
 		SuperstepKickoffLatch nextSuperStepLatch = SuperstepKickoffLatchBroker.instance().get(brokerKey());
 		
-		while (this.running && !terminationRequested()) {
+		while (!this.cancelled && !terminationRequested()) {
 
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
