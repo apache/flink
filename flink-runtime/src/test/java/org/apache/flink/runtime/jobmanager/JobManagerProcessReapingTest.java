@@ -118,6 +118,7 @@ public class JobManagerProcessReapingTest {
 			if (jobManagerPort != -1) {
 				try {
 					jobManagerRef = JobManager.getJobManagerActorRef(
+						"akka.tcp",
 						new InetSocketAddress("localhost", jobManagerPort),
 						localSystem, new FiniteDuration(25, TimeUnit.SECONDS));
 				} catch (Throwable t) {

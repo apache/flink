@@ -18,10 +18,14 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.net.SSLUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import java.net.InetAddress;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -204,11 +208,44 @@ public class NettyConfig {
 		}
 	}
 
+	public SSLContext createClientSSLContext() throws Exception {
+
+		// Create SSL Context from config
+		SSLContext clientSSLContext = null;
+		if (getSSLEnabled()) {
+			clientSSLContext = SSLUtils.createSSLClientContext(config);
+		}
+
+		return clientSSLContext;
+	}
+
+	public SSLContext createServerSSLContext() throws Exception {
+
+		// Create SSL Context from config
+		SSLContext serverSSLContext = null;
+		if (getSSLEnabled()) {
+			serverSSLContext = SSLUtils.createSSLServerContext(config);
+		}
+
+		return serverSSLContext;
+	}
+
+	public boolean getSSLEnabled() {
+		return config.getBoolean(ConfigConstants.TASK_MANAGER_DATA_SSL_ENABLED,
+				ConfigConstants.DEFAULT_TASK_MANAGER_DATA_SSL_ENABLED)
+			&& SSLUtils.getSSLEnabled(config);
+	}
+
+	public void setSSLVerifyHostname(SSLParameters sslParams) {
+		SSLUtils.setSSLVerifyHostname(config, sslParams);
+	}
+
 	@Override
 	public String toString() {
 		String format = "NettyConfig [" +
 				"server address: %s, " +
 				"server port: %d, " +
+				"ssl enabled: %s, " +
 				"memory segment size (bytes): %d, " +
 				"transport type: %s, " +
 				"number of server threads: %d (%s), " +
@@ -220,8 +257,9 @@ public class NettyConfig {
 		String def = "use Netty's default";
 		String man = "manual";
 
-		return String.format(format, serverAddress, serverPort, memorySegmentSize,
-				getTransportType(), getServerNumThreads(), getServerNumThreads() == 0 ? def : man,
+		return String.format(format, serverAddress, serverPort, getSSLEnabled() ? "true":"false",
+				memorySegmentSize, getTransportType(), getServerNumThreads(),
+				getServerNumThreads() == 0 ? def : man,
 				getClientNumThreads(), getClientNumThreads() == 0 ? def : man,
 				getServerConnectBacklog(), getServerConnectBacklog() == 0 ? def : man,
 				getClientConnectTimeoutSeconds(), getSendAndReceiveBufferSize(),

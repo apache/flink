@@ -23,6 +23,7 @@ import akka.actor.Props;
 import akka.actor.Status;
 import akka.dispatch.Futures;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
@@ -47,12 +48,16 @@ public class JobSubmissionClientActor extends JobClientActor {
 	private JobGraph jobGraph;
 	/** true if a SubmitJobSuccess message has been received */
 	private boolean jobSuccessfullySubmitted = false;
+	/** The cluster configuration */
+	private final Configuration clientConfig;
 
 	public JobSubmissionClientActor(
 			LeaderRetrievalService leaderRetrievalService,
 			FiniteDuration timeout,
-			boolean sysoutUpdates) {
+			boolean sysoutUpdates,
+			Configuration clientConfig) {
 		super(leaderRetrievalService, timeout, sysoutUpdates);
+		this.clientConfig = clientConfig;
 	}
 
 
@@ -140,7 +145,7 @@ public class JobSubmissionClientActor extends JobClientActor {
 				LOG.info("Upload jar files to job manager {}.", jobManager.path());
 
 				try {
-					jobGraph.uploadUserJars(jobManagerGateway, timeout);
+					jobGraph.uploadUserJars(jobManagerGateway, timeout, clientConfig);
 				} catch (IOException exception) {
 					getSelf().tell(
 						decorateMessage(new JobManagerMessages.JobResultFailure(
@@ -182,11 +187,13 @@ public class JobSubmissionClientActor extends JobClientActor {
 	public static Props createActorProps(
 			LeaderRetrievalService leaderRetrievalService,
 			FiniteDuration timeout,
-			boolean sysoutUpdates) {
+			boolean sysoutUpdates,
+			Configuration clientConfig) {
 		return Props.create(
 			JobSubmissionClientActor.class,
 			leaderRetrievalService,
 			timeout,
-			sysoutUpdates);
+			sysoutUpdates,
+			clientConfig);
 	}
 }

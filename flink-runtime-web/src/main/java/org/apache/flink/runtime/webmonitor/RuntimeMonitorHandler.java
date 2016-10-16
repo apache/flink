@@ -67,8 +67,9 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 			RequestHandler handler,
 			JobManagerRetriever retriever,
 			Future<String> localJobManagerAddressFuture,
-			FiniteDuration timeout) {
-		super(retriever, localJobManagerAddressFuture, timeout);
+			FiniteDuration timeout,
+			boolean httpsEnabled) {
+		super(retriever, localJobManagerAddressFuture, timeout, httpsEnabled);
 		this.handler = checkNotNull(handler);
 	}
 
@@ -89,7 +90,8 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 			}
 
 			InetSocketAddress address = (InetSocketAddress) ctx.channel().localAddress();
-			queryParams.put(WEB_MONITOR_ADDRESS_KEY, address.getHostName() + ":" + address.getPort());
+			queryParams.put(WEB_MONITOR_ADDRESS_KEY,
+				(httpsEnabled ? "https://" : "http://") + address.getHostName() + ":" + address.getPort());
 
 			String result = handler.handleRequest(pathParams, queryParams, jobManager);
 			byte[] bytes = result.getBytes(ENCODING);

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.blob;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -32,6 +31,7 @@ import java.security.MessageDigest;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
@@ -40,61 +40,93 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
- * This class contains unit tests for the {@link BlobClient}.
+ * This class contains unit tests for the {@link BlobClient} with ssl enabled.
  */
-public class BlobClientTest {
+public class BlobClientSslTest {
 
 	/** The buffer size used during the tests in bytes. */
 	private static final int TEST_BUFFER_SIZE = 17 * 1000;
 
-	/** The instance of the BLOB server used during the tests. */
+	/** The instance of the SSL BLOB server used during the tests. */
+	private static BlobServer BLOB_SSL_SERVER;
+
+	/** The SSL blob service client configuration */
+	private static Configuration sslClientConfig;
+
+	/** The instance of the non-SSL BLOB server used during the tests. */
 	private static BlobServer BLOB_SERVER;
 
-	/** The blob service client and server configuration */
-	private static Configuration blobServiceConfig;
+	/** The non-ssl blob service client configuration */
+	private static Configuration clientConfig;
 
 	/**
-	 * Starts the BLOB server.
+	 * Starts the SSL enabled BLOB server.
 	 */
 	@BeforeClass
-	public static void startServer() {
+	public static void startSSLServer() {
 		try {
-			blobServiceConfig = new Configuration();
-			BLOB_SERVER = new BlobServer(blobServiceConfig);
+			Configuration config = new Configuration();
+			config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
+			config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
+			config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
+			config.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
+			BLOB_SSL_SERVER = new BlobServer(config);
 		}
 		catch (IOException e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+
+		sslClientConfig = new Configuration();
+		sslClientConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
+		sslClientConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
+		sslClientConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD, "password");
+	}
+
+	/**
+	 * Starts the SSL disabled BLOB server.
+	 */
+	@BeforeClass
+	public static void startNonSSLServer() {
+		try {
+			Configuration config = new Configuration();
+			config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
+			config.setBoolean(ConfigConstants.BLOB_SERVICE_SSL_ENABLED, false);
+			config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
+			config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
+			config.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
+			BLOB_SERVER = new BlobServer(config);
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+
+		clientConfig = new Configuration();
+		clientConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
+		clientConfig.setBoolean(ConfigConstants.BLOB_SERVICE_SSL_ENABLED, false);
+		clientConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
+		clientConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD, "password");
 	}
 
 	/**
 	 * Shuts the BLOB server down.
 	 */
 	@AfterClass
-	public static void stopServer() {
+	public static void stopServers() {
+		if (BLOB_SSL_SERVER != null) {
+			BLOB_SSL_SERVER.shutdown();
+		}
+
 		if (BLOB_SERVER != null) {
 			BLOB_SERVER.shutdown();
 		}
 	}
 
 	/**
-	 * Creates a test buffer and fills it with a specific byte pattern.
-	 * 
-	 * @return a test buffer filled with a specific byte pattern
-	 */
-	private static byte[] createTestBuffer() {
-		final byte[] buf = new byte[TEST_BUFFER_SIZE];
-		for (int i = 0; i < buf.length; ++i) {
-			buf[i] = (byte) (i % 128);
-		}
-		return buf;
-	}
-
-	/**
 	 * Prepares a test file for the unit tests, i.e. the methods fills the file with a particular byte patterns and
 	 * computes the file's BLOB key.
-	 * 
+	 *
 	 * @param file
 	 *        the file to prepare for the unit tests
 	 * @return the BLOB key of the prepared file
@@ -130,38 +162,8 @@ public class BlobClientTest {
 
 	/**
 	 * Validates the result of a GET operation by comparing the data from the retrieved input stream to the content of
-	 * the specified buffer.
-	 * 
-	 * @param inputStream
-	 *        the input stream returned from the GET operation
-	 * @param buf
-	 *        the buffer to compare the input stream's data to
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while reading the input stream
-	 */
-	private static void validateGet(final InputStream inputStream, final byte[] buf) throws IOException {
-
-		int bytesReceived = 0;
-
-		while (true) {
-
-			final int read = inputStream.read(buf, bytesReceived, buf.length - bytesReceived);
-			if (read < 0) {
-				throw new EOFException();
-			}
-			bytesReceived += read;
-
-			if (bytesReceived == buf.length) {
-				assertEquals(-1, inputStream.read());
-				return;
-			}
-		}
-	}
-
-	/**
-	 * Validates the result of a GET operation by comparing the data from the retrieved input stream to the content of
 	 * the specified file.
-	 * 
+	 *
 	 * @param inputStream
 	 *        the input stream returned from the GET operation
 	 * @param file
@@ -197,53 +199,6 @@ public class BlobClientTest {
 	}
 
 	/**
-	 * Tests the PUT/GET operations for content-addressable buffers.
-	 */
-	@Test
-	public void testContentAddressableBuffer() {
-
-		BlobClient client = null;
-
-		try {
-			byte[] testBuffer = createTestBuffer();
-			MessageDigest md = BlobUtils.createMessageDigest();
-			md.update(testBuffer);
-			BlobKey origKey = new BlobKey(md.digest());
-
-			InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
-			client = new BlobClient(serverAddress, blobServiceConfig);
-
-			// Store the data
-			BlobKey receivedKey = client.put(testBuffer);
-			assertEquals(origKey, receivedKey);
-
-			// Retrieve the data
-			InputStream is = client.get(receivedKey);
-			validateGet(is, testBuffer);
-
-			// Check reaction to invalid keys
-			try {
-				client.get(new BlobKey());
-				fail("Expected IOException did not occur");
-			}
-			catch (IOException fnfe) {
-				// expected
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
-			if (client != null) {
-				try {
-					client.close();
-				} catch (Throwable t) {}
-			}
-		}
-	}
-
-	/**
 	 * Tests the PUT/GET operations for content-addressable streams.
 	 */
 	@Test
@@ -258,8 +213,8 @@ public class BlobClientTest {
 
 			BlobKey origKey = prepareTestFile(testFile);
 
-			InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
-			client = new BlobClient(serverAddress, blobServiceConfig);
+			InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SSL_SERVER.getPort());
+			client = new BlobClient(serverAddress, sslClientConfig);
 
 			// Store the data
 			is = new FileInputStream(testFile);
@@ -292,53 +247,6 @@ public class BlobClientTest {
 	}
 
 	/**
-	 * Tests the PUT/GET operations for regular (non-content-addressable) buffers.
-	 */
-	@Test
-	public void testRegularBuffer() {
-
-		final byte[] testBuffer = createTestBuffer();
-		final JobID jobID = JobID.generate();
-		final String key = "testkey";
-
-		try {
-			BlobClient client = null;
-			try {
-				final InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
-				client = new BlobClient(serverAddress, blobServiceConfig);
-
-				// Store the data
-				client.put(jobID, key, testBuffer);
-
-				// Retrieve the data
-				final InputStream is = client.get(jobID, key);
-				validateGet(is, testBuffer);
-
-				// Delete the data
-				client.delete(jobID, key);
-				
-				// Check if the BLOB is still available
-				try {
-					client.get(jobID, key);
-					fail("Expected IOException did not occur");
-				}
-				catch (IOException e) {
-					// expected
-				}
-			}
-			finally {
-				if (client != null) {
-					client.close();
-				}
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	/**
 	 * Tests the PUT/GET operations for regular (non-content-addressable) streams.
 	 */
 	@Test
@@ -356,8 +264,8 @@ public class BlobClientTest {
 			InputStream is = null;
 			try {
 
-				final InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
-				client = new BlobClient(serverAddress, blobServiceConfig);
+				final InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SSL_SERVER.getPort());
+				client = new BlobClient(serverAddress, sslClientConfig);
 
 				// Store the data
 				is = new FileInputStream(testFile);
@@ -390,22 +298,63 @@ public class BlobClientTest {
 	/**
 	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, Configuration, List)} helper.
 	 */
-	@Test
-	public void testUploadJarFilesHelper() throws Exception {
+	private void uploadJarFile(BlobServer blobServer, Configuration blobClientConfig) throws Exception {
 		final File testFile = File.createTempFile("testfile", ".dat");
 		testFile.deleteOnExit();
 		prepareTestFile(testFile);
 
-		InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
+		InetSocketAddress serverAddress = new InetSocketAddress("localhost", blobServer.getPort());
 
-		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(serverAddress, blobServiceConfig,
+		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(serverAddress, blobClientConfig,
 			Collections.singletonList(new Path(testFile.toURI())));
 
 		assertEquals(1, blobKeys.size());
 
-		try (BlobClient blobClient = new BlobClient(serverAddress, blobServiceConfig)) {
+		try (BlobClient blobClient = new BlobClient(serverAddress, blobClientConfig)) {
 			InputStream is = blobClient.get(blobKeys.get(0));
 			validateGet(is, testFile);
 		}
+	}
+
+	/**
+	 * Verify ssl client to ssl server upload
+	 */
+	@Test
+	public void testUploadJarFilesHelper() throws Exception {
+		uploadJarFile(BLOB_SSL_SERVER, sslClientConfig);
+	}
+
+	/**
+	 * Verify ssl client to non-ssl server failure
+	 */
+	@Test
+	public void testSSLClientFailure() throws Exception {
+		try {
+			uploadJarFile(BLOB_SERVER, sslClientConfig);
+			fail("SSL client connected to non-ssl server");
+		} catch (Exception e) {
+			// Exception expected
+		}
+	}
+
+	/**
+	 * Verify non-ssl client to ssl server failure
+	 */
+	@Test
+	public void testSSLServerFailure() throws Exception {
+		try {
+			uploadJarFile(BLOB_SSL_SERVER, clientConfig);
+			fail("Non-SSL client connected to ssl server");
+		} catch (Exception e) {
+			// Exception expected
+		}
+	}
+
+	/**
+	 * Verify non-ssl connection sanity
+	 */
+	@Test
+	public void testNonSSLConnection() throws Exception {
+		uploadJarFile(BLOB_SERVER, clientConfig);
 	}
 }

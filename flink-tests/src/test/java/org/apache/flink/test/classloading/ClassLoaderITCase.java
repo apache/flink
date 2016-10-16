@@ -316,7 +316,8 @@ public class ClassLoaderITCase extends TestLogger {
 
 		// Upload JAR
 		LOG.info("Uploading JAR " + CUSTOM_KV_STATE_JAR_PATH + " for savepoint disposal.");
-		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(jm, deadline.timeLeft(), Collections.singletonList(new Path(CUSTOM_KV_STATE_JAR_PATH)));
+		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(jm, deadline.timeLeft(), testCluster.userConfiguration(),
+				Collections.singletonList(new Path(CUSTOM_KV_STATE_JAR_PATH)));
 
 		// Dispose savepoint
 		LOG.info("Disposing savepoint at " + savepointPath);
