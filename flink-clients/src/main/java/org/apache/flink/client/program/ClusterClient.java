@@ -404,7 +404,7 @@ public abstract class ClusterClient {
 
 		try {
 			logAndSysout("Submitting job with JobID: " + jobGraph.getJobID() + ". Waiting for job completion.");
-			this.lastJobExecutionResult = JobClient.submitJobAndWait(actorSystemLoader.get(),
+			this.lastJobExecutionResult = JobClient.submitJobAndWait(actorSystemLoader.get(), flinkConfig,
 				leaderRetrievalService, jobGraph, timeout, printStatusDuringExecution, classLoader);
 			return this.lastJobExecutionResult;
 		} catch (JobExecutionException e) {
@@ -432,7 +432,7 @@ public abstract class ClusterClient {
 
 		try {
 			logAndSysout("Submitting Job with JobID: " + jobGraph.getJobID() + ". Returning after job submission.");
-			JobClient.submitJobDetached(jobManagerGateway, jobGraph, timeout, classLoader);
+			JobClient.submitJobDetached(jobManagerGateway, flinkConfig, jobGraph, timeout, classLoader);
 			return new JobSubmissionResult(jobGraph.getJobID());
 		} catch (JobExecutionException e) {
 			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);

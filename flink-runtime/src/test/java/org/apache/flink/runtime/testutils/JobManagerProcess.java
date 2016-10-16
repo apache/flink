@@ -147,6 +147,7 @@ public class JobManagerProcess extends TestJvmProcess {
 		int port = getJobManagerPort(timeout);
 
 		return JobManager.getRemoteJobManagerAkkaURL(
+				AkkaUtils.getAkkaProtocol(config),
 				new InetSocketAddress("localhost", port),
 				Option.<String>empty());
 	}

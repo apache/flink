@@ -38,6 +38,7 @@ class AkkaUtilsTest
     val address = new InetSocketAddress(host, port)
 
     val remoteAkkaURL = JobManager.getRemoteJobManagerAkkaURL(
+      "akka.tcp",
       address,
       Some("actor"))
 
@@ -66,6 +67,15 @@ class AkkaUtilsTest
 
   test("getHostFromAkkaURL should handle 'akka.tcp' as protocol") {
     val url = "akka.tcp://flink@localhost:1234/user/jobmanager"
+    val expected = new InetSocketAddress("localhost", 1234)
+
+    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+
+    result should equal(expected)
+  }
+
+  test("getHostFromAkkaURL should handle 'akka.ssl.tcp' as protocol") {
+    val url = "akka.ssl.tcp://flink@localhost:1234/user/jobmanager"
     val expected = new InetSocketAddress("localhost", 1234)
 
     val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
@@ -103,6 +113,18 @@ class AkkaUtilsTest
     val address = new InetSocketAddress(IPv6AddressString, port)
 
     val url = s"akka.tcp://flink@[$IPv6AddressString]:$port/user/jobmanager"
+
+    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
+
+    result should equal(address)
+  }
+
+  test("getHostFromAkkaURL should properly handle IPv6 addresses in 'akka.ssl.tcp' URLs") {
+    val IPv6AddressString = "2001:db8:10:11:12:ff00:42:8329"
+    val port = 1234
+    val address = new InetSocketAddress(IPv6AddressString, port)
+
+    val url = s"akka.ssl.tcp://flink@[$IPv6AddressString]:$port/user/jobmanager"
 
     val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
 

@@ -157,6 +157,9 @@ public final class ConfigConstants {
 	 */
 	public static final String BLOB_SERVER_PORT = "blob.server.port";
 
+	/** Flag to override ssl support for the blob service transport */
+	public static final String BLOB_SERVICE_SSL_ENABLED = "blob.service.ssl.enabled";
+
 	/**
 	 * The config parameter defining the cleanup interval of the library cache manager.
 	 */
@@ -176,6 +179,11 @@ public final class ConfigConstants {
 	 * The config parameter defining the task manager's data port from the configuration.
 	 */
 	public static final String TASK_MANAGER_DATA_PORT_KEY = "taskmanager.data.port";
+
+	/**
+	 * Config parameter to override SSL support for taskmanager's data transport
+	 */
+	public static final String TASK_MANAGER_DATA_SSL_ENABLED = "taskmanager.data.ssl.enabled";
 
 	/**
 	 * The config parameter defining the directories for temporary files.
@@ -544,6 +552,11 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_WEB_PORT_KEY = "jobmanager.web.port";
 
 	/**
+	 * Config parameter to override SSL support for the JobManager Web UI
+	 */
+	public static final String JOB_MANAGER_WEB_SSL_ENABLED = "jobmanager.web.ssl.enabled";
+
+	/**
 	 * The config parameter defining the flink web directory to be used by the webmonitor.
 	 */
 	public static final String JOB_MANAGER_WEB_TMPDIR_KEY = "jobmanager.web.tmpdir";
@@ -628,6 +641,11 @@ public final class ConfigConstants {
 	public static final String AKKA_TCP_TIMEOUT = "akka.tcp.timeout";
 
 	/**
+	 * Override SSL support for the Akka transport
+	 */
+	public static final String AKKA_SSL_ENABLED = "akka.ssl.enabled";
+
+	/**
 	 * Maximum framesize of akka messages
 	 */
 	public static final String AKKA_FRAMESIZE = "akka.framesize";
@@ -662,6 +680,40 @@ public final class ConfigConstants {
 	 */
 	public static final String AKKA_JVM_EXIT_ON_FATAL_ERROR = "akka.jvm-exit-on-fatal-error";
 	
+	// ----------------------------- Transport SSL Settings--------------------
+
+	/**
+	 * Enable SSL support
+	 */
+	public static final String SECURITY_SSL_ENABLED = "security.ssl.enabled";
+
+	/** The Java keystore file containing the flink endpoint key and certificate */
+	public static final String SECURITY_SSL_KEYSTORE = "security.ssl.keystore";
+
+	/** secret to decrypt the keystore file */
+	public static final String SECURITY_SSL_KEYSTORE_PASSWORD = "security.ssl.keystore-password";
+
+	/** secret to decrypt the server key */
+	public static final String SECURITY_SSL_KEY_PASSWORD = "security.ssl.key-password";
+
+	/** The truststore file containing the public CA certificates to verify the ssl peers */
+	public static final String SECURITY_SSL_TRUSTSTORE = "security.ssl.truststore";
+
+	/** Secret to decrypt the truststore */
+	public static final String SECURITY_SSL_TRUSTSTORE_PASSWORD = "security.ssl.truststore-password";
+
+	/** SSL protocol version to be supported */
+	public static final String SECURITY_SSL_PROTOCOL = "security.ssl.protocol";
+
+	/**
+	 * The standard SSL algorithms to be supported
+	 * More options here - http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites
+	 * */
+	public static final String SECURITY_SSL_ALGORITHMS = "security.ssl.algorithms";
+
+	/** Flag to enable/disable hostname verification for the ssl connections */
+	public static final String SECURITY_SSL_VERIFY_HOSTNAME = "security.ssl.verify-hostname";
+
 	// ----------------------------- Streaming --------------------------------
 	
 	/**
@@ -931,6 +983,11 @@ public final class ConfigConstants {
 	public static final int DEFAULT_RESOURCE_MANAGER_IPC_PORT = 0;
 
 	/**
+	 * The default value to override ssl support for blob service transport
+	 */
+	public static final boolean DEFAULT_BLOB_SERVICE_SSL_ENABLED = true;
+
+	/**
 	 * Default number of retries for failed BLOB fetches.
 	 */
 	public static final int DEFAULT_BLOB_FETCH_RETRIES = 5;
@@ -961,6 +1018,11 @@ public final class ConfigConstants {
 	 * the TaskManager searches for a free port.
 	 */
 	public static final int DEFAULT_TASK_MANAGER_DATA_PORT = 0;
+
+	/**
+	 * The default value to override ssl support for task manager's data transport
+	 */
+	public static final boolean DEFAULT_TASK_MANAGER_DATA_SSL_ENABLED = true;
 
 	/**
 	 * The default directory for temporary files of the task manager.
@@ -1135,7 +1197,10 @@ public final class ConfigConstants {
 	/** The config key for the port of the JobManager web frontend.
 	 * Setting this value to {@code -1} disables the web frontend. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;
-	
+
+	/** Default value to override SSL support for the JobManager web UI */
+	public static final boolean DEFAULT_JOB_MANAGER_WEB_SSL_ENABLED = true;
+
 	/** The default number of archived jobs for the jobmanager */
 	public static final int DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT = 5;
 
@@ -1181,7 +1246,19 @@ public final class ConfigConstants {
 	public static String DEFAULT_AKKA_LOOKUP_TIMEOUT = "10 s";
 
 	public static String DEFAULT_AKKA_CLIENT_TIMEOUT = "60 s";
-	
+
+	public static boolean DEFAULT_AKKA_SSL_ENABLED = true;
+
+	// ----------------------------- SSL Values --------------------------------
+
+	public static boolean DEFAULT_SECURITY_SSL_ENABLED = false;
+
+	public static String DEFAULT_SECURITY_SSL_PROTOCOL = "TLSv1.2";
+
+	public static String DEFAULT_SECURITY_SSL_ALGORITHMS = "TLS_RSA_WITH_AES_128_CBC_SHA";
+
+	public static boolean DEFAULT_SECURITY_SSL_VERIFY_HOSTNAME = true;
+
 	// ----------------------------- Streaming Values --------------------------
 	
 	public static String DEFAULT_STATE_BACKEND = "jobmanager";

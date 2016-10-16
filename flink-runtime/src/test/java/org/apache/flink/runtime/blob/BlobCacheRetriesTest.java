@@ -54,7 +54,7 @@ public class BlobCacheRetriesTest {
 			BlobClient blobClient = null;
 			BlobKey key;
 			try {
-				blobClient = new BlobClient(serverAddress);
+				blobClient = new BlobClient(serverAddress, config);
 
 				key = blobClient.put(data);
 			}
@@ -113,7 +113,7 @@ public class BlobCacheRetriesTest {
 			BlobClient blobClient = null;
 			BlobKey key;
 			try {
-				blobClient = new BlobClient(serverAddress);
+				blobClient = new BlobClient(serverAddress, config);
 
 				key = blobClient.put(data);
 			}

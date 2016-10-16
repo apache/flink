@@ -91,7 +91,7 @@ public class StackTraceSampleCoordinatorITCase extends TestLogger {
 			try {
 				jobManger = TestingUtils.createJobManager(testActorSystem, new Configuration());
 
-				Configuration config = new Configuration();
+				final Configuration config = new Configuration();
 				config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
 
 				taskManager = TestingUtils.createTaskManager(
@@ -112,6 +112,7 @@ public class StackTraceSampleCoordinatorITCase extends TestLogger {
 								// Submit the job and wait until it is running
 								JobClient.submitJobDetached(
 										jm,
+										config,
 										jobGraph,
 										deadline,
 										ClassLoader.getSystemClassLoader());

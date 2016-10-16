@@ -63,28 +63,29 @@ public class JobSubmitTest {
 
 	private static ActorSystem jobManagerSystem;
 	private static ActorGateway jmGateway;
+	private static Configuration jmConfig;
 
 	@BeforeClass
 	public static void setupJobManager() {
-		Configuration config = new Configuration();
+		jmConfig = new Configuration();
 
 		int port = NetUtils.getAvailablePort();
 
-		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
-		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
+		jmConfig.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
+		jmConfig.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
 
 		scala.Option<Tuple2<String, Object>> listeningAddress = scala.Option.apply(new Tuple2<String, Object>("localhost", port));
-		jobManagerSystem = AkkaUtils.createActorSystem(config, listeningAddress);
+		jobManagerSystem = AkkaUtils.createActorSystem(jmConfig, listeningAddress);
 
 		// only start JobManager (no ResourceManager)
 		JobManager.startJobManagerActors(
-				config,
+				jmConfig,
 				jobManagerSystem,
 				JobManager.class,
 				MemoryArchivist.class)._1();
 
 		try {
-			LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config);
+			LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(jmConfig);
 
 			jmGateway = LeaderRetrievalUtils.retrieveLeaderGateway(
 					lrs,
@@ -117,7 +118,7 @@ public class JobSubmitTest {
 
 			// upload two dummy bytes and add their keys to the job graph as dependencies
 			BlobKey key1, key2;
-			BlobClient bc = new BlobClient(new InetSocketAddress("localhost", blobPort));
+			BlobClient bc = new BlobClient(new InetSocketAddress("localhost", blobPort), jmConfig);
 			try {
 				key1 = bc.put(new byte[10]);
 				key2 = bc.put(new byte[10]);

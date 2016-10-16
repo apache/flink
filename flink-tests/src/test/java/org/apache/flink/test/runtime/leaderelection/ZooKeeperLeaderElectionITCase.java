@@ -277,6 +277,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 				JobExecutionResult result = JobClient.submitJobAndWait(
 						clientActorSystem,
+						cluster.configuration(),
 						lrService,
 						graph,
 						timeout,
