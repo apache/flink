@@ -312,7 +312,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 		// go over the complete input and insert every element into the hash table
 		
 		T value;
-		while (this.cancelled && (value = input.next()) != null) {
+		while (!this.cancelled && (value = input.next()) != null) {
 			insertOrReplaceRecord(value);
 		}
 	}

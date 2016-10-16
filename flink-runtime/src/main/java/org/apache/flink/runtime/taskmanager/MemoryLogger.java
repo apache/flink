@@ -55,7 +55,7 @@ public class MemoryLogger extends Thread {
 	
 	private final ActorSystem monitored;
 	
-	private volatile boolean cancelled = true;
+	private volatile boolean cancelled = false;
 	
 	/**
 	 * Creates a new memory logger that logs in the given interval and lives as long as the

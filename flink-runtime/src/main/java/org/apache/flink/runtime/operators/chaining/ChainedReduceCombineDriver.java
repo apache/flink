@@ -92,7 +92,7 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 	@Override
 	public void setup(AbstractInvokable parent) {
 		this.parent = parent;
-		cancelled = true;
+		cancelled = false;
 
 		strategy = config.getDriverStrategy();
 
