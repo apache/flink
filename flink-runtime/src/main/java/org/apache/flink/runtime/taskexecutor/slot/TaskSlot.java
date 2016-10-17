@@ -286,4 +286,17 @@ public class TaskSlot {
 		state = TaskSlotState.RELEASING;
 		return true;
 	}
+
+	/**
+	 * Generate the slot offer from this TaskSlot.
+	 *
+	 * @return The sot offer which this task slot can provide
+	 */
+	public SlotOffer generateSlotOffer() {
+		Preconditions.checkState(TaskSlotState.ACTIVE == state || TaskSlotState.ALLOCATED == state,
+				"The task slot is not in state active or allocated.");
+		Preconditions.checkState(allocationId != null, "The task slot are not allocated");
+
+		return new SlotOffer(allocationId, index, resourceProfile);
+	}
 }
