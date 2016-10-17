@@ -35,9 +35,6 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.util.ExceptionUtils;
 
-import scala.Option;
-import scala.Tuple2;
-
 import javax.annotation.concurrent.GuardedBy;
 
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
@@ -348,7 +345,7 @@ public class MiniCluster {
 	/**
 	 * Factory method to instantiate the RPC service.
 	 * 
-	 * @param config
+	 * @param configuration
 	 *            The configuration of the mini cluster
 	 * @param askTimeout
 	 *            The default RPC timeout for asynchronous "ask" requests.
@@ -360,17 +357,16 @@ public class MiniCluster {
 	 * @return The instantiated RPC service
 	 */
 	protected RpcService createRpcService(
-			Configuration config,
+			Configuration configuration,
 			Time askTimeout,
 			boolean remoteEnabled,
 			String bindAddress) {
 
 		ActorSystem actorSystem;
 		if (remoteEnabled) {
-			Tuple2<String, Object> remoteSettings = new Tuple2<String, Object>(bindAddress, 0);
-			actorSystem = AkkaUtils.createActorSystem(config, Option.apply(remoteSettings));
+			actorSystem = AkkaUtils.createActorSystem(configuration, bindAddress, 0);
 		} else {
-			actorSystem = AkkaUtils.createLocalActorSystem(config);
+			actorSystem = AkkaUtils.createLocalActorSystem(configuration);
 		}
 
 		return new AkkaRpcService(actorSystem, askTimeout);

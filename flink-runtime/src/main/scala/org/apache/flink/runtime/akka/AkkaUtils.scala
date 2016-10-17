@@ -58,6 +58,23 @@ object AkkaUtils {
   }
 
   /**
+    * Creates an actor system bound to the given hostname and port.
+    *
+    * @param configuration instance containing the user provided configuration values
+    * @param hostname of the network interface to bind to
+    * @param port of to bind to
+    * @return created actor system
+    */
+  def createActorSystem(
+      configuration: Configuration,
+      hostname: String,
+      port: Int)
+    : ActorSystem = {
+
+    createActorSystem(configuration, Some((hostname, port)))
+  }
+
+  /**
    * Creates an actor system. If a listening address is specified, then the actor system will listen
    * on that address for messages from a remote actor system. If not, then a local actor system
    * will be instantiated.

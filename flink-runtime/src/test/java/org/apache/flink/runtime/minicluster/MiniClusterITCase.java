@@ -31,7 +31,7 @@ import org.junit.Test;
  */
 public class MiniClusterITCase extends TestLogger {
 
-//	@Test
+	@Test
 	public void runJobWithSingleRpcService() throws Exception {
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration();
 
