@@ -38,7 +38,7 @@ public interface ResourceManagerServices {
 	void allocateResource(ResourceProfile resourceProfile);
 
 	/**
-	 * Gets the async excutor which executes outside of the main thread of the ResourceManager
+	 * Gets the async executor which executes outside of the main thread of the ResourceManager
 	 */
 	Executor getAsyncExecutor();
 
