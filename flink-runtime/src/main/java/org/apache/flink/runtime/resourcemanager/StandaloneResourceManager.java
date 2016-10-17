@@ -22,7 +22,9 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
 /**
@@ -33,22 +35,25 @@ import org.apache.flink.runtime.rpc.RpcService;
  */
 public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
-	public StandaloneResourceManager(RpcService rpcService,
+	public StandaloneResourceManager(
+			RpcService rpcService,
+			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
-			SlotManagerFactory slotManagerFactory) {
-		super(rpcService, highAvailabilityServices, slotManagerFactory);
+			SlotManagerFactory slotManagerFactory,
+			MetricRegistry metricRegistry,
+			FatalErrorHandler fatalErrorHandler) {
+		super(
+			rpcService,
+			resourceManagerConfiguration,
+			highAvailabilityServices,
+			slotManagerFactory,
+			metricRegistry,
+			fatalErrorHandler);
 	}
 
 	@Override
 	protected void initialize() throws Exception {
 		// nothing to initialize
-	}
-
-	@Override
-	protected void fatalError(final String message, final Throwable error) {
-		log.error("FATAL ERROR IN RESOURCE MANAGER: " + message, error);
-		// kill this process
-		System.exit(EXIT_CODE_FATAL_ERROR);
 	}
 
 	@Override
