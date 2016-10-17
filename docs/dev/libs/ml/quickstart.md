@@ -87,7 +87,7 @@ We can load the data as a `DataSet[String]` first:
 
 {% highlight scala %}
 
-import org.apache.flink.api.scala.ExecutionEnvironment
+import org.apache.flink.api.scala._
 
 val env = ExecutionEnvironment.getExecutionEnvironment
 
