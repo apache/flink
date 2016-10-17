@@ -25,6 +25,13 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * This class allows to register instances of {@link Closeable}, which are all closed if this registry is closed.
+ * <p/>
+ * Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
+ * <p/>
+ * All methods in this class are thread-safe.
+ */
 public class ClosableRegistry implements Closeable {
 
 	private final Set<Closeable> registeredCloseables;
@@ -35,6 +42,14 @@ public class ClosableRegistry implements Closeable {
 		this.closed = false;
 	}
 
+	/**
+	 * Registers a {@link Closeable} with the registry. In case the registry is already closed, this method throws an
+	 * {@link IllegalStateException} and closes the passed {@link Closeable}.
+	 *
+	 * @param closeable Closable tor register
+	 * @return true if the the Closable was newly added to the registry
+	 * @throws IllegalStateException exception when the registry was closed before
+	 */
 	public boolean registerClosable(Closeable closeable) {
 
 		if (null == closeable) {
@@ -43,6 +58,7 @@ public class ClosableRegistry implements Closeable {
 
 		synchronized (getSynchronizationLock()) {
 			if (closed) {
+				IOUtils.closeQuietly(closeable);
 				throw new IllegalStateException("Cannot register Closable, registry is already closed.");
 			}
 
@@ -50,6 +66,12 @@ public class ClosableRegistry implements Closeable {
 		}
 	}
 
+	/**
+	 * Removes a {@link Closeable} from the registry.
+	 *
+	 * @param closeable instance to remove from the registry.
+	 * @return true, if the instance was actually registered and now removed
+	 */
 	public boolean unregisterClosable(Closeable closeable) {
 
 		if (null == closeable) {
@@ -75,6 +97,12 @@ public class ClosableRegistry implements Closeable {
 				registeredCloseables.clear();
 				closed = true;
 			}
+		}
+	}
+
+	public boolean isClosed() {
+		synchronized (getSynchronizationLock()) {
+			return closed;
 		}
 	}
 

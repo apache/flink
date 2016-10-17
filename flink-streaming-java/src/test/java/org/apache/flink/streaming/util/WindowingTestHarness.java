@@ -165,7 +165,7 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 	 * Takes a snapshot of the current state of the operator. This can be used to test fault-tolerance.
 	 */
 	public StreamStateHandle snapshot(long checkpointId, long timestamp) throws Exception {
-		return testHarness.snapshot(checkpointId, timestamp);
+		return testHarness.snapshotLegacy(checkpointId, timestamp);
 	}
 
 	/**

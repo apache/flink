@@ -66,7 +66,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 			elementCounter++;
 		}
 
-		testHarness.snapshot(snapshotCount++, 0);
+		testHarness.snapshotLegacy(snapshotCount++, 0);
 		testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
 
 		for (int x = 0; x < 20; x++) {
@@ -74,7 +74,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 			elementCounter++;
 		}
 
-		testHarness.snapshot(snapshotCount++, 0);
+		testHarness.snapshotLegacy(snapshotCount++, 0);
 		testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
 
 		for (int x = 0; x < 20; x++) {
@@ -82,7 +82,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 			elementCounter++;
 		}
 
-		testHarness.snapshot(snapshotCount++, 0);
+		testHarness.snapshotLegacy(snapshotCount++, 0);
 		testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
 
 		verifyResultsIdealCircumstances(testHarness, sink);
@@ -105,7 +105,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 			elementCounter++;
 		}
 
-		testHarness.snapshot(snapshotCount++, 0);
+		testHarness.snapshotLegacy(snapshotCount++, 0);
 		testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
 
 		for (int x = 0; x < 20; x++) {
@@ -113,14 +113,14 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 			elementCounter++;
 		}
 
-		testHarness.snapshot(snapshotCount++, 0);
+		testHarness.snapshotLegacy(snapshotCount++, 0);
 
 		for (int x = 0; x < 20; x++) {
 			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 2)));
 			elementCounter++;
 		}
 
-		testHarness.snapshot(snapshotCount++, 0);
+		testHarness.snapshotLegacy(snapshotCount++, 0);
 		testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
 
 		verifyResultsDataPersistenceUponMissedNotify(testHarness, sink);
@@ -143,7 +143,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 			elementCounter++;
 		}
 
-		StreamStateHandle latestSnapshot = testHarness.snapshot(snapshotCount++, 0);
+		StreamStateHandle latestSnapshot = testHarness.snapshotLegacy(snapshotCount++, 0);
 		testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
 
 		for (int x = 0; x < 20; x++) {
@@ -166,7 +166,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 			elementCounter++;
 		}
 
-		testHarness.snapshot(snapshotCount++, 0);
+		testHarness.snapshotLegacy(snapshotCount++, 0);
 		testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
 
 		verifyResultsDataDiscardingUponRestore(testHarness, sink);

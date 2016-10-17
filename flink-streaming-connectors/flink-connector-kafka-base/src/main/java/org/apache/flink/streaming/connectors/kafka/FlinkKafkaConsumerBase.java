@@ -19,13 +19,15 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.commons.collections.map.LinkedMap;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -37,7 +39,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,20 +56,20 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Base class of all Flink Kafka Consumer data sources.
  * This implements the common behavior across all Kafka versions.
- * 
+ *
  * <p>The Kafka version specific behavior is defined mainly in the specific subclasses of the
  * {@link AbstractFetcher}.
- * 
+ *
  * @param <T> The type of records produced by this data source
  */
-public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFunction<T> implements 
+public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFunction<T> implements
 		CheckpointListener,
 		ResultTypeQueryable<T>,
 		CheckpointedFunction {
 	private static final long serialVersionUID = -6272159445203409112L;
 
 	protected static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaConsumerBase.class);
-	
+
 	/** The maximum number of pending non-committed checkpoints to track, to avoid memory leaks */
 	public static final int MAX_NUM_PENDING_CHECKPOINTS = 100;
 
@@ -80,38 +81,38 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	// ------------------------------------------------------------------------
 
 	private final List<String> topics;
-	
+
 	/** The schema to convert between Kafka's byte messages, and Flink's objects */
 	protected final KeyedDeserializationSchema<T> deserializer;
 
 	/** The set of topic partitions that the source will read */
 	protected List<KafkaTopicPartition> subscribedPartitions;
-	
+
 	/** Optional timestamp extractor / watermark generator that will be run per Kafka partition,
 	 * to exploit per-partition timestamp characteristics.
 	 * The assigner is kept in serialized form, to deserialize it into multiple copies */
 	private SerializedValue<AssignerWithPeriodicWatermarks<T>> periodicWatermarkAssigner;
-	
+
 	/** Optional timestamp extractor / watermark generator that will be run per Kafka partition,
-	 * to exploit per-partition timestamp characteristics. 
+	 * to exploit per-partition timestamp characteristics.
 	 * The assigner is kept in serialized form, to deserialize it into multiple copies */
 	private SerializedValue<AssignerWithPunctuatedWatermarks<T>> punctuatedWatermarkAssigner;
 
-	private transient OperatorStateStore stateStore;
+	private transient ListState<Serializable> offsetsStateForCheckpoint;
 
 	// ------------------------------------------------------------------------
-	//  runtime state (used individually by each parallel subtask) 
+	//  runtime state (used individually by each parallel subtask)
 	// ------------------------------------------------------------------------
-	
+
 	/** Data for pending but uncommitted checkpoints */
 	private final LinkedMap pendingCheckpoints = new LinkedMap();
 
 	/** The fetcher implements the connections to the Kafka brokers */
 	private transient volatile AbstractFetcher<T, ?> kafkaFetcher;
-	
+
 	/** The offsets to restore to, if the consumer restores state from a checkpoint */
 	private transient volatile HashMap<KafkaTopicPartition, Long> restoreToOffset;
-	
+
 	/** Flag indicating whether the consumer is still running **/
 	private volatile boolean running = true;
 
@@ -132,7 +133,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	/**
 	 * This method must be called from the subclasses, to set the list of all subscribed partitions
 	 * that this consumer will fetch from (across all subtasks).
-	 * 
+	 *
 	 * @param allSubscribedPartitions The list of all partitions that all subtasks together should fetch from.
 	 */
 	protected void setSubscribedPartitions(List<KafkaTopicPartition> allSubscribedPartitions) {
@@ -143,30 +144,30 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	// ------------------------------------------------------------------------
 	//  Configuration
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Specifies an {@link AssignerWithPunctuatedWatermarks} to emit watermarks in a punctuated manner.
 	 * The watermark extractor will run per Kafka partition, watermarks will be merged across partitions
 	 * in the same way as in the Flink runtime, when streams are merged.
-	 * 
+	 *
 	 * <p>When a subtask of a FlinkKafkaConsumer source reads multiple Kafka partitions,
 	 * the streams from the partitions are unioned in a "first come first serve" fashion. Per-partition
 	 * characteristics are usually lost that way. For example, if the timestamps are strictly ascending
 	 * per Kafka partition, they will not be strictly ascending in the resulting Flink DataStream, if the
 	 * parallel source subtask reads more that one partition.
-	 * 
+	 *
 	 * <p>Running timestamp extractors / watermark generators directly inside the Kafka source, per Kafka
 	 * partition, allows users to let them exploit the per-partition characteristics.
-	 * 
+	 *
 	 * <p>Note: One can use either an {@link AssignerWithPunctuatedWatermarks} or an
 	 * {@link AssignerWithPeriodicWatermarks}, not both at the same time.
-	 * 
+	 *
 	 * @param assigner The timestamp assigner / watermark generator to use.
-	 * @return The consumer object, to allow function chaining.   
+	 * @return The consumer object, to allow function chaining.
 	 */
 	public FlinkKafkaConsumerBase<T> assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks<T> assigner) {
 		checkNotNull(assigner);
-		
+
 		if (this.periodicWatermarkAssigner != null) {
 			throw new IllegalStateException("A periodic watermark emitter has already been set.");
 		}
@@ -197,11 +198,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * {@link AssignerWithPeriodicWatermarks}, not both at the same time.
 	 *
 	 * @param assigner The timestamp assigner / watermark generator to use.
-	 * @return The consumer object, to allow function chaining.   
+	 * @return The consumer object, to allow function chaining.
 	 */
 	public FlinkKafkaConsumerBase<T> assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks<T> assigner) {
 		checkNotNull(assigner);
-		
+
 		if (this.punctuatedWatermarkAssigner != null) {
 			throw new IllegalStateException("A punctuated watermark emitter has already been set.");
 		}
@@ -246,7 +247,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			if (!running) {
 				return;
 			}
-			
+
 			// (3) run the fetcher' main work method
 			fetcher.runFetchLoop();
 		}
@@ -278,7 +279,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	public void cancel() {
 		// set ourselves as not running
 		running = false;
-		
+
 		// abort the fetcher, if there is one
 		if (kafkaFetcher != null) {
 			kafkaFetcher.cancel();
@@ -305,39 +306,42 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			super.close();
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Checkpoint and restore
 	// ------------------------------------------------------------------------
 
+
 	@Override
-	public void initializeState(OperatorStateStore stateStore) throws Exception {
+	public void initializeState(FunctionInitializationContext context) throws Exception {
 
-		this.stateStore = stateStore;
+		OperatorStateStore stateStore = context.getManagedOperatorStateStore();
+		offsetsStateForCheckpoint = stateStore.getSerializableListState(OperatorStateStore.DEFAULT_OPERATOR_STATE_NAME);
 
-		ListState<Serializable> offsets =
-				stateStore.getSerializableListState(OperatorStateStore.DEFAULT_OPERATOR_STATE_NAME);
+		if (context.isRestored()) {
+			restoreToOffset = new HashMap<>();
+			for (Serializable serializable : offsetsStateForCheckpoint.get()) {
+				@SuppressWarnings("unchecked")
+				Tuple2<KafkaTopicPartition, Long> kafkaOffset = (Tuple2<KafkaTopicPartition, Long>) serializable;
+				restoreToOffset.put(kafkaOffset.f0, kafkaOffset.f1);
+			}
 
-		restoreToOffset = new HashMap<>();
-
-		for (Serializable serializable : offsets.get()) {
-			@SuppressWarnings("unchecked")
-			Tuple2<KafkaTopicPartition, Long> kafkaOffset = (Tuple2<KafkaTopicPartition, Long>) serializable;
-			restoreToOffset.put(kafkaOffset.f0, kafkaOffset.f1);
+			LOG.info("Setting restore state in the FlinkKafkaConsumer.");
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Using the following offsets: {}", restoreToOffset);
+			}
+		} else {
+			LOG.info("No restore state for FlinkKafkaConsumer.");
 		}
-
-		LOG.info("Setting restore state in the FlinkKafkaConsumer: {}", restoreToOffset);
 	}
 
 	@Override
-	public void prepareSnapshot(long checkpointId, long timestamp) throws Exception {
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		if (!running) {
 			LOG.debug("storeOperatorState() called on closed source");
 		} else {
 
-			ListState<Serializable> listState =
-					stateStore.getSerializableListState(OperatorStateStore.DEFAULT_OPERATOR_STATE_NAME);
-			listState.clear();
+			offsetsStateForCheckpoint.clear();
 
 			final AbstractFetcher<?, ?> fetcher = this.kafkaFetcher;
 			if (fetcher == null) {
@@ -347,7 +351,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				if (restoreToOffset != null) {
 					// the map cannot be asynchronously updated, because only one checkpoint call can happen
 					// on this function at a time: either snapshotState() or notifyCheckpointComplete()
-					pendingCheckpoints.put(checkpointId, restoreToOffset);
+					pendingCheckpoints.put(context.getCheckpointId(), restoreToOffset);
 
 					// truncate the map, to prevent infinite growth
 					while (pendingCheckpoints.size() > MAX_NUM_PENDING_CHECKPOINTS) {
@@ -355,11 +359,13 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					}
 
 					for (Map.Entry<KafkaTopicPartition, Long> kafkaTopicPartitionLongEntry : restoreToOffset.entrySet()) {
-						listState.add(Tuple2.of(kafkaTopicPartitionLongEntry.getKey(), kafkaTopicPartitionLongEntry.getValue()));
+						offsetsStateForCheckpoint.add(
+								Tuple2.of(kafkaTopicPartitionLongEntry.getKey(), kafkaTopicPartitionLongEntry.getValue()));
 					}
 				} else if (subscribedPartitions != null) {
 					for (KafkaTopicPartition subscribedPartition : subscribedPartitions) {
-						listState.add(Tuple2.of(subscribedPartition, KafkaTopicPartitionState.OFFSET_NOT_SET));
+						offsetsStateForCheckpoint.add(
+								Tuple2.of(subscribedPartition, KafkaTopicPartitionState.OFFSET_NOT_SET));
 					}
 				}
 			} else {
@@ -367,7 +373,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 				// the map cannot be asynchronously updated, because only one checkpoint call can happen
 				// on this function at a time: either snapshotState() or notifyCheckpointComplete()
-				pendingCheckpoints.put(checkpointId, currentOffsets);
+				pendingCheckpoints.put(context.getCheckpointId(), currentOffsets);
 
 				// truncate the map, to prevent infinite growth
 				while (pendingCheckpoints.size() > MAX_NUM_PENDING_CHECKPOINTS) {
@@ -375,7 +381,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				}
 
 				for (Map.Entry<KafkaTopicPartition, Long> kafkaTopicPartitionLongEntry : currentOffsets.entrySet()) {
-					listState.add(Tuple2.of(kafkaTopicPartitionLongEntry.getKey(), kafkaTopicPartitionLongEntry.getValue()));
+					offsetsStateForCheckpoint.add(
+							Tuple2.of(kafkaTopicPartitionLongEntry.getKey(), kafkaTopicPartitionLongEntry.getValue()));
 				}
 			}
 		}
@@ -393,7 +400,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			LOG.debug("notifyCheckpointComplete() called on uninitialized source");
 			return;
 		}
-		
+
 		// only one commit operation must be in progress
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Committing offsets to Kafka/ZooKeeper for checkpoint " + checkpointId);
@@ -407,7 +414,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			}
 
 			@SuppressWarnings("unchecked")
-			HashMap<KafkaTopicPartition, Long> checkpointOffsets = 
+			HashMap<KafkaTopicPartition, Long> checkpointOffsets =
 					(HashMap<KafkaTopicPartition, Long>) pendingCheckpoints.remove(posInMap);
 
 			// remove older checkpoints in map
@@ -432,19 +439,19 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	// ------------------------------------------------------------------------
 	//  Kafka Consumer specific methods
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Creates the fetcher that connect to the Kafka brokers, pulls data, deserialized the
 	 * data, and emits it into the data streams.
-	 * 
+	 *
 	 * @param sourceContext The source context to emit data to.
 	 * @param thisSubtaskPartitions The set of partitions that this subtask should handle.
 	 * @param watermarksPeriodic Optional, a serialized timestamp extractor / periodic watermark generator.
 	 * @param watermarksPunctuated Optional, a serialized timestamp extractor / punctuated watermark generator.
 	 * @param runtimeContext The task's runtime context.
-	 * 
+	 *
 	 * @return The instantiated fetcher
-	 * 
+	 *
 	 * @throws Exception The method should forward exceptions
 	 */
 	protected abstract AbstractFetcher<T, ?> createFetcher(
@@ -455,11 +462,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			StreamingRuntimeContext runtimeContext) throws Exception;
 
 	protected abstract List<KafkaTopicPartition> getKafkaPartitions(List<String> topics);
-	
+
 	// ------------------------------------------------------------------------
-	//  ResultTypeQueryable methods 
+	//  ResultTypeQueryable methods
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public TypeInformation<T> getProducedType() {
 		return deserializer.getProducedType();
@@ -501,11 +508,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	/**
 	 * Selects which of the given partitions should be handled by a specific consumer,
 	 * given a certain number of consumers.
-	 * 
+	 *
 	 * @param allPartitions The partitions to select from
 	 * @param numConsumers The number of consumers
 	 * @param consumerIndex The index of the specific consumer
-	 * 
+	 *
 	 * @return The sublist of partitions to be handled by that consumer.
 	 */
 	protected static List<KafkaTopicPartition> assignPartitions(
@@ -519,13 +526,13 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				thisSubtaskPartitions.add(allPartitions.get(i));
 			}
 		}
-		
+
 		return thisSubtaskPartitions;
 	}
-	
+
 	/**
 	 * Logs the partition information in INFO level.
-	 * 
+	 *
 	 * @param logger The logger to log to.
 	 * @param partitionInfos List of subscribed partitions
 	 */
@@ -542,11 +549,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		}
 		StringBuilder sb = new StringBuilder(
 				"Consumer is going to read the following topics (with number of partitions): ");
-		
+
 		for (Map.Entry<String, Integer> e : countPerTopic.entrySet()) {
 			sb.append(e.getKey()).append(" (").append(e.getValue()).append("), ");
 		}
-		
+
 		logger.info(sb.toString());
 	}
 }
