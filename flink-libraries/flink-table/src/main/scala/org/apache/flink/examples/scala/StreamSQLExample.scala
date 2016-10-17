@@ -59,8 +59,8 @@ object StreamSQLExample {
 
     // union the two tables
     val result = tEnv.sql(
-      "SELECT STREAM * FROM OrderA WHERE amount > 2 UNION ALL " +
-        "SELECT STREAM * FROM OrderB WHERE amount < 2")
+      "SELECT * FROM OrderA WHERE amount > 2 UNION ALL " +
+        "SELECT * FROM OrderB WHERE amount < 2")
 
     result.toDataStream[Order].print()
 
