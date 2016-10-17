@@ -23,6 +23,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
@@ -77,6 +78,13 @@ public class EvictingBoundedList<T> implements Iterable<T>, Serializable {
 		this.idx = 0;
 		this.count = 0;
 		this.modCount = 0L;
+	}
+
+	public EvictingBoundedList(List<T> elements) {
+		this(elements.size());
+		for (T element : elements) {
+			add(element);
+		}
 	}
 
 	// ------------------------------------------------------------------------

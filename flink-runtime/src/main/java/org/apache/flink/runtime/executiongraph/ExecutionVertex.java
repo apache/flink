@@ -226,6 +226,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	}
 
 	@Override
+	public EvictingBoundedList<Execution> getPriorExecutionAttempts() {
+		return priorExecutions;
+	}
+
+	@Override
 	public ExecutionState getExecutionState() {
 		return currentExecution.getState();
 	}
