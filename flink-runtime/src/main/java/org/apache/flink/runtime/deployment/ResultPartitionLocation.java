@@ -56,6 +56,7 @@ public class ResultPartitionLocation implements Serializable {
 	private enum LocationType {
 		LOCAL,
 		REMOTE,
+		DFS,
 		UNKNOWN
 	}
 
@@ -72,6 +73,10 @@ public class ResultPartitionLocation implements Serializable {
 		return new ResultPartitionLocation(LocationType.LOCAL, null);
 	}
 
+	public static ResultPartitionLocation createDFS() {
+		return new ResultPartitionLocation(LocationType.DFS, null);
+	}
+
 	public static ResultPartitionLocation createUnknown() {
 		return new ResultPartitionLocation(LocationType.UNKNOWN, null);
 	}
@@ -84,6 +89,10 @@ public class ResultPartitionLocation implements Serializable {
 
 	public boolean isRemote() {
 		return locationType == LocationType.REMOTE;
+	}
+
+	public boolean isDFS() {
+		return locationType == LocationType.DFS;
 	}
 
 	public boolean isUnknown() {
