@@ -33,6 +33,7 @@ import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -88,6 +89,12 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	/** The metrics scope represented by this group, as a concatenated string, lazily computed.
 	 * For example: "host-7.taskmanager-2.window_word_count.my-mapper" */
 	private String scopeString;
+
+	/** First character filter which is applied to the scope components and whose scopeString should be cached */
+	private CharacterFilter firstFilter;
+
+	/** Index of the reporter whose scopeString should be cached */
+	private int firstReporterIndex;
 
 	/** The metrics query service scope represented by this group, lazily computed. */
 	protected QueryScopeInfo queryServiceScopeInfo;
@@ -169,19 +176,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @return fully qualified metric name
 	 */
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		if (scopeString == null) {
-			if (filter != null) {
-				scopeString = ScopeFormat.concat(filter, registry.getDelimiter(), scopeComponents);
-			} else {
-				scopeString = ScopeFormat.concat(registry.getDelimiter(), scopeComponents);
-			}
-		}
-
-		if (filter != null) {
-			return scopeString + registry.getDelimiter() + filter.filterCharacters(metricName);
-		} else {
-			return scopeString + registry.getDelimiter() + metricName;
-		}
+		return getMetricIdentifier(metricName, filter, -1);
 	}
 
 	/**
@@ -194,12 +189,22 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @return fully qualified metric name
 	 */
 	public String getMetricIdentifier(String metricName, CharacterFilter filter, int reporterIndex) {
+		if (firstFilter == null && filter != null) {
+			firstFilter = filter;
+			scopeString = ScopeFormat.concat(firstFilter, registry.getDelimiter(reporterIndex), scopeComponents);
+			firstReporterIndex = reporterIndex;
+			return scopeString + registry.getDelimiter(firstReporterIndex) + filter.filterCharacters(metricName);
+		}
 		if (filter != null) {
-			scopeString = ScopeFormat.concat(filter, registry.getDelimiter(reporterIndex), scopeComponents);
-			return scopeString + registry.getDelimiter(reporterIndex) + filter.filterCharacters(metricName);
+			if (firstFilter.equals(filter) && reporterIndex == firstReporterIndex) {
+				return scopeString + registry.getDelimiter(firstReporterIndex) + filter.filterCharacters(metricName);
+			} else {
+				String newScopeString = ScopeFormat.concat(filter, registry.getDelimiter(reporterIndex), scopeComponents);
+				return newScopeString + registry.getDelimiter(reporterIndex) + filter.filterCharacters(metricName);
+			}
 		} else {
-			scopeString = ScopeFormat.concat(registry.getDelimiter(reporterIndex), scopeComponents);
-			return scopeString + registry.getDelimiter(reporterIndex) + metricName;
+			String newScopeString = ScopeFormat.concat(registry.getDelimiter(reporterIndex), scopeComponents);
+			return newScopeString + registry.getDelimiter(reporterIndex) + metricName;
 		}
 	}
 	
@@ -312,7 +317,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 						// we warn here, rather than failing, because metrics are tools that should not fail the
 						// program when used incorrectly
 						LOG.warn("Name collision: Adding a metric with the same name as a metric subgroup: '" +
-								name + "'. Metric might not get properly reported. (" + scopeString + ')');
+								name + "'. Metric might not get properly reported. " + Arrays.toString(scopeComponents));
 					}
 
 					registry.register(metric, name, this);
@@ -324,7 +329,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 					// we warn here, rather than failing, because metrics are tools that should not fail the
 					// program when used incorrectly
 					LOG.warn("Name collision: Group already contains a Metric with the name '" +
-							name + "'. Metric will not be reported. (" + scopeString + ')');
+							name + "'. Metric will not be reported." + Arrays.toString(scopeComponents));
 				}
 			}
 		}
@@ -348,7 +353,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 				// program when used incorrectly
 				if (metrics.containsKey(name)) {
 					LOG.warn("Name collision: Adding a metric subgroup with the same name as an existing metric: '" +
-							name + "'. Metric might not get properly reported. (" + scopeString + ')');
+							name + "'. Metric might not get properly reported. " + Arrays.toString(scopeComponents));
 				}
 
 				AbstractMetricGroup newGroup = new GenericMetricGroup(registry, this, name);
