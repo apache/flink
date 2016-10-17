@@ -412,6 +412,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapred.FileInputFormat]]. The
    * given inputName is set on the given job.
+   * @deprecated Please use
+   *            {@link org.apache.flink.api.scala.hadoop.FlinkHadoopEnvironment#readHadoopFile}
+   * from project flink-hadoop-compatibility
    */
   @Deprecated
   @PublicEvolving
@@ -430,6 +433,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapred.FileInputFormat]]. A
    * [[org.apache.hadoop.mapred.JobConf]] with the given inputPath is created.
+   * @deprecated Please use
+   *            {@link org.apache.flink.api.scala.hadoop.FlinkHadoopEnvironment#readHadoopFile}
+   * from project flink-hadoop-compatibility
    */
   @Deprecated
   @PublicEvolving
@@ -445,6 +451,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a [[DataSet]] from [[org.apache.hadoop.mapred.SequenceFileInputFormat]]
    * A [[org.apache.hadoop.mapred.JobConf]] with the given inputPath is created.
+   * @deprecated Please use
+   *            {@link org.apache.flink.api.scala.hadoop.FlinkHadoopEnvironment#readSequenceFile}
+   * from project flink-hadoop-compatibility
    */
   @Deprecated
   @PublicEvolving
@@ -459,6 +468,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapred.InputFormat]].
+   * @deprecated Please use
+   *            {@link org.apache.flink.api.scala.hadoop.FlinkHadoopEnvironment#createHadoopInput}
+   * from project flink-hadoop-compatibility
    */
   @Deprecated
   @PublicEvolving
@@ -475,6 +487,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapreduce.lib.input.FileInputFormat]].
    * The given inputName is set on the given job.
+   * @deprecated Please use
+   *            {@link org.apache.flink.api.scala.hadoop.FlinkHadoopEnvironment#readHadoopFile}
+   * from project flink-hadoop-compatibility
    */
   @Deprecated
   @PublicEvolving
@@ -494,6 +509,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Creates a [[DataSet]] from the given
    * [[org.apache.hadoop.mapreduce.lib.input.FileInputFormat]]. A
    * [[org.apache.hadoop.mapreduce.Job]] with the given inputPath will be created.
+   * @deprecated Please use
+   *            {@link org.apache.flink.api.scala.hadoop.FlinkHadoopEnvironment#readHadoopFile}
+   * from project flink-hadoop-compatibility
    */
   @Deprecated
   @PublicEvolving
@@ -508,6 +526,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapreduce.InputFormat]].
+   * @deprecated Please use
+   *            {@link org.apache.flink.api.scala.hadoop.FlinkHadoopEnvironment#createHadoopInput}
+   * from project flink-hadoop-compatibility
    */
   @Deprecated
   @PublicEvolving
