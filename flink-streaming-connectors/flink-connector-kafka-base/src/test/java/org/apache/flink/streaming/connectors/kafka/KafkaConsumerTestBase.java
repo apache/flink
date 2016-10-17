@@ -276,7 +276,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	}
 
 	/**
-	 * This test first writes a total of 200 records to a test topic, reads the first 100 so that some offsets are
+	 * This test first writes a total of 300 records to a test topic, reads the first 150 so that some offsets are
 	 * committed to Kafka, and then startup the consumer again to read the remaining records starting from the committed offsets.
 	 * The test ensures that whatever offsets were committed to Kafka, the consumer correctly picks them up
 	 * and starts at the correct position.
@@ -287,35 +287,49 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		final String topicName = writeSequence("testStartFromKafkaCommitOffsetsTopic", recordsInEachPartition, parallelism, 1);
 
-		final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-		env1.getConfig().disableSysoutLogging();
-		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env1.setParallelism(parallelism);
-		env1.enableCheckpointing(20); // fast checkpoints to make sure we commit some offsets
-
-		env1
-			.addSource(kafkaServer.getConsumer(topicName, new SimpleStringSchema(), standardProps))
-			.map(new ThrottledMapper<String>(50))
-			.map(new MapFunction<String, Object>() {
-				int count = 0;
-				@Override
-				public Object map(String value) throws Exception {
-					count++;
-					if (count == 150) {
-						throw new SuccessException();
-					}
-					return null;
-				}
-			})
-			.addSink(new DiscardingSink<>());
-
-		tryExecute(env1, "Read some records to commit offsets to Kafka");
-
 		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(standardProps);
 
-		Long o1 = kafkaOffsetHandler.getCommittedOffset(topicName, 0);
-		Long o2 = kafkaOffsetHandler.getCommittedOffset(topicName, 1);
-		Long o3 = kafkaOffsetHandler.getCommittedOffset(topicName, 2);
+		Long o1;
+		Long o2;
+		Long o3;
+		int attempt = 0;
+		// make sure that o1, o2, o3 are not all null before proceeding
+		do {
+			attempt++;
+			LOG.info("Attempt " + attempt + " to read records and commit some offsets to Kafka");
+
+			final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+			env.getConfig().disableSysoutLogging();
+			env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+			env.setParallelism(parallelism);
+			env.enableCheckpointing(20); // fast checkpoints to make sure we commit some offsets
+
+			env
+				.addSource(kafkaServer.getConsumer(topicName, new SimpleStringSchema(), standardProps))
+				.map(new ThrottledMapper<String>(50))
+				.map(new MapFunction<String, Object>() {
+					int count = 0;
+					@Override
+					public Object map(String value) throws Exception {
+						count++;
+						if (count == 150) {
+							throw new SuccessException();
+						}
+						return null;
+					}
+				})
+				.addSink(new DiscardingSink<>());
+
+			tryExecute(env, "Read some records to commit offsets to Kafka");
+
+			o1 = kafkaOffsetHandler.getCommittedOffset(topicName, 0);
+			o2 = kafkaOffsetHandler.getCommittedOffset(topicName, 1);
+			o3 = kafkaOffsetHandler.getCommittedOffset(topicName, 2);
+		} while (o1 == null && o2 == null && o3 == null && attempt < 3);
+
+		if (o1 == null && o2 == null && o3 == null) {
+			throw new RuntimeException("No offsets have been committed after 3 attempts");
+		}
 
 		LOG.info("Got final committed offsets from Kafka o1={}, o2={}, o3={}", o1, o2, o3);
 
