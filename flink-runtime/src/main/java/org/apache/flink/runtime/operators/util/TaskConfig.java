@@ -199,9 +199,9 @@ public class TaskConfig implements Serializable {
 	
 	private static final String ITERATION_CONVERGENCE_CRITERION_AGG_NAME = "iterative.terminationCriterion.agg.name";
 
-	private static final String ITERATION_DEFAULT_CONVERGENCE_CRITERION = "iterative.default.terminationCriterion";
+	private static final String ITERATION_IMPLICIT_CONVERGENCE_CRITERION = "iterative.implicit.terminationCriterion";
 
-	private static final String ITERATION_DEFAULT_CONVERGENCE_CRITERION_AGG_NAME = "iterative.default.terminationCriterion.agg.name";
+	private static final String ITERATION_IMPLICIT_CONVERGENCE_CRITERION_AGG_NAME = "iterative.implicit.terminationCriterion.agg.name";
 	
 	private static final String ITERATION_NUM_AGGREGATORS = "iterative.num-aggs";
 	
@@ -1003,13 +1003,13 @@ public class TaskConfig implements Serializable {
 	 * @param aggregatorName
 	 * @param convCriterion
 	 */
-	public void setDefaultConvergenceCriterion(String aggregatorName, ConvergenceCriterion<?> convCriterion) {
+	public void setImplicitConvergenceCriterion(String aggregatorName, ConvergenceCriterion<?> convCriterion) {
 		try {
-			InstantiationUtil.writeObjectToConfig(convCriterion, this.config, ITERATION_DEFAULT_CONVERGENCE_CRITERION);
+			InstantiationUtil.writeObjectToConfig(convCriterion, this.config, ITERATION_IMPLICIT_CONVERGENCE_CRITERION);
 		} catch (IOException e) {
-			throw new RuntimeException("Error while writing the default convergence criterion object to the task configuration.");
+			throw new RuntimeException("Error while writing the implicit convergence criterion object to the task configuration.");
 		}
-		this.config.setString(ITERATION_DEFAULT_CONVERGENCE_CRITERION_AGG_NAME, aggregatorName);
+		this.config.setString(ITERATION_IMPLICIT_CONVERGENCE_CRITERION_AGG_NAME, aggregatorName);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -1039,11 +1039,11 @@ public class TaskConfig implements Serializable {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T extends Value> ConvergenceCriterion<T> getDefaultConvergenceCriterion(ClassLoader cl) {
+	public <T extends Value> ConvergenceCriterion<T> getImplicitConvergenceCriterion(ClassLoader cl) {
 		ConvergenceCriterion<T> convCriterionObj;
 		try {
 			convCriterionObj = InstantiationUtil.readObjectFromConfig(
-					this.config, ITERATION_DEFAULT_CONVERGENCE_CRITERION, cl);
+					this.config, ITERATION_IMPLICIT_CONVERGENCE_CRITERION, cl);
 		} catch (IOException e) {
 			throw new RuntimeException("Error while reading the default convergence criterion object from the task configuration.");
 		} catch (ClassNotFoundException e) {
@@ -1056,12 +1056,12 @@ public class TaskConfig implements Serializable {
 		return convCriterionObj;
 	}
 
-	public boolean usesDefaultConvergenceCriterion() {
-		return config.getBytes(ITERATION_DEFAULT_CONVERGENCE_CRITERION, null) != null;
+	public boolean usesImplicitConvergenceCriterion() {
+		return config.getBytes(ITERATION_IMPLICIT_CONVERGENCE_CRITERION, null) != null;
 	}
 
-	public String getDefaultConvergenceCriterionAggregatorName() {
-		return this.config.getString(ITERATION_DEFAULT_CONVERGENCE_CRITERION_AGG_NAME, null);
+	public String getImplicitConvergenceCriterionAggregatorName() {
+		return this.config.getString(ITERATION_IMPLICIT_CONVERGENCE_CRITERION_AGG_NAME, null);
 	}
 	
 	public void setIsSolutionSetUpdate() {

@@ -100,8 +100,7 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 	);
 
 	@Test
-	public void testConnectedComponentsWithParametrizableConvergence() {
-		try {
+	public void testConnectedComponentsWithParametrizableConvergence() throws Exception {
 
 			// name of the aggregator that checks for convergence
 			final String UPDATED_ELEMENTS = "updated.elements.aggr";
@@ -132,16 +131,10 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 			Collections.sort(result, new JavaProgramTestBase.TupleComparator<Tuple2<Long, Long>>());
 			
 			assertEquals(expectedResult, result);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 	}
 
 	@Test
-	public void testDeltaConnectedComponentsWithParametrizableConvergence() {
-		try {
+	public void testDeltaConnectedComponentsWithParametrizableConvergence() throws Exception {
 
 			// name of the aggregator that checks for convergence
 			final String UPDATED_ELEMENTS = "updated.elements.aggr";
@@ -173,16 +166,10 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 			Collections.sort(result, new JavaProgramTestBase.TupleComparator<Tuple2<Long, Long>>());
 
 			assertEquals(expectedResult, result);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 	}
 	
 	@Test
-	public void testParameterizableAggregator() {
-		try {
+	public void testParameterizableAggregator() throws Exception {
 
 			final int MAX_ITERATIONS = 5;
 			final String AGGREGATOR_NAME = "elements.in.component.aggregator";
@@ -236,11 +223,6 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 			assertEquals(4, aggr_values[1]);
 			assertEquals(5, aggr_values[2]);
 			assertEquals(6, aggr_values[3]);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 	}
 	
 	// ------------------------------------------------------------------------

@@ -57,13 +57,13 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 
 	private ConvergenceCriterion<Value> convergenceCriterion;
 
-	private ConvergenceCriterion<Value> defaultConvergenceCriterion;
+	private ConvergenceCriterion<Value> implicitConvergenceCriterion;
 	
 	private Map<String, Aggregator<?>> aggregators;
 
 	private String convergenceAggregatorName;
 
-	private String defaultConvergenceAggregatorName;
+	private String implicitConvergenceAggregatorName;
 
 	private int currentIteration = 1;
 	
@@ -95,10 +95,10 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 		}
 
 		// store the default aggregator convergence criterion
-		if (taskConfig.usesDefaultConvergenceCriterion()) {
-			defaultConvergenceCriterion = taskConfig.getDefaultConvergenceCriterion(getUserCodeClassLoader());
-			defaultConvergenceAggregatorName = taskConfig.getDefaultConvergenceCriterionAggregatorName();
-			Preconditions.checkNotNull(defaultConvergenceAggregatorName);
+		if (taskConfig.usesImplicitConvergenceCriterion()) {
+			implicitConvergenceCriterion = taskConfig.getImplicitConvergenceCriterion(getUserCodeClassLoader());
+			implicitConvergenceAggregatorName = taskConfig.getImplicitConvergenceCriterionAggregatorName();
+			Preconditions.checkNotNull(implicitConvergenceAggregatorName);
 		}
 		
 		maxNumberOfIterations = taskConfig.getNumberOfIterations();
@@ -177,16 +177,16 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 			}
 		}
 
-		if (defaultConvergenceAggregatorName != null) {
+		if (implicitConvergenceAggregatorName != null) {
 			@SuppressWarnings("unchecked")
-			Aggregator<Value> aggregator = (Aggregator<Value>) aggregators.get(defaultConvergenceAggregatorName);
+			Aggregator<Value> aggregator = (Aggregator<Value>) aggregators.get(implicitConvergenceAggregatorName);
 			if (aggregator == null) {
 				throw new RuntimeException("Error: Aggregator for default convergence criterion was null.");
 			}
 
 			Value aggregate = aggregator.getAggregate();
 
-			if (defaultConvergenceCriterion.isConverged(currentIteration, aggregate)) {
+			if (implicitConvergenceCriterion.isConverged(currentIteration, aggregate)) {
 				if (log.isInfoEnabled()) {
 					log.info(formatLogString("empty workset convergence reached after [" + currentIteration
 							+ "] iterations, terminating..."));
