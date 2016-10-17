@@ -129,17 +129,6 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		this.deserializer = checkNotNull(deserializer, "valueDeserializer");
 	}
 
-	/**
-	 * This method must be called from the subclasses, to set the list of all subscribed partitions
-	 * that this consumer will fetch from (across all subtasks).
-	 * 
-	 * @param allSubscribedPartitions The list of all partitions that all subtasks together should fetch from.
-	 */
-	protected void setSubscribedPartitions(List<KafkaTopicPartition> allSubscribedPartitions) {
-		checkNotNull(allSubscribedPartitions);
-		this.subscribedPartitions = Collections.unmodifiableList(allSubscribedPartitions);
-	}
-
 	// ------------------------------------------------------------------------
 	//  Configuration
 	// ------------------------------------------------------------------------
