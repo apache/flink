@@ -72,6 +72,8 @@ import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNot
 import org.apache.flink.runtime.taskexecutor.slot.SlotActions;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotActiveException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
+import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
+import org.apache.flink.runtime.taskexecutor.slot.TaskSlot;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -660,47 +662,49 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 				final JobMasterGateway jobMasterGateway = jobManagerConnection.getJobManagerGateway();
 
-				final Iterator<AllocationID> reservedSlotsIterator = taskSlotTable.getAllocatedSlots(jobId);
+				final Iterator<TaskSlot> reservedSlotsIterator = taskSlotTable.getAllocatedSlots(jobId);
 				final UUID leaderId = jobManagerConnection.getLeaderId();
 
-				final Collection<AllocationID> reservedSlots = new HashSet<>(2);
+				final Collection<SlotOffer> reservedSlots = new HashSet<>(2);
 
 				while (reservedSlotsIterator.hasNext()) {
-					reservedSlots.add(reservedSlotsIterator.next());
+					reservedSlots.add(reservedSlotsIterator.next().generateSlotOffer());
 				}
 
-				Future<Iterable<AllocationID>> acceptedSlotsFuture = jobMasterGateway.offerSlots(
+				Future<Iterable<SlotOffer>> acceptedSlotsFuture = jobMasterGateway.offerSlots(
+					getResourceID(),
 					reservedSlots,
 					leaderId,
 					taskManagerConfiguration.getTimeout());
 
-				acceptedSlotsFuture.thenAcceptAsync(new AcceptFunction<Iterable<AllocationID>>() {
+				acceptedSlotsFuture.thenAcceptAsync(new AcceptFunction<Iterable<SlotOffer>>() {
 					@Override
-					public void accept(Iterable<AllocationID> acceptedSlots) {
+					public void accept(Iterable<SlotOffer> acceptedSlots) {
 						// check if the response is still valid
 						if (isJobManagerConnectionValid(jobId, leaderId)) {
 							// mark accepted slots active
-							for (AllocationID acceptedSlot: acceptedSlots) {
+							for (SlotOffer acceptedSlot: acceptedSlots) {
 								try {
-									if (!taskSlotTable.markSlotActive(acceptedSlot)) {
+									if (!taskSlotTable.markSlotActive(acceptedSlot.getAllocationId())) {
 										// the slot is either free or releasing at the moment
 										final String message = "Could not mark slot " + jobId + " active.";
 										log.debug(message);
-										jobMasterGateway.failSlot(acceptedSlot, leaderId, new Exception(message));
+										jobMasterGateway.failSlot(getResourceID(), acceptedSlot.getAllocationId(),
+												leaderId, new Exception(message));
 									}
 
 									// remove the assigned slots so that we can free the left overs
 									reservedSlots.remove(acceptedSlot);
 								} catch (SlotNotFoundException e) {
 									log.debug("Could not mark slot {} active.", acceptedSlot,  e);
-									jobMasterGateway.failSlot(acceptedSlot, leaderId, e);
+									jobMasterGateway.failSlot(getResourceID(), acceptedSlot.getAllocationId(), leaderId, e);
 								}
 							}
 
 							final Exception e = new Exception("The slot was rejected by the JobManager.");
 
-							for (AllocationID rejectedSlot: reservedSlots) {
-								freeSlot(rejectedSlot, e);
+							for (SlotOffer rejectedSlot: reservedSlots) {
+								freeSlot(rejectedSlot.getAllocationId(), e);
 							}
 						} else {
 							// discard the response since there is a new leader for the job
@@ -718,8 +722,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 							offerSlotsToJobManager(jobId);
 						} else {
 							// We encountered an exception. Free the slots and return them to the RM.
-							for (AllocationID reservedSlot: reservedSlots) {
-								freeSlot(reservedSlot, throwable);
+							for (SlotOffer reservedSlot: reservedSlots) {
+								freeSlot(reservedSlot.getAllocationId(), throwable);
 							}
 						}
 
@@ -870,7 +874,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	private void unregisterTaskAndNotifyFinalState(
 			final UUID jobMasterLeaderId,
-			final JobMasterGateway jobMasterGateway,		
+			final JobMasterGateway jobMasterGateway,
 			final ExecutionAttemptID executionAttemptID) {
 
 		Task task = taskSlotTable.removeTask(executionAttemptID);

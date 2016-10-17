@@ -70,7 +70,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 
 	/** Interface for slot actions, such as freeing them or timing them out */
 	private SlotActions slotActions;
-	
+
 	/** Whether the table has been started */
 	private boolean started;
 
@@ -250,7 +250,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	 */
 	public int freeSlot(AllocationID allocationId, Throwable cause) throws SlotNotFoundException {
 		checkInit();
-		
+
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Free slot {}.", allocationId, cause);
 		} else {
@@ -370,13 +370,13 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	}
 
 	/**
-	 * Return an iterator of allocated slots (their allocation ids) for the given job id.
+	 * Return an iterator of allocated slots for the given job id.
 	 *
 	 * @param jobId for which to return the allocated slots
-	 * @return Iterator of allocation ids of allocated slots.
+	 * @return Iterator of allocated slots.
 	 */
-	public Iterator<AllocationID> getAllocatedSlots(JobID jobId) {
-		return new AllocationIDIterator(jobId, TaskSlotState.ALLOCATED);
+	public Iterator<TaskSlot> getAllocatedSlots(JobID jobId) {
+		return new TaskSlotIterator(jobId, TaskSlotState.ALLOCATED);
 	}
 
 	/**

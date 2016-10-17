@@ -40,6 +40,7 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KvState;
+import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -166,21 +167,30 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	/**
 	 * Offer the given slots to the job manager. The response contains the set of accepted slots.
 	 *
-	 * @param slots to offer to the job manager
-	 * @param leaderId identifying the job leader
-	 * @param timeout for the rpc call
+	 * @param taskManagerId identifying the task manager
+	 * @param slots         to offer to the job manager
+	 * @param leaderId      identifying the job leader
+	 * @param timeout       for the rpc call
 	 * @return Future set of accepted slots.
 	 */
-	Future<Iterable<AllocationID>> offerSlots(final Iterable<AllocationID> slots, UUID leaderId, @RpcTimeout final Time timeout);
+	Future<Iterable<SlotOffer>> offerSlots(
+			final ResourceID taskManagerId,
+			final Iterable<SlotOffer> slots,
+			final UUID leaderId,
+			@RpcTimeout final Time timeout);
 
 	/**
 	 * Fail the slot with the given allocation id and cause.
 	 *
-	 * @param allocationId identifying the slot to fail
-	 * @param leaderId identifying the job leader
-	 * @param cause of the failing
+	 * @param taskManagerId identifying the task manager
+	 * @param allocationId  identifying the slot to fail
+	 * @param leaderId      identifying the job leader
+	 * @param cause         of the failing
 	 */
-	void failSlot(final AllocationID allocationId, UUID leaderId, Exception cause);
+	void failSlot(final ResourceID taskManagerId,
+			final AllocationID allocationId,
+			final UUID leaderId,
+			final Exception cause);
 
 	/**
 	 * Register the task manager at the job manager.

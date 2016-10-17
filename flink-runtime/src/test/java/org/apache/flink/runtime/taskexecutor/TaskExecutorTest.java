@@ -65,6 +65,7 @@ import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequ
 import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestReply;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.TestingSerialRpcService;
+import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
@@ -406,6 +407,7 @@ public class TaskExecutorTest extends TestLogger {
 
 		final AllocationID allocationId = new AllocationID();
 		final SlotID slotId = new SlotID(resourceId, 0);
+		final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
 
 		try {
 			TaskExecutor taskManager = new TaskExecutor(
@@ -440,7 +442,11 @@ public class TaskExecutorTest extends TestLogger {
 			jobManagerLeaderRetrievalService.notifyListener(jobManagerAddress, jobManagerLeaderId);
 
 			// the job leader should get the allocation id offered
-			verify(jobMasterGateway).offerSlots((Iterable<AllocationID>)Matchers.argThat(contains(allocationId)), eq(jobManagerLeaderId), any(Time.class));
+			verify(jobMasterGateway).offerSlots(
+					any(ResourceID.class),
+					(Iterable<SlotOffer>)Matchers.argThat(contains(slotOffer)),
+					eq(jobManagerLeaderId),
+					any(Time.class));
 		} finally {
 			// check if a concurrent error occurred
 			testingFatalErrorHandler.rethrowException();
@@ -496,6 +502,9 @@ public class TaskExecutorTest extends TestLogger {
 		final AllocationID allocationId1 = new AllocationID();
 		final AllocationID allocationId2 = new AllocationID();
 
+		final SlotOffer offer1 = new SlotOffer(allocationId1, 0, ResourceProfile.UNKNOWN);
+		final SlotOffer offer2 = new SlotOffer(allocationId2, 0, ResourceProfile.UNKNOWN);
+
 		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
 
 		when(jobMasterGateway.registerTaskManager(
@@ -506,8 +515,9 @@ public class TaskExecutorTest extends TestLogger {
 		)).thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(jmResourceId, blobPort)));
 		when(jobMasterGateway.getAddress()).thenReturn(jobManagerAddress);
 
-		when(jobMasterGateway.offerSlots(any(Iterable.class), eq(jobManagerLeaderId), any(Time.class)))
-			.thenReturn(FlinkCompletableFuture.completed((Iterable<AllocationID>)Collections.singleton(allocationId1)));
+		when(jobMasterGateway.offerSlots(
+				any(ResourceID.class), any(Iterable.class), eq(jobManagerLeaderId), any(Time.class)))
+			.thenReturn(FlinkCompletableFuture.completed((Iterable<SlotOffer>)Collections.singleton(offer1)));
 
 		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
 		rpc.registerGateway(jobManagerAddress, jobMasterGateway);

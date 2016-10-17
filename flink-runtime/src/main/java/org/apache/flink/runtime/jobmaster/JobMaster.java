@@ -53,6 +53,7 @@ import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.Slot;
+import org.apache.flink.runtime.instance.SlotDescriptor;
 import org.apache.flink.runtime.instance.SlotPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -85,6 +86,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.StartStoppable;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.SerializedThrowable;
@@ -95,7 +97,9 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
@@ -663,13 +667,51 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	}
 
 	@RpcMethod
-	public Iterable<AllocationID> offerSlots(final Iterable<AllocationID> slots, UUID leaderId) {
-		throw new UnsupportedOperationException("Has to be implemented.");
+	public Iterable<SlotOffer> offerSlots(final ResourceID taskManagerId,
+			final Iterable<SlotOffer> slots, final UUID leaderId) throws Exception
+	{
+		if (!this.leaderSessionID.equals(leaderId)) {
+			throw new Exception("Leader id not match, expected: " + this.leaderSessionID
+					+ ", actual: " + leaderId);
+		}
+
+		Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManager = registeredTaskManagers.get(taskManagerId);
+		if (taskManager == null) {
+			throw new Exception("Unknown TaskManager " + taskManagerId);
+		}
+
+		final Set<SlotOffer> acceptedSlotOffers = new HashSet<>(4);
+		for (SlotOffer slotOffer : slots) {
+			final SlotDescriptor slotDescriptor = new SlotDescriptor(
+					jobGraph.getJobID(),
+					taskManager.f0,
+					slotOffer.getSlotIndex(),
+					slotOffer.getResourceProfile(),
+					null); // TODO: replace the actor gateway with the new rpc gateway, it's ready (taskManager.f1)
+			if (slotPool.offerSlot(slotOffer.getAllocationId(), slotDescriptor)) {
+				acceptedSlotOffers.add(slotOffer);
+			}
+		}
+
+		return acceptedSlotOffers;
 	}
 
 	@RpcMethod
-	public void failSlot(final AllocationID allocationId, UUID leaderId, Exception cause) {
-		throw new UnsupportedOperationException("Has to be implemented.");
+	public void failSlot(final ResourceID taskManagerId,
+			final AllocationID allocationId,
+			final UUID leaderId,
+			final Exception cause) throws Exception
+	{
+		if (!this.leaderSessionID.equals(leaderId)) {
+			throw new Exception("Leader id not match, expected: " + this.leaderSessionID
+					+ ", actual: " + leaderId);
+		}
+
+		if (!registeredTaskManagers.containsKey(taskManagerId)) {
+			throw new Exception("Unknown TaskManager " + taskManagerId);
+		}
+
+		slotPool.failAllocation(allocationId, cause);
 	}
 
 	@RpcMethod
