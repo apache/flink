@@ -67,12 +67,12 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.TestingSerialRpcService;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
-import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
@@ -83,15 +83,12 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 import org.mockito.Matchers;
 import org.powermock.api.mockito.PowerMockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
@@ -449,7 +446,7 @@ public class TaskExecutorTest extends TestLogger {
 					any(Time.class));
 		} finally {
 			// check if a concurrent error occurred
-			testingFatalErrorHandler.rethrowException();
+			testingFatalErrorHandler.rethrowError();
 
 			rpc.stopService();
 		}
@@ -556,60 +553,9 @@ public class TaskExecutorTest extends TestLogger {
 			assertTrue(taskSlotTable.isSlotFree(1));
 		} finally {
 			// check if a concurrent error occurred
-			testingFatalErrorHandler.rethrowException();
+			testingFatalErrorHandler.rethrowError();
 
 			rpc.stopService();
-		}
-	}
-
-	private static class TestingFatalErrorHandler implements FatalErrorHandler {
-		private static final Logger LOG = LoggerFactory.getLogger(TestingFatalErrorHandler.class);
-		private final AtomicReference<Throwable> atomicThrowable;
-
-		public TestingFatalErrorHandler() {
-			atomicThrowable = new AtomicReference<>(null);
-		}
-
-		public void rethrowException() throws TestingException {
-			Throwable throwable = atomicThrowable.get();
-
-			if (throwable != null) {
-				throw new TestingException(throwable);
-			}
-		}
-
-		public boolean hasExceptionOccurred() {
-			return atomicThrowable.get() != null;
-		}
-
-		public Throwable getException() {
-			return atomicThrowable.get();
-		}
-
-		@Override
-		public void onFatalError(Throwable exception) {
-			LOG.error("OnFatalError:", exception);
-			atomicThrowable.compareAndSet(null, exception);
-		}
-
-		//------------------------------------------------------------------
-		// static utility classes
-		//------------------------------------------------------------------
-
-		private static final class TestingException extends Exception {
-			public TestingException(String message) {
-				super(message);
-			}
-
-			public TestingException(String message, Throwable cause) {
-				super(message, cause);
-			}
-
-			public TestingException(Throwable cause) {
-				super(cause);
-			}
-
-			private static final long serialVersionUID = -4648195335470914498L;
 		}
 	}
 

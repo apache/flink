@@ -18,15 +18,19 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.TestingSerialRpcService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
+import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -34,7 +38,6 @@ import org.junit.Test;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -53,13 +56,16 @@ public class ResourceManagerTaskExecutorTest {
 
 	private UUID leaderSessionId;
 
+	private TestingFatalErrorHandler testingFatalErrorHandler;
+
 	@Before
 	public void setup() throws Exception {
 		rpcService = new TestingSerialRpcService();
 
 		taskExecutorResourceID = mockTaskExecutor(taskExecutorAddress);
 		TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
-		resourceManager = createAndStartResourceManager(rmLeaderElectionService);
+		testingFatalErrorHandler = new TestingFatalErrorHandler();
+		resourceManager = createAndStartResourceManager(rmLeaderElectionService, testingFatalErrorHandler);
 		leaderSessionId = grantLeadership(rmLeaderElectionService);
 	}
 
@@ -73,18 +79,24 @@ public class ResourceManagerTaskExecutorTest {
 	 */
 	@Test
 	public void testRegisterTaskExecutor() throws Exception {
-		// test response successful
-		Future<RegistrationResponse> successfulFuture =
-			resourceManager.registerTaskExecutor(leaderSessionId, taskExecutorAddress, taskExecutorResourceID, slotReport);
-		RegistrationResponse response = successfulFuture.get(5, TimeUnit.SECONDS);
-		assertTrue(response instanceof TaskExecutorRegistrationSuccess);
+		try {
+			// test response successful
+			Future<RegistrationResponse> successfulFuture =
+				resourceManager.registerTaskExecutor(leaderSessionId, taskExecutorAddress, taskExecutorResourceID, slotReport);
+			RegistrationResponse response = successfulFuture.get(5, TimeUnit.SECONDS);
+			assertTrue(response instanceof TaskExecutorRegistrationSuccess);
 
-		// test response successful with instanceID not equal to previous when receive duplicate registration from taskExecutor
-		Future<RegistrationResponse> duplicateFuture =
-			resourceManager.registerTaskExecutor(leaderSessionId, taskExecutorAddress, taskExecutorResourceID, slotReport);
-		RegistrationResponse duplicateResponse = duplicateFuture.get();
-		assertTrue(duplicateResponse instanceof TaskExecutorRegistrationSuccess);
-		assertNotEquals(((TaskExecutorRegistrationSuccess) response).getRegistrationId(), ((TaskExecutorRegistrationSuccess) duplicateResponse).getRegistrationId());
+			// test response successful with instanceID not equal to previous when receive duplicate registration from taskExecutor
+			Future<RegistrationResponse> duplicateFuture =
+				resourceManager.registerTaskExecutor(leaderSessionId, taskExecutorAddress, taskExecutorResourceID, slotReport);
+			RegistrationResponse duplicateResponse = duplicateFuture.get();
+			assertTrue(duplicateResponse instanceof TaskExecutorRegistrationSuccess);
+			assertNotEquals(((TaskExecutorRegistrationSuccess) response).getRegistrationId(), ((TaskExecutorRegistrationSuccess) duplicateResponse).getRegistrationId());
+		} finally {
+			if (testingFatalErrorHandler.hasExceptionOccurred()) {
+				testingFatalErrorHandler.rethrowError();
+			}
+		}
 	}
 
 	/**
@@ -92,11 +104,17 @@ public class ResourceManagerTaskExecutorTest {
 	 */
 	@Test
 	public void testRegisterTaskExecutorWithUnmatchedLeaderSessionId() throws Exception {
-		// test throw exception when receive a registration from taskExecutor which takes unmatched leaderSessionId
-		UUID differentLeaderSessionID = UUID.randomUUID();
-		Future<RegistrationResponse> unMatchedLeaderFuture =
-			resourceManager.registerTaskExecutor(differentLeaderSessionID, taskExecutorAddress, taskExecutorResourceID, slotReport);
-		assertTrue(unMatchedLeaderFuture.get(5, TimeUnit.SECONDS) instanceof RegistrationResponse.Decline);
+		try {
+			// test throw exception when receive a registration from taskExecutor which takes unmatched leaderSessionId
+			UUID differentLeaderSessionID = UUID.randomUUID();
+			Future<RegistrationResponse> unMatchedLeaderFuture =
+				resourceManager.registerTaskExecutor(differentLeaderSessionID, taskExecutorAddress, taskExecutorResourceID, slotReport);
+			assertTrue(unMatchedLeaderFuture.get(5, TimeUnit.SECONDS) instanceof RegistrationResponse.Decline);
+		} finally {
+			if (testingFatalErrorHandler.hasExceptionOccurred()) {
+				testingFatalErrorHandler.rethrowError();
+			}
+		}
 	}
 
 	/**
@@ -104,11 +122,17 @@ public class ResourceManagerTaskExecutorTest {
 	 */
 	@Test
 	public void testRegisterTaskExecutorFromInvalidAddress() throws Exception {
-		// test throw exception when receive a registration from taskExecutor which takes invalid address
-		String invalidAddress = "/taskExecutor2";
-		Future<RegistrationResponse> invalidAddressFuture =
-			resourceManager.registerTaskExecutor(leaderSessionId, invalidAddress, taskExecutorResourceID, slotReport);
-		assertTrue(invalidAddressFuture.get(5, TimeUnit.SECONDS) instanceof RegistrationResponse.Decline);
+		try {
+			// test throw exception when receive a registration from taskExecutor which takes invalid address
+			String invalidAddress = "/taskExecutor2";
+			Future<RegistrationResponse> invalidAddressFuture =
+				resourceManager.registerTaskExecutor(leaderSessionId, invalidAddress, taskExecutorResourceID, slotReport);
+			assertTrue(invalidAddressFuture.get(5, TimeUnit.SECONDS) instanceof RegistrationResponse.Decline);
+		} finally {
+			if (testingFatalErrorHandler.hasExceptionOccurred()) {
+				testingFatalErrorHandler.rethrowError();
+			}
+		}
 	}
 
 	private ResourceID mockTaskExecutor(String taskExecutorAddress) {
@@ -118,11 +142,22 @@ public class ResourceManagerTaskExecutorTest {
 		return taskExecutorResourceID;
 	}
 
-	private StandaloneResourceManager createAndStartResourceManager(TestingLeaderElectionService rmLeaderElectionService) {
+	private StandaloneResourceManager createAndStartResourceManager(TestingLeaderElectionService rmLeaderElectionService, FatalErrorHandler fatalErrorHandler) throws Exception {
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
+		TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
+		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(Time.seconds(5L), Time.seconds(5L));
+		MetricRegistry metricRegistry = mock(MetricRegistry.class);
+
+
 		StandaloneResourceManager resourceManager =
-			new TestingResourceManager(rpcService, highAvailabilityServices);
+			new StandaloneResourceManager(
+				rpcService,
+				resourceManagerConfiguration,
+				highAvailabilityServices,
+				slotManagerFactory,
+				metricRegistry,
+				fatalErrorHandler);
 		resourceManager.start();
 		return resourceManager;
 	}
