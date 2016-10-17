@@ -63,7 +63,7 @@ public class MiniClusterJobDispatcher {
 	/** services for discovery, leader election, and recovery */
 	private final HighAvailabilityServices haServices;
 
-	/** al the services that the JobManager needs, such as BLOB service, factories, etc */
+	/** all the services that the JobManager needs, such as BLOB service, factories, etc */
 	private final JobManagerServices jobManagerServices;
 
 	/** Registry for all metrics in the mini cluster */
