@@ -674,13 +674,14 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 	@RpcMethod
 	public Future<RegistrationResponse> registerTaskManager(
+			final String taskManagerRpcAddress,
 			final TaskManagerLocation taskManagerLocation,
 			final UUID leaderId) throws Exception
 	{
 		if (!JobMaster.this.leaderSessionID.equals(leaderId)) {
 			log.warn("Discard registration from TaskExecutor {} at ({}) because the expected " +
 							"leader session ID {} did not equal the received leader session ID {}.",
-					taskManagerLocation.getResourceID(), taskManagerLocation.addressString(),
+					taskManagerLocation.getResourceID(), taskManagerRpcAddress,
 					JobMaster.this.leaderSessionID, leaderId);
 			throw new Exception("Leader id not match, expected: " + JobMaster.this.leaderSessionID
 					+ ", actual: " + leaderId);
@@ -696,7 +697,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			return getRpcService().execute(new Callable<TaskExecutorGateway>() {
 				@Override
 				public TaskExecutorGateway call() throws Exception {
-					return getRpcService().connect(taskManagerLocation.addressString(), TaskExecutorGateway.class)
+					return getRpcService().connect(taskManagerRpcAddress, TaskExecutorGateway.class)
 							.get(rpcTimeout.getSize(), rpcTimeout.getUnit());
 				}
 			}).handleAsync(new BiFunction<TaskExecutorGateway, Throwable, RegistrationResponse>() {
@@ -709,7 +710,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 					if (!JobMaster.this.leaderSessionID.equals(leaderId)) {
 						log.warn("Discard registration from TaskExecutor {} at ({}) because the expected " +
 										"leader session ID {} did not equal the received leader session ID {}.",
-								taskManagerLocation.getResourceID(), taskManagerLocation.addressString(),
+								taskManagerId, taskManagerRpcAddress,
 								JobMaster.this.leaderSessionID, leaderId);
 						return new RegistrationResponse.Decline("Invalid leader session id");
 					}

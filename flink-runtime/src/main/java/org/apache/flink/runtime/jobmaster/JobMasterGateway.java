@@ -185,12 +185,14 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	/**
 	 * Register the task manager at the job manager.
 	 *
-	 * @param taskManagerLocation location of the task manager
-	 * @param leaderId            identifying the job leader
-	 * @param timeout             for the rpc call
+	 * @param taskManagerRpcAddress the rpc address of the task manager
+	 * @param taskManagerLocation   location of the task manager
+	 * @param leaderId              identifying the job leader
+	 * @param timeout               for the rpc call
 	 * @return Future registration response indicating whether the registration was successful or not
 	 */
 	Future<RegistrationResponse> registerTaskManager(
+			final String taskManagerRpcAddress,
 			final TaskManagerLocation taskManagerLocation,
 			final UUID leaderId,
 			@RpcTimeout final Time timeout);
