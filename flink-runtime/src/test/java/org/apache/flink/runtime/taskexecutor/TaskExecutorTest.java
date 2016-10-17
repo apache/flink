@@ -379,9 +379,10 @@ public class TaskExecutorTest extends TestLogger {
 		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
 
 		when(jobMasterGateway.registerTaskManager(
-			eq(taskManagerLocation),
-			eq(jobManagerLeaderId),
-			any(Time.class)
+				any(String.class),
+				eq(taskManagerLocation),
+				eq(jobManagerLeaderId),
+				any(Time.class)
 		)).thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(jmResourceId, blobPort)));
 		when(jobMasterGateway.getAddress()).thenReturn(jobManagerAddress);
 
@@ -483,9 +484,10 @@ public class TaskExecutorTest extends TestLogger {
 		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
 
 		when(jobMasterGateway.registerTaskManager(
-			eq(taskManagerLocation),
-			eq(jobManagerLeaderId),
-			any(Time.class)
+				any(String.class),
+				eq(taskManagerLocation),
+				eq(jobManagerLeaderId),
+				any(Time.class)
 		)).thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(jmResourceId, blobPort)));
 		when(jobMasterGateway.getAddress()).thenReturn(jobManagerAddress);
 
