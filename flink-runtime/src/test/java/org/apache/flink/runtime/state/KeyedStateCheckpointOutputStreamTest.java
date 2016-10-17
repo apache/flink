@@ -27,18 +27,18 @@ import org.junit.Test;
 
 import java.io.IOException;
 
-public class KeyedStateOutputCheckpointStreamTest {
+public class KeyedStateCheckpointOutputStreamTest {
 
 	private static final int STREAM_CAPACITY = 128;
 
-	private static KeyedStateOutputCheckpointStream createStream(KeyGroupRange keyGroupRange) {
+	private static KeyedStateCheckpointOutputStream createStream(KeyGroupRange keyGroupRange) {
 		CheckpointStreamFactory.CheckpointStateOutputStream checkStream =
 				new TestMemoryCheckpointOutputStream(STREAM_CAPACITY);
-		return new KeyedStateOutputCheckpointStream(checkStream, keyGroupRange);
+		return new KeyedStateCheckpointOutputStream(checkStream, keyGroupRange);
 	}
 
 	private KeyGroupsStateHandle writeAllTestKeyGroups(
-			KeyedStateOutputCheckpointStream stream, KeyGroupRange keyRange) throws Exception {
+			KeyedStateCheckpointOutputStream stream, KeyGroupRange keyRange) throws Exception {
 
 		DataOutputView dov = new DataOutputViewStreamWrapper(stream);
 		for (int kg : keyRange) {
@@ -51,7 +51,7 @@ public class KeyedStateOutputCheckpointStreamTest {
 
 	@Test
 	public void testCloseNotPropagated() throws Exception {
-		KeyedStateOutputCheckpointStream stream = createStream(new KeyGroupRange(0, 0));
+		KeyedStateCheckpointOutputStream stream = createStream(new KeyGroupRange(0, 0));
 		TestMemoryCheckpointOutputStream innerStream = (TestMemoryCheckpointOutputStream) stream.getDelegate();
 		stream.close();
 		Assert.assertFalse(innerStream.isClosed());
@@ -60,7 +60,7 @@ public class KeyedStateOutputCheckpointStreamTest {
 	@Test
 	public void testEmptyKeyedStream() throws Exception {
 		final KeyGroupRange keyRange = new KeyGroupRange(0, 2);
-		KeyedStateOutputCheckpointStream stream = createStream(keyRange);
+		KeyedStateCheckpointOutputStream stream = createStream(keyRange);
 		TestMemoryCheckpointOutputStream innerStream = (TestMemoryCheckpointOutputStream) stream.getDelegate();
 		KeyGroupsStateHandle emptyHandle = stream.closeAndGetHandle();
 		Assert.assertTrue(innerStream.isClosed());
@@ -70,7 +70,7 @@ public class KeyedStateOutputCheckpointStreamTest {
 	@Test
 	public void testWriteReadRoundtrip() throws Exception {
 		final KeyGroupRange keyRange = new KeyGroupRange(0, 2);
-		KeyedStateOutputCheckpointStream stream = createStream(keyRange);
+		KeyedStateCheckpointOutputStream stream = createStream(keyRange);
 		KeyGroupsStateHandle fullHandle = writeAllTestKeyGroups(stream, keyRange);
 		Assert.assertNotNull(fullHandle);
 
@@ -80,7 +80,7 @@ public class KeyedStateOutputCheckpointStreamTest {
 	@Test
 	public void testWriteKeyGroupTracking() throws Exception {
 		final KeyGroupRange keyRange = new KeyGroupRange(0, 2);
-		KeyedStateOutputCheckpointStream stream = createStream(keyRange);
+		KeyedStateCheckpointOutputStream stream = createStream(keyRange);
 
 		try {
 			stream.startNewKeyGroup(4711);
@@ -124,7 +124,7 @@ public class KeyedStateOutputCheckpointStreamTest {
 	@Test
 	public void testReadWriteMissingKeyGroups() throws Exception {
 		final KeyGroupRange keyRange = new KeyGroupRange(0, 2);
-		KeyedStateOutputCheckpointStream stream = createStream(keyRange);
+		KeyedStateCheckpointOutputStream stream = createStream(keyRange);
 
 		DataOutputView dov = new DataOutputViewStreamWrapper(stream);
 		stream.startNewKeyGroup(1);

@@ -30,7 +30,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.SnapshotInProgressSubtaskState;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.KeyedStateOutputCheckpointStream;
+import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -149,7 +149,7 @@ public class StreamOperatorSnapshotRestoreTest {
 		@Override
 		public void snapshotState(StateSnapshotContext context) throws Exception {
 
-			KeyedStateOutputCheckpointStream out = context.getRawKeyedOperatorStateOutput();
+			KeyedStateCheckpointOutputStream out = context.getRawKeyedOperatorStateOutput();
 			DataOutputView dov = new DataOutputViewStreamWrapper(out);
 
 			// write raw keyed state that goes into snapshot

@@ -28,7 +28,7 @@ import java.util.Arrays;
  * Checkpoint output stream that allows to write raw keyed state in a partitioned way, split into key-groups.
  */
 @PublicEvolving
-public final class KeyedStateOutputCheckpointStream extends AbstractPartitionedCheckpointOutputStream<KeyGroupsStateHandle> {
+public final class KeyedStateCheckpointOutputStream extends AbstractPartitionedCheckpointOutputStream<KeyGroupsStateHandle> {
 
 	public static final long NO_OFFSET_SET = -1L;
 	public static final int NO_CURRENT_KEY_GROUP = -1;
@@ -36,7 +36,7 @@ public final class KeyedStateOutputCheckpointStream extends AbstractPartitionedC
 	private int currentKeyGroup;
 	private final KeyGroupRangeOffsets keyGroupRangeOffsets;
 
-	public KeyedStateOutputCheckpointStream(
+	public KeyedStateCheckpointOutputStream(
 			CheckpointStreamFactory.CheckpointStateOutputStream delegate, KeyGroupRange keyGroupRange) {
 
 		super(delegate);

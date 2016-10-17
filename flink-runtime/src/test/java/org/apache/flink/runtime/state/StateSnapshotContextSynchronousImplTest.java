@@ -43,7 +43,7 @@ public class StateSnapshotContextSynchronousImplTest {
 
 	@Test
 	public void testCreateRawKeyedStateOutput() throws Exception {
-		KeyedStateOutputCheckpointStream stream = snapshotContext.getRawKeyedOperatorStateOutput();
+		KeyedStateCheckpointOutputStream stream = snapshotContext.getRawKeyedOperatorStateOutput();
 		Assert.assertNotNull(stream);
 	}
 

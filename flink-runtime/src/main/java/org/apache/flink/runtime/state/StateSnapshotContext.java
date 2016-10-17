@@ -30,7 +30,7 @@ public interface StateSnapshotContext extends FunctionSnapshotContext {
 	/**
 	 * Returns an output stream for keyed state
 	 */
-	KeyedStateOutputCheckpointStream getRawKeyedOperatorStateOutput() throws Exception;
+	KeyedStateCheckpointOutputStream getRawKeyedOperatorStateOutput() throws Exception;
 
 	/**
 	 * Returns an output stream for operator state

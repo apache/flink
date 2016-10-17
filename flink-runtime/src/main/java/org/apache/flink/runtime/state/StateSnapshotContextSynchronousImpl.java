@@ -32,7 +32,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 	private final KeyGroupRange keyGroupRange;
 	private final ClosableRegistry closableRegistry;
 
-	private KeyedStateOutputCheckpointStream keyedStateOutputCheckpointStream;
+	private KeyedStateCheckpointOutputStream keyedStateCheckpointOutputStream;
 	private OperatorStateCheckpointOutputStream operatorStateCheckpointOutputStream;
 
 	@VisibleForTesting
@@ -78,12 +78,12 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 	}
 
 	@Override
-	public KeyedStateOutputCheckpointStream getRawKeyedOperatorStateOutput() throws Exception {
-		if (null == keyedStateOutputCheckpointStream) {
+	public KeyedStateCheckpointOutputStream getRawKeyedOperatorStateOutput() throws Exception {
+		if (null == keyedStateCheckpointOutputStream) {
 			Preconditions.checkState(keyGroupRange != KeyGroupRange.EMPTY_KEY_GROUP_RANGE, "Not a keyed operator");
-			keyedStateOutputCheckpointStream = new KeyedStateOutputCheckpointStream(openAndRegisterNewStream(), keyGroupRange);
+			keyedStateCheckpointOutputStream = new KeyedStateCheckpointOutputStream(openAndRegisterNewStream(), keyGroupRange);
 		}
-		return keyedStateOutputCheckpointStream;
+		return keyedStateCheckpointOutputStream;
 	}
 
 	@Override
@@ -95,7 +95,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 	}
 
 	public RunnableFuture<KeyGroupsStateHandle> getKeyedStateStreamFuture() throws IOException {
-		return closeAndUnregisterStreamToObtainStateHandle(keyedStateOutputCheckpointStream);
+		return closeAndUnregisterStreamToObtainStateHandle(keyedStateCheckpointOutputStream);
 	}
 
 	public RunnableFuture<OperatorStateHandle> getOperatorStateStreamFuture() throws IOException {
