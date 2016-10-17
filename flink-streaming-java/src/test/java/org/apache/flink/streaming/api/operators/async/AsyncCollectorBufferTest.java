@@ -29,6 +29,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 import org.mockito.internal.util.reflection.Whitebox;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -78,7 +79,6 @@ public class AsyncCollectorBufferTest {
 
 		AsyncCollectorBuffer<Integer, Integer> buffer;
 		ExecutorService service = Executors.newFixedThreadPool(10);
-		ArrayList<AsyncCollector<Integer, Integer>> arr = new ArrayList<>();
 
 		boolean throwExcept = false;
 		boolean orderedMode = false;
@@ -236,7 +236,7 @@ public class AsyncCollectorBufferTest {
 		Assert.assertEquals(sort(((FakedOutput)output).getTimestamp()), "[0, 1, 4, 16, 25]");
 	}
 
-	@Test(expected = RuntimeException.class)
+	@Test(expected = IOException.class)
 	public void testBufferWithException() throws Exception {
 		Output<StreamRecord<Integer>> output = new FakedOutput(new ArrayList<Long>());
 		TimestampedCollector<Integer> collector =new TimestampedCollector(output);

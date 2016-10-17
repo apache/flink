@@ -29,6 +29,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -50,24 +51,24 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	/**
 	 * Max number of {@link AsyncCollector} in the buffer.
 	 */
-	private int bufferSize;
+	private final int bufferSize;
 
-	private AsyncDataStream.OutputMode mode;
+	private final AsyncDataStream.OutputMode mode;
 
 	/**
 	 * {@link AsyncCollector} queue.
 	 */
-	private SimpleLinkedList<AsyncCollector<IN, OUT>> queue = new SimpleLinkedList<>();
+	private final SimpleLinkedList<AsyncCollector<IN, OUT>> queue = new SimpleLinkedList<>();
 	/**
 	 * A hash map keeping {@link AsyncCollector} and their corresponding {@link StreamElement}
 	 */
-	private Map<AsyncCollector<IN, OUT>, StreamElement> collectorToStreamElement = new HashMap<>();
+	private final Map<AsyncCollector<IN, OUT>, StreamElement> collectorToStreamElement = new HashMap<>();
 	/**
 	 * A hash map keeping {@link AsyncCollector} and their node references in the #queue.
 	 */
-	private Map<AsyncCollector<IN, OUT>, SimpleLinkedList.Node> collectorToQueue = new HashMap<>();
+	private final Map<AsyncCollector<IN, OUT>, SimpleLinkedList.Node> collectorToQueue = new HashMap<>();
 
-	private LinkedList<AsyncCollector> finishedCollectors = new LinkedList<>();
+	private final LinkedList<AsyncCollector> finishedCollectors = new LinkedList<>();
 
 	/**
 	 * {@link TimestampedCollector} and {@link Output} to collect results and watermarks.
@@ -78,18 +79,18 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	/**
 	 * Locks and conditions to synchronize with main thread and emitter thread.
 	 */
-	private Lock lock;
-	private Condition notFull;
-	private Condition taskDone;
-	private Condition isEmpty;
+	private final Lock lock;
+	private final Condition notFull;
+	private final Condition taskDone;
+	private final Condition isEmpty;
 
 	/**
 	 * Error from user codes.
 	 */
 	private volatile Exception error;
 
-	private Emitter emitter;
-	private Thread emitThread;
+	private final Emitter emitter;
+	private final Thread emitThread;
 
 	private boolean isCheckpointing;
 
@@ -230,13 +231,9 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	}
 
 	public void stopEmitterThread() {
-		if (emitter != null) {
-			emitter.stop();
-		}
+		emitter.stop();
 
-		if (emitThread != null) {
-			emitThread.interrupt();
-		}
+		emitThread.interrupt();
 	}
 
 	/**
@@ -283,7 +280,7 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	private class Emitter implements Runnable {
 		private volatile boolean running = true;
 
-		private void output(AsyncCollector collector) throws RuntimeException {
+		private void output(AsyncCollector collector) throws IOException {
 			List<OUT> result = collector.getResult();
 
 			// update timestamp for output stream records based on the input stream record.
@@ -330,7 +327,7 @@ public class AsyncCollectorBuffer<IN, OUT> {
 
 					notFull.signal();
 				}
-				catch (RuntimeException e) {
+				catch (IOException e) {
 					error = e;
 					break;
 				}
@@ -353,7 +350,7 @@ public class AsyncCollectorBuffer<IN, OUT> {
 
 					collector = finishedCollectors.pollFirst();
 				}
-				catch (RuntimeException e) {
+				catch (IOException e) {
 					error = e;
 					break;
 				}

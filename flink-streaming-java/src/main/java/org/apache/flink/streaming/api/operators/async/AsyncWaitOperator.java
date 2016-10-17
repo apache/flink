@@ -57,6 +57,11 @@ public class AsyncWaitOperator<IN, OUT>
 	private transient TypeSerializer<IN> inTypeSerializer;
 	private transient DataOutputSerializer outputSerializer;
 
+	/**
+	 * input stream elements from the state
+	 */
+	private transient List<StreamElement> inputsFromState;
+
 	private transient TimestampedCollector<OUT> collector;
 
 	private transient AsyncCollectorBuffer<IN, OUT> buffer;
@@ -99,6 +104,18 @@ public class AsyncWaitOperator<IN, OUT>
 	public void open() throws Exception {
 		super.open();
 
+		// process stream elements from state
+		if (this.inputsFromState != null) {
+			for (StreamElement element : this.inputsFromState) {
+				if (element.isRecord()) {
+					processElement(element.<IN>asRecord());
+				} else {
+					processWatermark(element.asWatermark());
+				}
+			}
+			this.inputsFromState = null;
+		}
+
 		buffer.startEmitterThread();
 	}
 
@@ -122,16 +139,7 @@ public class AsyncWaitOperator<IN, OUT>
 
 	@Override
 	public void restoreState(FSDataInputStream in) throws Exception {
-		List<StreamElement> input = deserializeStreamElements(in);
-
-		for (StreamElement element : input) {
-			if (element.isRecord()) {
-				processElement(element.<IN>asRecord());
-			}
-			else {
-				processWatermark(element.asWatermark());
-			}
-		}
+		this.inputsFromState = deserializeStreamElements(in);
 	}
 
 	@Override

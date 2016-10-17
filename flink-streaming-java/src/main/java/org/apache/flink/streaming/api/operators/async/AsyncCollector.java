@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.annotation.Internal;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -35,7 +36,7 @@ public class AsyncCollector<IN, OUT> {
 
 	private boolean isDone = false;
 
-	private AsyncCollectorBuffer<IN, OUT> buffer;
+	private final AsyncCollectorBuffer<IN, OUT> buffer;
 
 	public AsyncCollector(AsyncCollectorBuffer<IN, OUT> buffer) {
 		this.buffer = buffer;
@@ -70,11 +71,11 @@ public class AsyncCollector<IN, OUT> {
 	 * Get result. Throw RuntimeException while encountering an error.
 	 *
 	 * @return A List of result.
-	 * @throws RuntimeException RuntimeException wrapping errors from user codes.
+	 * @throws IOException IOException wrapping errors from user codes.
 	 */
-	public List<OUT> getResult() throws RuntimeException {
+	public List<OUT> getResult() throws IOException {
 		if (error != null) {
-			throw new RuntimeException(error);
+			throw new IOException(error);
 		}
 		return result;
 	}

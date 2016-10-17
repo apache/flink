@@ -19,6 +19,7 @@ package org.apache.flink.streaming.examples.async;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -32,12 +33,12 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.async.AsyncCollector;
 import org.apache.flink.util.Collector;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Example to illustrates how to use {@link org.apache.flink.streaming.api.functions.async.AsyncFunction}
@@ -74,8 +75,8 @@ public class AsyncIOExample {
 				synchronized (ctx.getCheckpointLock()) {
 					ctx.collect(start);
 					++start;
-					Thread.sleep(10);
 				}
+				Thread.sleep(10);
 			}
 		}
 
@@ -129,6 +130,19 @@ public class AsyncIOExample {
 			transient ExecutorService executorService;
 
 			@Override
+			public void open(Configuration parameters) throws Exception {
+				super.open(parameters);
+				executorService = Executors.newFixedThreadPool(30);
+			}
+
+			@Override
+			public void close() throws Exception {
+				super.close();
+				executorService.shutdown();
+				executorService.awaitTermination(sleepFactor*20, TimeUnit.MILLISECONDS);
+			}
+
+			@Override
 			public void asyncInvoke(final Integer input, final AsyncCollector<Integer, String> collector) throws Exception {
 				this.executorService.submit(new Runnable() {
 					@Override
@@ -151,12 +165,6 @@ public class AsyncIOExample {
 						}
 					}
 				});
-			}
-
-			private void readObject(java.io.ObjectInputStream in)
-				throws IOException, ClassNotFoundException {
-				in.defaultReadObject();
-				executorService = Executors.newFixedThreadPool(30);
 			}
 		};
 

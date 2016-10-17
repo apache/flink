@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
@@ -29,6 +30,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.async.AsyncCollector;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
@@ -39,7 +41,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -209,8 +210,20 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 		DataStream<Tuple2<Integer, NonSerializable>> input = env.addSource(new NonSerializableTupleSource(numElements)).setParallelism(1);
 
-		AsyncFunction<Tuple2<Integer, NonSerializable>, Integer> function = new AsyncFunction<Tuple2<Integer, NonSerializable>, Integer>() {
+		AsyncFunction<Tuple2<Integer, NonSerializable>, Integer> function = new RichAsyncFunction<Tuple2<Integer, NonSerializable>, Integer>() {
 			transient ExecutorService executorService;
+
+			@Override
+			public void open(Configuration parameters) throws Exception {
+				super.open(parameters);
+				executorService = Executors.newFixedThreadPool(numElements);
+			}
+
+			@Override
+			public void close() throws Exception {
+				super.close();
+				executorService.shutdown();
+			}
 
 			@Override
 			public void asyncInvoke(final Tuple2<Integer, NonSerializable> input,
@@ -231,12 +244,6 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 						}
 					}
 				});
-			}
-
-			private void readObject(java.io.ObjectInputStream in)
-				throws IOException, ClassNotFoundException {
-				in.defaultReadObject();
-				executorService = Executors.newFixedThreadPool(numElements);
 			}
 		};
 
