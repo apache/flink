@@ -20,9 +20,7 @@ package org.apache.flink.streaming.api.graph;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
-
 import org.apache.commons.lang3.StringUtils;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -51,7 +49,6 @@ import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -448,47 +445,46 @@ public class StreamingJobGraphGenerator {
 	
 	private void configureCheckpointing() {
 		CheckpointConfig cfg = streamGraph.getCheckpointConfig();
-		
-		if (cfg.isCheckpointingEnabled()) {
-			long interval = cfg.getCheckpointInterval();
-			if (interval < 1) {
-				throw new IllegalArgumentException("The checkpoint interval must be positive");
-			}
 
-			// collect the vertices that receive "trigger checkpoint" messages.
-			// currently, these are all the sources
-			List<JobVertexID> triggerVertices = new ArrayList<>();
-
-			// collect the vertices that need to acknowledge the checkpoint
-			// currently, these are all vertices
-			List<JobVertexID> ackVertices = new ArrayList<>(jobVertices.size());
-
-			// collect the vertices that receive "commit checkpoint" messages
-			// currently, these are all vertices
-			List<JobVertexID> commitVertices = new ArrayList<>();
-			
-			for (JobVertex vertex : jobVertices.values()) {
-				if (vertex.isInputVertex()) {
-					triggerVertices.add(vertex.getID());
-				}
-				// TODO: add check whether the user function implements the checkpointing interface
-				commitVertices.add(vertex.getID());
-				ackVertices.add(vertex.getID());
-			}
-
-			JobSnapshottingSettings settings = new JobSnapshottingSettings(
-					triggerVertices, ackVertices, commitVertices, interval,
-					cfg.getCheckpointTimeout(), cfg.getMinPauseBetweenCheckpoints(),
-					cfg.getMaxConcurrentCheckpoints());
-			jobGraph.setSnapshotSettings(settings);
-
+		long interval = cfg.getCheckpointInterval();
+		if (interval > 0) {
 			// check if a restart strategy has been set, if not then set the FixedDelayRestartStrategy
 			if (streamGraph.getExecutionConfig().getRestartStrategy() == null) {
 				// if the user enabled checkpointing, the default number of exec retries is infinite.
 				streamGraph.getExecutionConfig().setRestartStrategy(
 					RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, DEFAULT_RESTART_DELAY));
 			}
+		} else {
+			// interval of max value means disable periodic checkpoint
+			interval = Long.MAX_VALUE;
 		}
+
+		// collect the vertices that receive "trigger checkpoint" messages.
+		// currently, these are all the sources
+		List<JobVertexID> triggerVertices = new ArrayList<>();
+
+		// collect the vertices that need to acknowledge the checkpoint
+		// currently, these are all vertices
+		List<JobVertexID> ackVertices = new ArrayList<>(jobVertices.size());
+
+		// collect the vertices that receive "commit checkpoint" messages
+		// currently, these are all vertices
+		List<JobVertexID> commitVertices = new ArrayList<>();
+
+		for (JobVertex vertex : jobVertices.values()) {
+			if (vertex.isInputVertex()) {
+				triggerVertices.add(vertex.getID());
+			}
+			// TODO: add check whether the user function implements the checkpointing interface
+			commitVertices.add(vertex.getID());
+			ackVertices.add(vertex.getID());
+		}
+
+		JobSnapshottingSettings settings = new JobSnapshottingSettings(
+				triggerVertices, ackVertices, commitVertices, interval,
+				cfg.getCheckpointTimeout(), cfg.getMinPauseBetweenCheckpoints(),
+				cfg.getMaxConcurrentCheckpoints());
+		jobGraph.setSnapshotSettings(settings);
 	}
 
 	// ------------------------------------------------------------------------

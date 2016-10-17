@@ -397,27 +397,31 @@ public class ExecutionGraph implements Serializable {
 
 		checkpointStatsTracker = Objects.requireNonNull(statsTracker, "Checkpoint stats tracker");
 
-		// create the coordinator that triggers and commits checkpoints and holds the state
-		checkpointCoordinator = new CheckpointCoordinator(
-				jobID,
-				interval,
-				checkpointTimeout,
-				minPauseBetweenCheckpoints,
-				maxConcurrentCheckpoints,
-				numberKeyGroups,
-				tasksToTrigger,
-				tasksToWaitFor,
-				tasksToCommitTo,
-				userClassLoader,
-				checkpointIDCounter,
-				checkpointStore,
-				recoveryMode,
-				checkpointStatsTracker);
+		// interval of max long value indicates disable periodic checkpoint,
+		// the CheckpoitnCoordinator should be created only if the interval is not max value
+		if (interval != Long.MAX_VALUE) {
+			// create the coordinator that triggers and commits checkpoints and holds the state
+			checkpointCoordinator = new CheckpointCoordinator(
+					jobID,
+					interval,
+					checkpointTimeout,
+					minPauseBetweenCheckpoints,
+					maxConcurrentCheckpoints,
+					numberKeyGroups,
+					tasksToTrigger,
+					tasksToWaitFor,
+					tasksToCommitTo,
+					userClassLoader,
+					checkpointIDCounter,
+					checkpointStore,
+					recoveryMode,
+					checkpointStatsTracker);
 
-		// the periodic checkpoint scheduler is activated and deactivated as a result of
-		// job status changes (running -> on, all other states -> off)
-		registerJobStatusListener(
-				checkpointCoordinator.createActivatorDeactivator(actorSystem, leaderSessionID));
+			// the periodic checkpoint scheduler is activated and deactivated as a result of
+			// job status changes (running -> on, all other states -> off)
+			registerJobStatusListener(
+					checkpointCoordinator.createActivatorDeactivator(actorSystem, leaderSessionID));
+		}
 
 		// Savepoint Coordinator
 		savepointCoordinator = new SavepointCoordinator(

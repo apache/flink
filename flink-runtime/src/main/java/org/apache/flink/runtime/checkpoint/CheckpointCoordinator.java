@@ -411,7 +411,7 @@ public class CheckpointCoordinator {
 			}
 
 			//make sure the minimum interval between checkpoints has passed
-			if (lastTriggeredCheckpoint + minPauseBetweenCheckpoints > timestamp) {
+			if (lastTriggeredCheckpoint + minPauseBetweenCheckpoints > timestamp && baseInterval != Long.MAX_VALUE) {
 				if (currentPeriodicTrigger != null) {
 					currentPeriodicTrigger.cancel();
 					currentPeriodicTrigger = null;

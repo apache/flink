@@ -1360,22 +1360,22 @@ class JobManager(
             val checkpointCoordinator = graph.getCheckpointCoordinator()
             val savepointCoordinator = graph.getSavepointCoordinator()
 
-            if (checkpointCoordinator != null && savepointCoordinator != null) {
+            if (checkpointCoordinator != null || savepointCoordinator != null) {
               future {
                 try {
-                  if (checkpointCoordinator.receiveAcknowledgeMessage(ackMessage)) {
+                  if (checkpointCoordinator != null &&
+                      checkpointCoordinator.receiveAcknowledgeMessage(ackMessage)) {
                     // OK, this is the common case
+                  } else if (
+                    savepointCoordinator != null &&
+                    !savepointCoordinator.receiveAcknowledgeMessage(ackMessage)) {
+
+                    // Tried the savepoint coordinator if the message was not
+                    // addressed to the periodic checkpoint coordinator.
+                    log.info("Received message for non-existing checkpoint " +
+                      ackMessage.getCheckpointId)
                   }
-                  else {
-                    // Try the savepoint coordinator if the message was not addressed
-                    // to the periodic checkpoint coordinator.
-                    if (!savepointCoordinator.receiveAcknowledgeMessage(ackMessage)) {
-                      log.info("Received message for non-existing checkpoint " +
-                        ackMessage.getCheckpointId)
-                    }
-                  }
-                }
-                catch {
+                } catch {
                   case t: Throwable =>
                     log.error(s"Error in CheckpointCoordinator while processing $ackMessage", t)
                 }
@@ -1397,24 +1397,26 @@ class JobManager(
             val checkpointCoordinator = graph.getCheckpointCoordinator()
             val savepointCoordinator = graph.getSavepointCoordinator()
 
-            if (checkpointCoordinator != null && savepointCoordinator != null) {
+            if (checkpointCoordinator != null || savepointCoordinator != null) {
               future {
                 try {
-                  if (checkpointCoordinator.receiveDeclineMessage(declineMessage)) {
+                  if (checkpointCoordinator != null &&
+                    checkpointCoordinator.receiveDeclineMessage(declineMessage)) {
                     // OK, this is the common case
                   }
-                  else {
-                    // Try the savepoint coordinator if the message was not addressed
+                  else if (
+                    savepointCoordinator != null &&
+                    !savepointCoordinator.receiveDeclineMessage(declineMessage)) {
+
+                    // Tried the savepoint coordinator if the message was not addressed
                     // to the periodic checkpoint coordinator.
-                    if (!savepointCoordinator.receiveDeclineMessage(declineMessage)) {
-                      log.info("Received message for non-existing checkpoint " +
-                        declineMessage.getCheckpointId)
-                    }
+                    log.info("Received message for non-existing checkpoint " +
+                      declineMessage.getCheckpointId)
                   }
                 }
                 catch {
                   case t: Throwable =>
-                    log.error(s"Error in CheckpointCoordinator while processing $declineMessage", t)
+                    log.error(s"Error in SavepointCoordinator while processing $declineMessage", t)
                 }
               }(context.dispatcher)
             }
