@@ -389,9 +389,13 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				checkpointDir,
 				checkpointStatsTracker);
 
-		// the periodic checkpoint scheduler is activated and deactivated as a result of
-		// job status changes (running -> on, all other states -> off)
-		registerJobStatusListener(checkpointCoordinator.createActivatorDeactivator());
+		// interval of max long value indicates disable periodic checkpoint,
+		// the CheckpointActivatorDeactivator should be created only if the interval is not max value
+		if (interval != Long.MAX_VALUE) {
+			// the periodic checkpoint scheduler is activated and deactivated as a result of
+			// job status changes (running -> on, all other states -> off)
+			registerJobStatusListener(checkpointCoordinator.createActivatorDeactivator());
+		}
 	}
 
 	/**

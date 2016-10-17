@@ -2683,7 +2683,7 @@ public class CheckpointCoordinatorTest {
 				null,
 				true);
 
-		assertEquals(true, triggerResult.isFailure());
+		assertTrue(triggerResult.isFailure());
 		assertEquals(CheckpointDeclineReason.PERIODIC_SCHEDULER_SHUTDOWN, triggerResult.getFailureReason());
 
 		// Not periodic
@@ -2693,7 +2693,7 @@ public class CheckpointCoordinatorTest {
 				null,
 				false);
 
-		assertEquals(false, triggerResult.isFailure());
+		assertFalse(triggerResult.isFailure());
 	}
 
 	private void testCreateKeyGroupPartitions(int maxParallelism, int parallelism) {
@@ -2851,7 +2851,7 @@ public class CheckpointCoordinatorTest {
 		String targetDirectory = "xjasdkjakshdmmmxna";
 
 		CheckpointTriggerResult triggerResult = coord.triggerCheckpoint(timestamp, props, targetDirectory, false);
-		assertEquals(true, triggerResult.isSuccess());
+		assertTrue(triggerResult.isSuccess());
 
 		// validate that we have a pending checkpoint
 		assertEquals(1, coord.getNumberOfPendingCheckpoints());
