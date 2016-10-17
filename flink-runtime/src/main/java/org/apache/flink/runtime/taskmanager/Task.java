@@ -555,19 +555,19 @@ public class Task implements Runnable, TaskActions {
 			// the state into the task. the state is non-empty if this is an execution
 			// of a task that failed but had backuped state from a checkpoint
 
-			if (null != taskStateHandles && taskStateHandles.hasState()) {
+			if (null != taskStateHandles) {
 				if (invokable instanceof StatefulTask) {
 					StatefulTask op = (StatefulTask) invokable;
 					op.setInitialState(taskStateHandles);
 				} else {
 					throw new IllegalStateException("Found operator state for a non-stateful task invokable");
 				}
+				// be memory and GC friendly - since the code stays in invoke() for a potentially long time,
+				// we clear the reference to the state handle
+				//noinspection UnusedAssignment
+				taskStateHandles = null;
 			}
 
-			// be memory and GC friendly - since the code stays in invoke() for a potentially long time,
-			// we clear the reference to the state handle
-			//noinspection UnusedAssignment
-			taskStateHandles = null;
 
 			// ----------------------------------------------------------------
 			//  actual task core work

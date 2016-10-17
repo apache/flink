@@ -95,6 +95,7 @@ import java.util.concurrent.ThreadFactory;
  *        +----> Create basic utils (config, etc) and load the chain of operators
  *        +----> operators.setup()
  *        +----> task specific init()
+ *        +----> initialize-operator-states()
  *        +----> open-operators()
  *        +----> run()
  *        +----> close-operators()
@@ -154,7 +155,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	/** The map of user-defined accumulators of this task */
 	private Map<String, Accumulator<?, ?>> accumulatorMap;
 
-	private TaskStateHandles lazyRestoreTaskStateHandles;
+	private TaskStateHandles restoreStateHandles;
 
 
 	/** The currently active background materialization threads */
@@ -506,7 +507,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	@Override
 	public void setInitialState(TaskStateHandles taskStateHandles) {
-		this.lazyRestoreTaskStateHandles = taskStateHandles;
+		this.restoreStateHandles = taskStateHandles;
 	}
 
 	@Override
@@ -592,19 +593,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private void initializeState() throws Exception {
 
-		boolean restored = (null != lazyRestoreTaskStateHandles) && lazyRestoreTaskStateHandles.hasState();
+		boolean restored = null != restoreStateHandles;
 
 		if (restored) {
 
 			checkRestorePreconditions(operatorChain.getChainLength());
 			initializeOperators(true);
-
-			//TODO nulling this out here made SavepointITCase fail!
-			//GC friendly
-			//lazyRestoreTaskStateHandles.setKeyGroupsStateFromStream(null);
-			//lazyRestoreTaskStateHandles.setNonPartitionableOperatorState(null);
-			//lazyRestoreTaskStateHandles.setOperatorStateFromBackend(null);
-
+			restoreStateHandles = null; // free for GC
 		} else {
 			initializeOperators(false);
 		}
@@ -616,7 +611,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			StreamOperator<?> operator = allOperators[chainIdx];
 			if (null != operator) {
 				if (restored) {
-					operator.initializeState(new OperatorStateHandles(lazyRestoreTaskStateHandles, chainIdx));
+					operator.initializeState(new OperatorStateHandles(restoreStateHandles, chainIdx));
 				} else {
 					operator.initializeState(null);
 				}
@@ -627,9 +622,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private void checkRestorePreconditions(int operatorChainLength) {
 
 		ChainedStateHandle<StreamStateHandle> nonPartitionableOperatorStates =
-				lazyRestoreTaskStateHandles.getLegacyOperatorState();
+				restoreStateHandles.getLegacyOperatorState();
 		List<Collection<OperatorStateHandle>> operatorStates =
-				lazyRestoreTaskStateHandles.getManagedOperatorState();
+				restoreStateHandles.getManagedOperatorState();
 
 		if (nonPartitionableOperatorStates != null) {
 			Preconditions.checkState(nonPartitionableOperatorStates.getLength() == operatorChainLength,
@@ -728,7 +723,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				headOperator,
 				configuration.getVertexID());
 
-		if (null != lazyRestoreTaskStateHandles && null != lazyRestoreTaskStateHandles.getManagedKeyedState()) {
+		if (null != restoreStateHandles && null != restoreStateHandles.getManagedKeyedState()) {
 			keyedStateBackend = stateBackend.restoreKeyedStateBackend(
 					getEnvironment(),
 					getEnvironment().getJobID(),
@@ -736,10 +731,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					keySerializer,
 					numberOfKeyGroups,
 					keyGroupRange,
-					lazyRestoreTaskStateHandles.getManagedKeyedState(),
+					restoreStateHandles.getManagedKeyedState(),
 					getEnvironment().getTaskKvStateRegistry());
 
-			lazyRestoreTaskStateHandles = null; // GC friendliness
+			restoreStateHandles = null; // GC friendliness
 		} else {
 			keyedStateBackend = stateBackend.createKeyedStateBackend(
 					getEnvironment(),

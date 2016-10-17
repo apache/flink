@@ -26,9 +26,9 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
@@ -58,10 +58,10 @@ import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
+import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.ConcurrentModificationException;
-import java.util.Collection;
 
 /**
  * Base class for all stream operators. Operators that contain a user function should extend the class 
@@ -117,8 +117,6 @@ public abstract class AbstractStreamOperator<OUT>
 	/** Operator state backend */
 	private transient OperatorStateBackend operatorStateBackend;
 
-	private transient Collection<OperatorStateHandle> lazyRestoreStateHandles;
-
 
 	// --------------- Metrics ---------------------------
 
@@ -161,34 +159,37 @@ public abstract class AbstractStreamOperator<OUT>
 	@Override
 	public final void initializeState(OperatorStateHandles stateHandles) throws Exception {
 
-		Collection<KeyGroupsStateHandle> keyedStateStream = null;
-		Collection<OperatorStateHandle> operatorStateStream = null;
-		boolean restoring = false;
+		Collection<KeyGroupsStateHandle> keyedStateHandlesRaw = null;
+		Collection<OperatorStateHandle> operatorStateHandlesRaw = null;
+		Collection<OperatorStateHandle> operatorStateHandlesBackend = null;
 
-		if (null != stateHandles) {
+		boolean restoring = null != stateHandles;
+
+		initKeyedState(); //TODO we should move the actual initialization of this from StreamTask to this class
+
+		if (restoring) {
+
 			// TODO check that there is EITHER old OR new state in handles!
 			restoreStreamCheckpointed(stateHandles);
 
 			//pass directly
-			this.lazyRestoreStateHandles = stateHandles.getManagedOperatorState();
-			operatorStateStream = stateHandles.getRawOperatorState();
-			keyedStateStream = stateHandles.getRawKeyedState();
-			restoring = true;
+			operatorStateHandlesBackend = stateHandles.getManagedOperatorState();
+			operatorStateHandlesRaw = stateHandles.getRawOperatorState();
+
+			if (null != getKeyedStateBackend()) {
+				//only use the keyed state if it is meant for us (aka head operator)
+				keyedStateHandlesRaw = stateHandles.getRawKeyedState();
+			}
 		}
 
-		initOperatorState();
-		initKeyedState();
-
-		if (null == getKeyedStateBackend()) {
-			keyedStateStream = null; //only use the keyed state if it is meant for us (aka head operator)
-		}
+		initOperatorState(operatorStateHandlesBackend);
 
 		StateInitializationContext initializationContext = new StateInitializationContextImpl(
 				restoring, // information whether we restore or start for the first time
 				operatorStateBackend, // access to operator state backend
 				getRuntimeContext(), // access to keyed state backend
-				keyedStateStream, // access to keyed state stream
-				operatorStateStream, // access to operator state stream
+				keyedStateHandlesRaw, // access to keyed state stream
+				operatorStateHandlesRaw, // access to operator state stream
 				getContainingTask().getCancelables()); // access to register streams for canceling
 
 		initializeState(initializationContext);
@@ -247,10 +248,10 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 	}
 
-	private void initOperatorState() {
+	private void initOperatorState(Collection<OperatorStateHandle> operatorStateHandles) {
 		try {
 			// create an operator state backend
-			this.operatorStateBackend = container.createOperatorStateBackend(this, lazyRestoreStateHandles);
+			this.operatorStateBackend = container.createOperatorStateBackend(this, operatorStateHandles);
 		} catch (Exception e) {
 			throw new IllegalStateException("Could not initialize operator state backend.", e);
 		}

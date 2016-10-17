@@ -102,8 +102,9 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			// Try to restore previous state if state handles to snapshots are provided
 			if (restoreSnapshots != null) {
 				for (OperatorStateHandle stateHandle : restoreSnapshots) {
-
-					long[] offsets = stateHandle.getStateNameToPartitionOffsets().get(name);
+					//TODO we coud be even more gc friendly be removing handles from the collections one the map is empty
+					// search and remove to be gc friendly
+					long[] offsets = stateHandle.getStateNameToPartitionOffsets().remove(name);
 
 					if (offsets != null) {
 
