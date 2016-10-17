@@ -34,7 +34,7 @@ import static org.junit.Assert.assertTrue;
 public class MainThreadValidationTest extends TestLogger {
 
 	@Test
-	public void failIfNotInMainThread() {
+	public void failIfNotInMainThread() throws Exception {
 		// test if assertions are activated. The test only works if assertions are loaded.
 		try {
 			assert false;
