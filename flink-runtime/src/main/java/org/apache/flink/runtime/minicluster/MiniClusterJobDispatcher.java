@@ -176,7 +176,7 @@ public class MiniClusterJobDispatcher {
 	public void runDetached(JobGraph job) throws JobExecutionException {
 		checkNotNull(job);
 
-		LOG.info("Received job for detached execution {} ({})", job.getName(), job.getJobID());
+		LOG.info("Received job for detached execution: {} ({})", job.getName(), job.getJobID());
 
 		synchronized (lock) {
 			checkState(!shutdown, "mini cluster is shut down");
@@ -201,7 +201,7 @@ public class MiniClusterJobDispatcher {
 	public JobExecutionResult runJobBlocking(JobGraph job) throws JobExecutionException, InterruptedException {
 		checkNotNull(job);
 		
-		LOG.info("Received job for blocking execution {} ({})", job.getName(), job.getJobID());
+		LOG.info("Received job for blocking execution: {} ({})", job.getName(), job.getJobID());
 		final BlockingJobSync sync = new BlockingJobSync(job.getJobID(), numJobManagers);
 
 		synchronized (lock) {
