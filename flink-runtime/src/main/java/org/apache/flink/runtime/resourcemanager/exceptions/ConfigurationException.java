@@ -16,28 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.resourcemanager.registration;
-
-import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
-import org.apache.flink.util.Preconditions;
-
-import java.io.Serializable;
+package org.apache.flink.runtime.resourcemanager.exceptions;
 
 /**
- * This class extends the {@link TaskExecutorRegistration}, adding the worker information.
+ * Base class for configuration related exception which occur when creating a configuration.
  */
-public class WorkerRegistration<WorkerType extends Serializable> extends TaskExecutorRegistration {
+public class ConfigurationException extends Exception {
+	private static final long serialVersionUID = 3971647332059381556L;
 
-	private static final long serialVersionUID = -2062957799469434614L;
-
-	private final WorkerType worker;
-
-	public WorkerRegistration(TaskExecutorGateway taskExecutorGateway, WorkerType worker) {
-		super(taskExecutorGateway);
-		this.worker = Preconditions.checkNotNull(worker);
+	public ConfigurationException(String message) {
+		super(message);
 	}
 
-	public WorkerType getWorker() {
-		return worker;
+	public ConfigurationException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public ConfigurationException(Throwable cause) {
+		super(cause);
 	}
 }
