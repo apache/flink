@@ -16,28 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.resourcemanager.registration;
+package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
 
-import java.io.Serializable;
+public class TestingSlotManagerFactory implements SlotManagerFactory {
 
-/**
- * This class extends the {@link TaskExecutorRegistration}, adding the worker information.
- */
-public class WorkerRegistration<WorkerType extends Serializable> extends TaskExecutorRegistration {
-
-	private static final long serialVersionUID = -2062957799469434614L;
-
-	private final WorkerType worker;
-
-	public WorkerRegistration(TaskExecutorGateway taskExecutorGateway, WorkerType worker) {
-		super(taskExecutorGateway);
-		this.worker = Preconditions.checkNotNull(worker);
-	}
-
-	public WorkerType getWorker() {
-		return worker;
+	@Override
+	public SlotManager create(ResourceManagerServices rmServices) {
+		return new TestingSlotManager(rmServices);
 	}
 }
