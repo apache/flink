@@ -196,7 +196,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void start() {
+	public void start() throws Exception {
 		super.start();
 
 		// start by connecting to the ResourceManager

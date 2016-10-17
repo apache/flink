@@ -107,7 +107,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 	//  Lifecycle management
 	// --------------------------------------------------------------------------------------------
 
-	public void start() {
+	public void start() throws Exception {
 		taskManager.start();
 	}
 

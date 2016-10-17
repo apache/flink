@@ -354,7 +354,7 @@ public class TaskExecutorTest extends TestLogger {
 	 * the job leader, it will offer all reserved slots to the JobManager.
 	 */
 	@Test
-	public void testJobLeaderDetection() throws TestingFatalErrorHandler.TestingException, SlotAllocationException {
+	public void testJobLeaderDetection() throws Exception {
 		final JobID jobId = new JobID();
 
 		final TestingSerialRpcService rpc = new TestingSerialRpcService();
@@ -621,7 +621,7 @@ public class TaskExecutorTest extends TestLogger {
 	 */
 	@Ignore
 	@Test
-	public void testRejectAllocationRequestsForOutOfSyncSlots() throws SlotAllocationException {
+	public void testRejectAllocationRequestsForOutOfSyncSlots() throws Exception {
 		final ResourceID resourceID = ResourceID.generate();
 
 		final String address1 = "/resource/manager/address/one";

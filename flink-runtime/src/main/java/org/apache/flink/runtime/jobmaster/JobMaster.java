@@ -267,7 +267,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	 *
 	 * @param leaderSessionID The necessary leader id for running the job.
 	 */
-	public void start(final UUID leaderSessionID) {
+	public void start(final UUID leaderSessionID) throws Exception {
 		if (LEADER_ID_UPDATER.compareAndSet(this, null, leaderSessionID)) {
 			super.start();
 
@@ -283,7 +283,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	 * Suspend the job and shutdown all other services including rpc.
 	 */
 	@Override
-	public void shutDown() {
+	public void shutDown() throws Exception {
 		// make sure there is a graceful exit
 		getSelf().suspendExecution(new Exception("JobManager is shutting down."));
 		super.shutDown();
@@ -382,7 +382,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		try {
 			resourceManagerLeaderRetriever.stop();
 		} catch (Exception e) {
-			log.warn("Failed to stop resource manager leader retriever when suspending.");
+			log.warn("Failed to stop resource manager leader retriever when suspending.", e);
 		}
 		closeResourceManagerConnection();
 
@@ -761,7 +761,13 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			@Override
 			public void run() {
 				log.error("Fatal error occurred on JobManager, cause: {}", cause.getMessage(), cause);
-				shutDown();
+
+				try {
+					shutDown();
+				} catch (Exception e) {
+					cause.addSuppressed(e);
+				}
+
 				errorHandler.onFatalError(cause);
 			}
 		});
