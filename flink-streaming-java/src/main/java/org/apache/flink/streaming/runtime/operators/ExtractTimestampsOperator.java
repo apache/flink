@@ -73,7 +73,7 @@ public class ExtractTimestampsOperator<T>
 	}
 
 	@Override
-	public void trigger(long timestamp) throws Exception {
+	public void onProcessingTime(long timestamp) throws Exception {
 		// register next timer
 		long newWatermark = userFunction.getCurrentWatermark();
 		if (newWatermark > currentWatermark) {

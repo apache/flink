@@ -52,7 +52,7 @@ public class SystemProcessingTimeServiceTest {
 			// schedule something
 			ScheduledFuture<?> future = timer.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
 				@Override
-				public void trigger(long timestamp) {
+				public void onProcessingTime(long timestamp) {
 					assertTrue(Thread.holdsLock(lock));
 				}
 			});
@@ -88,7 +88,7 @@ public class SystemProcessingTimeServiceTest {
 			// the task should trigger immediately and should block until terminated with interruption
 			timer.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
 				@Override
-				public void trigger(long timestamp) throws Exception {
+				public void onProcessingTime(long timestamp) throws Exception {
 					latch.trigger();
 					Thread.sleep(100000000);
 				}
@@ -106,7 +106,7 @@ public class SystemProcessingTimeServiceTest {
 			try {
 				timer.registerTimer(System.currentTimeMillis() + 1000, new ProcessingTimeCallback() {
 					@Override
-					public void trigger(long timestamp) {}
+					public void onProcessingTime(long timestamp) {}
 				});
 
 				fail("should result in an exception");
@@ -142,7 +142,7 @@ public class SystemProcessingTimeServiceTest {
 
 			timer.registerTimer(System.currentTimeMillis() + 20, new ProcessingTimeCallback() {
 				@Override
-				public void trigger(long timestamp) throws Exception {
+				public void onProcessingTime(long timestamp) throws Exception {
 					scopeLock.lock();
 					try {
 						latch.trigger();
@@ -164,7 +164,7 @@ public class SystemProcessingTimeServiceTest {
 			// should be able to schedule more tasks (that never get executed)
 			ScheduledFuture<?> future = timer.registerTimer(System.currentTimeMillis() - 5, new ProcessingTimeCallback() {
 				@Override
-				public void trigger(long timestamp) throws Exception {
+				public void onProcessingTime(long timestamp) throws Exception {
 					throw new Exception("test");
 				}
 			});
@@ -199,7 +199,7 @@ public class SystemProcessingTimeServiceTest {
 			// schedule something
 			ScheduledFuture<?> future = timer.registerTimer(System.currentTimeMillis() + 100000000, new ProcessingTimeCallback() {
 				@Override
-				public void trigger(long timestamp) {}
+				public void onProcessingTime(long timestamp) {}
 			});
 			assertEquals(1, timer.getNumTasksScheduled());
 
@@ -234,7 +234,7 @@ public class SystemProcessingTimeServiceTest {
 		
 		timeServiceProvider.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
 			@Override
-			public void trigger(long timestamp) throws Exception {
+			public void onProcessingTime(long timestamp) throws Exception {
 				throw new Exception("Exception in Timer");
 			}
 		});
@@ -258,7 +258,7 @@ public class SystemProcessingTimeServiceTest {
 			// to register some additional timers out of order
 			timer.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
 				@Override
-				public void trigger(long timestamp) throws Exception {
+				public void onProcessingTime(long timestamp) throws Exception {
 					sync.await();
 				}
 			});
@@ -273,7 +273,7 @@ public class SystemProcessingTimeServiceTest {
 			final ArrayBlockingQueue<Long> timestamps = new ArrayBlockingQueue<>(4);
 			ProcessingTimeCallback trigger = new ProcessingTimeCallback() {
 				@Override
-				public void trigger(long timestamp) {
+				public void onProcessingTime(long timestamp) {
 					timestamps.add(timestamp);
 				}
 			};

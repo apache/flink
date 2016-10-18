@@ -215,7 +215,7 @@ public class StreamSourceContexts {
 			}
 
 			@Override
-			public void trigger(long timestamp) {
+			public void onProcessingTime(long timestamp) {
 				final long currentTime = timeService.getCurrentProcessingTime();
 
 				if (currentTime > nextWatermarkTime) {

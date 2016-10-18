@@ -422,7 +422,7 @@ public class BucketingSink<T>
 	}
 
 	@Override
-	public void trigger(long timestamp) throws Exception {
+	public void onProcessingTime(long timestamp) throws Exception {
 		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 
 		checkForInactiveBuckets(currentProcessingTime);

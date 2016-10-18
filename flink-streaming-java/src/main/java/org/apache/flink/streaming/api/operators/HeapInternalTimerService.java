@@ -170,7 +170,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	}
 
 	@Override
-	public void trigger(long time) throws Exception {
+	public void onProcessingTime(long time) throws Exception {
 		// null out the timer in case the Triggerable calls registerProcessingTimeTimer()
 		// inside the callback.
 		nextTimer = null;
