@@ -49,6 +49,7 @@ public class ResourceManagerHATest {
 		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(Time.seconds(5L), Time.seconds(5L));
 		SlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		MetricRegistry metricRegistry = mock(MetricRegistry.class);
+		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(highAvailabilityServices);
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		final ResourceManager resourceManager =
@@ -58,17 +59,18 @@ public class ResourceManagerHATest {
 				highAvailabilityServices,
 				slotManagerFactory,
 				metricRegistry,
+				jobLeaderIdService,
 				testingFatalErrorHandler);
 		resourceManager.start();
 		// before grant leadership, resourceManager's leaderId is null
-		Assert.assertEquals(null, resourceManager.getLeaderSessionID());
+		Assert.assertEquals(null, resourceManager.getLeaderSessionId());
 		final UUID leaderId = UUID.randomUUID();
 		leaderElectionService.isLeader(leaderId);
 		// after grant leadership, resourceManager's leaderId has value
-		Assert.assertEquals(leaderId, resourceManager.getLeaderSessionID());
+		Assert.assertEquals(leaderId, resourceManager.getLeaderSessionId());
 		// then revoke leadership, resourceManager's leaderId is null again
 		leaderElectionService.notLeader();
-		Assert.assertEquals(null, resourceManager.getLeaderSessionID());
+		Assert.assertEquals(null, resourceManager.getLeaderSessionId());
 
 		if (testingFatalErrorHandler.hasExceptionOccurred()) {
 			testingFatalErrorHandler.rethrowError();

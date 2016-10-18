@@ -128,6 +128,18 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	void disconnectTaskManager(ResourceID resourceID);
 
 	/**
+	 * Disconnects the resource manager from the job manager because of the given cause.
+	 *
+	 * @param jobManagerLeaderId identifying the job manager leader id
+	 * @param resourceManagerLeaderId identifying the resource manager leader id
+	 * @param cause of the disconnect
+	 */
+	void disconnectResourceManager(
+		final UUID jobManagerLeaderId,
+		final UUID resourceManagerLeaderId,
+		final Exception cause);
+
+	/**
 	 * Requests a {@link KvStateLocation} for the specified {@link KvState} registration name.
 	 *
 	 * @param registrationName Name under which the KvState has been registered.
