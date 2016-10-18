@@ -19,17 +19,22 @@
 package org.apache.flink.runtime.taskmanager;
 
 import akka.actor.ActorRef;
-import akka.actor.PoisonPill;
+import org.apache.flink.runtime.messages.TaskManagerMessages;
+
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests that the TaskManager process properly exits when the TaskManager actor dies.
  */
-public class TaskManagerProcessReapingTest extends TaskManagerProcessReapingTestBase {
+public class TaskManagerProcessReapingFatalErrorTest extends TaskManagerProcessReapingTestBase {
 
 	@Override
 	void onTaskManagerProcessRunning(ActorRef taskManager) {
-		// kill the TaskManager actor
-		taskManager.tell(PoisonPill.getInstance(), ActorRef.noSender());
+		taskManager.tell(new TaskManagerMessages.FatalError("ouch", null), ActorRef.noSender());
 	}
 
+	@Override
+	void onTaskManagerProcessTerminated(String processOutput) {
+		assertTrue("Did not log expected message", processOutput.contains("ouch"));
+	}
 }
