@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.operators;
+package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 
 /**
- * This interface must be implemented by objects that are triggered by the timer service available
- * to stream operators in {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment}.
+ * Interface for processing-time callbacks that can be registered at a
+ * {@link ProcessingTimeService}.
  */
 @Internal
-public interface Triggerable {
+public interface ProcessingTimeCallback {
 
 	/**
 	 * This method is invoked with the timestamp for which the trigger was scheduled.

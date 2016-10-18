@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.streaming.runtime.operators.Triggerable;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -69,7 +67,7 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 			for (Map.Entry<Long, List<ScheduledTimerFuture>> tasks: toRun) {
 				long now = tasks.getKey();
 				for (ScheduledTimerFuture task: tasks.getValue()) {
-					task.getTriggerable().trigger(now);
+					task.getProcessingTimeCallback().trigger(now);
 				}
 			}
 		}
@@ -81,7 +79,7 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 	}
 
 	@Override
-	public ScheduledFuture<?> registerTimer(long timestamp, Triggerable target) {
+	public ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target) {
 		if (isTerminated) {
 			throw new IllegalStateException("terminated");
 		}
@@ -149,12 +147,12 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 
 	private class ScheduledTimerFuture implements ScheduledFuture<Object> {
 
-		private final Triggerable triggerable;
+		private final ProcessingTimeCallback processingTimeCallback;
 
 		private final long timestamp;
 
-		public ScheduledTimerFuture(Triggerable triggerable, long timestamp) {
-			this.triggerable = triggerable;
+		public ScheduledTimerFuture(ProcessingTimeCallback processingTimeCallback, long timestamp) {
+			this.processingTimeCallback = processingTimeCallback;
 			this.timestamp = timestamp;
 		}
 
@@ -197,8 +195,8 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 			throw new UnsupportedOperationException();
 		}
 
-		public Triggerable getTriggerable() {
-			return triggerable;
+		public ProcessingTimeCallback getProcessingTimeCallback() {
+			return processingTimeCallback;
 		}
 
 		public long getTimestamp() {
