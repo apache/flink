@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -41,6 +42,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 			HighAvailabilityServices highAvailabilityServices,
 			SlotManagerFactory slotManagerFactory,
 			MetricRegistry metricRegistry,
+			JobLeaderIdService jobLeaderIdService,
 			FatalErrorHandler fatalErrorHandler) {
 		super(
 			rpcService,
@@ -48,11 +50,12 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 			highAvailabilityServices,
 			slotManagerFactory,
 			metricRegistry,
+			jobLeaderIdService,
 			fatalErrorHandler);
 	}
 
 	@Override
-	protected void initialize() throws Exception {
+	protected void initialize() throws ResourceManagerException {
 		// nothing to initialize
 	}
 

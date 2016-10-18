@@ -49,7 +49,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @param timeout                 Timeout for the future to complete
 	 * @return Future registration response
 	 */
-	Future<RegistrationResponse> registerJobMaster(
+	Future<RegistrationResponse> registerJobManager(
 		UUID resourceManagerLeaderId,
 		UUID jobMasterLeaderId,
 		String jobMasterAddress,
