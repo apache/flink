@@ -67,7 +67,7 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 			for (Map.Entry<Long, List<ScheduledTimerFuture>> tasks: toRun) {
 				long now = tasks.getKey();
 				for (ScheduledTimerFuture task: tasks.getValue()) {
-					task.getProcessingTimeCallback().trigger(now);
+					task.getProcessingTimeCallback().onProcessingTime(now);
 				}
 			}
 		}
@@ -89,7 +89,7 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 
 		if (timestamp <= currentTime) {
 			try {
-				target.trigger(timestamp);
+				target.onProcessingTime(timestamp);
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}

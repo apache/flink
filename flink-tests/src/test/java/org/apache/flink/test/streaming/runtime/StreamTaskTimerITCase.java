@@ -201,7 +201,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public void trigger(long time) throws Exception {
+		public void onProcessingTime(long time) throws Exception {
 			if (!semaphore.tryAcquire()) {
 				Assert.fail("Concurrent invocation of operator functions.");
 			}
@@ -276,7 +276,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 
 
 		@Override
-		public void trigger(long time) throws Exception {
+		public void onProcessingTime(long time) throws Exception {
 			if (!semaphore.tryAcquire()) {
 				Assert.fail("Concurrent invocation of operator functions.");
 			}
