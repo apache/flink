@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.table
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.functions.TableFunction
 import org.apache.flink.api.table.{TableConfig, Table}
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment, DataStream}
@@ -142,4 +143,14 @@ class StreamTableEnvironment(
     asScalaStream(translate(table))
   }
 
+  /**
+    * Registers a [[TableFunction]] under a unique name in the TableEnvironment's catalog.
+    * Registered functions can be referenced in SQL queries.
+    *
+    * @param name The name under which the function is registered.
+    * @param tf The TableFunction to register
+    */
+  def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
+    registerTableFunctionInternal(name, tf)
+  }
 }

@@ -23,8 +23,8 @@ import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTabl
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
 import org.apache.flink.api.table.ValidationException
 import org.apache.flink.api.table.expressions._
-import org.apache.flink.api.table.functions.ScalarFunction
-import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.api.table.functions.{ScalarFunction, TableFunction}
+import org.apache.flink.api.table.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -47,6 +47,20 @@ class FunctionCatalog {
     sqlFunctions += sqlFunction
   }
 
+  /** Register multiple sql functions at one time. The functions has the same name. **/
+  def registerSqlFunctions(functions: Seq[SqlFunction]): Unit = {
+    if (functions.nonEmpty) {
+      val name = functions.head.getName
+      // check all name is the same in the functions
+      if (functions.forall(_.getName == name)) {
+        sqlFunctions --= sqlFunctions.filter(_.getName == name)
+        sqlFunctions ++= functions
+      } else {
+        throw ValidationException("The sql functions request to register have different name.")
+      }
+    }
+  }
+
   def getSqlOperatorTable: SqlOperatorTable =
     ChainedSqlOperatorTable.of(
       new BasicOperatorTable(),
@@ -59,14 +73,9 @@ class FunctionCatalog {
   def lookupFunction(name: String, children: Seq[Expression]): Expression = {
     val funcClass = functionBuilders
       .getOrElse(name.toLowerCase, throw ValidationException(s"Undefined function: $name"))
-    withChildren(funcClass, children)
-  }
 
-  /**
-    * Instantiate a function using the provided `children`.
-    */
-  private def withChildren(func: Class[_], children: Seq[Expression]): Expression = {
-    func match {
+    // Instantiate a function using the provided `children`
+    funcClass match {
 
       // user-defined scalar function call
       case sf if classOf[ScalarFunction].isAssignableFrom(sf) =>
@@ -75,10 +84,20 @@ class FunctionCatalog {
           case Failure(e) => throw ValidationException(e.getMessage)
         }
 
+      // user-defined table function call
+      case tf if classOf[TableFunction[_]].isAssignableFrom(tf) =>
+        val tableSqlFunction = sqlFunctions
+          .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[TableSqlFunction])
+          .getOrElse(throw ValidationException(s"Unregistered table sql function: $name"))
+          .asInstanceOf[TableSqlFunction]
+        val typeInfo = tableSqlFunction.getRowTypeInfo
+        val function = tableSqlFunction.getTableFunction
+        TableFunctionCall(name, function, children, typeInfo)
+
       // general expression call
       case expression if classOf[Expression].isAssignableFrom(expression) =>
         // try to find a constructor accepts `Seq[Expression]`
-        Try(func.getDeclaredConstructor(classOf[Seq[_]])) match {
+        Try(funcClass.getDeclaredConstructor(classOf[Seq[_]])) match {
           case Success(seqCtor) =>
             Try(seqCtor.newInstance(children).asInstanceOf[Expression]) match {
               case Success(expr) => expr
@@ -87,14 +106,14 @@ class FunctionCatalog {
           case Failure(e) =>
             val childrenClass = Seq.fill(children.length)(classOf[Expression])
             // try to find a constructor matching the exact number of children
-            Try(func.getDeclaredConstructor(childrenClass: _*)) match {
+            Try(funcClass.getDeclaredConstructor(childrenClass: _*)) match {
               case Success(ctor) =>
                 Try(ctor.newInstance(children: _*).asInstanceOf[Expression]) match {
                   case Success(expr) => expr
                   case Failure(exception) => throw ValidationException(exception.getMessage)
                 }
               case Failure(exception) =>
-                throw ValidationException(s"Invalid number of arguments for function $func")
+                throw ValidationException(s"Invalid number of arguments for function $funcClass")
             }
         }
 

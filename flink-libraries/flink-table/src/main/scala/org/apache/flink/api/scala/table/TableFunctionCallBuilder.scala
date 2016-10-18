@@ -15,13 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.functions
+package org.apache.flink.api.scala.table
 
-/**
-  * Base class for all user-defined functions such as scalar functions, table functions,
-  * or aggregation functions.
-  *
-  * User-defined functions must have a default constructor and must be instantiable during runtime.
-  */
-trait UserDefinedFunction {
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.expressions.{Expression, TableFunctionCall}
+import org.apache.flink.api.table.functions.TableFunction
+
+case class TableFunctionCallBuilder[T: TypeInformation](udtf: TableFunction[T]) {
+  /**
+    * Creates a call to a [[TableFunction]] in Scala Table API.
+    *
+    * @param params actual parameters of function
+    * @return [[TableFunctionCall]]
+    */
+  def apply(params: Expression*): Expression = {
+    val resultType = if (udtf.getResultType == null) {
+      implicitly[TypeInformation[T]]
+    } else {
+      udtf.getResultType
+    }
+    TableFunctionCall(udtf.getClass.getSimpleName, udtf, params, resultType)
+  }
 }

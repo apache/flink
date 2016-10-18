@@ -26,7 +26,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.ValueTypeInfo._
 import org.apache.flink.api.table.FlinkTypeFactory.typeInfoToSqlTypeName
@@ -115,9 +115,9 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
   }
 
   override def createTypeWithNullability(
-      relDataType: RelDataType,
-      nullable: Boolean)
-    : RelDataType = relDataType match {
+    relDataType: RelDataType,
+    nullable: Boolean)
+  : RelDataType = relDataType match {
     case composite: CompositeRelDataType =>
       // at the moment we do not care about nullability
       composite
@@ -172,8 +172,7 @@ object FlinkTypeFactory {
     case typeName if DAY_INTERVAL_TYPES.contains(typeName) => TimeIntervalTypeInfo.INTERVAL_MILLIS
 
     case NULL =>
-      throw TableException("Type NULL is not supported. " +
-        "Null values must have a supported type.")
+      throw TableException("Type NULL is not supported. Null values must have a supported type.")
 
     // symbol for special flags e.g. TRIM's BOTH, LEADING, TRAILING
     // are represented as integer
@@ -187,6 +186,9 @@ object FlinkTypeFactory {
     case ROW if relDataType.isInstanceOf[CompositeRelDataType] =>
       val compositeRelDataType = relDataType.asInstanceOf[CompositeRelDataType]
       compositeRelDataType.compositeType
+
+    // ROW and CURSOR for UDTF case, whose type info will never be used, just a placeholder
+    case ROW | CURSOR => new NothingTypeInfo
 
     case _@t =>
       throw TableException(s"Type is not supported: $t")

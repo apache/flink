@@ -26,7 +26,7 @@ import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.functions.ScalarFunction
 import org.apache.flink.api.table.functions.utils.ScalarSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
-import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils.{getResultType, getSignature, signatureToString, signaturesToString}
+import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils.{getResultType, getSignature, getSignatures, signatureToString, signaturesToString}
 import org.apache.flink.api.table.{FlinkTypeFactory, ValidationException}
 
 import scala.collection.JavaConverters._
@@ -123,6 +123,8 @@ object ScalarSqlFunction {
       name: String,
       scalarFunction: ScalarFunction)
     : SqlOperandTypeChecker = {
+
+    val signatures = getSignatures(scalarFunction)
     /**
       * Operand type checker based on [[ScalarFunction]] given information.
       */
@@ -132,7 +134,7 @@ object ScalarSqlFunction {
       }
 
       override def getOperandCountRange: SqlOperandCountRange = {
-        val signatureLengths = scalarFunction.getSignatures.map(_.length)
+        val signatureLengths = signatures.map(_.length)
         SqlOperandCountRanges.between(signatureLengths.min, signatureLengths.max)
       }
 
