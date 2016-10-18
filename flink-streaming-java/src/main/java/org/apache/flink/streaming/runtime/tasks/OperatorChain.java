@@ -77,7 +77,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 		
 		final ClassLoader userCodeClassloader = containingTask.getUserCodeClassLoader();
 		final StreamConfig configuration = containingTask.getConfiguration();
-		final boolean enableMultiplexing = containingTask.isSerializingMixedStream();
 
 		headOperator = configuration.getStreamOperator(userCodeClassloader);
 
@@ -99,7 +98,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 				
 				RecordWriterOutput<?> streamOutput = createStreamOutput(
 						outEdge, chainedConfigs.get(outEdge.getSourceId()), i,
-						containingTask.getEnvironment(), enableMultiplexing, reporter, containingTask.getName());
+						containingTask.getEnvironment(), reporter, containingTask.getName());
 	
 				this.streamOutputs[i] = streamOutput;
 				streamOutputMap.put(outEdge, streamOutput);
@@ -305,7 +304,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 	
 	private static <T> RecordWriterOutput<T> createStreamOutput(
 			StreamEdge edge, StreamConfig upStreamConfig, int outputIndex,
-			Environment taskEnvironment, boolean enableMultiplexing,
+			Environment taskEnvironment,
 			AccumulatorRegistry.Reporter reporter, String taskName)
 	{
 		TypeSerializer<T> outSerializer = upStreamConfig.getTypeSerializerOut(taskEnvironment.getUserClassLoader());
@@ -322,7 +321,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 		output.setReporter(reporter);
 		output.setMetricGroup(taskEnvironment.getMetricGroup().getIOMetricGroup());
 		
-		return new RecordWriterOutput<>(output, outSerializer, enableMultiplexing);
+		return new RecordWriterOutput<>(output, outSerializer);
 	}
 	
 	// ------------------------------------------------------------------------
