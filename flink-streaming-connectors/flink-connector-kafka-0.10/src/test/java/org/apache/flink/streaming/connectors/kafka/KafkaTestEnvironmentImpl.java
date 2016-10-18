@@ -288,7 +288,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 		ZkUtils zkUtils = getZkUtils();
 		try {
-			AdminUtils.createTopic(zkUtils, topic, numberOfPartitions, replicationFactor, topicConfig, new kafka.admin.RackAwareMode.Enforced$());
+			AdminUtils.createTopic(zkUtils, topic, numberOfPartitions, replicationFactor, topicConfig, kafka.admin.RackAwareMode.Enforced$.MODULE$);
 		} finally {
 			zkUtils.close();
 		}
