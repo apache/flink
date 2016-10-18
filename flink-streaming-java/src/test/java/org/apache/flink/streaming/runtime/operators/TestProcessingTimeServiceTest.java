@@ -27,6 +27,7 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -70,14 +71,14 @@ public class TestProcessingTimeServiceTest {
 		assertEquals(testHarness.getProcessingTimeService().getCurrentProcessingTime(), 16);
 
 		// register 2 tasks
-		mapTask.getProcessingTimeService().registerTimer(30, new Triggerable() {
+		mapTask.getProcessingTimeService().registerTimer(30, new ProcessingTimeCallback() {
 			@Override
 			public void trigger(long timestamp) {
 
 			}
 		});
 
-		mapTask.getProcessingTimeService().registerTimer(40, new Triggerable() {
+		mapTask.getProcessingTimeService().registerTimer(40, new ProcessingTimeCallback() {
 			@Override
 			public void trigger(long timestamp) {
 

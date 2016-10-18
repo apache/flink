@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.runtime.operators.TestProcessingTimeServiceTest.ReferenceSettingExceptionHandler;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
 
 import org.junit.Test;
 
@@ -51,7 +50,7 @@ public class SystemProcessingTimeServiceTest {
 			assertEquals(0, timer.getNumTasksScheduled());
 
 			// schedule something
-			ScheduledFuture<?> future = timer.registerTimer(System.currentTimeMillis(), new Triggerable() {
+			ScheduledFuture<?> future = timer.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
 				@Override
 				public void trigger(long timestamp) {
 					assertTrue(Thread.holdsLock(lock));
@@ -87,7 +86,7 @@ public class SystemProcessingTimeServiceTest {
 			final OneShotLatch latch = new OneShotLatch();
 
 			// the task should trigger immediately and should block until terminated with interruption
-			timer.registerTimer(System.currentTimeMillis(), new Triggerable() {
+			timer.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
 				@Override
 				public void trigger(long timestamp) throws Exception {
 					latch.trigger();
@@ -105,7 +104,7 @@ public class SystemProcessingTimeServiceTest {
 			}
 
 			try {
-				timer.registerTimer(System.currentTimeMillis() + 1000, new Triggerable() {
+				timer.registerTimer(System.currentTimeMillis() + 1000, new ProcessingTimeCallback() {
 					@Override
 					public void trigger(long timestamp) {}
 				});
@@ -141,7 +140,7 @@ public class SystemProcessingTimeServiceTest {
 
 			final ReentrantLock scopeLock = new ReentrantLock();
 
-			timer.registerTimer(System.currentTimeMillis() + 20, new Triggerable() {
+			timer.registerTimer(System.currentTimeMillis() + 20, new ProcessingTimeCallback() {
 				@Override
 				public void trigger(long timestamp) throws Exception {
 					scopeLock.lock();
@@ -163,7 +162,7 @@ public class SystemProcessingTimeServiceTest {
 			assertTrue(scopeLock.tryLock());
 
 			// should be able to schedule more tasks (that never get executed)
-			ScheduledFuture<?> future = timer.registerTimer(System.currentTimeMillis() - 5, new Triggerable() {
+			ScheduledFuture<?> future = timer.registerTimer(System.currentTimeMillis() - 5, new ProcessingTimeCallback() {
 				@Override
 				public void trigger(long timestamp) throws Exception {
 					throw new Exception("test");
@@ -198,7 +197,7 @@ public class SystemProcessingTimeServiceTest {
 			assertEquals(0, timer.getNumTasksScheduled());
 
 			// schedule something
-			ScheduledFuture<?> future = timer.registerTimer(System.currentTimeMillis() + 100000000, new Triggerable() {
+			ScheduledFuture<?> future = timer.registerTimer(System.currentTimeMillis() + 100000000, new ProcessingTimeCallback() {
 				@Override
 				public void trigger(long timestamp) {}
 			});
@@ -233,7 +232,7 @@ public class SystemProcessingTimeServiceTest {
 					}
 				}, lock);
 		
-		timeServiceProvider.registerTimer(System.currentTimeMillis(), new Triggerable() {
+		timeServiceProvider.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
 			@Override
 			public void trigger(long timestamp) throws Exception {
 				throw new Exception("Exception in Timer");
@@ -257,7 +256,7 @@ public class SystemProcessingTimeServiceTest {
 
 			// we block the timer execution to make sure we have all the time
 			// to register some additional timers out of order
-			timer.registerTimer(System.currentTimeMillis(), new Triggerable() {
+			timer.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
 				@Override
 				public void trigger(long timestamp) throws Exception {
 					sync.await();
@@ -272,7 +271,7 @@ public class SystemProcessingTimeServiceTest {
 			final long time4 = now - 2;
 
 			final ArrayBlockingQueue<Long> timestamps = new ArrayBlockingQueue<>(4);
-			Triggerable trigger = new Triggerable() {
+			ProcessingTimeCallback trigger = new ProcessingTimeCallback() {
 				@Override
 				public void trigger(long timestamp) {
 					timestamps.add(timestamp);
