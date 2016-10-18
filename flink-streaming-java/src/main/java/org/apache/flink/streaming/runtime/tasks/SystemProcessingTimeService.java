@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
 
 import javax.annotation.Nonnull;
 import java.util.concurrent.BlockingQueue;
@@ -92,7 +91,7 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 	}
 
 	@Override
-	public ScheduledFuture<?> registerTimer(long timestamp, Triggerable target) {
+	public ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target) {
 		long delay = Math.max(timestamp - getCurrentProcessingTime(), 0);
 
 		// we directly try to register the timer and only react to the status on exception
@@ -165,11 +164,11 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 	private static final class TriggerTask implements Runnable {
 
 		private final Object lock;
-		private final Triggerable target;
+		private final ProcessingTimeCallback target;
 		private final long timestamp;
 		private final AsyncExceptionHandler exceptionHandler;
 
-		TriggerTask(AsyncExceptionHandler exceptionHandler, final Object lock, Triggerable target, long timestamp) {
+		TriggerTask(AsyncExceptionHandler exceptionHandler, final Object lock, ProcessingTimeCallback target, long timestamp) {
 			this.exceptionHandler = exceptionHandler;
 			this.lock = lock;
 			this.target = target;

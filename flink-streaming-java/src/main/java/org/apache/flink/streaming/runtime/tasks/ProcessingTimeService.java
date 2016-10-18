@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.streaming.runtime.operators.Triggerable;
-
 import java.util.concurrent.ScheduledFuture;
 
 /**
@@ -32,10 +30,10 @@ import java.util.concurrent.ScheduledFuture;
  * <ol>
  *     <li>In the initial state, it accepts timer registrations and triggers when the time is reached.</li>
  *     <li>After calling {@link #quiesceAndAwaitPending()}, further calls to
- *         {@link #registerTimer(long, Triggerable)} will not register any further timers, and will
+ *         {@link #registerTimer(long, ProcessingTimeCallback)} will not register any further timers, and will
  *         return a "dummy" future as a result. This is used for clean shutdown, where currently firing
  *         timers are waited for and no future timers can be scheduled, without causing hard exceptions.</li>
- *     <li>After a call to {@link #shutdownService()}, all calls to {@link #registerTimer(long, Triggerable)}
+ *     <li>After a call to {@link #shutdownService()}, all calls to {@link #registerTimer(long, ProcessingTimeCallback)}
  *         will result in a hard exception.</li>
  * </ol>
  */
@@ -55,7 +53,7 @@ public abstract class ProcessingTimeService {
 	 * @return The future that represents the scheduled task. This always returns some future,
 	 *         even if the timer was shut down
 	 */
-	public abstract ScheduledFuture<?> registerTimer(long timestamp, Triggerable target);
+	public abstract ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target);
 
 	/**
 	 * Returns <tt>true</tt> if the service has been shut down, <tt>false</tt> otherwise.
@@ -64,7 +62,7 @@ public abstract class ProcessingTimeService {
 
 	/**
 	 * This method puts the service into a state where it does not register new timers, but
-	 * returns for each call to {@link #registerTimer(long, Triggerable)} only a "mock" future.
+	 * returns for each call to {@link #registerTimer(long, ProcessingTimeCallback)} only a "mock" future.
 	 * Furthermore, the method clears all not yet started timers, and awaits the completion
 	 * of currently executing timers.
 	 * 
@@ -76,7 +74,7 @@ public abstract class ProcessingTimeService {
 
 	/**
 	 * Shuts down and clean up the timer service provider hard and immediately. This does not wait
-	 * for any timer to complete. Any further call to {@link #registerTimer(long, Triggerable)}
+	 * for any timer to complete. Any further call to {@link #registerTimer(long, ProcessingTimeCallback)}
 	 * will result in a hard exception.
 	 */
 	public abstract void shutdownService();

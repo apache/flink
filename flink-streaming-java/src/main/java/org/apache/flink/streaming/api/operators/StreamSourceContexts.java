@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
@@ -199,7 +199,7 @@ public class StreamSourceContexts {
 			}
 		}
 
-		private class WatermarkEmittingTask implements Triggerable {
+		private class WatermarkEmittingTask implements ProcessingTimeCallback {
 
 			private final ProcessingTimeService timeService;
 			private final Object lock;

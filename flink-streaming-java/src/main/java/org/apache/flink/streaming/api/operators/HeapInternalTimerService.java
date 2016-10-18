@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -37,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * {@link InternalTimerService} that stores timers on the Java heap.
  */
-public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, Triggerable {
+public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, ProcessingTimeCallback {
 
 	private final TypeSerializer<K> keySerializer;
 
