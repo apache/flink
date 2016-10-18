@@ -19,31 +19,35 @@
 
 package org.apache.flink.test.cancelling;
 
-import java.util.concurrent.TimeUnit;
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.TestLogger;
-import org.junit.Assert;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import static org.apache.flink.runtime.taskmanager.TaskCancelTest.awaitRunning;
-import static org.apache.flink.runtime.taskmanager.TaskCancelTest.cancelJob;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.JobManagerActorTestUtils;
+import org.apache.flink.util.TestLogger;
 import org.apache.hadoop.fs.FileSystem;
-
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
+
+import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
+import static org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
+import static org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
 
 /**
  * 
@@ -115,17 +119,30 @@ public abstract class CancelingTestBase extends TestLogger {
 			executor.submitJobDetached(jobGraph);
 
 			// Wait for the job to make some progress and then cancel
-			awaitRunning(
+			JobManagerActorTestUtils.waitForJobStatus(jobGraph.getJobID(), JobStatus.RUNNING,
 					executor.getLeaderGateway(TestingUtils.TESTING_DURATION()),
-					jobGraph.getJobID(),
 					TestingUtils.TESTING_DURATION());
 
 			Thread.sleep(msecsTillCanceling);
 
-			cancelJob(
-					executor.getLeaderGateway(TestingUtils.TESTING_DURATION()),
-					jobGraph.getJobID(),
-					new FiniteDuration(maxTimeTillCanceled, TimeUnit.MILLISECONDS));
+			FiniteDuration timeout = new FiniteDuration(maxTimeTillCanceled, TimeUnit.MILLISECONDS);
+
+			ActorGateway jobManager = executor.getLeaderGateway(TestingUtils.TESTING_DURATION());
+
+			Future<Object> ask = jobManager.ask(new CancelJob(jobGraph.getJobID()), timeout);
+
+			Object result = Await.result(ask, timeout);
+
+			if (result instanceof CancellationSuccess) {
+				// all good
+			} else if (result instanceof CancellationFailure) {
+				// Failure
+				CancellationFailure failure = (CancellationFailure) result;
+				throw new Exception("Failed to cancel job with ID " + failure.jobID() + ".",
+						failure.cause());
+			} else {
+				throw new Exception("Unexpected response to cancel request: " + result);
+			}
 
 			// Wait for the job to be cancelled
 			JobManagerActorTestUtils.waitForJobStatus(jobGraph.getJobID(), JobStatus.CANCELED,
@@ -137,7 +154,6 @@ public abstract class CancelingTestBase extends TestLogger {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}
-
 	}
 
 	private JobGraph getJobGraph(final Plan plan) throws Exception {
