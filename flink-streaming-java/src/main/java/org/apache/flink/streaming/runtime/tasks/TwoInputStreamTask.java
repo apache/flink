@@ -70,8 +70,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 				inputDeserializer1, inputDeserializer2,
 				this,
 				configuration.getCheckpointMode(),
-				getEnvironment().getIOManager(),
-				isSerializingMixedStream());
+				getEnvironment().getIOManager());
 
 		// make sure that stream tasks report their I/O statistics
 		AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();

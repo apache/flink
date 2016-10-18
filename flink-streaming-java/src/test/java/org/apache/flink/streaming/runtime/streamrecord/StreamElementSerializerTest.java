@@ -36,7 +36,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MultiplexingStreamRecordSerializerTest {
+public class StreamElementSerializerTest {
 	
 	@Test
 	public void testDeepDuplication() {
@@ -48,20 +48,20 @@ public class MultiplexingStreamRecordSerializerTest {
 		
 		when(serializer1.duplicate()).thenReturn(serializer2);
 		
-		MultiplexingStreamRecordSerializer<Long> streamRecSer = 
-				new MultiplexingStreamRecordSerializer<Long>(serializer1);
+		StreamElementSerializer<Long> streamRecSer =
+				new StreamElementSerializer<Long>(serializer1);
 		
 		assertEquals(serializer1, streamRecSer.getContainedTypeSerializer());
 
-		MultiplexingStreamRecordSerializer<Long> copy = streamRecSer.duplicate();
+		StreamElementSerializer<Long> copy = streamRecSer.duplicate();
 		assertNotEquals(copy, streamRecSer);
 		assertNotEquals(copy.getContainedTypeSerializer(), streamRecSer.getContainedTypeSerializer());
 	}
 
 	@Test
 	public void testBasicProperties() {
-		MultiplexingStreamRecordSerializer<Long> streamRecSer = 
-				new MultiplexingStreamRecordSerializer<Long>(LongSerializer.INSTANCE);
+		StreamElementSerializer<Long> streamRecSer =
+				new StreamElementSerializer<Long>(LongSerializer.INSTANCE);
 		
 		assertFalse(streamRecSer.isImmutableType());
 		assertEquals(Long.class, streamRecSer.createInstance().getValue().getClass());
@@ -70,8 +70,8 @@ public class MultiplexingStreamRecordSerializerTest {
 	
 	@Test
 	public void testSerialization() throws Exception {
-		final MultiplexingStreamRecordSerializer<String> serializer = 
-				new MultiplexingStreamRecordSerializer<String>(StringSerializer.INSTANCE);
+		final StreamElementSerializer<String> serializer =
+				new StreamElementSerializer<String>(StringSerializer.INSTANCE);
 
 		StreamRecord<String> withoutTimestamp = new StreamRecord<>("test 1 2 分享基督耶穌的愛給們，開拓雙贏!");
 		assertEquals(withoutTimestamp, serializeAndDeserialize(withoutTimestamp, serializer));
@@ -92,7 +92,7 @@ public class MultiplexingStreamRecordSerializerTest {
 	@SuppressWarnings("unchecked")
 	private static <T, X extends StreamElement> X serializeAndDeserialize(
 			X record,
-			MultiplexingStreamRecordSerializer<T> serializer) throws IOException {
+			StreamElementSerializer<T> serializer) throws IOException {
 		
 		DataOutputSerializer output = new DataOutputSerializer(32);
 		serializer.serialize(record, output);
