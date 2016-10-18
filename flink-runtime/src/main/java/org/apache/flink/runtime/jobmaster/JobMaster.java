@@ -771,6 +771,14 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		}
 	}
 
+	@RpcMethod
+	public void disconnectResourceManager(
+			final UUID jobManagerLeaderId,
+			final UUID resourceManagerLeaderId,
+			final Exception cause) {
+		// TODO: Implement disconnect behaviour
+	}
+
 	//----------------------------------------------------------------------------------------------
 	// Internal methods
 	//----------------------------------------------------------------------------------------------
@@ -961,7 +969,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 						long timeoutMillis) throws Exception
 				{
 					Time timeout = Time.milliseconds(timeoutMillis);
-					return gateway.registerJobMaster(leaderId, jobManagerLeaderID, getAddress(), jobID, timeout);
+					return gateway.registerJobManager(leaderId, jobManagerLeaderID, getAddress(), jobID, timeout);
 				}
 			};
 		}

@@ -16,47 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.resourcemanager.registration;
+package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 
 import java.util.UUID;
 
 /**
- * This class is responsible for grouping the JobMasterGateway and the JobMaster's
- * leader id
+ * Interface for actions called by the {@link JobLeaderIdService}.
  */
-public class JobMasterRegistration {
+public interface JobLeaderIdActions {
 
-	private static final long serialVersionUID = -2062957799469434614L;
+	/**
+	 * Callback when a monitored job leader lost its leadership.
+	 *
+	 * @param jobId identifying the job whose leader lost leadership
+	 * @param oldJobLeaderId of the job manager which lost leadership
+	 */
+	void jobLeaderLostLeadership(JobID jobId, UUID oldJobLeaderId);
 
-	private final JobID jobID;
+	/**
+	 * Request to remove the job from the {@link JobLeaderIdService}.
+	 *
+	 * @param jobId identifying the job to remove
+	 */
+	void removeJob(JobID jobId);
 
-	private final UUID leaderID;
-
-	private final JobMasterGateway jobMasterGateway;
-
-	public JobMasterRegistration(
-			JobID jobID,
-			UUID leaderID,
-			JobMasterGateway jobMasterGateway) {
-		this.jobID = jobID;
-		this.leaderID = leaderID;
-		this.jobMasterGateway = jobMasterGateway;
-	}
-
-	public JobID getJobID() {
-		return jobID;
-	}
-
-
-	public UUID getLeaderID() {
-		return leaderID;
-	}
-
-	public JobMasterGateway getJobMasterGateway() {
-		return jobMasterGateway;
-	}
-
+	/**
+	 * Callback to report occurring errors.
+	 *
+	 * @param error which has occurred
+	 */
+	void handleError(Throwable error);
 }

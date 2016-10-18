@@ -32,6 +32,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerServices;
@@ -107,6 +108,7 @@ public class SlotProtocolTest extends TestLogger {
 			configureHA(testingHaServices, jobID, rmAddress, rmLeaderID, jmAddress, jmLeaderID);
 
 		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(Time.seconds(5L), Time.seconds(5L));
+		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(testingHaServices);
 
 		final TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		SpiedResourceManager resourceManager =
@@ -116,12 +118,13 @@ public class SlotProtocolTest extends TestLogger {
 				testingHaServices,
 				slotManagerFactory,
 				mock(MetricRegistry.class),
+				jobLeaderIdService,
 				mock(FatalErrorHandler.class));
 		resourceManager.start();
 		rmLeaderElectionService.isLeader(rmLeaderID);
 
 		Future<RegistrationResponse> registrationFuture =
-			resourceManager.registerJobMaster(rmLeaderID, jmLeaderID, jmAddress, jobID);
+			resourceManager.registerJobManager(rmLeaderID, jmLeaderID, jmAddress, jobID);
 		try {
 			registrationFuture.get(5, TimeUnit.SECONDS);
 		} catch (Exception e) {
@@ -207,6 +210,8 @@ public class SlotProtocolTest extends TestLogger {
 
 		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(Time.seconds(5L), Time.seconds(5L));
 
+		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(testingHaServices);
+
 		TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		ResourceManager<ResourceID> resourceManager =
 			Mockito.spy(new StandaloneResourceManager(
@@ -215,6 +220,7 @@ public class SlotProtocolTest extends TestLogger {
 				testingHaServices,
 				slotManagerFactory,
 				mock(MetricRegistry.class),
+				jobLeaderIdService,
 				mock(FatalErrorHandler.class)));
 		resourceManager.start();
 		rmLeaderElectionService.isLeader(rmLeaderID);
@@ -222,7 +228,7 @@ public class SlotProtocolTest extends TestLogger {
 		Thread.sleep(1000);
 
 		Future<RegistrationResponse> registrationFuture =
-			resourceManager.registerJobMaster(rmLeaderID, jmLeaderID, jmAddress, jobID);
+			resourceManager.registerJobManager(rmLeaderID, jmLeaderID, jmAddress, jobID);
 		try {
 			registrationFuture.get(5L, TimeUnit.SECONDS);
 		} catch (Exception e) {
@@ -290,6 +296,7 @@ public class SlotProtocolTest extends TestLogger {
 				HighAvailabilityServices highAvailabilityServices,
 				SlotManagerFactory slotManagerFactory,
 				MetricRegistry metricRegistry,
+				JobLeaderIdService jobLeaderIdService,
 				FatalErrorHandler fatalErrorHandler) {
 			super(
 				rpcService,
@@ -297,6 +304,7 @@ public class SlotProtocolTest extends TestLogger {
 				highAvailabilityServices,
 				slotManagerFactory,
 				metricRegistry,
+				jobLeaderIdService,
 				fatalErrorHandler);
 		}
 
