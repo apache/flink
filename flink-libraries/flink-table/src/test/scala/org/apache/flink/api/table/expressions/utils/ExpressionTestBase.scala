@@ -30,7 +30,7 @@ import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.api.table._
 import org.apache.flink.api.table.codegen.{CodeGenerator, Compiler, GeneratedFunction}
 import org.apache.flink.api.table.expressions.{Expression, ExpressionParser}
-import org.apache.flink.api.table.functions.UserDefinedFunction
+import org.apache.flink.api.table.functions.ScalarFunction
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetCalc, DataSetConvention}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.typeutils.RowTypeInfo
@@ -79,7 +79,7 @@ abstract class ExpressionTestBase {
 
   def typeInfo: TypeInformation[Any]
 
-  def functions: Map[String, UserDefinedFunction] = Map()
+  def functions: Map[String, ScalarFunction] = Map()
 
   @Before
   def resetTestExprs() = {

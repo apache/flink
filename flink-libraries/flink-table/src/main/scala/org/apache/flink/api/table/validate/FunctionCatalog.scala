@@ -21,10 +21,10 @@ package org.apache.flink.api.table.validate
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable, ReflectiveSqlOperatorTable}
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
-import org.apache.flink.api.table.ValidationException
+import org.apache.flink.api.table.{TableFunctionCall, ValidationException}
 import org.apache.flink.api.table.expressions._
-import org.apache.flink.api.table.functions.ScalarFunction
-import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.api.table.functions.{ScalarFunction, TableFunction}
+import org.apache.flink.api.table.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -47,11 +47,48 @@ class FunctionCatalog {
     sqlFunctions += sqlFunction
   }
 
+  /** Register multiple sql functions at one time. The functions has the same name. **/
+  def registerSqlFunctions(functions: Seq[SqlFunction]): Unit = {
+    if (functions.nonEmpty) {
+      val name = functions.head.getName
+      // check all name is the same in the functions
+      if (functions.forall(_.getName == name)) {
+        sqlFunctions --= sqlFunctions.filter(_.getName == name)
+        sqlFunctions ++= functions
+      } else {
+        throw ValidationException("The sql functions request to register have different name.")
+      }
+    }
+  }
+
   def getSqlOperatorTable: SqlOperatorTable =
     ChainedSqlOperatorTable.of(
       new BasicOperatorTable(),
       new ListSqlOperatorTable(sqlFunctions)
     )
+
+  /**
+    * Lookup table function and create an TableFunctionCall if we find a match.
+    */
+  def lookupTableFunction[T](name: String, children: Seq[Expression]): TableFunctionCall = {
+    val funcClass = functionBuilders
+      .getOrElse(name.toLowerCase, throw ValidationException(s"Undefined table function: $name"))
+    funcClass match {
+      // user-defined table function call
+      case tf if classOf[TableFunction[T]].isAssignableFrom(tf) =>
+        val tableSqlFunction = sqlFunctions
+          .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[TableSqlFunction])
+          .getOrElse(throw ValidationException(s"Unregistered table sql function: $name"))
+          .asInstanceOf[TableSqlFunction]
+        val typeInfo = tableSqlFunction.getRowTypeInfo
+        val function = tableSqlFunction.getTableFunction
+        TableFunctionCall(name, function, children, typeInfo)
+
+      case _ =>
+        throw ValidationException(s"The registered function under name '$name' " +
+                                    s"is not a TableFunction")
+    }
+  }
 
   /**
     * Lookup and create an expression if we find a match.

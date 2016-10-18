@@ -24,6 +24,7 @@ import org.apache.flink.api.java.{DataSet => JDataSet}
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.api.table.expressions.Expression
+import org.apache.flink.api.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.api.table.{Table, TableEnvironment}
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
@@ -43,6 +44,12 @@ class TableTestBase {
     StreamTableTestUtil()
   }
 
+  def verifyTableEquals(expected: Table, actual: Table): Unit = {
+    assertEquals("Logical Plan do not match",
+                 RelOptUtil.toString(expected.getRelNode),
+                 RelOptUtil.toString(actual.getRelNode))
+  }
+
 }
 
 abstract class TableTestUtil {
@@ -54,6 +61,9 @@ abstract class TableTestUtil {
   }
 
   def addTable[T: TypeInformation](name: String, fields: Expression*): Table
+  def addFunction[T: TypeInformation](name: String, function: TableFunction[T]): Unit
+  def addFunction(name: String, function: ScalarFunction): Unit
+
   def verifySql(query: String, expected: String): Unit
   def verifyTable(resultTable: Table, expected: String): Unit
 
@@ -119,6 +129,17 @@ case class BatchTableTestUtil() extends TableTestUtil {
     t
   }
 
+  def addFunction[T: TypeInformation](
+      name: String,
+      function: TableFunction[T])
+    : Unit = {
+    tEnv.registerFunction(name, function)
+  }
+
+  def addFunction(name: String, function: ScalarFunction): Unit = {
+    tEnv.registerFunction(name, function)
+  }
+
   def verifySql(query: String, expected: String): Unit = {
     verifyTable(tEnv.sql(query), expected)
   }
@@ -162,6 +183,17 @@ case class StreamTableTestUtil() extends TableTestUtil {
     val t = ds.toTable(tEnv, fields: _*)
     tEnv.registerTable(name, t)
     t
+  }
+
+  def addFunction[T: TypeInformation](
+      name: String,
+      function: TableFunction[T])
+    : Unit = {
+    tEnv.registerFunction(name, function)
+  }
+
+  def addFunction(name: String, function: ScalarFunction): Unit = {
+    tEnv.registerFunction(name, function)
   }
 
   def verifySql(query: String, expected: String): Unit = {

@@ -107,6 +107,7 @@ object FlinkRuleSets {
     DataSetMinusRule.INSTANCE,
     DataSetSortRule.INSTANCE,
     DataSetValuesRule.INSTANCE,
+    DataSetCorrelateRule.INSTANCE,
     BatchTableSourceScanRule.INSTANCE
   )
 
@@ -150,6 +151,7 @@ object FlinkRuleSets {
       DataStreamScanRule.INSTANCE,
       DataStreamUnionRule.INSTANCE,
       DataStreamValuesRule.INSTANCE,
+      DataStreamCorrelateRule.INSTANCE,
       StreamTableSourceScanRule.INSTANCE
   )
 

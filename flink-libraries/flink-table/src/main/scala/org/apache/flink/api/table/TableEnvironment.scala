@@ -40,7 +40,8 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
 import org.apache.flink.api.table.codegen.ExpressionReducer
 import org.apache.flink.api.table.expressions.{Alias, Expression, UnresolvedFieldReference}
-import org.apache.flink.api.table.functions.{ScalarFunction, UserDefinedFunction}
+import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createTableSqlFunctions, createScalarSqlFunction}
+import org.apache.flink.api.table.functions.{TableFunction, ScalarFunction}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
 import org.apache.flink.api.table.plan.schema.RelTable
 import org.apache.flink.api.table.sinks.TableSink
@@ -153,21 +154,42 @@ abstract class TableEnvironment(val config: TableConfig) {
   protected def getBuiltInRuleSet: RuleSet
 
   /**
-    * Registers a [[UserDefinedFunction]] under a unique name. Replaces already existing
+    * Registers a [[ScalarFunction]] under a unique name. Replaces already existing
     * user-defined functions under this name.
     */
-  def registerFunction(name: String, function: UserDefinedFunction): Unit = {
-    function match {
-      case sf: ScalarFunction =>
-        // register in Table API
-        functionCatalog.registerFunction(name, function.getClass)
+  def registerFunction(name: String, function: ScalarFunction): Unit = {
+    // check could be instantiated
+    checkForInstantiation(function.getClass)
 
-        // register in SQL API
-        functionCatalog.registerSqlFunction(sf.getSqlFunction(name, typeFactory))
+    // register in Table API
+    functionCatalog.registerFunction(name, function.getClass)
 
-      case _ =>
-        throw new TableException("Unsupported user-defined function type.")
+    // register in SQL API
+    functionCatalog.registerSqlFunction(createScalarSqlFunction(name, function, typeFactory))
+  }
+
+  /**
+    * Registers a [[TableFunction]] under a unique name. Replaces already existing
+    * user-defined functions under this name.
+    */
+  private[flink] def registerTableFunctionInternal[T: TypeInformation](
+    name: String, function: TableFunction[T]): Unit = {
+    // check not Scala object
+    checkNotSingleton(function.getClass)
+    // check could be instantiated
+    checkForInstantiation(function.getClass)
+
+    val typeInfo: TypeInformation[_] = if (function.getResultType != null) {
+      function.getResultType
+    } else {
+      implicitly[TypeInformation[T]]
     }
+
+    // register in Table API
+    functionCatalog.registerFunction(name, function.getClass)
+    // register in SQL API
+    val sqlFunctions = createTableSqlFunctions(name, function, typeInfo, typeFactory)
+    functionCatalog.registerSqlFunctions(sqlFunctions)
   }
 
   /**

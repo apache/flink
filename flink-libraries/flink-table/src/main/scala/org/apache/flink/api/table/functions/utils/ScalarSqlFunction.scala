@@ -26,7 +26,7 @@ import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.functions.ScalarFunction
 import org.apache.flink.api.table.functions.utils.ScalarSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
-import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils.{getResultType, getSignature, signatureToString, signaturesToString}
+import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils.{getResultType, getSignature, getSignatures, signatureToString, signaturesToString}
 import org.apache.flink.api.table.{FlinkTypeFactory, ValidationException}
 
 import scala.collection.JavaConverters._
@@ -76,12 +76,12 @@ object ScalarSqlFunction {
               FlinkTypeFactory.toTypeInfo(operandType)
             }
           }
-        val foundSignature = getSignature(scalarFunction, parameters)
+        val foundSignature = getSignature(scalarFunction.getClass, parameters)
         if (foundSignature.isEmpty) {
           throw new ValidationException(
             s"Given parameters of function '$name' do not match any signature. \n" +
               s"Actual: ${signatureToString(parameters)} \n" +
-              s"Expected: ${signaturesToString(scalarFunction)}")
+              s"Expected: ${signaturesToString(scalarFunction.getClass)}")
         }
         val resultType = getResultType(scalarFunction, foundSignature.get)
         typeFactory.createTypeFromTypeInfo(resultType)
@@ -104,7 +104,7 @@ object ScalarSqlFunction {
 
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 
-        val foundSignature = getSignature(scalarFunction, operandTypeInfo)
+        val foundSignature = getSignature(scalarFunction.getClass, operandTypeInfo)
           .getOrElse(throw new ValidationException(s"Operand types of could not be inferred."))
 
         val inferredTypes = scalarFunction
@@ -123,16 +123,18 @@ object ScalarSqlFunction {
       name: String,
       scalarFunction: ScalarFunction)
     : SqlOperandTypeChecker = {
+
+    val signatures = getSignatures(scalarFunction.getClass)
     /**
       * Operand type checker based on [[ScalarFunction]] given information.
       */
     new SqlOperandTypeChecker {
       override def getAllowedSignatures(op: SqlOperator, opName: String): String = {
-        s"$opName[${signaturesToString(scalarFunction)}]"
+        s"$opName[${signaturesToString(scalarFunction.getClass)}]"
       }
 
       override def getOperandCountRange: SqlOperandCountRange = {
-        val signatureLengths = scalarFunction.getSignatures.map(_.length)
+        val signatureLengths = signatures.map(_.length)
         SqlOperandCountRanges.between(signatureLengths.min, signatureLengths.max)
       }
 
@@ -142,14 +144,14 @@ object ScalarSqlFunction {
         : Boolean = {
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 
-        val foundSignature = getSignature(scalarFunction, operandTypeInfo)
+        val foundSignature = getSignature(scalarFunction.getClass, operandTypeInfo)
 
         if (foundSignature.isEmpty) {
           if (throwOnFailure) {
             throw new ValidationException(
               s"Given parameters of function '$name' do not match any signature. \n" +
                 s"Actual: ${signatureToString(operandTypeInfo)} \n" +
-                s"Expected: ${signaturesToString(scalarFunction)}")
+                s"Expected: ${signaturesToString(scalarFunction.getClass)}")
           } else {
             false
           }

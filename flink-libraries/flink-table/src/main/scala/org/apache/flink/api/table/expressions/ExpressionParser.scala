@@ -24,6 +24,7 @@ import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, 
 import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.api.table.expressions.TimePointUnit.TimePointUnit
 import org.apache.flink.api.table.expressions.TrimMode.TrimMode
+import org.apache.flink.api.table.plan.logical.{AliasNode, LogicalNode, UnresolvedTableFunctionCall}
 import org.apache.flink.api.table.typeutils.TimeIntervalTypeInfo
 
 import scala.language.implicitConversions
@@ -465,6 +466,28 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   def parseExpression(exprString: String): Expression = {
     parseAll(expression, exprString) match {
+      case Success(lst, _) => lst
+
+      case NoSuccess(msg, next) =>
+        throwError(msg, next)
+    }
+  }
+
+  lazy val tableFunctionCall: PackratParser[LogicalNode] =
+    functionIdent ~ "(" ~ repsep(expression, ",") ~ ")" ^^ {
+    case name ~ _ ~ args ~ _ => UnresolvedTableFunctionCall(name.toUpperCase, args)
+  }
+
+  lazy val aliasNode: PackratParser[LogicalNode] =
+    tableFunctionCall ~ AS ~ "(" ~ repsep(fieldReference, ",") ~ ")" ^^ {
+    case e ~ _ ~ _ ~ names ~ _ => AliasNode(names, e)
+  } | tableFunctionCall
+
+  lazy val logicalNode: PackratParser[LogicalNode] = aliasNode |
+    failure("Invalid expression.")
+
+  def parseLogicalNode(nodeString: String): LogicalNode = {
+    parseAll(logicalNode, nodeString) match {
       case Success(lst, _) => lst
 
       case NoSuccess(msg, next) =>
