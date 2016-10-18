@@ -207,7 +207,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	}
 
 	@Override
-	public void trigger(long timestamp) throws Exception {
+	public void onProcessingTime(long timestamp) throws Exception {
 		// first we check if we actually trigger the window function
 		if (timestamp == nextEvaluationTime) {
 			// compute and output the results

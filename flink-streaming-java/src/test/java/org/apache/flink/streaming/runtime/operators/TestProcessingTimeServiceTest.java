@@ -73,14 +73,14 @@ public class TestProcessingTimeServiceTest {
 		// register 2 tasks
 		mapTask.getProcessingTimeService().registerTimer(30, new ProcessingTimeCallback() {
 			@Override
-			public void trigger(long timestamp) {
+			public void onProcessingTime(long timestamp) {
 
 			}
 		});
 
 		mapTask.getProcessingTimeService().registerTimer(40, new ProcessingTimeCallback() {
 			@Override
-			public void trigger(long timestamp) {
+			public void onProcessingTime(long timestamp) {
 
 			}
 		});

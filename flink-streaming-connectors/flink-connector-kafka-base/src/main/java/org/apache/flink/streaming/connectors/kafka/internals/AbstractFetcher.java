@@ -495,7 +495,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		}
 		
 		@Override
-		public void trigger(long timestamp) throws Exception {
+		public void onProcessingTime(long timestamp) throws Exception {
 
 			long minAcrossAll = Long.MAX_VALUE;
 			for (KafkaTopicPartitionStateWithPeriodicWatermarks<?, ?> state : allPartitions) {

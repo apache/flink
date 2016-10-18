@@ -67,7 +67,7 @@ public class StreamTaskTimerTest {
 		// first one spawns thread
 		mapTask.getProcessingTimeService().registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
 			@Override
-			public void trigger(long timestamp) {
+			public void onProcessingTime(long timestamp) {
 			}
 		});
 
@@ -163,7 +163,7 @@ public class StreamTaskTimerTest {
 		}
 
 		@Override
-		public void trigger(long timestamp) {
+		public void onProcessingTime(long timestamp) {
 			try {
 				assertEquals(expectedTimestamp, timestamp);
 				assertEquals(expectedInSequence, numInSequence);

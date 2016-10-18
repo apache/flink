@@ -179,7 +179,7 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		public void run() {
 			synchronized (lock) {
 				try {
-					target.trigger(timestamp);
+					target.onProcessingTime(timestamp);
 				} catch (Throwable t) {
 					TimerException asyncException = new TimerException(t);
 					exceptionHandler.handleAsyncException("Caught exception while processing timer.", asyncException);
