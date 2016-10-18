@@ -273,9 +273,10 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "taskmanager.refused-registration-pause";
 
 	/**
-	 * Time interval between two successive task cancellation attempts in milliseconds.
+	 * Deprecated. Please use {@link TaskManagerOptions#TASK_CANCELLATION_INTERVAL}.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public static final String TASK_CANCELLATION_INTERVAL_MILLIS = "task.cancellation-interval";
 
 	// --------------------------- Runtime Algorithms -------------------------------
@@ -948,7 +949,6 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String SAVEPOINT_FS_DIRECTORY_KEY = "savepoints.state.backend.fs.dir";
 
-
 	// ------------------------------------------------------------------------
 	//                            Default Values
 	// ------------------------------------------------------------------------
@@ -1086,8 +1086,9 @@ public final class ConfigConstants {
 	public static final boolean DEFAULT_TASK_MANAGER_MEMORY_PRE_ALLOCATE = false;
 
 	/**
-	 * The default interval (in milliseconds) to wait between consecutive task cancellation attempts (= 30000 msec).
-	 * */
+	 * Deprecated. Please use {@link TaskManagerOptions#TASK_CANCELLATION_INTERVAL}.
+	 */
+	@Deprecated
 	public static final long DEFAULT_TASK_CANCELLATION_INTERVAL_MILLIS = 30000;
 
 	// ------------------------ Runtime Algorithms ------------------------
