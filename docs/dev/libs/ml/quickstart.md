@@ -135,12 +135,13 @@ We can simply import the dataset then using:
 
 import org.apache.flink.ml.MLUtils
 
-val astroTrain: DataSet[LabeledVector] = MLUtils.readLibSVM("/path/to/svmguide1")
-val astroTest: DataSet[LabeledVector] = MLUtils.readLibSVM("/path/to/svmguide1.t")
+val astroTrain: DataSet[LabeledVector] = MLUtils.readLibSVM(env, "/path/to/svmguide1")
+val astroTest: DataSet[(Vector, Double)] = MLUtils.readLibSVM(env, "/path/to/svmguide1.t")
+      .map(x => (x.vector, x.label))
 
 {% endhighlight %}
 
-This gives us two `DataSet[LabeledVector]` objects that we will use in the following section to
+This gives us two `DataSet` objects that we will use in the following section to
 create a classifier.
 
 ## Classification
@@ -167,11 +168,11 @@ svm.fit(astroTrain)
 
 {% endhighlight %}
 
-We can now make predictions on the test set.
+We can now make predictions on the test set, and use the `evaluate` function to create (truth, prediction) pairs.
 
 {% highlight scala %}
 
-val predictionPairs = svm.predict(astroTest)
+val evaluationPairs: DataSet[(Double, Double)] = svm.evaluate(astroTest)
 
 {% endhighlight %}
 
@@ -210,12 +211,11 @@ make predictions.
 
 scaledSVM.fit(astroTrain)
 
-val predictionPairsScaled: DataSet[(Double, Double)] = scaledSVM.predict(astroTest)
+val evaluationPairsScaled: DataSet[(Double, Double)] = scaledSVM.evaluate(astroTest)
 
 {% endhighlight %}
 
 The scaled inputs should give us better prediction performance.
-The result of the prediction on `LabeledVector`s is a data set of tuples where the first entry denotes the true label value and the second entry is the predicted label value.
 
 ## Where to go from here
 
