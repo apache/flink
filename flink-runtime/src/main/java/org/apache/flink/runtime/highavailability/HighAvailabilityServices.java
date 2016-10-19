@@ -43,50 +43,67 @@ public interface HighAvailabilityServices {
 	/**
 	 * Gets the leader retriever for the cluster's resource manager.
 	 */
-	LeaderRetrievalService getResourceManagerLeaderRetriever() throws Exception;
+	LeaderRetrievalService getResourceManagerLeaderRetriever();
 
 	/**
 	 * Gets the leader retriever for the job JobMaster which is responsible for the given job
 	 *
 	 * @param jobID The identifier of the job.
-	 * @return
-	 * @throws Exception
+	 * @return Leader retrieval service to retrieve the job manager for the given job
 	 */
-	LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) throws Exception;
+	LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID);
 
 	/**
 	 * Gets the leader election service for the cluster's resource manager.
+	 *
+	 * @return Leader election service for the resource manager leader election
 	 */
-	LeaderElectionService getResourceManagerLeaderElectionService() throws Exception;
+	LeaderElectionService getResourceManagerLeaderElectionService();
 
 	/**
 	 * Gets the leader election service for the given job.
 	 *
 	 * @param jobID The identifier of the job running the election.
+	 * @return Leader election service for the job manager leader election
 	 */
-	LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) throws Exception;
+	LeaderElectionService getJobManagerLeaderElectionService(JobID jobID);
 
 	/**
 	 * Gets the checkpoint recovery factory for the job manager
+	 *
+	 * @return Checkpoint recovery factory
 	 */
-	CheckpointRecoveryFactory getCheckpointRecoveryFactory() throws Exception;
+	CheckpointRecoveryFactory getCheckpointRecoveryFactory();
 
 	/**
 	 * Gets the submitted job graph store for the job manager
+	 *
+	 * @return Submitted job graph store
+	 * @throws Exception if the submitted job graph store could not be created
 	 */
 	SubmittedJobGraphStore getSubmittedJobGraphStore() throws Exception;
 
 	/**
 	 * Gets the registry that holds information about whether jobs are currently running.
+	 *
+	 * @return Running job registry to retrieve running jobs
 	 */
-	RunningJobsRegistry getRunningJobsRegistry() throws Exception;
+	RunningJobsRegistry getRunningJobsRegistry();
 
 	/**
 	 * Creates the BLOB store in which BLOBs are stored in a highly-available fashion.
+	 *
+	 * @return Blob store
+	 * @throws IOException if the blob store could not be created
 	 */
 	BlobStore createBlobStore() throws IOException;
 
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Shut the high availability service down.
+	 *
+	 * @throws Exception if the shut down fails
+	 */
 	void shutdown() throws Exception;
 }

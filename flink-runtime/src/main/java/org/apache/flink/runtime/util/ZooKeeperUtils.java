@@ -193,7 +193,7 @@ public class ZooKeeperUtils {
 	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
 		final CuratorFramework client,
 		final Configuration configuration,
-		final String pathSuffix) throws Exception
+		final String pathSuffix)
 	{
 		String leaderPath = ConfigurationUtil.getStringWithDeprecatedKeys(
 			configuration,
@@ -240,12 +240,11 @@ public class ZooKeeperUtils {
 	 * @param configuration {@link Configuration} object containing the configuration values
 	 * @param pathSuffix    The path suffix which we want to append
 	 * @return {@link ZooKeeperLeaderElectionService} instance.
-	 * @throws Exception
 	 */
 	public static ZooKeeperLeaderElectionService createLeaderElectionService(
 		final CuratorFramework client,
 		final Configuration configuration,
-		final String pathSuffix) throws Exception
+		final String pathSuffix)
 	{
 		final String latchPath = ConfigurationUtil.getStringWithDeprecatedKeys(
 			configuration,

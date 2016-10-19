@@ -33,7 +33,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -229,21 +228,9 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 		log.info("Using restart strategy {} for {} ({}).", restartStrategy, jobName, jid);
 
-		CheckpointRecoveryFactory checkpointRecoveryFactory;
-		try {
-			checkpointRecoveryFactory = highAvailabilityServices.getCheckpointRecoveryFactory();
-		} catch (Exception e) {
-			log.error("Could not create the access to highly-available checkpoint storage.", e);
-			throw new Exception("Could not create the access to highly-available checkpoint storage.", e);
-		}
+		CheckpointRecoveryFactory checkpointRecoveryFactory = highAvailabilityServices.getCheckpointRecoveryFactory();
 
-		try {
-			resourceManagerLeaderRetriever = highAvailabilityServices.getResourceManagerLeaderRetriever();
-		} catch (Exception e) {
-			log.error("Could not get the resource manager leader retriever.", e);
-			throw new JobSubmissionException(jobGraph.getJobID(),
-					"Could not get the resource manager leader retriever.", e);
-		}
+		resourceManagerLeaderRetriever = highAvailabilityServices.getResourceManagerLeaderRetriever();
 
 		this.executionGraph = ExecutionGraphBuilder.buildGraph(
 				null,
