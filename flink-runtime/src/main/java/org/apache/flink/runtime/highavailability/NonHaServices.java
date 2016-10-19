@@ -57,12 +57,12 @@ public class NonHaServices extends AbstractNonHaServices implements HighAvailabi
 	// ------------------------------------------------------------------------
 
 	@Override
-	public LeaderRetrievalService getResourceManagerLeaderRetriever() throws Exception {
+	public LeaderRetrievalService getResourceManagerLeaderRetriever() {
 		return new StandaloneLeaderRetrievalService(resourceManagerAddress, new UUID(0, 0));
 	}
 
 	@Override
-	public LeaderElectionService getResourceManagerLeaderElectionService() throws Exception {
+	public LeaderElectionService getResourceManagerLeaderElectionService() {
 		return new StandaloneLeaderElectionService();
 	}
 }
