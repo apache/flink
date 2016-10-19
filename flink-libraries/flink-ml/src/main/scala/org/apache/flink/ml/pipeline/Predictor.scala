@@ -22,7 +22,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.ml._
-import org.apache.flink.ml.common.{FlinkMLTools, ParameterMap, WithParameters}
+import org.apache.flink.ml.common.{LabeledVector, FlinkMLTools, ParameterMap, WithParameters}
+
 
 /** Predictor trait for Flink's pipeline operators.
   *
@@ -51,10 +52,10 @@ trait Predictor[Self] extends Estimator[Self] with WithParameters {
     * @return
     */
   def predict[Testing, Prediction](
-      testing: DataSet[Testing],
-      predictParameters: ParameterMap = ParameterMap.Empty)(implicit
-      predictor: PredictDataSetOperation[Self, Testing, Prediction])
-    : DataSet[Prediction] = {
+    testing: DataSet[Testing],
+    predictParameters: ParameterMap = ParameterMap.Empty)(implicit
+    predictor: PredictDataSetOperation[Self, Testing, Prediction])
+  : DataSet[Prediction] = {
     FlinkMLTools.registerFlinkMLTypes(testing.getExecutionEnvironment)
     predictor.predictDataSet(this, predictParameters, testing)
   }
@@ -71,10 +72,10 @@ trait Predictor[Self] extends Estimator[Self] with WithParameters {
     * @return
     */
   def evaluate[Testing, PredictionValue](
-      testing: DataSet[Testing],
-      evaluateParameters: ParameterMap = ParameterMap.Empty)(implicit
-      evaluator: EvaluateDataSetOperation[Self, Testing, PredictionValue])
-    : DataSet[(PredictionValue, PredictionValue)] = {
+    testing: DataSet[Testing],
+    evaluateParameters: ParameterMap = ParameterMap.Empty)(implicit
+    evaluator: EvaluateDataSetOperation[Self, Testing, PredictionValue])
+  : DataSet[(PredictionValue, PredictionValue)] = {
     FlinkMLTools.registerFlinkMLTypes(testing.getExecutionEnvironment)
     evaluator.evaluateDataSet(this, evaluateParameters, testing)
   }
@@ -99,27 +100,27 @@ object Predictor {
     * @return
     */
   implicit def defaultPredictDataSetOperation[
-      Instance <: Estimator[Instance],
-      Model,
-      Testing,
-      PredictionValue](
-      implicit predictOperation: PredictOperation[Instance, Model, Testing, PredictionValue],
-      testingTypeInformation: TypeInformation[Testing],
-      predictionValueTypeInformation: TypeInformation[PredictionValue])
-    : PredictDataSetOperation[Instance, Testing, (Testing, PredictionValue)] = {
+  Instance <: Estimator[Instance],
+  Model,
+  Testing,
+  PredictionValue](
+    implicit predictOperation: PredictOperation[Instance, Model, Testing, PredictionValue],
+    testingTypeInformation: TypeInformation[Testing],
+    predictionValueTypeInformation: TypeInformation[PredictionValue])
+  : PredictDataSetOperation[Instance, Testing, (Testing, PredictionValue)] = {
     new PredictDataSetOperation[Instance, Testing, (Testing, PredictionValue)] {
       override def predictDataSet(
-          instance: Instance,
-          predictParameters: ParameterMap,
-          input: DataSet[Testing])
-        : DataSet[(Testing, PredictionValue)] = {
+        instance: Instance,
+        predictParameters: ParameterMap,
+        input: DataSet[Testing])
+      : DataSet[(Testing, PredictionValue)] = {
         val resultingParameters = instance.parameters ++ predictParameters
 
         val model = predictOperation.getModel(instance, resultingParameters)
 
         implicit val resultTypeInformation = createTypeInformation[(Testing, PredictionValue)]
 
-        input.mapWithBcVariable(model){
+        input.mapWithBcVariable(model) {
           (element, model) => {
             (element, predictOperation.predict(element, model))
           }
@@ -145,26 +146,26 @@ object Predictor {
     * @return
     */
   implicit def defaultEvaluateDataSetOperation[
-      Instance <: Estimator[Instance],
-      Model,
-      Testing,
-      PredictionValue](
-      implicit predictOperation: PredictOperation[Instance, Model, Testing, PredictionValue],
-      testingTypeInformation: TypeInformation[Testing],
-      predictionValueTypeInformation: TypeInformation[PredictionValue])
-    : EvaluateDataSetOperation[Instance, (Testing, PredictionValue), PredictionValue] = {
+  Instance <: Estimator[Instance],
+  Model,
+  Testing,
+  PredictionValue](
+    implicit predictOperation: PredictOperation[Instance, Model, Testing, PredictionValue],
+    testingTypeInformation: TypeInformation[Testing],
+    predictionValueTypeInformation: TypeInformation[PredictionValue])
+  : EvaluateDataSetOperation[Instance, (Testing, PredictionValue), PredictionValue] = {
     new EvaluateDataSetOperation[Instance, (Testing, PredictionValue), PredictionValue] {
       override def evaluateDataSet(
-          instance: Instance,
-          evaluateParameters: ParameterMap,
-          testing: DataSet[(Testing, PredictionValue)])
-        : DataSet[(PredictionValue,  PredictionValue)] = {
+        instance: Instance,
+        evaluateParameters: ParameterMap,
+        testing: DataSet[(Testing, PredictionValue)])
+      : DataSet[(PredictionValue, PredictionValue)] = {
         val resultingParameters = instance.parameters ++ evaluateParameters
         val model = predictOperation.getModel(instance, resultingParameters)
 
         implicit val resultTypeInformation = createTypeInformation[(Testing, PredictionValue)]
 
-        testing.mapWithBcVariable(model){
+        testing.mapWithBcVariable(model) {
           (element, model) => {
             (element._2, predictOperation.predict(element._1, model))
           }
@@ -172,6 +173,56 @@ object Predictor {
       }
     }
   }
+
+  /** Specific [[EvaluateDataSetOperation]] which takes a [[PredictOperation]] to calculate a tuple
+    * of true label value and predicted label value, from a DataSet[LabeledVector].
+    *
+    * Note:This implementation differs from [[defaultEvaluateDataSetOperation]] because it can
+    * evaluate a dataSet of LabeledVector (and not a dataset of tuples (Vector,Double)).
+    *
+    * @param predictOperation
+    * @param testingTypeInformation
+    * @param predictionValueTypeInformation
+    * @tparam Instance
+    * @tparam Model
+    * @tparam FlinkVector
+    * @tparam Double
+    * @return
+    */
+  implicit def labeledVectorEvaluateDataSetOperation[
+  Instance <: Estimator[Instance],
+  Model,
+  FlinkVector,
+  Double](
+    implicit predictOperation: PredictOperation[Instance, Model,
+      FlinkVector, Double],
+    testingTypeInformation: TypeInformation[FlinkVector],
+    predictionValueTypeInformation: TypeInformation[Double])
+  : EvaluateDataSetOperation[Instance, LabeledVector, Double] = {
+    new EvaluateDataSetOperation[Instance, LabeledVector, Double] {
+      override def evaluateDataSet(
+        instance: Instance,
+        evaluateParameters: ParameterMap,
+        testing: DataSet[LabeledVector])
+      : DataSet[(Double, Double)] = {
+        val resultingParameters = instance.parameters ++ evaluateParameters
+        val model = predictOperation.getModel(instance, resultingParameters)
+
+        implicit val resultTypeInformation =
+          createTypeInformation[(FlinkVector, Double)]
+
+        testing.mapWithBcVariable(model) {
+          (element, model) => {
+            (element.label.asInstanceOf[Double],
+              predictOperation.predict(element.vector.asInstanceOf[FlinkVector],
+                model))
+          }
+        }
+      }
+    }
+  }
+
+
 }
 
 /** Type class for the predict operation of [[Predictor]]. This predict operation works on DataSets.
@@ -188,7 +239,7 @@ object Predictor {
   * @tparam Testing Type of testing data
   * @tparam Prediction Type of predicted data
   */
-trait PredictDataSetOperation[Self, Testing, Prediction] extends Serializable{
+trait PredictDataSetOperation[Self, Testing, Prediction] extends Serializable {
 
   /** Calculates the predictions for all elements in the [[DataSet]] input
     *
@@ -198,10 +249,10 @@ trait PredictDataSetOperation[Self, Testing, Prediction] extends Serializable{
     * @return
     */
   def predictDataSet(
-      instance: Self,
-      predictParameters: ParameterMap,
-      input: DataSet[Testing])
-    : DataSet[Prediction]
+    instance: Self,
+    predictParameters: ParameterMap,
+    input: DataSet[Testing])
+  : DataSet[Prediction]
 }
 
 /** Type class for predict operation. It takes an element and the model and then computes the
@@ -217,7 +268,7 @@ trait PredictDataSetOperation[Self, Testing, Prediction] extends Serializable{
   * @tparam Prediction The type of the label that the prediction operation will produce (output)
   *
   */
-trait PredictOperation[Instance, Model, Testing, Prediction] extends Serializable{
+trait PredictOperation[Instance, Model, Testing, Prediction] extends Serializable {
 
   /** Defines how to retrieve the model of the type for which this operation was defined
     *
@@ -234,7 +285,7 @@ trait PredictOperation[Instance, Model, Testing, Prediction] extends Serializabl
     * @return A label for the provided example of type [[Prediction]]
     */
   def predict(value: Testing, model: Model):
-    Prediction
+  Prediction
 }
 
 /** Type class for the evaluate operation of [[Predictor]]. This evaluate operation works on
@@ -249,10 +300,10 @@ trait PredictOperation[Instance, Model, Testing, Prediction] extends Serializabl
   * @tparam Prediction The type of the label that the prediction operation will produce (output)
   *
   */
-trait EvaluateDataSetOperation[Instance, Testing, Prediction] extends Serializable{
+trait EvaluateDataSetOperation[Instance, Testing, Prediction] extends Serializable {
   def evaluateDataSet(
-      instance: Instance,
-      evaluateParameters: ParameterMap,
-      testing: DataSet[Testing])
-    : DataSet[(Prediction, Prediction)]
+    instance: Instance,
+    evaluateParameters: ParameterMap,
+    testing: DataSet[Testing])
+  : DataSet[(Prediction, Prediction)]
 }

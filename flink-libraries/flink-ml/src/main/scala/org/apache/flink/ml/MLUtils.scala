@@ -31,12 +31,12 @@ import org.apache.flink.util.Collector
   * This object contains convenience functions for machine learning tasks:
   *
   * - readLibSVM:
-  *   Reads a libSVM/SVMLight input file and returns a data set of [[LabeledVector]].
-  *   The file format is specified [http://svmlight.joachims.org/ here].
+  * Reads a libSVM/SVMLight input file and returns a data set of [[LabeledVector]].
+  * The file format is specified [http://svmlight.joachims.org/ here].
   *
   * - writeLibSVM:
-  *   Writes a data set of [[LabeledVector]] in libSVM/SVMLight format to disk. THe file format
-  *   is specified [http://svmlight.joachims.org/ here].
+  * Writes a data set of [[LabeledVector]] in libSVM/SVMLight format to disk. THe file format
+  * is specified [http://svmlight.joachims.org/ here].
   */
 object MLUtils {
 
@@ -51,9 +51,9 @@ object MLUtils {
     * @param env executionEnvironment [[ExecutionEnvironment]]
     * @param filePath Path to the input file
     * @return [[DataSet]] of [[LabeledVector]] containing the information of the libSVM/SVMLight
-    *        file
+    *         file
     */
-  def readLibSVM(env: ExecutionEnvironment, filePath: String): DataSet[LabeledVector] = {
+  def readLibSVM(implicit env: ExecutionEnvironment, filePath: String): DataSet[LabeledVector] = {
     val labelCOODS = env.readTextFile(filePath).flatMap(
       new RichFlatMapFunction[String, (Double, Array[(Int, Double)])] {
         val splitPattern = "\\s+".r
@@ -87,35 +87,37 @@ object MLUtils {
     // Calculate maximum dimension of vectors
     val dimensionDS = labelCOODS.map {
       labelCOO =>
-        labelCOO._2.map( _._1 + 1 ).max
+        labelCOO._2.map(_._1 + 1).max
     }.reduce(scala.math.max(_, _))
 
-    labelCOODS.map{ new RichMapFunction[(Double, Array[(Int, Double)]), LabeledVector] {
-      var dimension = 0
+    labelCOODS.map {
+      new RichMapFunction[(Double, Array[(Int, Double)]), LabeledVector] {
+        var dimension = 0
 
-      override def open(configuration: Configuration): Unit = {
-        dimension = getRuntimeContext.getBroadcastVariable(DIMENSION).get(0)
-      }
+        override def open(configuration: Configuration): Unit = {
+          dimension = getRuntimeContext.getBroadcastVariable(DIMENSION).get(0)
+        }
 
-      override def map(value: (Double, Array[(Int, Double)])): LabeledVector = {
-        new LabeledVector(value._1, SparseVector.fromCOO(dimension, value._2))
+        override def map(value: (Double, Array[(Int, Double)])): LabeledVector = {
+          new LabeledVector(value._1, SparseVector.fromCOO(dimension, value._2))
+        }
       }
-    }}.withBroadcastSet(dimensionDS, DIMENSION)
+    }.withBroadcastSet(dimensionDS, DIMENSION)
   }
 
   /** Writes a [[DataSet]] of [[LabeledVector]] to a file using the libSVM/SVMLight format.
-    * 
+    *
     * @param filePath Path to output file
     * @param labeledVectors [[DataSet]] of [[LabeledVector]] to write to disk
     * @return
     */
   def writeLibSVM(filePath: String, labeledVectors: DataSet[LabeledVector]): DataSink[String] = {
-    val stringRepresentation = labeledVectors.map{
+    val stringRepresentation = labeledVectors.map {
       labeledVector =>
         val vectorStr = labeledVector.vector.
           // remove zero entries
-          filter( _._2 != 0).
-          map{case (idx, value) => (idx + 1) + ":" + value}.
+          filter(_._2 != 0).
+          map { case (idx, value) => (idx + 1) + ":" + value }.
           mkString(" ")
 
         labeledVector.label + " " + vectorStr
