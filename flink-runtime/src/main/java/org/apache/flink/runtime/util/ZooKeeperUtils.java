@@ -158,10 +158,9 @@ public class ZooKeeperUtils {
 	 *
 	 * @param configuration {@link Configuration} object containing the configuration values
 	 * @return {@link ZooKeeperLeaderRetrievalService} instance.
-	 * @throws Exception
 	 */
 	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
-			Configuration configuration) throws Exception {
+			Configuration configuration) {
 		CuratorFramework client = startCuratorFramework(configuration);
 		String leaderPath = ConfigurationUtil.getStringWithDeprecatedKeys(
 				configuration,
@@ -178,10 +177,9 @@ public class ZooKeeperUtils {
 	 *
 	 * @param configuration {@link Configuration} object containing the configuration values
 	 * @return {@link ZooKeeperLeaderElectionService} instance.
-	 * @throws Exception
 	 */
 	public static ZooKeeperLeaderElectionService createLeaderElectionService(
-			Configuration configuration) throws Exception {
+			Configuration configuration) {
 
 		CuratorFramework client = startCuratorFramework(configuration);
 
@@ -194,11 +192,10 @@ public class ZooKeeperUtils {
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object containing the configuration values
 	 * @return {@link ZooKeeperLeaderElectionService} instance.
-	 * @throws Exception
 	 */
 	public static ZooKeeperLeaderElectionService createLeaderElectionService(
 			CuratorFramework client,
-			Configuration configuration) throws Exception {
+			Configuration configuration) {
 
 		String latchPath = ConfigurationUtil.getStringWithDeprecatedKeys(
 				configuration,
@@ -220,6 +217,7 @@ public class ZooKeeperUtils {
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object
 	 * @return {@link ZooKeeperSubmittedJobGraphStore} instance
+	 * @throws Exception if the submitted job graph store cannot be created
 	 */
 	public static ZooKeeperSubmittedJobGraphStore createSubmittedJobGraphs(
 			CuratorFramework client,
@@ -248,6 +246,7 @@ public class ZooKeeperUtils {
 	 * @param jobId                          ID of job to create the instance for
 	 * @param maxNumberOfCheckpointsToRetain The maximum number of checkpoints to retain
 	 * @return {@link ZooKeeperCompletedCheckpointStore} instance
+	 * @throws Exception if the completed checkpoint store cannot be created
 	 */
 	public static CompletedCheckpointStore createCompletedCheckpoints(
 			CuratorFramework client,
@@ -287,7 +286,7 @@ public class ZooKeeperUtils {
 	public static ZooKeeperCheckpointIDCounter createCheckpointIDCounter(
 			CuratorFramework client,
 			Configuration configuration,
-			JobID jobId) throws Exception {
+			JobID jobId) {
 
 		String checkpointIdCounterPath = ConfigurationUtil.getStringWithDeprecatedKeys(
 				configuration,
@@ -307,7 +306,7 @@ public class ZooKeeperUtils {
 	 * @param prefix Prefix for the created files
 	 * @param <T> Type of the state objects
 	 * @return {@link FileSystemStateStorageHelper} instance
-	 * @throws IOException
+	 * @throws IOException if file system state storage cannot be created
 	 */
 	public static <T extends Serializable> FileSystemStateStorageHelper<T> createFileSystemStateStorage(
 			Configuration configuration,

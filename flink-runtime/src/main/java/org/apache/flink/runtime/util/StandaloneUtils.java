@@ -57,7 +57,7 @@ public final class StandaloneUtils {
 	 * @param configuration Configuration instance containing hte host and port information
 	 * @param jobManagerName Name of the JobManager actor
 	 * @return StandaloneLeaderRetrievalService
-	 * @throws UnknownHostException
+	 * @throws UnknownHostException if the host name cannot be resolved into an {@link InetAddress}
 	 */
 	public static StandaloneLeaderRetrievalService createLeaderRetrievalService(
 			Configuration configuration,
