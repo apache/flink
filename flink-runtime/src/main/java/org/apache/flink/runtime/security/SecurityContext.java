@@ -200,6 +200,7 @@ public class SecurityContext {
 			Files.copy(jaasConfStream, jaasConfPath, StandardCopyOption.REPLACE_EXISTING);
 			jaasConfFile = jaasConfPath.toFile();
 			jaasConfFile.deleteOnExit();
+			jaasConfStream.close();
 		} catch (IOException e) {
 			throw new RuntimeException("SASL auth is enabled for ZK but unable to " +
 				"locate pseudo Jaas config provided with Flink", e);
