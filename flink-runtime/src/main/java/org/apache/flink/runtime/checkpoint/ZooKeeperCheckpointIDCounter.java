@@ -71,9 +71,8 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	 *
 	 * @param client      Curator ZooKeeper client
 	 * @param counterPath ZooKeeper path for the counter. It's sufficient to have a path per-job.
-	 * @throws Exception
 	 */
-	public ZooKeeperCheckpointIDCounter(CuratorFramework client, String counterPath) throws Exception {
+	public ZooKeeperCheckpointIDCounter(CuratorFramework client, String counterPath) {
 		this.client = checkNotNull(client, "Curator client");
 		this.counterPath = checkNotNull(counterPath, "Counter path");
 		this.sharedCount = new SharedCount(client, counterPath, 1);
