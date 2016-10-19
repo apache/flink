@@ -72,7 +72,7 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
 	// ------------------------------------------------------------------------
 
 	@Override
-	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) throws Exception {
+	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
 		checkNotNull(jobID);
 
 		synchronized (lock) {
@@ -83,7 +83,7 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
 	}
 
 	@Override
-	public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) throws Exception {
+	public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
 		checkNotNull(jobID);
 
 		synchronized (lock) {
@@ -104,19 +104,19 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
 	}
 
 	@Override
-	public CheckpointRecoveryFactory getCheckpointRecoveryFactory() throws Exception {
+	public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
 		checkNotShutdown();
 		return new StandaloneCheckpointRecoveryFactory();
 	}
 
 	@Override
-	public SubmittedJobGraphStore getSubmittedJobGraphStore() throws Exception {
+	public SubmittedJobGraphStore getSubmittedJobGraphStore() {
 		checkNotShutdown();
 		return new StandaloneSubmittedJobGraphStore();
 	}
 
 	@Override
-	public RunningJobsRegistry getRunningJobsRegistry() throws Exception {
+	public RunningJobsRegistry getRunningJobsRegistry() {
 		checkNotShutdown();
 		return runningJobsRegistry;
 	}
