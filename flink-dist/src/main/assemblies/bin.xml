@@ -28,8 +28,8 @@ under the License.
 	<includeBaseDirectory>true</includeBaseDirectory>
 	<baseDirectory>flink-${project.version}</baseDirectory>
 
-	<!-- Include flink-python.jar in lib/ -->
 	<dependencySets>
+		<!-- Include flink-python.jar in lib/ -->
 		<dependencySet>
 			<outputDirectory>lib</outputDirectory>
 			<unpack>false</unpack>
@@ -42,6 +42,120 @@ under the License.
 				<include>org.apache.flink:flink-python_2.10</include>
 				<include>org.slf4j:slf4j-log4j12</include>
 				<include>log4j:log4j</include>
+			</includes>
+		</dependencySet>
+
+		<!-- Package Flink connectors, metrics, and libraries in opt/ -->
+		<dependencySet>
+			<outputDirectory>opt/connectors/batch</outputDirectory>
+			<unpack>false</unpack>
+			<useTransitiveDependencies>true</useTransitiveDependencies>
+			<useProjectArtifact>false</useProjectArtifact>
+			<useProjectAttachments>false</useProjectAttachments>
+			<useTransitiveFiltering>true</useTransitiveFiltering>
+
+			<includes>
+				<include>org.apache.flink:flink-hadoop-compatibility_2.10</include>
+				<include>org.apache.flink:flink-hbase_2.10</include>
+				<include>org.apache.flink:flink-hcatalog</include>
+				<include>org.apache.flink:flink-jdbc</include>
+			</includes>
+		</dependencySet>
+
+		<dependencySet>
+			<outputDirectory>opt/connectors/streaming</outputDirectory>
+			<unpack>false</unpack>
+			<useTransitiveDependencies>true</useTransitiveDependencies>
+			<useProjectArtifact>false</useProjectArtifact>
+			<useProjectAttachments>false</useProjectAttachments>
+			<useTransitiveFiltering>true</useTransitiveFiltering>
+
+			<includes>
+				<include>org.apache.flink:flink-connector-cassandra_2.10</include>
+				<include>org.apache.flink:flink-connector-elasticsearch_2.10</include>
+				<include>org.apache.flink:flink-connector-elasticsearch2_2.10</include>
+				<include>org.apache.flink:flink-connector-filesystem_2.10</include>
+				<include>org.apache.flink:flink-connector-flume_2.10</include>
+				<include>org.apache.flink:flink-connector-kafka-0.8_2.10</include>
+				<include>org.apache.flink:flink-connector-kafka-0.9_2.10</include>
+				<include>org.apache.flink:flink-connector-kafka-0.10_2.10</include>
+				<include>org.apache.flink:flink-connector-kafka-base_2.10</include>
+				<include>org.apache.flink:flink-connector-nifi_2.10</include>
+				<include>org.apache.flink:flink-connector-rabbitmq_2.10</include>
+				<include>org.apache.flink:flink-connector-redis_2.10</include>
+				<include>org.apache.flink:flink-connector-twitter_2.10</include>
+			</includes>
+		</dependencySet>
+
+		<dependencySet>
+			<outputDirectory>opt/metrics</outputDirectory>
+			<unpack>false</unpack>
+			<useTransitiveDependencies>true</useTransitiveDependencies>
+			<useProjectArtifact>false</useProjectArtifact>
+			<useProjectAttachments>false</useProjectAttachments>
+			<useTransitiveFiltering>true</useTransitiveFiltering>
+
+			<includes>
+				<include>org.apache.flink:flink-metrics-dropwizard</include>
+				<include>org.apache.flink:flink-metrics-ganglia</include>
+				<include>org.apache.flink:flink-metrics-graphite</include>
+				<include>org.apache.flink:flink-metrics-statsd</include>
+			</includes>
+		</dependencySet>
+
+		<dependencySet>
+			<outputDirectory>opt/lib/cep</outputDirectory>
+			<unpack>false</unpack>
+			<useTransitiveDependencies>true</useTransitiveDependencies>
+			<useProjectArtifact>false</useProjectArtifact>
+			<useProjectAttachments>false</useProjectAttachments>
+			<useTransitiveFiltering>true</useTransitiveFiltering>
+
+			<includes>
+				<include>org.apache.flink:flink-cep_2.10</include>
+				<include>org.apache.flink:flink-cep-scala_2.10</include>
+			</includes>
+		</dependencySet>
+
+		<dependencySet>
+			<outputDirectory>opt/lib/gelly</outputDirectory>
+			<unpack>false</unpack>
+			<useTransitiveDependencies>true</useTransitiveDependencies>
+			<useProjectArtifact>false</useProjectArtifact>
+			<useProjectAttachments>false</useProjectAttachments>
+			<useTransitiveFiltering>true</useTransitiveFiltering>
+
+			<includes>
+				<include>org.apache.flink:flink-gelly_2.10</include>
+				<include>org.apache.flink:flink-gelly-scala_2.10</include>
+				<include>org.apache.flink:flink-gelly-examples_2.10</include>
+			</includes>
+		</dependencySet>
+
+		<dependencySet>
+			<outputDirectory>opt/lib/ml</outputDirectory>
+			<unpack>false</unpack>
+			<useTransitiveDependencies>true</useTransitiveDependencies>
+			<useProjectArtifact>false</useProjectArtifact>
+			<useProjectAttachments>false</useProjectAttachments>
+			<useTransitiveFiltering>true</useTransitiveFiltering>
+
+			<includes>
+				<include>org.apache.flink:flink-ml_2.10</include>
+			</includes>
+		</dependencySet>
+
+		<dependencySet>
+			<outputDirectory>opt/lib/storm</outputDirectory>
+			<unpack>false</unpack>
+			<useTransitiveDependencies>true</useTransitiveDependencies>
+			<useProjectArtifact>false</useProjectArtifact>
+			<useProjectAttachments>false</useProjectAttachments>
+			<useTransitiveFiltering>true</useTransitiveFiltering>
+
+			<includes>
+				<include>org.apache.flink:flink-storm_2.10</include>
+				<include>org.apache.flink:flink-storm-examples_2.10</include>
 			</includes>
 		</dependencySet>
 	</dependencySets>
