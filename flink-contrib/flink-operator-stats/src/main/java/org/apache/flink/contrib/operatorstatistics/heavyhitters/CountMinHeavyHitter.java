@@ -123,9 +123,9 @@ public class CountMinHeavyHitter implements HeavyHitter, Serializable {
 			cardinality+=cmToMerge.cardinality;
 
 		}catch (ClassCastException ex){
-			throw new CMHeavyHitterMergeException("Both heavy hitter objects must belong to the same class");
+			throw new CMHeavyHitterMergeException("Both heavy hitter objects must belong to the same class", ex);
 		}catch (Exception ex){
-			throw new CMHeavyHitterMergeException("Cannot merge count min sketches: "+ex.getMessage());
+			throw new CMHeavyHitterMergeException("Cannot merge count min sketches: ", ex);
 		}
 	}
 
@@ -138,8 +138,13 @@ public class CountMinHeavyHitter implements HeavyHitter, Serializable {
 	}
 
 	protected static class CMHeavyHitterMergeException extends HeavyHitterMergeException {
+
 		public CMHeavyHitterMergeException(String message) {
 			super(message);
+		}
+
+		public CMHeavyHitterMergeException(String message, Throwable cause) {
+			super(message, cause);
 		}
 	}
 
