@@ -80,6 +80,7 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -217,47 +218,33 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	 * Called to shut down the TaskManager. The method closes all TaskManager services.
 	 */
 	@Override
-	public void shutDown() {
+	public void shutDown() throws Exception {
 		log.info("Stopping TaskManager {}.", getAddress());
+
+		Exception exception = null;
 
 		taskSlotTable.stop();
 
 		if (isConnectedToResourceManager()) {
-			try {
-				resourceManagerConnection.close();
-			} catch (Exception e) {
-				log.error("Could not cleanly close the ResourceManager connection.", e);
-			}
+			resourceManagerConnection.close();
 		}
 
-		try {
-			ioManager.shutdown();
-		} catch (Exception e) {
-			log.error("IOManager did not shut down properly.", e);
-		}
+		ioManager.shutdown();
+
+		memoryManager.shutdown();
+
+		networkEnvironment.shutdown();
+
+		fileCache.shutdown();
 
 		try {
-			memoryManager.shutdown();
+			super.shutDown();
 		} catch (Exception e) {
-			log.error("MemoryManager did not shut down properly.", e);
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
-		try {
-			networkEnvironment.shutdown();
-		} catch (Exception e) {
-			log.error("Network environment did not shut down properly.", e);
-		}
-
-		try {
-			fileCache.shutdown();
-		} catch (Exception e) {
-			log.error("File cache did not shut down properly.", e);
-		}
-
-		try {
-			metricRegistry.shutdown();
-		} catch (Exception e) {
-			log.error("MetricRegistry did not shut down properly.", e);
+		if (exception != null) {
+			ExceptionUtils.rethrowException(exception, "Error while shutting the TaskExecutor down.");
 		}
 
 		log.info("Stopped TaskManager {}.", getAddress());
