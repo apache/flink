@@ -19,8 +19,14 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -28,12 +34,12 @@ import org.mockito.stubbing.Answer;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.HashSet;
+import java.util.Set;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -41,8 +47,94 @@ import static org.mockito.Mockito.*;
  */
 public class HeapInternalTimerServiceTest {
 
+	private static final int startKeyGroupIdx = 0;
+	private static final int endKeyGroupIdx = 10;
+	private static final KeyGroupsList testKeyGroupList =
+		new KeyGroupRange(startKeyGroupIdx, endKeyGroupIdx);
+
 	private static InternalTimer<Integer, String> anyInternalTimer() {
 		return any();
+	}
+
+	@Test
+	public void testKeyGroupStartIndexSetting() {
+
+		int startKeyGroupIdx = 7;
+		int endKeyGroupIdx = 21;
+		KeyGroupsList testKeyGroupList = new KeyGroupRange(startKeyGroupIdx, endKeyGroupIdx);
+
+		TestKeyContext keyContext = new TestKeyContext();
+
+		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+
+		HeapInternalTimerService<Integer, String> service =
+				new HeapInternalTimerService<>(
+						testKeyGroupList.getNumberOfKeyGroups(),
+						testKeyGroupList,
+						keyContext,
+						processingTimeService);
+
+		Assert.assertEquals(startKeyGroupIdx, service.getLocalKeyGroupRangeStartIdx());
+	}
+
+	@Test
+	public void testTimerAssignmentToKeyGroups() {
+		int totalNoOfTimers = 100;
+
+		int totalNoOfKeyGroups = 100;
+		int startKeyGroupIdx = 0;
+		int endKeyGroupIdx = totalNoOfKeyGroups - 1; // we have 0 to 99
+
+		@SuppressWarnings("unchecked")
+		Set<InternalTimer<Integer, String>>[] expectedNonEmptyTimerSets = new HashSet[totalNoOfKeyGroups];
+
+		TestKeyContext keyContext = new TestKeyContext();
+		HeapInternalTimerService<Integer, String> timerService =
+				new HeapInternalTimerService<>(
+						totalNoOfKeyGroups,
+						new KeyGroupRange(startKeyGroupIdx, endKeyGroupIdx),
+						keyContext,
+						new TestProcessingTimeService());
+
+		timerService.startTimerService(IntSerializer.INSTANCE, StringSerializer.INSTANCE, mock(Triggerable.class));
+
+		for (int i = 0; i < totalNoOfTimers; i++) {
+
+			// create the timer to be registered
+			InternalTimer<Integer, String> timer = new InternalTimer<>(10 + i, i, "hello_world_"+ i);
+			int keyGroupIdx =  KeyGroupRangeAssignment.assignToKeyGroup(timer.getKey(), totalNoOfKeyGroups);
+
+			// add it in the adequate expected set of timers per keygroup
+			Set<InternalTimer<Integer, String>> timerSet = expectedNonEmptyTimerSets[keyGroupIdx];
+			if (timerSet == null) {
+				timerSet = new HashSet<>();
+				expectedNonEmptyTimerSets[keyGroupIdx] = timerSet;
+			}
+			timerSet.add(timer);
+
+			// register the timer as both processing and event time one
+			keyContext.setCurrentKey(timer.getKey());
+			timerService.registerEventTimeTimer(timer.getNamespace(), timer.getTimestamp());
+			timerService.registerProcessingTimeTimer(timer.getNamespace(), timer.getTimestamp());
+		}
+
+		Set<InternalTimer<Integer, String>>[] eventTimeTimers = timerService.getEventTimeTimersPerKeyGroup();
+		Set<InternalTimer<Integer, String>>[] processingTimeTimers = timerService.getProcessingTimeTimersPerKeyGroup();
+
+		// finally verify that the actual timers per key group sets are the expected ones.
+		for (int i = 0; i < expectedNonEmptyTimerSets.length; i++) {
+			Set<InternalTimer<Integer, String>> expected = expectedNonEmptyTimerSets[i];
+			Set<InternalTimer<Integer, String>> actualEvent = eventTimeTimers[i];
+			Set<InternalTimer<Integer, String>> actualProcessing = processingTimeTimers[i];
+
+			if (expected == null) {
+				Assert.assertNull(actualEvent);
+				Assert.assertNull(actualProcessing);
+			} else {
+				Assert.assertArrayEquals(expected.toArray(), actualEvent.toArray());
+				Assert.assertArrayEquals(expected.toArray(), actualProcessing.toArray());
+			}
+		}
 	}
 
 	/**
@@ -432,7 +524,9 @@ public class HeapInternalTimerServiceTest {
 		assertEquals(1, timerService.numEventTimeTimers("ciao"));
 
 		ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-		timerService.snapshotTimers(outStream);
+		for (int keyGroupIdx = startKeyGroupIdx; keyGroupIdx < endKeyGroupIdx; keyGroupIdx++) {
+			timerService.snapshotTimersForKeyGroup(new DataOutputViewStreamWrapper(outStream), keyGroupIdx);
+		}
 		outStream.close();
 
 		@SuppressWarnings("unchecked")
@@ -480,12 +574,15 @@ public class HeapInternalTimerServiceTest {
 			Triggerable<Integer, String> triggerable,
 			KeyContext keyContext,
 			ProcessingTimeService processingTimeService) {
-		return new HeapInternalTimerService<>(
-				IntSerializer.INSTANCE,
-				StringSerializer.INSTANCE,
-				triggerable,
+		HeapInternalTimerService<Integer, String> service =
+			new HeapInternalTimerService<>(
+				testKeyGroupList.getNumberOfKeyGroups(),
+				testKeyGroupList,
 				keyContext,
 				processingTimeService);
+
+		service.startTimerService(IntSerializer.INSTANCE, StringSerializer.INSTANCE, triggerable);
+		return service;
 	}
 
 	private static HeapInternalTimerService<Integer, String> restoreTimerService(
@@ -493,17 +590,25 @@ public class HeapInternalTimerServiceTest {
 			Triggerable<Integer, String> triggerable,
 			KeyContext keyContext,
 			ProcessingTimeService processingTimeService) throws Exception {
-		HeapInternalTimerService.RestoredTimers<Integer, String> restoredTimers =
-				new HeapInternalTimerService.RestoredTimers<>(
-						stateStream,
-						HeapInternalTimerServiceTest.class.getClassLoader());
 
-		return new HeapInternalTimerService<>(
-				IntSerializer.INSTANCE,
-				StringSerializer.INSTANCE,
-				triggerable,
+		// create an empty service
+		HeapInternalTimerService<Integer, String> service =
+			new HeapInternalTimerService<>(
+				testKeyGroupList.getNumberOfKeyGroups(),
+				testKeyGroupList,
 				keyContext,
-				processingTimeService,
-				restoredTimers);
+				processingTimeService);
+
+		// restore the timers
+		for (int keyGroupIdx = startKeyGroupIdx; keyGroupIdx < endKeyGroupIdx; keyGroupIdx++) {
+			service.restoreTimersForKeyGroup(
+				new DataInputViewStreamWrapper(stateStream),
+				keyGroupIdx,
+				HeapInternalTimerServiceTest.class.getClassLoader());
+		}
+
+		// initialize the service
+		service.startTimerService(IntSerializer.INSTANCE, StringSerializer.INSTANCE, triggerable);
+		return service;
 	}
 }

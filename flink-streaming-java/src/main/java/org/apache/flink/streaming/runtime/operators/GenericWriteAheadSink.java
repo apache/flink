@@ -113,8 +113,6 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	public void snapshotState(FSDataOutputStream out,
 			long checkpointId,
 			long timestamp) throws Exception {
-		super.snapshotState(out, checkpointId, timestamp);
-
 		saveHandleInState(checkpointId, timestamp);
 
 		InstantiationUtil.serializeObject(out, state);
@@ -122,8 +120,6 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 
 	@Override
 	public void restoreState(FSDataInputStream in) throws Exception {
-		super.restoreState(in);
-
 		this.state = InstantiationUtil.deserializeObject(in, getUserCodeClassloader());
 	}
 

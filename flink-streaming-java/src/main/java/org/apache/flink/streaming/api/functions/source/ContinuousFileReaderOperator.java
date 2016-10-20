@@ -387,8 +387,6 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 
 	@Override
 	public void snapshotState(FSDataOutputStream os, long checkpointId, long timestamp) throws Exception {
-		super.snapshotState(os, checkpointId, timestamp);
-
 		final ObjectOutputStream oos = new ObjectOutputStream(os);
 
 		Tuple3<List<FileInputSplit>, FileInputSplit, S> readerState = this.reader.getReaderState();
@@ -410,8 +408,6 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 
 	@Override
 	public void restoreState(FSDataInputStream is) throws Exception {
-		super.restoreState(is);
-
 		final ObjectInputStream ois = new ObjectInputStream(is);
 
 		// read the split that was being read
