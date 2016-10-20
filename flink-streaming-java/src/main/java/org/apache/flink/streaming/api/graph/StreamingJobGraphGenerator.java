@@ -213,6 +213,7 @@ public class StreamingJobGraphGenerator {
 
 				config.setChainStart();
 				config.setChainIndex(0);
+				config.setOperatorName(streamGraph.getStreamNode(currentNodeId).getOperatorName());
 				config.setOutEdgesInOrder(transitiveOutEdges);
 				config.setOutEdges(streamGraph.getStreamNode(currentNodeId).getOutEdges());
 
@@ -230,6 +231,7 @@ public class StreamingJobGraphGenerator {
 					chainedConfigs.put(startNodeId, new HashMap<Integer, StreamConfig>());
 				}
 				config.setChainIndex(chainIndex);
+				config.setOperatorName(streamGraph.getStreamNode(currentNodeId).getOperatorName());
 				chainedConfigs.get(startNodeId).put(currentNodeId, config);
 			}
 

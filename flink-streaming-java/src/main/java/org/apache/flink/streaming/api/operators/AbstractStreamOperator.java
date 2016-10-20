@@ -102,9 +102,8 @@ public abstract class AbstractStreamOperator<OUT>
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		this.container = containingTask;
 		this.config = config;
-		String operatorName = containingTask.getEnvironment().getTaskInfo().getTaskName().split("->")[config.getChainIndex()].trim();
 		
-		this.metrics = container.getEnvironment().getMetricGroup().addOperator(operatorName);
+		this.metrics = container.getEnvironment().getMetricGroup().addOperator(config.getOperatorName());
 		this.output = new CountingOutput(output, this.metrics.counter("numRecordsOut"));
 		this.runtimeContext = new StreamingRuntimeContext(this, container.getEnvironment(), container.getAccumulatorMap());
 
