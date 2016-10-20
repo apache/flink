@@ -166,7 +166,7 @@ public class MetricQueryService extends UntypedActor {
 	public static ActorRef startMetricQueryService(ActorSystem actorSystem, ResourceID resourceID) {
 		String actorName = resourceID == null
 			? METRIC_QUERY_SERVICE_NAME
-			: METRIC_QUERY_SERVICE_NAME + "_" + resourceID.toString();
+			: METRIC_QUERY_SERVICE_NAME + "_" + resourceID.getResourceIdString();
 		return actorSystem.actorOf(Props.create(MetricQueryService.class), actorName);
 	}
 
