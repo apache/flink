@@ -21,15 +21,14 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.rpc.RpcGateway;
-import org.apache.flink.runtime.state.CheckpointStateHandles;
 
 public interface CheckpointCoordinatorGateway extends RpcGateway {
 
 	void acknowledgeCheckpoint(
 			final JobID jobID,
 			final ExecutionAttemptID executionAttemptID,
-			final CheckpointMetaData checkpointInfo,
-			final CheckpointStateHandles checkpointStateHandles);
+			final CheckpointMetaData checkpointMetaData,
+			final SubtaskState subtaskState);
 
 	void declineCheckpoint(
 			final JobID jobID,
