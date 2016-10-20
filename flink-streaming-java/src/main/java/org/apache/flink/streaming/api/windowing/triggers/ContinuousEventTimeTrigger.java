@@ -89,9 +89,11 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 	@Override
 	public void clear(W window, TriggerContext ctx) throws Exception {
 		ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
-		long timestamp = fireTimestamp.get();
-		ctx.deleteEventTimeTimer(timestamp);
-		fireTimestamp.clear();
+		Long timestamp = fireTimestamp.get();
+		if (timestamp != null) {
+			ctx.deleteEventTimeTimer(timestamp);
+			fireTimestamp.clear();
+		}
 	}
 
 	@Override
@@ -100,8 +102,12 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 	}
 
 	@Override
-	public TriggerResult onMerge(W window, OnMergeContext ctx) {
+	public TriggerResult onMerge(W window, OnMergeContext ctx) throws Exception {
 		ctx.mergePartitionedState(stateDesc);
+		Long nextFireTimestamp = ctx.getPartitionedState(stateDesc).get();
+		if (nextFireTimestamp != null) {
+			ctx.registerEventTimeTimer(nextFireTimestamp);
+		}
 		return TriggerResult.CONTINUE;
 	}
 
