@@ -26,6 +26,7 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.slf4j.Logger;
@@ -99,8 +100,12 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 
 			final ResultPartitionLocation partitionLocation;
 
+			// if its producer's result type is DFS, the partitionLocation should also be DFS
+			if (consumedPartition.getIntermediateResult().getResultType() == ResultPartitionType.DFS) {
+				partitionLocation = ResultPartitionLocation.createDFS();
+			}
 			// The producing task needs to be RUNNING or already FINISHED
-			if (consumedPartition.isConsumable() && producerSlot != null &&
+			else if (consumedPartition.isConsumable() && producerSlot != null &&
 					(producerState == ExecutionState.RUNNING
 							|| producerState == ExecutionState.FINISHED)) {
 

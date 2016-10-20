@@ -25,6 +25,9 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Base class of all operators in the Java API.
  * 
@@ -37,6 +40,8 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	protected String name;
 	
 	protected int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+
+	protected Map<String, String> options = new HashMap<>();
 
 	protected Operator(ExecutionEnvironment context, TypeInformation<OUT> resultType) {
 		super(context, resultType);
@@ -102,5 +107,27 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
 		return returnType;
+	}
+
+	/**
+	 * Sets options for this operator.
+	 *
+	 * @param key The name of option to set, now only 'operator.result.persistent' can be set.
+	 * @param value The option's value
+	 * @return The operator with set parallelism.
+	 */
+	public O setOptions(String key, String value) {
+		this.options.put(key, value);
+
+		@SuppressWarnings("unchecked")
+		O returnType = (O) this;
+		return returnType;
+	}
+
+	/**
+	 * Gets all options of this operator.
+	 */
+	public Map<String, String> getOptions() {
+		return this.options;
 	}
 }

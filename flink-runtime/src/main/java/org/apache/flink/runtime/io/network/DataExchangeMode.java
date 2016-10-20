@@ -39,6 +39,13 @@ public enum DataExchangeMode {
 	BATCH,
 
 	/**
+	 * The data exchange is decoupled. The sender first produces its entire result to distribute file system(dfs) and finishes.
+	 * After that, the receiver is started and may consume the data from dfs.
+	 * The producer
+	 */
+	BATCH_PERSISTENT,
+
+	/**
 	 * The data exchange starts like in {@link #PIPELINED} and falls back to {@link #BATCH}
 	 * for recovery runs.
 	 */
@@ -124,5 +131,9 @@ public enum DataExchangeMode {
 		FORWARD[ExecutionMode.BATCH_FORCED.ordinal()] = BATCH;
 		SHUFFLE[ExecutionMode.BATCH_FORCED.ordinal()] = BATCH;
 		BREAKING[ExecutionMode.BATCH_FORCED.ordinal()] = BATCH;
+
+		FORWARD[ExecutionMode.BATCH_PERSISTENT.ordinal()] = BATCH_PERSISTENT;
+		SHUFFLE[ExecutionMode.BATCH_PERSISTENT.ordinal()] = BATCH_PERSISTENT;
+		BREAKING[ExecutionMode.BATCH_PERSISTENT.ordinal()] = BATCH_PERSISTENT;
 	}
 }
