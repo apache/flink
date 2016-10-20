@@ -184,6 +184,9 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 		// build a set which contains all processed ids. It may be used to check if we have
 		// already processed an incoming message.
 		for (Tuple2<Long, List<UId>> checkpoint : pendingCheckpoints) {
+			if(idsProcessedButNotAcknowledged == null) {
+				this.open(new Configuration()); // taskmgr failure job restart
+			}
 			idsProcessedButNotAcknowledged.addAll(checkpoint.f1);
 		}
 	}
