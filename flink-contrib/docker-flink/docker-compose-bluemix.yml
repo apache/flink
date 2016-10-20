@@ -16,10 +16,13 @@
 # limitations under the License.
 ################################################################################
 
+# image specification requires the full path to your private bluemix image registry
+
 version: "2"
 services:
   jobmanager:
-    image: flink
+    #image example:  registry.eu-gb.bluemix.net/markussaidhiho/flink
+    image: ${IMAGENAME}
     container_name: "jobmanager"
     expose:
       - "6123"
@@ -28,7 +31,7 @@ services:
     command: jobmanager
 
   taskmanager:
-    image: flink
+    image: ${IMAGENAME}
     expose:
       - "6121"
       - "6122"
