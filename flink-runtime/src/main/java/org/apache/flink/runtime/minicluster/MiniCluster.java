@@ -32,7 +32,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
-import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerRunner;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerRunner;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
@@ -161,7 +161,7 @@ public class MiniCluster {
 			LOG.info("Starting Flink Mini Cluster");
 			LOG.debug("Using configuration {}", config);
 
-			final Configuration configuration = new UnmodifiableConfiguration(config.getConfiguration());
+			final Configuration configuration = new UnmodifiableConfiguration(config.generateConfiguration());
 			final Time rpcTimeout = config.getRpcTimeout();
 			final int numJobManagers = config.getNumJobManagers();
 			final int numTaskManagers = config.getNumTaskManagers();
@@ -468,7 +468,8 @@ public class MiniCluster {
 				configuration,
 				new ResourceID(UUID.randomUUID().toString()),
 				taskManagerRpcServices[i],
-				haServices);
+				haServices,
+				metricRegistry);
 
 			taskManagerRunners[i].start();
 		}
