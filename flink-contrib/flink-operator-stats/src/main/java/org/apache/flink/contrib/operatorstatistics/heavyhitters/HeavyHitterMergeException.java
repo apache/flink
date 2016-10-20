@@ -25,4 +25,8 @@ public class HeavyHitterMergeException extends Exception {
 	public HeavyHitterMergeException(String message) {
 		super(message);
 	}
+
+	public HeavyHitterMergeException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }
