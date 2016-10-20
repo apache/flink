@@ -35,9 +35,9 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
@@ -722,9 +722,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	// ------------------------------------------------------------------------
 
 	@Override
-	@SuppressWarnings("unchecked")
-	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
-
+	public void snapshotState(StateSnapshotContext context) throws Exception {
+		super.snapshotState(context);
 		if (mergingWindowsByKey != null) {
 			TupleSerializer<Tuple2<W, W>> tupleSerializer = new TupleSerializer<>((Class) Tuple2.class, new TypeSerializer[] {windowSerializer, windowSerializer} );
 			ListStateDescriptor<Tuple2<W, W>> mergeStateDescriptor = new ListStateDescriptor<>("merging-window-set", tupleSerializer);
@@ -735,13 +734,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				key.getValue().persist(mergeState);
 			}
 		}
-
-		super.snapshotState(out, checkpointId, timestamp);
 	}
 
 	@Override
-	public void restoreState(FSDataInputStream in) throws Exception {
-		super.restoreState(in);
+	public void initializeState(StateInitializationContext context) throws Exception {
+		super.initializeState(context);
 	}
 
 	// ------------------------------------------------------------------------
