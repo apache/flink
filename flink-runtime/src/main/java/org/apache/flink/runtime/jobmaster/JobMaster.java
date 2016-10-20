@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
@@ -83,7 +84,6 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.StartStoppable;
-import org.apache.flink.runtime.state.CheckpointStateHandles;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -529,12 +529,12 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	public void acknowledgeCheckpoint(
 			final JobID jobID,
 			final ExecutionAttemptID executionAttemptID,
-			final CheckpointMetaData checkpointInfo,
-			final CheckpointStateHandles checkpointState)
+			final CheckpointMetaData checkpointMetaData,
+			final SubtaskState subtaskState)
 	{
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
 		final AcknowledgeCheckpoint ackMessage = 
-				new AcknowledgeCheckpoint(jobID, executionAttemptID, checkpointInfo, checkpointState);
+				new AcknowledgeCheckpoint(jobID, executionAttemptID, checkpointMetaData, subtaskState);
 
 		if (checkpointCoordinator != null) {
 			getRpcService().execute(new Runnable() {
@@ -543,10 +543,10 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 					try {
 						if (!checkpointCoordinator.receiveAcknowledgeMessage(ackMessage)) {
 							log.info("Received message for non-existing checkpoint {}.",
-									checkpointInfo.getCheckpointId());
+									checkpointMetaData.getCheckpointId());
 						}
 					} catch (Exception e) {
-						log.error("Error in CheckpointCoordinator while processing {}", checkpointInfo, e);
+						log.error("Error in CheckpointCoordinator while processing {}", checkpointMetaData, e);
 					}
 				}
 			});
