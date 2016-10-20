@@ -76,17 +76,7 @@ public class StreamOperatorSnapshotRestoreTest {
 			testHarness.processElement(new StreamRecord<>(i));
 		}
 
-		OperatorSnapshotResult snapshotInProgress = testHarness.snapshot(1L, 1L);
-
-		KeyGroupsStateHandle keyedManaged =
-				FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getKeyedStateManagedFuture());
-		KeyGroupsStateHandle keyedRaw =
-				FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getKeyedStateRawFuture());
-
-		OperatorStateHandle opManaged =
-				FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateManagedFuture());
-		OperatorStateHandle opRaw =
-				FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateRawFuture());
+		OperatorStateHandles handles = testHarness.snapshot(1L, 1L);
 
 		testHarness.close();
 
@@ -104,13 +94,7 @@ public class StreamOperatorSnapshotRestoreTest {
 				TypeInformation.of(Integer.class),
 				MAX_PARALLELISM);
 
-		testHarness.initializeState(new OperatorStateHandles(
-				0,
-				null,
-				Collections.singletonList(keyedManaged),
-				Collections.singletonList(keyedRaw),
-				Collections.singletonList(opManaged),
-				Collections.singletonList(opRaw)));
+		testHarness.initializeState(handles);
 
 		testHarness.open();
 
