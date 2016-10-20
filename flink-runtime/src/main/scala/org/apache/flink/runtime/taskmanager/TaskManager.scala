@@ -62,7 +62,7 @@ import org.apache.flink.runtime.messages.StackTraceSampleMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages._
 import org.apache.flink.runtime.messages.TaskMessages._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, NotifyCheckpointComplete, TriggerCheckpoint}
-import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
+import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityContext.{FlinkSecuredRunner, SecurityConfiguration}
@@ -1866,7 +1866,8 @@ object TaskManager {
       taskManagerServicesConfiguration,
       resourceID)
 
-    val metricRegistry = taskManagerServices.getMetricRegistry()
+    val metricRegistry = new FlinkMetricRegistry(
+      MetricRegistryConfiguration.fromConfiguration(configuration))
 
     val leaderRetrievalService = leaderRetrievalServiceOption match {
       case Some(lrs) => lrs

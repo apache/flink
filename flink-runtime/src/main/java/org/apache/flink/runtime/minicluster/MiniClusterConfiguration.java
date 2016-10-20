@@ -20,8 +20,11 @@ package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -40,6 +43,8 @@ public class MiniClusterConfiguration {
 	private int numResourceManagers = 1;
 
 	private String commonBindAddress;
+
+	private long managedMemoryPerTaskManager = -1;
 
 	// ------------------------------------------------------------------------
 	//  Construction
@@ -96,13 +101,14 @@ public class MiniClusterConfiguration {
 		this.commonBindAddress = bindAddress;
 	}
 
+	public void setManagedMemoryPerTaskManager(long managedMemoryPerTaskManager) {
+		checkArgument(managedMemoryPerTaskManager > 0, "must have more than 0 MB of memory for the TaskManager.");
+		this.managedMemoryPerTaskManager = managedMemoryPerTaskManager;
+	}
+
 	// ------------------------------------------------------------------------
 	//  getters
 	// ------------------------------------------------------------------------
-
-	public Configuration getConfiguration() {
-		return config;
-	}
 
 	public boolean getUseSingleRpcSystem() {
 		return singleRpcService;
@@ -147,9 +153,22 @@ public class MiniClusterConfiguration {
 		return Time.of(duration.length(), duration.unit());
 	}
 
+	public long getManagedMemoryPerTaskManager() {
+		return getOrCalculateManagedMemoryPerTaskManager();
+	}
+
 	// ------------------------------------------------------------------------
 	//  utils
 	// ------------------------------------------------------------------------
+
+	public Configuration generateConfiguration() {
+		Configuration newConfiguration = new Configuration(config);
+		// set the memory
+		long memory = getOrCalculateManagedMemoryPerTaskManager();
+		newConfiguration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memory);
+
+		return newConfiguration;
+	}
 
 	@Override
 	public String toString() {
@@ -161,5 +180,64 @@ public class MiniClusterConfiguration {
 				", commonBindAddress='" + commonBindAddress + '\'' +
 				", config=" + config +
 				'}';
+	}
+
+	/**
+	 * Get or calculate the managed memory per task manager. The memory is calculated in the
+	 * following order:
+	 *
+	 * 1. Return {@link #managedMemoryPerTaskManager} if set
+	 * 2. Return config.getInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY) if set
+	 * 3. Distribute the available free memory equally among all components (JMs, RMs and TMs) and
+	 * calculate the managed memory from the share of memory for a single task manager.
+	 *
+	 * @return
+	 */
+	private long getOrCalculateManagedMemoryPerTaskManager() {
+		if (managedMemoryPerTaskManager == -1) {
+			// no memory set in the mini cluster configuration
+			final ConfigOption<Integer> memorySizeOption = ConfigOptions
+				.key(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY)
+				.defaultValue(-1);
+
+			int memorySize = config.getInteger(memorySizeOption);
+
+			if (memorySize == -1) {
+				// no memory set in the flink configuration
+				// share the available memory among all running components
+				final ConfigOption<Integer> bufferSizeOption = ConfigOptions
+					.key(ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY)
+					.defaultValue(ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE);
+
+				final ConfigOption<Long> bufferMemoryOption = ConfigOptions
+					.key(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY)
+					.defaultValue((long) ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS);
+
+				final ConfigOption<Float> memoryFractionOption = ConfigOptions
+					.key(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY)
+					.defaultValue(ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION);
+
+				float memoryFraction = config.getFloat(memoryFractionOption);
+				long networkBuffersMemory = config.getLong(bufferMemoryOption) * config.getInteger(bufferSizeOption);
+
+				long freeMemory = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag();
+
+				// we assign each component the same amount of free memory
+				// (might be a bit of overkill for the JMs and RMs)
+				long memoryPerComponent = freeMemory / (numTaskManagers + numResourceManagers + numJobManagers);
+
+				// subtract the network buffer memory
+				long memoryMinusNetworkBuffers = memoryPerComponent - networkBuffersMemory;
+
+				// calculate the managed memory size
+				long managedMemoryBytes = (long) (memoryMinusNetworkBuffers * memoryFraction);
+
+				return managedMemoryBytes >>> 20;
+			} else {
+				return memorySize;
+			}
+		} else {
+			return managedMemoryPerTaskManager;
+		}
 	}
 }
