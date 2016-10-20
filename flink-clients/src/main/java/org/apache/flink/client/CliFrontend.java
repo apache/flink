@@ -39,6 +39,7 @@ import org.apache.flink.client.cli.StopOptions;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.client.program.ProgramMissingJobException;
 import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -829,6 +830,8 @@ public class CliFrontend {
 			result = client.run(program, parallelism);
 		} catch (ProgramParametrizationException e) {
 			return handleParametrizationException(e);
+		} catch (ProgramMissingJobException e) {
+			return handleMissingJobException();
 		} catch (ProgramInvocationException e) {
 			return handleError(e);
 		} finally {
@@ -988,6 +991,18 @@ public class CliFrontend {
 		if (message != null) {
 			System.err.println(message);
 		}
+		return 1;
+	}
+
+	/**
+	 * Displays a message for a program without a job to execute.
+	 *
+	 * @return The return code for the process.
+	 */
+	private int handleMissingJobException() {
+		System.err.println();
+		System.err.println("The program didn't contain a Flink job. " +
+			"Perhaps you forgot to call execute() on the execution environment.");
 		return 1;
 	}
 

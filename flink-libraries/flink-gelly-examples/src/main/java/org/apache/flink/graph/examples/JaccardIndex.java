@@ -66,6 +66,7 @@ public class JaccardIndex {
 
 	private static String getUsage(String message) {
 		return new StrBuilder()
+			.appendNewLine()
 			.appendln(WordUtils.wrap("The Jaccard Index measures the similarity between vertex" +
 				" neighborhoods and is computed as the number of shared neighbors divided by the number of" +
 				" distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all neighbors are" +
