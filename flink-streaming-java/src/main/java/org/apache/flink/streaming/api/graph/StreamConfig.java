@@ -68,6 +68,7 @@ public class StreamConfig implements Serializable {
 	private static final String EDGES_IN_ORDER = "edgesInOrder";
 	private static final String OUT_STREAM_EDGES = "outStreamEdges";
 	private static final String IN_STREAM_EDGES = "inStreamEdges";
+	private static final String OPERATOR_NAME = "operatorName";
 
 	private static final String CHECKPOINTING_ENABLED = "checkpointing";
 	private static final String CHECKPOINT_MODE = "checkpointMode";
@@ -389,6 +390,14 @@ public class StreamConfig implements Serializable {
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate configuration.", e);
 		}
+	}
+	
+	public void setOperatorName(String name) {
+		this.config.setString(OPERATOR_NAME,name);
+	}
+	
+	public String getOperatorName() {
+		return this.config.getString(OPERATOR_NAME, null);
 	}
 
 	public void setChainIndex(int index) {
