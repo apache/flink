@@ -28,7 +28,6 @@ import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.MathUtils;
 
@@ -58,8 +57,6 @@ public class TaskManagerServicesConfiguration {
 
 	private final float memoryFraction;
 
-	private final MetricRegistryConfiguration metricRegistryConfiguration;
-
 	public TaskManagerServicesConfiguration(
 		InetAddress taskManagerAddress,
 		String[] tmpDirPaths,
@@ -67,8 +64,7 @@ public class TaskManagerServicesConfiguration {
 		int numberOfSlots,
 		long configuredMemory,
 		boolean preAllocateMemory,
-		float memoryFraction,
-		MetricRegistryConfiguration metricRegistryConfiguration) {
+		float memoryFraction) {
 
 		this.taskManagerAddress = checkNotNull(taskManagerAddress);
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
@@ -78,8 +74,6 @@ public class TaskManagerServicesConfiguration {
 		this.configuredMemory = configuredMemory;
 		this.preAllocateMemory = preAllocateMemory;
 		this.memoryFraction = memoryFraction;
-
-		this.metricRegistryConfiguration = checkNotNull(metricRegistryConfiguration);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -111,10 +105,6 @@ public class TaskManagerServicesConfiguration {
 
 	public boolean isPreAllocateMemory() {
 		return preAllocateMemory;
-	}
-
-	public MetricRegistryConfiguration getMetricRegistryConfiguration() {
-		return metricRegistryConfiguration;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -171,10 +161,6 @@ public class TaskManagerServicesConfiguration {
 			ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
 			"MemoryManager fraction of the free memory must be between 0.0 and 1.0");
 
-		final MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(configuration);
-
-
-
 		return new TaskManagerServicesConfiguration(
 			remoteAddress,
 			tmpDirs,
@@ -182,8 +168,7 @@ public class TaskManagerServicesConfiguration {
 			slots,
 			configuredMemory,
 			preAllocateMemory,
-			memoryFraction,
-			metricRegistryConfiguration);
+			memoryFraction);
 	}
 
 	// --------------------------------------------------------------------------

@@ -42,7 +42,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages
 import org.apache.flink.runtime.messages.JobManagerMessages.{RunningJobsStatus, StoppingFailure, StoppingResponse}
-import org.apache.flink.runtime.metrics.MetricRegistry
+import org.apache.flink.runtime.metrics.{MetricRegistry, MetricRegistryConfiguration}
 import org.apache.flink.runtime.taskexecutor.{TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerLocation}
 import org.apache.flink.runtime.util.{EnvironmentInformation, LeaderRetrievalUtils}
@@ -209,7 +209,7 @@ class LocalFlinkMiniCluster(
       taskManagerServicesConfiguration,
       resourceID)
 
-    val metricRegistry = taskManagerServices.getMetricRegistry()
+    val metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config))
 
     val props = getTaskManagerProps(
       taskManagerClass,

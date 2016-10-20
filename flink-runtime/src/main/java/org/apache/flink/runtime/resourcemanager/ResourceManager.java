@@ -156,8 +156,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			throw new ResourceManagerException("Could not create the slot manager.", e);
 		}
 
+		leaderElectionService = highAvailabilityServices.getResourceManagerLeaderElectionService();
+
 		try {
-			leaderElectionService = highAvailabilityServices.getResourceManagerLeaderElectionService();
 			leaderElectionService.start(this);
 		} catch (Exception e) {
 			throw new ResourceManagerException("Could not start the leader election service.", e);

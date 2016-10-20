@@ -24,9 +24,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
+import org.apache.flink.runtime.taskexecutor.utils.TaskExecutorMetricsInitializer;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 
 import org.apache.flink.util.Preconditions;
@@ -66,7 +69,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		Configuration configuration,
 		ResourceID resourceID,
 		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices) throws Exception {
+		HighAvailabilityServices highAvailabilityServices,
+		MetricRegistry metricRegistry) throws Exception {
 
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.resourceID = Preconditions.checkNotNull(resourceID);
@@ -81,9 +85,19 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			remoteAddress,
 			false);
 
-		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(taskManagerServicesConfiguration, resourceID);
+		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
+			taskManagerServicesConfiguration,
+			resourceID);
 
 		TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
+
+		TaskManagerMetricGroup taskManagerMetricGroup = new TaskManagerMetricGroup(
+			metricRegistry,
+			taskManagerServices.getTaskManagerLocation().getHostname(),
+			resourceID.toString());
+
+		// Initialize the TM metrics
+		TaskExecutorMetricsInitializer.instantiateStatusMetrics(taskManagerMetricGroup, taskManagerServices.getNetworkEnvironment());
 
 		this.taskManager = new TaskExecutor(
 			taskManagerConfiguration,
@@ -93,8 +107,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			taskManagerServices.getIOManager(),
 			taskManagerServices.getNetworkEnvironment(),
 			highAvailabilityServices,
-			taskManagerServices.getMetricRegistry(),
-			taskManagerServices.getTaskManagerMetricGroup(),
+			metricRegistry,
+			taskManagerMetricGroup,
 			taskManagerServices.getBroadcastVariableManager(),
 			taskManagerServices.getFileCache(),
 			taskManagerServices.getTaskSlotTable(),
@@ -117,7 +131,11 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 	protected void shutDownInternally() {
 		synchronized(lock) {
-			taskManager.shutDown();
+			try {
+				taskManager.shutDown();
+			} catch (Exception e) {
+				LOG.error("Could not properly shut down the task manager.", e);
+			}
 		}
 	}
 
