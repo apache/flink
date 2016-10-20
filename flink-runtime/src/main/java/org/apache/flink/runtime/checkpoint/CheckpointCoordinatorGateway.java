@@ -25,10 +25,10 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 public interface CheckpointCoordinatorGateway extends RpcGateway {
 
 	void acknowledgeCheckpoint(
-			JobID jobID,
-			ExecutionAttemptID executionAttemptID,
-			CheckpointMetaData checkpointInfo,
-			SubtaskState checkpointStateHandles);
+			final JobID jobID,
+			final ExecutionAttemptID executionAttemptID,
+			final CheckpointMetaData checkpointMetaData,
+			final SubtaskState subtaskState);
 
 	void declineCheckpoint(
 			JobID jobID,

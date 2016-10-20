@@ -39,13 +39,13 @@ public class RpcCheckpointResponder implements CheckpointResponder {
 			JobID jobID,
 			ExecutionAttemptID executionAttemptID,
 			CheckpointMetaData checkpointMetaData,
-			SubtaskState checkpointStateHandles) {
+			SubtaskState subtaskState) {
 
 		checkpointCoordinatorGateway.acknowledgeCheckpoint(
 			jobID,
 			executionAttemptID,
 			checkpointMetaData,
-			checkpointStateHandles);
+			subtaskState);
 
 	}
 
