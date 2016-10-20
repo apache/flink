@@ -1,3 +1,4 @@
+#!/bin/sh
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -16,24 +17,6 @@
 # limitations under the License.
 ################################################################################
 
-version: "2"
-services:
-  jobmanager:
-    image: flink
-    container_name: "jobmanager"
-    expose:
-      - "6123"
-    ports:
-      - "48081:8081"
-    command: jobmanager
-
-  taskmanager:
-    image: flink
-    expose:
-      - "6121"
-      - "6122"
-    depends_on:
-      - jobmanager
-    command: taskmanager
-    links:
-      - "jobmanager:jobmanager"
+export COMPOSE_HTTP_TIMEOUT=120
+export IMAGENAME="registry.eu-gb.bluemix.net/"`cf ic namespace get`"/flink"
+docker-compose  -f docker-compose-bluemix.yml up -d
