@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
 
 import java.io.Serializable;
 import java.util.List;
@@ -50,6 +51,11 @@ public class CollectorOutput<T> implements Output<StreamRecord<T>> {
 	public void collect(StreamRecord<T> record) {
 		T copied = SerializationUtils.deserialize(SerializationUtils.serialize((Serializable) record.getValue()));
 		list.add(record.copy(copied));
+	}
+
+	@Override
+	public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+		throw new UnsupportedOperationException("Side output not supported for CollectorOutput");
 	}
 
 	@Override

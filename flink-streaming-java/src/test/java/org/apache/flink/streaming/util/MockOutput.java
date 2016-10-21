@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
 
 public class MockOutput<T> implements Output<StreamRecord<T>> {
 	private Collection<T> outputs;
@@ -37,6 +38,11 @@ public class MockOutput<T> implements Output<StreamRecord<T>> {
 	public void collect(StreamRecord<T> record) {
 		T copied = SerializationUtils.deserialize(SerializationUtils.serialize((Serializable) record.getValue()));
 		outputs.add(copied);
+	}
+
+	@Override
+	public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+		throw new UnsupportedOperationException("Side output not supported for MockOutput");
 	}
 
 	@Override

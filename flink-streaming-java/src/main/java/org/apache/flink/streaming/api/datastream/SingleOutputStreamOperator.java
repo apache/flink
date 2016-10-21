@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -27,6 +28,7 @@ import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.Preconditions;
@@ -415,5 +417,17 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	public SingleOutputStreamOperator<T> slotSharingGroup(String slotSharingGroup) {
 		transformation.setSlotSharingGroup(slotSharingGroup);
 		return this;
+	}
+
+	/**
+	 * Gets the {@link DataStream} that contains the elements that are emitted from an operation
+	 * into the side output with the given {@link OutputTag}.
+	 *
+	 * @see org.apache.flink.streaming.api.functions.ProcessFunction.Context#output(OutputTag, Object)
+	 */
+	public <X> DataStream<X> getSideOutput(OutputTag<X> sideOutputTag){
+		sideOutputTag = clean(sideOutputTag);
+		SideOutputTransformation<X> sideOutputTransformation = new SideOutputTransformation<>(this.getTransformation(), requireNonNull(sideOutputTag));
+		return new DataStream<>(this.getExecutionEnvironment(), sideOutputTransformation);
 	}
 }
