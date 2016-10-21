@@ -374,7 +374,11 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			// This will eventually be noticed, but can not be ruled out from the beginning.
 			if (leaderElectionService.hasLeadership()) {
 				if (jobRunning) {
-					jobManager.start(leaderSessionID);
+					try {
+						jobManager.start(leaderSessionID);
+					} catch (Exception e) {
+						onFatalError(new Exception("Could not start the job manager.", e));
+					}
 				} else {
 					log.info("Job {} ({}) already finished by others.", jobGraph.getName(), jobGraph.getJobID());
 					jobFinishedByOther();

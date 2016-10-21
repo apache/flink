@@ -32,10 +32,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
-import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultSlotManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
+import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerRunner;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
@@ -51,7 +48,6 @@ import java.util.UUID;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
-
 
 public class MiniCluster {
 
@@ -82,7 +78,7 @@ public class MiniCluster {
 	private HighAvailabilityServices haServices;
 
 	@GuardedBy("lock")
-	private ResourceManager<?>[] resourceManagers;
+	private ResourceManagerRunner[] resourceManagerRunners;
 
 	@GuardedBy("lock")
 	private TaskManagerRunner[] taskManagerRunners;
@@ -231,7 +227,7 @@ public class MiniCluster {
 
 				// bring up the ResourceManager(s)
 				LOG.info("Starting {} ResourceManger(s)", numResourceManagers);
-				resourceManagers = startResourceManagers(
+				resourceManagerRunners = startResourceManagers(
 						configuration, haServices, metricRegistry, numResourceManagers, resourceManagerRpcServices);
 
 				// bring up the TaskManager(s) for the mini cluster
@@ -303,8 +299,8 @@ public class MiniCluster {
 			jobDispatcher = null;
 		}
 
-		if (resourceManagers != null) {
-			for (ResourceManager<?> rm : resourceManagers) {
+		if (resourceManagerRunners != null) {
+			for (ResourceManagerRunner rm : resourceManagerRunners) {
 				if (rm != null) {
 					try {
 						rm.shutDown();
@@ -313,7 +309,7 @@ public class MiniCluster {
 					}
 				}
 			}
-			resourceManagers = null;
+			resourceManagerRunners = null;
 		}
 
 		// shut down the RpcServices
@@ -435,26 +431,27 @@ public class MiniCluster {
 		return new AkkaRpcService(actorSystem, askTimeout);
 	}
 
-	protected ResourceManager<?>[] startResourceManagers(
+	protected ResourceManagerRunner[] startResourceManagers(
 			Configuration configuration,
 			HighAvailabilityServices haServices,
 			MetricRegistry metricRegistry,
 			int numResourceManagers,
 			RpcService[] resourceManagerRpcServices) throws Exception {
 
-		final StandaloneResourceManager[] resourceManagers = new StandaloneResourceManager[numResourceManagers];
-		final SlotManagerFactory slotManagerFactory = new DefaultSlotManager.Factory(); 
+		final ResourceManagerRunner[] resourceManagerRunners = new ResourceManagerRunner[numResourceManagers];
 
 		for (int i = 0; i < numResourceManagers; i++) {
-			resourceManagers[i] = new StandaloneResourceManager(
-					resourceManagerRpcServices[i],
-					haServices,
-					slotManagerFactory);
 
-			resourceManagers[i].start();
+			resourceManagerRunners[i] = new ResourceManagerRunner(
+				configuration,
+				resourceManagerRpcServices[i],
+				haServices,
+				metricRegistry);
+
+			resourceManagerRunners[i].start();
 		}
 
-		return resourceManagers;
+		return resourceManagerRunners;
 	}
 
 	protected TaskManagerRunner[] startTaskManagers(
