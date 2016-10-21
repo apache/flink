@@ -987,10 +987,7 @@ public class CliFrontend {
 	 * @return The return code for the process.
 	 */
 	private int handleParametrizationException(ProgramParametrizationException e) {
-		String message = e.getMessage();
-		if (message != null) {
-			System.err.println(message);
-		}
+		System.err.println(e.getMessage());
 		return 1;
 	}
 
