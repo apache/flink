@@ -44,6 +44,7 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 	
 	private SerializationDelegate<StreamElement> serializationDelegate;
 
+	private TypeSerializer<StreamElement> outRecordSerializer;
 	
 	@SuppressWarnings("unchecked")
 	public RecordWriterOutput(
@@ -52,13 +53,12 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 			boolean enableMultiplexing) {
 
 		checkNotNull(recordWriter);
-		
+
 		// generic hack: cast the writer to generic Object type so we can use it 
 		// with multiplexed records and watermarks
 		this.recordWriter = (StreamRecordWriter<SerializationDelegate<StreamElement>>) 
 				(StreamRecordWriter<?>) recordWriter;
 
-		TypeSerializer<StreamElement> outRecordSerializer;
 		if (enableMultiplexing) {
 			outRecordSerializer = new MultiplexingStreamRecordSerializer<OUT>(outSerializer);
 		} else {
@@ -73,14 +73,15 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 
 	@Override
 	public void collect(StreamRecord<OUT> record) {
-		serializationDelegate.setInstance(record);
 
 		try {
+			serializationDelegate.setInstance(record);
 			recordWriter.emit(serializationDelegate);
+		} catch (Exception e) {
+			//Hack, should do type check
+			//throw new RuntimeException(e.getMessage(), e);
 		}
-		catch (Exception e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
+
 	}
 
 	@Override

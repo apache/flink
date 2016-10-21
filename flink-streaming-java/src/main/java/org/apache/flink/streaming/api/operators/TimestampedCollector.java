@@ -19,8 +19,10 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.RichCollector;
 
 /**
  * Wrapper around an {@link Output} for user functions that expect a {@link Collector}.
@@ -32,11 +34,11 @@ import org.apache.flink.util.Collector;
  * @param <T> The type of the elements that can be emitted.
  */
 @Internal
-public class TimestampedCollector<T> implements Collector<T> {
+public class TimestampedCollector<T> implements RichCollector<T> {
 	
 	private final Output<StreamRecord<T>> output;
 
-	private final StreamRecord<T> reuse;
+	private final StreamRecord reuse;
 
 	/**
 	 * Creates a new {@link TimestampedCollector} that wraps the given {@link Output}.
@@ -50,7 +52,12 @@ public class TimestampedCollector<T> implements Collector<T> {
 	public void collect(T record) {
 		output.collect(reuse.replace(record));
 	}
-	
+
+	@Override
+	public <S> void collect(OutputTag<S> tag, S record) {
+		output.collect(reuse.replace(tag, record));
+	}
+
 	public void setTimestamp(StreamRecord<?> timestampBase) {
 		if (timestampBase.hasTimestamp()) {
 			reuse.setTimestamp(timestampBase.getTimestamp());

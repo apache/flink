@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.Random;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.OutputTag;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
@@ -96,7 +98,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 		try {
 			for (int i = 0; i < outEdgesInOrder.size(); i++) {
 				StreamEdge outEdge = outEdgesInOrder.get(i);
-				
+
 				RecordWriterOutput<?> streamOutput = createStreamOutput(
 						outEdge, chainedConfigs.get(outEdge.getSourceId()), i,
 						containingTask.getEnvironment(), enableMultiplexing, reporter, containingTask.getName());
@@ -304,9 +306,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 	}
 	
 	private static <T> RecordWriterOutput<T> createStreamOutput(
-			StreamEdge edge, StreamConfig upStreamConfig, int outputIndex,
-			Environment taskEnvironment, boolean enableMultiplexing,
-			AccumulatorRegistry.Reporter reporter, String taskName)
+		StreamEdge edge, StreamConfig upStreamConfig, int outputIndex,
+		Environment taskEnvironment, boolean enableMultiplexing,
+		AccumulatorRegistry.Reporter reporter, String taskName)
 	{
 		TypeSerializer<T> outSerializer = upStreamConfig.getTypeSerializerOut(taskEnvironment.getUserClassLoader());
 
@@ -393,14 +395,18 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 
 		@Override
 		public void collect(StreamRecord<T> record) {
-			try {
-				numRecordsIn.inc();
-				StreamRecord<T> copy = record.copy(serializer.copy(record.getValue()));
-				operator.setKeyContextElement1(copy);
-				operator.processElement(copy);
-			}
-			catch (Exception e) {
-				throw new RuntimeException("Could not forward element to next operator", e);
+			//Hack, shoud do better type check
+			if(record.getValue().getClass() == serializer.createInstance().getClass()) {
+				try {
+					numRecordsIn.inc();
+					StreamRecord<T> copy = record.copy(serializer.copy(record.getValue()));
+					operator.setKeyContextElement1(copy);
+					operator.processElement(copy);
+				} catch (Exception e) {
+					throw new RuntimeException("Could not forward element to next operator", e);
+				}
+			} else {
+				LOG.info("{} {}",record.getValue().getClass().toString(), serializer.createInstance().getClass().toString());
 			}
 		}
 	}

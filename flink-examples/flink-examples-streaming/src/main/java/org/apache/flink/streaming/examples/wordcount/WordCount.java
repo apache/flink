@@ -18,12 +18,14 @@
 package org.apache.flink.streaming.examples.wordcount;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.RichCollector;
 
 /**
  * Implements the "WordCount" program that computes a simple word occurrence
@@ -81,6 +83,8 @@ public class WordCount {
 		// group by the tuple field "0" and sum up tuple field "1"
 				.keyBy(0).sum(1);
 
+		text.flatMap(new Tokenizer()).getOutput(sideOut).print();
+
 		// emit result
 		if (params.has("output")) {
 			counts.writeAsText(params.get("output"));
@@ -92,6 +96,8 @@ public class WordCount {
 		// execute program
 		env.execute("Streaming WordCount");
 	}
+
+	static final OutputTag<String> sideOut = new OutputTag<String>() {};
 
 	// *************************************************************************
 	// USER FUNCTIONS
@@ -118,6 +124,8 @@ public class WordCount {
 					out.collect(new Tuple2<String, Integer>(token, 1));
 				}
 			}
+			RichCollector<Tuple2<String, Integer>> sideout = (RichCollector<Tuple2<String, Integer>>) out;
+			sideout.collect(sideOut, "sideout");
 		}
 	}
 

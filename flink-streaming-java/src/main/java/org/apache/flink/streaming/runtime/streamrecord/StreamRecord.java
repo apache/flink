@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.runtime.streamrecord;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.OutputTag;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
  * One value in a data stream. This stores the value and an optional associated timestamp.
@@ -35,6 +37,8 @@ public final class StreamRecord<T> extends StreamElement {
 
 	/** Flag whether the timestamp is actually set */
 	private boolean hasTimestamp;
+
+	protected OutputTag tag;
 	
 	/**
 	 * Creates a new StreamRecord. The record does not have a timestamp.
@@ -42,6 +46,8 @@ public final class StreamRecord<T> extends StreamElement {
 	public StreamRecord(T value) {
 		this.value = value;
 	}
+
+	public TypeInformation getType() { return this.tag == null ? null : this.tag.getTypeInfo();}
 
 	/**
 	 * Creates a new StreamRecord wrapping the given value. The timestamp is set to the
@@ -103,6 +109,12 @@ public final class StreamRecord<T> extends StreamElement {
 	 */
 	@SuppressWarnings("unchecked")
 	public <X> StreamRecord<X> replace(X element) {
+		this.value = (T) element;
+		return (StreamRecord<X>) this;
+	}
+
+	@SuppressWarnings("unchecked")
+	public <X> StreamRecord<X> replace(OutputTag<X> tag, X element) {
 		this.value = (T) element;
 		return (StreamRecord<X>) this;
 	}

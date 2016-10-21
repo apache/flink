@@ -455,6 +455,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 				),
 				0,
 				Collections.<String>emptyList(),
+				null,
 				null
 			);
 
