@@ -18,14 +18,21 @@
 
 package org.apache.flink.runtime.clusterframework.types;
 
+import javax.annotation.Nonnull;
 import java.io.Serializable;
 
 /**
  * Describe the resource profile of the slot, either when requiring or offering it. The profile can be
  * checked whether it can match another profile's requirement, and furthermore we may calculate a matching
  * score to decide which profile we should choose when we have lots of candidate slots.
+ * 
+ * <p>Resource Profiles have a total ordering, defined by comparing these fields in sequence:
+ * <ol>
+ *     <li>Memory Size</li>
+ *     <li>CPU cores</li>
+ * </ol>
  */
-public class ResourceProfile implements Serializable {
+public class ResourceProfile implements Serializable, Comparable<ResourceProfile> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -90,11 +97,18 @@ public class ResourceProfile implements Serializable {
 		return cpuCores >= required.getCpuCores() && memoryInMB >= required.getMemoryInMB();
 	}
 
+	@Override
+	public int compareTo(@Nonnull ResourceProfile other) {
+		int cmp1 = Long.compare(this.memoryInMB, other.memoryInMB);
+		int cmp2 = Double.compare(this.cpuCores, other.cpuCores);
+		return (cmp1 != 0) ? cmp1 : cmp2; 
+	}
+
 	// ------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
-		long cpuBits = Double.doubleToLongBits(cpuCores);
+		long cpuBits = Double.doubleToRawLongBits(cpuCores);
 		return (int) (cpuBits ^ (cpuBits >>> 32) ^ memoryInMB ^ (memoryInMB >> 32));
 	}
 

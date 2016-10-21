@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.minicluster;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -31,7 +33,7 @@ import org.junit.Test;
  */
 public class MiniClusterITCase extends TestLogger {
 
-//	@Test
+	@Test
 	public void runJobWithSingleRpcService() throws Exception {
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration();
 
@@ -74,6 +76,13 @@ public class MiniClusterITCase extends TestLogger {
 		task.setMaxParallelism(1);
 		task.setInvokableClass(NoOpInvokable.class);
 
-		return new JobGraph(new JobID(), "Test Job", task);
+		JobGraph jg = new JobGraph(new JobID(), "Test Job", task);
+		jg.setAllowQueuedScheduling(true);
+
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000));
+		jg.setExecutionConfig(executionConfig);
+
+		return jg;
 	}
 }
