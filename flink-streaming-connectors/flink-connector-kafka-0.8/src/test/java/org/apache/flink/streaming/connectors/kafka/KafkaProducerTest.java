@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.connectors.kafka.testutils.FakeStandardProducerConfig;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.util.TestLogger;
 
@@ -37,8 +38,7 @@ import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.util.Arrays;
-import java.util.Properties;
+import java.util.Collections;
 import java.util.concurrent.Future;
 
 
@@ -60,7 +60,8 @@ public class KafkaProducerTest extends TestLogger {
 			
 			// partition setup
 			when(kafkaProducerMock.partitionsFor(anyString())).thenReturn(
-					Arrays.asList(new PartitionInfo("mock_topic", 42, null, null, null)));
+				// returning a unmodifiable list to mimic KafkaProducer#partitionsFor() behaviour
+				Collections.singletonList(new PartitionInfo("mock_topic", 42, null, null, null)));
 
 			// failure when trying to send an element
 			when(kafkaProducerMock.send(any(ProducerRecord.class), any(Callback.class)))
@@ -79,7 +80,7 @@ public class KafkaProducerTest extends TestLogger {
 			// (1) producer that propagates errors
 
 			FlinkKafkaProducer08<String> producerPropagating = new FlinkKafkaProducer08<>(
-					"mock_topic", new SimpleStringSchema(), new Properties(), null);
+					"mock_topic", new SimpleStringSchema(), FakeStandardProducerConfig.get(), null);
 
 			OneInputStreamOperatorTestHarness<String, Object> testHarness =
 					new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producerPropagating));
@@ -102,7 +103,7 @@ public class KafkaProducerTest extends TestLogger {
 			// (2) producer that only logs errors
 
 			FlinkKafkaProducer08<String> producerLogging = new FlinkKafkaProducer08<>(
-					"mock_topic", new SimpleStringSchema(), new Properties(), null);
+					"mock_topic", new SimpleStringSchema(), FakeStandardProducerConfig.get(), null);
 			producerLogging.setLogFailuresOnly(true);
 
 			testHarness = new OneInputStreamOperatorTestHarness<>(new StreamSink(producerLogging));

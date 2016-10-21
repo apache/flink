@@ -15,23 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
+import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.testutils.FakeStandardProducerConfig;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
@@ -48,33 +48,83 @@ import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-/**
- * Test ensuring that the producer is not dropping buffered records
- */
-@SuppressWarnings("unchecked")
-public class AtLeastOnceProducerTest {
+public class FlinkKafkaProducerBaseTest {
 
-	// we set a timeout because the test will not finish if the logic is broken
+	/**
+	 * Tests that the constructor eagerly checks bootstrap servers are set in config
+	 */
+	@Test(expected = IllegalArgumentException.class)
+	public void testInstantiationFailsWhenBootstrapServersMissing() throws Exception {
+		// no bootstrap servers set in props
+		Properties props = new Properties();
+		// should throw IllegalArgumentException
+		new DummyFlinkKafkaProducer<>(props, null);
+	}
+
+	/**
+	 * Tests that constructor defaults to key value serializers in config to byte array deserializers if not set
+	 */
+	@Test
+	public void testKeyValueDeserializersSetIfMissing() throws Exception {
+		Properties props = new Properties();
+		props.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:12345");
+		// should set missing key value deserializers
+		new DummyFlinkKafkaProducer<>(props, null);
+
+		assertTrue(props.containsKey(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG));
+		assertTrue(props.containsKey(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG));
+		assertTrue(props.getProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG).equals(ByteArraySerializer.class.getCanonicalName()));
+		assertTrue(props.getProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG).equals(ByteArraySerializer.class.getCanonicalName()));
+	}
+
+	/**
+	 * Tests that partitions list is determinate and correctly provided to custom partitioner
+	 */
+	@Test
+	public void testPartitionerOpenedWithDeterminatePartitionList() throws Exception {
+		KafkaPartitioner mockPartitioner = mock(KafkaPartitioner.class);
+		RuntimeContext mockRuntimeContext = mock(RuntimeContext.class);
+		when(mockRuntimeContext.getIndexOfThisSubtask()).thenReturn(0);
+		when(mockRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(1);
+
+		DummyFlinkKafkaProducer producer = new DummyFlinkKafkaProducer(
+			FakeStandardProducerConfig.get(), mockPartitioner);
+		producer.setRuntimeContext(mockRuntimeContext);
+
+		producer.open(new Configuration());
+
+		// the internal mock KafkaProducer will return an out-of-order list of 4 partitions,
+		// which should be sorted before provided to the custom partitioner's open() method
+		int[] correctPartitionList = {0, 1, 2, 3};
+		verify(mockPartitioner).open(0, 1, correctPartitionList);
+	}
+
+	/**
+	 * Test ensuring that the producer is not dropping buffered records.;
+	 * we set a timeout because the test will not finish if the logic is broken
+	 */
 	@Test(timeout=5000)
 	public void testAtLeastOnceProducer() throws Throwable {
-		runTest(true);
+		runAtLeastOnceTest(true);
 	}
 
-	// This test ensures that the actual test fails if the flushing is disabled
+	/**
+	 * Ensures that the at least once producing test fails if the flushing is disabled
+	 */
 	@Test(expected = AssertionError.class, timeout=5000)
-	public void ensureTestFails() throws Throwable {
-		runTest(false);
+	public void testAtLeastOnceProducerFailsIfFlushingDisabled() throws Throwable {
+		runAtLeastOnceTest(false);
 	}
 
-	private void runTest(boolean flushOnCheckpoint) throws Throwable {
-		Properties props = new Properties();
+	private void runAtLeastOnceTest(boolean flushOnCheckpoint) throws Throwable {
 		final AtomicBoolean snapshottingFinished = new AtomicBoolean(false);
-
-		final TestingKafkaProducer<String> producer = new TestingKafkaProducer<>("someTopic", new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), props,
-				snapshottingFinished);
-
+		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
+			FakeStandardProducerConfig.get(), null, snapshottingFinished);
 		producer.setFlushOnCheckpoint(flushOnCheckpoint);
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness =
@@ -106,7 +156,7 @@ public class AtLeastOnceProducerTest {
 					// we now check that no records have been confirmed yet
 					Assert.assertEquals(100, pending.size());
 					Assert.assertFalse("Snapshot method returned before all records were confirmed",
-							snapshottingFinished.get());
+						snapshottingFinished.get());
 
 					// now confirm all checkpoints
 					for (Callback c: pending) {
@@ -141,15 +191,25 @@ public class AtLeastOnceProducerTest {
 	}
 
 
-	private static class TestingKafkaProducer<T> extends FlinkKafkaProducerBase<T> {
+	// ------------------------------------------------------------------------
+
+	private static class DummyFlinkKafkaProducer<T> extends FlinkKafkaProducerBase<T> {
 		private static final long serialVersionUID = 1L;
 
 		private transient MockProducer prod;
 		private AtomicBoolean snapshottingFinished;
 
-		public TestingKafkaProducer(String defaultTopicId, KeyedSerializationSchema<T> serializationSchema, Properties producerConfig, AtomicBoolean snapshottingFinished) {
-			super(defaultTopicId, serializationSchema, producerConfig, null);
+		@SuppressWarnings("unchecked")
+		public DummyFlinkKafkaProducer(Properties producerConfig, KafkaPartitioner partitioner, AtomicBoolean snapshottingFinished) {
+			super("dummy-topic", (KeyedSerializationSchema< T >) mock(KeyedSerializationSchema.class), producerConfig, partitioner);
 			this.snapshottingFinished = snapshottingFinished;
+		}
+
+		// constructor variant for test irrelated to snapshotting
+		@SuppressWarnings("unchecked")
+		public DummyFlinkKafkaProducer(Properties producerConfig, KafkaPartitioner partitioner) {
+			super("dummy-topic", (KeyedSerializationSchema< T >) mock(KeyedSerializationSchema.class), producerConfig, partitioner);
+			this.snapshottingFinished = new AtomicBoolean(true);
 		}
 
 		@Override
@@ -179,15 +239,8 @@ public class AtLeastOnceProducerTest {
 	private static class MockProducer<K, V> extends KafkaProducer<K, V> {
 		List<Callback> pendingCallbacks = new ArrayList<>();
 
-		private static Properties getFakeProperties() {
-			Properties p = new Properties();
-			p.setProperty("bootstrap.servers", "localhost:12345");
-			p.setProperty("key.serializer", ByteArraySerializer.class.getName());
-			p.setProperty("value.serializer", ByteArraySerializer.class.getName());
-			return p;
-		}
 		public MockProducer() {
-			super(getFakeProperties());
+			super(FakeStandardProducerConfig.get());
 		}
 
 		@Override
@@ -204,7 +257,11 @@ public class AtLeastOnceProducerTest {
 		@Override
 		public List<PartitionInfo> partitionsFor(String topic) {
 			List<PartitionInfo> list = new ArrayList<>();
+			// deliberately return an out-of-order partition list
+			list.add(new PartitionInfo(topic, 3, null, null, null));
+			list.add(new PartitionInfo(topic, 1, null, null, null));
 			list.add(new PartitionInfo(topic, 0, null, null, null));
+			list.add(new PartitionInfo(topic, 2, null, null, null));
 			return list;
 		}
 
