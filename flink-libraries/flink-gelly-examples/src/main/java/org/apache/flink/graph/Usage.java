@@ -41,7 +41,6 @@ public class Usage {
 		org.apache.flink.graph.examples.PregelSSSP.class,
 		org.apache.flink.graph.examples.SingleSourceShortestPaths.class,
 		org.apache.flink.graph.scala.examples.ConnectedComponents.class,
-		org.apache.flink.graph.scala.examples.GraphMetrics.class,
 		org.apache.flink.graph.scala.examples.GSASingleSourceShortestPaths.class,
 		org.apache.flink.graph.scala.examples.SingleSourceShortestPaths.class,
 	};

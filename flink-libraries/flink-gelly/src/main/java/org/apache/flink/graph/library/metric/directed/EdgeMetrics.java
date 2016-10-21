@@ -367,6 +367,15 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		/**
+		 * Get the average degree.
+		 *
+		 * @return average degree
+		 */
+		public float getAverageDegree() {
+			return edgeCount / (float)vertexCount;
+		}
+
+		/**
 		 * Get the number of triangle triplets.
 		 *
 		 * @return number of triangle triplets
@@ -453,6 +462,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 			return "vertex count: " + nf.format(vertexCount)
 				+ "; edge count: " + nf.format(edgeCount)
+				+ "; average degree: " + nf.format(getAverageDegree())
 				+ "; triangle triplet count: " + nf.format(triangleTripletCount)
 				+ "; rectangle triplet count: " + nf.format(rectangleTripletCount)
 				+ "; triplet count: " + nf.format(tripletCount)
