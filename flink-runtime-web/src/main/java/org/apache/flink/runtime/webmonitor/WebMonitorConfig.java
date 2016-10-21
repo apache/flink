@@ -28,6 +28,9 @@ public class WebMonitorConfig {
 	//  Config Keys
 	// ------------------------------------------------------------------------
 
+	/** The address for the runtime monitor web-frontend server. */
+	public static final String JOB_MANAGER_WEB_ADDRESS_KEY = ConfigConstants.JOB_MANAGER_WEB_ADDRESS_KEY;
+
 	/** The port for the runtime monitor web-frontend server. */
 	public static final String JOB_MANAGER_WEB_PORT_KEY = ConfigConstants.JOB_MANAGER_WEB_PORT_KEY;
 
@@ -38,6 +41,9 @@ public class WebMonitorConfig {
 	// ------------------------------------------------------------------------
 	//  Default values
 	// ------------------------------------------------------------------------
+
+	/** Default address for the web dashboard (= 0.0.0.0) */
+	public static final String DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS = ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS;
 
 	/** Default port for the web dashboard (= 8081) */
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT;
@@ -61,6 +67,9 @@ public class WebMonitorConfig {
 		this.config = config;
 	}
 
+	public String getWebFrontendAddress() {
+		return config.getString(JOB_MANAGER_WEB_ADDRESS_KEY, DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS);
+	}
 
 	public int getWebFrontendPort() {
 		return config.getInteger(JOB_MANAGER_WEB_PORT_KEY, DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);

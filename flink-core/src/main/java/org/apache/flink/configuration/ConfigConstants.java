@@ -546,7 +546,12 @@ public final class ConfigConstants {
 	
 	
 	// ------------------------- JobManager Web Frontend ----------------------
-	
+
+	/**
+	 * The port for the runtime monitor web-frontend server.
+	 */
+	public static final String JOB_MANAGER_WEB_ADDRESS_KEY = "jobmanager.web.address";
+
 	/**
 	 * The port for the runtime monitor web-frontend server.
 	 */
@@ -1194,7 +1199,10 @@ public final class ConfigConstants {
 	
 	
 	// ------------------------- JobManager Web Frontend ----------------------
-	
+
+	/** The config key for the address of the JobManager web frontend. */
+	public static final String DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS = "0.0.0.0";
+
 	/** The config key for the port of the JobManager web frontend.
 	 * Setting this value to {@code -1} disables the web frontend. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;
