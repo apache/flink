@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -28,9 +29,9 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -46,15 +47,18 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 	private SerializationDelegate<StreamElement> serializationDelegate;
 
 	private final StreamStatusProvider streamStatusProvider;
-	
+
+	private final OutputTag outputTag;
+
 	@SuppressWarnings("unchecked")
 	public RecordWriterOutput(
 			StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
 			TypeSerializer<OUT> outSerializer,
+			OutputTag outputTag,
 			StreamStatusProvider streamStatusProvider) {
 
 		checkNotNull(recordWriter);
-		
+		this.outputTag = outputTag;
 		// generic hack: cast the writer to generic Object type so we can use it 
 		// with multiplexed records and watermarks
 		this.recordWriter = (StreamRecordWriter<SerializationDelegate<StreamElement>>) 
@@ -72,6 +76,26 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 
 	@Override
 	public void collect(StreamRecord<OUT> record) {
+		if (this.outputTag != null) {
+			// we are only responsible for emitting to the main input
+			return;
+		}
+
+		pushToRecordWriter(record);
+	}
+
+	@Override
+	public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+		if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
+			// we are only responsible for emitting to the side-output specified by our
+			// OutputTag.
+			return;
+		}
+
+		pushToRecordWriter(record);
+	}
+
+	private <X> void pushToRecordWriter(StreamRecord<X> record) {
 		serializationDelegate.setInstance(record);
 
 		try {

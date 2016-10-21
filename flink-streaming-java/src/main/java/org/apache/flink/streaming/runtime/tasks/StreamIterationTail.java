@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,6 +120,12 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 			} catch (InterruptedException e) {
 				throw new RuntimeException(e);
 			}
+		}
+
+		@Override
+		public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+			throw new UnsupportedOperationException("Side outputs not used in iteration tail");
+
 		}
 
 		@Override
