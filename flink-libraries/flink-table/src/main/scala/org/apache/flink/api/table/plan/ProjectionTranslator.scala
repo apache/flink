@@ -24,51 +24,68 @@ import org.apache.flink.api.table.plan.logical.LogicalNode
 
 import scala.collection.mutable.ListBuffer
 
-object RexNodeTranslator {
+object ProjectionTranslator {
 
   /**
-    * Extracts all aggregation expressions (zero, one, or more) from an expression,
-    * and replaces the original aggregation expressions by field accesses expressions.
+    * Extracts all aggregation and property expressions (zero, one, or more) from an expression,
+    * and replaces the original expressions by field accesses expressions.
     */
-  def extractAggregations(
-    exp: Expression,
-    tableEnv: TableEnvironment): Pair[Expression, List[NamedExpression]] = {
+  def extractAggregationsAndProperties(
+      exp: Expression,
+      tableEnv: TableEnvironment)
+    : (Expression, List[NamedExpression], List[NamedExpression]) = {
 
     exp match {
       case agg: Aggregation =>
         val name = tableEnv.createUniqueAttributeName()
         val aggCall = Alias(agg, name)
         val fieldExp = UnresolvedFieldReference(name)
-        (fieldExp, List(aggCall))
+        (fieldExp, List(aggCall), Nil)
+      case prop: WindowProperty =>
+        val name = tableEnv.createUniqueAttributeName()
+        val propCall = Alias(prop, name)
+        val fieldExp = UnresolvedFieldReference(name)
+        (fieldExp, Nil, List(propCall))
       case n @ Alias(agg: Aggregation, name) =>
         val fieldExp = UnresolvedFieldReference(name)
-        (fieldExp, List(n))
+        (fieldExp, List(n), Nil)
+      case n @ Alias(prop: WindowProperty, name) =>
+        val fieldExp = UnresolvedFieldReference(name)
+        (fieldExp, Nil, List(n))
       case l: LeafExpression =>
-        (l, Nil)
+        (l, Nil, Nil)
       case u: UnaryExpression =>
-        val c = extractAggregations(u.child, tableEnv)
-        (u.makeCopy(Array(c._1)), c._2)
+        val c = extractAggregationsAndProperties(u.child, tableEnv)
+        (u.makeCopy(Array(c._1)), c._2, c._3)
       case b: BinaryExpression =>
-        val l = extractAggregations(b.left, tableEnv)
-        val r = extractAggregations(b.right, tableEnv)
-        (b.makeCopy(Array(l._1, r._1)), l._2 ::: r._2)
+        val l = extractAggregationsAndProperties(b.left, tableEnv)
+        val r = extractAggregationsAndProperties(b.right, tableEnv)
+        (b.makeCopy(Array(l._1, r._1)),
+          l._2 ::: r._2,
+          l._3 ::: r._3)
 
       // Functions calls
       case c @ Call(name, args) =>
-        val newArgs = args.map(extractAggregations(_, tableEnv))
-        (c.makeCopy((name :: newArgs.map(_._1) :: Nil).toArray), newArgs.flatMap(_._2).toList)
+        val newArgs = args.map(extractAggregationsAndProperties(_, tableEnv))
+        (c.makeCopy((name :: newArgs.map(_._1) :: Nil).toArray),
+          newArgs.flatMap(_._2).toList,
+          newArgs.flatMap(_._3).toList)
 
       case sfc @ ScalarFunctionCall(clazz, args) =>
-        val newArgs = args.map(extractAggregations(_, tableEnv))
-        (sfc.makeCopy((clazz :: newArgs.map(_._1) :: Nil).toArray), newArgs.flatMap(_._2).toList)
+        val newArgs = args.map(extractAggregationsAndProperties(_, tableEnv))
+        (sfc.makeCopy((clazz :: newArgs.map(_._1) :: Nil).toArray),
+          newArgs.flatMap(_._2).toList,
+          newArgs.flatMap(_._3).toList)
 
       // General expression
       case e: Expression =>
         val newArgs = e.productIterator.map {
           case arg: Expression =>
-            extractAggregations(arg, tableEnv)
+            extractAggregationsAndProperties(arg, tableEnv)
         }
-        (e.makeCopy(newArgs.map(_._1).toArray), newArgs.flatMap(_._2).toList)
+        (e.makeCopy(newArgs.map(_._1).toArray),
+          newArgs.flatMap(_._2).toList,
+          newArgs.flatMap(_._3).toList)
     }
   }
 

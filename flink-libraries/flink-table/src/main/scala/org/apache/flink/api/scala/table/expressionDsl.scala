@@ -21,7 +21,7 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval}
+import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.api.table.expressions._
 
@@ -101,6 +101,18 @@ trait ImplicitExpressionOperations {
 
   def asc = Asc(expr)
   def desc = Desc(expr)
+
+  /**
+    * Returns the start time of a window when applied on a window reference.
+    * The window must be assigned an alias before.
+    */
+  def start = WindowStart(expr)
+
+  /**
+    * Returns the end time of a window when applied on a window reference.
+    * The window must be assigned an alias before.
+    */
+  def end = WindowEnd(expr)
 
   /**
     * Ternary conditional operator that decides which of two other expressions should be evaluated
@@ -335,33 +347,42 @@ trait ImplicitExpressionOperations {
     */
   def day = toMilliInterval(expr, MILLIS_PER_DAY)
 
-    /**
+  /**
     * Creates an interval of the given number of hours.
     *
     * @return interval of milliseconds
     */
   def hour = toMilliInterval(expr, MILLIS_PER_HOUR)
 
-    /**
+  /**
     * Creates an interval of the given number of minutes.
     *
     * @return interval of milliseconds
     */
   def minute = toMilliInterval(expr, MILLIS_PER_MINUTE)
 
-    /**
+  /**
     * Creates an interval of the given number of seconds.
     *
     * @return interval of milliseconds
     */
   def second = toMilliInterval(expr, MILLIS_PER_SECOND)
 
-    /**
+  /**
     * Creates an interval of the given number of milliseconds.
     *
     * @return interval of milliseconds
     */
   def milli = toMilliInterval(expr, 1)
+
+  // row interval type
+
+  /**
+    * Creates an interval of rows.
+    *
+    * @return interval of rows
+    */
+  def rows = toRowInterval(expr)
 }
 
 /**

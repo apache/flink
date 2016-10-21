@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.validate._
 
 abstract class Ordering extends UnaryExpression {
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (!child.isInstanceOf[NamedExpression]) {
       ValidationFailure(s"Sort should only based on field reference")
     } else {

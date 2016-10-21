@@ -29,7 +29,7 @@ import org.apache.flink.api.table.validate._
 case class Abs(child: Expression) extends UnaryExpression {
   override private[flink] def resultType: TypeInformation[_] = child.resultType
 
-  override private[flink] def validateInput(): ExprValidationResult =
+  override private[flink] def validateInput(): ValidationResult =
     TypeCheckUtils.assertNumericExpr(child.resultType, "Abs")
 
   override def toString: String = s"abs($child)"
@@ -42,7 +42,7 @@ case class Abs(child: Expression) extends UnaryExpression {
 case class Ceil(child: Expression) extends UnaryExpression {
   override private[flink] def resultType: TypeInformation[_] = LONG_TYPE_INFO
 
-  override private[flink] def validateInput(): ExprValidationResult =
+  override private[flink] def validateInput(): ValidationResult =
     TypeCheckUtils.assertNumericExpr(child.resultType, "Ceil")
 
   override def toString: String = s"ceil($child)"
@@ -68,7 +68,7 @@ case class Exp(child: Expression) extends UnaryExpression with InputTypeSpec {
 case class Floor(child: Expression) extends UnaryExpression {
   override private[flink] def resultType: TypeInformation[_] = LONG_TYPE_INFO
 
-  override private[flink] def validateInput(): ExprValidationResult =
+  override private[flink] def validateInput(): ValidationResult =
     TypeCheckUtils.assertNumericExpr(child.resultType, "Floor")
 
   override def toString: String = s"floor($child)"

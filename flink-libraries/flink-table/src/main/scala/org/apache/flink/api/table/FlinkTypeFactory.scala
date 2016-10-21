@@ -30,7 +30,7 @@ import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.ValueTypeInfo._
 import org.apache.flink.api.table.FlinkTypeFactory.typeInfoToSqlTypeName
 import org.apache.flink.api.table.plan.schema.GenericRelDataType
-import org.apache.flink.api.table.typeutils.IntervalTypeInfo
+import org.apache.flink.api.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.api.table.typeutils.TypeCheckUtils.isSimple
 
 import scala.collection.mutable
@@ -106,8 +106,8 @@ object FlinkTypeFactory {
       case SqlTimeTypeInfo.DATE => DATE
       case SqlTimeTypeInfo.TIME => TIME
       case SqlTimeTypeInfo.TIMESTAMP => TIMESTAMP
-      case IntervalTypeInfo.INTERVAL_MONTHS => INTERVAL_YEAR_MONTH
-      case IntervalTypeInfo.INTERVAL_MILLIS => INTERVAL_DAY_SECOND
+      case TimeIntervalTypeInfo.INTERVAL_MONTHS => INTERVAL_YEAR_MONTH
+      case TimeIntervalTypeInfo.INTERVAL_MILLIS => INTERVAL_DAY_SECOND
 
       case CHAR_TYPE_INFO | CHAR_VALUE_TYPE_INFO =>
         throw TableException("Character type is not supported.")
@@ -131,8 +131,8 @@ object FlinkTypeFactory {
     case DATE => SqlTimeTypeInfo.DATE
     case TIME => SqlTimeTypeInfo.TIME
     case TIMESTAMP => SqlTimeTypeInfo.TIMESTAMP
-    case typeName if YEAR_INTERVAL_TYPES.contains(typeName) => IntervalTypeInfo.INTERVAL_MONTHS
-    case typeName if DAY_INTERVAL_TYPES.contains(typeName) => IntervalTypeInfo.INTERVAL_MILLIS
+    case typeName if YEAR_INTERVAL_TYPES.contains(typeName) => TimeIntervalTypeInfo.INTERVAL_MONTHS
+    case typeName if DAY_INTERVAL_TYPES.contains(typeName) => TimeIntervalTypeInfo.INTERVAL_MILLIS
 
     case NULL =>
       throw TableException("Type NULL is not supported. " +

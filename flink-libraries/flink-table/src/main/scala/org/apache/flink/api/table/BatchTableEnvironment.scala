@@ -74,7 +74,7 @@ abstract class BatchTableEnvironment(
     val m = internalNamePattern.findFirstIn(name)
     m match {
       case Some(_) =>
-        throw new ValidationException(s"Illegal Table name. " +
+        throw new TableException(s"Illegal Table name. " +
           s"Please choose a name that does not contain the pattern $internalNamePattern")
       case None =>
     }
@@ -97,7 +97,7 @@ abstract class BatchTableEnvironment(
     if (isRegistered(tableName)) {
       new Table(this, CatalogNode(tableName, getRowType(tableName)))
     } else {
-      throw new ValidationException(s"Table \'$tableName\' was not found in the registry.")
+      throw new TableException(s"Table \'$tableName\' was not found in the registry.")
     }
   }
 
