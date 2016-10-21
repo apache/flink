@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -108,5 +109,10 @@ class DFSSubpartition extends ResultSubpartition {
 		return String.format("DFSSubpartition," +
 						"finished? %s, read view? %s, writer? %s]",
 				isFinished, null,	dfsWriter != null);
+	}
+
+	@VisibleForTesting
+	void setDFSWriter(DFSFileWriter writer) {
+		this.dfsWriter = writer;
 	}
 }

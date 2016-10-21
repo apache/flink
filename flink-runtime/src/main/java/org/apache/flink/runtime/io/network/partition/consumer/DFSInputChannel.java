@@ -115,7 +115,6 @@ public class DFSInputChannel extends InputChannel {
 	@Override
 	Buffer getNextBuffer() throws IOException {
 		checkState(!isReleased.get(), "Queried for a buffer after channel has been closed.");
-		checkState(dfsReader.isOpen(), "Queried for a buffer before requesting a queue.");
 
 		checkError();
 

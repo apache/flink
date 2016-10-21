@@ -136,7 +136,7 @@ public class DFSFileReader {
 		}
 
 		public void shutdown() {
-            this.alive = false;
+			this.alive = false;
 		}
 
 		@Override
