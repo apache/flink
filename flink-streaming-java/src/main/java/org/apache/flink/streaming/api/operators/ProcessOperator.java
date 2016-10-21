@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.util.OutputTag;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -90,6 +91,11 @@ public class ProcessOperator<IN, OUT>
 			} else {
 				return null;
 			}
+		}
+
+		@Override
+		public <X> void output(OutputTag<X> outputTag, X value) {
+			output.collect(outputTag, new StreamRecord<>(value, element.getTimestamp()));
 		}
 
 		@Override

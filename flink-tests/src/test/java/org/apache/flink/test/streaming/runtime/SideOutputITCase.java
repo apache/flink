@@ -18,6 +18,7 @@
 package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -56,6 +57,151 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase {
 		elements.add(3);
 		elements.add(4);
 	}
+
+	private final static OutputTag<String> sideOutputTag = new OutputTag<String>("side"){};
+	private final static OutputTag<String> otherSideOutputTag = new OutputTag<String>("other-side"){};
+
+	/**
+	 * Test ProcessFunction side output.
+	 */
+	@Test
+	public void testProcessFunctionSideOutput() throws Exception {
+		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
+		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
+
+		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+		see.setParallelism(3);
+
+		DataStream<Integer> dataStream = see.fromCollection(elements);
+
+		SingleOutputStreamOperator<Integer> passThroughtStream = dataStream
+				.process(new ProcessFunction<Integer, Integer>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public void processElement(
+							Integer value, Context ctx, Collector<Integer> out) throws Exception {
+						out.collect(value);
+						ctx.output(sideOutputTag, "sideout-" + String.valueOf(value));
+					}
+				});
+
+		passThroughtStream.getSideOutput(sideOutputTag).addSink(sideOutputResultSink);
+		passThroughtStream.addSink(resultSink);
+		see.execute();
+
+		assertEquals(Arrays.asList("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"), sideOutputResultSink.getSortedResult());
+		assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+	}
+
+	/**
+	 * Test keyed ProcessFunction side output.
+	 */
+	@Test
+	public void testKeyedProcessFunctionSideOutput() throws Exception {
+		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
+		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
+
+		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+		see.setParallelism(3);
+
+		DataStream<Integer> dataStream = see.fromCollection(elements);
+
+		SingleOutputStreamOperator<Integer> passThroughtStream = dataStream
+				.keyBy(new KeySelector<Integer, Integer>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Integer getKey(Integer value) throws Exception {
+						return value;
+					}
+				})
+				.process(new ProcessFunction<Integer, Integer>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public void processElement(
+							Integer value, Context ctx, Collector<Integer> out) throws Exception {
+						out.collect(value);
+						ctx.output(sideOutputTag, "sideout-" + String.valueOf(value));
+					}
+				});
+
+		passThroughtStream.getSideOutput(sideOutputTag).addSink(sideOutputResultSink);
+		passThroughtStream.addSink(resultSink);
+		see.execute();
+
+		assertEquals(Arrays.asList("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"), sideOutputResultSink.getSortedResult());
+		assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+	}
+
+
+	/**
+	 * Test ProcessFunction side outputs with wrong {@code OutputTag}.
+	 */
+	@Test
+	public void testProcessFunctionSideOutputWithWrongTag() throws Exception {
+		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
+
+		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+		see.setParallelism(3);
+
+		DataStream<Integer> dataStream = see.fromCollection(elements);
+
+		dataStream
+				.process(new ProcessFunction<Integer, Integer>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public void processElement(
+							Integer value, Context ctx, Collector<Integer> out) throws Exception {
+						out.collect(value);
+						ctx.output(otherSideOutputTag, "sideout-" + String.valueOf(value));
+					}
+				}).getSideOutput(sideOutputTag).addSink(sideOutputResultSink);
+
+		see.execute();
+
+		assertEquals(Arrays.asList(), sideOutputResultSink.getSortedResult());
+	}
+
+	/**
+	 * Test keyed ProcessFunction side outputs with wrong {@code OutputTag}.
+	 */
+	@Test
+	public void testKeyedProcessFunctionSideOutputWithWrongTag() throws Exception {
+		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
+
+		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+		see.setParallelism(3);
+
+		DataStream<Integer> dataStream = see.fromCollection(elements);
+
+		dataStream
+				.keyBy(new KeySelector<Integer, Integer>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Integer getKey(Integer value) throws Exception {
+						return value;
+					}
+				})
+				.process(new ProcessFunction<Integer, Integer>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public void processElement(
+							Integer value, Context ctx, Collector<Integer> out) throws Exception {
+						out.collect(value);
+						ctx.output(otherSideOutputTag, "sideout-" + String.valueOf(value));
+					}
+				}).getSideOutput(sideOutputTag).addSink(sideOutputResultSink);
+
+		see.execute();
+
+		assertEquals(Arrays.asList(), sideOutputResultSink.getSortedResult());
+	}
+
 
 	private static class TestWatermarkAssigner implements AssignerWithPunctuatedWatermarks<Integer> {
 		private static final long serialVersionUID = 1L;

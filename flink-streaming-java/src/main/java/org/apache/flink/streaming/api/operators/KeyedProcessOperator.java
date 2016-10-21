@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -38,9 +39,9 @@ public class KeyedProcessOperator<K, IN, OUT>
 
 	private transient TimestampedCollector<OUT> collector;
 
-	private transient ContextImpl<IN, OUT> context;
+	private transient ContextImpl context;
 
-	private transient OnTimerContextImpl<IN, OUT> onTimerContext;
+	private transient OnTimerContextImpl onTimerContext;
 
 	public KeyedProcessOperator(ProcessFunction<IN, OUT> function) {
 		super(function);
@@ -58,8 +59,8 @@ public class KeyedProcessOperator<K, IN, OUT>
 
 		TimerService timerService = new SimpleTimerService(internalTimerService);
 
-		context = new ContextImpl<>(userFunction, timerService);
-		onTimerContext = new OnTimerContextImpl<>(userFunction, timerService);
+		context = new ContextImpl(userFunction, timerService);
+		onTimerContext = new OnTimerContextImpl(userFunction, timerService);
 	}
 
 	@Override
@@ -90,7 +91,7 @@ public class KeyedProcessOperator<K, IN, OUT>
 		context.element = null;
 	}
 
-	private static class ContextImpl<IN, OUT> extends ProcessFunction<IN, OUT>.Context {
+	private class ContextImpl extends ProcessFunction<IN, OUT>.Context {
 
 		private final TimerService timerService;
 
@@ -113,12 +114,17 @@ public class KeyedProcessOperator<K, IN, OUT>
 		}
 
 		@Override
+		public <X> void output(OutputTag<X> outputTag, X value) {
+			output.collect(outputTag, new StreamRecord<>(value, element.getTimestamp()));
+		}
+
+		@Override
 		public TimerService timerService() {
 			return timerService;
 		}
 	}
 
-	private static class OnTimerContextImpl<IN, OUT> extends ProcessFunction<IN, OUT>.OnTimerContext{
+	private class OnTimerContextImpl extends ProcessFunction<IN, OUT>.OnTimerContext{
 
 		private final TimerService timerService;
 
@@ -141,6 +147,11 @@ public class KeyedProcessOperator<K, IN, OUT>
 		public Long timestamp() {
 			checkState(timer != null);
 			return timer.getTimestamp();
+		}
+
+		@Override
+		public <X> void output(OutputTag<X> outputTag, X value) {
+			output.collect(outputTag, new StreamRecord<>(value, timer.getTimestamp()));
 		}
 
 		@Override
