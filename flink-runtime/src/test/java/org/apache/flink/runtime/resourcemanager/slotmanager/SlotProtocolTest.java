@@ -30,14 +30,18 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerServices;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
-import org.apache.flink.runtime.resourcemanager.TestingResourceManager;
+import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
 import org.apache.flink.runtime.resourcemanager.TestingSlotManager;
 import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestReply;
 import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestReply;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorRegistration;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingSerialRpcService;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
@@ -102,9 +106,17 @@ public class SlotProtocolTest extends TestLogger {
 		TestingLeaderElectionService rmLeaderElectionService =
 			configureHA(testingHaServices, jobID, rmAddress, rmLeaderID, jmAddress, jmLeaderID);
 
+		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(Time.seconds(5L), Time.seconds(5L));
+
 		final TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		SpiedResourceManager resourceManager =
-			new SpiedResourceManager(testRpcService, testingHaServices, slotManagerFactory);
+			new SpiedResourceManager(
+				testRpcService,
+				resourceManagerConfiguration,
+				testingHaServices,
+				slotManagerFactory,
+				mock(MetricRegistry.class),
+				mock(FatalErrorHandler.class));
 		resourceManager.start();
 		rmLeaderElectionService.isLeader(rmLeaderID);
 
@@ -193,16 +205,26 @@ public class SlotProtocolTest extends TestLogger {
 			.thenReturn(new FlinkCompletableFuture<TMSlotRequestReply>());
 		testRpcService.registerGateway(tmAddress, taskExecutorGateway);
 
+		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(Time.seconds(5L), Time.seconds(5L));
+
 		TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
-		TestingResourceManager resourceManager =
-			Mockito.spy(new TestingResourceManager(testRpcService, testingHaServices, slotManagerFactory));
+		ResourceManager<ResourceID> resourceManager =
+			Mockito.spy(new StandaloneResourceManager(
+				testRpcService,
+				resourceManagerConfiguration,
+				testingHaServices,
+				slotManagerFactory,
+				mock(MetricRegistry.class),
+				mock(FatalErrorHandler.class)));
 		resourceManager.start();
 		rmLeaderElectionService.isLeader(rmLeaderID);
+
+		Thread.sleep(1000);
 
 		Future<RegistrationResponse> registrationFuture =
 			resourceManager.registerJobMaster(rmLeaderID, jmLeaderID, jmAddress, jobID);
 		try {
-			registrationFuture.get(5, TimeUnit.SECONDS);
+			registrationFuture.get(5L, TimeUnit.SECONDS);
 		} catch (Exception e) {
 			Assert.fail("JobManager registration Future didn't become ready.");
 		}
@@ -258,15 +280,24 @@ public class SlotProtocolTest extends TestLogger {
 		return rmLeaderElectionService;
 	}
 
-	private static class SpiedResourceManager extends TestingResourceManager {
+	private static class SpiedResourceManager extends StandaloneResourceManager {
 
 		private int startNewWorkerCalled = 0;
 
 		public SpiedResourceManager(
 				RpcService rpcService,
+				ResourceManagerConfiguration resourceManagerConfiguration,
 				HighAvailabilityServices highAvailabilityServices,
-				SlotManagerFactory slotManagerFactory) {
-			super(rpcService, highAvailabilityServices, slotManagerFactory);
+				SlotManagerFactory slotManagerFactory,
+				MetricRegistry metricRegistry,
+				FatalErrorHandler fatalErrorHandler) {
+			super(
+				rpcService,
+				resourceManagerConfiguration,
+				highAvailabilityServices,
+				slotManagerFactory,
+				metricRegistry,
+				fatalErrorHandler);
 		}
 
 

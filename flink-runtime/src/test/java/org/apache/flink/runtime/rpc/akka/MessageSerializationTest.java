@@ -80,7 +80,7 @@ public class MessageSerializationTest extends TestLogger {
 	 * Tests that a local rpc call with a non serializable argument can be executed.
 	 */
 	@Test
-	public void testNonSerializableLocalMessageTransfer() throws InterruptedException, IOException {
+	public void testNonSerializableLocalMessageTransfer() throws Exception {
 		LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
 		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
 		testEndpoint.start();
