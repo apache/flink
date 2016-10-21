@@ -116,7 +116,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	 * 
 	 * <p>By default, this method does nothing.
 	 */
-	public void clear(W window, TriggerContext ctx) throws Exception {}
+	public abstract void clear(W window, TriggerContext ctx) throws Exception;
 
 	// ------------------------------------------------------------------------
 	
