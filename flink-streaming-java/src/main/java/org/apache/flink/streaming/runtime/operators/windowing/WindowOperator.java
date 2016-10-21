@@ -36,8 +36,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
@@ -57,8 +55,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -104,6 +100,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	protected final StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor;
 
+	protected final ListStateDescriptor<Tuple2<W, W>> mergingWindowsDescriptor;
+
 	/**
 	 * For serializing the key in checkpoints.
 	 */
@@ -143,8 +141,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	private transient InternalTimerService<W> internalTimerService;
 
-	protected transient Map<K, MergingWindowSet<W>> mergingWindowsByKey;
-
 	/**
 	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
 	 */
@@ -173,6 +169,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		this.trigger = checkNotNull(trigger);
 		this.allowedLateness = allowedLateness;
 
+		if (windowAssigner instanceof MergingWindowAssigner) {
+			@SuppressWarnings({"unchecked", "rawtypes"})
+			TupleSerializer<Tuple2<W, W>> tupleSerializer = new TupleSerializer<>((Class) Tuple2.class, new TypeSerializer[] {windowSerializer, windowSerializer} );
+			mergingWindowsDescriptor = new ListStateDescriptor<>("merging-window-set", tupleSerializer);
+		} else {
+			mergingWindowsDescriptor = null;
+		}
+
 		setChainingStrategy(ChainingStrategy.ALWAYS);
 	}
 
@@ -193,10 +197,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				return internalTimerService.currentProcessingTime();
 			}
 		};
-
-		if (windowAssigner instanceof MergingWindowAssigner) {
-			mergingWindowsByKey = new HashMap<>();
-		}
 	}
 
 	@Override
@@ -205,7 +205,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		timestampedCollector = null;
 		context = null;
 		windowAssignerContext = null;
-		mergingWindowsByKey = null;
 	}
 
 	@Override
@@ -214,7 +213,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		timestampedCollector = null;
 		context = null;
 		windowAssignerContext = null;
-		mergingWindowsByKey = null;
 	}
 
 	@Override
@@ -273,8 +271,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					throw new IllegalStateException("Window " + window + " is not in in-flight window set.");
 				}
 
-				AppendingState<IN, ACC> windowState = getPartitionedState(
-					stateWindow, windowSerializer, windowStateDescriptor);
+				AppendingState<IN, ACC> windowState =
+						getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
 				windowState.add(element.getValue());
 
 				context.key = key;
@@ -299,6 +297,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					registerCleanupTimer(actualWindow);
 				}
 			}
+
+			// need to make sure to update the merging state in state
+			mergingWindows.persist();
 		} else {
 			for (W window: elementWindows) {
 
@@ -307,8 +308,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					continue;
 				}
 
-				AppendingState<IN, ACC> windowState = getPartitionedState(
-					window, windowSerializer, windowStateDescriptor);
+				AppendingState<IN, ACC> windowState =
+						getPartitionedState(window, windowSerializer, windowStateDescriptor);
 				windowState.add(element.getValue());
 
 				context.key = key;
@@ -423,6 +424,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		windowState.clear();
 		if (mergingWindows != null) {
 			mergingWindows.retireWindow(window);
+			mergingWindows.persist();
 		}
 		context.clear();
 	}
@@ -440,22 +442,17 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	/**
 	 * Retrieves the {@link MergingWindowSet} for the currently active key.
 	 * The caller must ensure that the correct key is set in the state backend.
+	 *
+	 * <p>The caller must also ensure to properly persist changes to state using
+	 * {@link MergingWindowSet#persist()}.
 	 */
-	@SuppressWarnings("unchecked")
 	protected MergingWindowSet<W> getMergingWindowSet() throws Exception {
-		MergingWindowSet<W> mergingWindows = mergingWindowsByKey.get((K) getKeyedStateBackend().getCurrentKey());
-		if (mergingWindows == null) {
-			// try to retrieve from state
+		ListState<Tuple2<W, W>> mergeState =
+				getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, mergingWindowsDescriptor);
 
-			TupleSerializer<Tuple2<W, W>> tupleSerializer = new TupleSerializer<>((Class) Tuple2.class, new TypeSerializer[] {windowSerializer, windowSerializer} );
-			ListStateDescriptor<Tuple2<W, W>> mergeStateDescriptor = new ListStateDescriptor<>("merging-window-set", tupleSerializer);
-			ListState<Tuple2<W, W>> mergeState = getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, mergeStateDescriptor);
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		MergingWindowSet<W> mergingWindows = new MergingWindowSet<>((MergingWindowAssigner) windowAssigner, mergeState);
 
-			mergingWindows = new MergingWindowSet<>((MergingWindowAssigner<? super IN, W>) windowAssigner, mergeState);
-			mergeState.clear();
-
-			mergingWindowsByKey.put((K) getKeyedStateBackend().getCurrentKey(), mergingWindows);
-		}
 		return mergingWindows;
 	}
 
@@ -715,30 +712,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				", window=" + window +
 				'}';
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Checkpointing
-	// ------------------------------------------------------------------------
-
-	@Override
-	public void snapshotState(StateSnapshotContext context) throws Exception {
-		super.snapshotState(context);
-		if (mergingWindowsByKey != null) {
-			TupleSerializer<Tuple2<W, W>> tupleSerializer = new TupleSerializer<>((Class) Tuple2.class, new TypeSerializer[] {windowSerializer, windowSerializer} );
-			ListStateDescriptor<Tuple2<W, W>> mergeStateDescriptor = new ListStateDescriptor<>("merging-window-set", tupleSerializer);
-			for (Map.Entry<K, MergingWindowSet<W>> key: mergingWindowsByKey.entrySet()) {
-				setCurrentKey(key.getKey());
-				ListState<Tuple2<W, W>> mergeState = getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, mergeStateDescriptor);
-				mergeState.clear();
-				key.getValue().persist(mergeState);
-			}
-		}
-	}
-
-	@Override
-	public void initializeState(StateInitializationContext context) throws Exception {
-		super.initializeState(context);
 	}
 
 	// ------------------------------------------------------------------------
