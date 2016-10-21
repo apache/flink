@@ -25,6 +25,7 @@ import org.apache.flink.util.ReflectionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -207,6 +208,17 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 * @param runnable Runnable to be executed
 	 * @param delay    The delay after which the runnable will be executed
 	 */
+	protected void scheduleRunAsync(Runnable runnable, Time delay) {
+		scheduleRunAsync(runnable, delay.getSize(), delay.getUnit());
+	}
+
+	/**
+	 * Execute the runnable in the main thread of the underlying RPC endpoint, with
+	 * a delay of the given number of milliseconds.
+	 *
+	 * @param runnable Runnable to be executed
+	 * @param delay    The delay after which the runnable will be executed
+	 */
 	protected void scheduleRunAsync(Runnable runnable, long delay, TimeUnit unit) {
 		((MainThreadExecutable) self).scheduleRunAsync(runnable, unit.toMillis(delay));
 	}
@@ -255,7 +267,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	/**
 	 * Executor which executes runnables in the main thread context.
 	 */
-	private class MainThreadExecutor implements Executor {
+	private static class MainThreadExecutor implements Executor {
 
 		private final MainThreadExecutable gateway;
 
@@ -264,7 +276,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 		}
 
 		@Override
-		public void execute(Runnable runnable) {
+		public void execute(@Nonnull Runnable runnable) {
 			gateway.runAsync(runnable);
 		}
 	}
@@ -277,7 +289,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	private Class<C> determineSelfGatewayType() {
 
 		// determine self gateway type
-		Class c = getClass();
+		Class<?> c = getClass();
 		Class<C> determinedSelfGatewayType;
 		do {
 			determinedSelfGatewayType = ReflectionUtil.getTemplateType1(c);

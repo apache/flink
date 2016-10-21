@@ -46,4 +46,9 @@ public class ResourceProfileTest {
 		assertTrue(rp4.isMatching(rp3));
 		assertTrue(rp4.isMatching(rp4));
 	}
+
+	@Test
+	public void testUnknownMatchesUnknown() {
+		assertTrue(ResourceProfile.UNKNOWN.isMatching(ResourceProfile.UNKNOWN));
+	}
 }
