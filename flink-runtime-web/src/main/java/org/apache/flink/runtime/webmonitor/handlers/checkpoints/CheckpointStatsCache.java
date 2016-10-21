@@ -55,7 +55,7 @@ public class CheckpointStatsCache {
 	 *
 	 * @param checkpoint Checkpoint to be added.
 	 */
-	void tryAdd(AbstractCheckpointStats checkpoint) {
+	public void tryAdd(AbstractCheckpointStats checkpoint) {
 		// Don't add in progress checkpoints as they will be replaced by their
 		// completed/failed version eventually.
 		if (cache != null && checkpoint != null && !checkpoint.getStatus().isInProgress()) {

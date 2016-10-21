@@ -1762,7 +1762,22 @@ class JobManager(
           }(context.dispatcher))
 
           try {
-            archive ! decorateMessage(ArchiveExecutionGraph(jobID, eg.archive()))
+            val archivedGraph = eg.archive()
+
+            val hsHost = flinkConfiguration
+              .getString(HistoryServerOptions.HISTORY_SERVER_RPC_HOST)
+            val hsPort = flinkConfiguration
+              .getInteger(HistoryServerOptions.HISTORY_SERVER_RPC_PORT)
+
+            if (hsHost != null) {
+              val protocol = AkkaUtils.getAkkaProtocol(flinkConfiguration)
+              val host = hsHost
+              val ht = context.actorSelection(
+                s"$protocol://flink@$host:$hsPort/user/HistoryServer")
+              ht ! archivedGraph
+            }
+            
+            archive ! decorateMessage(ArchiveExecutionGraph(jobID, archivedGraph))
           } catch {
             case t: Throwable => log.warn(s"Could not archive the execution graph $eg.", t)
           }
