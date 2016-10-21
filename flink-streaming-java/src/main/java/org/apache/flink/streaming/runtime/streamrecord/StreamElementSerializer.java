@@ -29,14 +29,16 @@ import java.io.IOException;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Serializer for {@link StreamRecord} and {@link Watermark}. This does not behave like a normal
- * {@link TypeSerializer}, instead, this is only used at the stream task/operator level for
- * transmitting StreamRecords and Watermarks.
+ * Serializer for {@link StreamRecord}, {@link Watermark} and {@link LatencyMarker}.
+ *
+ * <p>
+ * This does not behave like a normal {@link TypeSerializer}, instead, this is only used at the
+ * stream task/operator level for transmitting StreamRecords and Watermarks.
  *
  * @param <T> The type of value in the StreamRecord
  */
 @Internal
-public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<StreamElement> {
+public final class StreamElementSerializer<T> extends TypeSerializer<StreamElement> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -49,8 +51,8 @@ public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<
 	private final TypeSerializer<T> typeSerializer;
 
 	
-	public MultiplexingStreamRecordSerializer(TypeSerializer<T> serializer) {
-		if (serializer instanceof MultiplexingStreamRecordSerializer || serializer instanceof StreamRecordSerializer) {
+	public StreamElementSerializer(TypeSerializer<T> serializer) {
+		if (serializer instanceof StreamElementSerializer) {
 			throw new RuntimeException("StreamRecordSerializer given to StreamRecordSerializer as value TypeSerializer: " + serializer);
 		}
 		this.typeSerializer = requireNonNull(serializer);
@@ -70,9 +72,9 @@ public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<
 	}
 
 	@Override
-	public MultiplexingStreamRecordSerializer<T> duplicate() {
+	public StreamElementSerializer<T> duplicate() {
 		TypeSerializer<T> copy = typeSerializer.duplicate();
-		return (copy == typeSerializer) ? this : new MultiplexingStreamRecordSerializer<T>(copy);
+		return (copy == typeSerializer) ? this : new StreamElementSerializer<T>(copy);
 	}
 
 	// ------------------------------------------------------------------------
@@ -231,8 +233,8 @@ public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof MultiplexingStreamRecordSerializer) {
-			MultiplexingStreamRecordSerializer<?> other = (MultiplexingStreamRecordSerializer<?>) obj;
+		if (obj instanceof StreamElementSerializer) {
+			StreamElementSerializer<?> other = (StreamElementSerializer<?>) obj;
 
 			return other.canEqual(this) && typeSerializer.equals(other.typeSerializer);
 		} else {
@@ -242,7 +244,7 @@ public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<
 
 	@Override
 	public boolean canEqual(Object obj) {
-		return obj instanceof MultiplexingStreamRecordSerializer;
+		return obj instanceof StreamElementSerializer;
 	}
 
 	@Override
