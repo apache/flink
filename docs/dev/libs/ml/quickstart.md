@@ -136,11 +136,11 @@ We can simply import the dataset then using:
 import org.apache.flink.ml.MLUtils
 
 val astroTrain: DataSet[LabeledVector] = MLUtils.readLibSVM("/path/to/svmguide1")
-val astroTest: DataSet[LabeledVector] = MLUtils.readLibSVM("/path/to/svmguide1.t")
+val astroTest: DataSet[Vector] = MLUtils.readLibSVM("/path/to/svmguide1.t").map(_.vector)
 
 {% endhighlight %}
 
-This gives us two `DataSet[LabeledVector]` objects that we will use in the following section to
+This gives us `DataSet[LabeledVector]` and `DataSet[Vector]` objects that we will use in the following section to
 create a classifier.
 
 ## Classification
