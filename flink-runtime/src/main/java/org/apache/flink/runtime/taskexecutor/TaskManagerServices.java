@@ -36,13 +36,11 @@ import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.netty.DisabledKvStateRequestStats;
 import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
-import org.apache.flink.runtime.taskexecutor.utils.TaskExecutorMetricsInitializer;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -68,8 +66,6 @@ public class TaskManagerServices {
 	private final MemoryManager memoryManager;
 	private final IOManager ioManager;
 	private final NetworkEnvironment networkEnvironment;
-	private final MetricRegistry metricRegistry;
-	private final TaskManagerMetricGroup taskManagerMetricGroup;
 	private final BroadcastVariableManager broadcastVariableManager;
 	private final FileCache fileCache;
 	private final TaskSlotTable taskSlotTable;
@@ -81,8 +77,6 @@ public class TaskManagerServices {
 		MemoryManager memoryManager,
 		IOManager ioManager,
 		NetworkEnvironment networkEnvironment,
-		MetricRegistry metricRegistry,
-		TaskManagerMetricGroup taskManagerMetricGroup,
 		BroadcastVariableManager broadcastVariableManager,
 		FileCache fileCache,
 		TaskSlotTable taskSlotTable,
@@ -93,8 +87,6 @@ public class TaskManagerServices {
 		this.memoryManager = Preconditions.checkNotNull(memoryManager);
 		this.ioManager = Preconditions.checkNotNull(ioManager);
 		this.networkEnvironment = Preconditions.checkNotNull(networkEnvironment);
-		this.metricRegistry = Preconditions.checkNotNull(metricRegistry);
-		this.taskManagerMetricGroup = Preconditions.checkNotNull(taskManagerMetricGroup);
 		this.broadcastVariableManager = Preconditions.checkNotNull(broadcastVariableManager);
 		this.fileCache = Preconditions.checkNotNull(fileCache);
 		this.taskSlotTable = Preconditions.checkNotNull(taskSlotTable);
@@ -120,14 +112,6 @@ public class TaskManagerServices {
 
 	public TaskManagerLocation getTaskManagerLocation() {
 		return taskManagerLocation;
-	}
-
-	public MetricRegistry getMetricRegistry() {
-		return metricRegistry;
-	}
-
-	public TaskManagerMetricGroup getTaskManagerMetricGroup() {
-		return taskManagerMetricGroup;
 	}
 
 	public BroadcastVariableManager getBroadcastVariableManager() {
@@ -181,16 +165,6 @@ public class TaskManagerServices {
 		// start the I/O manager, it will create some temp directories.
 		final IOManager ioManager = new IOManagerAsync(taskManagerServicesConfiguration.getTmpDirPaths());
 
-		final MetricRegistry metricRegistry = new MetricRegistry(taskManagerServicesConfiguration.getMetricRegistryConfiguration());
-
-		final TaskManagerMetricGroup taskManagerMetricGroup = new TaskManagerMetricGroup(
-			metricRegistry,
-			taskManagerLocation.getHostname(),
-			taskManagerLocation.getResourceID().toString());
-
-		// Initialize the TM metrics
-		TaskExecutorMetricsInitializer.instantiateStatusMetrics(taskManagerMetricGroup, network);
-
 		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
 		final FileCache fileCache = new FileCache(taskManagerServicesConfiguration.getTmpDirPaths());
@@ -214,8 +188,6 @@ public class TaskManagerServices {
 			memoryManager,
 			ioManager,
 			network,
-			metricRegistry,
-			taskManagerMetricGroup,
 			broadcastVariableManager,
 			fileCache,
 			taskSlotTable,

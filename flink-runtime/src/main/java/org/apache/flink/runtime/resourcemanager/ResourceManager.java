@@ -20,7 +20,6 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -36,14 +35,15 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestRejected;
 import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestReply;
-import org.apache.flink.runtime.resourcemanager.registration.JobMasterRegistration;
+import org.apache.flink.runtime.resourcemanager.registration.JobManagerRegistration;
 import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -54,13 +54,14 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
+import org.apache.flink.util.ExceptionUtils;
 
 import java.io.Serializable;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -71,7 +72,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * It offers the following methods as part of its rpc interface to interact with him remotely:
  * <ul>
- *     <li>{@link #registerJobMaster(UUID, UUID, String, JobID)} registers a {@link JobMaster} at the resource manager</li>
+ *     <li>{@link #registerJobManager(UUID, UUID, String, JobID)} registers a {@link JobMaster} at the resource manager</li>
  *     <li>{@link #requestSlot(UUID, UUID, SlotRequest)} requests a slot from the resource manager</li>
  * </ul>
  */
@@ -79,14 +80,14 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		extends RpcEndpoint<ResourceManagerGateway>
 		implements LeaderContender {
 
-	/** The exit code with which the process is stopped in case of a fatal error. */
-	protected static final int EXIT_CODE_FATAL_ERROR = -13;
+	/** Configuration of the resource manager */
+	private final ResourceManagerConfiguration resourceManagerConfiguration;
 
 	/** All currently registered JobMasterGateways scoped by JobID. */
-	private final Map<JobID, JobMasterRegistration> jobMasters;
+	private final Map<JobID, JobManagerRegistration> jobManagerRegistrations;
 
-	/** LeaderListeners for all registered JobIDs. */
-	private final Map<JobID, JobIdLeaderListener> leaderListeners;
+	/** Service to retrieve the job leader ids */
+	private final JobLeaderIdService jobLeaderIdService;
 
 	/** All currently registered TaskExecutors with there framework specific worker information. */
 	private final Map<ResourceID, WorkerRegistration<WorkerType>> taskExecutors;
@@ -97,6 +98,12 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	/** The factory to construct the SlotManager. */
 	private final SlotManagerFactory slotManagerFactory;
 
+	/** Registry to use for metrics */
+	private final MetricRegistry metricRegistry;
+
+	/** Fatal error handler */
+	private final FatalErrorHandler fatalErrorHandler;
+
 	/** The SlotManager created by the slotManagerFactory when the ResourceManager is started. */
 	private SlotManager slotManager;
 
@@ -104,158 +111,218 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	private LeaderElectionService leaderElectionService;
 
 	/** ResourceManager's leader session id which is updated on leader election. */
-	private volatile UUID leaderSessionID;
+	private volatile UUID leaderSessionId;
 
 	/** All registered listeners for status updates of the ResourceManager. */
-	private Map<String, InfoMessageListenerRpcGateway> infoMessageListeners;
-
-	/** Default timeout for messages */
-	private final Time timeout = Time.seconds(5);
+	private ConcurrentMap<String, InfoMessageListenerRpcGateway> infoMessageListeners;
 
 	public ResourceManager(
 			RpcService rpcService,
+			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
-			SlotManagerFactory slotManagerFactory) {
+			SlotManagerFactory slotManagerFactory,
+			MetricRegistry metricRegistry,
+			JobLeaderIdService jobLeaderIdService,
+			FatalErrorHandler fatalErrorHandler) {
+
 		super(rpcService);
+
+		this.resourceManagerConfiguration = checkNotNull(resourceManagerConfiguration);
 		this.highAvailabilityServices = checkNotNull(highAvailabilityServices);
 		this.slotManagerFactory = checkNotNull(slotManagerFactory);
-		this.jobMasters = new HashMap<>();
-		this.leaderListeners = new HashMap<>();
-		this.taskExecutors = new HashMap<>();
-		this.leaderSessionID = new UUID(0, 0);
-		infoMessageListeners = new HashMap<>();
+		this.metricRegistry = checkNotNull(metricRegistry);
+		this.jobLeaderIdService = checkNotNull(jobLeaderIdService);
+		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
+
+		this.jobManagerRegistrations = new HashMap<>(4);
+		this.taskExecutors = new HashMap<>(8);
+		this.leaderSessionId = null;
+		infoMessageListeners = new ConcurrentHashMap<>(8);
 	}
 
+	// ------------------------------------------------------------------------
+	//  RPC lifecycle methods
+	// ------------------------------------------------------------------------
+
 	@Override
-	public void start() {
+	public void start() throws Exception {
 		// start a leader
+		super.start();
+
 		try {
-			super.start();
 			// SlotManager should start first
 			slotManager = slotManagerFactory.create(createResourceManagerServices());
+		} catch (Exception e) {
+			throw new ResourceManagerException("Could not create the slot manager.", e);
+		}
+
+		try {
 			leaderElectionService = highAvailabilityServices.getResourceManagerLeaderElectionService();
 			leaderElectionService.start(this);
-			// framework specific initialization
-			initialize();
-		} catch (Throwable e) {
-			log.error("A fatal error happened when starting the ResourceManager", e);
-			throw new RuntimeException("A fatal error happened when starting the ResourceManager", e);
+		} catch (Exception e) {
+			throw new ResourceManagerException("Could not start the leader election service.", e);
 		}
+
+		try {
+			jobLeaderIdService.start(new JobLeaderIdActionsImpl());
+		} catch (Exception e) {
+			throw new ResourceManagerException("Could not start the job leader id service.", e);
+		}
+
+		initialize();
 	}
 
 	@Override
-	public void shutDown() {
+	public void shutDown() throws Exception {
+		Exception exception = null;
+
+		try {
+			jobLeaderIdService.stop();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
 		try {
 			leaderElectionService.stop();
-			clearState();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		clearState();
+
+		try {
 			super.shutDown();
-		} catch (Throwable e) {
-			log.error("A fatal error happened when shutdown the ResourceManager", e);
-			throw new RuntimeException("A fatal error happened when shutdown the ResourceManager", e);
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		if (exception != null) {
+			ExceptionUtils.rethrowException(exception, "Error while shutting the ResourceManager down.");
 		}
 	}
 
-	/**
-	 * Gets the leader session id of current resourceManager.
-	 *
-	 * @return return the leaderSessionId of current resourceManager, this returns null until the current resourceManager is granted leadership.
-	 */
-	@VisibleForTesting
-	UUID getLeaderSessionID() {
-		return this.leaderSessionID;
-	}
+	// ------------------------------------------------------------------------
+	//  RPC methods
+	// ------------------------------------------------------------------------
 
-	/**
-	 * Register a {@link JobMaster} at the resource manager.
-	 *
-	 * @param resourceManagerLeaderId The fencing token for the ResourceManager leader
-	 * @param jobMasterAddress        The address of the JobMaster that registers
-	 * @param jobID                   The Job ID of the JobMaster that registers
-	 * @return Future registration response
-	 */
 	@RpcMethod
-	public Future<RegistrationResponse> registerJobMaster(
-		final UUID resourceManagerLeaderId, final UUID jobMasterLeaderId,
-		final String jobMasterAddress, final JobID jobID) {
+	public Future<RegistrationResponse> registerJobManager(
+			final UUID resourceManagerLeaderId,
+			final UUID jobManagerLeaderId,
+			final String jobManagerAddress,
+			final JobID jobId) {
 
-		checkNotNull(jobMasterAddress);
-		checkNotNull(jobID);
+		checkNotNull(resourceManagerLeaderId);
+		checkNotNull(jobManagerLeaderId);
+		checkNotNull(jobManagerAddress);
+		checkNotNull(jobId);
 
-		// create a leader retriever in case it doesn't exist
-		final JobIdLeaderListener jobIdLeaderListener;
-		if (leaderListeners.containsKey(jobID)) {
-			jobIdLeaderListener = leaderListeners.get(jobID);
-		} else {
-			try {
-				LeaderRetrievalService jobMasterLeaderRetriever =
-					highAvailabilityServices.getJobManagerLeaderRetriever(jobID);
-				jobIdLeaderListener = new JobIdLeaderListener(jobID, jobMasterLeaderRetriever);
-			} catch (Exception e) {
-				log.warn("Failed to start JobMasterLeaderRetriever for JobID {}", jobID);
-				FlinkCompletableFuture<RegistrationResponse> responseFuture = new FlinkCompletableFuture<>();
-				responseFuture.complete(new RegistrationResponse.Decline("Failed to retrieve JobMasterLeaderRetriever"));
-				return responseFuture;
-			}
-			leaderListeners.put(jobID, jobIdLeaderListener);
-		}
+		if (isValid(resourceManagerLeaderId)) {
+			if (!jobLeaderIdService.containsJob(jobId)) {
+				try {
+					jobLeaderIdService.addJob(jobId);
+				} catch (Exception e) {
+					ResourceManagerException exception = new ResourceManagerException("Could not add the job " +
+						jobId + " to the job id leader service.", e);
 
-		return getRpcService()
-			.execute(new Callable<JobMasterGateway>() {
-				@Override
-				public JobMasterGateway call() throws Exception {
+					onFatalErrorAsync(exception);
 
-					if (!leaderSessionID.equals(resourceManagerLeaderId)) {
-						log.warn("Discard registration from JobMaster {} at ({}) because the expected leader session ID {}" +
-								" did not equal the received leader session ID  {}",
-							jobID, jobMasterAddress, leaderSessionID, resourceManagerLeaderId);
-						throw new Exception("Invalid leader session id");
-					}
-
-					if (!jobIdLeaderListener.getLeaderID().get(timeout.getSize(), timeout.getUnit())
-							.equals(jobMasterLeaderId)) {
-						throw new Exception("Leader Id did not match");
-					}
-
-					return getRpcService().connect(jobMasterAddress, JobMasterGateway.class)
-						.get(timeout.getSize(), timeout.getUnit());
+					log.error("Could not add job {} to job leader id service.", jobId, e);
+					return FlinkCompletableFuture.completedExceptionally(exception);
 				}
-			})
-			.handleAsync(new BiFunction<JobMasterGateway, Throwable, RegistrationResponse>() {
+			}
+
+			log.info("Registering job manager {}@{} for job {}.", jobManagerLeaderId, jobManagerAddress, jobId);
+
+			Future<UUID> jobLeaderIdFuture;
+
+			try {
+				jobLeaderIdFuture = jobLeaderIdService.getLeaderId(jobId);
+			} catch (Exception e) {
+				// we cannot check the job leader id so let's fail
+				// TODO: Maybe it's also ok to skip this check in case that we cannot check the leader id
+				ResourceManagerException exception = new ResourceManagerException("Cannot obtain the " +
+					"job leader id future to verify the correct job leader.", e);
+
+				onFatalErrorAsync(exception);
+
+				log.debug("Could not obtain the job leader id future to verify the correct job leader.");
+				return FlinkCompletableFuture.completedExceptionally(exception);
+			}
+
+			Future<JobMasterGateway> jobMasterGatewayFuture = getRpcService().connect(jobManagerAddress, JobMasterGateway.class);
+
+			Future<RegistrationResponse> registrationResponseFuture = jobMasterGatewayFuture.thenCombineAsync(jobLeaderIdFuture, new BiFunction<JobMasterGateway, UUID, RegistrationResponse>() {
 				@Override
-				public RegistrationResponse apply(JobMasterGateway jobMasterGateway, Throwable throwable) {
+				public RegistrationResponse apply(JobMasterGateway jobMasterGateway, UUID jobLeaderId) {
+					if (isValid(resourceManagerLeaderId)) {
+						if (jobLeaderId.equals(jobManagerLeaderId)) {
+							if (jobManagerRegistrations.containsKey(jobId)) {
+								JobManagerRegistration oldJobManagerRegistration = jobManagerRegistrations.get(jobId);
 
-					if (throwable != null) {
-						return new RegistrationResponse.Decline(throwable.getMessage());
-					}
+								if (oldJobManagerRegistration.getLeaderID().equals(jobLeaderId)) {
+									// same registration
+									log.debug("Job manager {}@{} was already registered.", jobManagerLeaderId, jobManagerAddress);
+								} else {
+									// tell old job manager that he is no longer the job leader
+									disconnectJobManager(
+										oldJobManagerRegistration.getJobID(),
+										new Exception("New job leader for job " + jobId + " found."));
 
-					if (!leaderSessionID.equals(resourceManagerLeaderId)) {
-						log.warn("Discard registration from JobMaster {} at ({}) because the expected leader session ID {}" +
-								" did not equal the received leader session ID  {}",
-							jobID, jobMasterAddress, leaderSessionID, resourceManagerLeaderId);
-						return new RegistrationResponse.Decline("Invalid leader session id");
-					}
+									JobManagerRegistration jobManagerRegistration = new JobManagerRegistration(jobId, jobLeaderId, jobMasterGateway);
+									jobManagerRegistrations.put(jobId, jobManagerRegistration);
+								}
+							} else {
+								// new registration for the job
+								JobManagerRegistration jobManagerRegistration = new JobManagerRegistration(jobId, jobLeaderId, jobMasterGateway);
 
-					try {
-						// LeaderID should be available now, but if not we fail the registration
-						UUID currentJobMasterLeaderId = jobIdLeaderListener.getLeaderID().getNow(null);
-						if (currentJobMasterLeaderId == null || !currentJobMasterLeaderId.equals(jobMasterLeaderId)) {
-							throw new Exception("Leader Id did not match");
+								jobManagerRegistrations.put(jobId, jobManagerRegistration);
+							}
+
+							log.info("Registered job manager {}@{} for job {}.", jobManagerLeaderId, jobManagerAddress, jobId);
+
+							return new JobMasterRegistrationSuccess(
+								resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds(),
+								getLeaderSessionId());
+
+						} else {
+							log.debug("The job manager leader id {} did not match the job " +
+								"leader id {}.", jobManagerLeaderId, jobLeaderId);
+							return new RegistrationResponse.Decline("Job manager leader id did not match.");
 						}
-					} catch (Exception e) {
-						return new RegistrationResponse.Decline(e.getMessage());
+					} else {
+						log.debug("The resource manager leader id changed {}. Discarding job " +
+							"manager registration from {}.", getLeaderSessionId(), jobManagerAddress);
+						return new RegistrationResponse.Decline("Resource manager leader id changed.");
 					}
-
-					final JobMasterRegistration registration =
-						new JobMasterRegistration(jobID, jobMasterLeaderId, jobMasterGateway);
-
-					final JobMasterRegistration existingRegistration = jobMasters.put(jobID, registration);
-					if (existingRegistration != null) {
-						log.info("Replacing JobMaster registration for newly registered JobMaster with JobID {}.", jobID);
-					}
-					return new JobMasterRegistrationSuccess(5000, resourceManagerLeaderId);
-
 				}
 			}, getMainThreadExecutor());
+
+			// handle exceptions which might have occurred in one of the futures inputs of combine
+			return registrationResponseFuture.handleAsync(new BiFunction<RegistrationResponse, Throwable, RegistrationResponse>() {
+				@Override
+				public RegistrationResponse apply(RegistrationResponse registrationResponse, Throwable throwable) {
+					if (throwable != null) {
+						if (log.isDebugEnabled()) {
+							log.debug("Registration of job manager {}@{} failed.", jobManagerLeaderId, jobManagerAddress, throwable);
+						} else {
+							log.info("Registration of job manager {}@{} failed.", jobManagerLeaderId, jobManagerAddress);
+						}
+
+						return new RegistrationResponse.Decline(throwable.getMessage());
+					} else {
+						return registrationResponse;
+					}
+				}
+			}, getRpcService().getExecutor());
+		} else {
+			log.debug("Discard register job manager message from {}, because the leader id " +
+				"{} did not match the expected leader id {}.", jobManagerAddress,
+				resourceManagerLeaderId, leaderSessionId);
+
+			return FlinkCompletableFuture.<RegistrationResponse>completed(
+				new RegistrationResponse.Decline("Resource manager leader id did not match."));
+		}
 	}
 
 	/**
@@ -274,38 +341,44 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		final ResourceID resourceID,
 		final SlotReport slotReport) {
 
-		return getRpcService().execute(new Callable<TaskExecutorGateway>() {
-			@Override
-			public TaskExecutorGateway call() throws Exception {
-				if (!leaderSessionID.equals(resourceManagerLeaderId)) {
-					log.warn("Discard registration from TaskExecutor {} at ({}) because the expected leader session ID {} did " +
-							"not equal the received leader session ID  {}",
-						resourceID, taskExecutorAddress, leaderSessionID, resourceManagerLeaderId);
-					throw new Exception("Invalid leader session id");
-				}
-				return getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class)
-					.get(timeout.toMilliseconds(), timeout.getUnit());
-			}
-		}).handleAsync(new BiFunction<TaskExecutorGateway, Throwable, RegistrationResponse>() {
-			@Override
-			public RegistrationResponse apply(TaskExecutorGateway taskExecutorGateway, Throwable throwable) {
-				if (throwable != null) {
-					return new RegistrationResponse.Decline(throwable.getMessage());
-				} else {
-					WorkerRegistration oldRegistration = taskExecutors.remove(resourceID);
-					if (oldRegistration != null) {
-						// TODO :: suggest old taskExecutor to stop itself
-						log.info("Replacing old instance of worker for ResourceID {}", resourceID);
+		if (leaderSessionId.equals(resourceManagerLeaderId)) {
+			Future<TaskExecutorGateway> taskExecutorGatewayFuture = getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class);
+
+			return taskExecutorGatewayFuture.handleAsync(new BiFunction<TaskExecutorGateway, Throwable, RegistrationResponse>() {
+				@Override
+				public RegistrationResponse apply(TaskExecutorGateway taskExecutorGateway, Throwable throwable) {
+					if (throwable != null) {
+						return new RegistrationResponse.Decline(throwable.getMessage());
+					} else {
+						WorkerRegistration<WorkerType> oldRegistration = taskExecutors.remove(resourceID);
+						if (oldRegistration != null) {
+							// TODO :: suggest old taskExecutor to stop itself
+							log.info("Replacing old instance of worker for ResourceID {}", resourceID);
+						}
+
+						WorkerType newWorker = workerStarted(resourceID);
+						WorkerRegistration<WorkerType> registration =
+							new WorkerRegistration<>(taskExecutorGateway, newWorker);
+
+						taskExecutors.put(resourceID, registration);
+						slotManager.registerTaskExecutor(resourceID, registration, slotReport);
+
+						return new TaskExecutorRegistrationSuccess(
+							registration.getInstanceID(),
+							resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds());
 					}
-					WorkerType newWorker = workerStarted(resourceID);
-					WorkerRegistration<WorkerType> registration =
-						new WorkerRegistration<>(taskExecutorGateway, newWorker);
-					taskExecutors.put(resourceID, registration);
-					slotManager.registerTaskExecutor(resourceID, registration, slotReport);
-					return new TaskExecutorRegistrationSuccess(registration.getInstanceID(), 5000);
 				}
-			}
-		}, getMainThreadExecutor());
+			}, getMainThreadExecutor());
+		} else {
+			log.warn("Discard registration from TaskExecutor {} at ({}) because the expected leader session ID {} did " +
+					"not equal the received leader session ID  {}",
+				resourceID, taskExecutorAddress, leaderSessionId, resourceManagerLeaderId);
+
+			return FlinkCompletableFuture.<RegistrationResponse>completed(
+				new RegistrationResponse.Decline("Discard registration because the leader id " +
+					resourceManagerLeaderId + " does not match the expected leader id " +
+					leaderSessionId + '.'));
+		}
 	}
 
 	/**
@@ -321,11 +394,11 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			SlotRequest slotRequest) {
 
 		JobID jobId = slotRequest.getJobId();
-		JobMasterRegistration jobMasterRegistration = jobMasters.get(jobId);
+		JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
 
-		if (jobMasterRegistration != null
-				&& jobMasterLeaderID.equals(jobMasterRegistration.getLeaderID())
-				&& resourceManagerLeaderID.equals(leaderSessionID)) {
+		if (jobManagerRegistration != null
+				&& jobMasterLeaderID.equals(jobManagerRegistration.getLeaderID())
+				&& resourceManagerLeaderID.equals(leaderSessionId)) {
 			return slotManager.requestSlot(slotRequest);
 		} else {
 			log.info("Ignoring slot request for unknown JobMaster with JobID {}", jobId);
@@ -337,121 +410,78 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 * Notification from a TaskExecutor that a slot has become available
 	 * @param resourceManagerLeaderId TaskExecutor's resource manager leader id
 	 * @param instanceID TaskExecutor's instance id
-	 * @param slotID The slot id of the available slot
+	 * @param slotId The slot id of the available slot
 	 * @return SlotAvailableReply
 	 */
 	@RpcMethod
 	public void notifySlotAvailable(
 			final UUID resourceManagerLeaderId,
 			final InstanceID instanceID,
-			final SlotID slotID) {
+			final SlotID slotId) {
 
-		if (resourceManagerLeaderId.equals(leaderSessionID)) {
-			final ResourceID resourceId = slotID.getResourceID();
+		if (resourceManagerLeaderId.equals(leaderSessionId)) {
+			final ResourceID resourceId = slotId.getResourceID();
 			WorkerRegistration<WorkerType> registration = taskExecutors.get(resourceId);
 
 			if (registration != null) {
-				InstanceID registrationInstanceID = registration.getInstanceID();
-				if (registrationInstanceID.equals(instanceID)) {
-					runAsync(new Runnable() {
-						@Override
-						public void run() {
-							slotManager.notifySlotAvailable(resourceId, slotID);
-						}
-					});
+				InstanceID registrationId = registration.getInstanceID();
+
+				if (registrationId.equals(instanceID)) {
+					slotManager.notifySlotAvailable(resourceId, slotId);
+				} else {
+					log.debug("Invalid registration id for slot available message. This indicates an" +
+						" outdated request.");
 				}
+			} else {
+				log.debug("Could not find registration for resource id {}. Discarding the slot available" +
+					"message {}.", resourceId, slotId);
 			}
+		} else {
+			log.debug("Discarding notify slot available message for slot {}, because the " +
+				"leader id {} did not match the expected leader id {}.", slotId,
+				resourceManagerLeaderId, leaderSessionId);
 		}
 	}
 
-
-	// ------------------------------------------------------------------------
-	//  Leader Contender
-	// ------------------------------------------------------------------------
-
 	/**
-	 * Callback method when current resourceManager is granted leadership
+	 * Registers an info message listener
 	 *
-	 * @param leaderSessionID unique leadershipID
-	 */
-	@Override
-	public void grantLeadership(final UUID leaderSessionID) {
-		runAsync(new Runnable() {
-			@Override
-			public void run() {
-				log.info("ResourceManager {} was granted leadership with leader session ID {}", getAddress(), leaderSessionID);
-				// confirming the leader session ID might be blocking,
-				leaderElectionService.confirmLeaderSessionID(leaderSessionID);
-				ResourceManager.this.leaderSessionID = leaderSessionID;
-			}
-		});
-	}
-
-	/**
-	 * Callback method when current resourceManager lose leadership.
-	 */
-	@Override
-	public void revokeLeadership() {
-		runAsync(new Runnable() {
-			@Override
-			public void run() {
-				log.info("ResourceManager {} was revoked leadership.", getAddress());
-				clearState();
-			}
-		});
-	}
-
-	/**
-	 * Handles error occurring in the leader election service
-	 *
-	 * @param exception Exception being thrown in the leader election service
-	 */
-	@Override
-	public void handleError(final Exception exception) {
-		log.error("ResourceManager received an error from the LeaderElectionService.", exception);
-		// terminate ResourceManager in case of an error
-		shutDown();
-	}
-
-	/**
-	 * Registers an infoMessage listener
-	 *
-	 * @param infoMessageListenerAddress address of infoMessage listener to register to this resource manager
+	 * @param address address of infoMessage listener to register to this resource manager
 	 */
 	@RpcMethod
-	public void registerInfoMessageListener(final String infoMessageListenerAddress) {
-		if(infoMessageListeners.containsKey(infoMessageListenerAddress)) {
-			log.warn("Receive a duplicate registration from info message listener on ({})", infoMessageListenerAddress);
+	public void registerInfoMessageListener(final String address) {
+		if(infoMessageListeners.containsKey(address)) {
+			log.warn("Receive a duplicate registration from info message listener on ({})", address);
 		} else {
-			Future<InfoMessageListenerRpcGateway> infoMessageListenerRpcGatewayFuture = getRpcService().connect(infoMessageListenerAddress, InfoMessageListenerRpcGateway.class);
+			Future<InfoMessageListenerRpcGateway> infoMessageListenerRpcGatewayFuture = getRpcService().connect(address, InfoMessageListenerRpcGateway.class);
 
 			infoMessageListenerRpcGatewayFuture.thenAcceptAsync(new AcceptFunction<InfoMessageListenerRpcGateway>() {
 				@Override
 				public void accept(InfoMessageListenerRpcGateway gateway) {
-					log.info("Receive a registration from info message listener on ({})", infoMessageListenerAddress);
-					infoMessageListeners.put(infoMessageListenerAddress, gateway);
+					log.info("Receive a registration from info message listener on ({})", address);
+					infoMessageListeners.put(address, gateway);
 				}
 			}, getMainThreadExecutor());
 
 			infoMessageListenerRpcGatewayFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
 				@Override
 				public Void apply(Throwable failure) {
-					log.warn("Receive a registration from unreachable info message listener on ({})", infoMessageListenerAddress);
+					log.warn("Receive a registration from unreachable info message listener on ({})", address);
 					return null;
 				}
-			}, getMainThreadExecutor());
+			}, getRpcService().getExecutor());
 		}
 	}
 
 	/**
-	 * Unregisters an infoMessage listener
+	 * Unregisters an info message listener
 	 *
-	 * @param infoMessageListenerAddress address of infoMessage listener to unregister from this resource manager
+	 * @param address of the  info message listener to unregister from this resource manager
 	 *
 	 */
 	@RpcMethod
-	public void unRegisterInfoMessageListener(final String infoMessageListenerAddress) {
-		infoMessageListeners.remove(infoMessageListenerAddress);
+	public void unRegisterInfoMessageListener(final String address) {
+		infoMessageListeners.remove(address);
 	}
 
 	/**
@@ -466,46 +496,231 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		shutDownApplication(finalStatus, optionalDiagnostics);
 	}
 
+	// ------------------------------------------------------------------------
+	//  Testing methods
+	// ------------------------------------------------------------------------
+
 	/**
-	 * This method should be called by the framework once it detects that a currently registered task executor has failed.
+	 * Gets the leader session id of current resourceManager.
 	 *
-	 * @param resourceID Id of the worker that has failed.
-	 * @param message An informational message that explains why the worker failed.
+	 * @return return the leaderSessionId of current resourceManager, this returns null until the current resourceManager is granted leadership.
 	 */
-	public void notifyWorkerFailed(final ResourceID resourceID, String message) {
-		runAsync(new Runnable() {
+	@VisibleForTesting
+	UUID getLeaderSessionId() {
+		return leaderSessionId;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Internal methods
+	// ------------------------------------------------------------------------
+
+	private void clearState() {
+		jobManagerRegistrations.clear();
+		taskExecutors.clear();
+		slotManager.clearState();
+
+		try {
+			jobLeaderIdService.clear();
+		} catch (Exception e) {
+			onFatalError(new ResourceManagerException("Could not properly clear the job leader id service.", e));
+		}
+
+		leaderSessionId = null;
+	}
+
+	/**
+	 * Disconnects the job manager which is connected for the given job from the resource manager.
+	 *
+	 * @param jobId identifying the job whose leader shall be disconnected
+	 */
+	protected void disconnectJobManager(JobID jobId, Exception cause) {
+		JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.remove(jobId);
+
+		if (jobManagerRegistration != null) {
+			log.info("Disconnect job manager {}@{} for job {} from the resource manager.",
+				jobManagerRegistration.getLeaderID(),
+				jobManagerRegistration.getJobManagerGateway().getAddress(),
+				jobId);
+
+			JobMasterGateway jobMasterGateway = jobManagerRegistration.getJobManagerGateway();
+
+			// tell the job manager about the disconnect
+			jobMasterGateway.disconnectResourceManager(jobManagerRegistration.getLeaderID(), getLeaderSessionId(), cause);
+		} else {
+			log.debug("There was no registered job manager for job {}.", jobId);
+		}
+	}
+
+	/**
+	 * Checks whether the given resource manager leader id is matching the current leader id and
+	 * not null.
+	 *
+	 * @param resourceManagerLeaderId to check
+	 * @return True if the given leader id matches the actual leader id and is not null; otherwise false
+	 */
+	protected boolean isValid(UUID resourceManagerLeaderId) {
+		if (resourceManagerLeaderId == null) {
+			return false;
+		} else {
+			return resourceManagerLeaderId.equals(leaderSessionId);
+		}
+	}
+
+	protected void removeJob(JobID jobId) {
+		try {
+			jobLeaderIdService.removeJob(jobId);
+		} catch (Exception e) {
+			log.warn("Could not properly remove the job {} from the job leader id service.", jobId, e);
+		}
+
+		if (jobManagerRegistrations.containsKey(jobId)) {
+			disconnectJobManager(jobId, new Exception("Job " + jobId + "was removed"));
+		}
+	}
+
+	protected void jobLeaderLostLeadership(JobID jobId, UUID oldJobLeaderId) {
+		if (jobManagerRegistrations.containsKey(jobId)) {
+			JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
+
+			if (jobManagerRegistration.getLeaderID().equals(oldJobLeaderId)) {
+				disconnectJobManager(jobId, new Exception("Job leader lost leadership."));
+			} else {
+				log.debug("Discarding job leader lost leadership, because a new job leader was found for job {}. ", jobId);
+			}
+		} else {
+			log.debug("Discard job leader lost leadership for outdated leader {} for job {}.", oldJobLeaderId, jobId);
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Info messaging
+	// ------------------------------------------------------------------------
+
+	public void sendInfoMessage(final String message) {
+		getRpcService().execute(new Runnable() {
 			@Override
 			public void run() {
-				WorkerType worker = taskExecutors.remove(resourceID).getWorker();
-				if (worker != null) {
-					// TODO :: suggest failed task executor to stop itself
-					slotManager.notifyTaskManagerFailure(resourceID);
+				InfoMessage infoMessage = new InfoMessage(message);
+				for (InfoMessageListenerRpcGateway listenerRpcGateway : infoMessageListeners.values()) {
+					listenerRpcGateway
+						.notifyInfoMessage(infoMessage);
 				}
 			}
 		});
 	}
 
-	/**
-	 * Gets the number of currently started TaskManagers.
-	 *
-	 * @return The number of currently started TaskManagers.
-	 */
-	public int getNumberOfStartedTaskManagers() {
-		return taskExecutors.size();
-	}
+	// ------------------------------------------------------------------------
+	//  Error Handling
+	// ------------------------------------------------------------------------
 
 	/**
-	 * Notifies the resource manager of a fatal error.
+	 * Notifies the ResourceManager that a fatal error has occurred and it cannot proceed.
+	 * This method should be used when asynchronous threads want to notify the
+	 * ResourceManager of a fatal error.
 	 *
-	 * <p><b>IMPORTANT:</b> This should not cleanly shut down this master, but exit it in
-	 * such a way that a high-availability setting would restart this or fail over
-	 * to another master.
+	 * @param t The exception describing the fatal error
 	 */
-	public void onFatalError(final String message, final Throwable error) {
+	void onFatalErrorAsync(final Throwable t) {
 		runAsync(new Runnable() {
 			@Override
 			public void run() {
-				fatalError(message, error);
+				onFatalError(t);
+			}
+		});
+	}
+
+	/**
+	 * Notifies the ResourceManager that a fatal error has occurred and it cannot proceed.
+	 * This method must only be called from within the ResourceManager's main thread.
+	 *
+	 * @param t The exception describing the fatal error
+	 */
+	void onFatalError(Throwable t) {
+		log.error("Fatal error occurred.", t);
+		fatalErrorHandler.onFatalError(t);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Leader Contender
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Callback method when current resourceManager is granted leadership
+	 *
+	 * @param newLeaderSessionID unique leadershipID
+	 */
+	@Override
+	public void grantLeadership(final UUID newLeaderSessionID) {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				log.info("ResourceManager {} was granted leadership with leader session ID {}", getAddress(), newLeaderSessionID);
+
+				// clear the state if we've been the leader before
+				if (leaderSessionId != null) {
+					clearState();
+				}
+
+				leaderSessionId = newLeaderSessionID;
+
+				getRpcService().execute(new Runnable() {
+					@Override
+					public void run() {
+						// confirming the leader session ID might be blocking,
+						leaderElectionService.confirmLeaderSessionID(newLeaderSessionID);
+					}
+				});
+			}
+		});
+	}
+
+	/**
+	 * Callback method when current resourceManager loses leadership.
+	 */
+	@Override
+	public void revokeLeadership() {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				log.info("ResourceManager {} was revoked leadership.", getAddress());
+
+				clearState();
+
+				leaderSessionId = null;
+			}
+		});
+	}
+
+	/**
+	 * Handles error occurring in the leader election service
+	 *
+	 * @param exception Exception being thrown in the leader election service
+	 */
+	@Override
+	public void handleError(final Exception exception) {
+		onFatalErrorAsync(new ResourceManagerException("Received an error from the LeaderElectionService.", exception));
+	}
+
+	/**
+	 * This method should be called by the framework once it detects that a currently registered
+	 * task executor has failed.
+	 *
+	 * @param resourceID Id of the worker that has failed.
+	 * @param message An informational message that explains why the worker failed.
+	 */
+	public void notifyWorkerFailed(final ResourceID resourceID, final String message) {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				WorkerRegistration<WorkerType> workerRegistration = taskExecutors.remove(resourceID);
+
+				if (workerRegistration != null) {
+					log.info("Task manager {} failed because {}.", resourceID, message);
+					// TODO :: suggest failed task executor to stop itself
+					slotManager.notifyTaskManagerFailure(resourceID);
+				} else {
+					log.debug("Could not find a registered task manager with the process id {}.", resourceID);
+				}
 			}
 		});
 	}
@@ -517,18 +732,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	/**
 	 * Initializes the framework specific components.
 	 *
-	 * @throws Exception Exceptions during initialization cause the resource manager to fail.
+	 * @throws ResourceManagerException which occurs during initialization and causes the resource manager to fail.
 	 */
-	protected abstract void initialize() throws Exception;
-
-	/**
-	 * Notifies the resource master of a fatal error.
-	 *
-	 * <p><b>IMPORTANT:</b> This should not cleanly shut down this master, but exit it in
-	 * such a way that a high-availability setting would restart this or fail over
-	 * to another master.
-	 */
-	protected abstract void fatalError(String message, Throwable error);
+	protected abstract void initialize() throws ResourceManagerException;
 
 	/**
 	 * The framework specific code for shutting down the application. This should report the
@@ -556,24 +762,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	protected abstract WorkerType workerStarted(ResourceID resourceID);
 
 	// ------------------------------------------------------------------------
-	//  Info messaging
-	// ------------------------------------------------------------------------
-
-	public void sendInfoMessage(final String message) {
-		runAsync(new Runnable() {
-			@Override
-			public void run() {
-				InfoMessage infoMessage = new InfoMessage(message);
-				for (InfoMessageListenerRpcGateway listenerRpcGateway : infoMessageListeners.values()) {
-					listenerRpcGateway
-						.notifyInfoMessage(infoMessage);
-				}
-			}
-		});
-	}
-
-	// ------------------------------------------------------------------------
-	//  Resource Manager Services
+	//  Static utility classes
 	// ------------------------------------------------------------------------
 
 	protected ResourceManagerServices createResourceManagerServices() {
@@ -584,7 +773,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 		@Override
 		public UUID getLeaderID() {
-			return ResourceManager.this.leaderSessionID;
+			return ResourceManager.this.leaderSessionId;
 		}
 
 		@Override
@@ -603,95 +792,27 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		}
 	}
 
-	/**
-	 * Leader instantiated for each connected JobMaster
-	 */
-	private class JobIdLeaderListener implements LeaderRetrievalListener {
+	private class JobLeaderIdActionsImpl implements JobLeaderIdActions {
 
-		private final JobID jobID;
-		private final LeaderRetrievalService retrievalService;
-
-		private final FlinkCompletableFuture<UUID> initialLeaderIdFuture;
-
-		private volatile UUID leaderID;
-
-		private JobIdLeaderListener(
-				JobID jobID,
-				LeaderRetrievalService retrievalService) throws Exception {
-			this.jobID = jobID;
-			this.retrievalService = retrievalService;
-			this.initialLeaderIdFuture = new FlinkCompletableFuture<>();
-			this.retrievalService.start(this);
-		}
-
-		public Future<UUID> getLeaderID() {
-			if (!initialLeaderIdFuture.isDone()) {
-				return initialLeaderIdFuture;
-			} else {
-				return FlinkCompletableFuture.completed(leaderID);
-			}
-		}
-
-		public JobID getJobID() {
-			return jobID;
-		}
-
-
-		public void stopService() throws Exception {
-			retrievalService.stop();
+		@Override
+		public void jobLeaderLostLeadership(final JobID jobId, final UUID oldJobLeaderId) {
+			ResourceManager.this.jobLeaderLostLeadership(jobId, oldJobLeaderId);
 		}
 
 		@Override
-		public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
-			this.leaderID = leaderSessionID;
-
-			if (!initialLeaderIdFuture.isDone()) {
-				initialLeaderIdFuture.complete(leaderSessionID);
-			}
-
-			ResourceManager.this.runAsync(new Runnable() {
+		public void removeJob(final JobID jobId) {
+			runAsync(new Runnable() {
 				@Override
 				public void run() {
-					JobMasterRegistration jobMasterRegistration = ResourceManager.this.jobMasters.get(jobID);
-					if (jobMasterRegistration == null || !jobMasterRegistration.getLeaderID().equals(leaderSessionID)) {
-						// registration is not valid anymore, remove registration
-						ResourceManager.this.jobMasters.remove(jobID);
-						// leader listener is not necessary anymore
-						JobIdLeaderListener listener = ResourceManager.this.leaderListeners.remove(jobID);
-						if (listener != null) {
-							try {
-								listener.stopService();
-							} catch (Exception e) {
-								ResourceManager.this.handleError(e);
-							}
-						}
-					}
+					ResourceManager.this.removeJob(jobId);
 				}
 			});
 		}
 
 		@Override
-		public void handleError(final Exception exception) {
-			ResourceManager.this.handleError(exception);
+		public void handleError(Throwable error) {
+			onFatalErrorAsync(error);
 		}
-	}
-
-	private void clearState() {
-		jobMasters.clear();
-		taskExecutors.clear();
-		slotManager.clearState();
-		Iterator<JobIdLeaderListener> leaderListenerIterator =
-			leaderListeners.values().iterator();
-		while (leaderListenerIterator.hasNext()) {
-			JobIdLeaderListener listener = leaderListenerIterator.next();
-			try {
-				listener.stopService();
-			} catch (Exception e) {
-				handleError(e);
-			}
-			leaderListenerIterator.remove();
-		}
-		leaderSessionID = new UUID(0, 0);
 	}
 }
 

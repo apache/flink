@@ -18,26 +18,41 @@
 
 package org.apache.flink.runtime.resourcemanager.registration;
 
-import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.util.Preconditions;
 
-import java.io.Serializable;
+import java.util.UUID;
 
 /**
- * This class extends the {@link TaskExecutorRegistration}, adding the worker information.
+ * Container for JobManager related registration information, such as the leader id or the job id.
  */
-public class WorkerRegistration<WorkerType extends Serializable> extends TaskExecutorRegistration {
+public class JobManagerRegistration {
+	private final JobID jobID;
 
-	private static final long serialVersionUID = -2062957799469434614L;
+	private final UUID leaderID;
 
-	private final WorkerType worker;
+	private final JobMasterGateway jobManagerGateway;
 
-	public WorkerRegistration(TaskExecutorGateway taskExecutorGateway, WorkerType worker) {
-		super(taskExecutorGateway);
-		this.worker = Preconditions.checkNotNull(worker);
+	public JobManagerRegistration(
+			JobID jobID,
+			UUID leaderID,
+			JobMasterGateway jobManagerGateway) {
+		this.jobID = Preconditions.checkNotNull(jobID);
+		this.leaderID = Preconditions.checkNotNull(leaderID);
+		this.jobManagerGateway = Preconditions.checkNotNull(jobManagerGateway);
 	}
 
-	public WorkerType getWorker() {
-		return worker;
+	public JobID getJobID() {
+		return jobID;
 	}
+
+	public UUID getLeaderID() {
+		return leaderID;
+	}
+
+	public JobMasterGateway getJobManagerGateway() {
+		return jobManagerGateway;
+	}
+
 }

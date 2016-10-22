@@ -110,8 +110,10 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 *
 	 * IMPORTANT: Whenever you override this method, call the parent implementation to enable
 	 * rpc processing. It is advised to make the parent call last.
+	 *
+	 * @throws Exception indicating that something went wrong while starting the RPC endpoint
 	 */
-	public void start() {
+	public void start() throws Exception {
 		((StartStoppable) self).start();
 	}
 
@@ -123,8 +125,10 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 * 
 	 * <p>This method can be overridden to add RPC endpoint specific shut down code.
 	 * The overridden method should always call the parent shut down method.
+	 *
+	 * @throws Exception indicating that the something went wrong while shutting the RPC endpoint down
 	 */
-	public void shutDown() {
+	public void shutDown() throws Exception {
 		rpcService.stopServer(self);
 	}
 
