@@ -1828,6 +1828,33 @@ class JobManager(
     jobManagerMetricGroup.gauge[Long, Gauge[Long]]("numRunningJobs", new Gauge[Long] {
       override def getValue: Long = JobManager.this.currentJobs.size
     })
+    jobManagerMetricGroup.gauge[Long, Gauge[Long]]("numFailedJobs", new Gauge[Long] {
+      override def getValue: Long = {
+         var failedJobs = 0
+         val ourJobs = createJobStatusOverview()
+         val future = (archive ? RequestJobsOverview.getInstance())(timeout)
+         val archivedJobs : JobsOverview = Await.result(future, timeout).asInstanceOf[JobsOverview]
+         failedJobs += ourJobs.getNumJobsFailed() + archivedJobs.getNumJobsFailed()
+         failedJobs
+    }})
+    jobManagerMetricGroup.gauge[Long, Gauge[Long]]("numCancelledJobs", new Gauge[Long] {
+      override def getValue: Long = {
+         var cancelledJobs = 0
+         val ourJobs = createJobStatusOverview()
+         val future = (archive ? RequestJobsOverview.getInstance())(timeout)
+         val archivedJobs : JobsOverview = Await.result(future, timeout).asInstanceOf[JobsOverview]
+         cancelledJobs += ourJobs.getNumJobsCancelled() + archivedJobs.getNumJobsCancelled()
+         cancelledJobs
+    }})
+    jobManagerMetricGroup.gauge[Long, Gauge[Long]]("numFinishedJobs", new Gauge[Long] {
+      override def getValue: Long = {
+         var finishedJobs = 0
+         val ourJobs = createJobStatusOverview()
+         val future = (archive ? RequestJobsOverview.getInstance())(timeout)
+         val archivedJobs : JobsOverview = Await.result(future, timeout).asInstanceOf[JobsOverview]
+         finishedJobs += ourJobs.getNumJobsFinished() + archivedJobs.getNumJobsFinished()
+         finishedJobs
+    }})
     instantiateStatusMetrics(jobManagerMetricGroup)
   }
 
