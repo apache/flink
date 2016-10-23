@@ -27,32 +27,32 @@ import org.apache.flink.ml.math.SparseVector
 import org.apache.flink.util.Collector
 
 /** Convenience functions for machine learning tasks
- *
- * This object contains convenience functions for machine learning tasks:
- *
- * - readLibSVM:
- * Reads a libSVM/SVMLight input file and returns a data set of [[LabeledVector]].
- * The file format is specified [http://svmlight.joachims.org/ here].
- *
- * - writeLibSVM:
- * Writes a data set of [[LabeledVector]] in libSVM/SVMLight format to disk. THe file format
- * is specified [http://svmlight.joachims.org/ here].
- */
+  *
+  * This object contains convenience functions for machine learning tasks:
+  *
+  * - readLibSVM:
+  * Reads a libSVM/SVMLight input file and returns a data set of [[LabeledVector]].
+  * The file format is specified [http://svmlight.joachims.org/ here].
+  *
+  * - writeLibSVM:
+  * Writes a data set of [[LabeledVector]] in libSVM/SVMLight format to disk. THe file format
+  * is specified [http://svmlight.joachims.org/ here].
+  */
 object MLUtils {
 
   val DIMENSION = "dimension"
 
   /** Reads a file in libSVM/SVMLight format and converts the data into a data set of
-   * [[LabeledVector]]. The dimension of the [[LabeledVector]] is determined automatically.
-   *
-   * Since the libSVM/SVMLight format stores a vector in its sparse form, the [[LabeledVector]]
-   * will also be instantiated with a [[SparseVector]].
-   *
-   * @param env executionEnvironment [[ExecutionEnvironment]]
-   * @param filePath Path to the input file
-   * @return [[DataSet]] of [[LabeledVector]] containing the information of the libSVM/SVMLight
-   *         file
-   */
+    * [[LabeledVector]]. The dimension of the [[LabeledVector]] is determined automatically.
+    *
+    * Since the libSVM/SVMLight format stores a vector in its sparse form, the [[LabeledVector]]
+    * will also be instantiated with a [[SparseVector]].
+    *
+    * @param env executionEnvironment [[ExecutionEnvironment]]
+    * @param filePath Path to the input file
+    * @return [[DataSet]] of [[LabeledVector]] containing the information of the libSVM/SVMLight
+    *         file
+    */
   def readLibSVM(env: ExecutionEnvironment, filePath: String): DataSet[LabeledVector] ={
     val labelCOODS = env.readTextFile( filePath ).flatMap(
       new RichFlatMapFunction[String, (Double, Array[(Int, Double)])] {
@@ -106,11 +106,11 @@ object MLUtils {
   }
 
   /** Writes a [[DataSet]] of [[LabeledVector]] to a file using the libSVM/SVMLight format.
-   *
-   * @param filePath Path to output file
-   * @param labeledVectors [[DataSet]] of [[LabeledVector]] to write to disk
-   * @return
-   */
+    *
+    * @param filePath Path to output file
+    * @param labeledVectors [[DataSet]] of [[LabeledVector]] to write to disk
+    * @return
+    */
   def writeLibSVM(filePath: String, labeledVectors: DataSet[LabeledVector]): DataSink[String] ={
     val stringRepresentation = labeledVectors.map {
       labeledVector =>
