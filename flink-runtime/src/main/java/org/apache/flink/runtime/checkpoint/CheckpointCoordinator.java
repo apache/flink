@@ -34,8 +34,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
-import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -367,11 +365,11 @@ public class CheckpointCoordinator {
 
 		// check if all tasks that we need to trigger are running.
 		// if not, abort the checkpoint
-		ExecutionAttemptID[] triggerIDs = new ExecutionAttemptID[tasksToTrigger.length];
+		Execution[] executions = new Execution[tasksToTrigger.length];
 		for (int i = 0; i < tasksToTrigger.length; i++) {
 			Execution ee = tasksToTrigger[i].getCurrentExecutionAttempt();
 			if (ee != null && ee.getState() == ExecutionState.RUNNING) {
-				triggerIDs[i] = ee.getAttemptId();
+				executions[i] = ee;
 			} else {
 				LOG.info("Checkpoint triggering task {} is not being executed at the moment. Aborting checkpoint.",
 						tasksToTrigger[i].getSimpleName());
@@ -500,10 +498,8 @@ public class CheckpointCoordinator {
 				// end of lock scope
 
 				// send the messages to the tasks that trigger their checkpoint
-				for (int i = 0; i < tasksToTrigger.length; i++) {
-					ExecutionAttemptID id = triggerIDs[i];
-					TriggerCheckpoint message = new TriggerCheckpoint(job, id, checkpointID, timestamp);
-					tasksToTrigger[i].sendMessageToCurrentExecution(message, id);
+				for (Execution execution: executions) {
+					execution.triggerCheckpoint(checkpointID, timestamp);
 				}
 
 				numUnsuccessfulCheckpointsTriggers.set(0);
@@ -704,9 +700,7 @@ public class CheckpointCoordinator {
 			for (ExecutionVertex ev : tasksToCommitTo) {
 				Execution ee = ev.getCurrentExecutionAttempt();
 				if (ee != null) {
-					ExecutionAttemptID attemptId = ee.getAttemptId();
-					NotifyCheckpointComplete notifyMessage = new NotifyCheckpointComplete(job, attemptId, checkpointId, timestamp);
-					ev.sendMessageToCurrentExecution(notifyMessage, ee.getAttemptId());
+					ee.notifyCheckpointComplete(checkpointId, timestamp);
 				}
 			}
 

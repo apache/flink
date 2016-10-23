@@ -21,9 +21,11 @@ package org.apache.flink.runtime.concurrent.impl;
 import akka.dispatch.ExecutionContexts$;
 import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
+import akka.dispatch.OnComplete;
 import akka.dispatch.Recover;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.ApplyFunction;
+import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.BiFunction;
@@ -243,29 +245,18 @@ public class FlinkFuture<T> implements Future<T> {
 
 		final ExecutionContext executionContext = createExecutionContext(executor);
 
-		scala.concurrent.Future<R> mappedFuture = scalaFuture.map(new Mapper<T, R>() {
+		final CompletableFuture<R> resultFuture = new FlinkCompletableFuture<>();
+
+		scalaFuture.onComplete(new OnComplete<T>() {
 			@Override
-			public R checkedApply(T value) throws Exception {
-				try {
-					return biFunction.apply(value, null);
-				} catch (Throwable t) {
-					throw new FlinkFuture.WrapperException(t);
-				}
+			public void onComplete(Throwable failure, T success) throws Throwable {
+				final R result = biFunction.apply(success, failure);
+
+				resultFuture.complete(result);
 			}
 		}, executionContext);
 
-		scala.concurrent.Future<R> recoveredFuture = mappedFuture.recover(new Recover<R>() {
-			@Override
-			public R recover(Throwable failure) throws Throwable {
-				if (failure instanceof FlinkFuture.WrapperException) {
-					throw failure.getCause();
-				} else {
-					return biFunction.apply(null, failure);
-				}
-			}
-		}, executionContext);
-
-		return new FlinkFuture<>(recoveredFuture);
+		return resultFuture;
 	}
 
 	@Override
@@ -346,15 +337,6 @@ public class FlinkFuture<T> implements Future<T> {
 
 	private static ExecutionContext createExecutionContext(Executor executor) {
 		return ExecutionContexts$.MODULE$.fromExecutor(executor);
-	}
-
-	private static class WrapperException extends Exception {
-
-		private static final long serialVersionUID = 6533166370660884091L;
-
-		WrapperException(Throwable cause) {
-			super(cause);
-		}
 	}
 
 	/**

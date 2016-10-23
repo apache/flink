@@ -25,9 +25,9 @@ import org.apache.flink.runtime.instance.BaseTestingActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.messages.Messages;
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskMessages;
-import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
@@ -93,9 +93,9 @@ public class ExecutionVertexStopTest extends TestLogger {
 		assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
 
 		final ActorGateway gateway = new StopSequenceInstanceGateway(
-				TestingUtils.defaultExecutionContext(), new TaskOperationResult(execId, true));
+				TestingUtils.defaultExecutionContext());
 
-		Instance instance = getInstance(gateway);
+		Instance instance = getInstance(new ActorTaskManagerGateway(gateway));
 		SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 		vertex.deployToSlot(slot);
@@ -108,20 +108,17 @@ public class ExecutionVertexStopTest extends TestLogger {
 	public static class StopSequenceInstanceGateway extends BaseTestingActorGateway {
 		private static final long serialVersionUID = 7611571264006653627L;
 
-		private final TaskOperationResult result;
-
-		public StopSequenceInstanceGateway(ExecutionContext executionContext, TaskOperationResult result) {
+		public StopSequenceInstanceGateway(ExecutionContext executionContext) {
 			super(executionContext);
-			this.result = result;
 		}
 
 		@Override
 		public Object handleMessage(Object message) throws Exception {
 			Object result = null;
 			if (message instanceof TaskMessages.SubmitTask) {
-				result = Messages.getAcknowledge();
+				result = Acknowledge.get();
 			} else if (message instanceof TaskMessages.StopTask) {
-				result = this.result;
+				result = Acknowledge.get();
 				receivedStopSignal = true;
 			}
 

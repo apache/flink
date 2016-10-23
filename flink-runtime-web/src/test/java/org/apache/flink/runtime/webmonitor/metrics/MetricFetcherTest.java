@@ -30,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.util.TestingHistogram;
+import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -75,11 +77,11 @@ public class MetricFetcherTest extends TestLogger {
 		JobID jobID = new JobID();
 		InstanceID tmID = new InstanceID();
 		ResourceID tmRID = new ResourceID(tmID.toString());
-		ActorGateway taskManagerGateway = mock(ActorGateway.class);
-		when(taskManagerGateway.path()).thenReturn("/tm/address");
+		TaskManagerGateway taskManagerGateway = mock(TaskManagerGateway.class);
+		when(taskManagerGateway.getAddress()).thenReturn("/tm/address");
 
 		Instance taskManager = mock(Instance.class);
-		when(taskManager.getActorGateway()).thenReturn(taskManagerGateway);
+		when(taskManager.getTaskManagerGateway()).thenReturn(taskManagerGateway);
 		when(taskManager.getId()).thenReturn(tmID);
 		when(taskManager.getTaskManagerID()).thenReturn(tmRID);
 

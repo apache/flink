@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
@@ -29,7 +30,6 @@ import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescript
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -46,9 +46,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
-import scala.concurrent.duration.FiniteDuration;
 
-import java.io.Serializable;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -86,7 +84,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	private final List<Execution> priorExecutions;
 
-	private final FiniteDuration timeout;
+	private final Time timeout;
 
 	/** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations */
 	private final String taskNameWithSubtask;
@@ -103,7 +101,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			ExecutionJobVertex jobVertex,
 			int subTaskIndex,
 			IntermediateResult[] producedDataSets,
-			FiniteDuration timeout) {
+			Time timeout) {
 		this(jobVertex, subTaskIndex, producedDataSets, timeout, System.currentTimeMillis());
 	}
 
@@ -111,7 +109,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			ExecutionJobVertex jobVertex,
 			int subTaskIndex,
 			IntermediateResult[] producedDataSets,
-			FiniteDuration timeout,
+			Time timeout,
 			long createTimestamp) {
 
 		this.jobVertex = jobVertex;
@@ -133,7 +131,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		this.priorExecutions = new CopyOnWriteArrayList<Execution>();
 
 		this.currentExecution = new Execution(
-			getExecutionGraph().getExecutionContext(),
+			getExecutionGraph().getExecutor(),
 			this,
 			0,
 			createTimestamp,
@@ -440,7 +438,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			if (state == FINISHED || state == CANCELED || state == FAILED) {
 				priorExecutions.add(execution);
 				currentExecution = new Execution(
-					getExecutionGraph().getExecutionContext(),
+					getExecutionGraph().getExecutor(),
 					this,
 					execution.getAttemptNumber()+1,
 					System.currentTimeMillis(),
@@ -475,50 +473,6 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	public void fail(Throwable t) {
 		this.currentExecution.fail(t);
-	}
-
-	public boolean sendMessageToCurrentExecution(
-			Serializable message,
-			ExecutionAttemptID attemptID) {
-
-		return sendMessageToCurrentExecution(message, attemptID, null);
-	}
-
-	public boolean sendMessageToCurrentExecution(
-			Serializable message,
-			ExecutionAttemptID attemptID,
-			ActorGateway sender) {
-		Execution exec = getCurrentExecutionAttempt();
-
-		// check that this is for the correct execution attempt
-		if (exec != null && exec.getAttemptId().equals(attemptID)) {
-			SimpleSlot slot = exec.getAssignedResource();
-
-			// send only if we actually have a target
-			if (slot != null) {
-				ActorGateway gateway = slot.getTaskManagerActorGateway();
-				if (gateway != null) {
-					if (sender == null) {
-						gateway.tell(message);
-					} else {
-						gateway.tell(message, sender);
-					}
-
-					return true;
-				} else {
-					return false;
-				}
-			}
-			else {
-				LOG.debug("Skipping message to undeployed task execution {}/{}", getSimpleName(), attemptID);
-				return false;
-			}
-		}
-		else {
-			LOG.debug("Skipping message to {}/{} because it does not match the current execution",
-					getSimpleName(), attemptID);
-			return false;
-		}
 	}
 
 	/**

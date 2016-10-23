@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.api.common.JobID;
@@ -95,20 +96,29 @@ public abstract class Slot {
 	 * @param owner The component from which this slot is allocated.
 	 * @param location The location info of the TaskManager where the slot was allocated from
 	 * @param slotNumber The number of this slot.
-	 * @param taskManagerActorGateway The actor gateway to communicate with the TaskManager
+	 * @param taskManagerGateway The actor gateway to communicate with the TaskManager
 	 * @param parent The parent slot that contains this slot. May be null, if this slot is the root.
 	 * @param groupID The ID that identifies the task group for which this slot is allocated. May be null
 	 *                if the slot does not belong to any task group.   
 	 */
 	protected Slot(
-			JobID jobID, SlotOwner owner, TaskManagerLocation location, int slotNumber,
-			ActorGateway taskManagerActorGateway,
-			@Nullable SharedSlot parent, @Nullable AbstractID groupID) {
+			JobID jobID,
+			SlotOwner owner,
+			TaskManagerLocation location,
+			int slotNumber,
+			TaskManagerGateway taskManagerGateway,
+			@Nullable SharedSlot parent,
+			@Nullable AbstractID groupID) {
 
 		checkArgument(slotNumber >= 0);
 
 		this.allocatedSlot = new AllocatedSlot(
-				NO_ALLOCATION_ID, jobID, location, slotNumber, ResourceProfile.UNKNOWN, taskManagerActorGateway);
+			NO_ALLOCATION_ID,
+			jobID,
+			location,
+			slotNumber,
+			ResourceProfile.UNKNOWN,
+			taskManagerGateway);
 
 		this.owner = checkNotNull(owner);
 		this.parent = parent; // may be null
@@ -184,8 +194,8 @@ public abstract class Slot {
 	 *
 	 * @return The actor gateway that can be used to send messages to the TaskManager.
 	 */
-	public ActorGateway getTaskManagerActorGateway() {
-		return allocatedSlot.getTaskManagerActorGateway();
+	public TaskManagerGateway getTaskManagerGateway() {
+		return allocatedSlot.getTaskManagerGateway();
 	}
 
 	/**

@@ -41,6 +41,7 @@ import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -97,7 +98,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		
 		//setting up
 		Instance instance = ExecutionGraphTestUtils.getInstance(
-			new SimpleActorGateway(TestingUtils.directExecutionContext()),
+			new ActorTaskManagerGateway(
+				new SimpleActorGateway(TestingUtils.directExecutionContext())),
 			NUM_TASKS);
 		
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
@@ -221,7 +223,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 
 		Instance instance = ExecutionGraphTestUtils.getInstance(
-			new SimpleActorGateway(TestingUtils.directExecutionContext()),
+			new ActorTaskManagerGateway(
+				new SimpleActorGateway(TestingUtils.directExecutionContext())),
 			NUM_TASKS);
 
 		scheduler.newInstanceAvailable(instance);
@@ -364,7 +367,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	@Test
 	public void testFailingExecutionAfterRestart() throws Exception {
 		Instance instance = ExecutionGraphTestUtils.getInstance(
-			new SimpleActorGateway(TestingUtils.directExecutionContext()),
+			new ActorTaskManagerGateway(
+				new SimpleActorGateway(TestingUtils.directExecutionContext())),
 			2);
 
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
@@ -427,8 +431,9 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	@Test
 	public void testFailExecutionAfterCancel() throws Exception {
 		Instance instance = ExecutionGraphTestUtils.getInstance(
-				new SimpleActorGateway(TestingUtils.directExecutionContext()),
-				2);
+			new ActorTaskManagerGateway(
+				new SimpleActorGateway(TestingUtils.directExecutionContext())),
+			2);
 
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 		scheduler.newInstanceAvailable(instance);
@@ -472,8 +477,9 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	@Test
 	public void testFailExecutionGraphAfterCancel() throws Exception {
 		Instance instance = ExecutionGraphTestUtils.getInstance(
-				new SimpleActorGateway(TestingUtils.directExecutionContext()),
-				2);
+			new ActorTaskManagerGateway(
+				new SimpleActorGateway(TestingUtils.directExecutionContext())),
+			2);
 
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 		scheduler.newInstanceAvailable(instance);
@@ -519,7 +525,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		Deadline deadline = timeout.fromNow();
 
 		Instance instance = ExecutionGraphTestUtils.getInstance(
-			new SimpleActorGateway(TestingUtils.directExecutionContext()),
+			new ActorTaskManagerGateway(
+				new SimpleActorGateway(TestingUtils.directExecutionContext())),
 			NUM_TASKS);
 
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
@@ -634,8 +641,9 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	private static Tuple2<ExecutionGraph, Instance> createExecutionGraph(RestartStrategy restartStrategy, boolean isSpy) throws Exception {
 		Instance instance = ExecutionGraphTestUtils.getInstance(
-				new SimpleActorGateway(TestingUtils.directExecutionContext()),
-				NUM_TASKS);
+			new ActorTaskManagerGateway(
+				new SimpleActorGateway(TestingUtils.directExecutionContext())),
+			NUM_TASKS);
 
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 		scheduler.newInstanceAvailable(instance);

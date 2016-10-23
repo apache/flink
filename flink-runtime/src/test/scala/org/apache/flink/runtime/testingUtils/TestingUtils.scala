@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.testingUtils
 
 import java.util.UUID
+import java.util.concurrent.Executor
 
 import akka.actor.{ActorRef, ActorSystem, Kill, Props}
 import akka.pattern.ask
@@ -111,7 +112,7 @@ object TestingUtils {
     * @param actionQueue
     */
   class QueuedActionExecutionContext private[testingUtils] (val actionQueue: ActionQueue)
-    extends ExecutionContext {
+    extends ExecutionContext with Executor {
 
     var automaticExecution = false
 

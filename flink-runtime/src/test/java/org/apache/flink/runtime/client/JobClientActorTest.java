@@ -30,9 +30,9 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobClientMessages.AttachToJobAndWait;
-import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -363,7 +363,7 @@ public class JobClientActorTest extends TestLogger {
 				jobAccepted = true;
 
 				if (testFuture != ActorRef.noSender()) {
-					testFuture.tell(Messages.getAcknowledge(), getSelf());
+					testFuture.tell(Acknowledge.get(), getSelf());
 				}
 			}
 			else if (message instanceof RegisterJobClient) {
@@ -374,14 +374,14 @@ public class JobClientActorTest extends TestLogger {
 				jobAccepted = true;
 
 				if (testFuture != ActorRef.noSender()) {
-					testFuture.tell(Messages.getAcknowledge(), getSelf());
+					testFuture.tell(Acknowledge.get(), getSelf());
 				}
 			}
 			else if (message instanceof RegisterTest) {
 				testFuture = getSender();
 
 				if (jobAccepted) {
-					testFuture.tell(Messages.getAcknowledge(), getSelf());
+					testFuture.tell(Acknowledge.get(), getSelf());
 				}
 			}
 		}

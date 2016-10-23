@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.messages
 
 import akka.actor.ActorRef
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 
 import scala.concurrent.duration.FiniteDuration
@@ -47,7 +48,7 @@ object StackTraceSampleMessages {
       sampleId: Int,
       executionId: ExecutionAttemptID,
       numSamples: Int,
-      delayBetweenSamples: FiniteDuration,
+      delayBetweenSamples: Time,
       maxStackTraceDepth: Int = 0)
     extends StackTraceSampleMessages with java.io.Serializable
 
@@ -100,7 +101,7 @@ object StackTraceSampleMessages {
   case class SampleTaskStackTrace(
       sampleId: Int,
       executionId: ExecutionAttemptID,
-      delayBetweenSamples: FiniteDuration,
+      delayBetweenSamples: Time,
       maxStackTraceDepth: Int,
       numRemainingSamples: Int,
       currentTraces: java.util.List[Array[StackTraceElement]],
