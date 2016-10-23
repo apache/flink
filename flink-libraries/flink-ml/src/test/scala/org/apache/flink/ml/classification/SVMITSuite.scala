@@ -51,6 +51,32 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
     }
   }
 
+  it should "evaluate with LabeledDataPoint" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val svm = SVM( ).
+      setBlocks( env.getParallelism ).
+      setIterations( 100 ).
+      setLocalIterations( 100 ).
+      setRegularization( 0.002 ).
+      setStepsize( 0.1 ).
+      setSeed( 0 )
+
+    val trainingDS = env.fromCollection( Classification.trainingData )
+
+    val test = trainingDS
+
+    svm.fit( trainingDS )
+
+    val predictionPairs = svm.evaluate( test )
+
+    val absoluteErrorSum = predictionPairs.collect( ).map {
+      case (truth, prediction) => Math.abs( truth - prediction )
+    }.sum
+
+    absoluteErrorSum should be < 15.0
+  }
+
   it should "make (mostly) correct predictions" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 

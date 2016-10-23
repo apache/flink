@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.ml._
-import org.apache.flink.ml.common.{FlinkMLTools, ParameterMap, WithParameters}
+import org.apache.flink.ml.common.{LabeledVector, FlinkMLTools, ParameterMap, WithParameters}
 
 /** Predictor trait for Flink's pipeline operators.
   *
@@ -172,6 +172,56 @@ object Predictor {
       }
     }
   }
+
+  /** Specific [[EvaluateDataSetOperation]] which takes a [[PredictOperation]] to calculate a tuple
+    * of true label value and predicted label value, from a DataSet[LabeledVector].
+    *
+    * Note:This implementation differs from [[defaultEvaluateDataSetOperation]] because it can
+    * evaluate a dataSet of LabeledVector (and not a dataset of tuples (Vector,Double)).
+    *
+    * @param predictOperation
+    * @param testingTypeInformation
+    * @param predictionValueTypeInformation
+    * @tparam Instance
+    * @tparam Model
+    * @tparam FlinkVector
+    * @tparam Double
+    * @return
+    */
+  implicit def labeledVectorEvaluateDataSetOperation[
+  Instance <: Estimator[Instance],
+  Model,
+  FlinkVector,
+  Double](
+    implicit predictOperation: PredictOperation[Instance, Model,
+      FlinkVector, Double],
+    testingTypeInformation: TypeInformation[FlinkVector],
+    predictionValueTypeInformation: TypeInformation[Double])
+  : EvaluateDataSetOperation[Instance, LabeledVector, Double] = {
+    new EvaluateDataSetOperation[Instance, LabeledVector, Double] {
+      override def evaluateDataSet(
+        instance: Instance,
+        evaluateParameters: ParameterMap,
+        testing: DataSet[LabeledVector])
+      : DataSet[(Double, Double)] = {
+        val resultingParameters = instance.parameters ++ evaluateParameters
+        val model = predictOperation.getModel(instance, resultingParameters)
+
+        implicit val resultTypeInformation =
+          createTypeInformation[(FlinkVector, Double)]
+
+        testing.mapWithBcVariable(model) {
+          (element, model) => {
+            (element.label.asInstanceOf[Double],
+              predictOperation.predict(element.vector.asInstanceOf[FlinkVector],
+                model))
+          }
+        }
+      }
+    }
+  }
+
+
 }
 
 /** Type class for the predict operation of [[Predictor]]. This predict operation works on DataSets.
