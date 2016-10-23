@@ -528,7 +528,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	@Override
 	public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData) throws Exception {
-
 		try {
 			performCheckpoint(checkpointMetaData);
 		}
@@ -537,6 +536,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 		catch (Exception e) {
 			throw new Exception("Error while performing a checkpoint", e);
+		}
+	}
+
+	@Override
+	public void abortCheckpointOnBarrier(long checkpointId) throws Exception {
+		LOG.debug("Aborting checkpoint via cancel-barrier {} for task {}", checkpointId, getName());
+
+		synchronized (lock) {
+			if (isRunning) {
+				operatorChain.broadcastCheckpointCancelMarker(checkpointId);
+			}
 		}
 	}
 

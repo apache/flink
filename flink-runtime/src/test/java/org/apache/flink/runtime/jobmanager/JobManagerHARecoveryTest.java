@@ -454,28 +454,29 @@ public class JobManagerHARecoveryTest {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData) {
-			try {
-				ByteStreamStateHandle byteStreamStateHandle = new TestByteStreamStateHandleDeepCompare(
-						String.valueOf(UUID.randomUUID()),
-						InstantiationUtil.serializeObject(checkpointMetaData.getCheckpointId()));
+		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData) throws Exception {
+			ByteStreamStateHandle byteStreamStateHandle = new TestByteStreamStateHandleDeepCompare(
+					String.valueOf(UUID.randomUUID()),
+					InstantiationUtil.serializeObject(checkpointMetaData.getCheckpointId()));
 
-				ChainedStateHandle<StreamStateHandle> chainedStateHandle =
-						new ChainedStateHandle<StreamStateHandle>(Collections.singletonList(byteStreamStateHandle));
-				SubtaskState checkpointStateHandles =
-						new SubtaskState(chainedStateHandle, null, null, null, null, 0L);
+			ChainedStateHandle<StreamStateHandle> chainedStateHandle =
+					new ChainedStateHandle<StreamStateHandle>(Collections.singletonList(byteStreamStateHandle));
+			SubtaskState checkpointStateHandles =
+					new SubtaskState(chainedStateHandle, null, null, null, null, 0L);
 
-				getEnvironment().acknowledgeCheckpoint(
-						new CheckpointMetaData(checkpointMetaData.getCheckpointId(), -1, 0L, 0L, 0L, 0L),
-						checkpointStateHandles);
-				return true;
-			} catch (Exception ex) {
-				throw new RuntimeException(ex);
-			}
+			getEnvironment().acknowledgeCheckpoint(
+					new CheckpointMetaData(checkpointMetaData.getCheckpointId(), -1, 0L, 0L, 0L, 0L),
+					checkpointStateHandles);
+			return true;
 		}
 
 		@Override
 		public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData) throws Exception {
+			throw new UnsupportedOperationException("should not be called!");
+		}
+
+		@Override
+		public void abortCheckpointOnBarrier(long checkpointId) {
 			throw new UnsupportedOperationException("should not be called!");
 		}
 

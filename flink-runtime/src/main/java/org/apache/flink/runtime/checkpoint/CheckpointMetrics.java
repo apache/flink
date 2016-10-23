@@ -20,16 +20,17 @@ package org.apache.flink.runtime.checkpoint;
 
 import java.io.Serializable;
 
+/**
+ * A collection of simple metrics, around the triggering of a checkpoint.
+ */
 public class CheckpointMetrics implements Serializable {
 
-	/**
-	 * The number of bytes that were buffered during the checkpoint alignment phase
-	 */
+	private static final long serialVersionUID = 1L;
+
+	/** The number of bytes that were buffered during the checkpoint alignment phase */
 	private long bytesBufferedInAlignment;
 
-	/**
-	 * The duration (in nanoseconds) that the stream alignment for the checkpoint took
-	 */
+	/** The duration (in nanoseconds) that the stream alignment for the checkpoint took */
 	private long alignmentDurationNanos;
 
 	/* The duration (in milliseconds) of the synchronous part of the operator checkpoint */
