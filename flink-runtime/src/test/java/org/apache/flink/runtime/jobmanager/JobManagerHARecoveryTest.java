@@ -450,6 +450,16 @@ public class JobManagerHARecoveryTest {
 		}
 
 		@Override
+		public void triggerCheckpointOnBarrier(long checkpointId, long timestamp) throws Exception {
+			throw new UnsupportedOperationException("should not be called!");
+		}
+
+		@Override
+		public void abortCheckpointOnBarrier(long checkpointId) {
+			throw new UnsupportedOperationException("should not be called!");
+		}
+
+		@Override
 		public void notifyCheckpointComplete(long checkpointId) {
 			if (completedCheckpoints++ > NUM_CHECKPOINTS_TO_COMPLETE) {
 				completedCheckpointsLatch.countDown();

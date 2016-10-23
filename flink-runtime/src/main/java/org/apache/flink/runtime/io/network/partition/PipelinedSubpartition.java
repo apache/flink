@@ -26,6 +26,7 @@ import org.apache.flink.runtime.util.event.NotificationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -88,7 +89,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public void finish() {
+	public void finish() throws IOException {
 		final NotificationListener listener;
 
 		synchronized (buffers) {

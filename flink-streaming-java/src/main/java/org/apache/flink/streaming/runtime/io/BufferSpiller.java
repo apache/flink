@@ -134,7 +134,7 @@ public class BufferSpiller {
 			else {
 				contents = EventSerializer.toSerializedEvent(boe.getEvent());
 			}
-			
+
 			headBuffer.clear();
 			headBuffer.putInt(boe.getChannelIndex());
 			headBuffer.putInt(contents.remaining());

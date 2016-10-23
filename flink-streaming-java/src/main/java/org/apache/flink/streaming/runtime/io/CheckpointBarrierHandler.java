@@ -20,8 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.util.event.EventListener;
-import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 
 import java.io.IOException;
 
@@ -43,14 +42,14 @@ public interface CheckpointBarrierHandler {
 	 * @throws java.lang.InterruptedException Thrown if the thread is interrupted while blocking during
 	 *                                        waiting for the next BufferOrEvent to become available.
 	 */
-	BufferOrEvent getNextNonBlocked() throws IOException, InterruptedException;
+	BufferOrEvent getNextNonBlocked() throws Exception;
 
 	/**
-	 * Registers the given event handler to be notified on successful checkpoints.
-	 * 
-	 * @param checkpointHandler The handler to register.
+	 * Registers the task be notified once all checkpoint barriers have been received for a checkpoint.
+	 *
+	 * @param task The task to notify
 	 */
-	void registerCheckpointEventHandler(EventListener<CheckpointBarrier> checkpointHandler);
+	void registerCheckpointEventHandler(StatefulTask<?> task);
 
 	/**
 	 * Cleans up all internally held resources.
@@ -64,4 +63,13 @@ public interface CheckpointBarrierHandler {
 	 * @return {@code True}, if no data is buffered internally, {@code false} otherwise.
 	 */
 	boolean isEmpty();
+
+	/**
+	 * Gets the time that the latest alignment took, in nanoseconds.
+	 * If there is currently an alignment in progress, it will return the time spent in the
+	 * current alignment so far.
+	 *
+	 * @return The duration in nanoseconds
+	 */
+	long getAlignmentDurationNanos();
 }
