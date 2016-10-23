@@ -53,7 +53,7 @@ object MLUtils {
     * @return [[DataSet]] of [[LabeledVector]] containing the information of the libSVM/SVMLight
     *         file
     */
-  def readLibSVM(implicit env: ExecutionEnvironment, filePath: String): DataSet[LabeledVector] = {
+  def readLibSVM(env: ExecutionEnvironment, filePath: String): DataSet[LabeledVector] = {
     val labelCOODS = env.readTextFile(filePath).flatMap(
       new RichFlatMapFunction[String, (Double, Array[(Int, Double)])] {
         val splitPattern = "\\s+".r
