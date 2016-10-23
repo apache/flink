@@ -51,7 +51,7 @@ import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionGraphBuilder, ExecutionJobVertex, StatusListenerMessenger}
-import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceManager}
+import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceID, InstanceManager}
 import org.apache.flink.runtime.io.network.PartitionState
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus}
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGraphListener
@@ -68,7 +68,7 @@ import org.apache.flink.runtime.messages.accumulators.{AccumulatorMessage, Accum
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, AcknowledgeCheckpoint, DeclineCheckpoint}
 import org.apache.flink.runtime.messages.webmonitor.{InfoMessage, _}
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup
-import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry, MetricRegistryConfiguration}
+import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.query.KvStateMessage.{LookupKvStateLocation, NotifyKvStateRegistered, NotifyKvStateUnregistered}
 import org.apache.flink.runtime.query.{KvStateMessage, UnknownKvStateLocation}
@@ -83,6 +83,7 @@ import org.jboss.netty.channel.ChannelException
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.concurrent.forkjoin.ForkJoinPool
@@ -186,6 +187,8 @@ class JobManager(
   /** The resource manager actor responsible for allocating and managing task manager resources. */
   var currentResourceManager: Option[ActorRef] = None
 
+  val taskManagerMap = mutable.Map[ActorRef, InstanceID]()
+
   /**
    * Run when the job manager is started. Simply logs an informational message.
    * The method also starts the leader election service.
@@ -241,8 +244,8 @@ class JobManager(
 
     // disconnect the registered task managers
     instanceManager.getAllRegisteredInstances.asScala.foreach {
-      _.getActorGateway().tell(
-        Disconnect("JobManager is shutting down"),
+      instance => instance.getActorGateway().tell(
+        Disconnect(instance.getId, "JobManager is shutting down"),
         new AkkaActorGateway(self, leaderSessionID.orNull))
     }
 
@@ -331,12 +334,13 @@ class JobManager(
 
       // disconnect the registered task managers
       instanceManager.getAllRegisteredInstances.asScala.foreach {
-        _.getActorGateway().tell(
-          Disconnect("JobManager is no longer the leader"),
+        instance => instance.getActorGateway().tell(
+          Disconnect(instance.getId, "JobManager is no longer the leader"),
           new AkkaActorGateway(self, leaderSessionID.orNull))
       }
 
       instanceManager.unregisterAllTaskManagers()
+      taskManagerMap.clear()
 
       leaderSessionID = None
 
@@ -412,8 +416,8 @@ class JobManager(
       }
 
       // ResourceManager is told about the resource, now let's try to register TaskManager
-      if (instanceManager.isRegistered(taskManager)) {
-        val instanceID = instanceManager.getRegisteredInstance(taskManager).getId
+      if (instanceManager.isRegistered(resourceId)) {
+        val instanceID = instanceManager.getRegisteredInstance(resourceId).getId
 
         taskManager ! decorateMessage(
           AlreadyRegistered(
@@ -427,6 +431,8 @@ class JobManager(
             hardwareInformation,
             numberOfSlots,
             leaderSessionID.orNull)
+
+          taskManagerMap.put(taskManager, instanceID)
 
           taskManager ! decorateMessage(
             AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort))
@@ -453,7 +459,7 @@ class JobManager(
       Option(instanceManager.getRegisteredInstance(resourceID)) match {
         case Some(instance) =>
           // trigger removal of task manager
-          handleTaskManagerTerminated(instance.getActorGateway.actor())
+          handleTaskManagerTerminated(instance.getActorGateway.actor(), instance.getId)
         case None =>
           log.debug(s"Resource $resourceID has not been registered at job manager.")
       }
@@ -1039,7 +1045,12 @@ class JobManager(
       gateway.forward(SendStackTrace, new AkkaActorGateway(sender, leaderSessionID.orNull))
 
     case Terminated(taskManagerActorRef) =>
-      handleTaskManagerTerminated(taskManagerActorRef)
+      taskManagerMap.get(taskManagerActorRef) match {
+        case Some(instanceId) => handleTaskManagerTerminated(taskManagerActorRef, instanceId)
+        case None =>  log.debug("Received terminated message for task manager " +
+                                  s"${taskManagerActorRef} which is not " +
+                                  "connected to this job manager.")
+      }
 
     case RequestJobManagerStatus =>
       sender() ! decorateMessage(JobManagerStatusAlive)
@@ -1071,13 +1082,14 @@ class JobManager(
         case None =>
       }
 
-    case Disconnect(msg) =>
+    case Disconnect(instanceId, msg) =>
       val taskManager = sender()
 
-      if (instanceManager.isRegistered(taskManager)) {
+      if (instanceManager.isRegistered(instanceId)) {
         log.info(s"Task manager ${taskManager.path} wants to disconnect, because $msg.")
 
-        instanceManager.unregisterTaskManager(taskManager, false)
+        instanceManager.unregisterTaskManager(instanceId, false)
+        taskManagerMap.remove(taskManager)
         context.unwatch(taskManager)
       }
 
@@ -1123,13 +1135,15 @@ class JobManager(
     * Handler to be executed when a task manager terminates.
     * (Akka Deathwatch or notification from ResourceManager)
     *
-    * @param taskManager The ActorRef of the taskManager
+    * @param taskManager The ActorRef of the task manager
+    * @param instanceId identifying the dead task manager
     */
-  private def handleTaskManagerTerminated(taskManager: ActorRef): Unit = {
-    if (instanceManager.isRegistered(taskManager)) {
+  private def handleTaskManagerTerminated(taskManager: ActorRef, instanceId: InstanceID): Unit = {
+    if (instanceManager.isRegistered(instanceId)) {
       log.info(s"Task manager ${taskManager.path} terminated.")
 
-      instanceManager.unregisterTaskManager(taskManager, true)
+      instanceManager.unregisterTaskManager(instanceId, true)
+      taskManagerMap.remove(taskManager)
       context.unwatch(taskManager)
     }
   }
