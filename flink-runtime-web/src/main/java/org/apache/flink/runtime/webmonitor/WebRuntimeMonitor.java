@@ -31,6 +31,7 @@ import io.netty.handler.codec.http.router.Router;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -191,7 +192,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		// - Back pressure stats ----------------------------------------------
 
-		stackTraceSamples = new StackTraceSampleCoordinator(actorSystem, 60000);
+		stackTraceSamples = new StackTraceSampleCoordinator(actorSystem.dispatcher(), 60000);
 
 		// Back pressure stats tracker config
 		int cleanUpInterval = config.getInteger(
@@ -210,7 +211,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 				ConfigConstants.JOB_MANAGER_WEB_BACK_PRESSURE_DELAY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_DELAY);
 
-		FiniteDuration delayBetweenSamples = new FiniteDuration(delay, TimeUnit.MILLISECONDS);
+		Time delayBetweenSamples = Time.milliseconds(delay);
 
 		backPressureStatsTracker = new BackPressureStatsTracker(
 				stackTraceSamples, cleanUpInterval, numSamples, delayBetweenSamples);

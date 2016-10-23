@@ -191,11 +191,11 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 				new BlobLibraryCacheManager(new BlobServer(configuration), 10L),
 				ActorRef.noSender(),
 				new NoRestartStrategy.NoRestartStrategyFactory(),
-				AkkaUtils.getDefaultTimeout(),
+				AkkaUtils.getDefaultTimeoutAsFiniteDuration(),
 				leaderElectionService,
 				submittedJobGraphStore,
 				checkpointRecoveryFactory,
-				AkkaUtils.getDefaultTimeout(),
+				AkkaUtils.getDefaultTimeoutAsFiniteDuration(),
 				Option.apply(null)
 		);
 	}

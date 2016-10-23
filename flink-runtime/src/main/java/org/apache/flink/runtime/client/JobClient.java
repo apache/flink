@@ -197,8 +197,8 @@ public class JobClient {
 			jmAnswer = Await.result(
 				jobManager.ask(
 					new JobManagerMessages.RequestClassloadingProps(jobID),
-					AkkaUtils.getDefaultTimeout()),
-				AkkaUtils.getDefaultTimeout());
+					AkkaUtils.getDefaultTimeoutAsFiniteDuration()),
+				AkkaUtils.getDefaultTimeoutAsFiniteDuration());
 		} catch (Exception e) {
 			throw new JobRetrievalException(jobID, "Couldn't retrieve class loading properties from JobManager.", e);
 		}

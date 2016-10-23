@@ -147,7 +147,7 @@ public class MetricFetcher {
 							for (Instance taskManager : taskManagers) {
 								activeTaskManagers.add(taskManager.getId().toString());
 
-								String taskManagerPath = taskManager.getActorGateway().path();
+								String taskManagerPath = taskManager.getTaskManagerGateway().getAddress();
 								String queryServicePath = taskManagerPath.substring(0, taskManagerPath.lastIndexOf('/') + 1) + MetricQueryService.METRIC_QUERY_SERVICE_NAME + "_" + taskManager.getTaskManagerID().getResourceIdString();
 								ActorRef taskManagerQueryService = actorSystem.actorFor(queryServicePath);
 

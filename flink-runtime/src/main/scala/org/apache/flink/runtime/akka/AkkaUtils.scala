@@ -20,16 +20,18 @@ package org.apache.flink.runtime.akka
 
 import java.io.IOException
 import java.net._
-import java.util.concurrent.{TimeUnit, Callable}
+import java.util.concurrent.{Callable, TimeUnit}
 
 import akka.actor._
 import akka.pattern.{ask => akkaAsk}
-import com.typesafe.config.{ConfigValueFactory, ConfigParseOptions, Config, ConfigFactory}
+import com.typesafe.config.{Config, ConfigFactory, ConfigParseOptions, ConfigValueFactory}
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.net.SSLUtils
 import org.apache.flink.util.NetUtils
-import org.jboss.netty.logging.{Slf4JLoggerFactory, InternalLoggerFactory}
+import org.jboss.netty.logging.{InternalLoggerFactory, Slf4JLoggerFactory}
 import org.slf4j.LoggerFactory
+
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -545,10 +547,16 @@ object AkkaUtils {
     new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
   }
 
-  def getDefaultTimeout: FiniteDuration = {
+  def getDefaultTimeout: Time = {
     val duration = Duration(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT)
 
-    new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
+    Time.milliseconds(duration.toMillis)
+  }
+
+  def getDefaultTimeoutAsFiniteDuration: FiniteDuration = {
+    val timeout = getDefaultTimeout
+
+    new FiniteDuration(timeout.toMilliseconds, TimeUnit.MILLISECONDS)
   }
 
   def getLookupTimeout(config: Configuration): FiniteDuration = {

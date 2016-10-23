@@ -26,9 +26,11 @@ import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway
+import org.apache.flink.runtime.messages.Acknowledge
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.JobManagerMessages.{GrantLeadership, RegisterJobClient, RequestClassloadingProps}
-import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
+import org.apache.flink.runtime.messages.Messages.Disconnect
 import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager
 import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
@@ -91,7 +93,7 @@ trait TestingJobManagerLike extends FlinkActor {
   }
 
   def handleTestingMessage: Receive = {
-    case Alive => sender() ! Acknowledge
+    case Alive => sender() ! Acknowledge.get()
 
     case RequestExecutionGraph(jobID) =>
       currentJobs.get(jobID) match {
@@ -155,10 +157,16 @@ trait TestingJobManagerLike extends FlinkActor {
 
 
     case NotifyWhenJobRemoved(jobID) =>
-      val gateways = instanceManager.getAllRegisteredInstances.asScala.map(_.getActorGateway)
+      val gateways = instanceManager.getAllRegisteredInstances.asScala.map(_.getTaskManagerGateway)
 
       val responses = gateways.map{
-        gateway => gateway.ask(NotifyWhenJobRemoved(jobID), timeout).mapTo[Boolean]
+        gateway =>  gateway match {
+          case actorGateway: ActorTaskManagerGateway =>
+            actorGateway.getActorGateway.ask(NotifyWhenJobRemoved(jobID), timeout).mapTo[Boolean]
+          case _ =>
+            throw new IllegalStateException("The task manager gateway is not of type " +
+                                             s"${classOf[ActorTaskManagerGateway].getSimpleName}")
+        }
       }
 
       val jobRemovedOnJobManager = (self ? CheckIfJobRemoved(jobID))(timeout).mapTo[Boolean]
@@ -249,7 +257,15 @@ trait TestingJobManagerLike extends FlinkActor {
             } else {
               sender ! decorateMessage(
                 WorkingTaskManager(
-                  Some(resource.getTaskManagerActorGateway())
+                  Some(
+                    resource.getTaskManagerGateway() match {
+                      case actorTaskManagerGateway: ActorTaskManagerGateway =>
+                        actorTaskManagerGateway.getActorGateway
+                      case _ => throw new IllegalStateException(
+                        "The task manager gateway is not of type " +
+                          s"${classOf[ActorTaskManagerGateway].getSimpleName}")
+                    }
+                  )
                 )
               )
             }
@@ -344,7 +360,7 @@ trait TestingJobManagerLike extends FlinkActor {
     case NotifyWhenAtLeastNumTaskManagerAreRegistered(numRegisteredTaskManager) =>
       if (that.instanceManager.getNumberOfRegisteredTaskManagers >= numRegisteredTaskManager) {
         // there are already at least numRegisteredTaskManager registered --> send Acknowledge
-        sender() ! Acknowledge
+        sender() ! Acknowledge.get()
       } else {
         // wait until we see at least numRegisteredTaskManager being registered at the JobManager
         waitForNumRegisteredTaskManagers += ((numRegisteredTaskManager, sender()))
@@ -360,7 +376,7 @@ trait TestingJobManagerLike extends FlinkActor {
         waitForNumRegisteredTaskManagers.head._1 <=
           instanceManager.getNumberOfRegisteredTaskManagers) {
         val receiver = waitForNumRegisteredTaskManagers.dequeue()._2
-        receiver ! Acknowledge
+        receiver ! Acknowledge.get()
       }
   }
 

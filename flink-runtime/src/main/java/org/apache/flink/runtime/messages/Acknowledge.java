@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.messages;
 
+import java.io.Serializable;
+
 /**
  * A generic acknowledgement message.
  */
-public class Acknowledge implements RequiresLeaderSessionID, java.io.Serializable {
+public class Acknowledge implements Serializable {
 
 	private static final long serialVersionUID = 7808628311617273755L;
 

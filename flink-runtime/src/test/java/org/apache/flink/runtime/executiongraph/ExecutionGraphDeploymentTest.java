@@ -47,6 +47,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -103,7 +104,7 @@ public class ExecutionGraphDeploymentTest {
 
 			ExecutionGraphTestUtils.SimpleActorGateway instanceGateway = new ExecutionGraphTestUtils.SimpleActorGateway(TestingUtils.directExecutionContext());
 
-			final Instance instance = getInstance(instanceGateway);
+			final Instance instance = getInstance(new ActorTaskManagerGateway(instanceGateway));
 
 			final SimpleSlot slot = instance.allocateSimpleSlot(jobId);
 
@@ -320,8 +321,9 @@ public class ExecutionGraphDeploymentTest {
 		for (int i = 0; i < dop1; i++) {
 			scheduler.newInstanceAvailable(
 				ExecutionGraphTestUtils.getInstance(
-					new ExecutionGraphTestUtils.SimpleActorGateway(
-						TestingUtils.directExecutionContext())));
+					new ActorTaskManagerGateway(
+						new ExecutionGraphTestUtils.SimpleActorGateway(
+							TestingUtils.directExecutionContext()))));
 		}
 		assertEquals(dop1, scheduler.getNumberOfAvailableSlots());
 
@@ -362,9 +364,10 @@ public class ExecutionGraphDeploymentTest {
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 		for (int i = 0; i < dop1 + dop2; i++) {
 			scheduler.newInstanceAvailable(
-					ExecutionGraphTestUtils.getInstance(
-							new ExecutionGraphTestUtils.SimpleActorGateway(
-									TestingUtils.directExecutionContext())));
+				ExecutionGraphTestUtils.getInstance(
+					new ActorTaskManagerGateway(
+						new ExecutionGraphTestUtils.SimpleActorGateway(
+							TestingUtils.directExecutionContext()))));
 		}
 		assertEquals(dop1 + dop2, scheduler.getNumberOfAvailableSlots());
 

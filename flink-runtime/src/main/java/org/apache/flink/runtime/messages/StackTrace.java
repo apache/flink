@@ -16,25 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages
+package org.apache.flink.runtime.messages;
 
-import org.apache.flink.runtime.instance.InstanceID
+import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.util.Preconditions;
 
-/**
- * Generic messages between JobManager, TaskManager, JobClient.
- */
-object Messages {
+import java.io.Serializable;
 
-  /**
-   * Signals that the receiver (JobManager/TaskManager) shall disconnect the sender.
-   *
-   * The TaskManager may send this on shutdown to let the JobManager realize the TaskManager
-   * loss more quickly.
-   *
-   * The JobManager may send this message to its TaskManagers to let them clean up their
-   * tasks that depend on the JobManager and go into a clean state.
-   *
-   * @param cause The reason for disconnecting, to be displayed in log and error messages.
-   */
-  case class Disconnect(instanceId: InstanceID, cause: Exception) extends RequiresLeaderSessionID
+public class StackTrace implements Serializable {
+
+	private static final long serialVersionUID = -899464298250067416L;
+
+	private final InstanceID instanceId;
+	private final String stackTrace;
+
+	public StackTrace(InstanceID instanceId, String stackTrace) {
+		this.instanceId = Preconditions.checkNotNull(instanceId);
+		this.stackTrace = Preconditions.checkNotNull(stackTrace);
+	}
+
+	public InstanceID getInstanceId() {
+		return instanceId;
+	}
+
+	public String getStackTrace() {
+		return stackTrace;
+	}
 }

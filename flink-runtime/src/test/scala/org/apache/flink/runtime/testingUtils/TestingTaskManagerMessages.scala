@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.testingUtils
 
+import java.util.UUID
+
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
@@ -40,9 +42,9 @@ object TestingTaskManagerMessages {
   
   case object RequestRunningTasks
 
-  case class NotifyWhenJobManagerTerminated(jobManager: ActorRef)
+  case class NotifyWhenJobManagerTerminated(leaderId: UUID)
 
-  case class JobManagerTerminated(jobManager: ActorRef)
+  case class JobManagerTerminated(leaderId: UUID)
 
   case class NotifyWhenRegisteredAtJobManager(resourceManager: ActorRef)
 

@@ -29,8 +29,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +51,7 @@ public class Instance implements SlotOwner {
 	private final Object instanceLock = new Object();
 
 	/** The instance gateway to communicate with the instance */
-	private final ActorGateway actorGateway;
+	private final TaskManagerGateway taskManagerGateway;
 
 	/** The instance connection information for the data transfer. */
 	private final TaskManagerLocation location;
@@ -84,25 +86,25 @@ public class Instance implements SlotOwner {
 	/**
 	 * Constructs an instance reflecting a registered TaskManager.
 	 *
-	 * @param actorGateway The actor gateway to communicate with the remote instance
+	 * @param taskManagerGateway The actor gateway to communicate with the remote instance
 	 * @param location The remote connection where the task manager receives requests.
 	 * @param id The id under which the taskManager is registered.
 	 * @param resources The resources available on the machine.
 	 * @param numberOfSlots The number of task slots offered by this taskManager.
 	 */
 	public Instance(
-			ActorGateway actorGateway,
+			TaskManagerGateway taskManagerGateway,
 			TaskManagerLocation location,
 			InstanceID id,
 			HardwareDescription resources,
 			int numberOfSlots) {
-		this.actorGateway = actorGateway;
-		this.location = location;
-		this.instanceId = id;
-		this.resources = resources;
+		this.taskManagerGateway = Preconditions.checkNotNull(taskManagerGateway);
+		this.location = Preconditions.checkNotNull(location);
+		this.instanceId = Preconditions.checkNotNull(id);
+		this.resources = Preconditions.checkNotNull(resources);
 		this.numberOfSlots = numberOfSlots;
 
-		this.availableSlots = new ArrayDeque<Integer>(numberOfSlots);
+		this.availableSlots = new ArrayDeque<>(numberOfSlots);
 		for (int i = 0; i < numberOfSlots; i++) {
 			this.availableSlots.add(i);
 		}
@@ -230,7 +232,7 @@ public class Instance implements SlotOwner {
 				return null;
 			}
 			else {
-				SimpleSlot slot = new SimpleSlot(jobID, this, location, nextSlot, actorGateway);
+				SimpleSlot slot = new SimpleSlot(jobID, this, location, nextSlot, taskManagerGateway);
 				allocatedSlots.add(slot);
 				return slot;
 			}
@@ -268,7 +270,7 @@ public class Instance implements SlotOwner {
 			}
 			else {
 				SharedSlot slot = new SharedSlot(
-						jobID, this, location, nextSlot, actorGateway, sharingGroupAssignment);
+						jobID, this, location, nextSlot, taskManagerGateway, sharingGroupAssignment);
 				allocatedSlots.add(slot);
 				return slot;
 			}
@@ -335,8 +337,8 @@ public class Instance implements SlotOwner {
 	 *
 	 * @return InstanceGateway associated with this instance
 	 */
-	public ActorGateway getActorGateway() {
-		return actorGateway;
+	public TaskManagerGateway getTaskManagerGateway() {
+		return taskManagerGateway;
 	}
 
 	public TaskManagerLocation getTaskManagerLocation() {
@@ -390,6 +392,6 @@ public class Instance implements SlotOwner {
 	@Override
 	public String toString() {
 		return String.format("%s @ %s - %d slots - URL: %s", instanceId, location.getHostname(),
-				numberOfSlots, (actorGateway != null ? actorGateway.path() : "No instance gateway"));
+				numberOfSlots, (taskManagerGateway != null ? taskManagerGateway.getAddress() : "No instance gateway"));
 	}
 }

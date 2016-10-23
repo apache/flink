@@ -44,7 +44,7 @@ import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.concurrent.BiFunction
+import org.apache.flink.runtime.concurrent.{AcceptFunction, BiFunction}
 import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
@@ -54,12 +54,14 @@ import org.apache.flink.runtime.io.network.PartitionState
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus}
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGraphListener
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway
 import org.apache.flink.runtime.leaderelection.{LeaderContender, LeaderElectionService, StandaloneLeaderElectionService}
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
+import org.apache.flink.runtime.messages.Messages.Disconnect
 import org.apache.flink.runtime.messages.RegistrationMessages._
+import org.apache.flink.runtime.messages.{Acknowledge, StackTrace}
 import org.apache.flink.runtime.messages.TaskManagerMessages.{Heartbeat, SendStackTrace}
 import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState
 import org.apache.flink.runtime.messages.accumulators._
@@ -136,15 +138,6 @@ class JobManager(
   with SubmittedJobGraphListener {
 
   override val log = Logger(getClass)
-
-  /** The extra execution context, for futures, with a custom logging reporter */
-  protected val executionContext: ExecutionContext = ExecutionContext.fromExecutor(
-    executorService,
-    (t: Throwable) => {
-      if (!context.system.isTerminated) {
-        log.error("Executor could not execute task", t)
-      }
-    })
 
   /** Either running or not yet archived jobs (session hasn't been ended). */
   protected val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
@@ -243,9 +236,9 @@ class JobManager(
 
     // disconnect the registered task managers
     instanceManager.getAllRegisteredInstances.asScala.foreach {
-      instance => instance.getActorGateway().tell(
-        Disconnect(instance.getId, "JobManager is shutting down"),
-        new AkkaActorGateway(self, leaderSessionID.orNull))
+      instance => instance.getTaskManagerGateway().disconnectFromJobManager(
+        instance.getId,
+        new Exception("JobManager is shuttind down."))
     }
 
     try {
@@ -333,9 +326,9 @@ class JobManager(
 
       // disconnect the registered task managers
       instanceManager.getAllRegisteredInstances.asScala.foreach {
-        instance => instance.getActorGateway().tell(
-          Disconnect(instance.getId, "JobManager is no longer the leader"),
-          new AkkaActorGateway(self, leaderSessionID.orNull))
+        instance => instance.getTaskManagerGateway().disconnectFromJobManager(
+          instance.getId(),
+          new Exception("JobManager is no longer the leader"))
       }
 
       instanceManager.unregisterAllTaskManagers()
@@ -424,12 +417,14 @@ class JobManager(
             libraryCacheManager.getBlobServerPort))
       } else {
         try {
+          val actorGateway = new AkkaActorGateway(taskManager, leaderSessionID.orNull)
+          val taskManagerGateway = new ActorTaskManagerGateway(actorGateway)
+
           val instanceID = instanceManager.registerTaskManager(
-            taskManager,
+            taskManagerGateway,
             connectionInfo,
             hardwareInformation,
-            numberOfSlots,
-            leaderSessionID.orNull)
+            numberOfSlots)
 
           taskManagerMap.put(taskManager, instanceID)
 
@@ -458,7 +453,15 @@ class JobManager(
       Option(instanceManager.getRegisteredInstance(resourceID)) match {
         case Some(instance) =>
           // trigger removal of task manager
-          handleTaskManagerTerminated(instance.getActorGateway.actor(), instance.getId)
+          val taskManagerGateway = instance.getTaskManagerGateway
+
+          taskManagerGateway match {
+            case x: ActorTaskManagerGateway =>
+              handleTaskManagerTerminated(x.getActorGateway().actor(), instance.getId)
+            case _ => log.debug(s"Cannot remove reosurce ${resourceID}, because there is " +
+                                  s"no ActorRef registered.")
+          }
+
         case None =>
           log.debug(s"Resource $resourceID has not been registered at job manager.")
       }
@@ -924,7 +927,7 @@ class JobManager(
         case Some((executionGraph, _)) =>
           try {
             executionGraph.scheduleOrUpdateConsumers(partitionId)
-            sender ! decorateMessage(Acknowledge)
+            sender ! decorateMessage(Acknowledge.get())
           } catch {
             case e: Exception =>
               sender ! decorateMessage(
@@ -1047,8 +1050,20 @@ class JobManager(
     case message: InfoMessage => handleInfoRequestMessage(message, sender())
 
     case RequestStackTrace(instanceID) =>
-      val gateway = instanceManager.getRegisteredInstanceById(instanceID).getActorGateway
-      gateway.forward(SendStackTrace, new AkkaActorGateway(sender, leaderSessionID.orNull))
+      val taskManagerGateway = instanceManager
+        .getRegisteredInstanceById(instanceID)
+        .getTaskManagerGateway
+
+      val stackTraceFuture = taskManagerGateway
+        .requestStackTrace(Time.milliseconds(timeout.toMillis))
+
+      val originalSender = new AkkaActorGateway(sender(), leaderSessionID.orNull)
+
+      stackTraceFuture.thenAccept(new AcceptFunction[StackTrace] {
+        override def accept(value: StackTrace): Unit = {
+          originalSender.tell(value)
+        }
+      })
 
     case Terminated(taskManagerActorRef) =>
       taskManagerMap.get(taskManagerActorRef) match {
@@ -1088,11 +1103,12 @@ class JobManager(
         case None =>
       }
 
-    case Disconnect(instanceId, msg) =>
+    case Disconnect(instanceId, cause) =>
       val taskManager = sender()
 
       if (instanceManager.isRegistered(instanceId)) {
-        log.info(s"Task manager ${taskManager.path} wants to disconnect, because $msg.")
+        log.info(s"Task manager ${taskManager.path} wants to disconnect, " +
+                   s"because ${cause.getMessage}.")
 
         instanceManager.unregisterTaskManager(instanceId, false)
         taskManagerMap.remove(taskManager)
@@ -1107,7 +1123,7 @@ class JobManager(
       // stop all task managers
       instanceManager.getAllRegisteredInstances.asScala foreach {
         instance =>
-          instance.getActorGateway.tell(msg)
+          instance.getTaskManagerGateway.stopCluster(msg.finalStatus(), msg.message())
       }
 
       // send resource manager the ok
@@ -1238,7 +1254,7 @@ class JobManager(
           executionGraph,
           jobGraph,
           flinkConfiguration,
-          executionContext,
+          executorService,
           userCodeLoader,
           checkpointRecoveryFactory,
           Time.of(timeout.length, timeout.unit),
