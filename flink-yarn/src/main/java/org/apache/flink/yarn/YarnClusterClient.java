@@ -55,6 +55,7 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -191,6 +192,11 @@ public class YarnClusterClient extends ClusterClient {
 	public int getMaxSlots() {
 		int maxSlots = clusterDescriptor.getTaskManagerCount() * clusterDescriptor.getTaskManagerSlots();
 		return maxSlots > 0 ? maxSlots : -1;
+	}
+
+	@Override
+	public boolean hasUserJarsInClassPath(List<URL> userJarFiles) {
+		return clusterDescriptor.hasUserJarFiles(userJarFiles);
 	}
 
 	@Override
