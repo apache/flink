@@ -18,25 +18,37 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.SerializationResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
+import org.apache.flink.runtime.testutils.DiscardingRecycler;
 import org.apache.flink.types.IntValue;
-
+import org.apache.flink.util.XORShiftRandom;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Queue;
+import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -44,7 +56,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -293,9 +304,159 @@ public class RecordWriterTest {
 		recordWriter.flush();
 	}
 
+	/**
+	 * Tests broadcasting events when no records have been emitted yet.
+	 */
+	@Test
+	public void testBroadcastEventNoRecords() throws Exception {
+		int numChannels = 4;
+		int bufferSize = 32;
+
+		@SuppressWarnings("unchecked")
+		Queue<BufferOrEvent>[] queues = new Queue[numChannels];
+		for (int i = 0; i < numChannels; i++) {
+			queues[i] = new ArrayDeque<>();
+		}
+
+		BufferProvider bufferProvider = createBufferProvider(bufferSize);
+
+		ResultPartitionWriter partitionWriter = createCollectingPartitionWriter(queues, bufferProvider);
+		RecordWriter<ByteArrayIO> writer = new RecordWriter<>(partitionWriter, new RoundRobin<ByteArrayIO>());
+		CheckpointBarrier barrier = new CheckpointBarrier(Integer.MAX_VALUE + 919192L, Integer.MAX_VALUE + 18828228L);
+
+		// No records emitted yet, broadcast should not request a buffer
+		writer.broadcastEvent(barrier);
+
+		verify(bufferProvider, times(0)).requestBufferBlocking();
+
+		for (Queue<BufferOrEvent> queue : queues) {
+			assertEquals(1, queue.size());
+			BufferOrEvent boe = queue.remove();
+			assertTrue(boe.isEvent());
+			assertEquals(barrier, boe.getEvent());
+		}
+	}
+
+	/**
+	 * Tests broadcasting events when records have been emitted. The emitted
+	 * records cover all three {@link SerializationResult} types.
+	 */
+	@Test
+	public void testBroadcastEventMixedRecords() throws Exception {
+		Random rand = new XORShiftRandom();
+		int numChannels = 4;
+		int bufferSize = 32;
+		int lenBytes = 4; // serialized length
+
+		@SuppressWarnings("unchecked")
+		Queue<BufferOrEvent>[] queues = new Queue[numChannels];
+		for (int i = 0; i < numChannels; i++) {
+			queues[i] = new ArrayDeque<>();
+		}
+
+		BufferProvider bufferProvider = createBufferProvider(bufferSize);
+
+		ResultPartitionWriter partitionWriter = createCollectingPartitionWriter(queues, bufferProvider);
+		RecordWriter<ByteArrayIO> writer = new RecordWriter<>(partitionWriter, new RoundRobin<ByteArrayIO>());
+		CheckpointBarrier barrier = new CheckpointBarrier(Integer.MAX_VALUE + 1292L, Integer.MAX_VALUE + 199L);
+
+		// Emit records on some channels first (requesting buffers), then
+		// broadcast the event. The record buffers should be emitted first, then
+		// the event. After the event, no new buffer should be requested.
+
+		// (i) Smaller than the buffer size (single buffer request => 1)
+		byte[] bytes = new byte[bufferSize / 2];
+		rand.nextBytes(bytes);
+
+		writer.emit(new ByteArrayIO(bytes));
+
+		// (ii) Larger than the buffer size (two buffer requests => 1 + 2)
+		bytes = new byte[bufferSize + 1];
+		rand.nextBytes(bytes);
+
+		writer.emit(new ByteArrayIO(bytes));
+
+		// (iii) Exactly the buffer size (single buffer request => 1 + 2 + 1)
+		bytes = new byte[bufferSize - lenBytes];
+		rand.nextBytes(bytes);
+
+		writer.emit(new ByteArrayIO(bytes));
+
+		// (iv) Nothing on the 4th channel (no buffer request => 1 + 2 + 1 + 0 = 4)
+
+		// (v) Broadcast the event
+		writer.broadcastEvent(barrier);
+
+		verify(bufferProvider, times(4)).requestBufferBlocking();
+
+		assertEquals(2, queues[0].size()); // 1 buffer + 1 event
+		assertEquals(3, queues[1].size()); // 2 buffers + 1 event
+		assertEquals(2, queues[2].size()); // 1 buffer + 1 event
+		assertEquals(1, queues[3].size()); // 0 buffers + 1 event
+	}
+
 	// ---------------------------------------------------------------------------------------------
 	// Helpers
 	// ---------------------------------------------------------------------------------------------
+
+	/**
+	 * Creates a mock partition writer that collects the added buffers/events.
+	 *
+	 * <p>This much mocking should not be necessary with better designed
+	 * interfaces. Refactoring this will take too much time now though, hence
+	 * the mocking. Ideally, we will refactor all of this mess in order to make
+	 * our lives easier and test it better.
+	 */
+	private ResultPartitionWriter createCollectingPartitionWriter(
+			final Queue<BufferOrEvent>[] queues,
+			BufferProvider bufferProvider) throws IOException {
+
+		int numChannels = queues.length;
+
+		ResultPartitionWriter partitionWriter = mock(ResultPartitionWriter.class);
+		when(partitionWriter.getBufferProvider()).thenReturn(checkNotNull(bufferProvider));
+		when(partitionWriter.getNumberOfOutputChannels()).thenReturn(numChannels);
+
+		doAnswer(new Answer<Void>() {
+			@Override
+			public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
+				Buffer buffer = (Buffer) invocationOnMock.getArguments()[0];
+				Integer targetChannel = (Integer) invocationOnMock.getArguments()[1];
+				queues[targetChannel].add(new BufferOrEvent(buffer, targetChannel));
+				return null;
+			}
+		}).when(partitionWriter).writeBuffer(any(Buffer.class), anyInt());
+
+		doAnswer(new Answer<Void>() {
+			@Override
+			public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
+				AbstractEvent event = (AbstractEvent) invocationOnMock.getArguments()[0];
+				Integer targetChannel = (Integer) invocationOnMock.getArguments()[1];
+				queues[targetChannel].add(new BufferOrEvent(event, targetChannel));
+				return null;
+			}
+		}).when(partitionWriter).writeEvent(any(AbstractEvent.class), anyInt());
+
+		return partitionWriter;
+	}
+
+	private BufferProvider createBufferProvider(final int bufferSize)
+			throws IOException, InterruptedException {
+
+		BufferProvider bufferProvider = mock(BufferProvider.class);
+		when(bufferProvider.requestBufferBlocking()).thenAnswer(
+				new Answer<Buffer>() {
+					@Override
+					public Buffer answer(InvocationOnMock invocationOnMock) throws Throwable {
+						MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
+						Buffer buffer = new Buffer(segment, DiscardingRecycler.INSTANCE);
+						return buffer;
+					}
+				}
+		);
+
+		return bufferProvider;
+	}
 
 	private BufferProvider createBufferProvider(Buffer... buffers)
 			throws IOException, InterruptedException {
@@ -327,5 +488,38 @@ public class RecordWriterTest {
 		}).when(partitionWriter).writeBuffer(any(Buffer.class), anyInt());
 
 		return partitionWriter;
+	}
+
+	private static class ByteArrayIO implements IOReadableWritable {
+
+		private final byte[] bytes;
+
+		public ByteArrayIO(byte[] bytes) {
+			this.bytes = bytes;
+		}
+
+		@Override
+		public void write(DataOutputView out) throws IOException {
+			out.write(bytes);
+		}
+
+		@Override
+		public void read(DataInputView in) throws IOException {
+			in.read(bytes);
+		}
+	}
+
+	/**
+	 * RoundRobin channel selector starting at 0 ({@link RoundRobinChannelSelector} starts at 1).
+	 */
+	private static class RoundRobin<T extends IOReadableWritable> implements ChannelSelector<T> {
+
+		private int[] nextChannel = new int[] { -1 };
+
+		@Override
+		public int[] selectChannels(final T record, final int numberOfOutputChannels) {
+			nextChannel[0] = (nextChannel[0] + 1) % numberOfOutputChannels;
+			return nextChannel;
+		}
 	}
 }

@@ -164,6 +164,8 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	@Override
 	public void clearCurrentBuffer() {
 		targetBuffer = null;
+		position = 0;
+		limit = 0;
 	}
 
 	@Override
