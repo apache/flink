@@ -66,12 +66,19 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val EXTRACT: Keyword = Keyword("extract")
   lazy val FLOOR: Keyword = Keyword("floor")
   lazy val CEIL: Keyword = Keyword("ceil")
+  lazy val YEARS: Keyword = Keyword("years")
   lazy val YEAR: Keyword = Keyword("year")
+  lazy val MONTHS: Keyword = Keyword("months")
   lazy val MONTH: Keyword = Keyword("month")
+  lazy val DAYS: Keyword = Keyword("days")
   lazy val DAY: Keyword = Keyword("day")
+  lazy val HOURS: Keyword = Keyword("hours")
   lazy val HOUR: Keyword = Keyword("hour")
+  lazy val MINUTES: Keyword = Keyword("minutes")
   lazy val MINUTE: Keyword = Keyword("minute")
+  lazy val SECONDS: Keyword = Keyword("seconds")
   lazy val SECOND: Keyword = Keyword("second")
+  lazy val MILLIS: Keyword = Keyword("millis")
   lazy val MILLI: Keyword = Keyword("milli")
   lazy val STAR: Keyword = Keyword("*")
 
@@ -240,21 +247,22 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     composite <~ "." ~ TO_TIME ~ opt("()") ^^ { e => Cast(e, SqlTimeTypeInfo.TIME) }
 
   lazy val suffixTimeInterval : PackratParser[Expression] =
-    composite ~ "." ~ (YEAR | MONTH | DAY | HOUR | MINUTE | SECOND | MILLI) ^^ {
+    composite ~ "." ~ (YEARS | MONTHS | DAYS | HOURS | MINUTES | SECONDS | MILLIS |
+      YEAR | MONTH | DAY | HOUR | MINUTE | SECOND | MILLI) ^^ {
 
-    case expr ~ _ ~ YEAR.key => toMonthInterval(expr, 12)
+    case expr ~ _ ~ (YEARS.key | YEAR.key) => toMonthInterval(expr, 12)
 
-    case expr ~ _ ~ MONTH.key => toMonthInterval(expr, 1)
+    case expr ~ _ ~ (MONTHS.key | MONTH.key) => toMonthInterval(expr, 1)
 
-    case expr ~ _ ~ DAY.key => toMilliInterval(expr, MILLIS_PER_DAY)
+    case expr ~ _ ~ (DAYS.key | DAY.key) => toMilliInterval(expr, MILLIS_PER_DAY)
 
-    case expr ~ _ ~ HOUR.key => toMilliInterval(expr, MILLIS_PER_HOUR)
+    case expr ~ _ ~ (HOURS.key | HOUR.key) => toMilliInterval(expr, MILLIS_PER_HOUR)
 
-    case expr ~ _ ~ MINUTE.key => toMilliInterval(expr, MILLIS_PER_MINUTE)
+    case expr ~ _ ~ (MINUTES.key | MINUTE.key) => toMilliInterval(expr, MILLIS_PER_MINUTE)
 
-    case expr ~ _ ~ SECOND.key => toMilliInterval(expr, MILLIS_PER_SECOND)
+    case expr ~ _ ~ (SECONDS.key | SECOND.key) => toMilliInterval(expr, MILLIS_PER_SECOND)
 
-    case expr ~ _ ~ MILLI.key => toMilliInterval(expr, 1)
+    case expr ~ _ ~ (MILLIS.key | MILLI.key)=> toMilliInterval(expr, 1)
   }
 
   lazy val suffixed: PackratParser[Expression] =
