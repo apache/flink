@@ -75,11 +75,11 @@ public class CEPOperatorUtils {
 			patternStream = inputStream.transform(
 				"CEPPatternOperator",
 				(TypeInformation<Map<String, T>>) (TypeInformation<?>) TypeExtractor.getForClass(Map.class),
-				new CEPPatternOperator<T>(
+				new CEPPatternOperator<>(
 					inputSerializer,
 					isProcessingTime,
 					nfaFactory
-				)).setParallelism(1);
+				)).forceNonParallel();
 		}
 
 		return patternStream;
@@ -130,11 +130,11 @@ public class CEPOperatorUtils {
 			patternStream = inputStream.transform(
 				"TimeoutCEPPatternOperator",
 				eitherTypeInformation,
-				new TimeoutCEPPatternOperator<T>(
+				new TimeoutCEPPatternOperator<>(
 					inputSerializer,
 					isProcessingTime,
 					nfaFactory
-				)).setParallelism(1);
+				)).forceNonParallel();
 		}
 
 		return patternStream;
