@@ -18,8 +18,8 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.ClosableRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
@@ -35,7 +35,7 @@ public class StateSnapshotContextSynchronousImplTest {
 
 	@Before
 	public void setUp() throws Exception {
-		ClosableRegistry closableRegistry = new ClosableRegistry();
+		CloseableRegistry closableRegistry = new CloseableRegistry();
 		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(1024);
 		KeyGroupRange keyGroupRange = new KeyGroupRange(0, 2);
 		this.snapshotContext = new StateSnapshotContextSynchronousImpl(42, 4711, streamFactory, keyGroupRange, closableRegistry);

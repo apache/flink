@@ -16,29 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
-
-import org.apache.commons.io.IOUtils;
+package org.apache.flink.util;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Map;
 
 /**
- * This class allows to register instances of {@link Closeable}, which are all closed if this registry is closed.
+ * This is the abstract base class for registries that allow to register instances of {@link Closeable}, which are all
+ * closed if this registry is closed.
  * <p>
  * Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
  * <p>
  * All methods in this class are thread-safe.
+ *
+ * @param <C> Type of the closeable this registers
+ * @param <T> Type for potential meta data associated with the registering closeables
  */
-public class ClosableRegistry implements Closeable {
+public abstract class AbstractCloseableRegistry<C extends Closeable, T> implements Closeable {
 
-	private final Set<Closeable> registeredCloseables;
+	protected final Map<Closeable, T> closeableToRef;
 	private boolean closed;
 
-	public ClosableRegistry() {
-		this.registeredCloseables = new HashSet<>();
+	public AbstractCloseableRegistry(Map<Closeable, T> closeableToRef) {
+		this.closeableToRef = closeableToRef;
 		this.closed = false;
 	}
 
@@ -46,23 +47,23 @@ public class ClosableRegistry implements Closeable {
 	 * Registers a {@link Closeable} with the registry. In case the registry is already closed, this method throws an
 	 * {@link IllegalStateException} and closes the passed {@link Closeable}.
 	 *
-	 * @param closeable Closable tor register
-	 * @return true if the the Closable was newly added to the registry
+	 * @param closeable Closeable tor register
+	 * @return true if the the Closeable was newly added to the registry
 	 * @throws IOException exception when the registry was closed before
 	 */
-	public boolean registerClosable(Closeable closeable) throws IOException {
+	public final void registerClosable(C closeable) throws IOException {
 
 		if (null == closeable) {
-			return false;
+			return;
 		}
 
 		synchronized (getSynchronizationLock()) {
 			if (closed) {
 				IOUtils.closeQuietly(closeable);
-				throw new IOException("Cannot register Closable, registry is already closed. Closed passed closable.");
+				throw new IOException("Cannot register Closeable, registry is already closed. Closing argument.");
 			}
 
-			return registeredCloseables.add(closeable);
+			doRegister(closeable, closeableToRef);
 		}
 	}
 
@@ -72,14 +73,14 @@ public class ClosableRegistry implements Closeable {
 	 * @param closeable instance to remove from the registry.
 	 * @return true, if the instance was actually registered and now removed
 	 */
-	public boolean unregisterClosable(Closeable closeable) {
+	public final void unregisterClosable(C closeable) {
 
 		if (null == closeable) {
-			return false;
+			return;
 		}
 
 		synchronized (getSynchronizationLock()) {
-			return registeredCloseables.remove(closeable);
+			doUnRegister(closeable, closeableToRef);
 		}
 	}
 
@@ -87,11 +88,12 @@ public class ClosableRegistry implements Closeable {
 	public void close() throws IOException {
 		synchronized (getSynchronizationLock()) {
 
-			for (Closeable closeable : registeredCloseables) {
+			for (Closeable closeable : closeableToRef.keySet()) {
 				IOUtils.closeQuietly(closeable);
 			}
 
-			registeredCloseables.clear();
+			closeableToRef.clear();
+
 			closed = true;
 		}
 	}
@@ -102,7 +104,11 @@ public class ClosableRegistry implements Closeable {
 		}
 	}
 
-	private Object getSynchronizationLock() {
-		return registeredCloseables;
+	protected final Object getSynchronizationLock() {
+		return closeableToRef;
 	}
+
+	protected abstract void doUnRegister(C closeable, Map<Closeable, T> closeableMap);
+
+	protected abstract void doRegister(C closeable, Map<Closeable, T> closeableMap) throws IOException;
 }

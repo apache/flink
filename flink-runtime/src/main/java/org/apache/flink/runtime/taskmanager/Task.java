@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -538,6 +539,9 @@ public class Task implements Runnable, TaskActions {
 			//  check for canceling as a shortcut
 			// ----------------------------
 
+			// init closeable registry for this task
+			FileSystem.createFileSystemCloseableRegistryForTask();
+
 			// first of all, get a user-code classloader
 			// this may involve downloading the job's JAR files and/or classes
 			LOG.info("Loading JAR files for task " + taskNameWithSubtask);
@@ -758,6 +762,7 @@ public class Task implements Runnable, TaskActions {
 
 				// remove all files in the distributed cache
 				removeCachedFiles(distributedCacheEntries, fileCache);
+				FileSystem.disposeFileSystemCloseableRegistryForTask();
 
 				notifyFinalState();
 			}

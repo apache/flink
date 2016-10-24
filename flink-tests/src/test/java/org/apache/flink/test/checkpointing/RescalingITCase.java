@@ -114,6 +114,7 @@ public class RescalingITCase extends TestLogger {
 	public static void teardown() {
 		if (cluster != null) {
 			cluster.shutdown();
+			cluster.awaitTermination();
 		}
 	}
 

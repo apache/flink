@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.runtime.checkpoint.OperatorStateRepartitioner;
@@ -32,7 +33,6 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.ClosableRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
@@ -65,7 +65,9 @@ import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Base class for {@code AbstractStreamOperator} test harnesses.
@@ -86,7 +88,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 	final Environment environment;
 
-	ClosableRegistry closableRegistry;
+	CloseableRegistry closableRegistry;
 
 	// use this as default for tests
 	protected AbstractStateBackend stateBackend = new MemoryStateBackend();
@@ -115,7 +117,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		this.config = new StreamConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
 		this.executionConfig = new ExecutionConfig();
-		this.closableRegistry = new ClosableRegistry();
+		this.closableRegistry = new CloseableRegistry();
 		this.checkpointLock = new Object();
 
 		environment = new MockEnvironment(
