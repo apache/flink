@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.library;
+package org.apache.flink.graph.test.examples;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.examples.GSAPageRank;
+import org.apache.flink.graph.examples.PageRank;
 import org.apache.flink.graph.examples.data.PageRankData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Assert;
