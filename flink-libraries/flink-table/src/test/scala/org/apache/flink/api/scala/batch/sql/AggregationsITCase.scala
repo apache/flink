@@ -258,4 +258,22 @@ class AggregationsITCase(
     // must fail. grouping sets are not supported
     tEnv.sql(sqlQuery).toDataSet[Row]
   }
+
+  @Test
+  def testSqrtOfAggregatedSet(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val ds = env.fromElements((1.0f, 1), (2.0f, 2)).toTable(tEnv)
+
+    tEnv.registerTable("MyTable", ds)
+
+    val sqlQuery = "SELECT " +
+      "SQRT((SUM(a * a) - SUM(a) * SUM(a) / COUNT(a)) / COUNT(a)) " +
+      "from (select _1 as a from MyTable)"
+
+    val expected = "0.5"
+    val results = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
 }

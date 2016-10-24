@@ -153,17 +153,42 @@ object ScalarFunctions {
     DOUBLE_TYPE_INFO,
     BuiltInMethods.EXP)
 
+  // POWER
   addSqlFunctionMethod(
     POWER,
     Seq(DOUBLE_TYPE_INFO, DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,
     BuiltInMethods.POWER)
 
-  addSqlFunctionMethod(
+  addSqlFunction(
     POWER,
     Seq(DOUBLE_TYPE_INFO, BIG_DEC_TYPE_INFO),
-    DOUBLE_TYPE_INFO,
-    BuiltInMethods.POWER_DEC)
+    new PowerCallGen(DOUBLE_TYPE_INFO, BuiltInMethods.POWER))
+
+  addSqlFunction(
+    POWER,
+    Seq(FLOAT_TYPE_INFO, FLOAT_TYPE_INFO),
+    new PowerCallGen(DOUBLE_TYPE_INFO, BuiltInMethods.POWER))
+
+  addSqlFunction(
+    POWER,
+    Seq(FLOAT_TYPE_INFO, BIG_DEC_TYPE_INFO),
+    new PowerCallGen(DOUBLE_TYPE_INFO, BuiltInMethods.POWER))
+
+  addSqlFunction(
+    POWER,
+    Seq(BIG_DEC_TYPE_INFO, BIG_DEC_TYPE_INFO),
+    new PowerCallGen(DOUBLE_TYPE_INFO, BuiltInMethods.POWER))
+
+  addSqlFunction(
+    POWER,
+    Seq(BIG_DEC_TYPE_INFO, FLOAT_TYPE_INFO),
+    new PowerCallGen(DOUBLE_TYPE_INFO, BuiltInMethods.POWER))
+
+  addSqlFunction(
+    POWER,
+    Seq(BIG_DEC_TYPE_INFO, DOUBLE_TYPE_INFO),
+    new PowerCallGen(DOUBLE_TYPE_INFO, BuiltInMethods.POWER))
 
   addSqlFunction(
     ABS,
