@@ -61,7 +61,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 	private static final Logger LOG = LoggerFactory.getLogger(OperatorChain.class);
 	
 	private final StreamOperator<?>[] allOperators;
-	
+
 	private final RecordWriterOutput<?>[] streamOutputs;
 	
 	private final Output<StreamRecord<OUT>> chainEntryPoint;
@@ -111,7 +111,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 
 			// add head operator to end of chain
 			allOps.add(headOperator);
-			
+
 			this.allOperators = allOps.toArray(new StreamOperator<?>[allOps.size()]);
 			
 			success = true;

@@ -611,7 +611,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				final List<OperatorStateHandle> operatorStates =
 						Arrays.asList(new OperatorStateHandle[allOperators.length]);
 
-				for (int i = 0; i < allOperators.length; i++) {
+				// perform the snapshots from head operator so that all parent operators can do snapshot before their
+				// children. for chained operators without any future wait operator/async wait operator, the order
+				// is not a concern. when it comes to chained operator with those operators, all the operators acting as
+				// wait operators' children should have received all their inputs while doing snapshot.
+				for (int i = allOperators.length - 1; i >= 0; i--) {
 					StreamOperator<?> operator = allOperators[i];
 
 					if (operator != null) {
