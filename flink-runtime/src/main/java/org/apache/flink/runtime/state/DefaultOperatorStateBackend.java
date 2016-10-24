@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.DataInputView;
@@ -49,7 +50,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	
 	private final Map<String, PartitionableListState<?>> registeredStates;
 	private final Collection<OperatorStateHandle> restoreSnapshots;
-	private final ClosableRegistry closeStreamOnCancelRegistry;
+	private final CloseableRegistry closeStreamOnCancelRegistry;
 	private final JavaSerializer<Serializable> javaSerializer;
 
 	/**
@@ -65,7 +66,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		this.javaSerializer = new JavaSerializer<>(userClassLoader);
 		this.restoreSnapshots = restoreSnapshots;
 		this.registeredStates = new HashMap<>();
-		this.closeStreamOnCancelRegistry = new ClosableRegistry();
+		this.closeStreamOnCancelRegistry = new CloseableRegistry();
 	}
 
 	/**

@@ -25,6 +25,14 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.Public;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.OperatingSystem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -34,11 +42,6 @@ import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.flink.annotation.Public;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.OperatingSystem;
-
 /**
  * An abstract base class for a fairly generic file system. It
  * may be implemented as a distributed file system, or as a local
@@ -46,6 +49,8 @@ import org.apache.flink.util.OperatingSystem;
  */
 @Public
 public abstract class FileSystem {
+
+	private static final InheritableThreadLocal<SafetyNetCloseableRegistry> REGISTRIES = new InheritableThreadLocal<>();
 
 	private static final String LOCAL_FILESYSTEM_CLASS = "org.apache.flink.core.fs.local.LocalFileSystem";
 
@@ -55,6 +60,39 @@ public abstract class FileSystem {
 
 	private static final String HADOOP_WRAPPER_SCHEME = "hdwrapper";
 
+	private static final Logger LOG = LoggerFactory.getLogger(FileSystem.class);
+
+	/**
+	 * Create a SafetyNetCloseableRegistry for a Task. This method should be called at the beginning of the task's
+	 * main thread.
+	 */
+	public static void createFileSystemCloseableRegistryForTask() {
+		SafetyNetCloseableRegistry oldRegistry = REGISTRIES.get();
+		if (null != oldRegistry) {
+			IOUtils.closeQuietly(oldRegistry);
+			LOG.warn("Found existing SafetyNetCloseableRegistry. Closed and replaced it.");
+		}
+		SafetyNetCloseableRegistry newRegistry = new SafetyNetCloseableRegistry();
+		REGISTRIES.set(newRegistry);
+	}
+
+	/**
+	 * Create a SafetyNetCloseableRegistry for a Task. This method should be called at the end of the task's
+	 * main thread or when the task should be canceled.
+	 */
+	public static void disposeFileSystemCloseableRegistryForTask() {
+		SafetyNetCloseableRegistry registry = REGISTRIES.get();
+		if (null != registry) {
+			LOG.info("Ensuring all FileSystem streams are closed");
+			REGISTRIES.remove();
+			IOUtils.closeQuietly(registry);
+		}
+	}
+
+	private static FileSystem wrapWithSafetyNetWhenInTask(FileSystem fs) {
+		SafetyNetCloseableRegistry reg = REGISTRIES.get();
+		return reg != null ? new SafetyNetWrapperFileSystem(fs, reg) : fs;
+	}
 
 	/** Object used to protect calls to specific methods.*/
 	private static final Object SYNCHRONIZATION_OBJECT = new Object();
@@ -63,7 +101,7 @@ public abstract class FileSystem {
 	 * Enumeration for write modes.
 	 *
 	 */
-	public static enum WriteMode {
+	public enum WriteMode {
 
 		/** Creates write path if it does not exist. Does not overwrite existing files and directories. */
 		NO_OVERWRITE,
@@ -214,18 +252,7 @@ public abstract class FileSystem {
 		}
 	}
 
-	/**
-	 * Returns a reference to the {@link FileSystem} instance for accessing the
-	 * file system identified by the given {@link URI}.
-	 *
-	 * @param uri
-	 *        the {@link URI} identifying the file system
-	 * @return a reference to the {@link FileSystem} instance for accessing the file system identified by the given
-	 *         {@link URI}.
-	 * @throws IOException
-	 *         thrown if a reference to the file system instance could not be obtained
-	 */
-	public static FileSystem get(URI uri) throws IOException {
+	public static FileSystem getUnguardedFileSystem(URI uri) throws IOException {
 		FileSystem fs;
 
 		URI asked = uri;
@@ -238,13 +265,13 @@ public abstract class FileSystem {
 					}
 
 					uri = new URI(defaultScheme.getScheme(), null, defaultScheme.getHost(),
-						defaultScheme.getPort(), uri.getPath(), null, null);
+							defaultScheme.getPort(), uri.getPath(), null, null);
 
 				} catch (URISyntaxException e) {
 					try {
 						if (defaultScheme.getScheme().equals("file")) {
 							uri = new URI("file", null,
-								new Path(new File(uri.getPath()).getAbsolutePath()).toUri().getPath(), null);
+									new Path(new File(uri.getPath()).getAbsolutePath()).toUri().getPath(), null);
 						}
 					} catch (URISyntaxException ex) {
 						// we tried to repair it, but could not. report the scheme error
@@ -255,8 +282,8 @@ public abstract class FileSystem {
 
 			if(uri.getScheme() == null) {
 				throw new IOException("The URI '" + uri + "' is invalid.\n" +
-					"The fs.default-scheme = " + defaultScheme + ", the requested URI = " + asked +
-					", and the final URI = " + uri + ".");
+						"The fs.default-scheme = " + defaultScheme + ", the requested URI = " + asked +
+						", and the final URI = " + uri + ".");
 			}
 
 			if (uri.getScheme().equals("file") && uri.getAuthority() != null && !uri.getAuthority().isEmpty()) {
@@ -294,7 +321,7 @@ public abstract class FileSystem {
 				} else {
 					// we can not read from this file system.
 					throw new IOException("No file system found with scheme " + uri.getScheme()
-						+ ", referenced in file URI '" + uri.toString() + "'.");
+							+ ", referenced in file URI '" + uri.toString() + "'.");
 				}
 			} else {
 				// we end up here if we have a file system with build-in flink support.
@@ -313,6 +340,21 @@ public abstract class FileSystem {
 		}
 
 		return fs;
+	}
+
+	/**
+	 * Returns a reference to the {@link FileSystem} instance for accessing the
+	 * file system identified by the given {@link URI}.
+	 *
+	 * @param uri
+	 *        the {@link URI} identifying the file system
+	 * @return a reference to the {@link FileSystem} instance for accessing the file system identified by the given
+	 *         {@link URI}.
+	 * @throws IOException
+	 *         thrown if a reference to the file system instance could not be obtained
+	 */
+	public static FileSystem get(URI uri) throws IOException {
+		return wrapWithSafetyNetWhenInTask(getUnguardedFileSystem(uri));
 	}
 
 	/**
