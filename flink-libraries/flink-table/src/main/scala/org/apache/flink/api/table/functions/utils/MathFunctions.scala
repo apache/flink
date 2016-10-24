@@ -15,21 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.codegen.calls
+
+package org.apache.flink.api.table.functions.utils
 
 import java.math.{BigDecimal => JBigDecimal}
 
-import org.apache.calcite.linq4j.tree.Types
-import org.apache.calcite.runtime.SqlFunctions
-import org.apache.flink.api.table.functions.utils.MathFunctions
+class MathFunctions {}
 
-object BuiltInMethods {
-  val LOG10 = Types.lookupMethod(classOf[Math], "log10", classOf[Double])
-  val EXP = Types.lookupMethod(classOf[Math], "exp", classOf[Double])
-  val POWER = Types.lookupMethod(classOf[Math], "pow", classOf[Double], classOf[Double])
-  val POWER_DEC = Types.lookupMethod(
-    classOf[MathFunctions], "power", classOf[Double], classOf[JBigDecimal])
-  val LN = Types.lookupMethod(classOf[Math], "log", classOf[Double])
-  val ABS = Types.lookupMethod(classOf[SqlFunctions], "abs", classOf[Double])
-  val ABS_DEC = Types.lookupMethod(classOf[SqlFunctions], "abs", classOf[JBigDecimal])
+object MathFunctions {
+  def power(a: Double, b: JBigDecimal): Double = {
+    Math.pow(a, b.doubleValue())
+  }
 }

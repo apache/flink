@@ -354,6 +354,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
 
   @Test
   def testPower(): Unit = {
+    // f7: int , f4: long, f6: double
     testAllApis(
       'f2.power('f7),
       "f2.power(f7)",
@@ -377,10 +378,93 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "f4.power(f5)",
       "POWER(f4, f5)",
       math.pow(44.toLong, 4.5.toFloat).toString)
+
+    // f5: float
+    testAllApis('f5.power('f5),
+      "f5.power(f5)",
+      "power(f5, f5)",
+      math.pow(4.5F, 4.5F).toString)
+
+    testAllApis('f5.power('f6),
+      "f5.power(f6)",
+      "power(f5, f6)",
+      math.pow(4.5F, 4.6D).toString)
+
+    testAllApis('f5.power('f7),
+      "f5.power(f7)",
+      "power(f5, f7)",
+      math.pow(4.5F, 3).toString)
+
+    testAllApis('f5.power('f4),
+      "f5.power(f4)",
+      "power(f5, f4)",
+      math.pow(4.5F, 44L).toString)
+
+    // f22: bigDecimal
+    // TODO delete casting in SQL when CALCITE-1467 is fixed
+    testAllApis(
+      'f22.cast(Types.DOUBLE).power('f5),
+      "f22.cast(DOUBLE).power(f5)",
+      "power(CAST(f22 AS DOUBLE), f5)",
+      math.pow(2, 4.5F).toString)
+
+    testAllApis(
+      'f22.cast(Types.DOUBLE).power('f6),
+      "f22.cast(DOUBLE).power(f6)",
+      "power(CAST(f22 AS DOUBLE), f6)",
+      math.pow(2, 4.6D).toString)
+
+    testAllApis(
+      'f22.cast(Types.DOUBLE).power('f7),
+      "f22.cast(DOUBLE).power(f7)",
+      "power(CAST(f22 AS DOUBLE), f7)",
+      math.pow(2, 3).toString)
+
+    testAllApis(
+      'f22.cast(Types.DOUBLE).power('f4),
+      "f22.cast(DOUBLE).power(f4)",
+      "power(CAST(f22 AS DOUBLE), f4)",
+      math.pow(2, 44L).toString)
+
+    testAllApis(
+      'f6.power('f22.cast(Types.DOUBLE)),
+      "f6.power(f22.cast(DOUBLE))",
+      "power(f6, f22)",
+      math.pow(4.6D, 2).toString)
   }
 
   @Test
   def testSqrt(): Unit = {
+    testAllApis(
+      'f6.sqrt(),
+      "f6.sqrt",
+      "SQRT(f6)",
+      math.sqrt(4.6D).toString)
+
+    testAllApis(
+      'f7.sqrt(),
+      "f7.sqrt",
+      "SQRT(f7)",
+      math.sqrt(3).toString)
+
+    testAllApis(
+      'f4.sqrt(),
+      "f4.sqrt",
+      "SQRT(f4)",
+      math.sqrt(44L).toString)
+
+    testAllApis(
+      'f22.cast(Types.DOUBLE).sqrt(),
+      "f22.cast(DOUBLE).sqrt",
+      "SQRT(CAST(f22 AS DOUBLE))",
+      math.sqrt(2.0).toString)
+
+    testAllApis(
+      'f5.sqrt(),
+      "f5.sqrt",
+      "SQRT(f5)",
+      math.pow(4.5F, 0.5).toString)
+
     testAllApis(
       25.sqrt(),
       "25.sqrt()",
@@ -944,7 +1028,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(22)
+    val testData = new Row(23)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -967,6 +1051,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testData.setField(19, 1467012213000L) // +16979 07:23:33.000
     testData.setField(20, 25) // +2-01
     testData.setField(21, null)
+    testData.setField(22, BigDecimal("2").bigDecimal)
     testData
   }
 
@@ -993,6 +1078,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       Types.TIMESTAMP,
       Types.INTERVAL_MILLIS,
       Types.INTERVAL_MONTHS,
-      Types.BOOLEAN)).asInstanceOf[TypeInformation[Any]]
+      Types.BOOLEAN,
+      Types.DECIMAL)).asInstanceOf[TypeInformation[Any]]
   }
 }
