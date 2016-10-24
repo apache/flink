@@ -69,8 +69,8 @@ The remaining sections provide a description of available methods and present se
 Running Gelly Examples
 ----------------------
 
-The Gelly library and examples jars are [provided](https://flink.apache.org/downloads.html "Apache Flink: Downloads")
-in the Flink distribution at **opt/lib/gelly** (for versions older than Flink 1.2 these can be manually downloaded from
+The Gelly library and examples jars are provided in the [Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads")
+in the folder **opt/lib/gelly** (for versions older than Flink 1.2 these can be manually downloaded from
 [Maven Central](http://search.maven.org/#search|ga|1|flink%20gelly).
 
 To run the Gelly examples the **flink-gelly** (for Java) or **flink-gelly-scala** (for Scala) jar must be copied to
@@ -81,7 +81,7 @@ cp opt/lib/gelly/flink-gelly_*.jar lib/
 cp opt/lib/gelly/flink-gelly-scala_*.jar lib/
 ~~~
 
-Gelly's example jar includes both drivers for the library methods as well as additional example algorithms. After
+Gelly's examples jar includes both drivers for the library methods as well as additional example algorithms. After
 configuring and starting the cluster, list the available algorithm classes:
 
 ~~~bash
@@ -121,7 +121,7 @@ wget -O - http://snap.stanford.edu/data/bigdata/communities/com-lj.ungraph.txt.g
     --output hash
 ~~~
 
-Please submit feature requests or issue reports through the user [mailing list](https://flink.apache.org/community.html#mailing-lists)
+Please submit feature requests and report issues on the user [mailing list](https://flink.apache.org/community.html#mailing-lists)
 or [Flink Jira](https://issues.apache.org/jira/browse/FLINK). We welcome suggestions for new algorithms and features as
 well as [code contributions](https://flink.apache.org/contribute-code.html).
 
