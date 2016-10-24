@@ -183,6 +183,25 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 			return scopeString + registry.getDelimiter() + metricName;
 		}
 	}
+
+	/**
+	 * Returns the fully qualified metric name using the configured delimiter for the reporter with the given index, for example
+	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
+	 *
+	 * @param metricName metric name
+	 * @param filter character filter which is applied to the scope components if not null.
+	 * @param reporterIndex index of the reporter whose delimiter should be used
+	 * @return fully qualified metric name
+	 */
+	public String getMetricIdentifier(String metricName, CharacterFilter filter, int reporterIndex) {
+		if (filter != null) {
+			scopeString = ScopeFormat.concat(filter, registry.getDelimiter(reporterIndex), scopeComponents);
+			return scopeString + registry.getDelimiter(reporterIndex) + filter.filterCharacters(metricName);
+		} else {
+			scopeString = ScopeFormat.concat(registry.getDelimiter(reporterIndex), scopeComponents);
+			return scopeString + registry.getDelimiter(reporterIndex) + metricName;
+		}
+	}
 	
 	// ------------------------------------------------------------------------
 	//  Closing

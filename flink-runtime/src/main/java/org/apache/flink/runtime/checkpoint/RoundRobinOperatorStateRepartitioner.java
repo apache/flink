@@ -176,7 +176,7 @@ public class RoundRobinOperatorStateRepartitioner implements OperatorStateRepart
 					Map<StreamStateHandle, OperatorStateHandle> mergeMap = mergeMapList.get(parallelOpIdx);
 					OperatorStateHandle psh = mergeMap.get(handleWithOffsets.f0);
 					if (psh == null) {
-						psh = new OperatorStateHandle(handleWithOffsets.f0, new HashMap<String, long[]>());
+						psh = new OperatorStateHandle(new HashMap<String, long[]>(), handleWithOffsets.f0);
 						mergeMap.put(handleWithOffsets.f0, psh);
 					}
 					psh.getStateNameToPartitionOffsets().put(e.getKey(), offs);

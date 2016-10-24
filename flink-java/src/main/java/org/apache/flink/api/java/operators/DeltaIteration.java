@@ -26,10 +26,12 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
+import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.types.Value;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -62,13 +64,13 @@ public class DeltaIteration<ST, WT> {
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 	
 	private boolean solutionSetUnManaged;
-	
-	
+
+
 	public DeltaIteration(ExecutionEnvironment context, TypeInformation<ST> type, DataSet<ST> solutionSet, DataSet<WT> workset, Keys<ST> keys, int maxIterations) {
 		initialSolutionSet = solutionSet;
 		initialWorkset = workset;
-		solutionSetPlaceholder = new SolutionSetPlaceHolder<ST>(context, solutionSet.getType(), this);
-		worksetPlaceholder = new WorksetPlaceHolder<WT>(context, workset.getType());
+		solutionSetPlaceholder = new SolutionSetPlaceHolder<>(context, solutionSet.getType(), this);
+		worksetPlaceholder = new WorksetPlaceHolder<>(context, workset.getType());
 		this.keys = keys;
 		this.maxIterations = maxIterations;
 	}
@@ -208,6 +210,28 @@ public class DeltaIteration<ST, WT> {
 	@PublicEvolving
 	public DeltaIteration<ST, WT> registerAggregator(String name, Aggregator<?> aggregator) {
 		this.aggregators.registerAggregator(name, aggregator);
+		return this;
+	}
+
+	/**
+	 * Registers an {@link Aggregator} for the iteration together with a {@link ConvergenceCriterion}. For a general description
+	 * of aggregators, see {@link #registerAggregator(String, Aggregator)} and {@link Aggregator}.
+	 * At the end of each iteration, the convergence criterion takes the aggregator's global aggregate value and decides whether
+	 * the iteration should terminate. A typical use case is to have an aggregator that sums up the total error of change
+	 * in an iteration step and have to have a convergence criterion that signals termination as soon as the aggregate value
+	 * is below a certain threshold.
+	 *
+	 * @param name The name under which the aggregator is registered.
+	 * @param aggregator The aggregator class.
+	 * @param convergenceCheck The convergence criterion.
+	 *
+	 * @return The DeltaIteration itself, to allow chaining function calls.
+	 */
+	@PublicEvolving
+	public <X extends Value> DeltaIteration<ST, WT> registerAggregationConvergenceCriterion(
+			String name, Aggregator<X> aggregator, ConvergenceCriterion<X> convergenceCheck)
+	{
+		this.aggregators.registerAggregationConvergenceCriterion(name, aggregator, convergenceCheck);
 		return this;
 	}
 	

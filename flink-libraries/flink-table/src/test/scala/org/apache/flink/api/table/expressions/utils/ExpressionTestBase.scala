@@ -21,7 +21,8 @@ package org.apache.flink.api.table.expressions.utils
 import org.apache.calcite.rel.logical.LogicalProject
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName._
-import org.apache.calcite.tools.RelBuilder
+import org.apache.calcite.sql2rel.RelDecorrelator
+import org.apache.calcite.tools.{Programs, RelBuilder}
 import org.apache.flink.api.common.functions.{Function, MapFunction}
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -31,6 +32,8 @@ import org.apache.flink.api.table._
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedFunction}
 import org.apache.flink.api.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.api.table.functions.UserDefinedFunction
+import org.apache.flink.api.table.plan.nodes.dataset.{DataSetCalc, DataSetConvention}
+import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.runtime.FunctionCompiler
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.junit.Assert._
@@ -44,7 +47,7 @@ import scala.collection.mutable
   */
 abstract class ExpressionTestBase {
 
-  private val testExprs = mutable.LinkedHashSet[(RexNode, String)]()
+  private val testExprs = mutable.ArrayBuffer[(RexNode, String)]()
 
   // setup test utils
   private val tableName = "testTable"
@@ -53,6 +56,7 @@ abstract class ExpressionTestBase {
     context._2.getFrameworkConfig,
     context._2.getPlanner,
     context._2.getTypeFactory)
+  private val optProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
 
   private def prepareContext(typeInfo: TypeInformation[Any]): (RelBuilder, TableEnvironment) = {
     // create DataSetTable
@@ -134,24 +138,43 @@ abstract class ExpressionTestBase {
     // create RelNode from SQL expression
     val parsed = planner.parse(s"SELECT $sqlExpr FROM $tableName")
     val validated = planner.validate(parsed)
-    val converted = planner.rel(validated)
+    val converted = planner.rel(validated).rel
+
+    // create DataSetCalc
+    val decorPlan = RelDecorrelator.decorrelateQuery(converted)
+    val flinkOutputProps = converted.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
+    val dataSetCalc = optProgram.run(context._2.getPlanner, decorPlan, flinkOutputProps)
 
     // extract RexNode
-    val expr: RexNode = converted.rel.asInstanceOf[LogicalProject].getChildExps.get(0)
-    testExprs.add((expr, expected))
+    val calcProgram = dataSetCalc
+     .asInstanceOf[DataSetCalc]
+     .calcProgram
+    val expanded = calcProgram.expandLocalRef(calcProgram.getProjectList.get(0))
+
+    testExprs += ((expanded, expected))
   }
 
   private def addTableApiTestExpr(tableApiExpr: Expression, expected: String): Unit = {
+    // create RelNode from Table API expression
     val env = context._2
-    val expr = env
+    val converted = env
       .asInstanceOf[BatchTableEnvironment]
       .scan(tableName)
       .select(tableApiExpr)
       .getRelNode
-      .asInstanceOf[LogicalProject]
-      .getChildExps
-      .get(0)
-    testExprs.add((expr, expected))
+
+    // create DataSetCalc
+    val decorPlan = RelDecorrelator.decorrelateQuery(converted)
+    val flinkOutputProps = converted.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
+    val dataSetCalc = optProgram.run(context._2.getPlanner, decorPlan, flinkOutputProps)
+
+    // extract RexNode
+    val calcProgram = dataSetCalc
+     .asInstanceOf[DataSetCalc]
+     .calcProgram
+    val expanded = calcProgram.expandLocalRef(calcProgram.getProjectList.get(0))
+
+    testExprs += ((expanded, expected))
   }
 
   private def addTableApiTestExpr(tableApiString: String, expected: String): Unit = {

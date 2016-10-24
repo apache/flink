@@ -47,17 +47,21 @@ public class MetricStore {
 	final Map<String, TaskManagerMetricStore> taskManagers = new HashMap<>();
 	final Map<String, JobMetricStore> jobs = new HashMap<>();
 
+	// -----------------------------------------------------------------------------------------------------------------
+	// Adding metrics
+	// -----------------------------------------------------------------------------------------------------------------
 	public void add(MetricDump metric) {
 		try {
 			QueryScopeInfo info = metric.scopeInfo;
 			TaskManagerMetricStore tm;
 			JobMetricStore job;
 			TaskMetricStore task;
+			SubtaskMetricStore subtask;
 
 			String name = info.scope.isEmpty()
 				? metric.name
 				: info.scope + "." + metric.name;
-			
+
 			if (name.isEmpty()) { // malformed transmission
 				return;
 			}
@@ -96,10 +100,18 @@ public class MetricStore {
 						task = new TaskMetricStore();
 						job.tasks.put(taskInfo.vertexID, task);
 					}
+					subtask = task.subtasks.get(taskInfo.subtaskIndex);
+					if (subtask == null) {
+						subtask = new SubtaskMetricStore();
+						task.subtasks.put(taskInfo.subtaskIndex, subtask);
+					}
 					/**
-					 * As the WebInterface task metric queries currently do not account for subtasks we don't 
-					 * divide by subtask and instead use the concatenation of subtask index and metric name as the name. 
+					 * The duplication is intended. Metrics scoped by subtask are useful for several job/task handlers,
+					 * while the WebInterface task metric queries currently do not account for subtasks, so we don't 
+					 * divide by subtask and instead use the concatenation of subtask index and metric name as the name
+					 * for thos.
 					 */
+					addMetric(subtask.metrics, name, metric);
 					addMetric(task.metrics, taskInfo.subtaskIndex + "." + name, metric);
 					break;
 				case INFO_CATEGORY_OPERATOR:
@@ -129,11 +141,11 @@ public class MetricStore {
 		}
 	}
 
-	private void addMetric(Map<String, Object> target, String name, MetricDump metric) {
+	private void addMetric(Map<String, String> target, String name, MetricDump metric) {
 		switch (metric.getCategory()) {
 			case METRIC_CATEGORY_COUNTER:
 				MetricDump.CounterDump counter = (MetricDump.CounterDump) metric;
-				target.put(name, counter.count);
+				target.put(name, String.valueOf(counter.count));
 				break;
 			case METRIC_CATEGORY_GAUGE:
 				MetricDump.GaugeDump gauge = (MetricDump.GaugeDump) metric;
@@ -141,51 +153,140 @@ public class MetricStore {
 				break;
 			case METRIC_CATEGORY_HISTOGRAM:
 				MetricDump.HistogramDump histogram = (MetricDump.HistogramDump) metric;
-				target.put(name + "_min", histogram.min);
-				target.put(name + "_max", histogram.max);
-				target.put(name + "_mean", histogram.mean);
-				target.put(name + "_median", histogram.median);
-				target.put(name + "_stddev", histogram.stddev);
-				target.put(name + "_p75", histogram.p75);
-				target.put(name + "_p90", histogram.p90);
-				target.put(name + "_p95", histogram.p95);
-				target.put(name + "_p98", histogram.p98);
-				target.put(name + "_p99", histogram.p99);
-				target.put(name + "_p999", histogram.p999);
+				target.put(name + "_min", String.valueOf(histogram.min));
+				target.put(name + "_max", String.valueOf(histogram.max));
+				target.put(name + "_mean", String.valueOf(histogram.mean));
+				target.put(name + "_median", String.valueOf(histogram.median));
+				target.put(name + "_stddev", String.valueOf(histogram.stddev));
+				target.put(name + "_p75", String.valueOf(histogram.p75));
+				target.put(name + "_p90", String.valueOf(histogram.p90));
+				target.put(name + "_p95", String.valueOf(histogram.p95));
+				target.put(name + "_p98", String.valueOf(histogram.p98));
+				target.put(name + "_p99", String.valueOf(histogram.p99));
+				target.put(name + "_p999", String.valueOf(histogram.p999));
 				break;
 			case METRIC_CATEGORY_METER:
 				MetricDump.MeterDump meter = (MetricDump.MeterDump) metric;
-				target.put(name, meter.rate);
+				target.put(name, String.valueOf(meter.rate));
 				break;
+		}
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------
+	// Accessors for sub MetricStores
+	// -----------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * Returns the {@link JobManagerMetricStore}.
+	 *
+	 * @return JobManagerMetricStore
+	 */
+	public JobManagerMetricStore getJobManagerMetricStore() {
+		return jobManager;
+	}
+
+	/**
+	 * Returns the {@link TaskManagerMetricStore} for the given taskmanager ID.
+	 *
+	 * @param tmID taskmanager ID
+	 * @return TaskManagerMetricStore for the given ID, or null if no store for the given argument exists
+	 */
+	public TaskManagerMetricStore getTaskManagerMetricStore(String tmID) {
+		return taskManagers.get(tmID);
+	}
+
+	/**
+	 * Returns the {@link JobMetricStore} for the given job ID.
+	 *
+	 * @param jobID job ID
+	 * @return JobMetricStore for the given ID, or null if no store for the given argument exists
+	 */
+	public JobMetricStore getJobMetricStore(String jobID) {
+		return jobs.get(jobID);
+	}
+
+	/**
+	 * Returns the {@link TaskMetricStore} for the given job/task ID.
+	 *
+	 * @param jobID  job ID
+	 * @param taskID task ID
+	 * @return TaskMetricStore for given IDs, or null if no store for the given arguments exists
+	 */
+	public TaskMetricStore getTaskMetricStore(String jobID, String taskID) {
+		JobMetricStore job = getJobMetricStore(jobID);
+		if (job == null) {
+			return null;
+		}
+		return job.getTaskMetricStore(taskID);
+	}
+
+	/**
+	 * Returns the {@link SubtaskMetricStore} for the given job/task ID and subtask index.
+	 *
+	 * @param jobID        job ID
+	 * @param taskID       task ID
+	 * @param subtaskIndex subtask index
+	 * @return SubtaskMetricStore for the given IDs and index, or null if no store for the given arguments exists
+	 */
+	public SubtaskMetricStore getSubtaskMetricStore(String jobID, String taskID, int subtaskIndex) {
+		TaskMetricStore task = getTaskMetricStore(jobID, taskID);
+		if (task == null) {
+			return null;
+		}
+		return task.getSubtaskMetricStore(subtaskIndex);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------
+	// sub MetricStore classes
+	// -----------------------------------------------------------------------------------------------------------------
+	private static abstract class ComponentMetricStore {
+		public final Map<String, String> metrics = new HashMap<>();
+
+		public String getMetric(String name, String defaultValue) {
+			String value = this.metrics.get(name);
+			return value != null
+				? value
+				: defaultValue;
 		}
 	}
 
 	/**
 	 * Sub-structure containing metrics of the JobManager.
 	 */
-	static class JobManagerMetricStore {
-		public final Map<String, Object> metrics = new HashMap<>();
+	public static class JobManagerMetricStore extends ComponentMetricStore {
 	}
 
 	/**
 	 * Sub-structure containing metrics of a single TaskManager.
 	 */
-	static class TaskManagerMetricStore {
-		public final Map<String, Object> metrics = new HashMap<>();
+	public static class TaskManagerMetricStore extends ComponentMetricStore {
 	}
 
 	/**
 	 * Sub-structure containing metrics of a single Job.
 	 */
-	static class JobMetricStore {
-		public final Map<String, Object> metrics = new HashMap<>();
-		public final Map<String, TaskMetricStore> tasks = new HashMap<>();
+	public static class JobMetricStore extends ComponentMetricStore {
+		private final Map<String, TaskMetricStore> tasks = new HashMap<>();
+
+		public TaskMetricStore getTaskMetricStore(String taskID) {
+			return tasks.get(taskID);
+		}
 	}
 
 	/**
 	 * Sub-structure containing metrics of a single Task.
 	 */
-	static class TaskMetricStore {
-		public final Map<String, Object> metrics = new HashMap<>();
+	public static class TaskMetricStore extends ComponentMetricStore {
+		private final Map<Integer, SubtaskMetricStore> subtasks = new HashMap<>();
+
+		public SubtaskMetricStore getSubtaskMetricStore(int subtaskIndex) {
+			return subtasks.get(subtaskIndex);
+		}
+	}
+
+	/**
+	 * Sub-structure containing metrics of a single Subtask.
+	 */
+	public static class SubtaskMetricStore extends ComponentMetricStore {
 	}
 }

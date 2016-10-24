@@ -110,7 +110,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     */
   @PublicEvolving
   def getRestartStrategy: RestartStrategyConfiguration = {
-    javaEnv.getRestartStrategy()
+    javaEnv.getRestartStrategy
   }
 
   /**
@@ -381,7 +381,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     require(inputFormat != null, "InputFormat must not be null.")
     require(filePath != null, "File path must not be null.")
     inputFormat.setFilePath(new Path(filePath))
-    createInput(inputFormat, implicitly[TypeInformation[T]])
+    createInput(inputFormat, explicitFirst(inputFormat, implicitly[TypeInformation[T]]))
   }
 
   /**
@@ -392,7 +392,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     if (inputFormat == null) {
       throw new IllegalArgumentException("InputFormat must not be null.")
     }
-    createInput(inputFormat, implicitly[TypeInformation[T]])
+    createInput(inputFormat, explicitFirst(inputFormat, implicitly[TypeInformation[T]]))
   }
 
   /**

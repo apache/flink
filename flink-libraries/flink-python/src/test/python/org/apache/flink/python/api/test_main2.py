@@ -126,6 +126,10 @@ if __name__ == "__main__":
     d1 \
         .first(1) \
         .map_partition(Verify([1], "First")).output()
+    d4 \
+        .group_by(0) \
+        .first(1) \
+        .map_partition(Verify([(1, 0.5, "hello", True), (2, 0.4, "world", False)], "Grouped First")).output()
     d1 \
         .rebalance()
     d6 \

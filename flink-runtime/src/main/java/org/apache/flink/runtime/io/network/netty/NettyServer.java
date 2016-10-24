@@ -29,9 +29,12 @@ import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadFactory;
@@ -50,6 +53,8 @@ class NettyServer {
 	private ServerBootstrap bootstrap;
 
 	private ChannelFuture bindFuture;
+
+	private SSLContext serverSSLContext = null;
 
 	private InetSocketAddress localAddress;
 
@@ -115,6 +120,13 @@ class NettyServer {
 		bootstrap.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, config.getMemorySegmentSize() + 1);
 		bootstrap.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, 2 * config.getMemorySegmentSize());
 
+		// SSL related configuration
+		try {
+			serverSSLContext = config.createServerSSLContext();
+		} catch (Exception e) {
+			throw new IOException("Failed to initialize SSL Context for the Netty Server", e);
+		}
+
 		// --------------------------------------------------------------------
 		// Child channel pipeline for accepted connections
 		// --------------------------------------------------------------------
@@ -122,6 +134,12 @@ class NettyServer {
 		bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
 			@Override
 			public void initChannel(SocketChannel channel) throws Exception {
+				if (serverSSLContext != null) {
+					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
+					sslEngine.setUseClientMode(false);
+					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
+				}
+
 				channel.pipeline().addLast(protocol.getServerChannelHandlers());
 			}
 		});

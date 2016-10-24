@@ -20,8 +20,8 @@ package org.apache.flink.runtime.messages.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.state.CheckpointStateHandles;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -38,7 +38,7 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 	private static final long serialVersionUID = -7606214777192401493L;
 
 
-	private final CheckpointStateHandles checkpointStateHandles;
+	private final SubtaskState subtaskState;
 
 	private final CheckpointMetaData checkpointMetaData;
 
@@ -55,11 +55,11 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 			JobID job,
 			ExecutionAttemptID taskExecutionId,
 			CheckpointMetaData checkpointMetaData,
-			CheckpointStateHandles checkpointStateHandles) {
+			SubtaskState subtaskState) {
 
 		super(job, taskExecutionId, checkpointMetaData.getCheckpointId());
 
-		this.checkpointStateHandles = checkpointStateHandles;
+		this.subtaskState = subtaskState;
 		this.checkpointMetaData = checkpointMetaData;
 		// these may be "-1", in case the values are unknown or not set
 		checkArgument(checkpointMetaData.getSyncDurationMillis() >= -1);
@@ -72,8 +72,8 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 	//  properties
 	// ------------------------------------------------------------------------
 
-	public CheckpointStateHandles getCheckpointStateHandles() {
-		return checkpointStateHandles;
+	public SubtaskState getSubtaskState() {
+		return subtaskState;
 	}
 
 	public long getSynchronousDurationMillis() {
@@ -107,21 +107,21 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 		}
 
 		AcknowledgeCheckpoint that = (AcknowledgeCheckpoint) o;
-		return checkpointStateHandles != null ?
-				checkpointStateHandles.equals(that.checkpointStateHandles) : that.checkpointStateHandles == null;
+		return subtaskState != null ?
+				subtaskState.equals(that.subtaskState) : that.subtaskState == null;
 
 	}
 
 	@Override
 	public int hashCode() {
 		int result = super.hashCode();
-		result = 31 * result + (checkpointStateHandles != null ? checkpointStateHandles.hashCode() : 0);
+		result = 31 * result + (subtaskState != null ? subtaskState.hashCode() : 0);
 		return result;
 	}
 
 	@Override
 	public String toString() {
 		return String.format("Confirm Task Checkpoint %d for (%s/%s) - state=%s",
-				getCheckpointId(), getJob(), getTaskExecutionId(), checkpointStateHandles);
+				getCheckpointId(), getJob(), getTaskExecutionId(), subtaskState);
 	}
 }

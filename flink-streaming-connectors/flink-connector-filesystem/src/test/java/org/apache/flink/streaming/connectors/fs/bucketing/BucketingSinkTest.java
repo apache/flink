@@ -35,8 +35,6 @@ import org.apache.flink.streaming.connectors.fs.Clock;
 import org.apache.flink.streaming.connectors.fs.SequenceFileWriter;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.NetUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -70,7 +68,7 @@ public class BucketingSinkTest {
 	private static org.apache.hadoop.fs.FileSystem dfs;
 	private static String hdfsURI;
 
-	private OneInputStreamOperatorTestHarness<String, Object> createTestSink(File dataDir, TestTimeServiceProvider clock) {
+	private OneInputStreamOperatorTestHarness<String, Object> createTestSink(File dataDir) throws Exception {
 		BucketingSink<String> sink = new BucketingSink<String>(dataDir.getAbsolutePath())
 			.setBucketer(new Bucketer<String>() {
 				private static final long serialVersionUID = 1L;
@@ -87,12 +85,12 @@ public class BucketingSinkTest {
 			.setInactiveBucketThreshold(5*60*1000L)
 			.setPendingSuffix(".pending");
 
-		return createTestSink(sink, clock);
+		return createTestSink(sink);
 	}
 
-	private <T> OneInputStreamOperatorTestHarness<T, Object> createTestSink(BucketingSink<T> sink,
-																			TestTimeServiceProvider clock) {
-		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), new ExecutionConfig(), clock);
+	private <T> OneInputStreamOperatorTestHarness<T, Object> createTestSink(
+			BucketingSink<T> sink) throws Exception {
+		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), new ExecutionConfig());
 	}
 
 	@BeforeClass
@@ -121,10 +119,7 @@ public class BucketingSinkTest {
 	public void testCheckpointWithoutNotify() throws Exception {
 		File dataDir = tempFolder.newFolder();
 
-		TestTimeServiceProvider clock = new TestTimeServiceProvider();
-		clock.setCurrentTime(0L);
-
-		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(dataDir, clock);
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(dataDir);
 
 		testHarness.setup();
 		testHarness.open();
@@ -133,13 +128,13 @@ public class BucketingSinkTest {
 		testHarness.processElement(new StreamRecord<>("Hello"));
 		testHarness.processElement(new StreamRecord<>("Hello"));
 
-		clock.setCurrentTime(10000L);
+		testHarness.setProcessingTime(10000L);
 
 		// snapshot but don't call notify to simulate a notify that never
 		// arrives, the sink should move pending files in restore() in that case
-		StreamStateHandle snapshot1 = testHarness.snapshot(0, 0);
+		StreamStateHandle snapshot1 = testHarness.snapshotLegacy(0, 0);
 
-		testHarness = createTestSink(dataDir, clock);
+		testHarness = createTestSink(dataDir);
 		testHarness.setup();
 		testHarness.restore(snapshot1);
 		testHarness.open();
@@ -175,16 +170,15 @@ public class BucketingSinkTest {
 
 		final int numElements = 20;
 
-		TestTimeServiceProvider clock = new TestTimeServiceProvider();
-		clock.setCurrentTime(0L);
-
 		BucketingSink<String> sink = new BucketingSink<String>(outPath)
 			.setBucketer(new BasePathBucketer<String>())
 			.setPartPrefix("part")
 			.setPendingPrefix("")
 			.setPendingSuffix("");
 
-		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(sink, clock);
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(sink);
+
+		testHarness.setProcessingTime(0L);
 
 		testHarness.setup();
 		testHarness.open();
@@ -217,9 +211,6 @@ public class BucketingSinkTest {
 
 		final int numElements = 20;
 
-		TestTimeServiceProvider clock = new TestTimeServiceProvider();
-		clock.setCurrentTime(0L);
-
 		BucketingSink<Tuple2<IntWritable, Text>> sink = new BucketingSink<Tuple2<IntWritable, Text>>(outPath)
 			.setWriter(new SequenceFileWriter<IntWritable, Text>())
 			.setBucketer(new BasePathBucketer<Tuple2<IntWritable, Text>>())
@@ -230,7 +221,9 @@ public class BucketingSinkTest {
 		sink.setInputType(TypeInformation.of(new TypeHint<Tuple2<IntWritable, Text>>(){}), new ExecutionConfig());
 
 		OneInputStreamOperatorTestHarness<Tuple2<IntWritable, Text>, Object> testHarness =
-			createTestSink(sink, clock);
+			createTestSink(sink);
+
+		testHarness.setProcessingTime(0L);
 
 		testHarness.setup();
 		testHarness.open();
@@ -271,9 +264,6 @@ public class BucketingSinkTest {
 
 		final int numElements = 20;
 
-		TestTimeServiceProvider clock = new TestTimeServiceProvider();
-		clock.setCurrentTime(0L);
-
 		Map<String, String> properties = new HashMap<>();
 		Schema keySchema = Schema.create(Schema.Type.INT);
 		Schema valueSchema = Schema.create(Schema.Type.STRING);
@@ -290,7 +280,9 @@ public class BucketingSinkTest {
 			.setPendingSuffix("");
 
 		OneInputStreamOperatorTestHarness<Tuple2<Integer, String>, Object> testHarness =
-			createTestSink(sink, clock);
+			createTestSink(sink);
+
+		testHarness.setProcessingTime(0L);
 
 		testHarness.setup();
 		testHarness.open();
@@ -325,8 +317,8 @@ public class BucketingSinkTest {
 
 	/**
 	 * This uses {@link DateTimeBucketer} to
-	 * produce rolling files. A custom {@link TimeServiceProvider} is set
-	 * to simulate the advancing of time alongside the processing of elements.
+	 * produce rolling files. We use {@link OneInputStreamOperatorTestHarness} to manually
+	 * advance processing time.
 	 */
 	@Test
 	public void testDateTimeRollingStringWriter() throws Exception {
@@ -334,16 +326,15 @@ public class BucketingSinkTest {
 
 		final String outPath = hdfsURI + "/rolling-out";
 
-		TestTimeServiceProvider clock = new TestTimeServiceProvider();
-		clock.setCurrentTime(0L);
-
 		BucketingSink<String> sink = new BucketingSink<String>(outPath)
 			.setBucketer(new DateTimeBucketer<String>("ss"))
 			.setPartPrefix("part")
 			.setPendingPrefix("")
 			.setPendingSuffix("");
 
-		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(sink, clock);
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(sink);
+
+		testHarness.setProcessingTime(0L);
 
 		testHarness.setup();
 		testHarness.open();
@@ -351,7 +342,7 @@ public class BucketingSinkTest {
 		for (int i = 0; i < numElements; i++) {
 			// Every 5 elements, increase the clock time. We should end up with 5 elements per bucket.
 			if (i % 5 == 0) {
-				clock.setCurrentTime(i * 1000L);
+				testHarness.setProcessingTime(i * 1000L);
 			}
 			testHarness.processElement(new StreamRecord<>("message #" + Integer.toString(i)));
 		}
@@ -427,10 +418,9 @@ public class BucketingSinkTest {
 		final int numIds = 4;
 		final int numElements = 20;
 
-		TestTimeServiceProvider clock = new TestTimeServiceProvider();
-		clock.setCurrentTime(0L);
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(dataDir);
 
-		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(dataDir, clock);
+		testHarness.setProcessingTime(0L);
 
 		testHarness.setup();
 		testHarness.open();
@@ -465,10 +455,9 @@ public class BucketingSinkTest {
 		final int step2NumIds = 2;
 		final int numElementsPerStep = 20;
 
-		TestTimeServiceProvider clock = new TestTimeServiceProvider();
-		clock.setCurrentTime(0L);
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(dataDir);
 
-		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(dataDir, clock);
+		testHarness.setProcessingTime(0L);
 
 		testHarness.setup();
 		testHarness.open();
@@ -477,13 +466,13 @@ public class BucketingSinkTest {
 			testHarness.processElement(new StreamRecord<>(Integer.toString(i % step1NumIds)));
 		}
 
-		clock.setCurrentTime(2*60*1000L);
+		testHarness.setProcessingTime(2*60*1000L);
 
 		for (int i = 0; i < numElementsPerStep; i++) {
 			testHarness.processElement(new StreamRecord<>(Integer.toString(i % step2NumIds)));
 		}
 
-		clock.setCurrentTime(6*60*1000L);
+		testHarness.setProcessingTime(6*60*1000L);
 
 		for (int i = 0; i < numElementsPerStep; i++) {
 			testHarness.processElement(new StreamRecord<>(Integer.toString(i % step2NumIds)));

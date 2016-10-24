@@ -1,0 +1,81 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.streaming.runtime.tasks;
+
+import java.util.concurrent.ScheduledFuture;
+
+/**
+ * Defines the current processing time and handles all related actions,
+ * such as register timers for tasks to be executed in the future.
+ * 
+ * <p>The access to the time via {@link #getCurrentProcessingTime()} is always available, regardless of
+ * whether the timer service has been shut down.
+ * 
+ * <p>The registration of timers follows a life cycle of three phases:
+ * <ol>
+ *     <li>In the initial state, it accepts timer registrations and triggers when the time is reached.</li>
+ *     <li>After calling {@link #quiesceAndAwaitPending()}, further calls to
+ *         {@link #registerTimer(long, ProcessingTimeCallback)} will not register any further timers, and will
+ *         return a "dummy" future as a result. This is used for clean shutdown, where currently firing
+ *         timers are waited for and no future timers can be scheduled, without causing hard exceptions.</li>
+ *     <li>After a call to {@link #shutdownService()}, all calls to {@link #registerTimer(long, ProcessingTimeCallback)}
+ *         will result in a hard exception.</li>
+ * </ol>
+ */
+public abstract class ProcessingTimeService {
+
+	/**
+	 * Returns the current processing time.
+	 */
+	public abstract long getCurrentProcessingTime();
+
+	/**
+	 * Registers a task to be executed when (processing) time is {@code timestamp}.
+	 * 
+	 * @param timestamp   Time when the task is to be executed (in processing time)
+	 * @param target      The task to be executed
+	 * 
+	 * @return The future that represents the scheduled task. This always returns some future,
+	 *         even if the timer was shut down
+	 */
+	public abstract ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target);
+
+	/**
+	 * Returns <tt>true</tt> if the service has been shut down, <tt>false</tt> otherwise.
+	 */
+	public abstract boolean isTerminated();
+
+	/**
+	 * This method puts the service into a state where it does not register new timers, but
+	 * returns for each call to {@link #registerTimer(long, ProcessingTimeCallback)} only a "mock" future.
+	 * Furthermore, the method clears all not yet started timers, and awaits the completion
+	 * of currently executing timers.
+	 * 
+	 * <p>This method can be used to cleanly shut down the timer service. The using components
+	 * will not notice that the service is shut down (as for example via exceptions when registering
+	 * a new timer), but the service will simply not fire any timer any more.
+	 */
+	public abstract void quiesceAndAwaitPending() throws InterruptedException;
+
+	/**
+	 * Shuts down and clean up the timer service provider hard and immediately. This does not wait
+	 * for any timer to complete. Any further call to {@link #registerTimer(long, ProcessingTimeCallback)}
+	 * will result in a hard exception.
+	 */
+	public abstract void shutdownService();
+}

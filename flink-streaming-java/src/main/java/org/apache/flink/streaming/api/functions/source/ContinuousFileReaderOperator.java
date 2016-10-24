@@ -107,7 +107,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
 		final long watermarkInterval = getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
 		this.readerContext = StreamSourceContexts.getSourceContext(
-			timeCharacteristic, getTimerService(), checkpointLock, output, watermarkInterval);
+			timeCharacteristic, getProcessingTimeService(), checkpointLock, output, watermarkInterval);
 
 		// and initialize the split reading thread
 		this.reader = new SplitReader<>(format, serializer, readerContext, checkpointLock, readerState);
@@ -387,6 +387,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 
 	@Override
 	public void snapshotState(FSDataOutputStream os, long checkpointId, long timestamp) throws Exception {
+		super.snapshotState(os, checkpointId, timestamp);
 
 		final ObjectOutputStream oos = new ObjectOutputStream(os);
 
@@ -409,6 +410,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 
 	@Override
 	public void restoreState(FSDataInputStream is) throws Exception {
+		super.restoreState(is);
 
 		final ObjectInputStream ois = new ObjectInputStream(is);
 

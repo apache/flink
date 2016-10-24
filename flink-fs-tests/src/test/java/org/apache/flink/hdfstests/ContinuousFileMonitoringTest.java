@@ -34,7 +34,6 @@ import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileUtil;
@@ -127,20 +126,21 @@ public class ContinuousFileMonitoringTest {
 		ContinuousFileReaderOperator<String, ?> reader = new ContinuousFileReaderOperator<>(format);
 		reader.setOutputType(typeInfo, executionConfig);
 
-		final TestTimeServiceProvider timeServiceProvider = new TestTimeServiceProvider();
 		final OneInputStreamOperatorTestHarness<FileInputSplit, String> tester =
-			new OneInputStreamOperatorTestHarness<>(reader, executionConfig, timeServiceProvider);
+			new OneInputStreamOperatorTestHarness<>(reader, executionConfig);
+
 		tester.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
+
 		tester.open();
 
 		Assert.assertEquals(TimeCharacteristic.IngestionTime, tester.getTimeCharacteristic());
 
 		// test that watermarks are correctly emitted
 
-		timeServiceProvider.setCurrentTime(201);
-		timeServiceProvider.setCurrentTime(301);
-		timeServiceProvider.setCurrentTime(401);
-		timeServiceProvider.setCurrentTime(501);
+		tester.setProcessingTime(201);
+		tester.setProcessingTime(301);
+		tester.setProcessingTime(401);
+		tester.setProcessingTime(501);
 
 		int i = 0;
 		for(Object line: tester.getOutput()) {
@@ -170,8 +170,8 @@ public class ContinuousFileMonitoringTest {
 		for(FileInputSplit split: splits) {
 
 			// set the next "current processing time".
-			long nextTimestamp = timeServiceProvider.getCurrentProcessingTime() + watermarkInterval;
-			timeServiceProvider.setCurrentTime(nextTimestamp);
+			long nextTimestamp = tester.getProcessingTime() + watermarkInterval;
+			tester.setProcessingTime(nextTimestamp);
 
 			// send the next split to be read and wait until it is fully read.
 			tester.processElement(new StreamRecord<>(split));

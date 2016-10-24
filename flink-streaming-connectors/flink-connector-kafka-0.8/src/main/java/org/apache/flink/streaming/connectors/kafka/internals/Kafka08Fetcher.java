@@ -98,7 +98,15 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 			long autoCommitInterval,
 			boolean useMetrics) throws Exception
 	{
-		super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, runtimeContext, useMetrics);
+		super(
+				sourceContext,
+				assignedPartitions,
+				watermarksPeriodic,
+				watermarksPunctuated,
+				runtimeContext.getProcessingTimeService(),
+				runtimeContext.getExecutionConfig().getAutoWatermarkInterval(),
+				runtimeContext.getUserCodeClassLoader(),
+				useMetrics);
 
 		this.deserializer = checkNotNull(deserializer);
 		this.kafkaConfig = checkNotNull(kafkaProperties);
@@ -140,11 +148,13 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 					}
 				}
 
-				Map<KafkaTopicPartition, Long> zkOffsets = zookeeperOffsetHandler.getOffsets(partitionsWithNoOffset);
+				Map<KafkaTopicPartition, Long> zkOffsets = zookeeperOffsetHandler.getCommittedOffsets(partitionsWithNoOffset);
 				for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
-					Long offset = zkOffsets.get(partition.getKafkaTopicPartition());
-					if (offset != null) {
-						partition.setOffset(offset);
+					Long zkOffset = zkOffsets.get(partition.getKafkaTopicPartition());
+					if (zkOffset != null) {
+						// the offset in ZK represents the "next record to process", so we need to subtract it by 1
+						// to correctly represent our internally checkpointed offsets
+						partition.setOffset(zkOffset - 1);
 					}
 				}
 			}
@@ -324,10 +334,11 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void commitSpecificOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception {
+	public void commitInternalOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception {
 		ZookeeperOffsetHandler zkHandler = this.zookeeperOffsetHandler;
 		if (zkHandler != null) {
-			zkHandler.writeOffsets(offsets);
+			// the ZK handler takes care of incrementing the offsets by 1 before committing
+			zkHandler.prepareAndCommitOffsets(offsets);
 		}
 
 		// Set committed offsets in topic partition state

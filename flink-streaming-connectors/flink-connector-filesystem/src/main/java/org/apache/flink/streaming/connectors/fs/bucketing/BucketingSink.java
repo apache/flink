@@ -31,8 +31,8 @@ import org.apache.flink.streaming.connectors.fs.Clock;
 import org.apache.flink.streaming.connectors.fs.SequenceFileWriter;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.connectors.fs.Writer;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -138,7 +138,7 @@ import java.util.Iterator;
  */
 public class BucketingSink<T>
 		extends RichSinkFunction<T>
-		implements InputTypeConfigurable, Checkpointed<BucketingSink.State<T>>, CheckpointListener, Triggerable {
+		implements InputTypeConfigurable, Checkpointed<BucketingSink.State<T>>, CheckpointListener, ProcessingTimeCallback {
 	private static final long serialVersionUID = 1L;
 
 	private static Logger LOG = LoggerFactory.getLogger(BucketingSink.class);
@@ -285,7 +285,7 @@ public class BucketingSink<T>
 
 	private transient Clock clock;
 
-	private transient TimeServiceProvider processingTimeService;
+	private transient ProcessingTimeService processingTimeService;
 
 	/**
 	 * Creates a new {@code BucketingSink} that writes files to the given base directory.
@@ -324,7 +324,7 @@ public class BucketingSink<T>
 		refTruncate = reflectTruncate(fs);
 
 		processingTimeService =
-				((StreamingRuntimeContext) getRuntimeContext()).getTimeServiceProvider();
+				((StreamingRuntimeContext) getRuntimeContext()).getProcessingTimeService();
 
 		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 
@@ -422,7 +422,7 @@ public class BucketingSink<T>
 	}
 
 	@Override
-	public void trigger(long timestamp) throws Exception {
+	public void onProcessingTime(long timestamp) throws Exception {
 		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 
 		checkForInactiveBuckets(currentProcessingTime);

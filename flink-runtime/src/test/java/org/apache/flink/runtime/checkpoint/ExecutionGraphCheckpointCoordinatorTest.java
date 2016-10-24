@@ -26,16 +26,18 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.checkpoint.savepoint.HeapSavepointStore;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 import org.junit.AfterClass;
 import org.junit.Test;
+import org.mockito.Matchers;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.net.URL;
@@ -67,8 +69,8 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 		ExecutionGraph graph = createExecutionGraphAndEnableCheckpointing(counter, store);
 		graph.fail(new Exception("Test Exception"));
 
-		verify(counter, times(1)).shutdown();
-		verify(store, times(1)).shutdown();
+		verify(counter, times(1)).shutdown(JobStatus.FAILED);
+		verify(store, times(1)).shutdown(JobStatus.FAILED);
 	}
 
 	/**
@@ -84,11 +86,8 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 		graph.suspend(new Exception("Test Exception"));
 
 		// No shutdown
-		verify(counter, times(0)).shutdown();
-		verify(store, times(0)).shutdown();
-
-		verify(counter, times(1)).suspend();
-		verify(store, times(1)).suspend();
+		verify(counter, times(1)).shutdown(Matchers.eq(JobStatus.SUSPENDED));
+		verify(store, times(1)).shutdown(Matchers.eq(JobStatus.SUSPENDED));
 	}
 
 	private ExecutionGraph createExecutionGraphAndEnableCheckpointing(
@@ -112,12 +111,13 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 				100,
 				100,
 				1,
+				ExternalizedCheckpointSettings.none(),
 				Collections.<ExecutionJobVertex>emptyList(),
 				Collections.<ExecutionJobVertex>emptyList(),
 				Collections.<ExecutionJobVertex>emptyList(),
 				counter,
 				store,
-				new HeapSavepointStore(),
+				null,
 				new DisabledCheckpointStatsTracker());
 
 		JobVertex jobVertex = new JobVertex("MockVertex");

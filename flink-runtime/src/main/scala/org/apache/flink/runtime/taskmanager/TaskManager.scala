@@ -35,6 +35,7 @@ import com.codahale.metrics.jvm.{BufferPoolMetricSet, GarbageCollectorMetricSet,
 import com.codahale.metrics.{Gauge, MetricFilter, MetricRegistry}
 import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.memory.{HeapMemorySegment, HybridMemorySegment, MemorySegmentFactory, MemoryType}
@@ -1335,9 +1336,15 @@ class TaskManager(
 
       runningTasks.asScala foreach {
         case (execID, task) =>
-          val registry = task.getAccumulatorRegistry
-          val accumulators = registry.getSnapshot
-          accumulatorEvents.append(accumulators)
+          try {
+            val registry = task.getAccumulatorRegistry
+            val accumulators = registry.getSnapshot
+            accumulatorEvents.append(accumulators)
+          } catch {
+            case e: Exception =>
+              log.warn("Failed to take accumulator snapshot for task {}.",
+                execID, ExceptionUtils.getRootCause(e))
+          }
       }
 
        currentJobManager foreach {
@@ -1869,7 +1876,7 @@ object TaskManager {
       leaderRetrievalService,
       metricsRegistry)
 
-    metricsRegistry.startQueryService(actorSystem)
+    metricsRegistry.startQueryService(actorSystem, resourceID)
 
     taskManagerActorName match {
       case Some(actorName) => actorSystem.actorOf(tmProps, actorName)
@@ -2373,13 +2380,15 @@ object TaskManager {
   }
 
   /**
-   * Gets the hostname and port of the JobManager from the configuration. Also checks that
+   * Gets the protocol, hostname and port of the JobManager from the configuration. Also checks that
    * the hostname is not null and the port non-negative.
    *
    * @param configuration The configuration to read the config values from.
-   * @return A 2-tuple (hostname, port).
+   * @return A 3-tuple (protocol, hostname, port).
    */
-  def getAndCheckJobManagerAddress(configuration: Configuration) : (String, Int) = {
+  def getAndCheckJobManagerAddress(configuration: Configuration) : (String, String, Int) = {
+
+    val protocol = AkkaUtils.getAkkaProtocol(configuration)
 
     val hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
 
@@ -2397,7 +2406,7 @@ object TaskManager {
         ".  it must be great than 0 and less than 65536.")
     }
 
-    (hostname, port)
+    (protocol, hostname, port)
   }
 
 

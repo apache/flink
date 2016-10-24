@@ -26,7 +26,7 @@ limitations under the License.
 </div>
 <div id="content-inner" ng-if="!noaccess &amp;&amp; yarn">
   <pre ng-if="!address">Yarn's AM proxy doesn't allow file uploads. Please wait while we fetch an alternate url for you to use</pre>
-  <pre ng-if="address">Yarn's AM proxy doesn't allow file uploads. You can visit&nbsp;<a href="http://{{address}}/#/submit">here</a>&nbsp;to access this functionality.</pre>
+  <pre ng-if="address">Yarn's AM proxy doesn't allow file uploads. You can visit&nbsp;<a href="{{address}}/#/submit">here</a>&nbsp;to access this functionality.</pre>
 </div>
 <div id="content-inner" ng-if="!noaccess &amp;&amp; jars &amp;&amp; !yarn">
   <div class="panel panel-default">

@@ -18,38 +18,28 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import akka.dispatch.Futures;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.CheckpointStateHandles;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.Future;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -70,7 +60,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CheckpointCoordinator {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(CheckpointCoordinator.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CheckpointCoordinator.class);
 
 	/** The number of recent checkpoints whose IDs are remembered */
 	private static final int NUM_GHOST_CHECKPOINT_IDS = 16;
@@ -106,9 +96,9 @@ public class CheckpointCoordinator {
 	 * accessing this don't block the job manager actor and run asynchronously. */
 	private final CompletedCheckpointStore completedCheckpointStore;
 
-	/** Store for savepoints. */
-	private final SavepointStore savepointStore;
-	
+	/** Default directory for persistent checkpoints; <code>null</code> if none configured. */
+	private final String checkpointDirectory;
+
 	/** A list of recent checkpoint IDs, to identify late messages (vs invalid ones) */
 	private final ArrayDeque<Long> recentPendingCheckpoints;
 
@@ -157,6 +147,9 @@ public class CheckpointCoordinator {
 	/** Helper for tracking checkpoint statistics  */
 	private final CheckpointStatsTracker statsTracker;
 
+	/** Default checkpoint properties **/
+	private final CheckpointProperties checkpointProperties;
+
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
@@ -165,12 +158,13 @@ public class CheckpointCoordinator {
 			long checkpointTimeout,
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpointAttempts,
+			ExternalizedCheckpointSettings externalizeSettings,
 			ExecutionVertex[] tasksToTrigger,
 			ExecutionVertex[] tasksToWaitFor,
 			ExecutionVertex[] tasksToCommitTo,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
-			SavepointStore savepointStore,
+			String checkpointDirectory,
 			CheckpointStatsTracker statsTracker) {
 
 		// sanity checks
@@ -178,6 +172,12 @@ public class CheckpointCoordinator {
 		checkArgument(checkpointTimeout >= 1, "Checkpoint timeout must be larger than zero");
 		checkArgument(minPauseBetweenCheckpoints >= 0, "minPauseBetweenCheckpoints must be >= 0");
 		checkArgument(maxConcurrentCheckpointAttempts >= 1, "maxConcurrentCheckpointAttempts must be >= 1");
+
+		if (externalizeSettings.externalizeCheckpoints() && checkpointDirectory == null) {
+			throw new IllegalStateException("CheckpointConfig says to persist periodic " +
+					"checkpoints, but no checkpoint directory has been configured. You can " +
+					"configure configure one via key '" + ConfigConstants.CHECKPOINTS_DIRECTORY_KEY + "'.");
+		}
 
 		// it does not make sense to schedule checkpoints more often then the desired
 		// time between checkpoints
@@ -196,11 +196,18 @@ public class CheckpointCoordinator {
 		this.pendingCheckpoints = new LinkedHashMap<>();
 		this.checkpointIdCounter = checkNotNull(checkpointIDCounter);
 		this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
-		this.savepointStore = checkNotNull(savepointStore);
+		this.checkpointDirectory = checkpointDirectory;
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 		this.statsTracker = checkNotNull(statsTracker);
 
 		this.timer = new Timer("Checkpoint Timer", true);
+
+		if (externalizeSettings.externalizeCheckpoints()) {
+			LOG.info("Persisting periodic checkpoints externally at {}.", checkpointDirectory);
+			checkpointProperties = CheckpointProperties.forExternalizedCheckpoint(externalizeSettings.deleteOnCancellation());
+		} else {
+			checkpointProperties = CheckpointProperties.forStandardCheckpoint();
+		}
 
 		try {
 			// Make sure the checkpoint ID enumerator is running. Possibly
@@ -219,33 +226,9 @@ public class CheckpointCoordinator {
 	 * Shuts down the checkpoint coordinator.
 	 *
 	 * <p>After this method has been called, the coordinator does not accept
-	 * and further messages and cannot trigger any further checkpoints. All
-	 * checkpoint state is discarded.
-	 */
-	public void shutdown() throws Exception {
-		shutdown(true);
-	}
-
-	/**
-	 * Suspends the checkpoint coordinator.
-	 *
-	 * <p>After this method has been called, the coordinator does not accept
 	 * and further messages and cannot trigger any further checkpoints.
-	 *
-	 * <p>The difference to shutdown is that checkpoint state in the store
-	 * and counter is kept around if possible to recover later.
 	 */
-	public void suspend() throws Exception {
-		shutdown(false);
-	}
-
-	/**
-	 * Shuts down the checkpoint coordinator.
-	 *
-	 * @param shutdownStoreAndCounter Depending on this flag the checkpoint
-	 * state services are shut down or suspended.
-	 */
-	private void shutdown(boolean shutdownStoreAndCounter) throws Exception {
+	public void shutdown(JobStatus jobStatus) throws Exception {
 		synchronized (lock) {
 			if (!shutdown) {
 				shutdown = true;
@@ -263,13 +246,8 @@ public class CheckpointCoordinator {
 				}
 				pendingCheckpoints.clear();
 
-				if (shutdownStoreAndCounter) {
-					completedCheckpointStore.shutdown();
-					checkpointIdCounter.shutdown();
-				} else {
-					completedCheckpointStore.suspend();
-					checkpointIdCounter.suspend();
-				}
+				completedCheckpointStore.shutdown(jobStatus);
+				checkpointIdCounter.shutdown(jobStatus);
 			}
 		}
 	}
@@ -282,29 +260,57 @@ public class CheckpointCoordinator {
 	//  Handling checkpoints and messages
 	// --------------------------------------------------------------------------------------------
 
-	public Future<String> triggerSavepoint(long timestamp) throws Exception {
-		CheckpointTriggerResult result = triggerCheckpoint(timestamp, CheckpointProperties.forStandardSavepoint());
+	/**
+	 * Triggers a savepoint with the given savepoint directory as a target.
+	 *
+	 * @param timestamp The timestamp for the savepoint.
+	 * @param targetDirectory Target directory for the savepoint.
+	 * @return A future to the completed checkpoint
+	 * @throws IllegalStateException If no savepoint directory has been
+	 *                               specified and no default savepoint directory has been
+	 *                               configured
+	 * @throws Exception             Failures during triggering are forwarded
+	 */
+	public Future<CompletedCheckpoint> triggerSavepoint(long timestamp, String targetDirectory) throws Exception {
+		checkNotNull(targetDirectory, "Savepoint target directory");
+
+		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
+		CheckpointTriggerResult result = triggerCheckpoint(timestamp, props, targetDirectory, false);
 
 		if (result.isSuccess()) {
-			PendingSavepoint savepoint = (PendingSavepoint) result.getPendingCheckpoint();
-			return savepoint.getCompletionFuture();
-		}
-		else {
-			return Futures.failed(new Exception("Failed to trigger savepoint: " + result.getFailureReason().message()));
+			return result.getPendingCheckpoint().getCompletionFuture();
+		} else {
+			Throwable cause = new Exception("Failed to trigger savepoint: " + result.getFailureReason().message());
+			Future<CompletedCheckpoint> failed = FlinkCompletableFuture.completedExceptionally(cause);
+			return failed;
 		}
 	}
 
 	/**
-	 * Triggers a new checkpoint and uses the given timestamp as the checkpoint
+	 * Triggers a new standard checkpoint and uses the given timestamp as the checkpoint
 	 * timestamp.
 	 *
 	 * @param timestamp The timestamp for the checkpoint.
+	 * @param isPeriodic Flag indicating whether this triggered checkpoint is
+	 * periodic. If this flag is true, but the periodic scheduler is disabled,
+	 * the checkpoint will be declined.
+	 * @return <code>true</code> if triggering the checkpoint succeeded.
 	 */
-	public boolean triggerCheckpoint(long timestamp) throws Exception {
-		return triggerCheckpoint(timestamp, CheckpointProperties.forStandardCheckpoint()).isSuccess();
+	public boolean triggerCheckpoint(long timestamp, boolean isPeriodic) throws Exception {
+		return triggerCheckpoint(timestamp, checkpointProperties, checkpointDirectory, isPeriodic).isSuccess();
 	}
 
-	CheckpointTriggerResult triggerCheckpoint(long timestamp, CheckpointProperties props) throws Exception {
+	CheckpointTriggerResult triggerCheckpoint(
+			long timestamp,
+			CheckpointProperties props,
+			String targetDirectory,
+			boolean isPeriodic) throws Exception {
+
+		// Sanity check
+		if (props.externalizeCheckpoint() && targetDirectory == null) {
+			throw new IllegalStateException("No target directory specified to persist checkpoint to.");
+		}
+
 		// make some eager pre-checks
 		synchronized (lock) {
 			// abort if the coordinator has been shutdown in the meantime
@@ -312,10 +318,15 @@ public class CheckpointCoordinator {
 				return new CheckpointTriggerResult(CheckpointDeclineReason.COORDINATOR_SHUTDOWN);
 			}
 
+			// Don't allow periodic checkpoint if scheduling has been disabled
+			if (isPeriodic && !periodicScheduling) {
+				return new CheckpointTriggerResult(CheckpointDeclineReason.PERIODIC_SCHEDULER_SHUTDOWN);
+			}
+
 			// validate whether the checkpoint can be triggered, with respect to the limit of
 			// concurrent checkpoints, and the minimum time between checkpoints.
 			// these checks are not relevant for savepoints
-			if (!props.isSavepoint()) {
+			if (!props.forceCheckpoint()) {
 				// sanity check: there should never be more than one trigger request queued
 				if (triggerRequestQueued) {
 					LOG.warn("Trying to trigger another checkpoint while one was queued already");
@@ -402,9 +413,14 @@ public class CheckpointCoordinator {
 				return new CheckpointTriggerResult(CheckpointDeclineReason.EXCEPTION);
 			}
 
-			final PendingCheckpoint checkpoint = props.isSavepoint() ?
-					new PendingSavepoint(job, checkpointID, timestamp, ackTasks, savepointStore) :
-					new PendingCheckpoint(job, checkpointID, timestamp, ackTasks);
+			final PendingCheckpoint checkpoint = new PendingCheckpoint(
+					job,
+					checkpointID,
+					timestamp,
+					ackTasks,
+					isPeriodic,
+					props,
+					targetDirectory);
 
 			// schedule the timer that will clean up the expired checkpoints
 			TimerTask canceller = new TimerTask() {
@@ -416,11 +432,11 @@ public class CheckpointCoordinator {
 							// note that checkpoint completion discards the pending checkpoint object
 							if (!checkpoint.isDiscarded()) {
 								LOG.info("Checkpoint " + checkpointID + " expired before completing.");
-	
+
 								checkpoint.abortExpired();
 								pendingCheckpoints.remove(checkpointID);
 								rememberRecentCheckpointId(checkpointID);
-	
+
 								triggerQueuedRequests();
 							}
 						}
@@ -439,7 +455,7 @@ public class CheckpointCoordinator {
 					if (shutdown) {
 						return new CheckpointTriggerResult(CheckpointDeclineReason.COORDINATOR_SHUTDOWN);
 					}
-					else if (!props.isSavepoint()) {
+					else if (!props.forceCheckpoint()) {
 						if (triggerRequestQueued) {
 							LOG.warn("Trying to trigger another checkpoint while one was queued already");
 							return new CheckpointTriggerResult(CheckpointDeclineReason.ALREADY_QUEUED);
@@ -550,7 +566,7 @@ public class CheckpointCoordinator {
 				isPendingCheckpoint = true;
 
 				LOG.info("Discarding checkpoint " + checkpointId
-					+ " because of checkpoint decline from task " + message.getTaskExecutionId());
+						+ " because of checkpoint decline from task " + message.getTaskExecutionId());
 
 				pendingCheckpoints.remove(checkpointId);
 				checkpoint.abortDeclined();
@@ -566,7 +582,7 @@ public class CheckpointCoordinator {
 				}
 				if (!haveMoreRecentPending && !triggerRequestQueued) {
 					LOG.info("Triggering new checkpoint because of discarded checkpoint " + checkpointId);
-					triggerCheckpoint(System.currentTimeMillis());
+					triggerCheckpoint(System.currentTimeMillis(), checkpoint.getProps(), checkpoint.getTargetDirectory(), checkpoint.isPeriodic());
 				} else if (!haveMoreRecentPending) {
 					LOG.info("Promoting queued checkpoint request because of discarded checkpoint " + checkpointId);
 					triggerQueuedRequests();
@@ -574,7 +590,7 @@ public class CheckpointCoordinator {
 			} else if (checkpoint != null) {
 				// this should not happen
 				throw new IllegalStateException(
-					"Received message for discarded but non-removed checkpoint " + checkpointId);
+						"Received message for discarded but non-removed checkpoint " + checkpointId);
 			} else {
 				// message is for an unknown checkpoint, or comes too late (checkpoint disposed)
 				if (recentPendingCheckpoints.contains(checkpointId)) {
@@ -632,7 +648,7 @@ public class CheckpointCoordinator {
 
 				if (checkpoint.acknowledgeTask(
 						message.getTaskExecutionId(),
-						message.getCheckpointStateHandles())) {
+						message.getSubtaskState())) {
 					if (checkpoint.isFullyAcknowledged()) {
 						completed = checkpoint.finalizeCheckpoint();
 
@@ -776,197 +792,13 @@ public class CheckpointCoordinator {
 
 			LOG.info("Restoring from latest valid checkpoint: {}.", latest);
 
-			for (Map.Entry<JobVertexID, TaskState> taskGroupStateEntry: latest.getTaskStates().entrySet()) {
-				TaskState taskState = taskGroupStateEntry.getValue();
-				ExecutionJobVertex executionJobVertex = tasks.get(taskGroupStateEntry.getKey());
+			StateAssignmentOperation stateAssignmentOperation =
+					new StateAssignmentOperation(tasks, latest, allOrNothingState);
 
-				if (executionJobVertex != null) {
-					// check that the number of key groups have not changed
-					if (taskState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
-						throw new IllegalStateException("The maximum parallelism (" +
-							taskState.getMaxParallelism() + ") with which the latest " +
-							"checkpoint of the execution job vertex " + executionJobVertex +
-							" has been taken and the current maximum parallelism (" +
-							executionJobVertex.getMaxParallelism() + ") changed. This " +
-							"is currently not supported.");
-					}
-
-
-					int oldParallelism = taskState.getParallelism();
-					int newParallelism = executionJobVertex.getParallelism();
-					boolean parallelismChanged = oldParallelism != newParallelism;
-					boolean hasNonPartitionedState = taskState.hasNonPartitionedState();
-
-					if (hasNonPartitionedState && parallelismChanged) {
-						throw new IllegalStateException("Cannot restore the latest checkpoint because " +
-							"the operator " + executionJobVertex.getJobVertexId() + " has non-partitioned " +
-							"state and its parallelism changed. The operator" + executionJobVertex.getJobVertexId() +
-							" has parallelism " + newParallelism + " whereas the corresponding" +
-							"state object has a parallelism of " + oldParallelism);
-					}
-
-					List<KeyGroupRange> keyGroupPartitions = createKeyGroupPartitions(
-							executionJobVertex.getMaxParallelism(),
-							newParallelism);
-					
-					// operator chain index -> list of the stored partitionables states from all parallel instances
-					@SuppressWarnings("unchecked")
-					List<OperatorStateHandle>[] chainParallelStates =
-							new List[taskState.getChainLength()];
-
-					for (int i = 0; i < oldParallelism; ++i) {
-
-						ChainedStateHandle<OperatorStateHandle> partitionableState =
-								taskState.getPartitionableState(i);
-
-						if (partitionableState != null) {
-							for (int j = 0; j < partitionableState.getLength(); ++j) {
-								OperatorStateHandle opParalleState = partitionableState.get(j);
-								if (opParalleState != null) {
-									List<OperatorStateHandle> opParallelStates =
-											chainParallelStates[j];
-									if (opParallelStates == null) {
-										opParallelStates = new ArrayList<>();
-										chainParallelStates[j] = opParallelStates;
-									}
-									opParallelStates.add(opParalleState);
-								}
-							}
-						}
-					}
-
-					// operator chain index -> lists with collected states (one collection for each parallel subtasks)
-					@SuppressWarnings("unchecked")
-					List<Collection<OperatorStateHandle>>[] redistributedParallelStates =
-							new List[taskState.getChainLength()];
-
-					//TODO here we can employ different redistribution strategies for state, e.g. union state. For now we only offer round robin as the default.
-					OperatorStateRepartitioner repartitioner = RoundRobinOperatorStateRepartitioner.INSTANCE;
-
-					for (int i = 0; i < chainParallelStates.length; ++i) {
-						List<OperatorStateHandle> chainOpParallelStates = chainParallelStates[i];
-						if (chainOpParallelStates != null) {
-							//We only redistribute if the parallelism of the operator changed from previous executions
-							if (parallelismChanged) {
-								redistributedParallelStates[i] = repartitioner.repartitionState(
-										chainOpParallelStates,
-										newParallelism);
-							} else {
-								List<Collection<OperatorStateHandle>> repacking = new ArrayList<>(newParallelism);
-								for (OperatorStateHandle operatorStateHandle : chainOpParallelStates) {
-									repacking.add(Collections.singletonList(operatorStateHandle));
-								}
-								redistributedParallelStates[i] = repacking;
-							}
-						}
-					}
-
-					int counter = 0;
-
-					for (int i = 0; i < newParallelism; ++i) {
-
-						// non-partitioned state
-						ChainedStateHandle<StreamStateHandle> state = null;
-
-						if (hasNonPartitionedState) {
-							SubtaskState subtaskState = taskState.getState(i);
-
-							if (subtaskState != null) {
-								// count the number of executions for which we set a state
-								++counter;
-								state = subtaskState.getChainedStateHandle();
-							}
-						}
-
-						// partitionable state
-						@SuppressWarnings("unchecked")
-						Collection<OperatorStateHandle>[] ia = new Collection[taskState.getChainLength()];
-						List<Collection<OperatorStateHandle>> subTaskPartitionableState = Arrays.asList(ia);
-
-						for (int j = 0; j < redistributedParallelStates.length; ++j) {
-							List<Collection<OperatorStateHandle>> redistributedParallelState =
-									redistributedParallelStates[j];
-
-							if (redistributedParallelState != null) {
-								subTaskPartitionableState.set(j, redistributedParallelState.get(i));
-							}
-						}
-
-						// key-partitioned state
-						KeyGroupRange subtaskKeyGroupIds = keyGroupPartitions.get(i);
-
-						// Again, we only repartition if the parallelism changed
-						List<KeyGroupsStateHandle> subtaskKeyGroupStates = parallelismChanged ?
-								getKeyGroupsStateHandles(taskState.getKeyGroupStates(), subtaskKeyGroupIds)
-								: Collections.singletonList(taskState.getKeyGroupState(i));
-
-						Execution currentExecutionAttempt = executionJobVertex
-							.getTaskVertices()[i]
-							.getCurrentExecutionAttempt();
-
-						CheckpointStateHandles checkpointStateHandles = new CheckpointStateHandles(
-								state,
-								null/*subTaskPartionableState*/, //TODO chose right structure and put redistributed states here
-								subtaskKeyGroupStates);
-
-						currentExecutionAttempt.setInitialState(checkpointStateHandles, subTaskPartitionableState);
-					}
-
-					if (allOrNothingState && counter > 0 && counter < newParallelism) {
-						throw new IllegalStateException("The checkpoint contained state only for " +
-							"a subset of tasks for vertex " + executionJobVertex);
-					}
-				} else {
-					throw new IllegalStateException("There is no execution job vertex for the job" +
-						" vertex ID " + taskGroupStateEntry.getKey());
-				}
-			}
+			stateAssignmentOperation.assignStates();
 
 			return true;
 		}
-	}
-
-	/**
-	 * Determine the subset of {@link KeyGroupsStateHandle KeyGroupsStateHandles} with correct
-	 * key group index for the given subtask {@link KeyGroupRange}.
-	 *
-	 * <p>This is publicly visible to be used in tests.
-	 */
-	public static List<KeyGroupsStateHandle> getKeyGroupsStateHandles(
-			Collection<KeyGroupsStateHandle> allKeyGroupsHandles,
-			KeyGroupRange subtaskKeyGroupIds) {
-
-		List<KeyGroupsStateHandle> subtaskKeyGroupStates = new ArrayList<>();
-
-		for (KeyGroupsStateHandle storedKeyGroup : allKeyGroupsHandles) {
-			KeyGroupsStateHandle intersection = storedKeyGroup.getKeyGroupIntersection(subtaskKeyGroupIds);
-			if (intersection.getNumberOfKeyGroups() > 0) {
-				subtaskKeyGroupStates.add(intersection);
-			}
-		}
-		return subtaskKeyGroupStates;
-	}
-
-	/**
-	 * Groups the available set of key groups into key group partitions. A key group partition is
-	 * the set of key groups which is assigned to the same task. Each set of the returned list
-	 * constitutes a key group partition.
-	 *
-	 * <b>IMPORTANT</b>: The assignment of key groups to partitions has to be in sync with the
-	 * KeyGroupStreamPartitioner.
-	 *
-	 * @param numberKeyGroups Number of available key groups (indexed from 0 to numberKeyGroups - 1)
-	 * @param parallelism Parallelism to generate the key group partitioning for
-	 * @return List of key group partitions
-	 */
-	public static List<KeyGroupRange> createKeyGroupPartitions(int numberKeyGroups, int parallelism) {
-		Preconditions.checkArgument(numberKeyGroups >= parallelism);
-		List<KeyGroupRange> result = new ArrayList<>(parallelism);
-
-		for (int i = 0; i < parallelism; ++i) {
-			result.add(KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(numberKeyGroups, parallelism, i));
-		}
-		return result;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1070,7 +902,7 @@ public class CheckpointCoordinator {
 		@Override
 		public void run() {
 			try {
-				triggerCheckpoint(System.currentTimeMillis());
+				triggerCheckpoint(System.currentTimeMillis(), true);
 			}
 			catch (Exception e) {
 				LOG.error("Exception while triggering checkpoint", e);

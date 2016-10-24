@@ -69,6 +69,7 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
 		//output the data with AvroOutputFormat for specific user type
 		DataSet<User> specificUser = input.map(new ConvertToUser());
 		AvroOutputFormat<User> avroOutputFormat = new AvroOutputFormat<User>(User.class);
+		avroOutputFormat.setCodec(AvroOutputFormat.Codec.SNAPPY); // FLINK-4771: use a codec
 		avroOutputFormat.setSchema(User.SCHEMA$); //FLINK-3304: Ensure the OF is properly serializing the schema
 		specificUser.write(avroOutputFormat, outputPath1);
 

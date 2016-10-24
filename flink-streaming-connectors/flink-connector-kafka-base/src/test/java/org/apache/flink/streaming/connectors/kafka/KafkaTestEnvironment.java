@@ -18,6 +18,10 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import kafka.server.KafkaServer;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -26,6 +30,8 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.Properties;
 
 /**
@@ -76,8 +82,22 @@ public abstract class KafkaTestEnvironment {
 
 	public abstract <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props);
 
-	public abstract <T> FlinkKafkaProducerBase<T> getProducer(String topic, KeyedSerializationSchema<T> serSchema, Properties props, KafkaPartitioner<T> partitioner);
+	public abstract <T> StreamSink<T> getProducerSink(String topic,
+			KeyedSerializationSchema<T> serSchema, Properties props,
+			KafkaPartitioner<T> partitioner);
 
+	public abstract <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic,
+														KeyedSerializationSchema<T> serSchema, Properties props,
+														KafkaPartitioner<T> partitioner);
+
+	// -- offset handlers
+
+	public interface KafkaOffsetHandler {
+		Long getCommittedOffset(String topicName, int partition);
+		void close();
+	}
+
+	public abstract KafkaOffsetHandler createOffsetHandler(Properties props);
 
 	// -- leader failure simulation
 

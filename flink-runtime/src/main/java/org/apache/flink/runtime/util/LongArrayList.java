@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.util;
 
+import java.util.Arrays;
+
 /**
  * Minimal implementation of an array-backed list of longs
  */
@@ -60,6 +62,10 @@ public class LongArrayList {
 	
 	public boolean isEmpty() {
 		return (size==0);
+	}
+
+	public long[] toArray() {
+		return Arrays.copyOf(array, size);
 	}
 	
 	private void grow(int length) {

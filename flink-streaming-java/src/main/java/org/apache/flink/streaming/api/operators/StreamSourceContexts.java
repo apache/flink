@@ -20,9 +20,9 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.ScheduledFuture;
@@ -42,7 +42,7 @@ public class StreamSourceContexts {
 	 * </ul>
 	 * */
 	public static <OUT> SourceFunction.SourceContext<OUT> getSourceContext(
-			TimeCharacteristic timeCharacteristic, TimeServiceProvider timeService,
+			TimeCharacteristic timeCharacteristic, ProcessingTimeService processingTimeService,
 			Object checkpointLock, Output<StreamRecord<OUT>> output, long watermarkInterval) {
 
 		final SourceFunction.SourceContext<OUT> ctx;
@@ -51,7 +51,7 @@ public class StreamSourceContexts {
 				ctx = new ManualWatermarkContext<>(checkpointLock, output);
 				break;
 			case IngestionTime:
-				ctx = new AutomaticWatermarkContext<>(timeService, checkpointLock, output, watermarkInterval);
+				ctx = new AutomaticWatermarkContext<>(processingTimeService, checkpointLock, output, watermarkInterval);
 				break;
 			case ProcessingTime:
 				ctx = new NonTimestampContext<>(checkpointLock, output);
@@ -111,7 +111,7 @@ public class StreamSourceContexts {
 	 */
 	private static class AutomaticWatermarkContext<T> implements SourceFunction.SourceContext<T> {
 
-		private final TimeServiceProvider timeService;
+		private final ProcessingTimeService timeService;
 		private final Object lock;
 		private final Output<StreamRecord<T>> output;
 		private final StreamRecord<T> reuse;
@@ -122,7 +122,7 @@ public class StreamSourceContexts {
 		private volatile long nextWatermarkTime;
 
 		private AutomaticWatermarkContext(
-			final TimeServiceProvider timeService,
+			final ProcessingTimeService timeService,
 			final Object checkpointLock,
 			final Output<StreamRecord<T>> output,
 			final long watermarkInterval) {
@@ -199,14 +199,14 @@ public class StreamSourceContexts {
 			}
 		}
 
-		private class WatermarkEmittingTask implements Triggerable {
+		private class WatermarkEmittingTask implements ProcessingTimeCallback {
 
-			private final TimeServiceProvider timeService;
+			private final ProcessingTimeService timeService;
 			private final Object lock;
 			private final Output<StreamRecord<T>> output;
 
 			private WatermarkEmittingTask(
-					TimeServiceProvider timeService,
+					ProcessingTimeService timeService,
 					Object checkpointLock,
 					Output<StreamRecord<T>> output) {
 				this.timeService = timeService;
@@ -215,7 +215,7 @@ public class StreamSourceContexts {
 			}
 
 			@Override
-			public void trigger(long timestamp) {
+			public void onProcessingTime(long timestamp) {
 				final long currentTime = timeService.getCurrentProcessingTime();
 
 				if (currentTime > nextWatermarkTime) {

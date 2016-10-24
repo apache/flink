@@ -19,9 +19,8 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import scala.Option;
 
@@ -38,36 +37,31 @@ public class JobVertexCheckpointsHandler extends AbstractJobVertexRequestHandler
 	}
 
 	@Override
-	public String handleRequest(ExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 		gen.writeStartObject();
 
-		CheckpointStatsTracker tracker = jobVertex.getGraph().getCheckpointStatsTracker();
+		Option<OperatorCheckpointStats> statsOption = jobVertex.getCheckpointStats();
 
-		if (tracker != null) {
-			Option<OperatorCheckpointStats> statsOption = tracker
-					.getOperatorStats(jobVertex.getJobVertexId());
+		if (statsOption.isDefined()) {
+			OperatorCheckpointStats stats = statsOption.get();
 
-			if (statsOption.isDefined()) {
-				OperatorCheckpointStats stats = statsOption.get();
+			gen.writeNumberField("id", stats.getCheckpointId());
+			gen.writeNumberField("timestamp", stats.getTriggerTimestamp());
+			gen.writeNumberField("duration", stats.getDuration());
+			gen.writeNumberField("size", stats.getStateSize());
+			gen.writeNumberField("parallelism", stats.getNumberOfSubTasks());
 
-				gen.writeNumberField("id", stats.getCheckpointId());
-				gen.writeNumberField("timestamp", stats.getTriggerTimestamp());
-				gen.writeNumberField("duration", stats.getDuration());
-				gen.writeNumberField("size", stats.getStateSize());
-				gen.writeNumberField("parallelism", stats.getNumberOfSubTasks());
-
-				gen.writeArrayFieldStart("subtasks");
-				for (int i = 0; i < stats.getNumberOfSubTasks(); i++) {
-					gen.writeStartObject();
-					gen.writeNumberField("subtask", i);
-					gen.writeNumberField("duration", stats.getSubTaskDuration(i));
-					gen.writeNumberField("size", stats.getSubTaskStateSize(i));
-					gen.writeEndObject();
-				}
-				gen.writeEndArray();
+			gen.writeArrayFieldStart("subtasks");
+			for (int i = 0; i < stats.getNumberOfSubTasks(); i++) {
+				gen.writeStartObject();
+				gen.writeNumberField("subtask", i);
+				gen.writeNumberField("duration", stats.getSubTaskDuration(i));
+				gen.writeNumberField("size", stats.getSubTaskStateSize(i));
+				gen.writeEndObject();
 			}
+			gen.writeEndArray();
 		}
 
 		gen.writeEndObject();

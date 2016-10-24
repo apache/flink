@@ -50,6 +50,10 @@ limitations under the License.
         <p><strong>Average:</strong><span> {{ jobCheckpointStats['size']['avg'] | humanizeBytes }}</span></p>
       </td>
     </tr>
+    <tr ng-if="jobCheckpointStats['external-path']">
+      <td colspan="4"><strong>Latest Checkpoint Path:</strong> {{ jobCheckpointStats['external-path'] }}
+      </td>
+    </tr>
   </tbody>
 </table>
 <div ng-if="!showHistory &amp;&amp; jobCheckpointStats &amp;&amp; jobCheckpointStats['history'].length &gt; 0"><a ng-click="toggleHistory()" class="btn btn-default"><strong>Show history</strong> ({{ jobCheckpointStats['history'].length }}) <i class="fa fa-chevron-down"></i></a></div>

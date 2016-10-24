@@ -50,8 +50,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 
@@ -94,7 +94,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			ClassLoader userCodeClassLoader,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			List<KeyGroupsStateHandle> restoredState) throws Exception {
+			Collection<KeyGroupsStateHandle> restoredState) throws Exception {
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange);
 
 		LOG.info("Initializing heap keyed state backend from snapshot.");
@@ -248,7 +248,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@SuppressWarnings({"unchecked"})
-	private void restorePartitionedState(List<KeyGroupsStateHandle> state) throws Exception {
+	private void restorePartitionedState(Collection<KeyGroupsStateHandle> state) throws Exception {
 
 		int numRegisteredKvStates = 0;
 		Map<Integer, String> kvStatesById = new HashMap<>();
@@ -259,13 +259,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				continue;
 			}
 
-			FSDataInputStream fsDataInputStream = null;
+			FSDataInputStream fsDataInputStream = keyGroupsHandle.openInputStream();
+			cancelStreamRegistry.registerClosable(fsDataInputStream);
 
 			try {
-
-				fsDataInputStream = keyGroupsHandle.openInputStream();
-				cancelStreamRegistry.registerClosable(fsDataInputStream);
-
 				DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(fsDataInputStream);
 
 				int numKvStates = inView.readShort();

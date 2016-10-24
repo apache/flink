@@ -37,7 +37,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.savepoint.HeapSavepointStore;
+import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
@@ -49,6 +49,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
@@ -57,11 +58,8 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.CheckpointStateHandles;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.RetrievableStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingJobManager;
@@ -86,7 +84,6 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -168,7 +165,6 @@ public class JobManagerHARecoveryTest {
 					myLeaderElectionService,
 					mySubmittedJobGraphStore,
 					checkpointStateFactory,
-					new HeapSavepointStore(),
 					jobRecoveryTimeout,
 					Option.apply(null));
 
@@ -205,7 +201,8 @@ public class JobManagerHARecoveryTest {
 					100,
 					10 * 60 * 1000,
 					0,
-					1));
+					1,
+					ExternalizedCheckpointSettings.none()));
 
 			BlockingStatefulInvokable.initializeStaticHelpers(slots);
 
@@ -294,7 +291,6 @@ public class JobManagerHARecoveryTest {
 	 */
 	static class MyCheckpointStore implements CompletedCheckpointStore {
 
-
 		private final ArrayDeque<CompletedCheckpoint> checkpoints = new ArrayDeque<>(2);
 
 		private final ArrayDeque<CompletedCheckpoint> suspended = new ArrayDeque<>(2);
@@ -309,7 +305,7 @@ public class JobManagerHARecoveryTest {
 		public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
 			checkpoints.addLast(checkpoint);
 			if (checkpoints.size() > 1) {
-				checkpoints.removeFirst().discardState();
+				checkpoints.removeFirst().subsume();
 			}
 		}
 
@@ -319,15 +315,14 @@ public class JobManagerHARecoveryTest {
 		}
 
 		@Override
-		public void shutdown() throws Exception {
-			checkpoints.clear();
-			suspended.clear();
-		}
-
-		@Override
-		public void suspend() throws Exception {
-			suspended.addAll(checkpoints);
-			checkpoints.clear();
+		public void shutdown(JobStatus jobStatus) throws Exception {
+			if (jobStatus.isGloballyTerminalState()) {
+				checkpoints.clear();
+				suspended.clear();
+			} else {
+				suspended.addAll(checkpoints);
+				checkpoints.clear();
+			}
 		}
 
 		@Override
@@ -449,12 +444,10 @@ public class JobManagerHARecoveryTest {
 
 		@Override
 		public void setInitialState(
-			ChainedStateHandle<StreamStateHandle> chainedState,
-			List<KeyGroupsStateHandle> keyGroupsState,
-			List<Collection<OperatorStateHandle>> partitionableOperatorState) throws Exception {
+				TaskStateHandles taskStateHandles) throws Exception {
 			int subtaskIndex = getIndexInSubtaskGroup();
 			if (subtaskIndex < recoveredStates.length) {
-				try (FSDataInputStream in = chainedState.get(0).openInputStream()) {
+				try (FSDataInputStream in = taskStateHandles.getLegacyOperatorState().get(0).openInputStream()) {
 					recoveredStates[subtaskIndex] = InstantiationUtil.deserializeObject(in, getUserCodeClassLoader());
 				}
 			}
@@ -467,13 +460,10 @@ public class JobManagerHARecoveryTest {
 						String.valueOf(UUID.randomUUID()),
 						InstantiationUtil.serializeObject(checkpointMetaData.getCheckpointId()));
 
-				RetrievableStreamStateHandle<Long> state = new RetrievableStreamStateHandle<Long>(byteStreamStateHandle);
-
 				ChainedStateHandle<StreamStateHandle> chainedStateHandle =
-						new ChainedStateHandle<StreamStateHandle>(Collections.singletonList(state));
-
-				CheckpointStateHandles checkpointStateHandles =
-						new CheckpointStateHandles(chainedStateHandle, null, Collections.<KeyGroupsStateHandle>emptyList());
+						new ChainedStateHandle<StreamStateHandle>(Collections.singletonList(byteStreamStateHandle));
+				SubtaskState checkpointStateHandles =
+						new SubtaskState(chainedStateHandle, null, null, null, null, 0L);
 
 				getEnvironment().acknowledgeCheckpoint(
 						new CheckpointMetaData(checkpointMetaData.getCheckpointId(), -1, 0L, 0L, 0L, 0L),

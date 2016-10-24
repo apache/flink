@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 
 /**
  * A {@link org.apache.flink.streaming.api.operators.StreamOperator} for extracting timestamps
@@ -36,7 +37,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 @Deprecated
 public class ExtractTimestampsOperator<T>
 		extends AbstractUdfStreamOperator<T, TimestampExtractor<T>>
-		implements OneInputStreamOperator<T, T>, Triggerable {
+		implements OneInputStreamOperator<T, T>, ProcessingTimeCallback {
 
 	private static final long serialVersionUID = 1L;
 
@@ -54,8 +55,8 @@ public class ExtractTimestampsOperator<T>
 		super.open();
 		watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
 		if (watermarkInterval > 0) {
-			long now = getTimerService().getCurrentProcessingTime();
-			getTimerService().registerTimer(now + watermarkInterval, this);
+			long now = getProcessingTimeService().getCurrentProcessingTime();
+			getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 		}
 		currentWatermark = Long.MIN_VALUE;
 	}
@@ -72,7 +73,7 @@ public class ExtractTimestampsOperator<T>
 	}
 
 	@Override
-	public void trigger(long timestamp) throws Exception {
+	public void onProcessingTime(long timestamp) throws Exception {
 		// register next timer
 		long newWatermark = userFunction.getCurrentWatermark();
 		if (newWatermark > currentWatermark) {
@@ -81,8 +82,8 @@ public class ExtractTimestampsOperator<T>
 			output.emitWatermark(new Watermark(currentWatermark));
 		}
 
-		long now = getTimerService().getCurrentProcessingTime();
-		getTimerService().registerTimer(now + watermarkInterval, this);
+		long now = getProcessingTimeService().getCurrentProcessingTime();
+		getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 	}
 
 	@Override

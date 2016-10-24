@@ -53,7 +53,6 @@ import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.Partitioner;
-import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -66,6 +65,9 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
+import org.apache.flink.api.java.typeutils.TypeExtractionUtils.LambdaExecutable;
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.checkAndExtractLambda;
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getAllDeclaredMethods;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
@@ -380,22 +382,27 @@ public class TypeExtractor {
 		String functionName,
 		boolean allowMissing) {
 		try {
-			final Method m = FunctionUtils.checkAndExtractLambdaMethod(function);
-			if (m != null) {
+			final LambdaExecutable exec;
+			try {
+				exec = checkAndExtractLambda(function);
+			} catch (TypeExtractionException e) {
+				throw new InvalidTypesException("Internal error occurred.", e);
+			}
+			if (exec != null) {
 				// check for lambda type erasure
-				validateLambdaGenericParameters(m);
+				validateLambdaGenericParameters(exec);
 
 				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
-				final int paramLen = m.getGenericParameterTypes().length - 1;
+				final int paramLen = exec.getParameterTypes().length - 1;
 
-				// method references "this" implicitly
+				// executable references "this" implicitly
 				if (paramLen < 0) {
-					// methods declaring class can also be a super class of the input type
-					// we only validate if the method exists in input type
-					validateInputContainsMethod(m, inType);
+					// executable declaring class can also be a super class of the input type
+					// we only validate if the executable exists in input type
+					validateInputContainsExecutable(exec, inType);
 				}
 				else {
-					final Type input = (outputTypeArgumentIndex >= 0) ? m.getGenericParameterTypes()[paramLen - 1] : m.getGenericParameterTypes()[paramLen];
+					final Type input = (outputTypeArgumentIndex >= 0) ? exec.getParameterTypes()[paramLen - 1] : exec.getParameterTypes()[paramLen];
 					validateInputType((inputTypeArgumentIndex >= 0) ? extractTypeArgument(input, inputTypeArgumentIndex) : input, inType);
 				}
 
@@ -403,7 +410,7 @@ public class TypeExtractor {
 					return ((ResultTypeQueryable<OUT>) function).getProducedType();
 				}
 				return new TypeExtractor().privateCreateTypeInfo(
-					(outputTypeArgumentIndex >= 0) ? extractTypeArgument(m.getGenericParameterTypes()[paramLen], outputTypeArgumentIndex) : m.getGenericReturnType(),
+					(outputTypeArgumentIndex >= 0) ? extractTypeArgument(exec.getParameterTypes()[paramLen], outputTypeArgumentIndex) : exec.getReturnType(),
 					inType,
 					null);
 			}
@@ -496,22 +503,27 @@ public class TypeExtractor {
 		String functionName,
 		boolean allowMissing) {
 		try {
-			final Method m = FunctionUtils.checkAndExtractLambdaMethod(function);
-			if (m != null) {
+			final LambdaExecutable exec;
+			try {
+				exec = checkAndExtractLambda(function);
+			} catch (TypeExtractionException e) {
+				throw new InvalidTypesException("Internal error occurred.", e);
+			}
+			if (exec != null) {
 				// check for lambda type erasure
-				validateLambdaGenericParameters(m);
+				validateLambdaGenericParameters(exec);
 				
 				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
-				final int paramLen = m.getGenericParameterTypes().length - 1;
-				final Type input1 = (outputTypeArgumentIndex >= 0) ? m.getGenericParameterTypes()[paramLen - 2] : m.getGenericParameterTypes()[paramLen - 1];
-				final Type input2 = (outputTypeArgumentIndex >= 0 ) ? m.getGenericParameterTypes()[paramLen - 1] : m.getGenericParameterTypes()[paramLen];
+				final int paramLen = exec.getParameterTypes().length - 1;
+				final Type input1 = (outputTypeArgumentIndex >= 0) ? exec.getParameterTypes()[paramLen - 2] : exec.getParameterTypes()[paramLen - 1];
+				final Type input2 = (outputTypeArgumentIndex >= 0 ) ? exec.getParameterTypes()[paramLen - 1] : exec.getParameterTypes()[paramLen];
 				validateInputType((inputTypeArgumentIndex >= 0) ? extractTypeArgument(input1, inputTypeArgumentIndex) : input1, in1Type);
 				validateInputType((inputTypeArgumentIndex >= 0) ? extractTypeArgument(input2, inputTypeArgumentIndex) : input2, in2Type);
 				if(function instanceof ResultTypeQueryable) {
 					return ((ResultTypeQueryable<OUT>) function).getProducedType();
 				}
 				return new TypeExtractor().privateCreateTypeInfo(
-					(outputTypeArgumentIndex >= 0) ? extractTypeArgument(m.getGenericParameterTypes()[paramLen], outputTypeArgumentIndex) : m.getGenericReturnType(),
+					(outputTypeArgumentIndex >= 0) ? extractTypeArgument(exec.getParameterTypes()[paramLen], outputTypeArgumentIndex) : exec.getReturnType(),
 					in1Type,
 					in2Type);
 			}
@@ -1358,14 +1370,20 @@ public class TypeExtractor {
 		}
 	}
 
-	private static void validateInputContainsMethod(Method m, TypeInformation<?> typeInfo) {
+	private static void validateInputContainsExecutable(LambdaExecutable exec, TypeInformation<?> typeInfo) {
 		List<Method> methods = getAllDeclaredMethods(typeInfo.getTypeClass());
 		for (Method method : methods) {
-			if (method.equals(m)) {
+			if (exec.executablesEquals(method)) {
 				return;
 			}
 		}
-		throw new InvalidTypesException("Type contains no method '" + m.getName() + "'.");
+		Constructor<?>[] constructors = typeInfo.getTypeClass().getDeclaredConstructors();
+		for (Constructor<?> constructor : constructors) {
+			if (exec.executablesEquals(constructor)) {
+				return;
+			}
+		}
+		throw new InvalidTypesException("Type contains no executable '" + exec.getName() + "'.");
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1488,14 +1506,14 @@ public class TypeExtractor {
 		}
 	}
 	
-	private static void validateLambdaGenericParameters(Method m) {
+	private static void validateLambdaGenericParameters(LambdaExecutable exec) {
 		// check the arguments
-		for (Type t : m.getGenericParameterTypes()) {
+		for (Type t : exec.getParameterTypes()) {
 			validateLambdaGenericParameter(t);
 		}
 
 		// check the return type
-		validateLambdaGenericParameter(m.getGenericReturnType());
+		validateLambdaGenericParameter(exec.getReturnType());
 	}
 
 	private static void validateLambdaGenericParameter(Type t) {
@@ -1972,20 +1990,6 @@ public class TypeExtractor {
 			}
 		}
 		return false;
-	}
-
-	
-	// recursively determine all declared methods
-	private static List<Method> getAllDeclaredMethods(Class<?> clazz) {
-		List<Method> result = new ArrayList<Method>();
-		while (clazz != null) {
-			Method[] methods = clazz.getDeclaredMethods();
-			for (Method method : methods) {
-				result.add(method);
-			}
-			clazz = clazz.getSuperclass();
-		}
-		return result;
 	}
 
 	@Internal

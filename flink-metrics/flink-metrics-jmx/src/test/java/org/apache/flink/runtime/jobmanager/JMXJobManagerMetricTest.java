@@ -24,6 +24,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
@@ -71,7 +72,7 @@ public class JMXJobManagerMetricTest {
 				Collections.<JobVertexID>emptyList(),
 				Collections.<JobVertexID>emptyList(),
 				Collections.<JobVertexID>emptyList(),
-				500, 500, 50, 5));
+				500, 500, 50, 5, ExternalizedCheckpointSettings.none()));
 
 			flink.waitForActorsToBeAlive();
 

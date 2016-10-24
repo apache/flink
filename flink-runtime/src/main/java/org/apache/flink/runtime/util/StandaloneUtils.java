@@ -23,7 +23,7 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import scala.Option;
-import scala.Tuple2;
+import scala.Tuple3;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -57,7 +57,7 @@ public final class StandaloneUtils {
 	 * @param configuration Configuration instance containing hte host and port information
 	 * @param jobManagerName Name of the JobManager actor
 	 * @return StandaloneLeaderRetrievalService
-	 * @throws UnknownHostException
+	 * @throws UnknownHostException if the host name cannot be resolved into an {@link InetAddress}
 	 */
 	public static StandaloneLeaderRetrievalService createLeaderRetrievalService(
 			Configuration configuration,
@@ -65,10 +65,11 @@ public final class StandaloneUtils {
 		throws UnknownHostException {
 
 
-		Tuple2<String, Object> stringIntPair = TaskManager.getAndCheckJobManagerAddress(configuration);
+		Tuple3<String, String, Object> stringIntPair = TaskManager.getAndCheckJobManagerAddress(configuration);
 
-		String jobManagerHostname = stringIntPair._1();
-		int jobManagerPort = (Integer) stringIntPair._2();
+		String protocol = stringIntPair._1();
+		String jobManagerHostname = stringIntPair._2();
+		int jobManagerPort = (Integer) stringIntPair._3();
 		InetSocketAddress hostPort;
 
 		try {
@@ -81,6 +82,7 @@ public final class StandaloneUtils {
 		}
 
 		String jobManagerAkkaUrl = JobManager.getRemoteJobManagerAkkaURL(
+				protocol,
 				hostPort,
 				Option.apply(jobManagerName));
 

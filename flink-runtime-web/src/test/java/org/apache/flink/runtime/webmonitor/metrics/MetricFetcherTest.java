@@ -26,6 +26,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -73,12 +74,14 @@ public class MetricFetcherTest extends TestLogger {
 		// ========= setup TaskManager =================================================================================
 		JobID jobID = new JobID();
 		InstanceID tmID = new InstanceID();
+		ResourceID tmRID = new ResourceID(tmID.toString());
 		ActorGateway taskManagerGateway = mock(ActorGateway.class);
 		when(taskManagerGateway.path()).thenReturn("/tm/address");
 
 		Instance taskManager = mock(Instance.class);
 		when(taskManager.getActorGateway()).thenReturn(taskManagerGateway);
 		when(taskManager.getId()).thenReturn(tmID);
+		when(taskManager.getTaskManagerID()).thenReturn(tmRID);
 
 		// ========= setup JobManager ==================================================================================
 		JobDetails details = mock(JobDetails.class);
@@ -106,7 +109,7 @@ public class MetricFetcherTest extends TestLogger {
 
 		ActorSystem actorSystem = mock(ActorSystem.class);
 		when(actorSystem.actorFor(eq("/jm/" + METRIC_QUERY_SERVICE_NAME))).thenReturn(jmQueryService);
-		when(actorSystem.actorFor(eq("/tm/" + METRIC_QUERY_SERVICE_NAME))).thenReturn(tmQueryService);
+		when(actorSystem.actorFor(eq("/tm/" + METRIC_QUERY_SERVICE_NAME + "_" + tmRID.getResourceIdString()))).thenReturn(tmQueryService);
 
 		MetricFetcher.BasicGateway jmQueryServiceGateway = mock(MetricFetcher.BasicGateway.class);
 		when(jmQueryServiceGateway.ask(any(MetricQueryService.getCreateDump().getClass()), any(FiniteDuration.class)))
@@ -141,22 +144,22 @@ public class MetricFetcherTest extends TestLogger {
 		fetcher.update();
 		MetricStore store = fetcher.getMetricStore();
 		synchronized (store) {
-			assertEquals(7L, store.jobManager.metrics.get("abc.hist_min"));
-			assertEquals(6L, store.jobManager.metrics.get("abc.hist_max"));
-			assertEquals(4.0, store.jobManager.metrics.get("abc.hist_mean"));
-			assertEquals(0.5, store.jobManager.metrics.get("abc.hist_median"));
-			assertEquals(5.0, store.jobManager.metrics.get("abc.hist_stddev"));
-			assertEquals(0.75, store.jobManager.metrics.get("abc.hist_p75"));
-			assertEquals(0.9, store.jobManager.metrics.get("abc.hist_p90"));
-			assertEquals(0.95, store.jobManager.metrics.get("abc.hist_p95"));
-			assertEquals(0.98, store.jobManager.metrics.get("abc.hist_p98"));
-			assertEquals(0.99, store.jobManager.metrics.get("abc.hist_p99"));
-			assertEquals(0.999, store.jobManager.metrics.get("abc.hist_p999"));
+			assertEquals("7", store.jobManager.metrics.get("abc.hist_min"));
+			assertEquals("6", store.jobManager.metrics.get("abc.hist_max"));
+			assertEquals("4.0", store.jobManager.metrics.get("abc.hist_mean"));
+			assertEquals("0.5", store.jobManager.metrics.get("abc.hist_median"));
+			assertEquals("5.0", store.jobManager.metrics.get("abc.hist_stddev"));
+			assertEquals("0.75", store.jobManager.metrics.get("abc.hist_p75"));
+			assertEquals("0.9", store.jobManager.metrics.get("abc.hist_p90"));
+			assertEquals("0.95", store.jobManager.metrics.get("abc.hist_p95"));
+			assertEquals("0.98", store.jobManager.metrics.get("abc.hist_p98"));
+			assertEquals("0.99", store.jobManager.metrics.get("abc.hist_p99"));
+			assertEquals("0.999", store.jobManager.metrics.get("abc.hist_p999"));
 
-			assertEquals("x", store.taskManagers.get(tmID.toString()).metrics.get("abc.gauge"));
-			assertEquals(5.0, store.jobs.get(jobID.toString()).metrics.get("abc.jc"));
-			assertEquals(2L, store.jobs.get(jobID.toString()).tasks.get("taskid").metrics.get("2.abc.tc"));
-			assertEquals(1L, store.jobs.get(jobID.toString()).tasks.get("taskid").metrics.get("2.opname.abc.oc"));
+			assertEquals("x", store.getTaskManagerMetricStore(tmID.toString()).metrics.get("abc.gauge"));
+			assertEquals("5.0", store.getJobMetricStore(jobID.toString()).metrics.get("abc.jc"));
+			assertEquals("2", store.getTaskMetricStore(jobID.toString(), "taskid").metrics.get("2.abc.tc"));
+			assertEquals("1", store.getTaskMetricStore(jobID.toString(), "taskid").metrics.get("2.opname.abc.oc"));
 		}
 	}
 

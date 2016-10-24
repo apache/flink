@@ -137,7 +137,11 @@ public class KeyGroupRangeOffsets implements Iterable<Tuple2<Integer, Long>> , S
 	}
 
 	private int computeKeyGroupIndex(int keyGroup) {
-		return keyGroup - keyGroupRange.getStartKeyGroup();
+		int idx = keyGroup - keyGroupRange.getStartKeyGroup();
+		if (idx < 0 || idx >= offsets.length) {
+			throw new IllegalArgumentException("Key group " + keyGroup + " is not in " + keyGroupRange + ".");
+		}
+		return idx;
 	}
 
 	/**

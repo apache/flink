@@ -22,6 +22,7 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -104,7 +105,8 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 			InetSocketAddress wrongInetSocketAddress = new InetSocketAddress(InetAddress.getByName("1.1.1.1"), 1234);
 
-			String wrongAddress = JobManager.getRemoteJobManagerAkkaURL(wrongInetSocketAddress, Option.<String>empty());
+			String wrongAddress = JobManager.getRemoteJobManagerAkkaURL(AkkaUtils.getAkkaProtocol(config),
+					wrongInetSocketAddress, Option.<String>empty());
 
 			try {
 				localHost = InetAddress.getLocalHost();
@@ -122,7 +124,8 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 			InetSocketAddress correctInetSocketAddress = new InetSocketAddress(localHost, serverSocket.getLocalPort());
 
-			String correctAddress = JobManager.getRemoteJobManagerAkkaURL(correctInetSocketAddress, Option.<String>empty());
+			String correctAddress = JobManager.getRemoteJobManagerAkkaURL(AkkaUtils.getAkkaProtocol(config),
+					correctInetSocketAddress, Option.<String>empty());
 
 			faultyLeaderElectionService = ZooKeeperUtils.createLeaderElectionService(client[0], config);
 			TestingContender wrongLeaderAddressContender = new TestingContender(wrongAddress, faultyLeaderElectionService);

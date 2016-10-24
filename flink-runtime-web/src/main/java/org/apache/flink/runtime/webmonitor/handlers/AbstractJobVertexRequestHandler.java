@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
@@ -36,7 +36,7 @@ public abstract class AbstractJobVertexRequestHandler extends AbstractExecutionG
 	}
 
 	@Override
-	public final String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
+	public final String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
 		final String vidString = params.get("vertexid");
 		if (vidString == null) {
 			throw new IllegalArgumentException("vertexId parameter missing");
@@ -50,7 +50,7 @@ public abstract class AbstractJobVertexRequestHandler extends AbstractExecutionG
 			throw new IllegalArgumentException("Invalid JobVertexID string '" + vidString + "': " + e.getMessage());
 		}
 
-		final ExecutionJobVertex jobVertex = graph.getJobVertex(vid);
+		final AccessExecutionJobVertex jobVertex = graph.getJobVertex(vid);
 		if (jobVertex == null) {
 			throw new IllegalArgumentException("No vertex with ID '" + vidString + "' exists.");
 		}
@@ -58,5 +58,5 @@ public abstract class AbstractJobVertexRequestHandler extends AbstractExecutionG
 		return handleRequest(jobVertex, params);
 	}
 	
-	public abstract String handleRequest(ExecutionJobVertex jobVertex, Map<String, String> params) throws Exception;
+	public abstract String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception;
 }

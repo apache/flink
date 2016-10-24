@@ -51,7 +51,7 @@ class CsvStringify(MapFunction):
 
     def _map(self, value):
         if isinstance(value, (tuple, list)):
-            return "(" + b", ".join([self.map(x) for x in value]) + ")"
+            return "(" + ", ".join([self._map(x) for x in value]) + ")"
         else:
             return str(value)
 
@@ -544,7 +544,7 @@ class DataSet(object):
     def partition_by_hash(self, *fields):
         f = None
         if len(fields) == 0:
-            f = lambda x: (x,)
+            raise ValueError("fields argument must not be empty.")
         if isinstance(fields[0], TYPES.FunctionType):
             f = lambda x: (fields[0](x),)
         if isinstance(fields[0], KeySelectorFunction):

@@ -23,10 +23,9 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
@@ -49,24 +48,24 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class AbstractFetcher<T, KPH> {
 	
-	private static final int NO_TIMESTAMPS_WATERMARKS = 0;
-	private static final int PERIODIC_WATERMARKS = 1;
-	private static final int PUNCTUATED_WATERMARKS = 2;
+	protected static final int NO_TIMESTAMPS_WATERMARKS = 0;
+	protected static final int PERIODIC_WATERMARKS = 1;
+	protected static final int PUNCTUATED_WATERMARKS = 2;
 	
 	// ------------------------------------------------------------------------
 	
 	/** The source context to emit records and watermarks to */
-	private final SourceContext<T> sourceContext;
+	protected final SourceContext<T> sourceContext;
 
 	/** The lock that guarantees that record emission and state updates are atomic,
 	 * from the view of taking a checkpoint */
-	private final Object checkpointLock;
+	protected final Object checkpointLock;
 
 	/** All partitions (and their state) that this fetcher is subscribed to */
 	private final KafkaTopicPartitionState<KPH>[] allPartitions;
 
 	/** The mode describing whether the fetcher also generates timestamps and watermarks */
-	private final int timestampWatermarkMode;
+	protected final int timestampWatermarkMode;
 
 	/** Flag whether to register metrics for the fetcher */
 	protected final boolean useMetrics;
@@ -81,7 +80,9 @@ public abstract class AbstractFetcher<T, KPH> {
 			List<KafkaTopicPartition> assignedPartitions,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
-			StreamingRuntimeContext runtimeContext,
+			ProcessingTimeService processingTimeProvider,
+			long autoWatermarkInterval,
+			ClassLoader userCodeClassLoader,
 			boolean useMetrics) throws Exception
 	{
 		this.sourceContext = checkNotNull(sourceContext);
@@ -110,7 +111,7 @@ public abstract class AbstractFetcher<T, KPH> {
 				assignedPartitions,
 				timestampWatermarkMode,
 				watermarksPeriodic, watermarksPunctuated,
-				runtimeContext.getUserCodeClassLoader());
+				userCodeClassLoader);
 		
 		// if we have periodic watermarks, kick off the interval scheduler
 		if (timestampWatermarkMode == PERIODIC_WATERMARKS) {
@@ -118,7 +119,7 @@ public abstract class AbstractFetcher<T, KPH> {
 					(KafkaTopicPartitionStateWithPeriodicWatermarks<?, ?>[]) allPartitions;
 			
 			PeriodicWatermarkEmitter periodicEmitter = 
-					new PeriodicWatermarkEmitter(parts, sourceContext, runtimeContext.getTimeServiceProvider(), runtimeContext.getExecutionConfig().getAutoWatermarkInterval());
+					new PeriodicWatermarkEmitter(parts, sourceContext, processingTimeProvider, autoWatermarkInterval);
 			periodicEmitter.start();
 		}
 	}
@@ -159,12 +160,15 @@ public abstract class AbstractFetcher<T, KPH> {
 
 	/**
 	 * Commits the given partition offsets to the Kafka brokers (or to ZooKeeper for
-	 * older Kafka versions).
+	 * older Kafka versions). The given offsets are the internal checkpointed offsets, representing
+	 * the last processed record of each partition. Version-specific implementations of this method
+	 * need to hold the contract that the given offsets must be incremented by 1 before
+	 * committing them, so that committed offsets to Kafka represent "the next record to process".
 	 * 
-	 * @param offsets The offsets to commit to Kafka.
+	 * @param offsets The offsets to commit to Kafka (implementations must increment offsets by 1 before committing).
 	 * @throws Exception This method forwards exceptions.
 	 */
-	public abstract void commitSpecificOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception;
+	public abstract void commitInternalOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception;
 	
 	// ------------------------------------------------------------------------
 	//  snapshot and restore the state
@@ -207,30 +211,34 @@ public abstract class AbstractFetcher<T, KPH> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * 
 	 * <p>Implementation Note: This method is kept brief to be JIT inlining friendly.
 	 * That makes the fast path efficient, the extended paths are called as separate methods.
-	 * 
 	 * @param record The record to emit
 	 * @param partitionState The state of the Kafka partition from which the record was fetched
-	 * @param offset The offset from which the record was fetched
+	 * @param offset The offset of the record
+	 * @param timestamp The record's event-timestamp
 	 */
-	protected final void emitRecord(T record, KafkaTopicPartitionState<KPH> partitionState, long offset) {
+	protected void emitRecord(T record, KafkaTopicPartitionState<KPH> partitionState, long offset, long timestamp) throws Exception {
 		if (timestampWatermarkMode == NO_TIMESTAMPS_WATERMARKS) {
 			// fast path logic, in case there are no watermarks
 
 			// emit the record, using the checkpoint lock to guarantee
 			// atomicity of record emission and offset state update
 			synchronized (checkpointLock) {
-				sourceContext.collect(record);
+				if(timestamp != Long.MIN_VALUE) {
+					// this case is true for Kafka 0.10
+					sourceContext.collectWithTimestamp(record, timestamp);
+				} else {
+					sourceContext.collect(record);
+				}
 				partitionState.setOffset(offset);
 			}
 		}
 		else if (timestampWatermarkMode == PERIODIC_WATERMARKS) {
-			emitRecordWithTimestampAndPeriodicWatermark(record, partitionState, offset);
+			emitRecordWithTimestampAndPeriodicWatermark(record, partitionState, offset, timestamp);
 		}
 		else {
-			emitRecordWithTimestampAndPunctuatedWatermark(record, partitionState, offset);
+			emitRecordWithTimestampAndPunctuatedWatermark(record, partitionState, offset, timestamp);
 		}
 	}
 
@@ -238,8 +246,8 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * Record emission, if a timestamp will be attached from an assigner that is
 	 * also a periodic watermark generator.
 	 */
-	private void emitRecordWithTimestampAndPeriodicWatermark(
-			T record, KafkaTopicPartitionState<KPH> partitionState, long offset)
+	protected void emitRecordWithTimestampAndPeriodicWatermark(
+			T record, KafkaTopicPartitionState<KPH> partitionState, long offset, long kafkaEventTimestamp)
 	{
 		@SuppressWarnings("unchecked")
 		final KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH> withWatermarksState =
@@ -251,7 +259,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		final long timestamp;
 		//noinspection SynchronizationOnLocalVariableOrMethodParameter
 		synchronized (withWatermarksState) {
-			timestamp = withWatermarksState.getTimestampForRecord(record);
+			timestamp = withWatermarksState.getTimestampForRecord(record, kafkaEventTimestamp);
 		}
 
 		// emit the record with timestamp, using the usual checkpoint lock to guarantee
@@ -266,8 +274,8 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * Record emission, if a timestamp will be attached from an assigner that is
 	 * also a punctuated watermark generator.
 	 */
-	private void emitRecordWithTimestampAndPunctuatedWatermark(
-			T record, KafkaTopicPartitionState<KPH> partitionState, long offset)
+	protected void emitRecordWithTimestampAndPunctuatedWatermark(
+			T record, KafkaTopicPartitionState<KPH> partitionState, long offset, long kafkaEventTimestamp)
 	{
 		@SuppressWarnings("unchecked")
 		final KafkaTopicPartitionStateWithPunctuatedWatermarks<T, KPH> withWatermarksState =
@@ -275,7 +283,7 @@ public abstract class AbstractFetcher<T, KPH> {
 
 		// only one thread ever works on accessing timestamps and watermarks
 		// from the punctuated extractor
-		final long timestamp = withWatermarksState.getTimestampForRecord(record);
+		final long timestamp = withWatermarksState.getTimestampForRecord(record, kafkaEventTimestamp);
 		final Watermark newWatermark = withWatermarksState.checkAndGetNewWatermark(record, timestamp);
 			
 		// emit the record with timestamp, using the usual checkpoint lock to guarantee
@@ -291,6 +299,7 @@ public abstract class AbstractFetcher<T, KPH> {
 			updateMinPunctuatedWatermark(newWatermark);
 		}
 	}
+
 	/**
 	 *Checks whether a new per-partition watermark is also a new cross-partition watermark.
 	 */
@@ -452,13 +461,13 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * The periodic watermark emitter. In its given interval, it checks all partitions for
 	 * the current event time watermark, and possibly emits the next watermark.
 	 */
-	private static class PeriodicWatermarkEmitter implements Triggerable {
+	private static class PeriodicWatermarkEmitter implements ProcessingTimeCallback {
 
 		private final KafkaTopicPartitionStateWithPeriodicWatermarks<?, ?>[] allPartitions;
 		
 		private final SourceContext<?> emitter;
 		
-		private final TimeServiceProvider timerService;
+		private final ProcessingTimeService timerService;
 
 		private final long interval;
 		
@@ -469,7 +478,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		PeriodicWatermarkEmitter(
 				KafkaTopicPartitionStateWithPeriodicWatermarks<?, ?>[] allPartitions,
 				SourceContext<?> emitter,
-				TimeServiceProvider timerService,
+				ProcessingTimeService timerService,
 				long autoWatermarkInterval)
 		{
 			this.allPartitions = checkNotNull(allPartitions);
@@ -486,10 +495,8 @@ public abstract class AbstractFetcher<T, KPH> {
 		}
 		
 		@Override
-		public void trigger(long timestamp) throws Exception {
-			// sanity check
-			assert Thread.holdsLock(emitter.getCheckpointLock());
-			
+		public void onProcessingTime(long timestamp) throws Exception {
+
 			long minAcrossAll = Long.MAX_VALUE;
 			for (KafkaTopicPartitionStateWithPeriodicWatermarks<?, ?> state : allPartitions) {
 				

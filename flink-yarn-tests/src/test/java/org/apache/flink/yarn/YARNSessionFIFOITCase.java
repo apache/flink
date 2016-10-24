@@ -84,7 +84,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	public void testDetachedMode() {
 		LOG.info("Starting testDetachedMode()");
 		addTestAppender(FlinkYarnSessionCli.class, Level.INFO);
-		Runner runner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
+		startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 						"-t", flinkLibFolder.getAbsolutePath(),
 						"-n", "1",
 						"-jm", "768",
@@ -162,21 +162,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Finished testQueryCluster()");
 	}
 
-	/**
-	 * Test deployment to non-existing queue. (user-reported error)
-	 * Deployment to the queue is possible because there are no queues, so we don't check.
-	 */
-	@Test
-	public void testNonexistingQueue() {
-		LOG.info("Starting testNonexistingQueue()");
-		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
-				"-t", flinkLibFolder.getAbsolutePath(),
-				"-n", "1",
-				"-jm", "768",
-				"-tm", "1024",
-				"-qu", "doesntExist"}, "Number of connected TaskManagers changed to 1. Slots available: 1", null, RunTypes.YARN_SESSION, 0);
-		LOG.info("Finished testNonexistingQueue()");
-	}
 
 	/**
 	 * The test cluster has the following resources:

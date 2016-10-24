@@ -332,7 +332,8 @@ public class FlinkClient {
 			throw new RuntimeException("Could not start actor system to communicate with JobManager", e);
 		}
 
-		return JobManager.getJobManagerActorRef(new InetSocketAddress(this.jobManagerHost, this.jobManagerPort),
+		return JobManager.getJobManagerActorRef(AkkaUtils.getAkkaProtocol(configuration),
+				new InetSocketAddress(this.jobManagerHost, this.jobManagerPort),
 				actorSystem, AkkaUtils.getLookupTimeout(configuration));
 	}
 

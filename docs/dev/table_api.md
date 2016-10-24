@@ -1082,7 +1082,7 @@ Table result = tableEnv.sql(
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 // read a DataStream from an external source
 val ds: DataStream[(Long, String, Integer)] = env.addSource(...)
@@ -1272,6 +1272,28 @@ BOOLEAN.isFalse
       </td>
       <td>
         <p>Returns true if given boolean expression is false. False otherwise (for null and true).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+BOOLEAN.isNotTrue
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given boolean expression is not true (for null and false). False otherwise.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+BOOLEAN.isNotFalse
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if given boolean expression is not false (for null and true). False otherwise.</p>
       </td>
     </tr>
 
@@ -1691,6 +1713,28 @@ BOOLEAN.isFalse
       </td>
       <td>
         <p>Returns true if given boolean expression is false. False otherwise (for null and true).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+BOOLEAN.isNotTrue
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given boolean expression is not true (for null and false). False otherwise.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+BOOLEAN.isNotFalse
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if given boolean expression is not false (for null and true). False otherwise.</p>
       </td>
     </tr>
 

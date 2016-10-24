@@ -41,7 +41,7 @@ public class StandaloneCheckpointRecoveryFactory implements CheckpointRecoveryFa
 			throws Exception {
 
 		return new StandaloneCompletedCheckpointStore(CheckpointRecoveryFactory
-				.NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN, userClassLoader);
+				.NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN);
 	}
 
 	@Override

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -30,10 +31,9 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 
 	@Override
 	protected CompletedCheckpointStore createCompletedCheckpoints(
-			int maxNumberOfCheckpointsToRetain,
-			ClassLoader userClassLoader) throws Exception {
+			int maxNumberOfCheckpointsToRetain) throws Exception {
 
-		return new StandaloneCompletedCheckpointStore(maxNumberOfCheckpointsToRetain, userClassLoader);
+		return new StandaloneCompletedCheckpointStore(maxNumberOfCheckpointsToRetain);
 	}
 
 	/**
@@ -41,13 +41,13 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	 */
 	@Test
 	public void testShutdownDiscardsCheckpoints() throws Exception {
-		CompletedCheckpointStore store = createCompletedCheckpoints(1, ClassLoader.getSystemClassLoader());
+		CompletedCheckpointStore store = createCompletedCheckpoints(1);
 		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
 
 		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
 
-		store.shutdown();
+		store.shutdown(JobStatus.FINISHED);
 
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 		assertTrue(checkpoint.isDiscarded());
@@ -59,13 +59,13 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	 */
 	@Test
 	public void testSuspendDiscardsCheckpoints() throws Exception {
-		CompletedCheckpointStore store = createCompletedCheckpoints(1, ClassLoader.getSystemClassLoader());
+		CompletedCheckpointStore store = createCompletedCheckpoints(1);
 		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
 
 		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
 
-		store.suspend();
+		store.shutdown(JobStatus.SUSPENDED);
 
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 		assertTrue(checkpoint.isDiscarded());

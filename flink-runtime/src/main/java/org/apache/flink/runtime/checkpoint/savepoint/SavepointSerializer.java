@@ -25,7 +25,7 @@ import java.io.IOException;
 /**
  * Serializer for {@link Savepoint} instances.
  *
- * <p>This serializer is used to read/write a savepoint via {@link FsSavepointStore}.
+ * <p>This serializer is used to read/write a savepoint via {@link SavepointStore}.
  *
  * <p>Version-specific serializers are accessed via the {@link SavepointSerializers} helper.
  *

@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
 import java.util.Map;
@@ -36,7 +36,7 @@ public abstract class AbstractSubtaskRequestHandler extends AbstractJobVertexReq
 	}
 
 	@Override
-	public final String handleRequest(ExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
+	public final String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
 		final String subtaskNumberString = params.get("subtasknum");
 		if (subtaskNumberString == null) {
 			throw new RuntimeException("Subtask number parameter missing");
@@ -54,9 +54,9 @@ public abstract class AbstractSubtaskRequestHandler extends AbstractJobVertexReq
 			throw new RuntimeException("subtask does not exist: " + subtask); 
 		}
 		
-		final ExecutionVertex vertex = jobVertex.getTaskVertices()[subtask];
+		final AccessExecutionVertex vertex = jobVertex.getTaskVertices()[subtask];
 		return handleRequest(vertex, params);
 	}
 
-	public abstract String handleRequest(ExecutionVertex vertex, Map<String, String> params) throws Exception;
+	public abstract String handleRequest(AccessExecutionVertex vertex, Map<String, String> params) throws Exception;
 }

@@ -51,10 +51,12 @@ public class JobClientActorTest extends TestLogger {
 
 	private static ActorSystem system;
 	private static JobGraph testJobGraph = new JobGraph("Test Job");
+	private static Configuration clientConfig;
 
 	@BeforeClass
 	public static void setup() {
-		system = AkkaUtils.createLocalActorSystem(new Configuration());
+		clientConfig = new Configuration();
+		system = AkkaUtils.createLocalActorSystem(clientConfig);
 	}
 
 	@AfterClass
@@ -89,7 +91,8 @@ public class JobClientActorTest extends TestLogger {
 		Props jobClientActorProps = JobSubmissionClientActor.createActorProps(
 			testingLeaderRetrievalService,
 			jobClientActorTimeout,
-			false);
+			false,
+			clientConfig);
 
 		ActorRef jobClientActor = system.actorOf(jobClientActorProps);
 
@@ -154,7 +157,8 @@ public class JobClientActorTest extends TestLogger {
 		Props jobClientActorProps = JobSubmissionClientActor.createActorProps(
 			testingLeaderRetrievalService,
 			jobClientActorTimeout,
-			false);
+			false,
+			clientConfig);
 
 		ActorRef jobClientActor = system.actorOf(jobClientActorProps);
 
@@ -217,7 +221,8 @@ public class JobClientActorTest extends TestLogger {
 		Props jobClientActorProps = JobSubmissionClientActor.createActorProps(
 			testingLeaderRetrievalService,
 			jobClientActorTimeout,
-			false);
+			false,
+			clientConfig);
 
 		ActorRef jobClientActor = system.actorOf(jobClientActorProps);
 
@@ -299,6 +304,7 @@ public class JobClientActorTest extends TestLogger {
 		JobListeningContext jobListeningContext =
 			JobClient.submitJob(
 				system,
+				clientConfig,
 				testingLeaderRetrievalService,
 				testJobGraph,
 				timeout,

@@ -214,6 +214,17 @@ public class TwoInputStreamTaskTest {
 		expectedOutput.add(new StreamRecord<String>("111", initialTime));
 
 		testHarness.waitForInputProcessing();
+
+		// Wait to allow input to end up in the output.
+		// TODO Use count down latches instead as a cleaner solution
+		for (int i = 0; i < 20; ++i) {
+			if (testHarness.getOutput().size() >= expectedOutput.size()) {
+				break;
+			} else {
+				Thread.sleep(100);
+			}
+		}
+
 		// we should not yet see the barrier, only the two elements from non-blocked input
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
 				testHarness.getOutput(),
@@ -224,17 +235,17 @@ public class TwoInputStreamTaskTest {
 		testHarness.processEvent(new CheckpointBarrier(0, 0), 1, 1);
 
 		testHarness.waitForInputProcessing();
+		testHarness.endInput();
+		testHarness.waitForTaskCompletion();
 
 		// now we should see the barrier and after that the buffered elements
 		expectedOutput.add(new CheckpointBarrier(0, 0));
 		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
+
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
-				testHarness.getOutput(),
-				expectedOutput);
+				expectedOutput,
+				testHarness.getOutput());
 
-		testHarness.endInput();
-
-		testHarness.waitForTaskCompletion();
 
 		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
 		Assert.assertEquals(4, resultElements.size());

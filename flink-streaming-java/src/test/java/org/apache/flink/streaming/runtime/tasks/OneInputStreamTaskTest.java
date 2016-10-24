@@ -31,15 +31,13 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.CheckpointStateHandles;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
@@ -64,8 +62,6 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -74,7 +70,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -390,7 +385,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
 
 		final OneInputStreamTask<String, String> restoredTask = new OneInputStreamTask<String, String>();
-		restoredTask.setInitialState(env.getState(), env.getKeyGroupStates(), env.getPartitionableOperatorState());
+		restoredTask.setInitialState(new TaskStateHandles(env.getCheckpointStateHandles()));
 
 		final OneInputStreamTaskTestHarness<String, String> restoredTaskHarness = new OneInputStreamTaskTestHarness<String, String>(restoredTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		restoredTaskHarness.configureForKeyedStream(keySelector, BasicTypeInfo.STRING_TYPE_INFO);
@@ -482,32 +477,12 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 	private static class AcknowledgeStreamMockEnvironment extends StreamMockEnvironment {
 		private volatile long checkpointId;
-		private volatile ChainedStateHandle<StreamStateHandle> state;
-		private volatile List<KeyGroupsStateHandle> keyGroupStates;
-		private volatile List<Collection<OperatorStateHandle>> partitionableOperatorState;
+		private volatile SubtaskState checkpointStateHandles;
 
 		private final OneShotLatch checkpointLatch = new OneShotLatch();
 
 		public long getCheckpointId() {
 			return checkpointId;
-		}
-
-		public ChainedStateHandle<StreamStateHandle> getState() {
-			return state;
-		}
-
-		List<KeyGroupsStateHandle> getKeyGroupStates() {
-			List<KeyGroupsStateHandle> result = new ArrayList<>();
-			for (KeyGroupsStateHandle keyGroupState : keyGroupStates) {
-				if (keyGroupState != null) {
-					result.add(keyGroupState);
-				}
-			}
-			return result;
-		}
-
-		List<Collection<OperatorStateHandle>> getPartitionableOperatorState() {
-			return partitionableOperatorState;
 		}
 
 		AcknowledgeStreamMockEnvironment(
@@ -521,25 +496,19 @@ public class OneInputStreamTaskTest extends TestLogger {
 		@Override
 		public void acknowledgeCheckpoint(
 				CheckpointMetaData checkpointMetaData,
-				CheckpointStateHandles checkpointStateHandles) {
+				SubtaskState checkpointStateHandles) {
 
 			this.checkpointId = checkpointMetaData.getCheckpointId();
-			if(checkpointStateHandles != null) {
-				this.state = checkpointStateHandles.getNonPartitionedStateHandles();
-				this.keyGroupStates = checkpointStateHandles.getKeyGroupsStateHandle();
-				ChainedStateHandle<OperatorStateHandle> chainedStateHandle = checkpointStateHandles.getPartitioneableStateHandles();
-				Collection<OperatorStateHandle>[] ia = new Collection[chainedStateHandle.getLength()];
-				this.partitionableOperatorState = Arrays.asList(ia);
-
-				for (int i = 0; i < chainedStateHandle.getLength(); ++i) {
-					partitionableOperatorState.set(i, Collections.singletonList(chainedStateHandle.get(i)));
-				}
-			}
+			this.checkpointStateHandles = checkpointStateHandles;
 			checkpointLatch.trigger();
 		}
 
 		public OneShotLatch getCheckpointLatch() {
 			return checkpointLatch;
+		}
+
+		public SubtaskState getCheckpointStateHandles() {
+			return checkpointStateHandles;
 		}
 	}
 
@@ -580,9 +549,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		public RunnableFuture<OperatorStateHandle> snapshotState(
-				long checkpointId, long timestamp, CheckpointStreamFactory streamFactory) throws Exception {
-
+		public void snapshotState(StateSnapshotContext context) throws Exception {
 			ListState<Integer> partitionableState =
 					getOperatorStateBackend().getOperatorState(TEST_DESCRIPTOR);
 			partitionableState.clear();
@@ -591,7 +558,11 @@ public class OneInputStreamTaskTest extends TestLogger {
 			partitionableState.add(4711);
 
 			++numberSnapshotCalls;
-			return super.snapshotState(checkpointId, timestamp, streamFactory);
+		}
+
+		@Override
+		public void initializeState(StateInitializationContext context) throws Exception {
+
 		}
 
 		TestingStreamOperator(long seed, long recoveryTimestamp) {
@@ -605,12 +576,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		public void processWatermark(Watermark mark) throws Exception {
-
-		}
-
-		@Override
 		public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
+			super.snapshotState(out, checkpointId, timestamp);
+
 			if (random == null) {
 				random = new Random(seed);
 			}
@@ -624,6 +592,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		@Override
 		public void restoreState(FSDataInputStream in) throws Exception {
+			super.restoreState(in);
+
 			numberRestoreCalls++;
 
 			if (random == null) {
@@ -642,7 +612,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 			assertEquals(random.nextInt(), functionState);
 			assertEquals(random.nextInt(), (int) operatorState);
 		}
-
 
 		private Serializable generateFunctionState() {
 			return random.nextInt();

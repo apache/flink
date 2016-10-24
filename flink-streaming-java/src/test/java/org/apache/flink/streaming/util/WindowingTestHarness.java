@@ -31,7 +31,6 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
@@ -50,8 +49,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class WindowingTestHarness<K, IN, W extends Window> {
 
-	private final TestTimeServiceProvider timeServiceProvider;
-
 	private final OneInputStreamOperatorTestHarness<IN, IN> testHarness;
 
 	private final ConcurrentLinkedQueue<Object> expectedOutputs = new ConcurrentLinkedQueue<>();
@@ -64,7 +61,7 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 								TypeInformation<IN> inputType,
 								KeySelector<IN, K> keySelector,
 								Trigger<? super IN, ? super W> trigger,
-								long allowedLateness) {
+								long allowedLateness) throws Exception {
 
 		ListStateDescriptor<IN> windowStateDesc =
 				new ListStateDescriptor<>("window-contents", inputType.createSerializer(executionConfig));
@@ -80,8 +77,7 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 				trigger,
 				allowedLateness);
 
-		timeServiceProvider = new TestTimeServiceProvider();
-		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, executionConfig, timeServiceProvider, keySelector, keyType);
+		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, executionConfig, keySelector, keyType);
 	}
 
 	/**
@@ -106,7 +102,7 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 	 */
 	public void setProcessingTime(long timestamp) throws Exception {
 		openOperator();
-		timeServiceProvider.setCurrentTime(timestamp);
+		testHarness.setProcessingTime(timestamp);
 	}
 
 	/**
@@ -165,7 +161,7 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 	 * Takes a snapshot of the current state of the operator. This can be used to test fault-tolerance.
 	 */
 	public StreamStateHandle snapshot(long checkpointId, long timestamp) throws Exception {
-		return testHarness.snapshot(checkpointId, timestamp);
+		return testHarness.snapshotLegacy(checkpointId, timestamp);
 	}
 
 	/**

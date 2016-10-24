@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.util;
 
+import java.util.Arrays;
 import java.util.NoSuchElementException;
 
 /**
@@ -67,6 +68,10 @@ public class IntArrayList {
 			System.arraycopy(array, 0, t, 0, size);
 			array = t;
 		}
+	}
+
+	public int[] toArray() {
+		return Arrays.copyOf(array, size);
 	}
 
 	public static final IntArrayList EMPTY = new IntArrayList(0) {

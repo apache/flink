@@ -61,7 +61,7 @@ public abstract class AbstractMetricsHandler implements RequestHandler {
 	 * @param metrics MetricStore containing all metrics
 	 * @return Map containing metrics, or null if no metric exists
 	 */
-	protected abstract Map<String, Object> getMapFor(Map<String, String> pathParams, MetricStore metrics);
+	protected abstract Map<String, String> getMapFor(Map<String, String> pathParams, MetricStore metrics);
 
 	private String getMetricsValues(Map<String, String> pathParams, String requestedMetricsList) throws IOException {
 		if (requestedMetricsList.isEmpty()) {
@@ -73,7 +73,7 @@ public abstract class AbstractMetricsHandler implements RequestHandler {
 		}
 		MetricStore metricStore = fetcher.getMetricStore();
 		synchronized (metricStore) {
-			Map<String, Object> metrics = getMapFor(pathParams, metricStore);
+			Map<String, String> metrics = getMapFor(pathParams, metricStore);
 			if (metrics == null) {
 				return "";
 			}
@@ -102,7 +102,7 @@ public abstract class AbstractMetricsHandler implements RequestHandler {
 	private String getAvailableMetricsList(Map<String, String> pathParams) throws IOException {
 		MetricStore metricStore = fetcher.getMetricStore();
 		synchronized (metricStore) {
-			Map<String, Object> metrics = getMapFor(pathParams, metricStore);
+			Map<String, String> metrics = getMapFor(pathParams, metricStore);
 			if (metrics == null) {
 				return "";
 			}

@@ -37,11 +37,14 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.DefaultKeyedStateStore;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.junit.Test;
+import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -53,6 +56,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -160,18 +164,24 @@ public class StreamingRuntimeContextTest {
 			final AtomicReference<Object> ref, final ExecutionConfig config) throws Exception {
 		
 		AbstractStreamOperator<?> operatorMock = mock(AbstractStreamOperator.class);
+
+		KeyedStateBackend keyedStateBackend= mock(KeyedStateBackend.class);
+
+		DefaultKeyedStateStore keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, config);
+
 		when(operatorMock.getExecutionConfig()).thenReturn(config);
-		
-		when(operatorMock.getPartitionedState(any(StateDescriptor.class))).thenAnswer(
-				new Answer<Object>() {
-					
-					@Override
-					public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-						ref.set(invocationOnMock.getArguments()[0]);
-						return null;
-					}
-				});
-		
+
+		doAnswer(new Answer<Object>() {
+
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				ref.set(invocationOnMock.getArguments()[2]);
+				return null;
+			}
+		}).when(keyedStateBackend).getPartitionedState(Matchers.any(), any(TypeSerializer.class), any(StateDescriptor.class));
+
+		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
+
 		return operatorMock;
 	}
 
@@ -179,29 +189,35 @@ public class StreamingRuntimeContextTest {
 	private static AbstractStreamOperator<?> createPlainMockOp() throws Exception {
 
 		AbstractStreamOperator<?> operatorMock = mock(AbstractStreamOperator.class);
-		when(operatorMock.getExecutionConfig()).thenReturn(new ExecutionConfig());
+		ExecutionConfig config = new ExecutionConfig();
 
-		when(operatorMock.getPartitionedState(any(ListStateDescriptor.class))).thenAnswer(
-				new Answer<ListState<String>>() {
+		KeyedStateBackend keyedStateBackend= mock(KeyedStateBackend.class);
 
-					@Override
-					public ListState<String> answer(InvocationOnMock invocationOnMock) throws Throwable {
-						ListStateDescriptor<String> descr =
-								(ListStateDescriptor<String>) invocationOnMock.getArguments()[0];
+		DefaultKeyedStateStore keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, config);
 
-						AbstractKeyedStateBackend<Integer> backend = new MemoryStateBackend().createKeyedStateBackend(
-								new DummyEnvironment("test_task", 1, 0),
-								new JobID(),
-								"test_op",
-								IntSerializer.INSTANCE,
-								1,
-								new KeyGroupRange(0, 0),
-								new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
-						backend.setCurrentKey(0);
-						return backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descr);
-					}
-				});
+		when(operatorMock.getExecutionConfig()).thenReturn(config);
 
+		doAnswer(new Answer<ListState<String>>() {
+
+			@Override
+			public ListState<String> answer(InvocationOnMock invocationOnMock) throws Throwable {
+				ListStateDescriptor<String> descr =
+						(ListStateDescriptor<String>) invocationOnMock.getArguments()[2];
+
+				AbstractKeyedStateBackend<Integer> backend = new MemoryStateBackend().createKeyedStateBackend(
+						new DummyEnvironment("test_task", 1, 0),
+						new JobID(),
+						"test_op",
+						IntSerializer.INSTANCE,
+						1,
+						new KeyGroupRange(0, 0),
+						new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
+				backend.setCurrentKey(0);
+				return backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descr);
+			}
+		}).when(keyedStateBackend).getPartitionedState(Matchers.any(), any(TypeSerializer.class), any(ListStateDescriptor.class));
+
+		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
 		return operatorMock;
 	}
 	

@@ -309,12 +309,13 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	}
 
 	/**
-	 * Test deployment to non-existing queue. (user-reported error)
-	 * Deployment to the queue is possible because there are no queues, so we don't check.
+	 * Test deployment to non-existing queue & ensure that the system logs a WARN message
+	 * for the user. (Users had unexpected behavior of Flink on YARN because they mistyped the
+	 * target queue. With an error message, we can help users identifying the issue)
 	 */
 	@Test
-	public void testNonexistingQueue() {
-		LOG.info("Starting testNonexistingQueue()");
+	public void testNonexistingQueueWARNmessage() {
+		LOG.info("Starting testNonexistingQueueWARNmessage()");
 		addTestAppender(YarnClusterDescriptor.class, Level.WARN);
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 				"-t", flinkLibFolder.getAbsolutePath(),
@@ -322,8 +323,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-jm", "768",
 				"-tm", "1024",
 				"-qu", "doesntExist"}, "to unknown queue: doesntExist", null, RunTypes.YARN_SESSION, 1);
-		checkForLogString("The specified queue 'doesntExist' does not exist. Available queues: default, qa-team");
-		LOG.info("Finished testNonexistingQueue()");
+		checkForLogString("The specified queue 'doesntExist' does not exist. Available queues");
+		LOG.info("Finished testNonexistingQueueWARNmessage()");
 	}
 
 	/**

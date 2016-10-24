@@ -20,7 +20,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
 import java.io.StringWriter;
@@ -36,7 +36,7 @@ public class JobAccumulatorsHandler extends AbstractExecutionGraphRequestHandler
 	}
 
 	@Override
-	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
 		StringifiedAccumulatorResult[] allAccumulators = graph.getAccumulatorResultsStringified();
 		
 		StringWriter writer = new StringWriter();

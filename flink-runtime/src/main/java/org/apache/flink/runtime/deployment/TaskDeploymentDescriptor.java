@@ -25,17 +25,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.Serializable;
 import java.net.URL;
 import java.util.Collection;
 import java.util.List;
-
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -95,13 +91,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/** The list of classpaths required to run this task. */
 	private final List<URL> requiredClasspaths;
 
-	/** Handle to the non-partitioned state of the operator chain */
-	private final ChainedStateHandle<StreamStateHandle> operatorState;
-
-	/** Handle to the key-grouped state of the head operator in the chain */
-	private final List<KeyGroupsStateHandle> keyGroupState;
-
-	private final List<Collection<OperatorStateHandle>> partitionableOperatorState;
+	private final TaskStateHandles taskStateHandles;
 
 	/** The execution configuration (see {@link ExecutionConfig}) related to the specific job. */
 	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
@@ -128,9 +118,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		List<BlobKey> requiredJarFiles,
 		List<URL> requiredClasspaths,
 		int targetSlotNumber,
-		ChainedStateHandle<StreamStateHandle> operatorState,
-		List<KeyGroupsStateHandle> keyGroupState,
-		List<Collection<OperatorStateHandle>> partitionableOperatorStateHandles) {
+		TaskStateHandles taskStateHandles) {
 
 		checkArgument(indexInSubtaskGroup >= 0);
 		checkArgument(numberOfSubtasks > indexInSubtaskGroup);
@@ -155,9 +143,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.requiredJarFiles = checkNotNull(requiredJarFiles);
 		this.requiredClasspaths = checkNotNull(requiredClasspaths);
 		this.targetSlotNumber = targetSlotNumber;
-		this.operatorState = operatorState;
-		this.keyGroupState = keyGroupState;
-		this.partitionableOperatorState = partitionableOperatorStateHandles;
+		this.taskStateHandles = taskStateHandles;
 	}
 
 	public TaskDeploymentDescriptor(
@@ -199,8 +185,6 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			requiredJarFiles,
 			requiredClasspaths,
 			targetSlotNumber,
-			null,
-			null,
 			null);
 	}
 
@@ -346,15 +330,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		return strBuilder.toString();
 	}
 
-	public ChainedStateHandle<StreamStateHandle> getOperatorState() {
-		return operatorState;
-	}
-
-	public List<KeyGroupsStateHandle> getKeyGroupState() {
-		return keyGroupState;
-	}
-
-	public List<Collection<OperatorStateHandle>> getPartitionableOperatorState() {
-		return partitionableOperatorState;
+	public TaskStateHandles getTaskStateHandles() {
+		return taskStateHandles;
 	}
 }

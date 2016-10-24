@@ -123,4 +123,8 @@ public class ChainedStateHandle<T extends StateObject> implements StateObject {
 	public static <T extends StateObject> ChainedStateHandle<T> wrapSingleHandle(T stateHandleToWrap) {
 		return new ChainedStateHandle<T>(Collections.singletonList(stateHandleToWrap));
 	}
+
+	public static boolean isNullOrEmpty(ChainedStateHandle<?> chainedStateHandle) {
+		return chainedStateHandle == null || chainedStateHandle.isEmpty();
+	}
 }

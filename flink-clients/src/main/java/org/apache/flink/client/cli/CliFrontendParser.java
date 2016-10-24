@@ -24,6 +24,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.flink.client.CliFrontend;
+import org.apache.flink.configuration.ConfigConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +36,6 @@ import org.slf4j.LoggerFactory;
 public class CliFrontendParser {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CliFrontendParser.class);
-
 
 	static final Option HELP_OPTION = new Option("h", "help", false,
 			"Show the help message for the CLI Frontend or the action.");
@@ -85,6 +85,11 @@ public class CliFrontendParser {
 	static final Option ZOOKEEPER_NAMESPACE_OPTION = new Option("z", "zookeeperNamespace", true,
 			"Namespace to create the Zookeeper sub-paths for high availability mode");
 
+	static final Option CANCEL_WITH_SAVEPOINT_OPTION = new Option(
+			"s", "withSavepoint", true, "Trigger savepoint and cancel job. The target " +
+			"directory is optional. If no directory is specified, the configured default " +
+			"directory (" + ConfigConstants.SAVEPOINT_DIRECTORY_KEY + ") is used.");
+
 	static {
 		HELP_OPTION.setRequired(false);
 
@@ -118,6 +123,10 @@ public class CliFrontendParser {
 
 		ZOOKEEPER_NAMESPACE_OPTION.setRequired(false);
 		ZOOKEEPER_NAMESPACE_OPTION.setArgName("zookeeperNamespace");
+
+		CANCEL_WITH_SAVEPOINT_OPTION.setRequired(false);
+		CANCEL_WITH_SAVEPOINT_OPTION.setArgName("targetDirectory");
+		CANCEL_WITH_SAVEPOINT_OPTION.setOptionalArg(true);
 	}
 
 	private static final Options RUN_OPTIONS = getRunOptions(buildGeneralOptions(new Options()));
@@ -188,6 +197,7 @@ public class CliFrontendParser {
 	}
 
 	private static Options getCancelOptions(Options options) {
+		options.addOption(CANCEL_WITH_SAVEPOINT_OPTION);
 		options = getJobManagerAddressOption(options);
 		return addCustomCliOptions(options, false);
 	}
@@ -213,7 +223,6 @@ public class CliFrontendParser {
 		return getJobManagerAddressOption(o);
 	}
 
-
 	private static Options getInfoOptionsWithoutDeprecatedOptions(Options options) {
 		options.addOption(CLASS_OPTION);
 		options.addOption(PARALLELISM_OPTION);
@@ -228,6 +237,7 @@ public class CliFrontendParser {
 	}
 
 	private static Options getCancelOptionsWithoutDeprecatedOptions(Options options) {
+		options.addOption(CANCEL_WITH_SAVEPOINT_OPTION);
 		options = getJobManagerAddressOption(options);
 		return options;
 	}
@@ -343,7 +353,7 @@ public class CliFrontendParser {
 		formatter.setWidth(80);
 
 		System.out.println("\nAction \"savepoint\" triggers savepoints for a running job or disposes existing ones.");
-		System.out.println("\n  Syntax: savepoint [OPTIONS] <Job ID>");
+		System.out.println("\n  Syntax: savepoint [OPTIONS] <Job ID> [<target directory>]");
 		formatter.setSyntaxPrefix("  \"savepoint\" action options:");
 		formatter.printHelp(" ", getSavepointOptionsWithoutDeprecatedOptions(new Options()));
 
