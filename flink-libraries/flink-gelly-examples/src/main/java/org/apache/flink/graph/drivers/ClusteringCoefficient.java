@@ -19,6 +19,7 @@
 package org.apache.flink.graph.drivers;
 
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -27,11 +28,12 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAnalytic;
 import org.apache.flink.graph.GraphCsvReader;
-import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
 import org.apache.flink.graph.asm.translate.TranslateGraphIds;
+import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
@@ -65,24 +67,27 @@ public class ClusteringCoefficient {
 
 	private static final boolean DEFAULT_CLIP_AND_FLIP = true;
 
-	private static void printUsage() {
-		System.out.println(WordUtils.wrap("The local clustering coefficient measures the connectedness of each" +
-			" vertex's neighborhood and the global clustering coefficient measures the connectedness of the graph." +
-			" Scores range from 0.0 (no edges between neighbors or vertices) to 1.0 (neighborhood or graph" +
-			" is a clique).", 80));
-		System.out.println();
-		System.out.println(WordUtils.wrap("This algorithm returns tuples containing the vertex ID, the degree of" +
-			" the vertex, and the number of edges between vertex neighbors.", 80));
-		System.out.println();
-		System.out.println("usage: ClusteringCoefficient --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]>");
-		System.out.println();
-		System.out.println("options:");
-		System.out.println("  --input csv --type <integer | string> [--simplify <true | false>] --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
-		System.out.println("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]");
-		System.out.println();
-		System.out.println("  --output print");
-		System.out.println("  --output hash");
-		System.out.println("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]");
+	private static String getUsage(String message) {
+		return new StrBuilder()
+			.appendNewLine()
+			.appendln(WordUtils.wrap("The local clustering coefficient measures the connectedness of each" +
+				" vertex's neighborhood and the global clustering coefficient measures the connectedness of the graph." +
+				" Scores range from 0.0 (no edges between neighbors or vertices) to 1.0 (neighborhood or graph" +
+				" is a clique).", 80))
+			.appendNewLine()
+			.appendln(WordUtils.wrap("This algorithm returns tuples containing the vertex ID, the degree of" +
+				" the vertex, and the number of edges between vertex neighbors.", 80))
+			.appendNewLine()
+			.appendln("usage: ClusteringCoefficient --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]>")
+			.appendNewLine()
+			.appendln("options:")
+			.appendln("  --input csv --type <integer | string> [--simplify <true | false>] --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]")
+			.appendln("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]")
+			.appendNewLine()
+			.appendln("  --output print")
+			.appendln("  --output hash")
+			.appendln("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]")
+			.toString();
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -93,8 +98,7 @@ public class ClusteringCoefficient {
 		ParameterTool parameters = ParameterTool.fromArgs(args);
 
 		if (! parameters.has("directed")) {
-			printUsage();
-			return;
+			throw new ProgramParametrizationException(getUsage("must declare execution mode as '--directed true' or '--directed false'"));
 		}
 		boolean directedAlgorithm = parameters.getBoolean("directed");
 
@@ -195,8 +199,7 @@ public class ClusteringCoefficient {
 					} break;
 
 					default:
-						printUsage();
-						return;
+						throw new ProgramParametrizationException(getUsage("invalid CSV type"));
 				}
 			} break;
 
@@ -287,8 +290,7 @@ public class ClusteringCoefficient {
 			} break;
 
 			default:
-				printUsage();
-				return;
+				throw new ProgramParametrizationException(getUsage("invalid input type"));
 		}
 
 		switch (parameters.get("output", "")) {
@@ -327,8 +329,7 @@ public class ClusteringCoefficient {
 				break;
 
 			default:
-				printUsage();
-				return;
+				throw new ProgramParametrizationException(getUsage("invalid output type"));
 		}
 
 		System.out.println(gcc.getResult());

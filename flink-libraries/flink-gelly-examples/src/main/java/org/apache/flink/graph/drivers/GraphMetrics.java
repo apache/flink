@@ -19,17 +19,19 @@
 package org.apache.flink.graph.drivers;
 
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAnalytic;
 import org.apache.flink.graph.GraphCsvReader;
-import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
 import org.apache.flink.graph.asm.translate.TranslateGraphIds;
+import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
@@ -56,14 +58,17 @@ public class GraphMetrics {
 
 	private static final boolean DEFAULT_CLIP_AND_FLIP = true;
 
-	private static void printUsage() {
-		System.out.println(WordUtils.wrap("Computes vertex and edge metrics on a directed or undirected graph.", 80));
-		System.out.println();
-		System.out.println("usage: GraphMetrics --directed <true | false> --input <csv | rmat [options]>");
-		System.out.println();
-		System.out.println("options:");
-		System.out.println("  --input csv --type <integer | string> [--simplify <true | false>] --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
-		System.out.println("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]");
+	private static String getUsage(String message) {
+		return new StrBuilder()
+			.appendNewLine()
+			.appendln(WordUtils.wrap("Computes vertex and edge metrics on a directed or undirected graph.", 80))
+			.appendNewLine()
+			.appendln("usage: GraphMetrics --directed <true | false> --input <csv | rmat [options]>")
+			.appendNewLine()
+			.appendln("options:")
+			.appendln("  --input csv --type <integer | string> [--simplify <true | false>] --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]")
+			.appendln("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]")
+			.toString();
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -73,8 +78,7 @@ public class GraphMetrics {
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
 		if (! parameters.has("directed")) {
-			printUsage();
-			return;
+			throw new ProgramParametrizationException(getUsage("must declare execution mode as '--directed true' or '--directed false'"));
 		}
 		boolean directedAlgorithm = parameters.getBoolean("directed");
 
@@ -151,8 +155,7 @@ public class GraphMetrics {
 					} break;
 
 					default:
-						printUsage();
-						return;
+						throw new ProgramParametrizationException(getUsage("invalid CSV type"));
 				}
 				} break;
 
@@ -213,8 +216,7 @@ public class GraphMetrics {
 				} break;
 
 			default:
-				printUsage();
-				return;
+				throw new ProgramParametrizationException(getUsage("invalid input type"));
 		}
 
 		env.execute("Graph Metrics");
