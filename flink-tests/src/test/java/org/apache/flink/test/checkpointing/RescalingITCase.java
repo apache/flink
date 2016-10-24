@@ -77,11 +77,7 @@ import static org.junit.Assert.fail;
 
 /**
  * TODO : parameterize to test all different state backends!
- *
- * Ignored for now since the timers in {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator}
- * are not repartitionable/key-group-aware.
  */
-@Ignore
 public class RescalingITCase extends TestLogger {
 
 	private static final int numTaskManagers = 2;
