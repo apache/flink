@@ -22,7 +22,10 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractCloseableHandle;
 import org.apache.flink.runtime.state.StateObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -33,6 +36,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class AbstractFileStateHandle extends AbstractCloseableHandle implements StateObject {
 
 	private static final long serialVersionUID = 350284443258002355L;
+
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractFileStateHandle.class);
 
 	/** The path to the file in the filesystem, fully describing the file system */
 	private final Path filePath;
@@ -93,6 +98,18 @@ public abstract class AbstractFileStateHandle extends AbstractCloseableHandle im
 	 * @throws IOException Thrown if the file system cannot be accessed.
 	 */
 	protected long getFileSize() throws IOException {
-		return getFileSystem().getFileStatus(filePath).getLen();
+		try {
+			return getFileSystem().getFileStatus(filePath).getLen();
+		}
+		catch (FileNotFoundException e) {
+			LOG.info("Could not determine state size - state will appear as size '0'. " +
+					"If the underlying filesystem is eventually consistency, that is most likely the cause.");
+		}
+		catch (IOException e) {
+			// this can happen on eventually consistent file systems (like for example S3)
+			LOG.info("Could not determine state size - state will appear as size '0'.", e);
+		}
+
+		return 0;
 	}
 }
