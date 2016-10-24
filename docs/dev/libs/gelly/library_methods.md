@@ -143,29 +143,6 @@ The constructor takes one parameter:
 
 * `maxIterations`: the maximum number of iterations to run.
 
-## PageRank
-
-#### Overview
-An implementation of a simple [PageRank algorithm](https://en.wikipedia.org/wiki/PageRank), using [scatter-gather iterations](#scatter-gather-iterations).
-PageRank is an algorithm that was first used to rank web search engine results. Today, the algorithm and many variations, are used in various graph application domains. The idea of PageRank is that important or relevant pages tend to link to other important pages.
-
-#### Details
-The algorithm operates in iterations, where pages distribute their scores to their neighbors (pages they have links to) and subsequently update their scores based on the partial values they receive. The implementation assumes that each page has at least one incoming and one outgoing link.
-In order to consider the importance of a link from one page to another, scores are divided by the total number of out-links of the source page. Thus, a page with 10 links will distribute 1/10 of its score to each neighbor, while a page with 100 links, will distribute 1/100 of its score to each neighboring page. This process computes what is often called the transition probablities, i.e. the probability that some page will lead to other page while surfing the web. To correctly compute the transition probabilities, this implementation expects the edge values to be initialised to 1.0.
-
-#### Usage
-The algorithm takes as input a `Graph` with any vertex type, `Double` vertex values, and `Double` edge values. Edges values should be initialized to 1.0, in order to correctly compute the transition probabilities. Otherwise, the transition probability for an Edge `(u, v)` will be set to the edge value divided by `u`'s out-degree. The algorithm returns a `DataSet` of vertices, where the vertex value corresponds to assigned rank after convergence (or maximum iterations).
-The constructors take the following parameters:
-
-* `beta`: the damping factor.
-* `maxIterations`: the maximum number of iterations to run.
-
-## GSA PageRank
-
-The algorithm is implemented using [gather-sum-apply iterations](#gather-sum-apply-iterations).
-
-See the [PageRank](#pagerank) library method for implementation details and usage information.
-
 ## Single Source Shortest Paths
 
 #### Overview
@@ -352,6 +329,29 @@ scores are computed from the new hub scores. The scores are then normalized and 
 The algorithm takes a directed graph as input and outputs a `DataSet` of `Tuple3` containing the vertex ID, hub score,
 and authority score. Termination is configured with a maximum number of iterations and/or a convergence threshold
 on the sum of the change in each score for each vertex between iterations.
+
+* `setParallelism`: override the operator parallelism
+
+### PageRank
+
+#### Overview
+[PageRank](https://en.wikipedia.org/wiki/PageRank) is an algorithm that was first used to rank web search engine
+results. Today, the algorithm and many variations are used in various graph application domains. The idea of PageRank is
+that important or relevant vertices tend to link to other important vertices.
+
+#### Details
+The algorithm operates in iterations, where pages distribute their scores to their neighbors (pages they have links to)
+and subsequently update their scores based on the sum of values they receive. In order to consider the importance of a
+link from one page to another, scores are divided by the total number of out-links of the source page. Thus, a page with
+10 links will distribute 1/10 of its score to each neighbor, while a page with 100 links will distribute 1/100 of its
+score to each neighboring page.
+
+#### Usage
+The algorithm takes a directed graph as input and outputs a `DataSet` where each `Result` contains the vertex ID and
+PageRank score. Termination is configured with a maximum number of iterations and/or a convergence threshold
+on the sum of the change in score for each vertex between iterations.
+
+* `setParallelism`: override the operator parallelism
 
 ## Metric
 
