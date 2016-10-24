@@ -322,11 +322,25 @@ trait ImplicitExpressionOperations {
   def year = toMonthInterval(expr, 12)
 
   /**
+    * Creates an interval of the given number of years.
+    *
+    * @return interval of months
+    */
+  def years = year
+
+  /**
     * Creates an interval of the given number of months.
     *
     * @return interval of months
     */
   def month = toMonthInterval(expr, 1)
+
+  /**
+    * Creates an interval of the given number of months.
+    *
+    * @return interval of months
+    */
+  def months = month
 
   /**
     * Creates an interval of the given number of days.
@@ -335,12 +349,26 @@ trait ImplicitExpressionOperations {
     */
   def day = toMilliInterval(expr, MILLIS_PER_DAY)
 
+  /**
+    * Creates an interval of the given number of days.
+    *
+    * @return interval of milliseconds
+    */
+  def days = day
+
     /**
     * Creates an interval of the given number of hours.
     *
     * @return interval of milliseconds
     */
   def hour = toMilliInterval(expr, MILLIS_PER_HOUR)
+
+  /**
+    * Creates an interval of the given number of hours.
+    *
+    * @return interval of milliseconds
+    */
+  def hours = hour
 
     /**
     * Creates an interval of the given number of minutes.
@@ -349,6 +377,13 @@ trait ImplicitExpressionOperations {
     */
   def minute = toMilliInterval(expr, MILLIS_PER_MINUTE)
 
+  /**
+    * Creates an interval of the given number of minutes.
+    *
+    * @return interval of milliseconds
+    */
+  def minutes = minute
+
     /**
     * Creates an interval of the given number of seconds.
     *
@@ -356,12 +391,26 @@ trait ImplicitExpressionOperations {
     */
   def second = toMilliInterval(expr, MILLIS_PER_SECOND)
 
+  /**
+    * Creates an interval of the given number of seconds.
+    *
+    * @return interval of milliseconds
+    */
+  def seconds = second
+
     /**
     * Creates an interval of the given number of milliseconds.
     *
     * @return interval of milliseconds
     */
   def milli = toMilliInterval(expr, 1)
+
+  /**
+    * Creates an interval of the given number of milliseconds.
+    *
+    * @return interval of milliseconds
+    */
+  def millis = milli
 }
 
 /**
