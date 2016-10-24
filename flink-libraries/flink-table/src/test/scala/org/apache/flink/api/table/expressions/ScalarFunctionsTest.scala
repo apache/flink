@@ -821,8 +821,8 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   @Test
   def testOverlaps(): Unit = {
     testAllApis(
-      temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hour),
-      "temporalOverlaps('2:55:00'.toTime, 1.hour, '3:30:00'.toTime, 2.hour)",
+      temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hours),
+      "temporalOverlaps('2:55:00'.toTime, 1.hour, '3:30:00'.toTime, 2.hours)",
       "(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)",
       "true")
 
@@ -833,14 +833,14 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "true")
 
     testAllApis(
-      temporalOverlaps("9:00:00".toTime, "10:00:00".toTime, "10:15:00".toTime, 3.hour),
-      "temporalOverlaps('9:00:00'.toTime, '10:00:00'.toTime, '10:15:00'.toTime, 3.hour)",
+      temporalOverlaps("9:00:00".toTime, "10:00:00".toTime, "10:15:00".toTime, 3.hours),
+      "temporalOverlaps('9:00:00'.toTime, '10:00:00'.toTime, '10:15:00'.toTime, 3.hours)",
       "(TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR)",
       "false")
 
     testAllApis(
-      temporalOverlaps("2011-03-10".toDate, 10.day, "2011-03-19".toDate, 10.day),
-      "temporalOverlaps('2011-03-10'.toDate, 10.day, '2011-03-19'.toDate, 10.day)",
+      temporalOverlaps("2011-03-10".toDate, 10.days, "2011-03-19".toDate, 10.days),
+      "temporalOverlaps('2011-03-10'.toDate, 10.days, '2011-03-19'.toDate, 10.days)",
       "(DATE '2011-03-10', INTERVAL '10' DAY) OVERLAPS (DATE '2011-03-19', INTERVAL '10' DAY)",
       "true")
 
