@@ -34,6 +34,16 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<repositories>
+		<!-- This repository is needed as a stable source for some Clojure libraries -->
+		<repository>
+			<id>clojars</id>
+			<url>https://clojars.org/repo/</url>
+			<releases><enabled>true</enabled></releases>
+			<snapshots><enabled>false</enabled></snapshots>
+		</repository>
+	</repositories>
+
 	<dependencies>
 		
 		<!-- core dependencies -->
