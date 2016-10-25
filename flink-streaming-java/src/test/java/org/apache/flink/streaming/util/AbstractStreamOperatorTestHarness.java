@@ -214,8 +214,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	}
 
 	/**
-	 * Get all the output from the task and clear the output buffer.
-	 * This contains only StreamRecords.
+	 * Get only the {@link StreamRecord StreamRecords} emitted by the operator.
 	 */
 	@SuppressWarnings("unchecked")
 	public List<StreamRecord<? extends OUT>> extractOutputStreamRecords() {
