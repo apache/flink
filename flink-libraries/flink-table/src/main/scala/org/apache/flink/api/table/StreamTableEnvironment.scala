@@ -26,6 +26,8 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.{Programs, RuleSet}
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.api.table.explain.PlanJsonParser
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamConvention, DataStreamRel}
@@ -311,14 +313,24 @@ abstract class StreamTableEnvironment(
     *
     * @param table The table for which the AST and execution plan will be returned.
     */
-   def explain(table: Table): String = {
+  def explain(table: Table): String = {
 
     val ast = RelOptUtil.toString(table.getRelNode)
 
+    val dataStream = translate[Row](table)(TypeExtractor.createTypeInfo(classOf[Row]))
+
+    val env = dataStream.getExecutionEnvironment
+    val jsonSqlPlan = env.getExecutionPlan
+
+    val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jsonSqlPlan, false)
+
     s"== Abstract Syntax Tree ==" +
       System.lineSeparator +
-      ast
-
+      s"$ast" +
+      System.lineSeparator +
+      s"== Physical Execution Plan ==" +
+      System.lineSeparator +
+      s"$sqlPlan"
   }
 
 }
