@@ -194,6 +194,11 @@ public class YarnClusterClient extends ClusterClient {
 	}
 
 	@Override
+	public boolean hasUserJarsInClassPath() {
+		return clusterDescriptor.hasUserJarFiles();
+	}
+
+	@Override
 	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
 		if (isDetached()) {
 			if (newlyCreatedCluster) {

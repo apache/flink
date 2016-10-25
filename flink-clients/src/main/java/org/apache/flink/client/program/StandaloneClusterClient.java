@@ -87,6 +87,11 @@ public class StandaloneClusterClient extends ClusterClient {
 	}
 
 	@Override
+	public boolean hasUserJarsInClassPath() {
+		return false;
+	}
+
+	@Override
 	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
 			throws ProgramInvocationException {
 		if (isDetached()) {
