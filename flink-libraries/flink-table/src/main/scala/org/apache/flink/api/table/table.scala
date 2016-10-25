@@ -76,16 +76,21 @@ class Table(
     * }}}
     */
   def select(fields: Expression*): Table = {
-    val projectionOnAggregates = fields.map(extractAggregationsAndProperties(_, tableEnv))
-    val aggregations = projectionOnAggregates.flatMap(_._2)
-    val projectList = expandProjectList(projectionOnAggregates.map(_._1), logicalPlan)
-    if (aggregations.nonEmpty) {
+
+    val expandedFields = expandProjectList(fields, logicalPlan)
+    val (projection, aggs, props) = extractAggregationsAndProperties(expandedFields, tableEnv)
+
+    if (props.nonEmpty) {
+      throw ValidationException("Window properties can only be used on windowed tables.")
+    }
+
+    if (aggs.nonEmpty) {
       new Table(tableEnv,
-        Project(projectList,
-          Aggregate(Nil, aggregations, logicalPlan).validate(tableEnv)).validate(tableEnv))
+        Project(projection,
+          Aggregate(Nil, aggs, logicalPlan).validate(tableEnv)).validate(tableEnv))
     } else {
       new Table(tableEnv,
-        Project(projectList, logicalPlan).validate(tableEnv))
+        Project(projection, logicalPlan).validate(tableEnv))
     }
   }
 
@@ -672,20 +677,18 @@ class GroupedTable(
     */
   def select(fields: Expression*): Table = {
 
-    val projectionOnAggsAndProps = fields.map(extractAggregationsAndProperties(_, table.tableEnv))
-    val aggregations = projectionOnAggsAndProps.flatMap(_._2)
-    val properties = projectionOnAggsAndProps.flatMap(_._3)
+    val (projection, aggs, props) = extractAggregationsAndProperties(fields, table.tableEnv)
 
-    if (properties.nonEmpty) {
+    if (props.nonEmpty) {
       throw ValidationException("Window properties can only be used on windowed tables.")
     }
 
     val logical =
       Project(
-        projectionOnAggsAndProps.map(e => UnresolvedAlias(e._1)),
+        projection,
         Aggregate(
           groupKey,
-          aggregations,
+          aggs,
           table.logicalPlan
         ).validate(table.tableEnv)
       ).validate(table.tableEnv)
@@ -744,20 +747,19 @@ class GroupWindowedTable(
     * }}}
     */
   def select(fields: Expression*): Table = {
-    val projectionOnAggsAndProps = fields.map(extractAggregationsAndProperties(_, table.tableEnv))
-    val aggregations = projectionOnAggsAndProps.flatMap(_._2)
-    val properties = projectionOnAggsAndProps.flatMap(_._3)
+
+    val (projection, aggs, props) = extractAggregationsAndProperties(fields, table.tableEnv)
 
     val groupWindow = window.toLogicalWindow
 
     val logical =
       Project(
-        projectionOnAggsAndProps.map(e => UnresolvedAlias(e._1)),
+        projection,
         WindowAggregate(
           groupKey,
           groupWindow,
-          properties,
-          aggregations,
+          props,
+          aggs,
           table.logicalPlan
         ).validate(table.tableEnv)
       ).validate(table.tableEnv)

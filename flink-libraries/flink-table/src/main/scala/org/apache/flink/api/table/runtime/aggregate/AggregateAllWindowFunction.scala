@@ -27,27 +27,14 @@ import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
 
-class AggregateAllWindowFunction(
-    propertyReads: Array[WindowPropertyRead[_ <: Any]],
-    groupReduceFunction: RichGroupReduceFunction[Row, Row])
-  extends RichAllWindowFunction[Row, Row, Window] {
-
-  private var propertyCollector: PropertyCollector = _
+class AggregateAllWindowFunction(groupReduceFunction: RichGroupReduceFunction[Row, Row])
+    extends RichAllWindowFunction[Row, Row, Window] {
 
   override def open(parameters: Configuration): Unit = {
     groupReduceFunction.open(parameters)
-    propertyCollector = new PropertyCollector(propertyReads)
   }
 
   override def apply(window: Window, input: Iterable[Row], out: Collector[Row]): Unit = {
-
-    // extract the properties from window
-    propertyReads.foreach(_.extract(window))
-
-    // set final collector
-    propertyCollector.finalCollector = out
-
-    // call wrapped reduce function with property collector
-    groupReduceFunction.reduce(input, propertyCollector)
+    groupReduceFunction.reduce(input, out)
   }
 }

@@ -160,21 +160,21 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     val windowedTable = table
       .groupBy('string)
       .window(Slide over 10.milli every 5.milli on 'rowtime as 'w)
-      .select('string, 'int.count, 'w.start, 'w.end)
+      .select('string, 'int.count, 'w.start, 'w.end, 'w.start)
 
     val results = windowedTable.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
     val expected = Seq(
-      "Hello world,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.01",
-      "Hello world,1,1970-01-01 00:00:00.005,1970-01-01 00:00:00.015",
-      "Hello world,1,1970-01-01 00:00:00.01,1970-01-01 00:00:00.02",
-      "Hello world,1,1970-01-01 00:00:00.015,1970-01-01 00:00:00.025",
-      "Hello,2,1969-12-31 23:59:59.995,1970-01-01 00:00:00.005",
-      "Hello,2,1970-01-01 00:00:00.0,1970-01-01 00:00:00.01",
-      "Hi,1,1969-12-31 23:59:59.995,1970-01-01 00:00:00.005",
-      "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.01")
+      "Hello world,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.01,1970-01-01 00:00:00.0",
+      "Hello world,1,1970-01-01 00:00:00.005,1970-01-01 00:00:00.015,1970-01-01 00:00:00.005",
+      "Hello world,1,1970-01-01 00:00:00.01,1970-01-01 00:00:00.02,1970-01-01 00:00:00.01",
+      "Hello world,1,1970-01-01 00:00:00.015,1970-01-01 00:00:00.025,1970-01-01 00:00:00.015",
+      "Hello,2,1969-12-31 23:59:59.995,1970-01-01 00:00:00.005,1969-12-31 23:59:59.995",
+      "Hello,2,1970-01-01 00:00:00.0,1970-01-01 00:00:00.01,1970-01-01 00:00:00.0",
+      "Hi,1,1969-12-31 23:59:59.995,1970-01-01 00:00:00.005,1969-12-31 23:59:59.995",
+      "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.01,1970-01-01 00:00:00.0")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }

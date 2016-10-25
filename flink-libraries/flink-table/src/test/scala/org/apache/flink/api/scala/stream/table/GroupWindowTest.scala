@@ -586,7 +586,7 @@ class GroupWindowTest extends TableTestBase {
     val windowedTable = table
       .groupBy('string)
       .window(Session withGap 3.milli on 'rowtime as 'w)
-      .select('w.end, 'string, 'int.count, 'w.start, 'w.end)
+      .select('w.end as 'we1, 'string, 'int.count as 'cnt, 'w.start as 'ws, 'w.end as 'we2)
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -603,10 +603,50 @@ class GroupWindowTest extends TableTestBase {
           "string",
           "COUNT(int) AS TMP_1",
           "end(WindowReference(w)) AS TMP_0",
-          "start(WindowReference(w)) AS TMP_2",
-          "end(WindowReference(w)) AS TMP_3")
+          "start(WindowReference(w)) AS TMP_2")
       ),
-      term("select", "TMP_0", "string", "TMP_1", "TMP_2", "TMP_3")
+      term("select", "TMP_0 AS we1", "string", "TMP_1 AS cnt", "TMP_2 AS ws", "TMP_0 AS we2")
+    )
+
+    util.verifyTable(windowedTable, expected)
+  }
+
+  @Test
+  def testTumbleWindowWithDuplicateAggsAndProps(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+
+    val windowedTable = table
+      .groupBy('string)
+      .window(Tumble over 5.millis on 'rowtime as 'w)
+      .select('string, 'int.sum + 1 as 's1, 'int.sum + 3 as 's2, 'w.start as 'x, 'w.start as 'x2,
+        'w.end as 'x3, 'w.end)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamAggregate",
+        streamTableNode(0),
+        term("groupBy", "string"),
+        term("window",
+          EventTimeTumblingGroupWindow(
+            Some(WindowReference("w")),
+            RowtimeAttribute(),
+            5.millis)),
+        term("select",
+          "string",
+          "SUM(int) AS TMP_0",
+          "start(WindowReference(w)) AS TMP_1",
+          "end(WindowReference(w)) AS TMP_2")
+      ),
+      term("select",
+        "string",
+        "+(CAST(AS(TMP_0, 'TMP_3')), CAST(1)) AS s1",
+        "+(CAST(AS(TMP_0, 'TMP_4')), CAST(3)) AS s2",
+        "TMP_1 AS x",
+        "TMP_1 AS x2",
+        "TMP_2 AS x3",
+        "TMP_2 AS TMP_5")
     )
 
     util.verifyTable(windowedTable, expected)
