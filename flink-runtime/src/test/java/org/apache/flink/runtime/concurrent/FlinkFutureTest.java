@@ -55,8 +55,8 @@ public class FlinkFutureTest extends TestLogger {
 		executor.shutdown();
 	}
 
-	@Test
-	public void testFutureApply() throws Exception {
+	@Test(timeout = 10000L)
+	public void testFutureApplyAsync() throws Exception {
 		int expectedValue = 42;
 
 		CompletableFuture<Integer> initialFuture = new FlinkCompletableFuture<>();
@@ -129,8 +129,8 @@ public class FlinkFutureTest extends TestLogger {
 		}
 	}
 
-	@Test
-	public void testExceptionally() throws ExecutionException, InterruptedException {
+	@Test(timeout = 10000L)
+	public void testExceptionallyAsync() throws ExecutionException, InterruptedException {
 		CompletableFuture<Integer> initialFuture = new FlinkCompletableFuture<>();
 		String exceptionMessage = "Foobar";
 
@@ -148,8 +148,8 @@ public class FlinkFutureTest extends TestLogger {
 		assertEquals(exceptionMessage, actualMessage);
 	}
 
-	@Test
-	public void testCompose() throws ExecutionException, InterruptedException {
+	@Test(timeout = 10000L)
+	public void testComposeAsync() throws ExecutionException, InterruptedException {
 		CompletableFuture<Integer> initialFuture = new FlinkCompletableFuture<>();
 
 		final int expectedValue = 42;
@@ -173,8 +173,8 @@ public class FlinkFutureTest extends TestLogger {
 		assertEquals(expectedValue, actualValue);
 	}
 
-	@Test
-	public void testCombine() throws ExecutionException, InterruptedException {
+	@Test(timeout = 10000L)
+	public void testCombineAsync() throws ExecutionException, InterruptedException {
 		CompletableFuture<Integer> leftFuture = new FlinkCompletableFuture<>();
 		CompletableFuture<String> rightFuture = new FlinkCompletableFuture<>();
 
@@ -197,8 +197,8 @@ public class FlinkFutureTest extends TestLogger {
 		assertEquals(expectedRightValue + expectedLeftValue, result);
 	}
 
-	@Test
-	public void testCombineLeftFailure() throws InterruptedException {
+	@Test(timeout = 10000L)
+	public void testCombineAsyncLeftFailure() throws InterruptedException {
 		CompletableFuture<Integer> leftFuture = new FlinkCompletableFuture<>();
 		CompletableFuture<String> rightFuture = new FlinkCompletableFuture<>();
 
@@ -224,8 +224,8 @@ public class FlinkFutureTest extends TestLogger {
 		}
 	}
 
-	@Test
-	public void testCombineRightFailure() throws ExecutionException, InterruptedException {
+	@Test(timeout = 10000L)
+	public void testCombineAsyncRightFailure() throws ExecutionException, InterruptedException {
 		CompletableFuture<Integer> leftFuture = new FlinkCompletableFuture<>();
 		CompletableFuture<String> rightFuture = new FlinkCompletableFuture<>();
 
@@ -260,8 +260,8 @@ public class FlinkFutureTest extends TestLogger {
 		assertEquals(new Integer(absentValue), initialFuture.getNow(absentValue));
 	}
 
-	@Test
-	public void testAccept() throws ExecutionException, InterruptedException {
+	@Test(timeout = 10000L)
+	public void testAcceptAsync() throws ExecutionException, InterruptedException {
 		CompletableFuture<Integer> initialFuture = new FlinkCompletableFuture<>();
 		final AtomicInteger atomicInteger = new AtomicInteger(0);
 		int expectedValue = 42;
@@ -280,8 +280,8 @@ public class FlinkFutureTest extends TestLogger {
 		assertEquals(expectedValue, atomicInteger.get());
 	}
 
-	@Test
-	public void testHandle() throws ExecutionException, InterruptedException {
+	@Test(timeout = 10000L)
+	public void testHandleAsync() throws ExecutionException, InterruptedException {
 		CompletableFuture<Integer> initialFuture = new FlinkCompletableFuture<>();
 		int expectedValue = 43;
 
@@ -301,8 +301,8 @@ public class FlinkFutureTest extends TestLogger {
 		assertEquals(String.valueOf(expectedValue), result.get());
 	}
 
-	@Test
-	public void testHandleException() throws ExecutionException, InterruptedException {
+	@Test(timeout = 10000L)
+	public void testHandleAsyncException() throws ExecutionException, InterruptedException {
 		CompletableFuture<Integer> initialFuture = new FlinkCompletableFuture<>();
 		String exceptionMessage = "foobar";
 
@@ -322,7 +322,7 @@ public class FlinkFutureTest extends TestLogger {
 		assertEquals(exceptionMessage, result.get());
 	}
 
-	@Test
+	@Test(timeout = 10000L)
 	public void testMultipleCompleteOperations() throws ExecutionException, InterruptedException {
 		CompletableFuture<Integer> initialFuture = new FlinkCompletableFuture<>();
 		int expectedValue = 42;
@@ -334,6 +334,124 @@ public class FlinkFutureTest extends TestLogger {
 		assertFalse(initialFuture.completeExceptionally(new TestException("foobar")));
 
 		assertEquals(new Integer(expectedValue), initialFuture.get());
+	}
+
+	@Test
+	public void testApply() throws ExecutionException, InterruptedException {
+		int expectedValue = 42;
+
+		CompletableFuture<Integer> initialFuture = new FlinkCompletableFuture<>();
+
+		Future<String> appliedFuture = initialFuture.thenApply(new ApplyFunction<Integer, String>() {
+			@Override
+			public String apply(Integer value) {
+				return String.valueOf(value);
+			}
+		});
+
+		initialFuture.complete(expectedValue);
+
+		assertEquals(String.valueOf(expectedValue), appliedFuture.get());
+	}
+
+	@Test
+	public void testAccept() throws ExecutionException, InterruptedException {
+		int expectedValue = 42;
+		Future<Integer> initialFuture = FlinkCompletableFuture.completed(expectedValue);
+		final AtomicInteger atomicInteger = new AtomicInteger(0);
+
+		Future<Void> result = initialFuture.thenAccept(new AcceptFunction<Integer>() {
+			@Override
+			public void accept(Integer value) {
+				atomicInteger.set(value);
+			}
+		});
+
+		result.get();
+
+		assertEquals(expectedValue, atomicInteger.get());
+	}
+
+	@Test
+	public void testExceptionally() throws ExecutionException, InterruptedException {
+		String exceptionMessage = "Foobar";
+		Future<Integer> initialFuture = FlinkCompletableFuture
+			.completedExceptionally(new TestException(exceptionMessage));
+
+
+		Future<String> recovered = initialFuture.exceptionally(new ApplyFunction<Throwable, String>() {
+			@Override
+			public String apply(Throwable value) {
+				return value.getMessage();
+			}
+		});
+
+		String actualMessage = recovered.get();
+
+		assertEquals(exceptionMessage, actualMessage);
+	}
+
+	@Test
+	public void testHandle() throws ExecutionException, InterruptedException {
+		int expectedValue = 43;
+		Future<Integer> initialFuture = FlinkCompletableFuture.completed(expectedValue);
+
+		Future<String> result = initialFuture.handle(new BiFunction<Integer, Throwable, String>() {
+			@Override
+			public String apply(Integer integer, Throwable throwable) {
+				if (integer != null) {
+					return String.valueOf(integer);
+				} else {
+					return throwable.getMessage();
+				}
+			}
+		});
+
+		assertEquals(String.valueOf(expectedValue), result.get());
+	}
+
+	@Test
+	public void testCompose() throws ExecutionException, InterruptedException {
+		CompletableFuture<Integer> initialFuture = new FlinkCompletableFuture<>();
+		final int expectedValue = 42;
+
+		Future<Integer> composedFuture = initialFuture.thenCompose(new ApplyFunction<Integer, Future<Integer>>() {
+			@Override
+			public Future<Integer> apply(Integer value) {
+				return FlinkFuture.supplyAsync(new Callable<Integer>() {
+					@Override
+					public Integer call() throws Exception {
+						return expectedValue;
+					}
+				}, executor);
+			}
+		});
+
+		initialFuture.complete(42);
+
+		int actualValue = composedFuture.get();
+
+		assertEquals(expectedValue, actualValue);
+	}
+
+	@Test
+	public void testCombine() throws ExecutionException, InterruptedException {
+		int expectedLeftValue = 1;
+		int expectedRightValue = 2;
+
+		Future<Integer> left = FlinkCompletableFuture.completed(expectedLeftValue);
+		Future<Integer> right = FlinkCompletableFuture.completed(expectedRightValue);
+
+		Future<Integer> sum = left.thenCombine(right, new BiFunction<Integer, Integer, Integer>() {
+			@Override
+			public Integer apply(Integer left, Integer right) {
+				return left + right;
+			}
+		});
+
+		int result = sum.get();
+
+		assertEquals(expectedLeftValue + expectedRightValue, result);
 	}
 
 	private static class TestException extends RuntimeException {
