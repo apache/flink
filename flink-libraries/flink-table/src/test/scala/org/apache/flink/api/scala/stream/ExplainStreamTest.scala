@@ -40,9 +40,12 @@ class ExplainStreamTest
       .toTable(tEnv, 'a, 'b)
       .filter("a % 2 = 0")
 
-    val result = tEnv.explain(table).replaceAll("\\r\\n", "\n")
+    val result = tEnv.explain(table)
+      .replaceAll("\\r\\n", "\n").replaceAll("Stage \\d+", "")
+
     val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testFilterStream0.out").mkString.replaceAll("\\r\\n", "\n")
+      "../../src/test/scala/resources/testFilterStream0.out").mkString
+      .replaceAll("\\r\\n", "\n").replaceAll("Stage \\d+", "")
     assertEquals(result, source)
   }
 
@@ -55,10 +58,12 @@ class ExplainStreamTest
     val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
     val table = table1.unionAll(table2)
 
-    val result = tEnv.explain(table).replaceAll("\\r\\n", "\n")
+    val result = tEnv.explain(table)
+      .replaceAll("\\r\\n", "\n").replaceAll("Stage \\d+", "")
+
     val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testUnionStream0.out").mkString.replaceAll("\\r\\n", "\n")
+      "../../src/test/scala/resources/testUnionStream0.out").mkString
+      .replaceAll("\\r\\n", "\n").replaceAll("Stage \\d+", "")
     assertEquals(result, source)
   }
-
 }
