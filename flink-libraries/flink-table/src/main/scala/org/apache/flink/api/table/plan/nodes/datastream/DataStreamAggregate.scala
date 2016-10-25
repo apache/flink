@@ -22,19 +22,21 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.table.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.plan.nodes.FlinkAggregate
-import org.apache.flink.api.table.plan.nodes.datastream.DataStreamAggregate.{createKeyedWindowedStream, createNonKeyedWindowedStream, transformToPropertyReads}
+import org.apache.flink.api.table.plan.nodes.datastream.DataStreamAggregate._
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil._
 import org.apache.flink.api.table.runtime.aggregate._
 import org.apache.flink.api.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.api.table.typeutils.{RowIntervalTypeInfo, RowTypeInfo, TimeIntervalTypeInfo, TypeConverter}
-import org.apache.flink.api.table.{FlinkTypeFactory, Row, StreamTableEnvironment}
+import org.apache.flink.api.table.{TableException, FlinkTypeFactory, Row, StreamTableEnvironment}
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream, DataStream, KeyedStream, WindowedStream}
+import org.apache.flink.streaming.api.functions.windowing.{WindowFunction, AllWindowFunction}
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
@@ -115,8 +117,6 @@ class DataStreamAggregate(
       getRowType,
       grouping)
 
-    val propertyReads = transformToPropertyReads(namedProperties.map(_.property))
-
     val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(
       tableEnv,
       // tell the input operator that this operator currently only supports Rows as input
@@ -148,7 +148,8 @@ class DataStreamAggregate(
         val aggOpName = s"groupBy: (${groupingToString(inputType, grouping)}), " +
           s"window: ($window), " +
           s"select: ($aggString)"
-        val aggregateFunction = new AggregateWindowFunction(propertyReads, groupReduceFunction)
+        val aggregateFunction =
+          createWindowAggregationFunction(window, namedProperties, groupReduceFunction)
 
         val keyedStream = mappedInput.keyBy(groupingKeys: _*)
 
@@ -164,7 +165,8 @@ class DataStreamAggregate(
       // global / non-keyed aggregation
       else {
         val aggOpName = s"window: ($window), select: ($aggString)"
-        val aggregateFunction = new AggregateAllWindowFunction(propertyReads, groupReduceFunction)
+        val aggregateFunction =
+          createAllWindowAggregationFunction(window, namedProperties, groupReduceFunction)
 
         val windowedStream = createNonKeyedWindowedStream(window, mappedInput)
           .asInstanceOf[AllWindowedStream[Row, DataStreamWindow]]
@@ -197,11 +199,69 @@ class DataStreamAggregate(
 
 object DataStreamAggregate {
 
-  private def transformToPropertyReads(namedProperties: Seq[WindowProperty])
-    : Array[WindowPropertyRead[_ <: Any]] =  namedProperties.map {
-      case WindowStart(_) => new WindowStartRead()
-      case WindowEnd(_) => new WindowEndRead()
-    }.toArray
+  private def createAllWindowAggregationFunction(
+      window: LogicalWindow,
+      properties: Seq[NamedWindowProperty],
+      aggFunction: RichGroupReduceFunction[Row, Row])
+    : AllWindowFunction[Row, Row, DataStreamWindow] = {
+
+    if (isTimeWindow(window)) {
+      val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
+      new AggregateAllTimeWindowFunction(aggFunction, startPos, endPos)
+        .asInstanceOf[AllWindowFunction[Row, Row, DataStreamWindow]]
+    } else {
+      new AggregateAllWindowFunction(aggFunction)
+    }
+
+  }
+
+  private def createWindowAggregationFunction(
+      window: LogicalWindow,
+      properties: Seq[NamedWindowProperty],
+      aggFunction: RichGroupReduceFunction[Row, Row])
+    : WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
+
+    if (isTimeWindow(window)) {
+      val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
+      new AggregateTimeWindowFunction(aggFunction, startPos, endPos)
+        .asInstanceOf[WindowFunction[Row, Row, Tuple, DataStreamWindow]]
+    } else {
+      new AggregateWindowFunction(aggFunction)
+    }
+
+  }
+
+  private def isTimeWindow(window: LogicalWindow) = {
+    window match {
+      case ProcessingTimeTumblingGroupWindow(_, size) => isTimeInterval(size.resultType)
+      case ProcessingTimeSlidingGroupWindow(_, size, _) => isTimeInterval(size.resultType)
+      case ProcessingTimeSessionGroupWindow(_, _) => true
+      case EventTimeTumblingGroupWindow(_, _, size) => isTimeInterval(size.resultType)
+      case EventTimeSlidingGroupWindow(_, _, size, _) => isTimeInterval(size.resultType)
+      case EventTimeSessionGroupWindow(_, _, _) => true
+    }
+  }
+
+  def computeWindowStartEndPropertyPos(properties: Seq[NamedWindowProperty])
+      : (Option[Int], Option[Int]) = {
+
+    val propPos = properties.foldRight((None: Option[Int], None: Option[Int], 0)) {
+      (p, x) => p match {
+        case NamedWindowProperty(name, prop) =>
+          prop match {
+            case WindowStart(_) if x._1.isDefined =>
+              throw new TableException("Duplicate WindowStart property encountered. This is a bug.")
+            case WindowStart(_) =>
+              (Some(x._3), x._2, x._3 - 1)
+            case WindowEnd(_) if x._2.isDefined =>
+              throw new TableException("Duplicate WindowEnd property encountered. This is a bug.")
+            case WindowEnd(_) =>
+              (x._1, Some(x._3), x._3 - 1)
+          }
+      }
+    }
+    (propPos._1, propPos._2)
+  }
 
   private def createKeyedWindowedStream(groupWindow: LogicalWindow, stream: KeyedStream[Row, Tuple])
     : WindowedStream[Row, Tuple, _ <: DataStreamWindow] = groupWindow match {

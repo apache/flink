@@ -18,25 +18,37 @@
 
 package org.apache.flink.api.table.runtime.aggregate
 
+import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.api.table.Row
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
 
 /**
-  * Adds properties to the end of a row before it emits it to the final collector.
-  * The collector assumes that the row has placeholders at the end that can be filled.
+  * Adds TimeWindow properties to specified fields of a row before it emits the row to a wrapped
+  * collector.
   */
-class PropertyCollector(properties: Array[WindowPropertyRead[_ <: Any]]) extends Collector[Row] {
-  var finalCollector: Collector[Row] = _
+class TimeWindowPropertyCollector(windowStartOffset: Option[Int], windowEndOffset: Option[Int])
+    extends Collector[Row] {
+
+  var wrappedCollector: Collector[Row] = _
+  var timeWindow: TimeWindow = _
 
   override def collect(record: Row): Unit = {
-    var i: Int = 0
-    while (i < properties.length) {
-      val idx = record.productArity - properties.length + i
-      record.setField(idx, properties(i).get())
-      i = i + 1
+
+    val lastFieldPos = record.productArity - 1
+
+    if (windowStartOffset.isDefined) {
+      record.setField(
+        lastFieldPos + windowStartOffset.get,
+        SqlFunctions.internalToTimestamp(timeWindow.getStart))
     }
-    finalCollector.collect(record)
+    if (windowEndOffset.isDefined) {
+      record.setField(
+        lastFieldPos + windowEndOffset.get,
+        SqlFunctions.internalToTimestamp(timeWindow.getEnd))
+    }
+    wrappedCollector.collect(record)
   }
 
-  override def close(): Unit = finalCollector.close()
+  override def close(): Unit = wrappedCollector.close()
 }

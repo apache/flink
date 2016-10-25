@@ -25,22 +25,33 @@ import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.table.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction
-import org.apache.flink.streaming.api.windowing.windows.Window
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
 
-class AggregateWindowFunction(groupReduceFunction: RichGroupReduceFunction[Row, Row])
-  extends RichWindowFunction[Row, Row, Tuple, Window] {
+class AggregateTimeWindowFunction(
+    groupReduceFunction: RichGroupReduceFunction[Row, Row],
+    windowStartPos: Option[Int],
+    windowEndPos: Option[Int])
+  extends RichWindowFunction[Row, Row, Tuple, TimeWindow] {
+
+  private var collector: TimeWindowPropertyCollector = _
 
   override def open(parameters: Configuration): Unit = {
     groupReduceFunction.open(parameters)
+    collector = new TimeWindowPropertyCollector(windowStartPos, windowEndPos)
   }
 
   override def apply(
       key: Tuple,
-      window: Window,
+      window: TimeWindow,
       input: Iterable[Row],
       out: Collector[Row]) : Unit = {
 
-    groupReduceFunction.reduce(input, out)
+    // set collector and window
+    collector.wrappedCollector = out
+    collector.timeWindow = window
+
+    // call wrapped reduce function with property collector
+    groupReduceFunction.reduce(input, collector)
   }
 }
