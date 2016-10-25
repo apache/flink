@@ -49,6 +49,11 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 		this.oneInputOperator = operator;
 	}
 
+	public void processElement(IN value, long timestamp) throws Exception {
+		processElement(new StreamRecord<>(value, timestamp));
+	}
+
+
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		operator.setKeyContextElement1(element);
 		oneInputOperator.processElement(element);
@@ -59,6 +64,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 			operator.setKeyContextElement1(element);
 			oneInputOperator.processElement(element);
 		}
+	}
+
+	public void processWatermark(long watermark) throws Exception {
+		oneInputOperator.processWatermark(new Watermark(watermark));
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {
