@@ -24,6 +24,7 @@ import akka.dispatch.Mapper;
 import akka.dispatch.Recover;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.ApplyFunction;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.util.Preconditions;
@@ -140,6 +141,11 @@ public class FlinkFuture<T> implements Future<T> {
 	}
 
 	@Override
+	public <R> Future<R> thenApply(final ApplyFunction<? super T, ? extends R> applyFunction) {
+		return thenApplyAsync(applyFunction, Executors.directExecutor());
+	}
+
+	@Override
 	public Future<Void> thenAcceptAsync(final AcceptFunction<? super T> acceptFunction, Executor executor) {
 		Preconditions.checkNotNull(scalaFuture);
 		Preconditions.checkNotNull(acceptFunction);
@@ -158,6 +164,11 @@ public class FlinkFuture<T> implements Future<T> {
 	}
 
 	@Override
+	public Future<Void> thenAccept(AcceptFunction<? super T> acceptFunction) {
+		return thenAcceptAsync(acceptFunction, Executors.directExecutor());
+	}
+
+	@Override
 	public <R> Future<R> exceptionallyAsync(final ApplyFunction<Throwable, ? extends R> exceptionallyFunction, Executor executor) {
 		Preconditions.checkNotNull(scalaFuture);
 		Preconditions.checkNotNull(exceptionallyFunction);
@@ -171,6 +182,11 @@ public class FlinkFuture<T> implements Future<T> {
 		}, createExecutionContext(executor));
 
 		return new FlinkFuture<>(recoveredFuture);
+	}
+
+	@Override
+	public <R> Future<R> exceptionally(ApplyFunction<Throwable, ? extends R> exceptionallyFunction) {
+		return exceptionallyAsync(exceptionallyFunction, Executors.directExecutor());
 	}
 
 	@Override
@@ -215,6 +231,11 @@ public class FlinkFuture<T> implements Future<T> {
 	}
 
 	@Override
+	public <R> Future<R> thenCompose(ApplyFunction<? super T, ? extends Future<R>> composeFunction) {
+		return thenComposeAsync(composeFunction, Executors.directExecutor());
+	}
+
+	@Override
 	public <R> Future<R> handleAsync(final BiFunction<? super T, Throwable, ? extends R> biFunction, Executor executor) {
 		Preconditions.checkNotNull(scalaFuture);
 		Preconditions.checkNotNull(biFunction);
@@ -245,6 +266,11 @@ public class FlinkFuture<T> implements Future<T> {
 		}, executionContext);
 
 		return new FlinkFuture<>(recoveredFuture);
+	}
+
+	@Override
+	public <R> Future<R> handle(BiFunction<? super T, Throwable, ? extends R> biFunction) {
+		return handleAsync(biFunction, Executors.directExecutor());
 	}
 
 	@Override
@@ -286,6 +312,11 @@ public class FlinkFuture<T> implements Future<T> {
 		}, executionContext);
 
 		return new FlinkFuture<>(result);
+	}
+
+	@Override
+	public <U, R> Future<R> thenCombine(Future<U> other, BiFunction<? super T, ? super U, ? extends R> biFunction) {
+		return thenCombineAsync(other, biFunction, Executors.directExecutor());
 	}
 
 	//-----------------------------------------------------------------------------------
