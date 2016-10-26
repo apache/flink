@@ -35,13 +35,15 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT>extends AbstractStr
 	private final TwoInputStreamOperator<IN1, IN2, OUT> twoInputOperator;
 
 	public TwoInputStreamOperatorTestHarness(TwoInputStreamOperator<IN1, IN2, OUT> operator) throws Exception {
-		this(operator, DEFAULT_MAX_PARALLELISM);
+		this(operator, 1, 1, 0);
 	}
 		
 	public TwoInputStreamOperatorTestHarness(
 			TwoInputStreamOperator<IN1, IN2, OUT> operator,
-			int maxParallelism) throws Exception {
-		super(operator, maxParallelism);
+			int maxParallelism,
+			int numSubtasks,
+			int subtaskIndex) throws Exception {
+		super(operator, maxParallelism, numSubtasks, subtaskIndex);
 
 		this.twoInputOperator = operator;
 	}

@@ -66,8 +66,6 @@ import static org.mockito.Mockito.*;
  */
 public class AbstractStreamOperatorTestHarness<OUT> {
 
-	protected final static int DEFAULT_MAX_PARALLELISM = 1;
-
 	final protected StreamOperator<OUT> operator;
 
 	final protected ConcurrentLinkedQueue<Object> outputList;
@@ -79,6 +77,8 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	final protected TestProcessingTimeService processingTimeService;
 
 	final protected StreamTask<?, ?> mockTask;
+
+	final Environment environment;
 
 	ClosableRegistry closableRegistry;
 
@@ -97,7 +97,9 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 	public AbstractStreamOperatorTestHarness(
 			StreamOperator<OUT> operator,
-			int maxParallelism) throws Exception {
+			int maxParallelism,
+			int numSubtasks,
+			int subtaskIndex) throws Exception {
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<>();
 		Configuration underlyingConfig = new Configuration();
@@ -107,7 +109,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		this.closableRegistry = new ClosableRegistry();
 		this.checkpointLock = new Object();
 
-		final Environment env = new MockEnvironment(
+		environment = new MockEnvironment(
 				"MockTask",
 				3 * 1024 * 1024,
 				new MockInputSplitProvider(),
@@ -115,7 +117,8 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 				underlyingConfig,
 				executionConfig,
 				maxParallelism,
-				1, 0);
+				numSubtasks,
+				subtaskIndex);
 
 		mockTask = mock(StreamTask.class);
 		processingTimeService = new TestProcessingTimeService();
@@ -125,7 +128,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
 		when(mockTask.getConfiguration()).thenReturn(config);
 		when(mockTask.getTaskConfiguration()).thenReturn(underlyingConfig);
-		when(mockTask.getEnvironment()).thenReturn(env);
+		when(mockTask.getEnvironment()).thenReturn(environment);
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
 		when(mockTask.getUserCodeClassLoader()).thenReturn(this.getClass().getClassLoader());
 		when(mockTask.getCancelables()).thenReturn(this.closableRegistry);
@@ -159,9 +162,9 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 					final Collection<OperatorStateHandle> stateHandles = (Collection<OperatorStateHandle>) invocationOnMock.getArguments()[1];
 					OperatorStateBackend osb;
 					if (null == stateHandles) {
-						osb = stateBackend.createOperatorStateBackend(env, operator.getClass().getSimpleName());
+						osb = stateBackend.createOperatorStateBackend(environment, operator.getClass().getSimpleName());
 					} else {
-						osb = stateBackend.restoreOperatorStateBackend(env, operator.getClass().getSimpleName(), stateHandles);
+						osb = stateBackend.restoreOperatorStateBackend(environment, operator.getClass().getSimpleName(), stateHandles);
 					}
 					mockTask.getCancelables().registerClosable(osb);
 					return osb;
