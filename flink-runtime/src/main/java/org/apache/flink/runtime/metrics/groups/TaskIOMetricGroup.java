@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.MeterView;
 
 /**
  * Metric group that contains shareable pre-defined IO-related metrics. The metrics registration is
@@ -30,12 +32,19 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	private final Counter numBytesInLocal;
 	private final Counter numBytesInRemote;
 
+	private final Meter numBytesInRateLocal;
+	private final Meter numBytesInRateRemote;
+	private final Meter numBytesOutRate;
+
 	public TaskIOMetricGroup(TaskMetricGroup parent) {
 		super(parent);
 
 		this.numBytesOut = counter("numBytesOut");
 		this.numBytesInLocal = counter("numBytesInLocal");
 		this.numBytesInRemote = counter("numBytesInRemote");
+		this.numBytesOutRate = meter("numBytesOutPerSecond", new MeterView(numBytesOut, 60));
+		this.numBytesInRateLocal = meter("numBytesInLocalPerSecond", new MeterView(numBytesInLocal, 60));
+		this.numBytesInRateRemote = meter("numBytesInRemotePerSecond", new MeterView(numBytesInRemote, 60));
 	}
 
 	public Counter getNumBytesOutCounter() {
@@ -48,5 +57,17 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
 	public Counter getNumBytesInRemoteCounter() {
 		return numBytesInRemote;
+	}
+
+	public Meter getNumBytesInRateLocalMeter() {
+		return numBytesInRateLocal;
+	}
+
+	public Meter getNumBytesInRateRemoteMeter() {
+		return numBytesInRateRemote;
+	}
+
+	public Meter getNumBytesOutRateMeter() {
+		return numBytesOutRate;
 	}
 }
