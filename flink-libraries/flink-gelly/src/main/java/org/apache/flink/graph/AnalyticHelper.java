@@ -18,11 +18,13 @@
 
 package org.apache.flink.graph;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -74,6 +76,10 @@ extends RichOutputFormat<T> {
 	 * @return The value of the accumulator with the given name
 	 */
 	public <A> A getAccumulator(ExecutionEnvironment env, String accumulatorName) {
-		return env.getLastJobExecutionResult().getAccumulatorResult(id + SEPARATOR + accumulatorName);
+		JobExecutionResult result = env.getLastJobExecutionResult();
+
+		Preconditions.checkNotNull(result, "No result found for job, was execute() called before getting the result?");
+
+		return result.getAccumulatorResult(id + SEPARATOR + accumulatorName);
 	}
 }

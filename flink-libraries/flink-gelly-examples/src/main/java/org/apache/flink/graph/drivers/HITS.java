@@ -69,7 +69,7 @@ public class HITS {
 				" scores for every vertex in a directed graph. A good \"hub\" links to good \"authorities\"" +
 				" and good \"authorities\" are linked from good \"hubs\".", 80))
 			.appendNewLine()
-			.appendln("usage: HITS --input <csv | rmat [options]> --output <print | hash | csv [options]>")
+			.appendln("usage: HITS --input <csv | rmat> --output <print | hash | csv>")
 			.appendNewLine()
 			.appendln("options:")
 			.appendln("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]")
@@ -104,7 +104,7 @@ public class HITS {
 					parameters.get("input_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
 
 				GraphCsvReader reader = Graph
-					.fromCsvReader(parameters.get("input_filename"), env)
+					.fromCsvReader(parameters.getRequired("input_filename"), env)
 						.ignoreCommentsEdges("#")
 						.lineDelimiterEdges(lineDelimiter)
 						.fieldDelimiterEdges(fieldDelimiter);
@@ -157,17 +157,19 @@ public class HITS {
 
 		switch (parameters.get("output", "")) {
 			case "print":
+				System.out.println();
 				for (Object e: hits.collect()) {
 					System.out.println(((Result)e).toVerboseString());
 				}
 				break;
 
 			case "hash":
+				System.out.println();
 				System.out.println(DataSetUtils.checksumHashCode(hits));
 				break;
 
 			case "csv":
-				String filename = parameters.get("output_filename");
+				String filename = parameters.getRequired("output_filename");
 
 				String lineDelimiter = StringEscapeUtils.unescapeJava(
 					parameters.get("output_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
@@ -177,7 +179,7 @@ public class HITS {
 
 				hits.writeAsCsv(filename, lineDelimiter, fieldDelimiter);
 
-				env.execute();
+				env.execute("HITS");
 				break;
 			default:
 				throw new ProgramParametrizationException(getUsage("invalid output type"));
@@ -186,6 +188,7 @@ public class HITS {
 		JobExecutionResult result = env.getLastJobExecutionResult();
 
 		NumberFormat nf = NumberFormat.getInstance();
+		System.out.println();
 		System.out.println("Execution runtime: " + nf.format(result.getNetRuntime()) + " ms");
 	}
 }
