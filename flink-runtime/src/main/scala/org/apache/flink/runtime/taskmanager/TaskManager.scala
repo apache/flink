@@ -30,13 +30,14 @@ import _root_.akka.pattern.ask
 import _root_.akka.util.Timeout
 import grizzled.slf4j.Logger
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.memory.{HeapMemorySegment, HybridMemorySegment, MemorySegmentFactory, MemoryType}
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
+import org.apache.flink.runtime.akka.{AkkaUtils, DefaultQuarantineHandler, QuarantineMonitor}
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobCache, BlobClient, BlobService}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
@@ -1781,6 +1782,18 @@ object TaskManager {
       taskManagerSystem.actorOf(
         Props(classOf[ProcessReaper], taskManager, LOG.logger, RUNTIME_FAILURE_RETURN_CODE),
         "TaskManager_Process_Reaper")
+
+      if (configuration.getBoolean(TaskManagerOptions.EXIT_ON_FATAL_AKKA_ERROR)) {
+        val quarantineHandler = new DefaultQuarantineHandler(
+          Time.milliseconds(AkkaUtils.getTimeout(configuration).toMillis),
+          RUNTIME_FAILURE_RETURN_CODE,
+          LOG.logger)
+
+        LOG.debug("Starting TaskManager quarantine monitor")
+        taskManagerSystem.actorOf(
+          Props(classOf[QuarantineMonitor], quarantineHandler, LOG.logger)
+        )
+      }
 
       // if desired, start the logging daemon that periodically logs the
       // memory usage information
