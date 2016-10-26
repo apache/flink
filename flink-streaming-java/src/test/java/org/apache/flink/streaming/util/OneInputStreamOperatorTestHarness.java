@@ -17,7 +17,6 @@
  */
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -37,13 +36,13 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	private final OneInputStreamOperator<IN, OUT> oneInputOperator;
 
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) throws Exception {
-		this(operator, new ExecutionConfig());
+		this(operator, DEFAULT_MAX_PARALLELISM);
 	}
 
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
-			ExecutionConfig executionConfig) throws Exception {
-		super(operator, executionConfig);
+			int maxParallelism) throws Exception {
+		super(operator, maxParallelism);
 
 		this.oneInputOperator = operator;
 	}

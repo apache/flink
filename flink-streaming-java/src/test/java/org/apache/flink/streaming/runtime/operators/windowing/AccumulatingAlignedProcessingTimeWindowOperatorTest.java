@@ -431,7 +431,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							windowSize, windowSize);
 
 			OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
+					new OneInputStreamOperatorTestHarness<>(op);
 
 			testHarness.setup();
 			testHarness.open();
@@ -467,7 +467,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 							windowSize, windowSize);
 
-			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
+			testHarness = new OneInputStreamOperatorTestHarness<>(op);
 
 			testHarness.setup();
 			testHarness.restore(state);
@@ -514,7 +514,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							windowSize, windowSlide);
 
 			OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
+					new OneInputStreamOperatorTestHarness<>(op);
 
 			testHarness.setProcessingTime(0);
 
@@ -551,7 +551,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 					IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 					windowSize, windowSlide);
 
-			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
+			testHarness = new OneInputStreamOperatorTestHarness<>(op);
 
 			testHarness.setup();
 			testHarness.restore(state);
@@ -604,7 +604,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE, 50, 50);
 
 			OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-					new KeyedOneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), identitySelector, BasicTypeInfo.INT_TYPE_INFO);
+					new KeyedOneInputStreamOperatorTestHarness<>(op, identitySelector, BasicTypeInfo.INT_TYPE_INFO);
 
 			testHarness.open();
 

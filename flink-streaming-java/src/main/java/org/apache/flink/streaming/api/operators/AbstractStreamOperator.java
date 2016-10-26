@@ -265,7 +265,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 				this.keyedStateBackend = container.createKeyedStateBackend(
 						keySerializer,
-						container.getConfiguration().getNumberOfKeyGroups(getUserCodeClassloader()),
+						container.getEnvironment().getTaskInfo().getNumberOfKeyGroups(),
 						subTaskKeyGroupRange);
 
 				this.keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getExecutionConfig());
