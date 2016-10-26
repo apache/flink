@@ -73,7 +73,7 @@ Running Gelly Examples
 
 The Gelly library and examples jars are provided in the [Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads")
 in the folder **opt** (for versions older than Flink 1.2 these can be manually downloaded from
-[Maven Central](http://search.maven.org/#search|ga|1|flink%20gelly).
+[Maven Central](http://search.maven.org/#search|ga|1|flink%20gelly)).
 
 To run the Gelly examples the **flink-gelly** (for Java) or **flink-gelly-scala** (for Scala) jar must be copied to
 Flink's **lib** directory.
@@ -83,21 +83,29 @@ cp opt/flink-gelly_*.jar lib/
 cp opt/flink-gelly-scala_*.jar lib/
 ~~~
 
-Gelly's examples jar includes both drivers for the library methods as well as additional example algorithms. After
-configuring and starting the cluster, list the available algorithm classes:
+Gelly's examples jar includes drivers for each of the library methods. After configuring and starting the cluster, list
+the available algorithm classes:
 
 ~~~bash
 ./bin/start-cluster.sh
 ./bin/flink run opt/flink-gelly-examples_*.jar
 ~~~
 
-The Gelly drivers can generate [RMat](http://www.cs.cmu.edu/~christos/PUBLICATIONS/siam04.pdf) graph data or read the
-edge list from a CSV file. Each node in a cluster must have access to the input file. Calculate graph metrics on a
-directed generated graph:
+The Gelly drivers can generate graph data or read the edge list from a CSV file (each node in a cluster must have access
+to the input file). The algorithm description, available inputs and outputs, and configuration are displayed when an
+algorithm is selected. Print usage for [JaccardIndex](./library_methods.html#jaccard-index):
 
 ~~~bash
-./bin/flink run -c org.apache.flink.graph.drivers.GraphMetrics opt/flink-gelly-examples_*.jar \
-    --directed true --input rmat
+./bin/flink run opt/flink-gelly-examples_*.jar --algorithm JaccardIndex
+~~~
+
+Display [graph metrics](./library_methods.html#metric) for a million vertex graph:
+
+~~~bash
+./bin/flink run opt/flink-gelly-examples_*.jar \
+    --algorithm GraphMetrics --order directed \
+    --input RMatGraph --type integer --scale 20 --simplify directed \
+    --output print
 ~~~
 
 The size of the graph is adjusted by the *\-\-scale* and *\-\-edge_factor* parameters. The
@@ -111,15 +119,19 @@ Run a few algorithms and monitor the job progress in Flink's Web UI:
 ~~~bash
 wget -O - http://snap.stanford.edu/data/bigdata/communities/com-lj.ungraph.txt.gz | gunzip -c > com-lj.ungraph.txt
 
-./bin/flink run -q -c org.apache.flink.graph.drivers.GraphMetrics opt/flink-gelly-examples_*.jar \
-    --directed true --input csv --type integer --input_filename com-lj.ungraph.txt --input_field_delimiter '\t'
+./bin/flink run -q opt/flink-gelly-examples_*.jar \
+    --algorithm GraphMetrics --order undirected \
+    --input CSV --type integer --simplify undirected --input_filename com-lj.ungraph.txt --input_field_delimiter $'\t' \
+    --output print
 
-./bin/flink run -q -c org.apache.flink.graph.drivers.ClusteringCoefficient opt/flink-gelly-examples_*.jar \
-    --directed true --input csv --type integer --input_filename com-lj.ungraph.txt  --input_field_delimiter '\t' \
+./bin/flink run -q opt/flink-gelly-examples_*.jar \
+    --algorithm ClusteringCoefficient --order undirected \
+    --input CSV --type integer --simplify undirected --input_filename com-lj.ungraph.txt --input_field_delimiter $'\t' \
     --output hash
 
-./bin/flink run -q -c org.apache.flink.graph.drivers.JaccardIndex opt/flink-gelly-examples_*.jar \
-    --input csv --type integer --simplify true --input_filename com-lj.ungraph.txt --input_field_delimiter '\t' \
+./bin/flink run -q opt/flink-gelly-examples_*.jar \
+    --algorithm JaccardIndex \
+    --input CSV --type integer --simplify undirected --input_filename com-lj.ungraph.txt --input_field_delimiter $'\t' \
     --output hash
 ~~~
 
