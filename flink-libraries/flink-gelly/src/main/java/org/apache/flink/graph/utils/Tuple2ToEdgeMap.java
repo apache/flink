@@ -16,20 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.generator;
+package org.apache.flink.graph.utils;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.graph.Edge;
+import org.apache.flink.types.NullValue;
 
-public abstract class AbstractGraphGenerator<K, VV, EV>
-implements GraphGenerator<K, VV, EV> {
+/**
+ * Create an Edge from a Tuple2.
+ *
+ * The new edge's value is set to {@link NullValue}.
+ *
+ * @param <K> edge ID type
+ */
+@ForwardedFields("f0; f1")
+public class Tuple2ToEdgeMap<K> implements MapFunction<Tuple2<K, K>, Edge<K, NullValue>> {
 
-	// Optional configuration
-	protected int parallelism = PARALLELISM_DEFAULT;
+	private static final long serialVersionUID = 1L;
+
+	private Edge<K, NullValue> edge = new Edge<>(null, null, NullValue.getInstance());
 
 	@Override
-	public GraphGenerator<K,VV,EV> setParallelism(int parallelism) {
-		this.parallelism = parallelism;
-
-		return this;
+	public Edge<K, NullValue> map(Tuple2<K, K> tuple) {
+		edge.f0 = tuple.f0;
+		edge.f1 = tuple.f1;
+		return edge;
 	}
+
 }
