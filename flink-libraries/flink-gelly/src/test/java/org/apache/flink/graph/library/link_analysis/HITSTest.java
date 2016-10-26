@@ -19,10 +19,10 @@
 package org.apache.flink.graph.library.link_analysis;
 
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.Utils.ChecksumHashCode;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.library.link_analysis.HITS.Result;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
@@ -79,8 +79,12 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 			throws Exception {
-		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(directedRMatGraph
-			.run(new HITS<LongValue, NullValue, NullValue>(0.000001)));
+		DataSet<Result<LongValue>> hits = directedRMatGraph
+			.run(new HITS<LongValue, NullValue, NullValue>(0.000001));
+
+		Checksum checksum = new ChecksumHashCode<Result<LongValue>>()
+			.run(hits)
+			.execute();
 
 		assertEquals(902, checksum.getCount());
 		assertEquals(0x000001cbba6dbcd0L, checksum.getChecksum());
