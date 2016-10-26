@@ -76,7 +76,7 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 				trigger,
 				allowedLateness);
 
-		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keyType, 1);
+		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keyType);
 	}
 
 	/**

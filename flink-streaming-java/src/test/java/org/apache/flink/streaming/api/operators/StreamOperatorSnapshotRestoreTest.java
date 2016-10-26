@@ -68,7 +68,9 @@ public class StreamOperatorSnapshotRestoreTest {
 							}
 						},
 						TypeInformation.of(Integer.class),
-						MAX_PARALLELISM);
+						MAX_PARALLELISM,
+						1 /* num subtasks */,
+						0 /* subtask index */);
 
 		testHarness.open();
 
@@ -92,7 +94,9 @@ public class StreamOperatorSnapshotRestoreTest {
 					}
 				},
 				TypeInformation.of(Integer.class),
-				MAX_PARALLELISM);
+				MAX_PARALLELISM,
+				1 /* num subtasks */,
+				0 /* subtask index */);
 
 		testHarness.initializeState(handles);
 

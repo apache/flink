@@ -65,8 +65,10 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 			OneInputStreamOperator<IN, OUT> operator,
 			final KeySelector<IN, K> keySelector,
 			TypeInformation<K> keyType,
-			int maxParallelism) throws Exception {
-		super(operator, maxParallelism);
+			int maxParallelism,
+			int numSubtasks,
+			int subtaskIndex) throws Exception {
+		super(operator, maxParallelism, numSubtasks, subtaskIndex);
 
 		ClosureCleaner.clean(keySelector, false);
 		config.setStatePartitioner(0, keySelector);
@@ -80,7 +82,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 			OneInputStreamOperator<IN, OUT> operator,
 			final KeySelector<IN, K> keySelector,
 			TypeInformation<K> keyType) throws Exception {
-		this(operator, keySelector, keyType, DEFAULT_MAX_PARALLELISM);
+		this(operator, keySelector, keyType, 1, 1, 0);
 	}
 
 	private void setupMockTaskCreateKeyedBackend() {

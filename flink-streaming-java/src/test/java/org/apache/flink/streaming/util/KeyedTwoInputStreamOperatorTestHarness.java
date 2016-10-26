@@ -57,8 +57,10 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 			KeySelector<IN1, K> keySelector1,
 			KeySelector<IN2, K> keySelector2,
 			TypeInformation<K> keyType,
-			int maxParallelism) throws Exception {
-		super(operator, maxParallelism);
+			int maxParallelism,
+			int numSubtasks,
+			int subtaskIndex) throws Exception {
+		super(operator, maxParallelism, numSubtasks, subtaskIndex);
 
 		ClosureCleaner.clean(keySelector1, false);
 		ClosureCleaner.clean(keySelector2, false);
@@ -74,7 +76,7 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 			final KeySelector<IN1, K> keySelector1,
 			final KeySelector<IN2, K> keySelector2,
 			TypeInformation<K> keyType) throws Exception {
-		this(operator, keySelector1, keySelector2, keyType, DEFAULT_MAX_PARALLELISM);
+		this(operator, keySelector1, keySelector2, keyType, 1, 1, 0);
 	}
 
 	private void setupMockTaskCreateKeyedBackend() {

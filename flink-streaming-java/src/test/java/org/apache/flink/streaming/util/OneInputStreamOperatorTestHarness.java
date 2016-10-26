@@ -36,13 +36,15 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	private final OneInputStreamOperator<IN, OUT> oneInputOperator;
 
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) throws Exception {
-		this(operator, DEFAULT_MAX_PARALLELISM);
+		this(operator, 1, 1, 0);
 	}
 
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
-			int maxParallelism) throws Exception {
-		super(operator, maxParallelism);
+			int maxParallelism,
+			int numTubtasks,
+			int subtaskIndex) throws Exception {
+		super(operator, maxParallelism, numTubtasks, subtaskIndex);
 
 		this.oneInputOperator = operator;
 	}
