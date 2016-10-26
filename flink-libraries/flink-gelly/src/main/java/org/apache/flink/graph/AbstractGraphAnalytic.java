@@ -38,14 +38,12 @@ implements GraphAnalytic<K, VV, EV, T> {
 	public GraphAnalytic<K, VV, EV, T> run(Graph<K, VV, EV> input)
 			throws Exception {
 		env = input.getContext();
-		return null;
+		return this;
 	}
 
 	@Override
 	public T execute()
 			throws Exception {
-		Preconditions.checkNotNull(env);
-
 		env.execute();
 		return getResult();
 	}
@@ -54,7 +52,6 @@ implements GraphAnalytic<K, VV, EV, T> {
 	public T execute(String jobName)
 			throws Exception {
 		Preconditions.checkNotNull(jobName);
-		Preconditions.checkNotNull(env);
 
 		env.execute(jobName);
 		return getResult();

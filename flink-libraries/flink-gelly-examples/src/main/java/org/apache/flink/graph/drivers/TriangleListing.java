@@ -116,7 +116,7 @@ public class TriangleListing {
 					parameters.get("input_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
 
 				GraphCsvReader reader = Graph
-					.fromCsvReader(parameters.get("input_filename"), env)
+					.fromCsvReader(parameters.getRequired("input_filename"), env)
 						.ignoreCommentsEdges("#")
 						.lineDelimiterEdges(lineDelimiter)
 						.fieldDelimiterEdges(fieldDelimiter);
@@ -284,6 +284,7 @@ public class TriangleListing {
 
 		switch (parameters.get("output", "")) {
 			case "print":
+				System.out.println();
 				if (directedAlgorithm) {
 					for (Object e: tl.collect()) {
 						org.apache.flink.graph.library.clustering.directed.TriangleListing.Result result =
@@ -296,11 +297,12 @@ public class TriangleListing {
 				break;
 
 			case "hash":
+				System.out.println();
 				System.out.println(DataSetUtils.checksumHashCode(tl));
 				break;
 
 			case "csv":
-				String filename = parameters.get("output_filename");
+				String filename = parameters.getRequired("output_filename");
 
 				String lineDelimiter = StringEscapeUtils.unescapeJava(
 					parameters.get("output_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
@@ -324,6 +326,7 @@ public class TriangleListing {
 		JobExecutionResult result = env.getLastJobExecutionResult();
 
 		NumberFormat nf = NumberFormat.getInstance();
+		System.out.println();
 		System.out.println("Execution runtime: " + nf.format(result.getNetRuntime()) + " ms");
 	}
 }
