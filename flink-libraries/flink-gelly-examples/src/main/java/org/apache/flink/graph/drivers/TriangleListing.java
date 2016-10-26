@@ -18,315 +18,125 @@
 
 package org.apache.flink.graph.drivers;
 
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.text.WordUtils;
-import org.apache.commons.math3.random.JDKRandomGenerator;
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.CsvOutputFormat;
-import org.apache.flink.api.java.utils.DataSetUtils;
-import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAnalytic;
-import org.apache.flink.graph.GraphCsvReader;
-import org.apache.flink.graph.asm.translate.TranslateGraphIds;
-import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
-import org.apache.flink.graph.generator.RMatGraph;
-import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
-import org.apache.flink.graph.generator.random.RandomGenerableFactory;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.LongValue;
-import org.apache.flink.types.NullValue;
-import org.apache.flink.types.StringValue;
-
-import java.text.NumberFormat;
+import org.apache.flink.graph.asm.result.PrintableResult;
+import org.apache.flink.graph.drivers.output.CSV;
+import org.apache.flink.graph.drivers.output.Hash;
+import org.apache.flink.graph.drivers.output.Print;
+import org.apache.flink.graph.drivers.parameter.BooleanParameter;
+import org.apache.flink.graph.drivers.parameter.ChoiceParameter;
+import org.apache.flink.graph.drivers.parameter.LongParameter;
+import org.apache.flink.types.CopyableValue;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
- * Driver for the library implementation of Triangle Listing.
- *
- * This example reads a simple directed or undirected graph from a CSV file or
- * generates an RMat graph with the given scale and edge factor then lists
- * all triangles.
+ * Driver for directed and undirected triangle listing algorithm and analytic.
  *
  * @see org.apache.flink.graph.library.clustering.directed.TriangleListing
+ * @see org.apache.flink.graph.library.clustering.directed.TriadicCensus
  * @see org.apache.flink.graph.library.clustering.undirected.TriangleListing
+ * @see org.apache.flink.graph.library.clustering.undirected.TriadicCensus
  */
-public class TriangleListing {
+public class TriangleListing<K extends Comparable<K> & CopyableValue<K>, VV, EV>
+extends SimpleDriver<PrintableResult>
+implements Driver<K, VV, EV>, CSV, Hash, Print {
 
-	private static final int DEFAULT_SCALE = 10;
+	private static final String DIRECTED = "directed";
 
-	private static final int DEFAULT_EDGE_FACTOR = 16;
+	private static final String UNDIRECTED = "undirected";
 
-	private static final boolean DEFAULT_TRIADIC_CENSUS = true;
+	private ChoiceParameter order = new ChoiceParameter(this, "order")
+		.addChoices(DIRECTED, UNDIRECTED);
 
-	private static final boolean DEFAULT_CLIP_AND_FLIP = true;
+	private BooleanParameter sortTriangleVertices = new BooleanParameter(this, "sort_triangle_vertices");
 
-	private static String getUsage(String message) {
-		return new StrBuilder()
-			.appendNewLine()
-			.appendln(WordUtils.wrap("Lists all triangles in a graph.", 80))
-			.appendNewLine()
-			.appendln(WordUtils.wrap("This algorithm returns tuples containing the vertex IDs for each triangle and" +
-				" for directed graphs a bitmask indicating the presence of the six potential connecting edges.", 80))
-			.appendNewLine()
-			.appendln("usage: TriangleListing --directed <true | false> [--triadic_census <true | false>] --input <csv | rmat> --output <print | hash | csv>")
-			.appendNewLine()
-			.appendln("options:")
-			.appendln("  --input csv --type <integer | string> [--simplify <true | false>] --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]")
-			.appendln("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]")
-			.appendNewLine()
-			.appendln("  --output print")
-			.appendln("  --output hash")
-			.appendln("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]")
-			.appendNewLine()
-			.appendln("Usage error: " + message)
-			.toString();
+	private BooleanParameter computeTriadicCensus = new BooleanParameter(this, "triadic_census");
+
+	private LongParameter littleParallelism = new LongParameter(this, "little_parallelism")
+		.setDefaultValue(PARALLELISM_DEFAULT);
+
+	private GraphAnalytic<K, VV, EV, ? extends PrintableResult> triadicCensus;
+
+	@Override
+	public String getName() {
+		return this.getClass().getSimpleName();
 	}
 
-	public static void main(String[] args) throws Exception {
-		// Set up the execution environment
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().enableObjectReuse();
+	@Override
+	public String getShortDescription() {
+		return "list triangles";
+	}
 
-		ParameterTool parameters = ParameterTool.fromArgs(args);
-		env.getConfig().setGlobalJobParameters(parameters);
+	@Override
+	public String getLongDescription() {
+		return WordUtils.wrap(new StrBuilder()
+			.appendln("List all triangles graph.")
+			.appendNewLine()
+			.append("The algorithm result contains three vertex IDs. For the directed algorithm " +
+				"the result contains an additional bitmask indicating the presence of the six " +
+				"potential connecting edges.")
+			.toString(), 80);
+	}
 
-		if (! parameters.has("directed")) {
-			throw new ProgramParametrizationException(getUsage("must declare execution mode as '--directed true' or '--directed false'"));
-		}
-		boolean directedAlgorithm = parameters.getBoolean("directed");
+	@Override
+	public void plan(Graph<K, VV, EV> graph) throws Exception {
+		int lp = littleParallelism.getValue().intValue();
 
-		int little_parallelism = parameters.getInt("little_parallelism", PARALLELISM_DEFAULT);
-		boolean triadic_census = parameters.getBoolean("triadic_census", DEFAULT_TRIADIC_CENSUS);
+		switch (order.getValue()) {
+			case DIRECTED:
+				result = graph
+					.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<K, VV, EV>()
+						.setSortTriangleVertices(sortTriangleVertices.getValue())
+						.setLittleParallelism(lp));
 
-		GraphAnalytic tc = null;
-		DataSet tl;
-
-		switch (parameters.get("input", "")) {
-			case "csv": {
-				String lineDelimiter = StringEscapeUtils.unescapeJava(
-					parameters.get("input_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
-
-				String fieldDelimiter = StringEscapeUtils.unescapeJava(
-					parameters.get("input_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
-
-				GraphCsvReader reader = Graph
-					.fromCsvReader(parameters.getRequired("input_filename"), env)
-						.ignoreCommentsEdges("#")
-						.lineDelimiterEdges(lineDelimiter)
-						.fieldDelimiterEdges(fieldDelimiter);
-
-				switch (parameters.get("type", "")) {
-					case "integer": {
-						Graph<LongValue, NullValue, NullValue> graph = reader
-							.keyType(LongValue.class);
-
-						if (directedAlgorithm) {
-							if (parameters.getBoolean("simplify", false)) {
-								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>()
-										.setParallelism(little_parallelism));
-							}
-
-							if (triadic_census) {
-								tc = graph
-									.run(new org.apache.flink.graph.library.clustering.directed.TriadicCensus<LongValue, NullValue, NullValue>()
-										.setLittleParallelism(little_parallelism));
-							}
-							tl = graph
-								.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-						} else {
-							if (parameters.getBoolean("simplify", false)) {
-								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false)
-										.setParallelism(little_parallelism));
-							}
-
-							if (triadic_census) {
-								tc = graph
-									.run(new org.apache.flink.graph.library.clustering.undirected.TriadicCensus<LongValue, NullValue, NullValue>()
-										.setLittleParallelism(little_parallelism));
-							}
-							tl = graph
-								.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-						}
-					} break;
-
-					case "string": {
-						Graph<StringValue, NullValue, NullValue> graph = reader
-							.keyType(StringValue.class);
-
-						if (directedAlgorithm) {
-							if (parameters.getBoolean("simplify", false)) {
-								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<StringValue, NullValue, NullValue>()
-										.setParallelism(little_parallelism));
-							}
-
-							if (triadic_census) {
-								tc = graph
-									.run(new org.apache.flink.graph.library.clustering.directed.TriadicCensus<StringValue, NullValue, NullValue>()
-										.setLittleParallelism(little_parallelism));
-							}
-							tl = graph
-								.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<StringValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-						} else {
-							if (parameters.getBoolean("simplify", false)) {
-								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<StringValue, NullValue, NullValue>(false)
-										.setParallelism(little_parallelism));
-							}
-
-							if (triadic_census) {
-								tc = graph
-									.run(new org.apache.flink.graph.library.clustering.undirected.TriadicCensus<StringValue, NullValue, NullValue>()
-										.setLittleParallelism(little_parallelism));
-							}
-							tl = graph
-								.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<StringValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-						}
-					} break;
-
-					default:
-						throw new ProgramParametrizationException(getUsage("invalid CSV type"));
-				}
-
-
-			} break;
-
-			case "rmat": {
-				int scale = parameters.getInt("scale", DEFAULT_SCALE);
-				int edgeFactor = parameters.getInt("edge_factor", DEFAULT_EDGE_FACTOR);
-
-				RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
-
-				long vertexCount = 1L << scale;
-				long edgeCount = vertexCount * edgeFactor;
-
-				Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
-					.generate();
-
-				if (directedAlgorithm) {
-					if (scale > 32) {
-						Graph<LongValue, NullValue, NullValue> simpleGraph = graph
-							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>()
-								.setParallelism(little_parallelism));
-
-						if (triadic_census) {
-							tc = simpleGraph
-								.run(new org.apache.flink.graph.library.clustering.directed.TriadicCensus<LongValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-						}
-						tl = simpleGraph
-							.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>()
-								.setLittleParallelism(little_parallelism));
-					} else {
-						Graph<LongValue, NullValue, NullValue> simpleGraph = graph
-							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>()
-								.setParallelism(little_parallelism));
-
-						if (triadic_census) {
-							tc = simpleGraph
-								.run(new org.apache.flink.graph.library.clustering.directed.TriadicCensus<LongValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-						}
-						tl = simpleGraph
-							.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>()
-								.setLittleParallelism(little_parallelism));
-					}
-				} else {
-					boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
-
-					if (scale > 32) {
-						Graph<LongValue, NullValue, NullValue> simpleGraph = graph
-							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(clipAndFlip)
-								.setParallelism(little_parallelism));
-
-						if (triadic_census) {
-							tc = simpleGraph
-								.run(new org.apache.flink.graph.library.clustering.undirected.TriadicCensus<LongValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-						}
-						tl = simpleGraph
-							.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>()
-								.setLittleParallelism(little_parallelism));
-					} else {
-						Graph<IntValue, NullValue, NullValue> simpleGraph = graph
-							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToUnsignedIntValue())
-								.setParallelism(little_parallelism))
-							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<IntValue, NullValue, NullValue>(clipAndFlip)
-								.setParallelism(little_parallelism));
-
-						if (triadic_census) {
-							tc = simpleGraph
-								.run(new org.apache.flink.graph.library.clustering.undirected.TriadicCensus<IntValue, NullValue, NullValue>()
-									.setLittleParallelism(little_parallelism));
-						}
-						tl = simpleGraph
-							.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<IntValue, NullValue, NullValue>()
-								.setLittleParallelism(little_parallelism));
-					}
-				}
-			} break;
-
-			default:
-				throw new ProgramParametrizationException(getUsage("invalid input type"));
-		}
-
-		switch (parameters.get("output", "")) {
-			case "print":
-				System.out.println();
-				if (directedAlgorithm) {
-					for (Object e: tl.collect()) {
-						org.apache.flink.graph.library.clustering.directed.TriangleListing.Result result =
-							(org.apache.flink.graph.library.clustering.directed.TriangleListing.Result) e;
-						System.out.println(result.toPrintableString());
-					}
-				} else {
-					tl.print();
+				if (computeTriadicCensus.getValue()) {
+					triadicCensus = graph
+						.run(new org.apache.flink.graph.library.clustering.directed.TriadicCensus<K, VV, EV>()
+							.setLittleParallelism(lp));
 				}
 				break;
 
-			case "hash":
-				System.out.println();
-				System.out.println(DataSetUtils.checksumHashCode(tl));
+			case UNDIRECTED:
+				result = graph
+					.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<K, VV, EV>()
+						.setSortTriangleVertices(sortTriangleVertices.getValue())
+						.setLittleParallelism(lp));
+
+				if (computeTriadicCensus.getValue()) {
+					triadicCensus = graph
+						.run(new org.apache.flink.graph.library.clustering.undirected.TriadicCensus<K, VV, EV>()
+							.setLittleParallelism(lp));
+				}
 				break;
-
-			case "csv":
-				String filename = parameters.getRequired("output_filename");
-
-				String lineDelimiter = StringEscapeUtils.unescapeJava(
-					parameters.get("output_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
-
-				String fieldDelimiter = StringEscapeUtils.unescapeJava(
-					parameters.get("output_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
-
-				tl.writeAsCsv(filename, lineDelimiter, fieldDelimiter);
-
-				env.execute();
-				break;
-			default:
-				throw new ProgramParametrizationException(getUsage("invalid output type"));
 		}
+	}
 
-		if (tc != null) {
+	@Override
+	public void hash(String executionName) throws Exception {
+		super.hash(executionName);
+		printAnalytics();
+	}
+
+	@Override
+	public void print(String executionName) throws Exception {
+		super.print(executionName);
+		printAnalytics();
+	}
+
+	@Override
+	public void writeCSV(String filename, String lineDelimiter, String fieldDelimiter) {
+		super.writeCSV(filename, lineDelimiter, fieldDelimiter);
+		printAnalytics();
+	}
+
+	private void printAnalytics() {
+		if (computeTriadicCensus.getValue()) {
 			System.out.print("Triadic census:\n  ");
-			System.out.println(tc.getResult().toString().replace(";", "\n "));
+			System.out.println(triadicCensus.getResult().toPrintableString().replace(";", "\n "));
 		}
-
-		JobExecutionResult result = env.getLastJobExecutionResult();
-
-		NumberFormat nf = NumberFormat.getInstance();
-		System.out.println();
-		System.out.println("Execution runtime: " + nf.format(result.getNetRuntime()) + " ms");
 	}
 }

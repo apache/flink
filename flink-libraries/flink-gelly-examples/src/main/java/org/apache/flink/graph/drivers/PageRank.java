@@ -19,26 +19,28 @@
 package org.apache.flink.graph.drivers;
 
 import org.apache.commons.lang3.text.StrBuilder;
-import org.apache.commons.lang3.text.WordUtils;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.drivers.output.CSV;
-import org.apache.flink.graph.drivers.output.Hash;
 import org.apache.flink.graph.drivers.output.Print;
-import org.apache.flink.graph.drivers.parameter.LongParameter;
-import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
-import org.apache.flink.types.CopyableValue;
-
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
+import org.apache.flink.graph.drivers.parameter.DoubleParameter;
+import org.apache.flink.graph.drivers.parameter.IterationConvergence;
+import org.apache.flink.graph.library.link_analysis.PageRank.Result;
 
 /**
- * Driver for {@link org.apache.flink.graph.library.similarity.JaccardIndex}.
+ * @see org.apache.flink.graph.library.link_analysis.PageRank
  */
-public class JaccardIndex<K extends CopyableValue<K>, VV, EV>
+public class PageRank<K, VV, EV>
 extends SimpleDriver<Result<K>>
-implements Driver<K, VV, EV>, CSV, Hash, Print {
+implements Driver<K, VV, EV>, CSV, Print {
 
-	private LongParameter littleParallelism = new LongParameter(this, "little_parallelism")
-		.setDefaultValue(PARALLELISM_DEFAULT);
+	private static final int DEFAULT_ITERATIONS = 10;
+
+	private DoubleParameter dampingFactor = new DoubleParameter(this, "damping_factor")
+		.setDefaultValue(0.85)
+		.setMinimumValue(0.0, false)
+		.setMaximumValue(1.0, false);
+
+	private IterationConvergence iterationConvergence = new IterationConvergence(this, DEFAULT_ITERATIONS);
 
 	@Override
 	public String getName() {
@@ -47,28 +49,26 @@ implements Driver<K, VV, EV>, CSV, Hash, Print {
 
 	@Override
 	public String getShortDescription() {
-		return "similarity score as fraction of common neighbors";
+		return "score vertices by the number and quality of incoming links";
 	}
 
 	@Override
 	public String getLongDescription() {
-		return WordUtils.wrap(new StrBuilder()
-			.appendln("Jaccard Index measures the similarity between vertex neighborhoods and " +
-				"is computed as the number of shared neighbors divided by the number of " +
-				"distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all " +
-				"neighbors are shared).")
+		return new StrBuilder()
+			.appendln("PageRank computes a per-vertex score which is the sum of PageRank scores " +
+				"transmitted over in-edges. Each vertex's score is divided evenly among " +
+				"out-edges. High-scoring vertices are linked to by other high-scoring vertices.")
 			.appendNewLine()
-			.append("The result contains two vertex IDs, the number of shared neighbors, and " +
-				"the number of distinct neighbors.")
-			.toString(), 80);
+			.append("The result contains the vertex ID and PageRank score.")
+			.toString();
 	}
 
 	@Override
 	public void plan(Graph<K, VV, EV> graph) throws Exception {
-		int lp = littleParallelism.getValue().intValue();
-
 		result = graph
-			.run(new org.apache.flink.graph.library.similarity.JaccardIndex<K, VV, EV>()
-				.setLittleParallelism(lp));
+			.run(new org.apache.flink.graph.library.link_analysis.PageRank<K, VV, EV>(
+				dampingFactor.getValue(),
+				iterationConvergence.getValue().iterations,
+				iterationConvergence.getValue().convergenceThreshold));
 	}
 }

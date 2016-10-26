@@ -28,7 +28,6 @@ public class Usage {
 
 	private static final Class[] DRIVERS = new Class[]{
 		org.apache.flink.graph.drivers.ClusteringCoefficient.class,
-		org.apache.flink.graph.drivers.Graph500.class,
 		org.apache.flink.graph.drivers.GraphMetrics.class,
 		org.apache.flink.graph.drivers.HITS.class,
 		org.apache.flink.graph.drivers.JaccardIndex.class,
@@ -36,7 +35,6 @@ public class Usage {
 	};
 
 	private static final Class[] EXAMPLES = new Class[]{
-		org.apache.flink.graph.examples.ConnectedComponents.class,
 		org.apache.flink.graph.examples.EuclideanGraphWeighing.class,
 		org.apache.flink.graph.examples.GSASingleSourceShortestPaths.class,
 		org.apache.flink.graph.examples.IncrementalSSSP.class,

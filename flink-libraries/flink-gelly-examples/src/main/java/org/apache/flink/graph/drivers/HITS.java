@@ -18,177 +18,51 @@
 
 package org.apache.flink.graph.drivers;
 
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.text.WordUtils;
-import org.apache.commons.math3.random.JDKRandomGenerator;
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.CsvOutputFormat;
-import org.apache.flink.api.java.utils.DataSetUtils;
-import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphCsvReader;
-import org.apache.flink.graph.asm.simple.directed.Simplify;
-import org.apache.flink.graph.asm.translate.TranslateGraphIds;
-import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
-import org.apache.flink.graph.generator.RMatGraph;
-import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
-import org.apache.flink.graph.generator.random.RandomGenerableFactory;
+import org.apache.flink.graph.drivers.output.CSV;
+import org.apache.flink.graph.drivers.output.Print;
+import org.apache.flink.graph.drivers.parameter.IterationConvergence;
 import org.apache.flink.graph.library.link_analysis.HITS.Result;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.LongValue;
-import org.apache.flink.types.NullValue;
-import org.apache.flink.types.StringValue;
-
-import java.text.NumberFormat;
 
 /**
- * Driver for the library implementation of HITS (Hubs and Authorities).
- *
- * This example reads a simple, undirected graph from a CSV file or generates
- * an undirected RMat graph with the given scale and edge factor then calculates
- * hub and authority scores for each vertex.
- *
- * @see org.apache.flink.graph.library.link_analysis.HITS
+ * Driver for {@link org.apache.flink.graph.library.link_analysis.HITS}.
  */
-public class HITS {
+public class HITS<K, VV, EV>
+extends SimpleDriver<Result<K>>
+implements Driver<K, VV, EV>, CSV, Print {
 
 	private static final int DEFAULT_ITERATIONS = 10;
 
-	private static final int DEFAULT_SCALE = 10;
+	private IterationConvergence iterationConvergence = new IterationConvergence(this, DEFAULT_ITERATIONS);
 
-	private static final int DEFAULT_EDGE_FACTOR = 16;
-
-	private static String getUsage(String message) {
-		return new StrBuilder()
-			.appendNewLine()
-			.appendln(WordUtils.wrap("Hyperlink-Induced Topic Search computes two interdependent" +
-				" scores for every vertex in a directed graph. A good \"hub\" links to good \"authorities\"" +
-				" and good \"authorities\" are linked from good \"hubs\".", 80))
-			.appendNewLine()
-			.appendln("usage: HITS --input <csv | rmat> --output <print | hash | csv>")
-			.appendNewLine()
-			.appendln("options:")
-			.appendln("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]")
-			.appendln("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]")
-			.appendNewLine()
-			.appendln("  --output print")
-			.appendln("  --output hash")
-			.appendln("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]")
-			.appendNewLine()
-			.appendln("Usage error: " + message)
-			.toString();
+	@Override
+	public String getName() {
+		return this.getClass().getSimpleName();
 	}
 
-	public static void main(String[] args) throws Exception {
-		// Set up the execution environment
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().enableObjectReuse();
+	@Override
+	public String getShortDescription() {
+		return "score vertices as hubs and authorities";
+	}
 
-		ParameterTool parameters = ParameterTool.fromArgs(args);
-		env.getConfig().setGlobalJobParameters(parameters);
+	@Override
+	public String getLongDescription() {
+		return WordUtils.wrap(new StrBuilder()
+			.appendln("Hyperlink-Induced Topic Search computes two interdependent scores for " +
+				"each vertex in a directed graph. A good \"hub\" links to good \"authorities\" " +
+				"and good \"authorities\" are linked to from good \"hubs\".")
+			.appendNewLine()
+			.append("The result contains the vertex ID, hub score, and authority score.")
+			.toString(), 80);
+	}
 
-		int iterations = parameters.getInt("iterations", DEFAULT_ITERATIONS);
-
-		DataSet hits;
-
-		switch (parameters.get("input", "")) {
-			case "csv": {
-				String lineDelimiter = StringEscapeUtils.unescapeJava(
-					parameters.get("input_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
-
-				String fieldDelimiter = StringEscapeUtils.unescapeJava(
-					parameters.get("input_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
-
-				GraphCsvReader reader = Graph
-					.fromCsvReader(parameters.getRequired("input_filename"), env)
-						.ignoreCommentsEdges("#")
-						.lineDelimiterEdges(lineDelimiter)
-						.fieldDelimiterEdges(fieldDelimiter);
-
-				switch (parameters.get("type", "")) {
-					case "integer": {
-						hits = reader
-							.keyType(LongValue.class)
-							.run(new org.apache.flink.graph.library.link_analysis.HITS<LongValue, NullValue, NullValue>(iterations));
-					} break;
-
-					case "string": {
-						hits = reader
-							.keyType(StringValue.class)
-							.run(new org.apache.flink.graph.library.link_analysis.HITS<StringValue, NullValue, NullValue>(iterations));
-					} break;
-
-					default:
-						throw new ProgramParametrizationException(getUsage("invalid CSV type"));
-				}
-				} break;
-
-			case "rmat": {
-				int scale = parameters.getInt("scale", DEFAULT_SCALE);
-				int edgeFactor = parameters.getInt("edge_factor", DEFAULT_EDGE_FACTOR);
-
-				RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
-
-				long vertexCount = 1L << scale;
-				long edgeCount = vertexCount * edgeFactor;
-
-				Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
-					.generate();
-
-				if (scale > 32) {
-					hits = graph
-						.run(new Simplify<LongValue, NullValue, NullValue>())
-						.run(new org.apache.flink.graph.library.link_analysis.HITS<LongValue, NullValue, NullValue>(iterations));
-				} else {
-					hits = graph
-						.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToUnsignedIntValue()))
-						.run(new Simplify<IntValue, NullValue, NullValue>())
-						.run(new org.apache.flink.graph.library.link_analysis.HITS<IntValue, NullValue, NullValue>(iterations));
-				}
-				} break;
-
-			default:
-				throw new ProgramParametrizationException(getUsage("invalid input type"));
-		}
-
-		switch (parameters.get("output", "")) {
-			case "print":
-				System.out.println();
-				for (Object e: hits.collect()) {
-					System.out.println(((Result)e).toPrintableString());
-				}
-				break;
-
-			case "hash":
-				System.out.println();
-				System.out.println(DataSetUtils.checksumHashCode(hits));
-				break;
-
-			case "csv":
-				String filename = parameters.getRequired("output_filename");
-
-				String lineDelimiter = StringEscapeUtils.unescapeJava(
-					parameters.get("output_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
-
-				String fieldDelimiter = StringEscapeUtils.unescapeJava(
-					parameters.get("output_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
-
-				hits.writeAsCsv(filename, lineDelimiter, fieldDelimiter);
-
-				env.execute("HITS");
-				break;
-			default:
-				throw new ProgramParametrizationException(getUsage("invalid output type"));
-		}
-
-		JobExecutionResult result = env.getLastJobExecutionResult();
-
-		NumberFormat nf = NumberFormat.getInstance();
-		System.out.println();
-		System.out.println("Execution runtime: " + nf.format(result.getNetRuntime()) + " ms");
+	@Override
+	public void plan(Graph<K, VV, EV> graph) throws Exception {
+		result = graph
+			.run(new org.apache.flink.graph.library.link_analysis.HITS<K, VV, EV>(
+				iterationConvergence.getValue().iterations,
+				iterationConvergence.getValue().convergenceThreshold));
 	}
 }
