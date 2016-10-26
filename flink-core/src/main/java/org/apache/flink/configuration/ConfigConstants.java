@@ -329,6 +329,16 @@ public final class ConfigConstants {
 	 */
 	public static final String CONTAINERIZED_TASK_MANAGER_ENV_PREFIX = "containerized.taskmanager.env.";
 
+	/**
+	 * Whether the quarantine monitor for task managers shall be started. The quarantine monitor
+	 * shuts down the actor system if it detects that it has quarantined another actor system
+	 * or if it has been quarantined by another actor system.
+	 *
+	 * @deprecated Only introduced in 1.1.4 to not change the default behaviour
+	 */
+	@Deprecated
+	public static final String ENABLE_QUARANTINE_MONITOR = "taskmanager.exit-on-fatal-akka-error";
+
 	
 	// ------------------------ YARN Configuration ------------------------
 
