@@ -16,23 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph;
+package org.apache.flink.graph.asm.dataset;
 
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.operators.CustomUnaryOperation;
 
 /**
- * A {@code GraphAnalytic} is similar to a {@link GraphAlgorithm} but is terminal
- * and results are retrieved via accumulators. A Flink program has a single
- * point of execution. A {@code GraphAnalytic} defers execution to the user to
- * allow composing multiple analytics and algorithms into a single program.
+ * A {@code DataSetAnalytic} is similar to a {@link CustomUnaryOperation} but
+ * is terminal and results are retrieved via accumulators. A Flink program has
+ * a single point of execution. A {@code DataSetAnalytic} defers execution to
+ * the user to allow composing multiple analytics and algorithms into a single
+ * program.
  *
- * @param <K> key type
- * @param <VV> vertex value type
- * @param <EV> edge value type
- * @param <T> the return type
+ * @param <T> element type
+ * @param <R> the return type
  */
-public interface GraphAnalytic<K, VV, EV, T> {
+public interface DataSetAnalytic<T, R> {
 
 	/**
 	 * This method must be called after the program has executed:
@@ -42,7 +42,7 @@ public interface GraphAnalytic<K, VV, EV, T> {
 	 *
 	 * @return the result
 	 */
-	T getResult();
+	R getResult();
 
 	/**
 	 * Execute the program and return the result.
@@ -50,7 +50,7 @@ public interface GraphAnalytic<K, VV, EV, T> {
 	 * @return the result
 	 * @throws Exception
 	 */
-	T execute() throws Exception;
+	R execute() throws Exception;
 
 	/**
 	 * Execute the program and return the result.
@@ -59,16 +59,16 @@ public interface GraphAnalytic<K, VV, EV, T> {
 	 * @return the result
 	 * @throws Exception
 	 */
-	T execute(String jobName) throws Exception;
+	R execute(String jobName) throws Exception;
 
 	/**
-	 * All {@code GraphAnalytic} processing must be terminated by an
-	 * {@link OutputFormat}. Rather than obtained via accumulators rather than
+	 * All {@code DataSetAnalytic} processing must be terminated by an
+	 * {@link OutputFormat} and obtained via accumulators rather than
 	 * returned by a {@link DataSet}.
 	 *
-	 * @param input input graph
+	 * @param input input dataset
 	 * @return this
 	 * @throws Exception
 	 */
-	GraphAnalytic<K, VV, EV, T> run(Graph<K, VV, EV> input) throws Exception;
+	DataSetAnalytic<T, R> run(DataSet<T> input) throws Exception;
 }
