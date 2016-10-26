@@ -40,6 +40,8 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.directed.EdgeSourceDegrees;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
+import org.apache.flink.graph.asm.result.PrintableResult;
+import org.apache.flink.graph.asm.result.UnaryResult;
 import org.apache.flink.graph.library.link_analysis.Functions.SumScore;
 import org.apache.flink.graph.library.link_analysis.PageRank.Result;
 import org.apache.flink.graph.utils.GraphUtils;
@@ -500,7 +502,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Tuple2<T, DoubleValue> {
+	extends Tuple2<T, DoubleValue>
+	implements PrintableResult, UnaryResult<T> {
 		public static final int HASH_SEED = 0x4010af29;
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
@@ -518,7 +521,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			return f1;
 		}
 
-		public String toVerboseString() {
+		@Override
+		public String toPrintableString() {
 			return "Vertex ID: " + getVertexId0()
 				+ ", PageRank score: " + getPageRankScore();
 		}

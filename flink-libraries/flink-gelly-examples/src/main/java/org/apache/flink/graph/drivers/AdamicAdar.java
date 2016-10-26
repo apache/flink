@@ -22,20 +22,19 @@ import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.drivers.output.CSV;
-import org.apache.flink.graph.drivers.output.Hash;
 import org.apache.flink.graph.drivers.output.Print;
 import org.apache.flink.graph.drivers.parameter.LongParameter;
-import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
+import org.apache.flink.graph.library.similarity.AdamicAdar.Result;
 import org.apache.flink.types.CopyableValue;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
- * Driver for {@link org.apache.flink.graph.library.similarity.JaccardIndex}.
+ * Driver for {@link org.apache.flink.graph.library.similarity.AdamicAdar}.
  */
-public class JaccardIndex<K extends CopyableValue<K>, VV, EV>
+public class AdamicAdar<K extends CopyableValue<K>, VV, EV>
 extends SimpleDriver<Result<K>>
-implements Driver<K, VV, EV>, CSV, Hash, Print {
+implements Driver<K, VV, EV>, CSV, Print {
 
 	private LongParameter littleParallelism = new LongParameter(this, "little_parallelism")
 		.setDefaultValue(PARALLELISM_DEFAULT);
@@ -47,19 +46,17 @@ implements Driver<K, VV, EV>, CSV, Hash, Print {
 
 	@Override
 	public String getShortDescription() {
-		return "similarity score as fraction of common neighbors";
+		return "similarity score weighted by centerpoint degree";
 	}
 
 	@Override
 	public String getLongDescription() {
 		return WordUtils.wrap(new StrBuilder()
-			.appendln("Jaccard Index measures the similarity between vertex neighborhoods and " +
-				"is computed as the number of shared neighbors divided by the number of " +
-				"distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all " +
-				"neighbors are shared).")
+			.appendln("Adamic-Adar measures the similarity between vertex neighborhoods and is " +
+				"computed as the sum of the inverse logarithm of centerpoint degree over shared " +
+				"neighbors.")
 			.appendNewLine()
-			.append("The result contains two vertex IDs, the number of shared neighbors, and " +
-				"the number of distinct neighbors.")
+			.append("The algorithm result contains two vertex IDs and the similarity score.")
 			.toString(), 80);
 	}
 
@@ -68,7 +65,7 @@ implements Driver<K, VV, EV>, CSV, Hash, Print {
 		int lp = littleParallelism.getValue().intValue();
 
 		result = graph
-			.run(new org.apache.flink.graph.library.similarity.JaccardIndex<K, VV, EV>()
+			.run(new org.apache.flink.graph.library.similarity.AdamicAdar<K, VV, EV>()
 				.setLittleParallelism(lp));
 	}
 }

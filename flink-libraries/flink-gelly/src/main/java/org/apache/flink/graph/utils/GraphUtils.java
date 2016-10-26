@@ -20,7 +20,10 @@ package org.apache.flink.graph.utils;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.types.LongValue;
 
 import static org.apache.flink.api.java.typeutils.ValueTypeInfo.LONG_VALUE_TYPE_INFO;
@@ -62,7 +65,7 @@ public class GraphUtils {
 	 * @param <O> output type
 	 */
 	public static class MapTo<I, O>
-	implements MapFunction<I, O> {
+	implements MapFunction<I, O>, ResultTypeQueryable<O> {
 		private final O value;
 
 		/**
@@ -77,6 +80,11 @@ public class GraphUtils {
 		@Override
 		public O map(I o) throws Exception {
 			return value;
+		}
+
+		@Override
+		public TypeInformation<O> getProducedType() {
+			return (TypeInformation<O>)TypeExtractor.createTypeInfo(value.getClass());
 		}
 	}
 
