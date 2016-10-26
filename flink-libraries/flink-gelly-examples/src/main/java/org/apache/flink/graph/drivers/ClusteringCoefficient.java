@@ -87,6 +87,8 @@ public class ClusteringCoefficient {
 			.appendln("  --output print")
 			.appendln("  --output hash")
 			.appendln("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]")
+			.appendNewLine()
+			.appendln("Usage error: " + message)
 			.toString();
 	}
 
@@ -96,6 +98,7 @@ public class ClusteringCoefficient {
 		env.getConfig().enableObjectReuse();
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
+		env.getConfig().setGlobalJobParameters(parameters);
 
 		if (! parameters.has("directed")) {
 			throw new ProgramParametrizationException(getUsage("must declare execution mode as '--directed true' or '--directed false'"));
@@ -131,7 +134,8 @@ public class ClusteringCoefficient {
 						if (directedAlgorithm) {
 							if (parameters.getBoolean("simplify", false)) {
 								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>());
+									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>()
+										.setParallelism(little_parallelism));
 							}
 
 							gcc = graph
@@ -146,7 +150,8 @@ public class ClusteringCoefficient {
 						} else {
 							if (parameters.getBoolean("simplify", false)) {
 								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false));
+									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false)
+										.setParallelism(little_parallelism));
 							}
 
 							gcc = graph
@@ -168,7 +173,8 @@ public class ClusteringCoefficient {
 						if (directedAlgorithm) {
 							if (parameters.getBoolean("simplify", false)) {
 								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<StringValue, NullValue, NullValue>());
+									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<StringValue, NullValue, NullValue>()
+										.setParallelism(little_parallelism));
 							}
 
 							gcc = graph
@@ -183,7 +189,8 @@ public class ClusteringCoefficient {
 						} else {
 							if (parameters.getBoolean("simplify", false)) {
 								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<StringValue, NullValue, NullValue>(false));
+									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<StringValue, NullValue, NullValue>(false)
+										.setParallelism(little_parallelism));
 							}
 
 							gcc = graph

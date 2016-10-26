@@ -44,6 +44,8 @@ import org.apache.flink.types.StringValue;
 
 import java.text.NumberFormat;
 
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
+
 /**
  * Driver for the library implementation of Triangle Listing.
  *
@@ -79,6 +81,8 @@ public class TriangleListing {
 			.appendln("  --output print")
 			.appendln("  --output hash")
 			.appendln("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]")
+			.appendNewLine()
+			.appendln("Usage error: " + message)
 			.toString();
 	}
 
@@ -88,10 +92,14 @@ public class TriangleListing {
 		env.getConfig().enableObjectReuse();
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
+		env.getConfig().setGlobalJobParameters(parameters);
+
 		if (! parameters.has("directed")) {
 			throw new ProgramParametrizationException(getUsage("must declare execution mode as '--directed true' or '--directed false'"));
 		}
 		boolean directedAlgorithm = parameters.getBoolean("directed");
+
+		int little_parallelism = parameters.getInt("little_parallelism", PARALLELISM_DEFAULT);
 
 		DataSet tl;
 
@@ -117,19 +125,23 @@ public class TriangleListing {
 						if (directedAlgorithm) {
 							if (parameters.getBoolean("simplify", false)) {
 								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>());
+									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>()
+										.setParallelism(little_parallelism));
 							}
 
 							tl = graph
-								.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>());
+								.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>()
+									.setLittleParallelism(little_parallelism));
 						} else {
 							if (parameters.getBoolean("simplify", false)) {
 								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false));
+									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false)
+										.setParallelism(little_parallelism));
 							}
 
 							tl = graph
-								.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>());
+								.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>()
+									.setLittleParallelism(little_parallelism));
 						}
 					} break;
 
@@ -140,19 +152,23 @@ public class TriangleListing {
 						if (directedAlgorithm) {
 							if (parameters.getBoolean("simplify", false)) {
 								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<StringValue, NullValue, NullValue>());
+									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<StringValue, NullValue, NullValue>()
+										.setParallelism(little_parallelism));
 							}
 
 							tl = graph
-								.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<StringValue, NullValue, NullValue>());
+								.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<StringValue, NullValue, NullValue>()
+									.setLittleParallelism(little_parallelism));
 						} else {
 							if (parameters.getBoolean("simplify", false)) {
 								graph = graph
-									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<StringValue, NullValue, NullValue>(false));
+									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<StringValue, NullValue, NullValue>(false)
+										.setParallelism(little_parallelism));
 							}
 
 							tl = graph
-								.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<StringValue, NullValue, NullValue>());
+								.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<StringValue, NullValue, NullValue>()
+									.setLittleParallelism(little_parallelism));
 						}
 					} break;
 
@@ -178,13 +194,18 @@ public class TriangleListing {
 				if (directedAlgorithm) {
 					if (scale > 32) {
 						tl = graph
-							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>())
-							.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>());
+							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>()
+								.setParallelism(little_parallelism))
+							.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>()
+								.setLittleParallelism(little_parallelism));
 					} else {
 						tl = graph
-							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToUnsignedIntValue()))
-							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<IntValue, NullValue, NullValue>())
-							.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<IntValue, NullValue, NullValue>());
+							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToUnsignedIntValue())
+								.setParallelism(little_parallelism))
+							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<IntValue, NullValue, NullValue>()
+								.setParallelism(little_parallelism))
+							.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<IntValue, NullValue, NullValue>()
+								.setLittleParallelism(little_parallelism));
 					}
 				} else {
 					boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
@@ -194,13 +215,18 @@ public class TriangleListing {
 
 					if (scale > 32) {
 						tl = graph
-							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(clipAndFlip))
-							.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>());
+							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(clipAndFlip)
+								.setParallelism(little_parallelism))
+							.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>()
+								.setLittleParallelism(little_parallelism));
 					} else {
 						tl = graph
-							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToUnsignedIntValue()))
-							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<IntValue, NullValue, NullValue>(clipAndFlip))
-							.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<IntValue, NullValue, NullValue>());
+							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToUnsignedIntValue())
+								.setParallelism(little_parallelism))
+							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<IntValue, NullValue, NullValue>(clipAndFlip)
+								.setParallelism(little_parallelism))
+							.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<IntValue, NullValue, NullValue>()
+								.setLittleParallelism(little_parallelism));
 					}
 				}
 			} break;
