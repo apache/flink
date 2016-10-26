@@ -16,31 +16,42 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.library.metric;
+package org.apache.flink.graph.asm.dataset;
 
-import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.commons.lang.ArrayUtils;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
-import org.apache.flink.graph.test.TestGraphUtils;
+import org.junit.Before;
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-public class ChecksumHashCodeTest
-extends AsmTestBase {
+public class ChecksumHashCodeTest {
+
+	private ExecutionEnvironment env;
+
+	@Before
+	public void setup()
+			throws Exception {
+		env = ExecutionEnvironment.createCollectionsEnvironment();
+		env.getConfig().enableObjectReuse();
+	}
 
 	@Test
-	public void testSmallGraph() throws Exception {
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(
-			TestGraphUtils.getLongLongVertexData(env),
-			TestGraphUtils.getLongLongEdgeData(env),
-			env);
+	public void testChecksumHashCode()
+			throws Exception {
+		List<Long> list = Arrays.asList(ArrayUtils.toObject(
+			new long[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }));
 
-		Checksum checksum = graph
-			.run(new ChecksumHashCode<Long, Long, Long>())
-			.execute();
+		DataSet<Long> dataset = env.fromCollection(list);
 
-		assertEquals(checksum.getCount(), 12L);
-		assertEquals(checksum.getChecksum(), 19665L);
+		Checksum checksum = new ChecksumHashCode<Long>().run(dataset).execute();
+
+		assertEquals(list.size(), checksum.getCount());
+		assertEquals(list.size() * (list.size() - 1) / 2, checksum.getChecksum());
 	}
 }
