@@ -25,6 +25,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -347,6 +348,12 @@ public class Task implements Runnable, TaskActions {
 
 		// finally, create the executing thread, but do not start it
 		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
+
+		// add metric for buffers
+		this.metrics.getIOMetricGroup().getBuffersGroup().gauge("numIn", new InputBuffersGauge());
+		this.metrics.getIOMetricGroup().getBuffersGroup().gauge("numOut", new OutputBuffersGauge());
+		this.metrics.getIOMetricGroup().getBuffersGroup().gauge("InPoolUsage", new InputBufferPoolUsageGauge());
+		this.metrics.getIOMetricGroup().getBuffersGroup().gauge("OutPoolUsage", new OutputBufferPoolUsageGauge());
 	}
 
 	// ------------------------------------------------------------------------
@@ -1261,6 +1268,78 @@ public class Task implements Runnable, TaskActions {
 			}
 			catch (Throwable t) {
 				logger.error("Error in the task canceler", t);
+			}
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  metrics
+	// ------------------------------------------------------------------------
+
+	private class InputBuffersGauge implements Gauge<Integer> {
+
+		@Override
+		public Integer getValue() {
+			int totalBuffers = 0;
+
+			for(SingleInputGate inputGate: inputGates) {
+				totalBuffers += inputGate.getNumberOfQueuedBuffers();
+			}
+
+			return totalBuffers;
+		}
+	}
+
+	private class OutputBuffersGauge implements Gauge<Integer> {
+
+		@Override
+		public Integer getValue() {
+			int totalBuffers = 0;
+
+			for(ResultPartition producedPartition: producedPartitions) {
+				totalBuffers += producedPartition.getNumberOfQueuedBuffers();
+			}
+
+			return totalBuffers;
+		}
+	}
+
+	private class InputBufferPoolUsageGauge implements Gauge<Float> {
+
+		@Override
+		public Float getValue() {
+			int availableBuffers = 0;
+			int bufferPoolSize = 0;
+
+			for(SingleInputGate inputGate: inputGates) {
+				availableBuffers += inputGate.getBufferPool().getNumberOfAvailableMemorySegments();
+				bufferPoolSize += inputGate.getBufferPool().getNumBuffers();
+			}
+
+			if (bufferPoolSize != 0) {
+				return ((float)(bufferPoolSize - availableBuffers)) / bufferPoolSize;
+			} else {
+				return 0.0f;
+			}
+		}
+	}
+
+	private class OutputBufferPoolUsageGauge implements Gauge<Float> {
+
+		@Override
+		public Float getValue() {
+			int availableBuffers = 0;
+			int bufferPoolSize = 0;
+
+			for(ResultPartition resultPartition: producedPartitions){
+				availableBuffers += resultPartition.getBufferPool().getNumberOfAvailableMemorySegments();
+				bufferPoolSize += resultPartition.getBufferPool().getNumBuffers();
+			}
+
+			if (bufferPoolSize != 0) {
+				return ((float)(bufferPoolSize - availableBuffers)) / bufferPoolSize;
+			} else {
+				return 0.0f;
 			}
 		}
 	}

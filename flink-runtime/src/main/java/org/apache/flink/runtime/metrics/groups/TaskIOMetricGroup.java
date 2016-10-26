@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.MetricGroup;
 
 /**
  * Metric group that contains shareable pre-defined IO-related metrics. The metrics registration is
@@ -30,12 +31,16 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	private final Counter numBytesInLocal;
 	private final Counter numBytesInRemote;
 
+	private final MetricGroup buffers;
+
 	public TaskIOMetricGroup(TaskMetricGroup parent) {
 		super(parent);
 
 		this.numBytesOut = counter("numBytesOut");
 		this.numBytesInLocal = counter("numBytesInLocal");
 		this.numBytesInRemote = counter("numBytesInRemote");
+
+		this.buffers = addGroup("Buffers");
 	}
 
 	public Counter getNumBytesOutCounter() {
@@ -48,5 +53,9 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
 	public Counter getNumBytesInRemoteCounter() {
 		return numBytesInRemote;
+	}
+
+	public MetricGroup getBuffersGroup() {
+		return buffers;
 	}
 }

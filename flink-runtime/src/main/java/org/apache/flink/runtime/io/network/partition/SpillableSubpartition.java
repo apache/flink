@@ -227,4 +227,10 @@ class SpillableSubpartition extends ResultSubpartition {
 				getTotalNumberOfBuffers(), getTotalNumberOfBytes(), isFinished, readView != null,
 				spillWriter != null);
 	}
+
+	public int getNumberOfQueuedBuffers() {
+		synchronized (buffers) {
+			return buffers.size();
+		}
+	}
 }

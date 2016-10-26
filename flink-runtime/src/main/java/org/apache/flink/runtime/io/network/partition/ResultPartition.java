@@ -220,12 +220,33 @@ public class ResultPartition implements BufferPoolOwner {
 		return bufferPool;
 	}
 
+	public BufferPool getBufferPool() {
+		return bufferPool;
+	}
+
 	public int getTotalNumberOfBuffers() {
 		return totalNumberOfBuffers;
 	}
 
 	public long getTotalNumberOfBytes() {
 		return totalNumberOfBytes;
+	}
+
+	public int getNumberOfQueuedBuffers() {
+		int totalBuffers = 0;
+
+		for (ResultSubpartition subpartition : subpartitions) {
+
+			if (subpartition instanceof PipelinedSubpartition) {
+				totalBuffers += ((PipelinedSubpartition) subpartition).getNumberOfQueuedBuffers();
+			}
+
+			if (subpartition instanceof SpillableSubpartition) {
+				totalBuffers += ((SpillableSubpartition) subpartition).getNumberOfQueuedBuffers();
+			}
+		}
+
+		return totalBuffers;
 	}
 
 	// ------------------------------------------------------------------------
