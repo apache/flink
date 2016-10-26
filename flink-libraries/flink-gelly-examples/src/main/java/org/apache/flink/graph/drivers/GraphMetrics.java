@@ -63,7 +63,7 @@ public class GraphMetrics {
 			.appendNewLine()
 			.appendln(WordUtils.wrap("Computes vertex and edge metrics on a directed or undirected graph.", 80))
 			.appendNewLine()
-			.appendln("usage: GraphMetrics --directed <true | false> --input <csv | rmat [options]>")
+			.appendln("usage: GraphMetrics --directed <true | false> --input <csv | rmat>")
 			.appendNewLine()
 			.appendln("options:")
 			.appendln("  --input csv --type <integer | string> [--simplify <true | false>] --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]")
@@ -98,7 +98,7 @@ public class GraphMetrics {
 					parameters.get("input_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
 
 				GraphCsvReader reader = Graph
-					.fromCsvReader(parameters.get("input_filename"), env)
+					.fromCsvReader(parameters.getRequired("input_filename"), env)
 						.ignoreCommentsEdges("#")
 						.lineDelimiterEdges(lineDelimiter)
 						.fieldDelimiterEdges(fieldDelimiter);
@@ -225,14 +225,17 @@ public class GraphMetrics {
 
 		env.execute("Graph Metrics");
 
+		System.out.println();
 		System.out.print("Vertex metrics:\n  ");
 		System.out.println(vm.getResult().toString().replace(";", "\n "));
-		System.out.print("\nEdge metrics:\n  ");
+		System.out.println();
+		System.out.print("Edge metrics:\n  ");
 		System.out.println(em.getResult().toString().replace(";", "\n "));
 
 		JobExecutionResult result = env.getLastJobExecutionResult();
 
 		NumberFormat nf = NumberFormat.getInstance();
-		System.out.println("\nExecution runtime: " + nf.format(result.getNetRuntime()) + " ms");
+		System.out.println();
+		System.out.println("Execution runtime: " + nf.format(result.getNetRuntime()) + " ms");
 	}
 }
