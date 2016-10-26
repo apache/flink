@@ -496,7 +496,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							windowSize, windowSize);
 
 			OneInputStreamOperatorTestHarness<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testHarness =
-					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
+					new OneInputStreamOperatorTestHarness<>(op);
 
 			testHarness.setProcessingTime(0);
 
@@ -536,7 +536,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 					IntSerializer.INSTANCE, tupleSerializer,
 					windowSize, windowSize);
 
-			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
+			testHarness = new OneInputStreamOperatorTestHarness<>(op);
 
 			testHarness.setup();
 			testHarness.restore(state);
@@ -587,7 +587,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 
 			OneInputStreamOperatorTestHarness<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testHarness =
-					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
+					new OneInputStreamOperatorTestHarness<>(op);
 
 			testHarness.setProcessingTime(0);
 
@@ -627,7 +627,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 					IntSerializer.INSTANCE, tupleSerializer,
 					windowSize, windowSlide);
 
-			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
+			testHarness = new OneInputStreamOperatorTestHarness<>(op);
 
 			testHarness.setup();
 			testHarness.restore(state);
@@ -683,7 +683,6 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 			KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testHarness = new KeyedOneInputStreamOperatorTestHarness<>(
 					op,
-					new ExecutionConfig(),
 					fieldOneSelector,
 					BasicTypeInfo.INT_TYPE_INFO);
 
@@ -734,7 +733,6 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 			KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testHarness = new KeyedOneInputStreamOperatorTestHarness<>(
 					op,
-					new ExecutionConfig(),
 					fieldOneSelector,
 					BasicTypeInfo.INT_TYPE_INFO);
 

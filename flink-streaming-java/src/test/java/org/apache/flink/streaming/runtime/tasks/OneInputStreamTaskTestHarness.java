@@ -101,11 +101,12 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 		streamConfig.setTypeSerializerIn1(inputSerializer);
 	}
 
-	public <K> void configureForKeyedStream(KeySelector<IN, K> keySelector, TypeInformation<K> keyType) {
+	public <K> void configureForKeyedStream(
+			KeySelector<IN, K> keySelector,
+			TypeInformation<K> keyType) {
 		ClosureCleaner.clean(keySelector, false);
 		streamConfig.setStatePartitioner(0, keySelector);
 		streamConfig.setStateKeySerializer(keyType.createSerializer(executionConfig));
-		streamConfig.setNumberOfKeyGroups(10);
 	}
 }
 
