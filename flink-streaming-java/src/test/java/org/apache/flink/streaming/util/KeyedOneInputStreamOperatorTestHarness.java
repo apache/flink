@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -38,8 +39,8 @@ import org.mockito.stubbing.Answer;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.RunnableFuture;
 
 import static org.mockito.Matchers.any;
@@ -59,7 +60,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
 	// when we restore we keep the state here so that we can call restore
 	// when the operator requests the keyed state backend
-	private Collection<KeyGroupsStateHandle> restoredKeyedState = null;
+	private List<KeyGroupsStateHandle> restoredKeyedState = null;
 
 	public KeyedOneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
@@ -186,7 +187,25 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	@Override
 	public void initializeState(OperatorStateHandles operatorStateHandles) throws Exception {
 		if (operatorStateHandles != null) {
-			restoredKeyedState = operatorStateHandles.getManagedKeyedState();
+			int numKeyGroups = getEnvironment().getTaskInfo().getNumberOfKeyGroups();
+			int numSubtasks = getEnvironment().getTaskInfo().getNumberOfParallelSubtasks();
+			int subtaskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
+
+			// create a new OperatorStateHandles that only contains the state for our key-groups
+
+			List<KeyGroupRange> keyGroupPartitions = StateAssignmentOperation.createKeyGroupPartitions(
+					numKeyGroups,
+					numSubtasks);
+
+			KeyGroupRange localKeyGroupRange =
+					keyGroupPartitions.get(subtaskIndex);
+
+			restoredKeyedState = null;
+			if (operatorStateHandles.getManagedKeyedState() != null) {
+				restoredKeyedState = StateAssignmentOperation.getKeyGroupsStateHandles(
+						operatorStateHandles.getManagedKeyedState(),
+						localKeyGroupRange);
+			}
 		}
 
 		super.initializeState(operatorStateHandles);
