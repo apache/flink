@@ -29,7 +29,6 @@ import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -45,6 +44,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The JobGraph represents a Flink dataflow program, at the low level that the JobManager accepts.
@@ -101,6 +102,9 @@ public class JobGraph implements Serializable {
 
 	/** Job specific execution config */
 	private SerializedValue<ExecutionConfig> serializedExecutionConfig;
+
+	/** Savepoint restore settings. */
+	private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
 
 	// --------------------------------------------------------------------------------------------
 
@@ -240,12 +244,28 @@ public class JobGraph implements Serializable {
 	}
 
 	/**
+	 * Sets the savepoint restore settings.
+	 * @param settings The savepoint restore settings.
+	 */
+	public void setSavepointRestoreSettings(SavepointRestoreSettings settings) {
+		this.savepointRestoreSettings = checkNotNull(settings, "Savepoint restore settings");
+	}
+
+	/**
+	 * Returns the configured savepoint restore setting.
+	 * @return The configured savepoint restore settings.
+	 */
+	public SavepointRestoreSettings getSavepointRestoreSettings() {
+		return savepointRestoreSettings;
+	}
+
+	/**
 	 * Sets a serialized copy of the passed ExecutionConfig. Further modification of the referenced ExecutionConfig
 	 * object will not affect this serialized copy.
 	 * @param executionConfig The ExecutionConfig to be serialized.
 	 */
 	public void setExecutionConfig(ExecutionConfig executionConfig) {
-		Preconditions.checkNotNull(executionConfig, "ExecutionConfig must not be null.");
+		checkNotNull(executionConfig, "ExecutionConfig must not be null.");
 		try {
 			this.serializedExecutionConfig = new SerializedValue<>(executionConfig);
 		} catch (IOException e) {
@@ -340,22 +360,6 @@ public class JobGraph implements Serializable {
 
 	public List<URL> getClasspaths() {
 		return classpaths;
-	}
-
-	/**
-	 * Sets the savepoint path to rollback the deployment to.
-	 *
-	 * @param savepointPath The savepoint path
-	 */
-	public void setSavepointPath(String savepointPath) {
-		if (savepointPath != null) {
-			if (snapshotSettings == null) {
-				throw new IllegalStateException("Checkpointing disabled");
-			}
-			else {
-				snapshotSettings.setSavepointPath(savepointPath);
-			}
-		}
 	}
 
 	// --------------------------------------------------------------------------------------------

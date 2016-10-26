@@ -1293,19 +1293,17 @@ class JobManager(
           if (isRecovery) {
             executionGraph.restoreLatestCheckpointedState()
           } else {
-            val snapshotSettings = jobGraph.getSnapshotSettings
-            if (snapshotSettings != null) {
-              val savepointPath = snapshotSettings.getSavepointPath()
-
+            val savepointSettings = jobGraph.getSavepointRestoreSettings
+            if (savepointSettings.restoreSavepoint()) {
               // Reset state back to savepoint
-              if (savepointPath != null) {
-                try {
-                  executionGraph.restoreSavepoint(savepointPath)
-                } catch {
-                  case e: Exception =>
-                    jobInfo.client ! decorateMessage(JobResultFailure(new SerializedThrowable(e)))
-                    throw new SuppressRestartsException(e)
-                }
+              val savepointPath = savepointSettings.getRestorePath()
+
+              try {
+                executionGraph.restoreSavepoint(savepointPath)
+              } catch {
+                case e: Exception =>
+                  jobInfo.client ! decorateMessage(JobResultFailure(new SerializedThrowable(e)))
+                  throw new SuppressRestartsException(e)
               }
             }
 
