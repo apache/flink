@@ -26,11 +26,18 @@ import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
+<<<<<<< HEAD
 import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.runtime.{MapJoinLeftRunner, MapJoinRightRunner}
 import org.apache.flink.types.Row
+=======
+import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.runtime.{MapJoinLeftRunner, MapJoinRightRunner}
+import org.apache.flink.table.typeutils.TypeConverter.determineReturnType
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig}
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -88,7 +95,13 @@ class DataSetSingleRowJoin(
     planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize)
   }
 
+<<<<<<< HEAD
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
+=======
+  override def translateToPlan(
+      tableEnv: BatchTableEnvironment,
+      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
     val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
@@ -99,7 +112,12 @@ class DataSetSingleRowJoin(
       rightDataSet.getType,
       leftIsSingle,
       joinCondition,
+<<<<<<< HEAD
       broadcastSetName)
+=======
+      broadcastSetName,
+      expectedType)
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val (multiRowDataSet, singleRowDataSet) =
       if (leftIsSingle) {
@@ -112,16 +130,29 @@ class DataSetSingleRowJoin(
       .flatMap(mapSideJoin)
       .withBroadcastSet(singleRowDataSet, broadcastSetName)
       .name(getMapOperatorName)
+<<<<<<< HEAD
+=======
+      .asInstanceOf[DataSet[Any]]
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
   }
 
   private def generateMapFunction(
       config: TableConfig,
+<<<<<<< HEAD
       inputType1: TypeInformation[Row],
       inputType2: TypeInformation[Row],
       firstIsSingle: Boolean,
       joinCondition: RexNode,
       broadcastInputSetName: String)
     : FlatMapFunction[Row, Row] = {
+=======
+      inputType1: TypeInformation[Any],
+      inputType2: TypeInformation[Any],
+      firstIsSingle: Boolean,
+      joinCondition: RexNode,
+      broadcastInputSetName: String,
+      expectedType: Option[TypeInformation[Any]]): FlatMapFunction[Any, Any] = {
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val codeGenerator = new CodeGenerator(
       config,
@@ -129,7 +160,15 @@ class DataSetSingleRowJoin(
       inputType1,
       Some(inputType2))
 
+<<<<<<< HEAD
     val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
+=======
+    val returnType = determineReturnType(
+      getRowType,
+      expectedType,
+      config.getNullCheck,
+      config.getEfficientTypeUsage)
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val conversion = codeGenerator.generateConverterResultExpression(
       returnType,
@@ -137,6 +176,7 @@ class DataSetSingleRowJoin(
 
     val condition = codeGenerator.generateExpression(joinCondition)
 
+<<<<<<< HEAD
     val joinMethodBody =
       s"""
         |${condition.code}
@@ -149,17 +189,38 @@ class DataSetSingleRowJoin(
     val genFunction = codeGenerator.generateFunction(
       ruleDescription,
       classOf[FlatJoinFunction[Row, Row, Row]],
+=======
+    val joinMethodBody = s"""
+                  |${condition.code}
+                  |if (${condition.resultTerm}) {
+                  |  ${conversion.code}
+                  |  ${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
+                  |}
+                  |""".stripMargin
+
+    val genFunction = codeGenerator.generateFunction(
+      ruleDescription,
+      classOf[FlatJoinFunction[Any, Any, Any]],
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
       joinMethodBody,
       returnType)
 
     if (firstIsSingle) {
+<<<<<<< HEAD
       new MapJoinRightRunner[Row, Row, Row](
+=======
+      new MapJoinRightRunner[Any, Any, Any](
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
         genFunction.name,
         genFunction.code,
         genFunction.returnType,
         broadcastInputSetName)
     } else {
+<<<<<<< HEAD
       new MapJoinLeftRunner[Row, Row, Row](
+=======
+      new MapJoinLeftRunner[Any, Any, Any](
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
         genFunction.name,
         genFunction.code,
         genFunction.returnType,

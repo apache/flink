@@ -21,10 +21,10 @@ package org.apache.flink.table.plan.nodes.dataset
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.plan.schema.DataSetTable
-import org.apache.flink.types.Row
 
 /**
   * Flink RelNode which matches along with DataSource.
@@ -51,12 +51,14 @@ class DataSetScan(
     )
   }
 
-  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
+  override def translateToPlan(
+      tableEnv: BatchTableEnvironment,
+      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
     val config = tableEnv.getConfig
     val inputDataSet: DataSet[Any] = dataSetTable.dataSet
 
-    convertToInternalRow(inputDataSet, dataSetTable, config)
+    convertToExpectedType(inputDataSet, dataSetTable, expectedType, config)
   }
 
 }

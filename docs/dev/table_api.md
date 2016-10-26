@@ -490,7 +490,11 @@ A registered table can be accessed from a `TableEnvironment` as follows:
 ### Table API Operators
 
 The Table API features a domain-specific language to execute language-integrated queries on structured data in Scala and Java.
+<<<<<<< HEAD
 This section gives a brief overview of the available operators. You can find more details of operators in the [Javadoc](http://flink.apache.org/docs/latest/api/java/org/apache/flink/table/api/Table.html).
+=======
+This section gives a brief overview of the available operators. You can find more details of operators in the [Javadoc]({{site.baseurl}}/api/java/org/apache/flink/table/api/Table.html).
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

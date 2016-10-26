@@ -20,6 +20,10 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.flink.annotation.VisibleForTesting;
+<<<<<<< HEAD
+=======
+
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -59,6 +63,7 @@ import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,6 +111,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	// ------------------------------------------------------------------------
 	//  state backend operations
 	// ------------------------------------------------------------------------
+<<<<<<< HEAD
 
 	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
 			TypeSerializer<N> namespaceSerializer, StateDescriptor<?, V> stateDesc) {
@@ -130,6 +136,28 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		if (stateTable == null) {
 			stateTable = new StateTable<>(newMetaInfo, keyGroupRange);
 			stateTables.put(stateName, stateTable);
+=======
+
+	@SuppressWarnings("unchecked")
+	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
+			TypeSerializer<N> namespaceSerializer, StateDescriptor<?, V> stateDesc) {
+
+		String name = stateDesc.getName();
+		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) stateTables.get(name);
+
+		RegisteredBackendStateMetaInfo<N, V> newMetaInfo =
+				new RegisteredBackendStateMetaInfo<>(stateDesc.getType(), name, namespaceSerializer, stateDesc.getSerializer());
+
+		return tryRegisterStateTable(stateTable, newMetaInfo);
+	}
+
+	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
+			StateTable<K, N, V> stateTable, RegisteredBackendStateMetaInfo<N, V> newMetaInfo) {
+
+		if (stateTable == null) {
+			stateTable = new StateTable<>(newMetaInfo, keyGroupRange);
+			stateTables.put(newMetaInfo.getName(), stateTable);
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		} else {
 			if (!newMetaInfo.isCompatibleWith(stateTable.getMetaInfo())) {
 				throw new RuntimeException("Trying to access state using incompatible meta info, was " +
@@ -139,12 +167,21 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 		return stateTable;
 	}
+<<<<<<< HEAD
 
 	@Override
 	public <N, V> InternalValueState<N, V> createValueState(
 			TypeSerializer<N> namespaceSerializer,
 			ValueStateDescriptor<V> stateDesc) throws Exception {
 
+=======
+
+	@Override
+	public <N, V> InternalValueState<N, V> createValueState(
+			TypeSerializer<N> namespaceSerializer,
+			ValueStateDescriptor<V> stateDesc) throws Exception {
+
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		StateTable<K, N, V> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
 		return new HeapValueState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
@@ -154,6 +191,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<N> namespaceSerializer,
 			ListStateDescriptor<T> stateDesc) throws Exception {
 
+<<<<<<< HEAD
 		// the list state does some manual mapping, because the state is typed to the generic
 		// 'List' interface, but we want to use an implementation typed to ArrayList
 		// using a more specialized implementation opens up runtime optimizations
@@ -163,7 +201,17 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateDesc.getType(),
 				namespaceSerializer,
 				new ArrayListSerializer<T>(stateDesc.getElementSerializer()));
+=======
+		String name = stateDesc.getName();
 
+		@SuppressWarnings("unchecked")
+		StateTable<K, N, ArrayList<T>> stateTable = (StateTable<K, N, ArrayList<T>>) stateTables.get(name);
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
+
+		RegisteredBackendStateMetaInfo<N, ArrayList<T>> newMetaInfo =
+				new RegisteredBackendStateMetaInfo<>(stateDesc.getType(), name, namespaceSerializer, new ArrayListSerializer<>(stateDesc.getSerializer()));
+
+		stateTable = tryRegisterStateTable(stateTable, newMetaInfo);
 		return new HeapListState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 
@@ -323,6 +371,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				KeyedBackendSerializationProxy serializationProxy =
 						new KeyedBackendSerializationProxy(userCodeClassLoader);
+<<<<<<< HEAD
 
 				serializationProxy.read(inView);
 
@@ -331,6 +380,16 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				for (KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoSerializationProxy : metaInfoList) {
 
+=======
+
+				serializationProxy.read(inView);
+
+				List<KeyedBackendSerializationProxy.StateMetaInfo<?, ?>> metaInfoList =
+						serializationProxy.getNamedStateSerializationProxies();
+
+				for (KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoSerializationProxy : metaInfoList) {
+
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 					StateTable<K, ?, ?> stateTable = stateTables.get(metaInfoSerializationProxy.getStateName());
 
 					//important: only create a new table we did not already create it previously

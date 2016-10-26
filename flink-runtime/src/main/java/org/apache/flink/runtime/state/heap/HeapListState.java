@@ -169,4 +169,8 @@ public class HeapListState<K, N, V>
 		a.addAll(b);
 		return a;
 	}
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation

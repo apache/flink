@@ -24,6 +24,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+<<<<<<< HEAD
+=======
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 /**
  * A thread factory intended for use by critical thread pools. Critical thread pools here
  * mean thread pools that support Flink's core coordination and processing work, and which
@@ -113,4 +118,19 @@ public class ExecutorThreadFactory implements ThreadFactory {
 
 	// --------------------------------------------------------------------------------------------
 
+<<<<<<< HEAD
+=======
+	private static final class FatalExitExceptionHandler implements UncaughtExceptionHandler {
+
+		private static final Logger LOG = LoggerFactory.getLogger(FatalExitExceptionHandler.class);
+
+		static final FatalExitExceptionHandler INSTANCE = new FatalExitExceptionHandler(); 
+
+		@Override
+		public void uncaughtException(Thread t, Throwable e) {
+			LOG.error("FATAL: Thread '" + t.getName() + "' produced an uncaught exception. Stopping the process...", e);
+			System.exit(-17);
+		}
+	}
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 }

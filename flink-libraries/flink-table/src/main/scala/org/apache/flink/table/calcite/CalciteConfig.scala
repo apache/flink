@@ -31,11 +31,8 @@ import scala.collection.JavaConverters._
   * Builder for creating a Calcite configuration.
   */
 class CalciteConfigBuilder {
-  private var replaceNormRules: Boolean = false
-  private var normRuleSets: List[RuleSet] = Nil
-
-  private var replaceOptRules: Boolean = false
-  private var optRuleSets: List[RuleSet] = Nil
+  private var replaceRules: Boolean = false
+  private var ruleSets: List[RuleSet] = Nil
 
   private var replaceOperatorTable: Boolean = false
   private var operatorTables: List[SqlOperatorTable] = Nil
@@ -43,40 +40,21 @@ class CalciteConfigBuilder {
   private var replaceSqlParserConfig: Option[SqlParser.Config] = None
 
   /**
-    * Replaces the built-in normalization rule set with the given rule set.
+    * Replaces the built-in rule set with the given rule set.
     */
-  def replaceNormRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
+  def replaceRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
     Preconditions.checkNotNull(replaceRuleSet)
-    normRuleSets = List(replaceRuleSet)
-    replaceNormRules = true
+    ruleSets = List(replaceRuleSet)
+    replaceRules = true
     this
   }
 
   /**
-    * Appends the given normalization rule set to the built-in rule set.
+    * Appends the given rule set to the built-in rule set.
     */
-  def addNormRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
+  def addRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
     Preconditions.checkNotNull(addedRuleSet)
-    normRuleSets = addedRuleSet :: normRuleSets
-    this
-  }
-
-  /**
-    * Replaces the built-in optimization rule set with the given rule set.
-    */
-  def replaceOptRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
-    Preconditions.checkNotNull(replaceRuleSet)
-    optRuleSets = List(replaceRuleSet)
-    replaceOptRules = true
-    this
-  }
-
-  /**
-    * Appends the given optimization rule set to the built-in rule set.
-    */
-  def addOptRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
-    Preconditions.checkNotNull(addedRuleSet)
-    optRuleSets = addedRuleSet :: optRuleSets
+    ruleSets = addedRuleSet :: ruleSets
     this
   }
 
@@ -109,45 +87,32 @@ class CalciteConfigBuilder {
   }
 
   private class CalciteConfigImpl(
-    val getNormRuleSet: Option[RuleSet],
-    val replacesNormRuleSet: Boolean,
-    val getOptRuleSet: Option[RuleSet],
-    val replacesOptRuleSet: Boolean,
-    val getSqlOperatorTable: Option[SqlOperatorTable],
-    val replacesSqlOperatorTable: Boolean,
-    val getSqlParserConfig: Option[SqlParser.Config])
+      val getRuleSet: Option[RuleSet],
+      val replacesRuleSet: Boolean,
+      val getSqlOperatorTable: Option[SqlOperatorTable],
+      val replacesSqlOperatorTable: Boolean,
+      val getSqlParserConfig: Option[SqlParser.Config])
     extends CalciteConfig
 
   /**
     * Builds a new [[CalciteConfig]].
     */
   def build(): CalciteConfig = new CalciteConfigImpl(
-    normRuleSets match {
+        ruleSets match {
       case Nil => None
       case h :: Nil => Some(h)
       case _ =>
         // concat rule sets
-        val concatRules =
-          normRuleSets.foldLeft(Nil: Iterable[RelOptRule])((c, r) => r.asScala ++ c)
+        val concatRules = ruleSets.foldLeft(Nil: Iterable[RelOptRule])( (c, r) => r.asScala ++ c)
         Some(RuleSets.ofList(concatRules.asJava))
     },
-    replaceNormRules,
-    optRuleSets match {
-      case Nil => None
-      case h :: Nil => Some(h)
-      case _ =>
-        // concat rule sets
-        val concatRules =
-          optRuleSets.foldLeft(Nil: Iterable[RelOptRule])((c, r) => r.asScala ++ c)
-        Some(RuleSets.ofList(concatRules.asJava))
-    },
-    replaceOptRules,
+    this.replaceRules,
     operatorTables match {
       case Nil => None
       case h :: Nil => Some(h)
       case _ =>
         // chain operator tables
-        Some(operatorTables.reduce((x, y) => ChainedSqlOperatorTable.of(x, y)))
+        Some(operatorTables.reduce( (x, y) => ChainedSqlOperatorTable.of(x, y)))
     },
     this.replaceOperatorTable,
     replaceSqlParserConfig)
@@ -157,26 +122,15 @@ class CalciteConfigBuilder {
   * Calcite configuration for defining a custom Calcite configuration for Table and SQL API.
   */
 trait CalciteConfig {
+  /**
+    * Returns whether this configuration replaces the built-in rule set.
+    */
+  def replacesRuleSet: Boolean
 
   /**
-    * Returns whether this configuration replaces the built-in normalization rule set.
+    * Returns a custom rule set.
     */
-  def replacesNormRuleSet: Boolean
-
-  /**
-    * Returns a custom normalization rule set.
-    */
-  def getNormRuleSet: Option[RuleSet]
-
-  /**
-    * Returns whether this configuration replaces the built-in optimization rule set.
-    */
-  def replacesOptRuleSet: Boolean
-
-  /**
-    * Returns a custom optimization rule set.
-    */
-  def getOptRuleSet: Option[RuleSet]
+  def getRuleSet: Option[RuleSet]
 
   /**
     * Returns whether this configuration replaces the built-in SQL operator table.

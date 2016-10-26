@@ -22,10 +22,11 @@ import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTra
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.runtime.MinusCoGroupFunction
-import org.apache.flink.types.Row
+import org.apache.flink.table.typeutils.TypeConverter._
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -85,21 +86,55 @@ class DataSetMinus(
     rowCnt
   }
 
-  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
+  override def translateToPlan(
+      tableEnv: BatchTableEnvironment,
+      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
-    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
-    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val leftDataSet: DataSet[Any] = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val rightDataSet: DataSet[Any] = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     val coGroupedDs = leftDataSet.coGroup(rightDataSet)
 
     val coGroupOpName = s"minus: ($minusSelectionToString)"
-    val coGroupFunction = new MinusCoGroupFunction[Row](all)
+    val coGroupFunction = new MinusCoGroupFunction[Any](all)
 
-    coGroupedDs
-      .where("*")
-      .equalTo("*")
-      .`with`(coGroupFunction)
-      .name(coGroupOpName)
+    val minusDs = coGroupedDs.where("*").equalTo("*")
+      .`with`(coGroupFunction).name(coGroupOpName)
+
+    val config = tableEnv.getConfig
+    val leftType = leftDataSet.getType
+
+    // here we only care about left type information, because we emit records from left DataSet
+    expectedType match {
+      case None if config.getEfficientTypeUsage =>
+        minusDs
+
+      case _ =>
+        val determinedType = determineReturnType(
+          getRowType,
+          expectedType,
+          config.getNullCheck,
+          config.getEfficientTypeUsage)
+
+        // conversion
+        if (determinedType != leftType) {
+          val mapFunc = getConversionMapper(
+            config = config,
+            nullableInput = false,
+            inputType = leftType,
+            expectedType = determinedType,
+            conversionOperatorName = "DataSetMinusConversion",
+            fieldNames = getRowType.getFieldNames)
+
+          val opName = s"convert: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
+
+          minusDs.map(mapFunc).name(opName)
+        }
+        // no conversion necessary, forward
+        else {
+          minusDs
+        }
+    }
   }
 
   private def minusSelectionToString: String = {

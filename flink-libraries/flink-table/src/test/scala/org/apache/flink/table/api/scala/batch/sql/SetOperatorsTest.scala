@@ -79,7 +79,11 @@ class SetOperatorsTest extends TableTestBase {
               term("join", "b_long", "a_long"),
               term("joinType", "InnerJoin")
             ),
+<<<<<<< HEAD
             term("select", "a_long", "true AS $f0")
+=======
+            term("select", "true AS $f0", "a_long")
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
           ),
           term("groupBy", "a_long"),
           term("select", "a_long", "MIN($f0) AS $f1")

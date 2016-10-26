@@ -25,7 +25,10 @@ import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.util.ReflectionUtil;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
+<<<<<<< HEAD
 import org.reflections.Reflections;
+=======
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,6 +73,7 @@ import static org.junit.Assert.fail;
  * }
  *
  */
+<<<<<<< HEAD
 public class RpcCompletenessTest extends TestLogger {
 
 	private static Logger LOG = LoggerFactory.getLogger(RpcCompletenessTest.class);
@@ -450,3 +454,6 @@ public class RpcCompletenessTest extends TestLogger {
 		return allMethods;
 	}
 }
+=======
+
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation

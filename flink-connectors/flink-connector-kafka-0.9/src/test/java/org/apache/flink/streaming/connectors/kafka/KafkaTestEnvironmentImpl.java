@@ -48,8 +48,6 @@ import scala.collection.Seq;
 import java.io.File;
 import java.net.BindException;
 import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -120,8 +118,8 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public KafkaOffsetHandler createOffsetHandler() {
-		return new KafkaOffsetHandlerImpl();
+	public KafkaOffsetHandler createOffsetHandler(Properties props) {
+		return new KafkaOffsetHandlerImpl(props);
 	}
 
 	@Override
@@ -422,12 +420,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 		private final KafkaConsumer<byte[], byte[]> offsetClient;
 
-		public KafkaOffsetHandlerImpl() {
-			Properties props = new Properties();
-			props.putAll(standardProps);
-			props.setProperty("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-			props.setProperty("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-
+		public KafkaOffsetHandlerImpl(Properties props) {
 			offsetClient = new KafkaConsumer<>(props);
 		}
 
@@ -435,13 +428,6 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		public Long getCommittedOffset(String topicName, int partition) {
 			OffsetAndMetadata committed = offsetClient.committed(new TopicPartition(topicName, partition));
 			return (committed != null) ? committed.offset() : null;
-		}
-
-		@Override
-		public void setCommittedOffset(String topicName, int partition, long offset) {
-			Map<TopicPartition, OffsetAndMetadata> partitionAndOffset = new HashMap<>();
-			partitionAndOffset.put(new TopicPartition(topicName, partition), new OffsetAndMetadata(offset));
-			offsetClient.commitSync(partitionAndOffset);
 		}
 
 		@Override

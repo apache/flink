@@ -33,6 +33,7 @@ import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.curator.test.TestingServer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionLeader;
 import org.apache.flink.streaming.connectors.kafka.internals.ZookeeperOffsetHandler;
@@ -127,8 +128,8 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public KafkaOffsetHandler createOffsetHandler() {
-		return new KafkaOffsetHandlerImpl();
+	public KafkaOffsetHandler createOffsetHandler(Properties props) {
+		return new KafkaOffsetHandlerImpl(props);
 	}
 
 	@Override
@@ -377,9 +378,9 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		private final CuratorFramework offsetClient;
 		private final String groupId;
 
-		public KafkaOffsetHandlerImpl() {
+		public KafkaOffsetHandlerImpl(Properties props) {
 			offsetClient = createCuratorClient();
-			groupId = standardProps.getProperty("group.id");
+			groupId = props.getProperty("group.id");
 		}
 
 		@Override
@@ -388,15 +389,6 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 				return ZookeeperOffsetHandler.getOffsetFromZooKeeper(offsetClient, groupId, topicName, partition);
 			} catch (Exception e) {
 				throw new RuntimeException("Exception when getting offsets from Zookeeper", e);
-			}
-		}
-
-		@Override
-		public void setCommittedOffset(String topicName, int partition, long offset) {
-			try {
-				ZookeeperOffsetHandler.setOffsetInZooKeeper(offsetClient, groupId, topicName, partition, offset);
-			} catch (Exception e) {
-				throw new RuntimeException("Exception when writing offsets to Zookeeper", e);
 			}
 		}
 

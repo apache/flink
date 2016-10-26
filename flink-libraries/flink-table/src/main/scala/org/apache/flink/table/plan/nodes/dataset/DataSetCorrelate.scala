@@ -28,8 +28,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.functions.utils.TableSqlFunction
+<<<<<<< HEAD
 import org.apache.flink.table.plan.nodes.CommonCorrelate
 import org.apache.flink.types.Row
+=======
+import org.apache.flink.table.plan.nodes.FlinkCorrelate
+import org.apache.flink.table.typeutils.TypeConverter._
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 /**
   * Flink RelNode which matches along with join a user defined table function.
@@ -45,7 +50,11 @@ class DataSetCorrelate(
     joinType: SemiJoinType,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, inputNode)
+<<<<<<< HEAD
   with CommonCorrelate
+=======
+  with FlinkCorrelate
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
   with DataSetRel {
 
   override def deriveRowType() = relRowType
@@ -85,7 +94,14 @@ class DataSetCorrelate(
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
 
+<<<<<<< HEAD
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
+=======
+  override def translateToPlan(
+      tableEnv: BatchTableEnvironment,
+      expectedType: Option[TypeInformation[Any]])
+    : DataSet[Any] = {
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val config = tableEnv.getConfig
 
@@ -106,6 +122,10 @@ class DataSetCorrelate(
       joinType,
       rexCall,
       condition,
+<<<<<<< HEAD
+=======
+      expectedType,
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
       Some(pojoFieldMapping),
       ruleDescription)
 

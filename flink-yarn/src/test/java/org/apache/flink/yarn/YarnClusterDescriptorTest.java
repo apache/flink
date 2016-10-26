@@ -23,6 +23,10 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
+<<<<<<< HEAD
+=======
+import org.junit.Assert;
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -31,7 +35,10 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 
+<<<<<<< HEAD
 import static org.junit.Assert.fail;
+=======
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 import static org.junit.Assert.assertEquals;
 
 public class YarnClusterDescriptorTest {
@@ -93,6 +100,7 @@ public class YarnClusterDescriptorTest {
 
 		try {
 			clusterDescriptor.deploy();
+<<<<<<< HEAD
 
 			fail("The deploy call should have failed.");
 		} catch (RuntimeException e) {
@@ -100,6 +108,11 @@ public class YarnClusterDescriptorTest {
 			if (!(e.getCause() instanceof IllegalConfigurationException)) {
 				throw e;
 			}
+=======
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.assertTrue(e.getCause() instanceof IllegalConfigurationException);
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		}
 	}
 

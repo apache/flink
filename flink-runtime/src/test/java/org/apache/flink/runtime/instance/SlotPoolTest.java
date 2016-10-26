@@ -115,7 +115,10 @@ public class SlotPoolTest extends TestLogger {
 		assertEquals(resourceID, slot.getTaskManagerID());
 		assertEquals(jobId, slot.getJobID());
 		assertEquals(slotPool.getSlotOwner(), slot.getOwner());
+<<<<<<< HEAD
 		assertEquals(slotPool.getAllocatedSlots().get(slot.getAllocatedSlot().getSlotAllocationId()), slot);
+=======
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 	}
 
 	@Test
@@ -154,7 +157,10 @@ public class SlotPoolTest extends TestLogger {
 		assertTrue(slot2.isAlive());
 		assertEquals(slot1.getTaskManagerID(), slot2.getTaskManagerID());
 		assertEquals(slot1.getSlotNumber(), slot2.getSlotNumber());
+<<<<<<< HEAD
 		assertEquals(slotPool.getAllocatedSlots().get(slot1.getAllocatedSlot().getSlotAllocationId()), slot2);
+=======
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 	}
 
 	@Test

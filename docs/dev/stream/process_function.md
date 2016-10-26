@@ -47,7 +47,11 @@ stream.keyBy("id").process(new MyProcessFunction())
 
 The timers allow applications to react to changes in processing time and in [event time](../event_time.html).
 Every call to the function `processElement(...)` gets a `Context` object with gives access to the element's
+<<<<<<< HEAD
 event time timestamp, and to the *TimerService*. The `TimerService` can be used to register callbacks for future
+=======
+event time timestamp, and the *TimerService*. The `TimerService` can be used to register callbacks for future
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 event-/processing- time instants. When a timer's particular time is reached, the `onTimer(...)` method is
 called. During that call, all states are again scoped to the key with which the timer was created, allowing
 timers to perform keyed state manipulation as well.
@@ -55,16 +59,25 @@ timers to perform keyed state manipulation as well.
 
 ## Low-level Joins
 
+<<<<<<< HEAD
 To realize low-level operations on two inputs, applications can use `CoProcessFunction`. It relates to `ProcessFunction`
 in the same way that `CoFlatMapFunction` relates to `FlatMapFunction`: the function is bound to two different inputs and
 gets individual calls to `processElement1(...)` and `processElement2(...)` for records from the two different inputs.
 
 Implementing a low level join typically follows this pattern:
+=======
+To realize low-level operations on two inputs, applications can use the `CoProcessFunction`. It relates to the `ProcessFunction`
+in the same way as a `CoFlatMapFunction` relates to the `FlatMapFunction`: The function is typed to two different inputs and
+gets individual calls to `processElement1(...)` and `processElement2(...)` for records from the two different inputs.
+
+Implementing a low level join follows typically the pattern:
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
   - Create a state object for one input (or both)
   - Update the state upon receiving elements from its input
   - Upon receiving elements from the other input, probe the state and produce the joined result
 
+<<<<<<< HEAD
 For example, you might be joining customer data to financial trades,
 while keeping state for the customer data. If you care about having
 complete and deterministic joins in the face of out-of-order events,
@@ -75,15 +88,29 @@ trade.
 ## Example
 
 The following example maintains counts per key, and emits a key/count pair whenever a minute passes (in event time) without an update for that key:
+=======
+
+## Example
+
+The following example maintains counts per key, and emits the key/count pair if no update happened to the key for one minute
+(in event time):
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
   - The count, key, and last-modification-timestamp are stored in a `ValueState`, which is implicitly scoped by key.
   - For each record, the `ProcessFunction` increments the counter and sets the last-modification timestamp
   - The function also schedules a callback one minute into the future (in event time)
   - Upon each callback, it checks the callback's event time timestamp against the last-modification time of the stored count
+<<<<<<< HEAD
     and emits the key/count if they match (i.e., no further update occurred during that minute)
 
 *Note:* This simple example could have been implemented with session windows. We use `ProcessFunction` here to illustrate
 the basic pattern it provides.
+=======
+    and emits the key/count if the match (no further update happened in that minute)
+
+*Note:* This simple example could also have been implemented on top of session windows, we simple use it to illustrate
+the basic pattern of how to use the `ProcessFunction`.
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

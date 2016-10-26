@@ -24,10 +24,18 @@ import org.apache.calcite.plan.RelOptPlanner
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.common.functions.MapFunction
+<<<<<<< HEAD
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
+=======
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.typeutils.TypeConverter
+import org.apache.flink.table.api.TableConfig
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
@@ -38,7 +46,11 @@ import scala.collection.JavaConverters._
 class ExpressionReducer(config: TableConfig)
   extends RelOptPlanner.Executor with Compiler[MapFunction[Row, Row]] {
 
+<<<<<<< HEAD
   private val EMPTY_ROW_INFO = new RowTypeInfo()
+=======
+  private val EMPTY_ROW_INFO = TypeConverter.DEFAULT_ROW_TYPE
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
   private val EMPTY_ROW = new Row(0)
 
   override def reduce(
@@ -81,14 +93,22 @@ class ExpressionReducer(config: TableConfig)
       resultType.getFieldNames,
       literals)
 
+<<<<<<< HEAD
     val generatedFunction = generator.generateFunction[MapFunction[Row, Row], Row](
+=======
+    val generatedFunction = generator.generateFunction[MapFunction[Row, Row]](
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
       "ExpressionReducer",
       classOf[MapFunction[Row, Row]],
       s"""
         |${result.code}
         |return ${result.resultTerm};
         |""".stripMargin,
+<<<<<<< HEAD
       resultType)
+=======
+      resultType.asInstanceOf[TypeInformation[Any]])
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val clazz = compile(getClass.getClassLoader, generatedFunction.name, generatedFunction.code)
     val function = clazz.newInstance()

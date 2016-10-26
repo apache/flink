@@ -27,7 +27,6 @@ import org.apache.flink.table.api.{BatchTableEnvironment, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.sources.BatchTableSource
-import org.apache.flink.types.Row
 
 /** Flink RelNode to read data from an external source defined by a [[BatchTableSource]]. */
 class BatchTableSourceScan(
@@ -63,11 +62,13 @@ class BatchTableSourceScan(
       .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
   }
 
-  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
+  override def translateToPlan(
+      tableEnv: BatchTableEnvironment,
+      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
     val config = tableEnv.getConfig
     val inputDataSet = tableSource.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
 
-    convertToInternalRow(inputDataSet, new TableSourceTable(tableSource), config)
+    convertToExpectedType(inputDataSet, new TableSourceTable(tableSource), expectedType, config)
   }
 }

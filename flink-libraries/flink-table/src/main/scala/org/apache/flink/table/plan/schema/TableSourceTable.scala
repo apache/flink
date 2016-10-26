@@ -19,15 +19,11 @@
 package org.apache.flink.table.plan.schema
 
 import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.TableSource
 
 /** Table which defines an external table via a [[TableSource]] */
-class TableSourceTable[T](
-    val tableSource: TableSource[T],
-    override val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
+class TableSourceTable[T](val tableSource: TableSource[T])
   extends FlinkTable[T](
     typeInfo = tableSource.getReturnType,
     fieldIndexes = TableEnvironment.getFieldIndices(tableSource),
-    fieldNames = TableEnvironment.getFieldNames(tableSource),
-    statistic)
+    fieldNames = TableEnvironment.getFieldNames(tableSource))

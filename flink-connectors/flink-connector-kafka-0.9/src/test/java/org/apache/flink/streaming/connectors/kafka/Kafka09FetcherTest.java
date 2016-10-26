@@ -24,7 +24,6 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.internal.Handover;
-import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internal.Kafka09Fetcher;
 import org.apache.flink.streaming.connectors.kafka.internal.KafkaConsumerThread;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
@@ -124,7 +123,6 @@ public class Kafka09FetcherTest {
 		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
 				sourceContext,
 				topics,
-				null, /* no restored state */
 				null, /* periodic watermark extractor */
 				null, /* punctuated watermark extractor */
 				new TestProcessingTimeService(),
@@ -136,7 +134,6 @@ public class Kafka09FetcherTest {
 				schema,
 				new Properties(),
 				0L,
-				StartupMode.GROUP_OFFSETS,
 				false);
 
 		// ----- run the fetcher -----
@@ -262,7 +259,6 @@ public class Kafka09FetcherTest {
 		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
 				sourceContext,
 				topics,
-				null, /* no restored state */
 				null, /* periodic watermark extractor */
 				null, /* punctuated watermark extractor */
 				new TestProcessingTimeService(),
@@ -274,8 +270,8 @@ public class Kafka09FetcherTest {
 				schema,
 				new Properties(),
 				0L,
-				StartupMode.GROUP_OFFSETS,
 				false);
+
 
 		// ----- run the fetcher -----
 
@@ -378,7 +374,6 @@ public class Kafka09FetcherTest {
 		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
 				sourceContext,
 				topics,
-				null, /* no restored state */
 				null, /* periodic watermark extractor */
 				null, /* punctuated watermark extractor */
 				new TestProcessingTimeService(),
@@ -390,7 +385,6 @@ public class Kafka09FetcherTest {
 				schema,
 				new Properties(),
 				0L,
-				StartupMode.GROUP_OFFSETS,
 				false);
 
 

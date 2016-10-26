@@ -126,8 +126,13 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 							partitionableListState.getAssignmentMode());
 			Preconditions.checkState(
 					partitionableListState.getPartitionStateSerializer().
+<<<<<<< HEAD
 							isCompatibleWith(stateDescriptor.getElementSerializer()),
 					"Incompatible type serializers. Provided: " + stateDescriptor.getElementSerializer() +
+=======
+							isCompatibleWith(stateDescriptor.getSerializer()),
+					"Incompatible type serializers. Provided: " + stateDescriptor.getSerializer() +
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 							", found: " + partitionableListState.getPartitionStateSerializer());
 		}
 

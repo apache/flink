@@ -29,7 +29,11 @@ import java.util.List;
  * This indirection is necessary, because Kafka broke binary compatibility between 0.9 and 0.10,
  * for example changing {@code assign(List)} to {@code assign(Collection)}.
  * 
+<<<<<<< HEAD
  * Because of that, we need to have two versions whose compiled code goes against different method signatures.
+=======
+ * Because of that, we need to two versions whose compiled code goes against different method signatures.
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
  * Even though the source of subclasses may look identical, the byte code will be different, because they
  * are compiled against different dependencies.
  */
@@ -38,6 +42,7 @@ public class KafkaConsumerCallBridge {
 	public void assignPartitions(KafkaConsumer<?, ?> consumer, List<TopicPartition> topicPartitions) throws Exception {
 		consumer.assign(topicPartitions);
 	}
+<<<<<<< HEAD
 
 	public void seekPartitionsToBeginning(KafkaConsumer<?, ?> consumer, List<TopicPartition> partitions) {
 		for (TopicPartition partition : partitions) {
@@ -51,4 +56,6 @@ public class KafkaConsumerCallBridge {
 		}
 	}
 
+=======
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 }

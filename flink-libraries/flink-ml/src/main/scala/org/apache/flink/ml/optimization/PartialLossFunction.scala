@@ -63,6 +63,7 @@ object SquaredLoss extends PartialLossFunction {
     */
   override def derivative(prediction: Double, label: Double): Double = {
     prediction - label
+<<<<<<< HEAD
   }
 }
 
@@ -150,5 +151,7 @@ object HingeLoss extends PartialLossFunction {
     else {
       0
     }
+=======
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
   }
 }

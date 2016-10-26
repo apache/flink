@@ -22,7 +22,10 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
+<<<<<<< HEAD
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+=======
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
@@ -72,7 +75,10 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	public Kafka09Fetcher(
 			SourceContext<T> sourceContext,
 			List<KafkaTopicPartition> assignedPartitions,
+<<<<<<< HEAD
 			HashMap<KafkaTopicPartition, Long> restoredSnapshotState,
+=======
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			ProcessingTimeService processingTimeProvider,
@@ -84,19 +90,28 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
+<<<<<<< HEAD
 			StartupMode startupMode,
+=======
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 			boolean useMetrics) throws Exception
 	{
 		super(
 				sourceContext,
 				assignedPartitions,
+<<<<<<< HEAD
 				restoredSnapshotState,
+=======
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 				watermarksPeriodic,
 				watermarksPunctuated,
 				processingTimeProvider,
 				autoWatermarkInterval,
 				userCodeClassLoader,
+<<<<<<< HEAD
 				startupMode,
+=======
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 				useMetrics);
 
 		this.deserializer = deserializer;
@@ -119,8 +134,11 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 				createCallBridge(),
 				getFetcherName() + " for " + taskNameWithSubtasks,
 				pollTimeout,
+<<<<<<< HEAD
 				startupMode,
 				isRestored,
+=======
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 				useMetrics);
 	}
 
@@ -148,6 +166,10 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 							records.records(partition.getKafkaPartitionHandle());
 
 					for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
+<<<<<<< HEAD
+=======
+
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 						final T value = deserializer.deserialize(
 								record.key(), record.value(),
 								record.topic(), record.partition(), record.offset());

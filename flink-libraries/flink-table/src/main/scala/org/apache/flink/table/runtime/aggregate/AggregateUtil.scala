@@ -67,10 +67,16 @@ object AggregateUtil {
     *
     */
   private[flink] def createPrepareMapFunction(
+<<<<<<< HEAD
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       groupings: Array[Int],
       inputType: RelDataType)
     : MapFunction[Row, Row] = {
+=======
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    groupings: Array[Int],
+    inputType: RelDataType): MapFunction[Any, Row] = {
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val (aggFieldIndexes,aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -84,7 +90,11 @@ object AggregateUtil {
       aggregates,
       aggFieldIndexes,
       groupings,
+<<<<<<< HEAD
       mapReturnType)
+=======
+      mapReturnType.asInstanceOf[RowTypeInfo]).asInstanceOf[MapFunction[Any, Row]]
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     mapFunction
   }
@@ -114,12 +124,20 @@ object AggregateUtil {
     * NOTE: this function is only used for time based window on batch tables.
     */
   def createDataSetWindowPrepareMapFunction(
+<<<<<<< HEAD
       window: LogicalWindow,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       groupings: Array[Int],
       inputType: RelDataType,
       isParserCaseSensitive: Boolean)
     : MapFunction[Row, Row] = {
+=======
+    window: LogicalWindow,
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    groupings: Array[Int],
+    inputType: RelDataType,
+    isParserCaseSensitive: Boolean): MapFunction[Any, Row] = {
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -149,7 +167,11 @@ object AggregateUtil {
       groupings,
       timeFieldPos,
       tumbleTimeWindowSize,
+<<<<<<< HEAD
       mapReturnType)
+=======
+      mapReturnType).asInstanceOf[MapFunction[Any, Row]]
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
   }
 
   /**
@@ -161,6 +183,7 @@ object AggregateUtil {
     * NOTE: this function is only used for window on batch tables.
     */
   def createDataSetWindowAggregationGroupReduceFunction(
+<<<<<<< HEAD
       window: LogicalWindow,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
@@ -169,6 +192,15 @@ object AggregateUtil {
       properties: Seq[NamedWindowProperty],
       isInputCombined: Boolean = false)
     : RichGroupReduceFunction[Row, Row] = {
+=======
+    window: LogicalWindow,
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    outputType: RelDataType,
+    groupings: Array[Int],
+    properties: Seq[NamedWindowProperty],
+    isInputCombined: Boolean = false): RichGroupReduceFunction[Row, Row] = {
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -272,11 +304,18 @@ object AggregateUtil {
     *
     */
   private[flink] def createDataSetWindowAggregationCombineFunction(
+<<<<<<< HEAD
       window: LogicalWindow,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
       groupings: Array[Int])
     : RichGroupCombineFunction[Row,Row] = {
+=======
+    window: LogicalWindow,
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    groupings: Array[Int]): RichGroupCombineFunction[Row,Row] = {
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -317,12 +356,20 @@ object AggregateUtil {
     *
     */
   private[flink] def createAggregateGroupReduceFunction(
+<<<<<<< HEAD
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
       outputType: RelDataType,
       groupings: Array[Int],
       inGroupingSet: Boolean)
     : RichGroupReduceFunction[Row, Row] = {
+=======
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    outputType: RelDataType,
+    groupings: Array[Int],
+    inGroupingSet: Boolean): RichGroupReduceFunction[Row, Row] = {
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -375,11 +422,18 @@ object AggregateUtil {
     *
     */
   private[flink] def createIncrementalAggregateReduceFunction(
+<<<<<<< HEAD
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
       outputType: RelDataType,
       groupings: Array[Int])
     : IncrementalAggregateReduceFunction = {
+=======
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    outputType: RelDataType,
+    groupings: Array[Int]): IncrementalAggregateReduceFunction = {
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),inputType,groupings.length)._2
@@ -403,6 +457,7 @@ object AggregateUtil {
     * Create an [[AllWindowFunction]] to compute non-partitioned group window aggregates.
     */
   private[flink] def createAllWindowAggregationFunction(
+<<<<<<< HEAD
       window: LogicalWindow,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
@@ -410,6 +465,15 @@ object AggregateUtil {
       groupings: Array[Int],
       properties: Seq[NamedWindowProperty])
     : AllWindowFunction[Row, Row, DataStreamWindow] = {
+=======
+    window: LogicalWindow,
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    outputType: RelDataType,
+    groupings: Array[Int],
+    properties: Seq[NamedWindowProperty])
+  : AllWindowFunction[Row, Row, DataStreamWindow] = {
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val aggFunction =
       createAggregateGroupReduceFunction(
@@ -433,6 +497,7 @@ object AggregateUtil {
     *
     */
   private[flink] def createWindowAggregationFunction(
+<<<<<<< HEAD
       window: LogicalWindow,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
@@ -440,6 +505,15 @@ object AggregateUtil {
       groupings: Array[Int],
       properties: Seq[NamedWindowProperty])
     : WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
+=======
+    window: LogicalWindow,
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    outputType: RelDataType,
+    groupings: Array[Int],
+    properties: Seq[NamedWindowProperty])
+  : WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val aggFunction =
       createAggregateGroupReduceFunction(
@@ -463,6 +537,7 @@ object AggregateUtil {
     * window aggregates.
     */
   private[flink] def createAllWindowIncrementalAggregationFunction(
+<<<<<<< HEAD
       window: LogicalWindow,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
@@ -470,6 +545,14 @@ object AggregateUtil {
       groupings: Array[Int],
       properties: Seq[NamedWindowProperty])
     : AllWindowFunction[Row, Row, DataStreamWindow] = {
+=======
+    window: LogicalWindow,
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    outputType: RelDataType,
+    groupings: Array[Int],
+    properties: Seq[NamedWindowProperty]): AllWindowFunction[Row, Row, DataStreamWindow] = {
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),inputType,groupings.length)._2
@@ -506,6 +589,7 @@ object AggregateUtil {
     * Create a [[WindowFunction]] to finalize incrementally pre-computed window aggregates.
     */
   private[flink] def createWindowIncrementalAggregationFunction(
+<<<<<<< HEAD
       window: LogicalWindow,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
@@ -513,6 +597,14 @@ object AggregateUtil {
       groupings: Array[Int],
       properties: Seq[NamedWindowProperty])
     : WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
+=======
+    window: LogicalWindow,
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    outputType: RelDataType,
+    groupings: Array[Int],
+    properties: Seq[NamedWindowProperty]): WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),inputType,groupings.length)._2

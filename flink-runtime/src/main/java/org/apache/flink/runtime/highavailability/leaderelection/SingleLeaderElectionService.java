@@ -92,8 +92,11 @@ public class SingleLeaderElectionService implements LeaderElectionService {
 		this.notificationExecutor = checkNotNull(notificationsDispatcher);
 		this.leaderId = checkNotNull(leaderId);
 		this.listeners = new HashSet<>();
+<<<<<<< HEAD
 
 		shutdown = false;
+=======
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 	}
 
 	// ------------------------------------------------------------------------

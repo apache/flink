@@ -272,7 +272,11 @@ DataSet<Tuple3<Integer, String, Double>> output = input.sum(0).andMin(2);
         Joins two data sets by creating all pairs of elements that are equal on their keys.
         Optionally uses a JoinFunction to turn the pair of elements into a single element, or a
         FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)
+<<<<<<< HEAD
         elements. See the <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys section</a> to learn how to define join keys.
+=======
+        elements. See the <a href="/dev/api_concepts#specifying-keys">keys section</a> to learn how to define join keys.
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 {% highlight java %}
 result = input1.join(input2)
                .where(0)       // key of the first input (tuple field 0)
@@ -298,7 +302,11 @@ result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
     <tr>
       <td><strong>OuterJoin</strong></td>
       <td>
+<<<<<<< HEAD
         Performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pairs of elements (or one element and a <code>null</code> value for the other input) are given to a JoinFunction to turn the pair of elements into a single element, or to a FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)         elements. See the <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys section</a> to learn how to define join keys.
+=======
+        Performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pairs of elements (or one element and a <code>null</code> value for the other input) are given to a JoinFunction to turn the pair of elements into a single element, or to a FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)         elements. See the <a href="/dev/api_concepts#specifying-keys">keys section</a> to learn how to define join keys.
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 {% highlight java %}
 input1.leftOuterJoin(input2) // rightOuterJoin or fullOuterJoin for right or full outer joins
       .where(0)              // key of the first input (tuple field 0)
@@ -320,7 +328,11 @@ input1.leftOuterJoin(input2) // rightOuterJoin or fullOuterJoin for right or ful
       <td>
         <p>The two-dimensional variant of the reduce operation. Groups each input on one or more
         fields and then joins the groups. The transformation function is called per pair of groups.
+<<<<<<< HEAD
         See the <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys section</a> to learn how to define coGroup keys.</p>
+=======
+        See the <a href="/dev/api_concepts#specifying-keys">keys section</a> to learn how to define coGroup keys.</p>
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 {% highlight java %}
 data1.coGroup(data2)
      .where(0)
@@ -592,7 +604,11 @@ val output: DataSet[(Int, String, Double)] = input.sum(0).min(2)
         Joins two data sets by creating all pairs of elements that are equal on their keys.
         Optionally uses a JoinFunction to turn the pair of elements into a single element, or a
         FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)
+<<<<<<< HEAD
         elements. See the <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys section</a> to learn how to define join keys.
+=======
+        elements. See the <a href="/dev/api_concepts#specifying-keys">keys section</a> to learn how to define join keys.
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 {% highlight scala %}
 // In this case tuple fields are used as keys. "0" is the join field on the first tuple
 // "1" is the join field on the second tuple.
@@ -618,7 +634,11 @@ val result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
     <tr>
       <td><strong>OuterJoin</strong></td>
       <td>
+<<<<<<< HEAD
         Performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pairs of elements (or one element and a `null` value for the other input) are given to a JoinFunction to turn the pair of elements into a single element, or to a FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)         elements. See the <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys section</a> to learn how to define join keys.
+=======
+        Performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pairs of elements (or one element and a `null` value for the other input) are given to a JoinFunction to turn the pair of elements into a single element, or to a FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)         elements. See the <a href="/dev/api_concepts#specifying-keys">keys section</a> to learn how to define join keys.
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 {% highlight scala %}
 val joined = left.leftOuterJoin(right).where(0).equalTo(1) {
    (left, right) =>
@@ -634,7 +654,11 @@ val joined = left.leftOuterJoin(right).where(0).equalTo(1) {
       <td>
         <p>The two-dimensional variant of the reduce operation. Groups each input on one or more
         fields and then joins the groups. The transformation function is called per pair of groups.
+<<<<<<< HEAD
         See the <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys section</a> to learn how to define coGroup keys.</p>
+=======
+        See the <a href="/dev/api_concepts#specifying-keys">keys section</a> to learn how to define coGroup keys.</p>
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 {% highlight scala %}
 data1.coGroup(data2).where(0).equalTo(1)
 {% endhighlight %}
@@ -780,7 +804,11 @@ is not supported by the API out-of-the-box. To use this feature, you should use 
 </div>
 </div>
 
+<<<<<<< HEAD
 The [parallelism]({{ site.baseurl }}/dev/parallel.html) of a transformation can be defined by `setParallelism(int)` while
+=======
+The [parallelism]({{ site.baseurl }}/dev/parallel) of a transformation can be defined by `setParallelism(int)` while
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 `name(String)` assigns a custom name to a transformation which is helpful for debugging. The same is
 possible for [Data Sources](#data-sources) and [Data Sinks](#data-sinks).
 
@@ -2103,7 +2131,11 @@ val result: DataSet[Integer] = input.map(new MyMapper())
 env.execute()
 {% endhighlight %}
 
+<<<<<<< HEAD
 Access the cached file in a user function (here a `MapFunction`). The function must extend a [RichFunction]({{ site.baseurl }}/dev/api_concepts.html#rich-functions) class because it needs access to the `RuntimeContext`.
+=======
+Access the cached file in a user function (here a `MapFunction`). The function must extend a [RichFunction]({{ site.baseurl }}/dev/api_concepts#rich-functions) class because it needs access to the `RuntimeContext`.
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 {% highlight scala %}
 

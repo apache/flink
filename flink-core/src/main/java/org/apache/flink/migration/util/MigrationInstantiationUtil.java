@@ -91,4 +91,8 @@ public final class MigrationInstantiationUtil {
 		throw new IllegalAccessError();
 	}
 
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation

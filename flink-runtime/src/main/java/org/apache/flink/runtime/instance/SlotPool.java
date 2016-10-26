@@ -436,9 +436,13 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 					LOG.debug("Fulfilling pending request [{}] early with returned slot [{}]",
 							pendingRequest.allocationID(), taskManagerSlot.getSlotAllocationId());
 
+<<<<<<< HEAD
 					SimpleSlot newSlot = createSimpleSlot(taskManagerSlot, Locality.UNKNOWN);
 					allocatedSlots.add(newSlot);
 					pendingRequest.future().complete(newSlot);
+=======
+					pendingRequest.future().complete(createSimpleSlot(taskManagerSlot, Locality.UNKNOWN));
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 				}
 				else {
 					LOG.debug("Adding returned slot [{}] to available slots", taskManagerSlot.getSlotAllocationId());
@@ -629,6 +633,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 	}
 
 	// ------------------------------------------------------------------------
+<<<<<<< HEAD
 	//  Methods for tests
 	// ------------------------------------------------------------------------
 
@@ -638,6 +643,8 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 	}
 
 	// ------------------------------------------------------------------------
+=======
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 	//  Helper classes
 	// ------------------------------------------------------------------------
 

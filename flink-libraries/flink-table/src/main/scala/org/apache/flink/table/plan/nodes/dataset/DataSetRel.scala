@@ -19,19 +19,26 @@
 package org.apache.flink.table.plan.nodes.dataset
 
 import org.apache.calcite.rel.RelNode
-import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.plan.nodes.FlinkRel
-import org.apache.flink.types.Row
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.DataSet
 
 trait DataSetRel extends RelNode with FlinkRel {
 
   /**
     * Translates the [[DataSetRel]] node into a [[DataSet]] operator.
     *
-    * @param tableEnv The [[BatchTableEnvironment]] of the translated Table.
-    * @return DataSet of type [[Row]]
+    * @param tableEnv     [[BatchTableEnvironment]] of the translated Table.
+    * @param expectedType specifies the type the Flink operator should return. The type must
+    *                     have the same arity as the result. For instance, if the
+    *                     expected type is a RowTypeInfo this method will return a DataSet of
+    *                     type Row. If the expected type is Tuple2, the operator will return
+    *                     a Tuple2 if possible. Row otherwise.
+    * @return DataSet of type expectedType or RowTypeInfo
     */
-  def translateToPlan(tableEnv: BatchTableEnvironment) : DataSet[Row]
+  def translateToPlan(
+     tableEnv: BatchTableEnvironment,
+     expectedType: Option[TypeInformation[Any]] = None) : DataSet[Any]
 
 }

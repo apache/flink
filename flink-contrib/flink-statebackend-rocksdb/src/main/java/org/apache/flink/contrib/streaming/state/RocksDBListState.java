@@ -47,7 +47,11 @@ import java.util.List;
  * @param <V> The type of the values in the list state.
  */
 public class RocksDBListState<K, N, V>
+<<<<<<< HEAD
 	extends AbstractRocksDBState<K, N, ListState<V>, ListStateDescriptor<V>, List<V>>
+=======
+	extends AbstractRocksDBState<K, N, ListState<V>, ListStateDescriptor<V>, V>
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 	implements InternalListState<N, V> {
 
 	/** Serializer for the values */

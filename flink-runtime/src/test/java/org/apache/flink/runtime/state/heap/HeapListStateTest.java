@@ -19,6 +19,10 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.ExecutionConfig;
+<<<<<<< HEAD
+=======
+
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -215,7 +219,11 @@ public class HeapListStateTest {
 			state.setCurrentNamespace(namespace1);
 			state.clear();
 
+<<<<<<< HEAD
 			StateTable<String, Integer, ArrayList<Long>> stateTable =
+=======
+			StateTable<String, Integer, ArrayList<Long>> stateTable = 
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 					((HeapListState<String, Integer, Long>) state).stateTable;
 
 			assertTrue(stateTable.isEmpty());

@@ -285,9 +285,7 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
 
   override protected def checkValidTableName(name: String): Unit = ???
 
-  override protected def getBuiltInNormRuleSet: RuleSet = ???
-
-  override protected def getBuiltInOptRuleSet: RuleSet = ???
+  override protected def getBuiltInRuleSet: RuleSet = ???
 
   override def registerTableSource(name: String, tableSource: TableSource[_]) = ???
 }

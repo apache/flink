@@ -51,6 +51,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 	//  Suite of Tests
 	// ------------------------------------------------------------------------
 
+
 	@Test(timeout = 60000)
 	public void testFailOnNoBroker() throws Exception {
 		runFailOnNoBrokerTest();
@@ -129,24 +130,6 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 	public void testMetricsAndEndOfStream() throws Exception {
 		runEndOfStreamTest();
 	}
-
-	// --- startup mode ---
-
-	@Test(timeout = 60000)
-	public void testStartFromEarliestOffsets() throws Exception {
-		runStartFromEarliestOffsets();
-	}
-
-	@Test(timeout = 60000)
-	public void testStartFromLatestOffsets() throws Exception {
-		runStartFromLatestOffsets();
-	}
-
-	@Test(timeout = 60000)
-	public void testStartFromGroupOffsets() throws Exception {
-		runStartFromGroupOffsets();
-	}
-
 
 	// --- offset committing ---
 

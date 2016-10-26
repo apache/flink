@@ -24,11 +24,19 @@ import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.typeinfo.TypeInformation
+<<<<<<< HEAD
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
 import org.apache.flink.types.Row
+=======
+import org.apache.flink.table.functions.utils.TableSqlFunction
+import org.apache.flink.table.plan.nodes.FlinkCorrelate
+import org.apache.flink.table.typeutils.TypeConverter._
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.table.api.StreamTableEnvironment
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 /**
   * Flink RelNode which matches along with join a user defined table function.
@@ -44,7 +52,11 @@ class DataStreamCorrelate(
     joinType: SemiJoinType,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, inputNode)
+<<<<<<< HEAD
   with CommonCorrelate
+=======
+  with FlinkCorrelate
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
   with DataStreamRel {
 
   override def deriveRowType() = relRowType
@@ -79,7 +91,14 @@ class DataStreamCorrelate(
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
 
+<<<<<<< HEAD
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
+=======
+  override def translateToPlan(
+      tableEnv: StreamTableEnvironment,
+      expectedType: Option[TypeInformation[Any]])
+    : DataStream[Any] = {
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     val config = tableEnv.getConfig
 
@@ -100,6 +119,10 @@ class DataStreamCorrelate(
       joinType,
       rexCall,
       condition,
+<<<<<<< HEAD
+=======
+      expectedType,
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
       Some(pojoFieldMapping),
       ruleDescription)
 

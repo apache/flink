@@ -22,11 +22,16 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+<<<<<<< HEAD
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.flink.util.TestLogger;
+=======
+import org.apache.flink.util.StringUtils;
+
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 
 import org.junit.AfterClass;
@@ -44,14 +49,21 @@ import java.util.Random;
 import java.util.UUID;
 
 import static org.mockito.Matchers.any;
+<<<<<<< HEAD
 import static org.mockito.Matchers.anyString;
+=======
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+<<<<<<< HEAD
 public class YarnIntraNonHaMasterServicesTest extends TestLogger {
+=======
+public class YarnIntraNonHaMasterServicesTest {
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 	private static final Random RND = new Random();
 
@@ -116,6 +128,7 @@ public class YarnIntraNonHaMasterServicesTest extends TestLogger {
 
 		try (YarnHighAvailabilityServices services = new YarnIntraNonHaMasterServices(flinkConfig, hadoopConfig)) {
 			final LeaderElectionService elector = services.getResourceManagerLeaderElectionService();
+<<<<<<< HEAD
 			final LeaderRetrievalService retrieval = services.getResourceManagerLeaderRetriever();
 			final LeaderContender contender = mockContender(elector);
 			final LeaderRetrievalListener listener = mock(LeaderRetrievalListener.class);
@@ -130,6 +143,14 @@ public class YarnIntraNonHaMasterServicesTest extends TestLogger {
 			services.close();
 
 			verify(contender, timeout(1000L).times(1)).handleError(any(Exception.class));
+=======
+			final LeaderContender contender = mockContender(elector);
+
+			elector.start(contender);
+			services.close();
+
+			verify(contender, timeout(100).times(1)).handleError(any(Exception.class));
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		}
 	}
 

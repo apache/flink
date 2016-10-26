@@ -1,7 +1,11 @@
 ---
 title: "Fault Tolerance"
 layout: redirect
+<<<<<<< HEAD
 redirect: /dev/stream/state.html
+=======
+redirect: /dev/state.html
+>>>>>>> [FLINK-1707] Bulk Affinity Propagation
 permalink: /apis/streaming/fault_tolerance.html
 ---
 <!--
