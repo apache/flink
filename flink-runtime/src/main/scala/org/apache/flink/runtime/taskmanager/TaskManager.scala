@@ -1735,15 +1735,17 @@ object TaskManager {
         Props(classOf[ProcessReaper], taskManager, LOG.logger, RUNTIME_FAILURE_RETURN_CODE),
         "TaskManager_Process_Reaper")
 
-      val quarantineHandler = new DefaultQuarantineHandler(
-        Time.milliseconds(AkkaUtils.getTimeout(configuration).toMillis),
-        RUNTIME_FAILURE_RETURN_CODE,
-        LOG.logger)
+      if (configuration.getBoolean(ConfigConstants.ENABLE_QUARANTINE_MONITOR, false)) {
+        val quarantineHandler = new DefaultQuarantineHandler(
+          Time.milliseconds(AkkaUtils.getTimeout(configuration).toMillis),
+          RUNTIME_FAILURE_RETURN_CODE,
+          LOG.logger)
 
-      LOG.debug("Starting TaskManager quarantine monitor")
-      taskManagerSystem.actorOf(
-        Props(classOf[QuarantineMonitor], quarantineHandler, LOG.logger)
-      )
+        LOG.debug("Starting TaskManager quarantine monitor")
+        taskManagerSystem.actorOf(
+          Props(classOf[QuarantineMonitor], quarantineHandler, LOG.logger)
+        )
+      }
 
       // if desired, start the logging daemon that periodically logs the
       // memory usage information

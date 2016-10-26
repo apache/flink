@@ -191,6 +191,7 @@ The following parameters configure Flink's JobManager and TaskManagers.
 - `blob.fetch.num-concurrent`: The number concurrent BLOB fetches (such as JAR file downloads) that the JobManager serves (DEFAULT: **50**).
 - `blob.fetch.backlog`: The maximum number of queued BLOB fetches (such as JAR file downloads) that the JobManager allows (DEFAULT: **1000**).
 - `task.cancellation-interval`: Time interval between two successive task cancellation attempts in milliseconds (DEFAULT: **30000**).
+- `taskmanager.quarantine-monitor.enable`: Whether a quarantine monitor, which shuts the actor system down in case of quarantining, shall be started with each TaskManager. (DEFAULT: **false**)
 
 
 ### Distributed Coordination (via Akka)

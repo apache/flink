@@ -26,9 +26,6 @@ import akka.actor.UntypedActor;
 import akka.dispatch.OnComplete;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -40,10 +37,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.Promise;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 public class QuarantineMonitorTest extends TestLogger {
@@ -94,7 +93,7 @@ public class QuarantineMonitorTest extends TestLogger {
 	 * actor system.
 	 */
 	@Test(timeout = 5000L)
-	public void testWatcheeQuarantined() throws ExecutionException, InterruptedException {
+	public void testWatcheeQuarantined() throws Exception {
 		TestingQuarantineHandler quarantineHandler = new TestingQuarantineHandler();
 
 		ActorRef watchee = null;
@@ -122,7 +121,9 @@ public class QuarantineMonitorTest extends TestLogger {
 
 			Future<String> quarantineFuture = quarantineHandler.getWasQuarantinedByFuture();
 
-			Assert.assertEquals(actorSystem1Address.toString(), quarantineFuture.get());
+			final String quarantineSystem = Await.result(quarantineFuture, timeout);
+
+			Assert.assertEquals(actorSystem1Address.toString(), quarantineSystem);
 		} finally {
 			TestingUtils.stopActor(watchee);
 			TestingUtils.stopActor(watcher);
@@ -135,7 +136,7 @@ public class QuarantineMonitorTest extends TestLogger {
 	 * system.
 	 */
 	@Test(timeout = 5000L)
-	public void testWatcherQuarantining() throws ExecutionException, InterruptedException {
+	public void testWatcherQuarantining() throws Exception {
 		TestingQuarantineHandler quarantineHandler = new TestingQuarantineHandler();
 
 		ActorRef watchee = null;
@@ -163,7 +164,9 @@ public class QuarantineMonitorTest extends TestLogger {
 
 			Future<String> quarantineFuture = quarantineHandler.getHasQuarantinedFuture();
 
-			Assert.assertEquals(actorSystem1Address.toString(), quarantineFuture.get());
+			final String quarantineSystem = Await.result(quarantineFuture, timeout);
+
+			Assert.assertEquals(actorSystem1Address.toString(), quarantineSystem);
 		} finally {
 			TestingUtils.stopActor(watchee);
 			TestingUtils.stopActor(watcher);
@@ -173,36 +176,36 @@ public class QuarantineMonitorTest extends TestLogger {
 
 	private static class TestingQuarantineHandler implements QuarantineHandler, ErrorHandler {
 
-		private final CompletableFuture<String> wasQuarantinedByFuture;
-		private final CompletableFuture<String> hasQuarantinedFuture;
+		private final Promise<String> wasQuarantinedByFuture;
+		private final Promise<String> hasQuarantinedFuture;
 
 		public TestingQuarantineHandler() {
-			this.wasQuarantinedByFuture = new FlinkCompletableFuture<>();
-			this.hasQuarantinedFuture = new FlinkCompletableFuture<>();
+			this.wasQuarantinedByFuture = new scala.concurrent.impl.Promise.DefaultPromise<>();
+			this.hasQuarantinedFuture = new scala.concurrent.impl.Promise.DefaultPromise<>();
 		}
 
 		@Override
 		public void wasQuarantinedBy(String remoteSystem, ActorSystem actorSystem) {
-			wasQuarantinedByFuture.complete(remoteSystem);
+			wasQuarantinedByFuture.success(remoteSystem);
 		}
 
 		@Override
 		public void hasQuarantined(String remoteSystem, ActorSystem actorSystem) {
-			hasQuarantinedFuture.complete(remoteSystem);
+			hasQuarantinedFuture.success(remoteSystem);
 		}
 
 		public Future<String> getWasQuarantinedByFuture() {
-			return wasQuarantinedByFuture;
+			return wasQuarantinedByFuture.future();
 		}
 
 		public Future<String> getHasQuarantinedFuture() {
-			return hasQuarantinedFuture;
+			return hasQuarantinedFuture.future();
 		}
 
 		@Override
 		public void handleError(Throwable failure) {
-			wasQuarantinedByFuture.completeExceptionally(failure);
-			hasQuarantinedFuture.completeExceptionally(failure);
+			wasQuarantinedByFuture.failure(failure);
+			hasQuarantinedFuture.failure(failure);
 		}
 	}
 
