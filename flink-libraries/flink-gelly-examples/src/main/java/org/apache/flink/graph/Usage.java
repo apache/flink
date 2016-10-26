@@ -18,6 +18,9 @@
 
 package org.apache.flink.graph;
 
+import org.apache.commons.lang3.text.StrBuilder;
+import org.apache.flink.client.program.ProgramParametrizationException;
+
 /**
  * This default main class prints usage listing available classes.
  */
@@ -45,16 +48,26 @@ public class Usage {
 		org.apache.flink.graph.scala.examples.SingleSourceShortestPaths.class,
 	};
 
-	public static void main(String[] args) throws Exception {
-		System.out.println("Driver classes call algorithms from the Gelly library:");
+	private static String getUsage() {
+		StrBuilder strBuilder = new StrBuilder();
+
+		strBuilder.appendNewLine();
+		strBuilder.appendln("Driver classes call algorithms from the Gelly library:");
 		for (Class cls : DRIVERS) {
-			System.out.println("  " + cls.getName());
+			strBuilder.append("  ").appendln(cls.getName());
 		}
 
-		System.out.println("");
-		System.out.println("Example classes illustrate Gelly APIs or alternative algorithms:");
+		strBuilder.appendNewLine();
+		strBuilder.appendln("Example classes illustrate Gelly APIs or alternative algorithms:");
 		for (Class cls : EXAMPLES) {
-			System.out.println("  " + cls.getName());
+			strBuilder.append("  ").appendln(cls.getName());
 		}
+
+		return strBuilder.toString();
+	}
+
+	public static void main(String[] args) throws Exception {
+		// this exception is throw to prevent Flink from printing an error message
+		throw new ProgramParametrizationException(getUsage());
 	}
 }

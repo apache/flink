@@ -95,6 +95,7 @@ public class JaccardIndex {
 		env.getConfig().enableObjectReuse();
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
+		env.getConfig().setGlobalJobParameters(parameters);
 
 		int little_parallelism = parameters.getInt("little_parallelism", PARALLELISM_DEFAULT);
 
@@ -121,7 +122,8 @@ public class JaccardIndex {
 
 						if (parameters.getBoolean("simplify", false)) {
 							graph = graph
-								.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false));
+								.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false)
+									.setParallelism(little_parallelism));
 						}
 
 						ji = graph
@@ -135,7 +137,8 @@ public class JaccardIndex {
 
 						if (parameters.getBoolean("simplify", false)) {
 							graph = graph
-								.run(new org.apache.flink.graph.asm.simple.directed.Simplify<StringValue, NullValue, NullValue>());
+								.run(new org.apache.flink.graph.asm.simple.directed.Simplify<StringValue, NullValue, NullValue>()
+									.setParallelism(little_parallelism));
 						}
 
 						ji = graph

@@ -82,6 +82,7 @@ public class Graph500 {
 		env.getConfig().enableObjectReuse();
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
+		env.getConfig().setGlobalJobParameters(parameters);
 
 		// Generate RMat graph
 		int scale = parameters.getInt("scale", DEFAULT_SCALE);

@@ -68,6 +68,8 @@ public class GraphMetrics {
 			.appendln("options:")
 			.appendln("  --input csv --type <integer | string> [--simplify <true | false>] --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]")
 			.appendln("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]")
+			.appendNewLine()
+			.appendln("Usage error: " + message)
 			.toString();
 	}
 
@@ -77,6 +79,8 @@ public class GraphMetrics {
 		env.getConfig().enableObjectReuse();
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
+		env.getConfig().setGlobalJobParameters(parameters);
+
 		if (! parameters.has("directed")) {
 			throw new ProgramParametrizationException(getUsage("must declare execution mode as '--directed true' or '--directed false'"));
 		}

@@ -78,6 +78,8 @@ public class HITS {
 			.appendln("  --output print")
 			.appendln("  --output hash")
 			.appendln("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]")
+			.appendNewLine()
+			.appendln("Usage error: " + message)
 			.toString();
 	}
 
@@ -87,6 +89,8 @@ public class HITS {
 		env.getConfig().enableObjectReuse();
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
+		env.getConfig().setGlobalJobParameters(parameters);
+
 		int iterations = parameters.getInt("iterations", DEFAULT_ITERATIONS);
 
 		DataSet hits;

@@ -117,7 +117,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 				.name("Reduce edge stats")
 			.groupBy(0)
 			.reduce(new SumEdgeStats<K>())
-				.setCombineHint(CombineHint.HASH)
+			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum edge stats");
 
