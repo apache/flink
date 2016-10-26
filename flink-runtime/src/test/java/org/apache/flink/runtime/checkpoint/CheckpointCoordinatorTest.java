@@ -1868,7 +1868,7 @@ public class CheckpointCoordinatorTest {
 		tasks.put(jobVertexID1, jobVertex1);
 		tasks.put(jobVertexID2, jobVertex2);
 
-		coord.restoreLatestCheckpointedState(tasks, true, true);
+		coord.restoreLatestCheckpointedState(tasks, true, false);
 
 		// verify the restored state
 		verifiyStateRestore(jobVertexID1, jobVertex1, keyGroupPartitions1);
@@ -1984,7 +1984,7 @@ public class CheckpointCoordinatorTest {
 		tasks.put(jobVertexID1, newJobVertex1);
 		tasks.put(jobVertexID2, newJobVertex2);
 
-		coord.restoreLatestCheckpointedState(tasks, true, true);
+		coord.restoreLatestCheckpointedState(tasks, true, false);
 
 		fail("The restoration should have failed because the max parallelism changed.");
 	}
@@ -2106,7 +2106,7 @@ public class CheckpointCoordinatorTest {
 		tasks.put(jobVertexID1, newJobVertex1);
 		tasks.put(jobVertexID2, newJobVertex2);
 
-		coord.restoreLatestCheckpointedState(tasks, true, true);
+		coord.restoreLatestCheckpointedState(tasks, true, false);
 
 		fail("The restoration should have failed because the parallelism of an vertex with " +
 			"non-partitioned state changed.");
@@ -2249,7 +2249,7 @@ public class CheckpointCoordinatorTest {
 
 		tasks.put(jobVertexID1, newJobVertex1);
 		tasks.put(jobVertexID2, newJobVertex2);
-		coord.restoreLatestCheckpointedState(tasks, true, true);
+		coord.restoreLatestCheckpointedState(tasks, true, false);
 
 		// verify the restored state
 		verifiyStateRestore(jobVertexID1, newJobVertex1, keyGroupPartitions1);

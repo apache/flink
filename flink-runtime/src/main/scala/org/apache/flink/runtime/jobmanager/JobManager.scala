@@ -1341,6 +1341,8 @@ class JobManager(
                 executionGraph.restoreLatestCheckpointedState(true, ignoreUnmapped)
               } catch {
                 case e: Exception =>
+                  jobInfo.notifyClients(
+                    decorateMessage(JobResultFailure(new SerializedThrowable(e))))
                   throw new SuppressRestartsException(e)
               }
             }
