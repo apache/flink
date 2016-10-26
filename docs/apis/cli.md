@@ -150,6 +150,14 @@ Returns the path of the created savepoint. You need this path to restore and dis
 
 The run command has a savepoint flag to submit a job, which restores its state from a savepoint. The savepoint path is returned by the savepoint trigger command.
 
+By default, we try to match all savepoint state to the job being submitted. If you want to allow to skip savepoint state that cannot be restored with the new job you can set the `allowNonRestoredState` flag. You need to allow this if you removed an operator from your program that was part of the program when the savepoint was triggered and you still want to use the savepoint.
+
+{% highlight bash %}
+./bin/flink run -s <savepointPath> -n ...
+{% endhighlight %}
+
+This is useful if your program dropped an operator that was part of the savepoint.
+
 #### **Dispose a savepoint**
 
 {% highlight bash %}
@@ -179,41 +187,55 @@ Action "run" compiles and runs a program.
 
   Syntax: run [OPTIONS] <jar-file> <arguments>
   "run" action options:
-     -c,--class <classname>               Class with the program entry point
-                                          ("main" method or "getPlan()" method.
-                                          Only needed if the JAR file does not
-                                          specify the class in its manifest.
-     -C,--classpath <url>                 Adds a URL to each user code
-                                          classloader  on all nodes in the
-                                          cluster. The paths must specify a
-                                          protocol (e.g. file://) and be
-                                          accessible on all nodes (e.g. by means
-                                          of a NFS share). You can use this
-                                          option multiple times for specifying
-                                          more than one URL. The protocol must
-                                          be supported by the {@link
-                                          java.net.URLClassLoader}.
-     -d,--detached                        If present, runs the job in detached
-                                          mode
-     -m,--jobmanager <host:port>          Address of the JobManager (master) to
-                                          which to connect. Specify
-                                          'yarn-cluster' as the JobManager to
-                                          deploy a YARN cluster for the job. Use
-                                          this flag to connect to a different
-                                          JobManager than the one specified in
-                                          the configuration.
-     -p,--parallelism <parallelism>       The parallelism with which to run the
-                                          program. Optional flag to override the
-                                          default value specified in the
-                                          configuration.
-     -q,--sysoutLogging                   If present, supress logging output to
-                                          standard out.
-     -s,--fromSavepoint <savepointPath>   Path to a savepoint to reset the job
-                                          back to (for example
-                                          file:///flink/savepoint-1537).
-  Additional arguments if -m yarn-cluster is set:
+     -c,--class <classname>                         Class with the program entry
+                                                    point ("main" method or
+                                                    "getPlan()" method. Only
+                                                    needed if the JAR file does
+                                                    not specify the class in its
+                                                    manifest.
+     -C,--classpath <url>                           Adds a URL to each user code
+                                                    classloader  on all nodes in
+                                                    the cluster. The paths must
+                                                    specify a protocol (e.g.
+                                                    file://) and be accessible
+                                                    on all nodes (e.g. by means
+                                                    of a NFS share). You can use
+                                                    this option multiple times
+                                                    for specifying more than one
+                                                    URL. The protocol must be
+                                                    supported by the {@link
+                                                    java.net.URLClassLoader}.
+     -d,--detached                                  If present, runs the job in
+                                                    detached mode
+     -m,--jobmanager <host:port>                    Address of the JobManager
+                                                    (master) to which to
+                                                    connect. Use this flag to
+                                                    connect to a different
+                                                    JobManager than the one
+                                                    specified in the
+                                                    configuration.
+     -n,--allowNonRestoredState                     Allow non restored savepoint
+                                                    state in case an operator has
+                                                    been removed from the job.
+     -p,--parallelism <parallelism>                 The parallelism with which
+                                                    to run the program. Optional
+                                                    flag to override the default
+                                                    value specified in the
+                                                    configuration.
+     -q,--sysoutLogging                             If present, suppress logging
+                                                    output to standard out.
+     -s,--fromSavepoint <savepointPath>             Path to a savepoint to
+                                                    restore the job from (for
+                                                    example
+                                                    hdfs:///flink/savepoint-1537
+                                                    ).
+     -z,--zookeeperNamespace <zookeeperNamespace>   Namespace to create the
+                                                    Zookeeper sub-paths for high
+                                                    availability mode
+  Options for yarn-cluster mode:
      -yD <arg>                            Dynamic properties
      -yd,--yarndetached                   Start detached
+     -yid,--yarnapplicationId <arg>       Attach to running YARN session
      -yj,--yarnjar <arg>                  Path to Flink jar file
      -yjm,--yarnjobManagerMemory <arg>    Memory for JobManager Container [in
                                           MB]
@@ -230,6 +252,8 @@ Action "run" compiles and runs a program.
                                           (t for transfer)
      -ytm,--yarntaskManagerMemory <arg>   Memory per TaskManager Container [in
                                           MB]
+     -yz,--yarnzookeeperNamespace <arg>   Namespace to create the Zookeeper
+                                          sub-paths for high availability mode
 
 
 Action "info" shows the optimized execution plan of the program (JSON).
