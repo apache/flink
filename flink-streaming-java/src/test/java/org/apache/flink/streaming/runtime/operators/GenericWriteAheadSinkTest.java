@@ -128,7 +128,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		testHarness.notifyOfCompletedCheckpoint(0);
 
 		//isCommitted should have failed, thus sendValues() should never have been called
-		Assert.assertTrue(sink.values.size() == 0);
+		Assert.assertEquals(0, sink.values.size());
 
 		for (int x = 0; x < 10; x++) {
 			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 1)));
@@ -139,7 +139,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		testHarness.notifyOfCompletedCheckpoint(1);
 
 		//previous CP should be retried, but will fail the CP commit. Second CP should be skipped.
-		Assert.assertTrue(sink.values.size() == 10);
+		Assert.assertEquals(10, sink.values.size());
 
 		for (int x = 0; x < 10; x++) {
 			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 2)));
@@ -150,7 +150,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		testHarness.notifyOfCompletedCheckpoint(2);
 
 		//all CP's should be retried and succeed; since one CP was written twice we have 2 * 10 + 10 + 10 = 40 values
-		Assert.assertTrue(sink.values.size() == 40);
+		Assert.assertEquals(40, sink.values.size());
 	}
 
 	/**
@@ -193,12 +193,12 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 
 		@Override
-		public void commitCheckpoint(long checkpointID) {
+		public void commitCheckpoint(int subtaskIdx, long checkpointID) {
 			checkpoints.add(checkpointID);
 		}
 
 		@Override
-		public boolean isCheckpointCommitted(long checkpointID) {
+		public boolean isCheckpointCommitted(int subtaskIdx, long checkpointID) {
 			return checkpoints.contains(checkpointID);
 		}
 	}
@@ -245,7 +245,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 
 		@Override
-		public void commitCheckpoint(long checkpointID) {
+		public void commitCheckpoint(int subtaskIdx, long checkpointID) {
 			if (failCommit) {
 				failCommit = false;
 				throw new RuntimeException("Expected exception");
@@ -255,7 +255,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 
 		@Override
-		public boolean isCheckpointCommitted(long checkpointID) {
+		public boolean isCheckpointCommitted(int subtaskIdx, long checkpointID) {
 			if (failIsCommitted) {
 				failIsCommitted = false;
 				throw new RuntimeException("Expected exception");
