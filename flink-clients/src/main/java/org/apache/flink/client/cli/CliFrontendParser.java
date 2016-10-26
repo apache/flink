@@ -70,7 +70,10 @@ public class CliFrontendParser {
 			"Use this flag to connect to a different JobManager than the one specified in the configuration.");
 
 	static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,
-			"Path to a savepoint to reset the job back to (for example file:///flink/savepoint-1537).");
+			"Path to a savepoint to restore the job from (for example hdfs:///flink/savepoint-1537).");
+
+	static final Option SAVEPOINT_IGNORE_UNMAPPED_STATE_OPTION = new Option("i", "ignoreUnmappedState", false,
+			"Flag indicating whether savepoint state that cannot be mapped to the job shall be ignored.");
 
 	static final Option SAVEPOINT_DISPOSE_OPTION = new Option("d", "dispose", true,
 			"Path of savepoint to dispose.");
@@ -121,6 +124,8 @@ public class CliFrontendParser {
 		SAVEPOINT_PATH_OPTION.setRequired(false);
 		SAVEPOINT_PATH_OPTION.setArgName("savepointPath");
 
+		SAVEPOINT_IGNORE_UNMAPPED_STATE_OPTION.setRequired(false);
+
 		ZOOKEEPER_NAMESPACE_OPTION.setRequired(false);
 		ZOOKEEPER_NAMESPACE_OPTION.setArgName("zookeeperNamespace");
 
@@ -155,7 +160,6 @@ public class CliFrontendParser {
 		options.addOption(ARGS_OPTION);
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
-		options.addOption(SAVEPOINT_PATH_OPTION);
 		options.addOption(ZOOKEEPER_NAMESPACE_OPTION);
 		return options;
 	}
@@ -166,13 +170,15 @@ public class CliFrontendParser {
 		options.addOption(PARALLELISM_OPTION);
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
-		options.addOption(SAVEPOINT_PATH_OPTION);
 		options.addOption(ZOOKEEPER_NAMESPACE_OPTION);
 		return options;
 	}
 
 	private static Options getRunOptions(Options options) {
 		options = getProgramSpecificOptions(options);
+		options.addOption(SAVEPOINT_PATH_OPTION);
+		options.addOption(SAVEPOINT_IGNORE_UNMAPPED_STATE_OPTION);
+
 		options = getJobManagerAddressOption(options);
 		return addCustomCliOptions(options, true);
 	}
@@ -220,6 +226,9 @@ public class CliFrontendParser {
 
 	private static Options getRunOptionsWithoutDeprecatedOptions(Options options) {
 		Options o = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
+		o.addOption(SAVEPOINT_PATH_OPTION);
+		o.addOption(SAVEPOINT_IGNORE_UNMAPPED_STATE_OPTION);
+
 		return getJobManagerAddressOption(o);
 	}
 

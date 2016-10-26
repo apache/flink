@@ -25,6 +25,7 @@ import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.BufferedInputStream;
@@ -86,7 +87,7 @@ public class PackagedProgram {
 	
 	private Plan plan;
 
-	private String savepointPath;
+	private SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.none();
 
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
@@ -257,12 +258,12 @@ public class PackagedProgram {
 		}
 	}
 
-	public void setSavepointPath(String savepointPath) {
-		this.savepointPath = savepointPath;
+	public void setSavepointRestoreSettings(SavepointRestoreSettings savepointSettings) {
+		this.savepointSettings = savepointSettings;
 	}
 
-	public String getSavepointPath() {
-		return savepointPath;
+	public SavepointRestoreSettings getSavepointSettings() {
+		return savepointSettings;
 	}
 
 	public String[] getArguments() {

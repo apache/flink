@@ -168,6 +168,14 @@ The job will only be cancelled if the savepoint succeeds.
 
 The run command has a savepoint flag to submit a job, which restores its state from a savepoint. The savepoint path is returned by the savepoint trigger command.
 
+By default, we try to match all savepoint state to the job being submitted. If you want to ignore savepoint state that cannot be mapped to the new job, you can set the `ignoreUnmappedState` flag:
+
+{% highlight bash %}
+./bin/flink run -s <savepointPath> -i ...
+{% endhighlight %}
+
+This is useful if your program dropped an operator that was part of the savepoint.
+
 #### Dispose a savepoint
 
 {% highlight bash %}
@@ -217,6 +225,10 @@ Action "run" compiles and runs a program.
                                                     java.net.URLClassLoader}.
      -d,--detached                                  If present, runs the job in
                                                     detached mode
+     -i,--ignoreUnmappedState                       Flag indicating whether
+                                                    savepoint state that cannot
+                                                    be mapped to the job shall
+                                                    be ignored.
      -m,--jobmanager <host:port>                    Address of the JobManager
                                                     (master) to which to
                                                     connect. Use this flag to
@@ -231,13 +243,15 @@ Action "run" compiles and runs a program.
                                                     configuration.
      -q,--sysoutLogging                             If present, suppress logging
                                                     output to standard out.
-     -s,--fromSavepoint <savepointPath>             Path to a savepoint to reset
-                                                    the job back to (for example
-                                                    file:///flink/savepoint-1537
+     -s,--fromSavepoint <savepointPath>             Path to a savepoint to
+                                                    restore the job from (for
+                                                    example
+                                                    hdfs:///flink/savepoint-1537
                                                     ).
      -z,--zookeeperNamespace <zookeeperNamespace>   Namespace to create the
                                                     Zookeeper sub-paths for high
                                                     availability mode
+
   Options for yarn-cluster mode:
      -yD <arg>                            Dynamic properties
      -yd,--yarndetached                   Start detached
