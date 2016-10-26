@@ -81,6 +81,17 @@ public class TaskManagerOptions {
 			key("task.checkpoint.alignment.max-size")
 			.defaultValue(-1L);
 
+	/**
+	 * Whether the quarantine monitor for task managers shall be started. The quarantine monitor
+	 * shuts down the actor system if it detects that it has quarantined another actor system
+	 * or if it has been quarantined by another actor system.
+	 *
+	 * @deprecated Only introduced in 1.2.1 to not change the default behaviour
+	 */
+	public static final ConfigOption<Boolean> EXIT_ON_FATAL_AKKA_ERROR =
+		key("taskmanager.exit-on-fatal-akka-error")
+		.defaultValue(false);
+
 	// ------------------------------------------------------------------------
 
 	/** Not intended to be instantiated */
