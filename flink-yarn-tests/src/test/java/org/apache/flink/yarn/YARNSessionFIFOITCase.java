@@ -81,10 +81,11 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 * Test regular operation, including command line parameter parsing.
 	 */
 	@Test(timeout=60000) // timeout after a minute.
-	public void testDetachedMode() {
+	public void testDetachedMode() throws InterruptedException {
 		LOG.info("Starting testDetachedMode()");
 		addTestAppender(FlinkYarnSessionCli.class, Level.INFO);
-		startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
+		Runner runner =
+			startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 						"-t", flinkLibFolder.getAbsolutePath(),
 						"-n", "1",
 						"-jm", "768",
@@ -93,6 +94,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 						"--detached"},
 				"Flink JobManager is now running on", RunTypes.YARN_SESSION);
 
+		// before checking any strings outputted by the CLI, first give it time to return
+		runner.join();
 		checkForLogString("The Flink YARN client has been started in detached mode");
 
 		LOG.info("Waiting until two containers are running");
