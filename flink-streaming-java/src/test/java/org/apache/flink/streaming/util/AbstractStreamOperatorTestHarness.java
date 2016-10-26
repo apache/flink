@@ -24,12 +24,16 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.runtime.checkpoint.OperatorStateRepartitioner;
+import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
+import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.ClosableRegistry;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
@@ -52,6 +56,7 @@ import org.apache.flink.util.FutureUtil;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -86,6 +91,9 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	protected AbstractStateBackend stateBackend = new MemoryStateBackend();
 
 	private final Object checkpointLock;
+
+	private final OperatorStateRepartitioner operatorStateRepartitioner =
+			RoundRobinOperatorStateRepartitioner.INSTANCE;
 
 	/**
 	 * Whether setup() was called on the operator. This is reset when calling close().
@@ -233,12 +241,72 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState(OperatorStateHandles)}.
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, StreamConfig, Output)}
 	 * if it was not called before.
+	 *
+	 * <p>This will reshape the state handles to include only those key-group states
+	 * in the local key-group range and the operator states that would be assigned to the local
+	 * subtask.
 	 */
 	public void initializeState(OperatorStateHandles operatorStateHandles) throws Exception {
 		if (!setupCalled) {
 			setup();
 		}
-		operator.initializeState(operatorStateHandles);
+
+		if (operatorStateHandles != null) {
+			int numKeyGroups = getEnvironment().getTaskInfo().getNumberOfKeyGroups();
+			int numSubtasks = getEnvironment().getTaskInfo().getNumberOfParallelSubtasks();
+			int subtaskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
+
+			// create a new OperatorStateHandles that only contains the state for our key-groups
+
+			List<KeyGroupRange> keyGroupPartitions = StateAssignmentOperation.createKeyGroupPartitions(
+					numKeyGroups,
+					numSubtasks);
+
+			KeyGroupRange localKeyGroupRange =
+					keyGroupPartitions.get(subtaskIndex);
+
+			List<KeyGroupsStateHandle> localManagedKeyGroupState = null;
+			if (operatorStateHandles.getManagedKeyedState() != null) {
+				localManagedKeyGroupState = StateAssignmentOperation.getKeyGroupsStateHandles(
+						operatorStateHandles.getManagedKeyedState(),
+						localKeyGroupRange);
+			}
+
+			List<KeyGroupsStateHandle> localRawKeyGroupState = null;
+			if (operatorStateHandles.getRawKeyedState() != null) {
+				localRawKeyGroupState = StateAssignmentOperation.getKeyGroupsStateHandles(
+						operatorStateHandles.getRawKeyedState(),
+						localKeyGroupRange);
+			}
+
+			List<OperatorStateHandle> managedOperatorState = new ArrayList<>();
+			if (operatorStateHandles.getManagedOperatorState() != null) {
+				managedOperatorState.addAll(operatorStateHandles.getManagedOperatorState());
+			}
+			Collection<OperatorStateHandle> localManagedOperatorState = operatorStateRepartitioner.repartitionState(
+					managedOperatorState,
+					numSubtasks).get(subtaskIndex);
+
+			List<OperatorStateHandle> rawOperatorState = new ArrayList<>();
+			if (operatorStateHandles.getRawOperatorState() != null) {
+				rawOperatorState.addAll(operatorStateHandles.getRawOperatorState());
+			}
+			Collection<OperatorStateHandle> localRawOperatorState = operatorStateRepartitioner.repartitionState(
+					rawOperatorState,
+					numSubtasks).get(subtaskIndex);
+
+			OperatorStateHandles massagedOperatorStateHandles = new OperatorStateHandles(
+					0,
+					null,
+					localManagedKeyGroupState,
+					localRawKeyGroupState,
+					localManagedOperatorState,
+					localRawOperatorState);
+
+			operator.initializeState(massagedOperatorStateHandles);
+		} else {
+			operator.initializeState(null);
+		}
 		initializeCalled = true;
 	}
 
@@ -275,10 +343,10 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		OperatorStateHandles handles = new OperatorStateHandles(
 			0,
 			null,
-			Collections.singletonList(keyedManaged),
-			Collections.singletonList(keyedRaw),
-			Collections.singletonList(opManaged),
-			Collections.singletonList(opRaw));
+			keyedManaged != null ? Collections.singletonList(keyedManaged) : null,
+			keyedRaw != null ? Collections.singletonList(keyedRaw) : null,
+			opManaged != null ? Collections.singletonList(opManaged) : null,
+			opRaw != null ? Collections.singletonList(opRaw) : null);
 		return handles;
 	}
 
