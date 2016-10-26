@@ -279,7 +279,7 @@ FlinkKafkaProducer010.writeToKafkaWithTimestamps(stream, "my-topic", new SimpleS
 </div>
 </div>
 
-You can also define a custom Kafka producer configuration for the KafkaSink with the constructor. Please refer to
+You can also define a custom Kafka producer configuration for the FlinkKafkaProducer with the constructor. Please refer to
 the [Apache Kafka documentation](https://kafka.apache.org/documentation.html) for details on how to configure
 Kafka Producers.
 
@@ -289,6 +289,11 @@ one producer instance can send data to multiple topics.
 
 The interface of the serialization schema is called `KeyedSerializationSchema`.
 
+The last argument of the `FlinkKafkaProducer` allows passing a custom partitioner, extending Flink's `KafkaPartitioner`
+class. The partitioner provides some Flink specific data, like the number of parallel sources, and the source id.
+
+The producer supports Kafka's `Partitioner` interface as well. To use it, pass `null` as the partitioner to the
+constructor and set the `partitioner.class` property, pointing to your implementation.
 
 **Note**: By default, the number of retries is set to "0". This means that the producer fails immediately on errors,
 including leader changes. The value is set to "0" by default to avoid duplicate messages in the target topic.
@@ -328,5 +333,76 @@ The `FlinkKafkaProducer010` only emits the record timestamp, if `setWriteTimesta
 FlinkKafkaProducer010.FlinkKafkaProducer010Configuration config = FlinkKafkaProducer010.writeToKafkaWithTimestamps(streamWithTimestamps, topic, new SimpleStringSchema(), standardProps);
 config.setWriteTimestampToKafka(true);
 {% endhighlight %}
+
+
+### Using Flink's Kafka connector with Kafka serializers
+
+Flink uses its own interfaces for specifying serializers for the Kafka connector. However, we also provide a wrapper to use
+Kafka serializers with Flink.
+
+The wrappers are called `KafkaSerializerWrapper` and `KafkaDeserializerWrapper`. The following example shows how to use Confluent's
+`KafkaAvroSerializer` with the schema registry.
+
+For using the Avro serializers in a Maven project, we first need to add Confluent's repository and the serializer dependency.
+
+{% highlight xml %}
+
+<!-- Add repository, because the packages are not available in Maven central -->
+<repositories>
+    <repository>
+        <id>confluent</id>
+        <url>http://packages.confluent.io/maven</url>
+    </repository>
+</repositories>
+	
+<dependency>
+    <groupId>io.confluent</groupId>
+    <artifactId>kafka-avro-serializer</artifactId>
+    <version>3.0.0</version>
+    <scope>test</scope>
+    <exclusions>
+        <exclusion>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+    </exclusions>
+</dependency>
+{% endhighlight %}
+
+
+**The serializer for the `FlinkKafkaProducer` is specified like this**:
+
+{% highlight java %}
+Map<String, String> config = null;
+KeyedSerializationSchema<Tuple2<Void, GenericRecord>> serSchema = new KafkaSerializerWrapper<>(KafkaAvroSerializer.class, KafkaAvroSerializer.class, config);
+FlinkKafkaProducer09<Tuple2<Void, GenericRecord>> producer = new FlinkKafkaProducer09<>("topic", serSchema, new Properties());
+{% endhighlight %}
+
+The first two arguments are the Kafka serializer classes for the keys and values in the topic. The last argument `config` allows
+you to pass configuration values to the serializers. The `KafkaAvroSerializer` in this example uses these configs for
+the schema registry URL.
+
+The wrapper is internally calling Kafka's `Serializer.serialize(topic, message)` method, which expects the topic as an argument as well.
+Since Flink's serialize*() methods don't provide the topic, there is a special configuration key to 
+set the topic for the serializer through this wrapper. The configuration key is stored in the `KafkaSerializerWrapper.SERIALIZER_TOPIC` constant.
+
+**The deserializer for the `FlinkKafkaConsumer` is specified like this**:
+
+{% highlight java %}
+Map<String, String> config = null;
+KafkaDeserializerWrapper<Void, GenericRecord> kvDeSer = new KafkaDeserializerWrapper<>(KafkaAvroDeserializer.class, KafkaAvroDeserializer.class, Void.class, GenericRecord.class, config);
+FlinkKafkaConsumer09<Tuple2<Void, GenericRecord>> consumer = new FlinkKafkaConsumer09<>("topic", kvDeSer, new Properties());
+{% endhighlight %}
+
+Similar to the serializer, the deserializer takes the two Kafka deserializers for the key and values. The deserializer wrapper also needs to know the target types
+the deserializer is creating.
 
 

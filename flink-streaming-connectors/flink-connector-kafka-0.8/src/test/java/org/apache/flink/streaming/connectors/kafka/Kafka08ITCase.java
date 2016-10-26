@@ -245,4 +245,9 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 	public void testMetrics() throws Throwable {
 		runMetricsTest();
 	}
+
+	@Test(timeout = 60000)
+	public void testKafkaAvroSerializerTest() throws Exception {
+		runKafkaAvroSerializerTest();
+	}
 }

@@ -18,6 +18,11 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
@@ -25,9 +30,11 @@ import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.message.MessageAndMetadata;
 import kafka.server.KafkaServer;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -53,19 +60,14 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.testutils.DataGenerators;
 import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.JobManagerCommunicationUtils;
@@ -73,8 +75,9 @@ import org.apache.flink.streaming.connectors.kafka.testutils.PartitionValidating
 import org.apache.flink.streaming.connectors.kafka.testutils.ThrottledMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2Partitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ValidatingExactlyOnceSink;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KafkaDeserializerWrapper;
+import org.apache.flink.streaming.util.serialization.KafkaSerializerWrapper;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
@@ -88,6 +91,7 @@ import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.Collector;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.errors.TimeoutException;
+import org.apache.sling.commons.json.JSONObject;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -96,7 +100,9 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.management.ManagementFactory;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
@@ -1428,8 +1434,124 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			}
 		});
 
-		JobExecutionResult result = tryExecute(env1, "Consume " + ELEMENT_COUNT + " elements from Kafka");
+		tryExecute(env1, "Consume " + ELEMENT_COUNT + " elements from Kafka");
 
+		deleteTestTopic(topic);
+	}
+
+
+	private static class SchemaRegistryFakeHandler implements HttpHandler {
+		static int n = 0;
+		@Override
+		public void handle(HttpExchange t) throws IOException {
+			String response = "{\"id\":"+(n++)+"}";
+			if(t.getRequestURI().toString().equals("/schemas/ids/0")) {
+				String userSchema = "{\"type\":\"record\"," +
+						"\"name\":\"myrecord\"," +
+						"\"fields\":[{\"name\":\"f1\",\"type\":\"string\"},{\"name\":\"id\",\"type\":\"int\"}]}";
+				response = "{\"schema\": "+JSONObject.quote(userSchema)+"}";
+
+			}
+
+			LOG.info("Received request. Method {}, URI {}. Res: {}", t.getRequestMethod(), t.getRequestURI(), response);
+
+			t.sendResponseHeaders(200, response.length());
+			OutputStream os = t.getResponseBody();
+			os.write(response.getBytes());
+			os.close();
+		}
+	}
+
+
+	/**
+	 * Test Flink's Kafka consumer / producer with a Kafka serializer and partitioner.
+	 *
+	 */
+	public void runKafkaAvroSerializerTest() throws Exception {
+
+		final String topic = "kafkaAvro";
+
+		// start a web server faking a registry server
+		InetSocketAddress port = new InetSocketAddress(0);
+		HttpServer server = HttpServer.create(port, 0);
+		server.createContext("/", new SchemaRegistryFakeHandler());
+		server.setExecutor(null); // creates a default executor
+		server.start();
+
+		createTestTopic(topic, 2, 1);
+
+		// write Avro data
+		final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env1.setParallelism(1);
+		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+		env1.getConfig().disableSysoutLogging();
+		env1.getConfig().enableObjectReuse(); // otherwise, the schema registry cache is not working
+
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+		props.setProperty("schema.registry.url", "http://localhost:"+server.getAddress().getPort());
+		props.setProperty(KafkaSerializerWrapper.SERIALIZER_TOPIC, topic);
+
+		DataStream<Tuple2<Void, GenericRecord>> finiteAvroStream = env1.addSource(new SourceFunction<GenericRecord>() {
+			@Override
+			public void run(SourceContext<GenericRecord> ctx) throws Exception {
+				// This code has been taken from
+				// https://github.com/confluentinc/schema-registry/blob/master/docs/serializer-formatter.rst
+				// (ASL 2.0 license)
+				String userSchema = "{\"type\":\"record\"," +
+						"\"name\":\"myrecord\"," +
+						"\"fields\":[{\"name\":\"f1\",\"type\":\"string\"},{\"name\":\"id\",\"type\":\"int\"}]}";
+				Schema.Parser parser = new Schema.Parser();
+				Schema schema = parser.parse(userSchema);
+				int i = 0;
+				while(i++ < 2000) {
+					GenericRecord element = new GenericData.Record(schema);
+					element.put("id", i);
+					element.put("f1", UUID.randomUUID().toString());
+					ctx.collect(element);
+				}
+				ctx.close();
+			}
+
+			@Override
+			public void cancel() {
+				// ign
+			}
+		}).map(new MapFunction<GenericRecord, Tuple2<Void, GenericRecord>>() {
+			@Override
+			public Tuple2<Void, GenericRecord> map(GenericRecord value) throws Exception {
+				return Tuple2.of(null, value);
+			}
+		});
+
+		KeyedSerializationSchema<Tuple2<Void, GenericRecord>> serSchema = new KafkaSerializerWrapper<>(KafkaAvroSerializer.class, KafkaAvroSerializer.class, (Map)props);
+		kafkaServer.produceIntoKafka(finiteAvroStream, topic, serSchema, props, null);
+
+		env1.execute("Produce Avro records into Kafka");
+
+		// read Avro data
+		KafkaDeserializerWrapper<Void, GenericRecord> kvSer = new KafkaDeserializerWrapper<>(KafkaAvroDeserializer.class, KafkaAvroDeserializer.class, Void.class, GenericRecord.class, (Map)props);
+		DataStream<Tuple2<Void, GenericRecord>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, kvSer, props));
+
+		// validate data
+		fromKafka.flatMap(new FlatMapFunction<Tuple2<Void, GenericRecord>, Object>() {
+			int count = 0;
+			@Override
+			public void flatMap(Tuple2<Void, GenericRecord> value, Collector<Object> out) throws Exception {
+				int id = (int)value.f1.get("id");
+				if(id < 1 || id > 2000) {
+					throw new RuntimeException("Id out of range");
+				}
+				if(++count == 2000) {
+					throw new SuccessException();
+				}
+			}
+		});
+
+		tryExecute(env1, "Consume Avro records from Kafka");
+
+		server.stop(0);
 		deleteTestTopic(topic);
 	}
 

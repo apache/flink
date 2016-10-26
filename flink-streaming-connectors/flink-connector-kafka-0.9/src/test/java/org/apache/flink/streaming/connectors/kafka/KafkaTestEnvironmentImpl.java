@@ -75,6 +75,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	// 6 seconds is default. Seems to be too small for travis. 30 seconds
 	private String zkTimeout = "30000";
 
+	@Override
 	public String getBrokerConnectionString() {
 		return brokerConnectionString;
 	}

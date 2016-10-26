@@ -110,6 +110,11 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		runMetricsTest();
 	}
 
+	@Test(timeout = 60000)
+	public void testKafkaAvroSerializerTest() throws Exception {
+		runKafkaAvroSerializerTest();
+	}
+
 	// --- offset committing ---
 
 	@Test(timeout = 60000)

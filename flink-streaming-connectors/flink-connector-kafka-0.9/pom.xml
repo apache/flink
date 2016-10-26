@@ -40,6 +40,13 @@ under the License.
 		<kafka.version>0.9.0.1</kafka.version>
 	</properties>
 
+	<repositories>
+		<repository>
+			<id>confluent</id>
+			<url>http://packages.confluent.io/maven</url>
+		</repository>
+	</repositories>
+
 	<dependencies>
 
 		<!-- core dependencies -->
@@ -147,6 +154,27 @@ under the License.
 			<artifactId>hadoop-minikdc</artifactId>
 			<version>${minikdc.version}</version>
 			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>io.confluent</groupId>
+			<artifactId>kafka-avro-serializer</artifactId>
+			<version>3.0.0</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.kafka</groupId>
+					<artifactId>kafka-clients</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 	</dependencies>
