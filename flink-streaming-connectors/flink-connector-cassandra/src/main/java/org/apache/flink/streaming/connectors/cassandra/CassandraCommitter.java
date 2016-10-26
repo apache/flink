@@ -18,10 +18,14 @@
 package org.apache.flink.streaming.connectors.cassandra;
 
 import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 /**
  * CheckpointCommitter that saves information about completed checkpoints within a separate table in a cassandra
@@ -40,10 +44,11 @@ public class CassandraCommitter extends CheckpointCommitter {
 	private String keySpace = "flink_auxiliary";
 	private String table = "checkpoints_";
 
-	private transient PreparedStatement updateStatement;
-	private transient PreparedStatement selectStatement;
-
-	private long lastCommittedCheckpointID = -1;
+	/**
+	 * A cache of the last committed checkpoint ids per subtask index. This is used to
+	 * avoid redundant round-trips to Cassandra (see {@link #isCheckpointCommitted(int, long)}.
+	 */
+	private final Map<Integer, Long> lastCommittedCheckpoints = new HashMap<>();
 
 	public CassandraCommitter(ClusterBuilder builder) {
 		this.builder = builder;
@@ -95,16 +100,10 @@ public class CassandraCommitter extends CheckpointCommitter {
 		}
 		cluster = builder.getCluster();
 		session = cluster.connect();
-
-		updateStatement = session.prepare(String.format("UPDATE %s.%s set checkpoint_id=? where sink_id='%s' and sub_id=%d;", keySpace, table, operatorId, subtaskId));
-		selectStatement = session.prepare(String.format("SELECT checkpoint_id FROM %s.%s where sink_id='%s' and sub_id=%d;", keySpace, table, operatorId, subtaskId));
-
-		session.execute(String.format("INSERT INTO %s.%s (sink_id, sub_id, checkpoint_id) values ('%s', %d, " + -1 + ") IF NOT EXISTS;", keySpace, table, operatorId, subtaskId));
 	}
 
 	@Override
 	public void close() throws Exception {
-		this.lastCommittedCheckpointID = -1;
 		try {
 			session.close();
 		} catch (Exception e) {
@@ -118,16 +117,32 @@ public class CassandraCommitter extends CheckpointCommitter {
 	}
 
 	@Override
-	public void commitCheckpoint(long checkpointID) {
-		session.execute(updateStatement.bind(checkpointID));
-		this.lastCommittedCheckpointID = checkpointID;
+	public void commitCheckpoint(int subtaskIdx, long checkpointId) {
+		String statement = String.format(
+			"UPDATE %s.%s set checkpoint_id=%d where sink_id='%s' and sub_id=%d;",
+			keySpace, table, checkpointId, operatorId, subtaskIdx);
+
+		session.execute(statement);
 	}
 
 	@Override
-	public boolean isCheckpointCommitted(long checkpointID) {
-		if (this.lastCommittedCheckpointID == -1) {
-			this.lastCommittedCheckpointID = session.execute(selectStatement.bind()).one().getLong("checkpoint_id");
+	public boolean isCheckpointCommitted(int subtaskIdx, long checkpointId) {
+
+		// Pending checkpointed buffers are committed in ascending order of their
+		// checkpoint id. This way we can tell if a checkpointed buffer was committed
+		// just by asking the third party storage system for the last checkpointed
+		// checkpoint id committed by the specific subtask.
+
+		Long lastCommittedCheckpoint = lastCommittedCheckpoints.get(subtaskIdx);
+		if (lastCommittedCheckpoint == null || lastCommittedCheckpoint == -1) {
+			String statement = String.format(
+				"SELECT checkpoint_id FROM %s.%s where sink_id='%s' and sub_id=%d;",
+				keySpace, table, operatorId, subtaskIdx);
+
+			Iterator<Row> result = session.execute(statement).iterator();
+			lastCommittedCheckpoint = result.hasNext() ? result.next().getLong("checkpoint_id") : -1;
+			lastCommittedCheckpoints.put(subtaskIdx, lastCommittedCheckpoint);
 		}
-		return checkpointID <= this.lastCommittedCheckpointID;
+		return checkpointId <= lastCommittedCheckpoint;
 	}
 }
