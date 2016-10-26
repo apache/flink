@@ -90,7 +90,7 @@ public class BucketingSinkTest {
 
 	private <T> OneInputStreamOperatorTestHarness<T, Object> createTestSink(
 			BucketingSink<T> sink) throws Exception {
-		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), new ExecutionConfig());
+		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
 	}
 
 	@BeforeClass

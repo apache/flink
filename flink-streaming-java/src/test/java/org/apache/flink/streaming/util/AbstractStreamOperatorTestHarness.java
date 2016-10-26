@@ -63,7 +63,7 @@ import static org.mockito.Mockito.*;
  */
 public class AbstractStreamOperatorTestHarness<OUT> {
 
-	public static final int MAX_PARALLELISM = 10;
+	protected final static int DEFAULT_MAX_PARALLELISM = 1;
 
 	final protected StreamOperator<OUT> operator;
 
@@ -92,19 +92,15 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 	private volatile boolean wasFailedExternally = false;
 
-	public AbstractStreamOperatorTestHarness(StreamOperator<OUT> operator) throws Exception {
-		this(operator, new ExecutionConfig());
-	}
-
 	public AbstractStreamOperatorTestHarness(
 			StreamOperator<OUT> operator,
-			ExecutionConfig executionConfig) throws Exception {
+			int maxParallelism) throws Exception {
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<>();
 		Configuration underlyingConfig = new Configuration();
 		this.config = new StreamConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
-		this.executionConfig = executionConfig;
+		this.executionConfig = new ExecutionConfig();
 		this.closableRegistry = new ClosableRegistry();
 		this.checkpointLock = new Object();
 
@@ -115,7 +111,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 				1024,
 				underlyingConfig,
 				executionConfig,
-				MAX_PARALLELISM,
+				maxParallelism,
 				1, 0);
 
 		mockTask = mock(StreamTask.class);
@@ -190,6 +186,10 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 	public Environment getEnvironment() {
 		return this.mockTask.getEnvironment();
+	}
+
+	public ExecutionConfig getExecutionConfig() {
+		return executionConfig;
 	}
 
 	/**
