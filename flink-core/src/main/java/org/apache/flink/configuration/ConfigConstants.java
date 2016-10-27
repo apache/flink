@@ -342,7 +342,7 @@ public final class ConfigConstants {
 	// ------------------------ YARN Configuration ------------------------
 
 	/**
-	 * The vcores exposed by YYARN.
+	 * The vcores exposed by YARN.
 	 */
 	public static final String YARN_VCORES = "yarn.containers.vcores";
 
