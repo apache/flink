@@ -835,14 +835,13 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				current == JobStatus.SUSPENDED ||
 				current.isGloballyTerminalState()) {
 				return;
-			} else if (current == JobStatus.RESTARTING && transitionState(current, JobStatus.FAILED, t)) {
-				synchronized (progressLock) {
-					postRunCleanup();
-					progressLock.notifyAll();
+			} else if (current == JobStatus.RESTARTING) {
+				this.failureCause = t;
 
-					LOG.info("Job {} failed during restart.", getJobID());
+				if (tryRestartOrFail()) {
 					return;
 				}
+				// concurrent job status change, let's check again
 			} else if (transitionState(current, JobStatus.FAILING, t)) {
 				this.failureCause = t;
 
@@ -919,6 +918,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			scheduleForExecution(slotProvider);
 		}
 		catch (Throwable t) {
+			LOG.warn("Failed to restart the job.", t);
 			fail(t);
 		}
 	}
@@ -1024,15 +1024,10 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 						}
 					}
 					else if (current == JobStatus.FAILING) {
-						boolean allowRestart = !(failureCause instanceof SuppressRestartsException);
-
-						if (allowRestart && restartStrategy.canRestart() && transitionState(current, JobStatus.RESTARTING)) {
-							restartStrategy.restart(this);
-							break;
-						} else if ((!allowRestart || !restartStrategy.canRestart()) && transitionState(current, JobStatus.FAILED, failureCause)) {
-							postRunCleanup();
+						if (tryRestartOrFail()) {
 							break;
 						}
+						// concurrent job status change, let's check again
 					}
 					else if (current == JobStatus.SUSPENDED) {
 						// we've already cleaned up when entering the SUSPENDED state
@@ -1053,6 +1048,47 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				// also, notify waiters
 				progressLock.notifyAll();
 			}
+		}
+	}
+
+	/**
+	 * Try to restart the job. If we cannot restart the job (e.g. no more restarts allowed), then
+	 * try to fail the job. This operation is only permitted if the current state is FAILING or
+	 * RESTARTING.
+	 *
+	 * @return true if the operation could be executed; false if a concurrent job status change occurred
+	 */
+	private boolean tryRestartOrFail() {
+		JobStatus currentState = state;
+
+		if (currentState == JobStatus.FAILING || currentState == JobStatus.RESTARTING) {
+			synchronized (progressLock) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Try to restart the job or fail it if no longer possible.", failureCause);
+				} else {
+					LOG.info("Try to restart the job or fail it if no longer possible.");
+				}
+
+				boolean isRestartable = !(failureCause instanceof SuppressRestartsException) && restartStrategy.canRestart();
+
+				if (isRestartable && transitionState(currentState, JobStatus.RESTARTING)) {
+					LOG.info("Restarting the job...");
+					restartStrategy.restart(this);
+
+					return true;
+				} else if (!isRestartable && transitionState(currentState, JobStatus.FAILED, failureCause)) {
+					LOG.info("Could not restart the job.", failureCause);
+					postRunCleanup();
+
+					return true;
+				} else {
+					// we must have changed the state concurrently, thus we cannot complete this operation
+					return false;
+				}
+			}
+		} else {
+			// this operation is only allowed in the state FAILING or RESTARTING
+			return false;
 		}
 	}
 
