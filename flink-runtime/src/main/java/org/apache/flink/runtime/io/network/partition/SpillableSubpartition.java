@@ -228,9 +228,8 @@ class SpillableSubpartition extends ResultSubpartition {
 				spillWriter != null);
 	}
 
+	@Override
 	public int getNumberOfQueuedBuffers() {
-		synchronized (buffers) {
 			return buffers.size();
-		}
 	}
 }

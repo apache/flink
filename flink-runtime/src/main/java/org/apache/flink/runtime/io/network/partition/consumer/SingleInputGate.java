@@ -227,17 +227,28 @@ public class SingleInputGate implements InputGate {
 	}
 
 	public int getNumberOfQueuedBuffers() {
-		int totalBuffers = 0;
+		int retry = 0;
 
-		for (Map.Entry<IntermediateResultPartitionID, InputChannel> entry: inputChannels.entrySet()) {
-			InputChannel channel = entry.getValue();
+		// re-try 3 times, if fails, return 0 for "unknown"
+		while(retry < 3) {
+			try {
+				int totalBuffers = 0;
 
-			if (channel instanceof RemoteInputChannel) {
-				totalBuffers += ((RemoteInputChannel) channel).getNumberOfQueuedBuffers();
+				for (Map.Entry<IntermediateResultPartitionID, InputChannel> entry : inputChannels.entrySet()) {
+					InputChannel channel = entry.getValue();
+
+					if (channel instanceof RemoteInputChannel) {
+						totalBuffers += ((RemoteInputChannel) channel).getNumberOfQueuedBuffers();
+					}
+				}
+
+				return  totalBuffers;
+			} catch (Exception e) {
+				retry++;
 			}
 		}
 
-		return  totalBuffers;
+		return 0;
 	}
 
 	// ------------------------------------------------------------------------

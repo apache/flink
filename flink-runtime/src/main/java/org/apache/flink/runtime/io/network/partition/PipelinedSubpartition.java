@@ -221,9 +221,8 @@ class PipelinedSubpartition extends ResultSubpartition {
 		}
 	}
 
+	@Override
 	public int getNumberOfQueuedBuffers() {
-		synchronized (buffers) {
 			return buffers.size();
-		}
 	}
 }

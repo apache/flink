@@ -83,4 +83,6 @@ public abstract class ResultSubpartition {
 
 	abstract public boolean isReleased();
 
+	abstract public int getNumberOfQueuedBuffers();
+
 }

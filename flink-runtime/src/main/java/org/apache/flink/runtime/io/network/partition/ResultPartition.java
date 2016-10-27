@@ -236,14 +236,7 @@ public class ResultPartition implements BufferPoolOwner {
 		int totalBuffers = 0;
 
 		for (ResultSubpartition subpartition : subpartitions) {
-
-			if (subpartition instanceof PipelinedSubpartition) {
-				totalBuffers += ((PipelinedSubpartition) subpartition).getNumberOfQueuedBuffers();
-			}
-
-			if (subpartition instanceof SpillableSubpartition) {
-				totalBuffers += ((SpillableSubpartition) subpartition).getNumberOfQueuedBuffers();
-			}
+			totalBuffers += subpartition.getNumberOfQueuedBuffers();
 		}
 
 		return totalBuffers;
