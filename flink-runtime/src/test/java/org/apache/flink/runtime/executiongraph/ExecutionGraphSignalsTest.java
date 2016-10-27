@@ -30,6 +30,8 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -46,6 +48,7 @@ import org.powermock.api.mockito.PowerMockito;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.same;
@@ -364,5 +367,29 @@ public class ExecutionGraphSignalsTest {
 		eg.stop();
 	}
 
+	/**
+	 * Tests that a failing scheduleOrUpdateConsumers call with a non-existing execution attempt
+	 * id, will not fail the execution graph.
+	 */
+	@Test
+	public void testFailingScheduleOrUpdateConsumers() throws IllegalAccessException {
+		IntermediateResultPartitionID intermediateResultPartitionId = new IntermediateResultPartitionID();
+		// The execution attempt id does not exist and thus the scheduleOrUpdateConsumers call
+		// should fail
+		ExecutionAttemptID producerId = new ExecutionAttemptID();
+		ResultPartitionID resultPartitionId = new ResultPartitionID(intermediateResultPartitionId, producerId);
 
+		f.set(eg, JobStatus.RUNNING);
+
+		assertEquals(JobStatus.RUNNING, eg.getState());
+
+		try {
+			eg.scheduleOrUpdateConsumers(resultPartitionId);
+			fail("Expected ExecutionGraphException.");
+		} catch (ExecutionGraphException e) {
+			// we've expected this exception to occur
+		}
+
+		assertEquals(JobStatus.RUNNING, eg.getState());
+	}
 }
