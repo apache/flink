@@ -22,13 +22,13 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.co.RichTimelyCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.TimelyCoFlatMapFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
@@ -295,7 +295,7 @@ public class TimelyCoFlatMapTest extends TestLogger {
 		testHarness.processElement2(new StreamRecord<>("5", 12L));
 
 		// snapshot and restore from scratch
-		StreamStateHandle snapshot = testHarness.snapshotLegacy(0, 0);
+		OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
 
 		testHarness.close();
 
@@ -308,7 +308,7 @@ public class TimelyCoFlatMapTest extends TestLogger {
 				BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
-		testHarness.restore(snapshot);
+		testHarness.initializeState(snapshot);
 		testHarness.open();
 
 		testHarness.setProcessingTime(5);

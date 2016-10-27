@@ -49,6 +49,8 @@ import java.util.Collections;
 
 public class StreamOperatorSnapshotRestoreTest {
 
+	private static final int MAX_PARALLELISM = 10;
+
 	@Test
 	public void testOperatorStatesSnapshotRestore() throws Exception {
 
@@ -57,12 +59,18 @@ public class StreamOperatorSnapshotRestoreTest {
 		TestOneInputStreamOperator op = new TestOneInputStreamOperator(false);
 
 		KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(op, new KeySelector<Integer, Integer>() {
-					@Override
-					public Integer getKey(Integer value) throws Exception {
-						return value;
-					}
-				}, TypeInformation.of(Integer.class));
+				new KeyedOneInputStreamOperatorTestHarness<>(
+						op,
+						new KeySelector<Integer, Integer>() {
+							@Override
+							public Integer getKey(Integer value) throws Exception {
+								return value;
+							}
+						},
+						TypeInformation.of(Integer.class),
+						MAX_PARALLELISM,
+						1 /* num subtasks */,
+						0 /* subtask index */);
 
 		testHarness.open();
 
@@ -70,37 +78,27 @@ public class StreamOperatorSnapshotRestoreTest {
 			testHarness.processElement(new StreamRecord<>(i));
 		}
 
-		OperatorSnapshotResult snapshotInProgress = testHarness.snapshot(1L, 1L);
-
-		KeyGroupsStateHandle keyedManaged =
-				FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getKeyedStateManagedFuture());
-		KeyGroupsStateHandle keyedRaw =
-				FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getKeyedStateRawFuture());
-
-		OperatorStateHandle opManaged =
-				FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateManagedFuture());
-		OperatorStateHandle opRaw =
-				FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateRawFuture());
+		OperatorStateHandles handles = testHarness.snapshot(1L, 1L);
 
 		testHarness.close();
 
 		//-------------------------------------------------------------------------- restore
 
 		op = new TestOneInputStreamOperator(true);
-		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(op, new KeySelector<Integer, Integer>() {
-			@Override
-			public Integer getKey(Integer value) throws Exception {
-				return value;
-			}
-		}, TypeInformation.of(Integer.class));
+		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(
+				op,
+				new KeySelector<Integer, Integer>() {
+					@Override
+					public Integer getKey(Integer value) throws Exception {
+						return value;
+					}
+				},
+				TypeInformation.of(Integer.class),
+				MAX_PARALLELISM,
+				1 /* num subtasks */,
+				0 /* subtask index */);
 
-		testHarness.initializeState(new OperatorStateHandles(
-				0,
-				null,
-				Collections.singletonList(keyedManaged),
-				Collections.singletonList(keyedRaw),
-				Collections.singletonList(opManaged),
-				Collections.singletonList(opRaw)));
+		testHarness.initializeState(handles);
 
 		testHarness.open();
 
@@ -159,7 +157,7 @@ public class StreamOperatorSnapshotRestoreTest {
 				++count;
 			}
 
-			Assert.assertEquals(KeyedOneInputStreamOperatorTestHarness.MAX_PARALLELISM, count);
+			Assert.assertEquals(MAX_PARALLELISM, count);
 
 			// write raw operator state that goes into snapshot
 			OperatorStateCheckpointOutputStream outOp = context.getRawOperatorStateOutput();
@@ -188,7 +186,7 @@ public class StreamOperatorSnapshotRestoreTest {
 						++count;
 					}
 				}
-				Assert.assertEquals(KeyedOneInputStreamOperatorTestHarness.MAX_PARALLELISM, count);
+				Assert.assertEquals(MAX_PARALLELISM, count);
 
 				// check restored managed operator state
 				BitSet check = new BitSet(10);

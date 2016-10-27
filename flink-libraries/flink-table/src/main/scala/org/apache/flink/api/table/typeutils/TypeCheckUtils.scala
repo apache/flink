@@ -30,7 +30,7 @@ object TypeCheckUtils {
   def isAdvanced(dataType: TypeInformation[_]): Boolean = dataType match {
     case _: BasicTypeInfo[_] => false
     case _: SqlTimeTypeInfo[_] => false
-    case _: IntervalTypeInfo[_] => false
+    case _: TimeIntervalTypeInfo[_] => false
     case _ => true
   }
 
@@ -53,7 +53,7 @@ object TypeCheckUtils {
     dataType.isInstanceOf[SqlTimeTypeInfo[_]]
 
   def isTimeInterval(dataType: TypeInformation[_]): Boolean =
-    dataType.isInstanceOf[IntervalTypeInfo[_]]
+    dataType.isInstanceOf[TimeIntervalTypeInfo[_]]
 
   def isString(dataType: TypeInformation[_]): Boolean = dataType == STRING_TYPE_INFO
 
@@ -67,7 +67,7 @@ object TypeCheckUtils {
   def assertNumericExpr(
       dataType: TypeInformation[_],
       caller: String)
-    : ExprValidationResult = dataType match {
+    : ValidationResult = dataType match {
     case _: NumericTypeInfo[_] =>
       ValidationSuccess
     case BIG_DEC_TYPE_INFO =>
@@ -76,7 +76,7 @@ object TypeCheckUtils {
       ValidationFailure(s"$caller requires numeric types, get $dataType here")
   }
 
-  def assertOrderableExpr(dataType: TypeInformation[_], caller: String): ExprValidationResult = {
+  def assertOrderableExpr(dataType: TypeInformation[_], caller: String): ValidationResult = {
     if (dataType.isSortKeyType) {
       ValidationSuccess
     } else {

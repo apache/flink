@@ -277,7 +277,7 @@ public class LocalInputChannelTest {
 			mock(TaskEventDispatcher.class),
 			initialAndMaxRequestBackoff._1(),
 			initialAndMaxRequestBackoff._2(),
-			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 	}
 
 	/**
@@ -353,7 +353,7 @@ public class LocalInputChannelTest {
 				subpartitionIndex,
 				numberOfInputChannels,
 				mock(TaskActions.class),
-				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+				new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 
 			// Set buffer pool
 			inputGate.setBufferPool(bufferPool);
@@ -368,7 +368,7 @@ public class LocalInputChannelTest {
 								consumedPartitionIds[i],
 								partitionManager,
 								taskEventDispatcher,
-								new UnregisteredTaskMetricsGroup.DummyIOMetricGroup()));
+								new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup()));
 			}
 
 			this.numberOfInputChannels = numberOfInputChannels;

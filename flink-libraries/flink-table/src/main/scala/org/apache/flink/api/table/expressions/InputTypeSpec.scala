@@ -38,7 +38,7 @@ trait InputTypeSpec extends Expression {
     */
   private[flink] def expectedTypes: Seq[TypeInformation[_]]
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     val typeMismatches = mutable.ArrayBuffer.empty[String]
     children.zip(expectedTypes).zipWithIndex.foreach { case ((e, tpe), i) =>
       if (e.resultType != tpe) {

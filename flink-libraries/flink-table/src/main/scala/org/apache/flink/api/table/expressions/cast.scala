@@ -43,7 +43,7 @@ case class Cast(child: Expression, resultType: TypeInformation[_]) extends Unary
     copy(child, resultType).asInstanceOf[this.type]
   }
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (TypeCoercion.canCast(child.resultType, resultType)) {
       ValidationSuccess
     } else {

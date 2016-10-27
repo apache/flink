@@ -17,7 +17,6 @@
  */
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -37,16 +36,23 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	private final OneInputStreamOperator<IN, OUT> oneInputOperator;
 
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) throws Exception {
-		this(operator, new ExecutionConfig());
+		this(operator, 1, 1, 0);
 	}
 
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
-			ExecutionConfig executionConfig) throws Exception {
-		super(operator, executionConfig);
+			int maxParallelism,
+			int numTubtasks,
+			int subtaskIndex) throws Exception {
+		super(operator, maxParallelism, numTubtasks, subtaskIndex);
 
 		this.oneInputOperator = operator;
 	}
+
+	public void processElement(IN value, long timestamp) throws Exception {
+		processElement(new StreamRecord<>(value, timestamp));
+	}
+
 
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		operator.setKeyContextElement1(element);
@@ -58,6 +64,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 			operator.setKeyContextElement1(element);
 			oneInputOperator.processElement(element);
 		}
+	}
+
+	public void processWatermark(long watermark) throws Exception {
+		oneInputOperator.processWatermark(new Watermark(watermark));
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {

@@ -98,8 +98,8 @@ class TemporalTypesTest extends ExpressionTestBase {
       "+0-01")
 
     testAllApis(
-      12.day,
-      "12.day",
+      12.days,
+      "12.days",
       "INTERVAL '12' DAY",
       "+12 00:00:00.000")
 
@@ -110,20 +110,20 @@ class TemporalTypesTest extends ExpressionTestBase {
       "+0 01:00:00.000")
 
     testAllApis(
-      3.minute,
-      "3.minute",
+      3.minutes,
+      "3.minutes",
       "INTERVAL '3' MINUTE",
       "+0 00:03:00.000")
 
     testAllApis(
-      3.second,
-      "3.second",
+      3.seconds,
+      "3.seconds",
       "INTERVAL '3' SECOND",
       "+0 00:00:03.000")
 
     testAllApis(
-      3.milli,
-      "3.milli",
+      3.millis,
+      "3.millis",
       "INTERVAL '0.003' SECOND",
       "+0 00:00:00.003")
   }
@@ -276,44 +276,44 @@ class TemporalTypesTest extends ExpressionTestBase {
   @Test
   def testTimeIntervalArithmetic(): Unit = {
     testAllApis(
-      12.month < 24.month,
-      "12.month < 24.month",
+      12.months < 24.months,
+      "12.months < 24.months",
       "INTERVAL '12' MONTH < INTERVAL '24' MONTH",
       "true")
 
     testAllApis(
-      8.milli > 10.milli,
-      "8.milli > 10.milli",
+      8.millis > 10.millis,
+      "8.millis > 10.millis",
       "INTERVAL '0.008' SECOND > INTERVAL '0.010' SECOND",
       "false")
 
     testAllApis(
-      8.year === 8.year,
-      "8.year === 8.year",
+      8.years === 8.years,
+      "8.years === 8.years",
       "INTERVAL '8' YEAR = INTERVAL '8' YEAR",
       "true")
 
     testAllApis(
-      8.year + 10.month,
-      "8.year + 10.month",
+      8.years + 10.months,
+      "8.years + 10.months",
       "INTERVAL '8' YEAR + INTERVAL '10' MONTH",
       "+8-10")
 
     testAllApis(
-      8.hour + 10.minute + 12.second + 5.milli,
-      "8.hour + 10.minute + 12.second + 5.milli",
+      8.hours + 10.minutes + 12.seconds + 5.millis,
+      "8.hours + 10.minutes + 12.seconds + 5.millis",
       "INTERVAL '8' HOUR + INTERVAL '10' MINUTE + INTERVAL '12.005' SECOND",
       "+0 08:10:12.005")
 
     testAllApis(
-      1.minute - 10.second,
-      "1.minute - 10.second",
+      1.minute - 10.seconds,
+      "1.minute - 10.seconds",
       "INTERVAL '1' MINUTE - INTERVAL '10' SECOND",
       "+0 00:00:50.000")
 
     testAllApis(
-      2.year - 12.month,
-      "2.year - 12.month",
+      2.years - 12.months,
+      "2.years - 12.months",
       "INTERVAL '2' YEAR - INTERVAL '12' MONTH",
       "+1-00")
 
@@ -324,32 +324,32 @@ class TemporalTypesTest extends ExpressionTestBase {
       "-2-00")
 
     testAllApis(
-      'f0 + 2.day,
-      "f0 + 2.day",
+      'f0 + 2.days,
+      "f0 + 2.days",
       "f0 + INTERVAL '2' DAY",
       "1990-10-16")
 
     testAllApis(
-      30.day + 'f0,
-      "30.day + f0",
+      30.days + 'f0,
+      "30.days + f0",
       "INTERVAL '30' DAY + f0",
       "1990-11-13")
 
     testAllApis(
-      'f1 + 12.hour,
-      "f1 + 12.hour",
+      'f1 + 12.hours,
+      "f1 + 12.hours",
       "f1 + INTERVAL '12' HOUR",
       "22:20:45")
 
     testAllApis(
-      24.hour + 'f1,
-      "24.hour + f1",
+      24.hours + 'f1,
+      "24.hours + f1",
       "INTERVAL '24' HOUR + f1",
       "10:20:45")
 
     testAllApis(
-      'f2 + 10.day + 4.milli,
-      "f2 + 10.day + 4.milli",
+      'f2 + 10.days + 4.millis,
+      "f2 + 10.days + 4.millis",
       "f2 + INTERVAL '10 00:00:00.004' DAY TO SECOND",
       "1990-10-24 10:20:45.127")
   }

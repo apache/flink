@@ -28,22 +28,25 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
+import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -55,10 +58,11 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +71,8 @@ import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Base class for all stream operators. Operators that contain a user function should extend the class 
@@ -85,7 +91,7 @@ import java.util.Map;
  */
 @PublicEvolving
 public abstract class AbstractStreamOperator<OUT>
-		implements StreamOperator<OUT>, java.io.Serializable, KeyContext, StreamCheckpointedOperator {
+		implements StreamOperator<OUT>, java.io.Serializable, KeyContext {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -136,7 +142,7 @@ public abstract class AbstractStreamOperator<OUT>
 	// ---------------- timers ------------------
 
 	private transient Map<String, HeapInternalTimerService<?, ?>> timerServices;
-	private transient Map<String, HeapInternalTimerService.RestoredTimers<?, ?>> restoredServices;
+//	private transient Map<String, HeapInternalTimerService<?, ?>> restoredServices;
 
 
 	// ---------------- two-input operator watermarks ------------------
@@ -157,7 +163,7 @@ public abstract class AbstractStreamOperator<OUT>
 		this.config = config;
 		
 		this.metrics = container.getEnvironment().getMetricGroup().addOperator(config.getOperatorName());
-		this.output = new CountingOutput(output, this.metrics.counter("numRecordsOut"));
+		this.output = new CountingOutput(output, ((OperatorMetricGroup) this.metrics).getIOMetricGroup().getNumRecordsOutCounter());
 		Configuration taskManagerConfig = container.getEnvironment().getTaskManagerInfo().getConfiguration();
 		int historySize = taskManagerConfig.getInteger(ConfigConstants.METRICS_LATENCY_HISTORY_SIZE, ConfigConstants.DEFAULT_METRICS_LATENCY_HISTORY_SIZE);
 		if (historySize <= 0) {
@@ -258,11 +264,11 @@ public abstract class AbstractStreamOperator<OUT>
 				KeyGroupRange subTaskKeyGroupRange = KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
 						container.getEnvironment().getTaskInfo().getNumberOfKeyGroups(),
 						container.getEnvironment().getTaskInfo().getNumberOfParallelSubtasks(),
-						container.getIndexInSubtaskGroup());
+						container.getEnvironment().getTaskInfo().getIndexOfThisSubtask());
 
 				this.keyedStateBackend = container.createKeyedStateBackend(
 						keySerializer,
-						container.getConfiguration().getNumberOfKeyGroups(getUserCodeClassloader()),
+						container.getEnvironment().getTaskInfo().getNumberOfKeyGroups(),
 						subTaskKeyGroupRange);
 
 				this.keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getExecutionConfig());
@@ -354,7 +360,25 @@ public abstract class AbstractStreamOperator<OUT>
 	 * @param context context that provides information and means required for taking a snapshot
 	 */
 	public void snapshotState(StateSnapshotContext context) throws Exception {
+		if (getKeyedStateBackend() != null) {
+			KeyedStateCheckpointOutputStream out = context.getRawKeyedOperatorStateOutput();
 
+			KeyGroupsList allKeyGroups = out.getKeyGroupList();
+			for (int keyGroupIdx : allKeyGroups) {
+				out.startNewKeyGroup(keyGroupIdx);
+
+				DataOutputViewStreamWrapper dov = new DataOutputViewStreamWrapper(out);
+				dov.writeInt(timerServices.size());
+
+				for (Map.Entry<String, HeapInternalTimerService<?, ?>> entry : timerServices.entrySet()) {
+					String serviceName = entry.getKey();
+					HeapInternalTimerService<?, ?> timerService = entry.getValue();
+
+					dov.writeUTF(serviceName);
+					timerService.snapshotTimersForKeyGroup(dov, keyGroupIdx);
+				}
+			}
+		}
 	}
 
 	/**
@@ -363,7 +387,38 @@ public abstract class AbstractStreamOperator<OUT>
 	 * @param context context that allows to register different states.
 	 */
 	public void initializeState(StateInitializationContext context) throws Exception {
+		if (getKeyedStateBackend() != null) {
+			int totalKeyGroups = getKeyedStateBackend().getNumberOfKeyGroups();
+			KeyGroupsList localKeyGroupRange = getKeyedStateBackend().getKeyGroupRange();
 
+			// initialize the map with the timer services
+			this.timerServices = new HashMap<>();
+
+			// and then initialize the timer services
+			for (KeyGroupStatePartitionStreamProvider streamProvider : context.getRawKeyedStateInputs()) {
+				DataInputViewStreamWrapper div = new DataInputViewStreamWrapper(streamProvider.getStream());
+
+				int keyGroupIdx = streamProvider.getKeyGroupId();
+				checkArgument(localKeyGroupRange.contains(keyGroupIdx),
+					"Key Group " + keyGroupIdx + " does not belong to the local range.");
+
+				int noOfTimerServices = div.readInt();
+				for (int i = 0; i < noOfTimerServices; i++) {
+					String serviceName = div.readUTF();
+
+					HeapInternalTimerService<?, ?> timerService = this.timerServices.get(serviceName);
+					if (timerService == null) {
+						timerService = new HeapInternalTimerService<>(
+							totalKeyGroups,
+							localKeyGroupRange,
+							this,
+							getRuntimeContext().getProcessingTimeService());
+						this.timerServices.put(serviceName, timerService);
+					}
+					timerService.restoreTimersForKeyGroup(div, keyGroupIdx, getUserCodeClassloader());
+				}
+			}
+		}
 	}
 
 	@Override
@@ -726,34 +781,18 @@ public abstract class AbstractStreamOperator<OUT>
 			Triggerable<K, N> triggerable) {
 
 		@SuppressWarnings("unchecked")
-		HeapInternalTimerService<K, N> service = (HeapInternalTimerService<K, N>) timerServices.get(name);
+		HeapInternalTimerService<K, N> timerService = (HeapInternalTimerService<K, N>) timerServices.get(name);
 
-		if (service == null) {
-			if (restoredServices != null && restoredServices.containsKey(name)) {
-				@SuppressWarnings("unchecked")
-				HeapInternalTimerService.RestoredTimers<K, N> restoredService =
-						(HeapInternalTimerService.RestoredTimers<K, N>) restoredServices.remove(name);
-
-				service = new HeapInternalTimerService<>(
-						keySerializer,
-						namespaceSerializer,
-						triggerable,
-						this,
-						getRuntimeContext().getProcessingTimeService(),
-						restoredService);
-
-			} else {
-				service = new HeapInternalTimerService<>(
-						keySerializer,
-						namespaceSerializer,
-						triggerable,
-						this,
-						getRuntimeContext().getProcessingTimeService());
-			}
-			timerServices.put(name, service);
+		if (timerService == null) {
+			timerService = new HeapInternalTimerService<>(
+				getKeyedStateBackend().getNumberOfKeyGroups(),
+				getKeyedStateBackend().getKeyGroupRange(),
+				this,
+				getRuntimeContext().getProcessingTimeService());
+			timerServices.put(name, timerService);
 		}
-
-		return service;
+		timerService.startTimerService(keySerializer, namespaceSerializer, triggerable);
+		return timerService;
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {
@@ -778,36 +817,6 @@ public abstract class AbstractStreamOperator<OUT>
 		if (newMin > combinedWatermark) {
 			combinedWatermark = newMin;
 			processWatermark(new Watermark(combinedWatermark));
-		}
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
-		DataOutputViewStreamWrapper dataOutputView = new DataOutputViewStreamWrapper(out);
-
-		dataOutputView.writeInt(timerServices.size());
-
-		for (Map.Entry<String, HeapInternalTimerService<?, ?>> service : timerServices.entrySet()) {
-			dataOutputView.writeUTF(service.getKey());
-			service.getValue().snapshotTimers(dataOutputView);
-		}
-
-	}
-
-	@Override
-	public void restoreState(FSDataInputStream in) throws Exception {
-		DataInputViewStreamWrapper dataInputView = new DataInputViewStreamWrapper(in);
-
-		restoredServices = new HashMap<>();
-
-		int numServices = dataInputView.readInt();
-
-		for (int i = 0; i < numServices; i++) {
-			String name = dataInputView.readUTF();
-			HeapInternalTimerService.RestoredTimers restoredService =
-					new HeapInternalTimerService.RestoredTimers(in, getUserCodeClassloader());
-			restoredServices.put(name, restoredService);
 		}
 	}
 

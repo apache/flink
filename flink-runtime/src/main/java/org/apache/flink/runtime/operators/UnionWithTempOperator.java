@@ -60,8 +60,8 @@ public class UnionWithTempOperator<T> implements Driver<Function, T> {
 
 	@Override
 	public void run() throws Exception {
-		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
-		final Counter numRecordsOut = this.taskContext.getMetricGroup().counter("numRecordsOut");
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 		
 		final Collector<T> output = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 		T reuse = this.taskContext.<T>getInputSerializer(STREAMED_INPUT).getSerializer().createInstance();

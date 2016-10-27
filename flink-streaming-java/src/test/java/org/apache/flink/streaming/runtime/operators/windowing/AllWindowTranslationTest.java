@@ -308,6 +308,9 @@ public class AllWindowTranslationTest {
 				public boolean canMerge() {
 					return false;
 				}
+
+				@Override
+				public void clear(TimeWindow window, TriggerContext ctx) throws Exception {}
 			});
 		} catch (UnsupportedOperationException e) {
 			// expected

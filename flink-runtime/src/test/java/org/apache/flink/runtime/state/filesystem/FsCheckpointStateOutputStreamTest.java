@@ -22,6 +22,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.DataInputStream;
@@ -73,6 +74,33 @@ public class FsCheckpointStateOutputStreamTest {
 	@Test
 	public void testZeroThreshold() throws Exception {
 		runTest(16678, 4096, 0, true);
+	}
+
+	@Test
+	public void testGetPos() throws Exception {
+		FsCheckpointStreamFactory.CheckpointStateOutputStream stream =
+				new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 31, 17);
+
+		for (int i = 0; i < 64; ++i) {
+			Assert.assertEquals(i, stream.getPos());
+			stream.write(0x42);
+		}
+
+		stream.closeAndGetHandle();
+
+		// ----------------------------------------------------
+
+		stream = new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 31, 17);
+
+		byte[] data = "testme!".getBytes();
+
+		for (int i = 0; i < 7; ++i) {
+			Assert.assertEquals(i * (1 + data.length), stream.getPos());
+			stream.write(0x42);
+			stream.write(data);
+		}
+
+		stream.closeAndGetHandle();
 	}
 
 	private void runTest(int numBytes, int bufferSize, int threshold, boolean expectFile) throws Exception {

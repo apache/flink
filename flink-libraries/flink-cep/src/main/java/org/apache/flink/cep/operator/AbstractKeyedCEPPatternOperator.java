@@ -190,8 +190,6 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 
 	@Override
 	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
-		super.snapshotState(out, checkpointId, timestamp);
-
 		DataOutputView ov = new DataOutputViewStreamWrapper(out);
 		ov.writeInt(keys.size());
 
@@ -202,8 +200,6 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 
 	@Override
 	public void restoreState(FSDataInputStream state) throws Exception {
-		super.restoreState(state);
-
 		DataInputView inputView = new DataInputViewStreamWrapper(state);
 
 		if (keys == null) {

@@ -92,7 +92,7 @@ public class GroupReduceDriver<IT, OT> implements Driver<GroupReduceFunction<IT,
 		if (config.getDriverStrategy() != DriverStrategy.SORTED_GROUP_REDUCE) {
 			throw new Exception("Unrecognized driver strategy for GroupReduce driver: " + config.getDriverStrategy().name());
 		}
-		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
 		
 		this.serializer = this.taskContext.<IT>getInputSerializer(0).getSerializer();
 		this.comparator = this.taskContext.getDriverComparator(0);
@@ -111,7 +111,7 @@ public class GroupReduceDriver<IT, OT> implements Driver<GroupReduceFunction<IT,
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(this.taskContext.formatLogString("GroupReducer preprocessing done. Running GroupReducer code."));
 		}
-		final Counter numRecordsOut = this.taskContext.getMetricGroup().counter("numRecordsOut");
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 
 		// cache references on the stack
 		final GroupReduceFunction<IT, OT> stub = this.taskContext.getStub();

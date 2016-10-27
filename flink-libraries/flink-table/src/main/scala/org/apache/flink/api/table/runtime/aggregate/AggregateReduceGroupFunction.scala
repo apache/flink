@@ -19,11 +19,10 @@ package org.apache.flink.api.table.runtime.aggregate
 
 import java.lang.Iterable
 
-import org.apache.flink.api.common.functions.{CombineFunction, RichGroupReduceFunction, RichMapPartitionFunction}
+import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.api.table.Row
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.util.Collector
-import org.apache.flink.util.Preconditions
+import org.apache.flink.util.{Collector, Preconditions}
 
 import scala.collection.JavaConversions._
 
@@ -41,7 +40,8 @@ class AggregateReduceGroupFunction(
     private val aggregates: Array[Aggregate[_ <: Any]],
     private val groupKeysMapping: Array[(Int, Int)],
     private val aggregateMapping: Array[(Int, Int)],
-    private val intermediateRowArity: Int)
+    private val intermediateRowArity: Int,
+    private val finalRowArity: Int)
     extends RichGroupReduceFunction[Row, Row] {
 
   private var aggregateBuffer: Row = _
@@ -50,9 +50,8 @@ class AggregateReduceGroupFunction(
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(groupKeysMapping)
-    val finalRowLength: Int = groupKeysMapping.length + aggregateMapping.length
     aggregateBuffer = new Row(intermediateRowArity)
-    output = new Row(finalRowLength)
+    output = new Row(finalRowArity)
   }
 
   /**
@@ -77,110 +76,17 @@ class AggregateReduceGroupFunction(
     })
 
     // Set group keys value to final output.
-    groupKeysMapping.map {
+    groupKeysMapping.foreach {
       case (after, previous) =>
         output.setField(after, last.productElement(previous))
     }
 
     // Evaluate final aggregate value and set to output.
-    aggregateMapping.map {
+    aggregateMapping.foreach {
       case (after, previous) =>
         output.setField(after, aggregates(previous).evaluate(aggregateBuffer))
     }
 
     out.collect(output)
-  }
-}
-
-/**
- * It wraps the aggregate logic inside of 
- * [[org.apache.flink.api.java.operators.GroupReduceOperator]] and 
- * [[org.apache.flink.api.java.operators.GroupCombineOperator]]
- *
- * @param aggregates   The aggregate functions.
- * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row 
- *                         and output Row.
- * @param aggregateMapping The index mapping between aggregate function list and aggregated value
- *                         index in output Row.
- */
-class AggregateReduceCombineFunction(
-    private val aggregates: Array[Aggregate[_ <: Any]],
-    private val groupKeysMapping: Array[(Int, Int)],
-    private val aggregateMapping: Array[(Int, Int)],
-    private val intermediateRowArity: Int)
-    extends RichGroupReduceFunction[Row, Row] with CombineFunction[Row, Row] {
-
-  private var aggregateBuffer: Row = _
-  private var output: Row = _
-
-  override def open(config: Configuration): Unit = {
-    Preconditions.checkNotNull(aggregates)
-    Preconditions.checkNotNull(groupKeysMapping)
-    val finalRowLength: Int = groupKeysMapping.length + aggregateMapping.length
-    aggregateBuffer = new Row(intermediateRowArity)
-    output = new Row(finalRowLength)
-  }
-
-  /**
-   * For grouped intermediate aggregate Rows, merge all of them into aggregate buffer,
-   * calculate aggregated values output by aggregate buffer, and set them into output 
-   * Row based on the mapping relation between intermediate aggregate Row and output Row.
-   *
-   * @param records  Grouped intermediate aggregate Rows iterator.
-   * @param out The collector to hand results to.
-   *
-   */
-  override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
-
-    // Initiate intermediate aggregate value.
-    aggregates.foreach(_.initiate(aggregateBuffer))
-
-    // Merge intermediate aggregate value to buffer.
-    var last: Row = null
-    records.foreach((record) => {
-      aggregates.foreach(_.merge(record, aggregateBuffer))
-      last = record
-    })
-
-    // Set group keys value to final output.
-    groupKeysMapping.map {
-      case (after, previous) =>
-        output.setField(after, last.productElement(previous))
-    }
-
-    // Evaluate final aggregate value and set to output.
-    aggregateMapping.map {
-      case (after, previous) =>
-        output.setField(after, aggregates(previous).evaluate(aggregateBuffer))
-    }
-
-    out.collect(output)
-  }
-
-  /**
-   * For sub-grouped intermediate aggregate Rows, merge all of them into aggregate buffer,
-   *
-   * @param records  Sub-grouped intermediate aggregate Rows iterator.
-   * @return Combined intermediate aggregate Row.
-   *
-   */
-  override def combine(records: Iterable[Row]): Row = {
-
-    // Initiate intermediate aggregate value.
-    aggregates.foreach(_.initiate(aggregateBuffer))
-
-    // Merge intermediate aggregate value to buffer.
-    var last: Row = null
-    records.foreach((record) => {
-      aggregates.foreach(_.merge(record, aggregateBuffer))
-      last = record
-    })
-
-    // Set group keys to aggregateBuffer.
-    for (i <- 0 until groupKeysMapping.length) {
-      aggregateBuffer.setField(i, last.productElement(i))
-    }
-
-    aggregateBuffer
   }
 }

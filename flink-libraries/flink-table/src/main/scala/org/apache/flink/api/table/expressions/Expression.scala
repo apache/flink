@@ -22,7 +22,7 @@ import org.apache.calcite.tools.RelBuilder
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.trees.TreeNode
-import org.apache.flink.api.table.validate.{ExprValidationResult, ValidationSuccess}
+import org.apache.flink.api.table.validate.{ValidationResult, ValidationSuccess}
 
 abstract class Expression extends TreeNode[Expression] {
   /**
@@ -44,7 +44,7 @@ abstract class Expression extends TreeNode[Expression] {
     * or `ValidationFailure` with supplement message explaining the error.
     * Note: we should only call this method until `childrenValid == true`
     */
-  private[flink] def validateInput(): ExprValidationResult = ValidationSuccess
+  private[flink] def validateInput(): ValidationResult = ValidationSuccess
 
   /**
     * Convert Expression to its counterpart in Calcite, i.e. RexNode

@@ -28,7 +28,7 @@ import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.table.FlinkTypeFactory
-import org.apache.flink.api.table.typeutils.IntervalTypeInfo
+import org.apache.flink.api.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 
 object Literal {
   private[flink] def apply(l: Any): Literal = l match {
@@ -50,7 +50,16 @@ object Literal {
 }
 
 case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpression {
-  override def toString = s"$value"
+  override def toString = resultType match {
+    case _: BasicTypeInfo[_] => value.toString
+    case _@SqlTimeTypeInfo.DATE => value.toString + ".toDate"
+    case _@SqlTimeTypeInfo.TIME => value.toString + ".toTime"
+    case _@SqlTimeTypeInfo.TIMESTAMP => value.toString + ".toTimestamp"
+    case _@TimeIntervalTypeInfo.INTERVAL_MILLIS => value.toString + ".millis"
+    case _@TimeIntervalTypeInfo.INTERVAL_MONTHS => value.toString + ".months"
+    case _@RowIntervalTypeInfo.INTERVAL_ROWS => value.toString + ".rows"
+    case _ => s"Literal($value, $resultType)"
+  }
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     resultType match {
@@ -67,7 +76,7 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
       case SqlTimeTypeInfo.TIMESTAMP =>
         relBuilder.getRexBuilder.makeTimestampLiteral(dateToCalendar, 3)
 
-      case IntervalTypeInfo.INTERVAL_MONTHS =>
+      case TimeIntervalTypeInfo.INTERVAL_MONTHS =>
         val interval = java.math.BigDecimal.valueOf(value.asInstanceOf[Int])
         val intervalQualifier = new SqlIntervalQualifier(
           TimeUnit.YEAR,
@@ -75,7 +84,7 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
           SqlParserPos.ZERO)
         relBuilder.getRexBuilder.makeIntervalLiteral(interval, intervalQualifier)
 
-      case IntervalTypeInfo.INTERVAL_MILLIS =>
+      case TimeIntervalTypeInfo.INTERVAL_MILLIS =>
         val interval = java.math.BigDecimal.valueOf(value.asInstanceOf[Long])
         val intervalQualifier = new SqlIntervalQualifier(
           TimeUnit.DAY,

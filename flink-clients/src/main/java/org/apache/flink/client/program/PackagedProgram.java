@@ -19,6 +19,14 @@
 
 package org.apache.flink.client.program;
 
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.Program;
+import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.dag.DataSinkNode;
+import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.util.InstantiationUtil;
+
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -42,14 +50,6 @@ import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
-
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.Program;
-import org.apache.flink.api.common.ProgramDescription;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.dag.DataSinkNode;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.util.InstantiationUtil;
 
 /**
  * This class encapsulates represents a program, packaged in a jar file. It supplies
@@ -518,6 +518,8 @@ public class PackagedProgram {
 			Throwable exceptionInMethod = e.getTargetException();
 			if (exceptionInMethod instanceof Error) {
 				throw (Error) exceptionInMethod;
+			} else if (exceptionInMethod instanceof ProgramParametrizationException) {
+				throw (ProgramParametrizationException) exceptionInMethod;
 			} else if (exceptionInMethod instanceof ProgramInvocationException) {
 				throw (ProgramInvocationException) exceptionInMethod;
 			} else {

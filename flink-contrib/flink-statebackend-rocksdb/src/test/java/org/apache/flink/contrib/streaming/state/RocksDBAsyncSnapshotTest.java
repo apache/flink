@@ -55,6 +55,7 @@ import org.apache.hadoop.fs.LocalFileSystem;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
@@ -197,6 +198,7 @@ public class RocksDBAsyncSnapshotTest {
 	 * @throws Exception
 	 */
 	@Test
+	@Ignore
 	public void testCancelFullyAsyncCheckpoints() throws Exception {
 		LocalFileSystem localFS = new LocalFileSystem();
 		localFS.initialize(new URI("file:///"), new Configuration());

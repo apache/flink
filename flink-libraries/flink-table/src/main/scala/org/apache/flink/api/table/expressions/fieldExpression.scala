@@ -19,11 +19,9 @@ package org.apache.flink.api.table.expressions
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.UnresolvedException
-import org.apache.flink.api.table.validate.{ValidationSuccess, ExprValidationResult,
-ValidationFailure}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.table.{UnresolvedException, ValidationException}
+import org.apache.flink.api.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 trait NamedExpression extends Expression {
   private[flink] def name: String
@@ -44,10 +42,10 @@ case class UnresolvedFieldReference(name: String) extends Attribute {
     UnresolvedFieldReference(newName)
 
   override private[flink] def resultType: TypeInformation[_] =
-    throw new UnresolvedException(s"calling resultType on ${this.getClass}")
+    throw UnresolvedException(s"Calling resultType on ${this.getClass}.")
 
-  override private[flink] def validateInput(): ExprValidationResult =
-    ValidationFailure(s"Unresolved reference $name")
+  override private[flink] def validateInput(): ValidationResult =
+    ValidationFailure(s"Unresolved reference $name.")
 }
 
 case class ResolvedFieldReference(
@@ -93,7 +91,7 @@ case class Alias(child: Expression, name: String)
     }
   }
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (name == "*") {
       ValidationFailure("Alias can not accept '*' as name.")
     } else {
@@ -114,4 +112,39 @@ case class UnresolvedAlias(child: Expression) extends UnaryExpression with Named
     throw new UnresolvedException("Invalid call to resultType on UnresolvedAlias")
 
   override private[flink] lazy val valid = false
+}
+
+case class RowtimeAttribute() extends Attribute {
+  override private[flink] def withName(newName: String): Attribute = {
+    if (newName == "rowtime") {
+      this
+    } else {
+      throw new ValidationException("Cannot rename streaming rowtime attribute.")
+    }
+  }
+
+  override private[flink] def name: String = "rowtime"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    throw new UnsupportedOperationException("A rowtime attribute can not be used solely.")
+  }
+
+  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.LONG_TYPE_INFO
+}
+
+case class WindowReference(name: String) extends Attribute {
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
+    throw new UnsupportedOperationException("A window reference can not be used solely.")
+
+  override private[flink] def resultType: TypeInformation[_] =
+    throw new UnsupportedOperationException("A window reference has no result type.")
+
+  override private[flink] def withName(newName: String): Attribute = {
+    if (newName == name) {
+      this
+    } else {
+      throw new ValidationException("Cannot rename window reference.")
+    }
+  }
 }

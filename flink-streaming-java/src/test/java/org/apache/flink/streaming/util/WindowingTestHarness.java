@@ -55,8 +55,7 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 
 	private volatile boolean isOpen = false;
 
-	public WindowingTestHarness(ExecutionConfig executionConfig,
-								WindowAssigner<? super IN, W> windowAssigner,
+	public WindowingTestHarness(WindowAssigner<? super IN, W> windowAssigner,
 								TypeInformation<K> keyType,
 								TypeInformation<IN> inputType,
 								KeySelector<IN, K> keySelector,
@@ -64,20 +63,20 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 								long allowedLateness) throws Exception {
 
 		ListStateDescriptor<IN> windowStateDesc =
-				new ListStateDescriptor<>("window-contents", inputType.createSerializer(executionConfig));
+				new ListStateDescriptor<>("window-contents", inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<K, IN, Iterable<IN>, IN, W> operator =
 			new WindowOperator<>(
 				windowAssigner,
-				windowAssigner.getWindowSerializer(executionConfig),
+				windowAssigner.getWindowSerializer(new ExecutionConfig()),
 				keySelector,
-				keyType.createSerializer(executionConfig),
+				keyType.createSerializer(new ExecutionConfig()),
 				windowStateDesc,
 				new InternalIterableWindowFunction<>(new PassThroughFunction()),
 				trigger,
 				allowedLateness);
 
-		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, executionConfig, keySelector, keyType);
+		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keyType);
 	}
 
 	/**

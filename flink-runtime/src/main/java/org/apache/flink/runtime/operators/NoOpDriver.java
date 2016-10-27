@@ -77,8 +77,8 @@ public class NoOpDriver<T> implements Driver<AbstractRichFunction, T> {
 	@Override
 	public void run() throws Exception {
 		// cache references on the stack
-		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
-		final Counter numRecordsOut = this.taskContext.getMetricGroup().counter("numRecordsOut");
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 		final MutableObjectIterator<T> input = this.taskContext.getInput(0);
 		final Collector<T> output = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 

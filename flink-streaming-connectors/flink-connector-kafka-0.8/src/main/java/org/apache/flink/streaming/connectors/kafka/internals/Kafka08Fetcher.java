@@ -270,6 +270,11 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 				periodicCommitter.shutdown();
 			}
 
+			// clear the interruption flag
+			// this allows the joining on consumer threads (on best effort) to happen in
+			// case the initial interrupt already
+			Thread.interrupted();
+
 			// make sure that in any case (completion, abort, error), all spawned threads are stopped
 			try {
 				int runningThreads;
@@ -295,6 +300,11 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 					}
 				}
 				while (runningThreads > 0);
+			}
+			catch (InterruptedException ignored) {
+				// waiting for the thread shutdown apparently got interrupted
+				// restore interrupted state and continue
+				Thread.currentThread().interrupt();
 			}
 			catch (Throwable t) {
 				// we catch all here to preserve the original exception

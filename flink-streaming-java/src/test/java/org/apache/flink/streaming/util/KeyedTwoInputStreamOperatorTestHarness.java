@@ -17,7 +17,6 @@
  */
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -55,37 +54,29 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 
 	public KeyedTwoInputStreamOperatorTestHarness(
 			TwoInputStreamOperator<IN1, IN2, OUT> operator,
-			final KeySelector<IN1, K> keySelector1,
-			final KeySelector<IN2, K> keySelector2,
-			TypeInformation<K> keyType) throws Exception {
-		super(operator);
+			KeySelector<IN1, K> keySelector1,
+			KeySelector<IN2, K> keySelector2,
+			TypeInformation<K> keyType,
+			int maxParallelism,
+			int numSubtasks,
+			int subtaskIndex) throws Exception {
+		super(operator, maxParallelism, numSubtasks, subtaskIndex);
 
 		ClosureCleaner.clean(keySelector1, false);
 		ClosureCleaner.clean(keySelector2, false);
 		config.setStatePartitioner(0, keySelector1);
 		config.setStatePartitioner(1, keySelector2);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-		config.setNumberOfKeyGroups(MAX_PARALLELISM);
 
 		setupMockTaskCreateKeyedBackend();
 	}
 
 	public KeyedTwoInputStreamOperatorTestHarness(
 			TwoInputStreamOperator<IN1, IN2, OUT> operator,
-			ExecutionConfig executionConfig,
-			KeySelector<IN1, K> keySelector1,
-			KeySelector<IN2, K> keySelector2,
+			final KeySelector<IN1, K> keySelector1,
+			final KeySelector<IN2, K> keySelector2,
 			TypeInformation<K> keyType) throws Exception {
-		super(operator, executionConfig);
-
-		ClosureCleaner.clean(keySelector1, false);
-		ClosureCleaner.clean(keySelector2, false);
-		config.setStatePartitioner(0, keySelector1);
-		config.setStatePartitioner(1, keySelector2);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-		config.setNumberOfKeyGroups(MAX_PARALLELISM);
-
-		setupMockTaskCreateKeyedBackend();
+		this(operator, keySelector1, keySelector2, keyType, 1, 1, 0);
 	}
 
 	private void setupMockTaskCreateKeyedBackend() {

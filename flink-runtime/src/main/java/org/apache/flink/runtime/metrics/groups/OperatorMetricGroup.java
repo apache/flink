@@ -36,9 +36,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
 	private final String operatorName;
 
+	private final OperatorIOMetricGroup ioMetrics;
+
 	public OperatorMetricGroup(MetricRegistry registry, TaskMetricGroup parent, String operatorName) {
 		super(registry, registry.getScopeFormats().getOperatorFormat().formatScope(checkNotNull(parent), operatorName), parent);
 		this.operatorName = operatorName;
+
+		ioMetrics = new OperatorIOMetricGroup(this);
 	}
 
 	// ------------------------------------------------------------------------
@@ -54,6 +58,15 @@ public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
 			this.parent.vertexId.toString(),
 			this.parent.subtaskIndex,
 			filter.filterCharacters(this.operatorName));
+	}
+
+	/**
+	 * Returns the OperatorIOMetricGroup for this operator.
+	 *
+	 * @return OperatorIOMetricGroup for this operator.
+	 */
+	public OperatorIOMetricGroup getIOMetricGroup() {
+		return ioMetrics;
 	}
 	
 	// ------------------------------------------------------------------------

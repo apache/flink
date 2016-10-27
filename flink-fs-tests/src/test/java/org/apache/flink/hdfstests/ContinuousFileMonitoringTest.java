@@ -120,14 +120,15 @@ public class ContinuousFileMonitoringTest {
 		TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
 		final long watermarkInterval = 10;
-		ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.setAutoWatermarkInterval(watermarkInterval);
 
 		ContinuousFileReaderOperator<String, ?> reader = new ContinuousFileReaderOperator<>(format);
-		reader.setOutputType(typeInfo, executionConfig);
+		reader.setOutputType(typeInfo, new ExecutionConfig());
 
 		final OneInputStreamOperatorTestHarness<FileInputSplit, String> tester =
-			new OneInputStreamOperatorTestHarness<>(reader, executionConfig);
+			new OneInputStreamOperatorTestHarness<>(reader);
+
+		tester.getExecutionConfig().setAutoWatermarkInterval(watermarkInterval);
+
 
 		tester.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
 

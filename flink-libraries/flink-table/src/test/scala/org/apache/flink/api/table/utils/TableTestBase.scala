@@ -27,7 +27,7 @@ import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.{Table, TableEnvironment}
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.junit.Assert
+import org.junit.Assert.assertEquals
 import org.mockito.Mockito.{mock, when}
 
 /**
@@ -46,6 +46,13 @@ class TableTestBase {
 }
 
 abstract class TableTestUtil {
+
+  private var counter = 0
+
+  def addTable[T: TypeInformation](fields: Expression*): Table = {
+    addTable[T](s"Table${counter += 1}", fields: _*)
+  }
+
   def addTable[T: TypeInformation](name: String, fields: Expression*): Table
   def verifySql(query: String, expected: String): Unit
   def verifyTable(resultTable: Table, expected: String): Unit
@@ -58,18 +65,18 @@ object TableTestUtil {
 
   def unaryNode(node: String, input: String, term: String*): String = {
     s"""$node(${term.mkString(", ")})
-       |  $input
+       |$input
        |""".stripMargin
   }
 
   def binaryNode(node: String, left: String, right: String, term: String*): String = {
     s"""$node(${term.mkString(", ")})
-       |  $left
-       |  $right
+       |$left
+       |$right
        |""".stripMargin
   }
 
-  def term(term: String, value: String*): String = {
+  def term(term: AnyRef, value: AnyRef*): String = {
     s"$term=[${value.mkString(", ")}]"
   }
 
@@ -110,7 +117,9 @@ case class BatchTableTestUtil() extends TableTestUtil {
     val relNode = resultTable.getRelNode
     val optimized = tEnv.optimize(relNode)
     val actual = RelOptUtil.toString(optimized)
-    Assert.assertEquals(expected, actual)
+    assertEquals(
+      expected.split("\n").map(_.trim).mkString("\n"),
+      actual.split("\n").map(_.trim).mkString("\n"))
   }
 }
 
@@ -143,6 +152,8 @@ case class StreamTableTestUtil() extends TableTestUtil {
     val relNode = resultTable.getRelNode
     val optimized = tEnv.optimize(relNode)
     val actual = RelOptUtil.toString(optimized)
-    Assert.assertEquals(expected, actual)
+    assertEquals(
+      expected.split("\n").map(_.trim).mkString("\n"),
+      actual.split("\n").map(_.trim).mkString("\n"))
   }
 }

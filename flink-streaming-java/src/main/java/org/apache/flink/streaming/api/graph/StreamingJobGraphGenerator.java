@@ -355,11 +355,6 @@ public class StreamingJobGraphGenerator {
 		config.setStatePartitioner(1, vertex.getStatePartitioner2());
 		config.setStateKeySerializer(vertex.getStateKeySerializer());
 
-		// only set the max parallelism if the vertex uses partitioned state (= KeyedStream).
-		if (vertex.getStatePartitioner1() != null) {
-			config.setNumberOfKeyGroups(vertex.getMaxParallelism());
-		}
-
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();
 
 		if (vertexClass.equals(StreamIterationHead.class)

@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.View;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -54,6 +55,8 @@ public class MetricRegistry {
 	private ScheduledExecutorService executor;
 	private ActorRef queryService;
 
+	private ViewUpdater viewUpdater;
+
 	private final ScopeFormats scopeFormats;
 	private final char globalDelimiter;
 	private final List<Character> delimiters = new ArrayList<>();
@@ -70,11 +73,12 @@ public class MetricRegistry {
 
 		List<Tuple2<String, Configuration>> reporterConfigurations = config.getReporterConfigurations();
 
+		this.executor = Executors.newSingleThreadScheduledExecutor();
+
 		if (reporterConfigurations.isEmpty()) {
 			// no reporters defined
 			// by default, don't report anything
 			LOG.info("No metrics reporter configured, no metrics will be exposed/reported.");
-			this.executor = null;
 		} else {
 			// we have some reporters so
 			for (Tuple2<String, Configuration> reporterConfiguration: reporterConfigurations) {
@@ -113,9 +117,6 @@ public class MetricRegistry {
 					reporterInstance.open(metricConfig);
 
 					if (reporterInstance instanceof Scheduled) {
-						if (executor == null) {
-							executor = Executors.newSingleThreadScheduledExecutor();
-						}
 						LOG.info("Periodically reporting metrics in intervals of {} {} for reporter {} of type {}.", period, timeunit.name(), namedReporter, className);
 
 						executor.scheduleWithFixedDelay(
@@ -133,7 +134,6 @@ public class MetricRegistry {
 					this.delimiters.add(delimiterForReporter.charAt(0));
 				}
 				catch (Throwable t) {
-					shutdownExecutor();
 					LOG.error("Could not instantiate metrics reporter {}. Metrics might not be exposed/reported.", namedReporter, t);
 				}
 			}
@@ -242,6 +242,12 @@ public class MetricRegistry {
 			if (queryService != null) {
 				MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, group);
 			}
+			if (metric instanceof View) {
+				if (viewUpdater == null) {
+					viewUpdater = new ViewUpdater(executor);
+				}
+				viewUpdater.notifyOfAddedView((View) metric);
+			}
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);
 		}
@@ -267,6 +273,11 @@ public class MetricRegistry {
 			}
 			if (queryService != null) {
 				MetricQueryService.notifyOfRemovedMetric(queryService, metric);
+			}
+			if (metric instanceof View) {
+				if (viewUpdater != null) {
+					viewUpdater.notifyOfRemovedView((View) metric);
+				}
 			}
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);

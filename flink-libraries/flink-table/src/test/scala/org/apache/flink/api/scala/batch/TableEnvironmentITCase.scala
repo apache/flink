@@ -91,7 +91,7 @@ class TableEnvironmentITCase(
     tEnv.registerDataSet("MyTable", ds2)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test(expected = classOf[TableException])
   def testScanUnregisteredTable(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -132,7 +132,7 @@ class TableEnvironmentITCase(
     tEnv.registerDataSet("MyTable", t2)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test(expected = classOf[TableException])
   def testRegisterTableFromOtherEnv(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv1 = TableEnvironment.getTableEnvironment(env, config)
