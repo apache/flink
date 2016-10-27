@@ -34,11 +34,13 @@ import org.apache.flink.streaming.connectors.fs.AvroKeyValueSinkWriter;
 import org.apache.flink.streaming.connectors.fs.Clock;
 import org.apache.flink.streaming.connectors.fs.SequenceFileWriter;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
+import org.apache.flink.streaming.connectors.fs.Writer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.NetUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
@@ -497,4 +499,92 @@ public class BucketingSinkTest {
 		Assert.assertEquals(4, numFiles);
 		Assert.assertEquals(2, numInProgress);
 	}
+
+	/**
+	 * This tests user defined hdfs configuration
+	 * @throws Exception
+	 */
+	@Test
+	public void testUserDefinedConfiguration() throws Exception {
+		final String outPath = hdfsURI + "/string-non-rolling-with-config";
+		final int numElements = 20;
+
+		Map<String, String> properties = new HashMap<>();
+		Schema keySchema = Schema.create(Schema.Type.INT);
+		Schema valueSchema = Schema.create(Schema.Type.STRING);
+		properties.put(AvroKeyValueSinkWriter.CONF_OUTPUT_KEY_SCHEMA, keySchema.toString());
+		properties.put(AvroKeyValueSinkWriter.CONF_OUTPUT_VALUE_SCHEMA, valueSchema.toString());
+		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS, String.valueOf(true));
+		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS_CODEC, DataFileConstants.SNAPPY_CODEC);
+
+		Configuration conf = new Configuration();
+		conf.set("io.file.buffer.size", "40960");
+
+		BucketingSink<Tuple2<Integer,String>> sink = new BucketingSink<Tuple2<Integer, String>>(outPath)
+			.setFSConfig(conf)
+			.setWriter(new StreamWriterWithConfigCheck<Integer, String>(properties, "io.file.buffer.size", "40960"))
+			.setBucketer(new BasePathBucketer<Tuple2<Integer,String>>())
+			.setPartPrefix("part")
+			.setPendingPrefix("")
+			.setPendingSuffix("");
+
+		OneInputStreamOperatorTestHarness<Tuple2<Integer, String>, Object> testHarness =
+			createTestSink(sink);
+
+		testHarness.setProcessingTime(0L);
+
+		testHarness.setup();
+		testHarness.open();
+
+		for (int i = 0; i < numElements; i++) {
+			testHarness.processElement(new StreamRecord<>(Tuple2.of(
+				i, "message #" + Integer.toString(i)
+			)));
+		}
+
+		testHarness.close();
+
+		GenericData.setStringType(valueSchema, GenericData.StringType.String);
+		Schema elementSchema = AvroKeyValueSinkWriter.AvroKeyValue.getSchema(keySchema, valueSchema);
+
+		FSDataInputStream inStream = dfs.open(new Path(outPath + "/part-0-0"));
+
+		SpecificDatumReader<GenericRecord> elementReader = new SpecificDatumReader<>(elementSchema);
+		DataFileStream<GenericRecord> dataFileStream = new DataFileStream<>(inStream, elementReader);
+		for (int i = 0; i < numElements; i++) {
+			AvroKeyValueSinkWriter.AvroKeyValue<Integer, String> wrappedEntry =
+				new AvroKeyValueSinkWriter.AvroKeyValue<>(dataFileStream.next());
+			int key = wrappedEntry.getKey();
+			Assert.assertEquals(i, key);
+			String value = wrappedEntry.getValue();
+			Assert.assertEquals("message #" + i, value);
+		}
+
+		dataFileStream.close();
+		inStream.close();
+	}
+
+	private static class StreamWriterWithConfigCheck<K, V> extends AvroKeyValueSinkWriter<K, V> {
+		private Map<String, String> properties;
+		private String key;
+		private String expect;
+		public StreamWriterWithConfigCheck(Map<String, String> properties, String key, String expect) {
+			super(properties);
+			this.properties = properties;
+			this.key = key;
+			this.expect = expect;
+		}
+
+		@Override
+		public void open(FileSystem fs, Path path) throws IOException {
+			super.open(fs, path);
+			Assert.assertEquals(expect, fs.getConf().get(key));
+		}
+
+		@Override
+		public Writer<Tuple2<K, V>> duplicate() {
+			return new StreamWriterWithConfigCheck<>(properties, key, expect);
+		}
+	}
+
 }
