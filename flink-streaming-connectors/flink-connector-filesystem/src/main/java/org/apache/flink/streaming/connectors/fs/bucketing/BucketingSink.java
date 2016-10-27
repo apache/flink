@@ -281,7 +281,15 @@ public class BucketingSink<T>
 	 */
 	private transient State<T> state;
 
-	private transient org.apache.hadoop.conf.Configuration hadoopConf;
+	/**
+	 * User-defined FileSystem parameters
+	 */
+	private Configuration fsConfig = null;
+
+	/**
+	 * The FileSystem reference.
+	 */
+	private transient FileSystem fs;
 
 	private transient Clock clock;
 
@@ -302,6 +310,28 @@ public class BucketingSink<T>
 		this.writerTemplate = new StringWriter<>();
 	}
 
+	/**
+	 * Specify a custom {@code Configuration} that will be used when creating
+	 * the {@link FileSystem} for writing.
+	 */
+	public BucketingSink<T> setFSConfig(Configuration config) {
+		this.fsConfig = new Configuration();
+		fsConfig.addAll(config);
+		return this;
+	}
+
+	/**
+	 * Specify a custom {@code Configuration} that will be used when creating
+	 * the {@link FileSystem} for writing.
+	 */
+	public BucketingSink<T> setFSConfig(org.apache.hadoop.conf.Configuration config) {
+		this.fsConfig = new Configuration();
+		for(Map.Entry<String, String> entry : config) {
+			fsConfig.setString(entry.getKey(), entry.getValue());
+		};
+		return this;
+	}
+
 	@Override
 	@SuppressWarnings("unchecked")
 	public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
@@ -319,8 +349,7 @@ public class BucketingSink<T>
 		state = new State<T>();
 
 		Path baseDirectory = new Path(basePath);
-		hadoopConf = HadoopFileSystem.getHadoopConfiguration();
-		FileSystem fs = baseDirectory.getFileSystem(hadoopConf);
+		initFileSystem();
 		refTruncate = reflectTruncate(fs);
 
 		processingTimeService =
@@ -367,6 +396,27 @@ public class BucketingSink<T>
 			LOG.error("Error while deleting leftover pending/in-progress files: {}", e);
 			throw new RuntimeException("Error while deleting leftover pending/in-progress files.", e);
 		}
+	}
+
+	/**
+	 * create a file system with the user defined hdfs config
+	 * @throws IOException
+	 */
+	private void initFileSystem() throws IOException {
+		if(fs != null) {
+			return;
+		}
+		org.apache.hadoop.conf.Configuration hadoopConf = HadoopFileSystem.getHadoopConfiguration();
+		if(fsConfig != null) {
+			String disableCacheName
+				= String.format("fs.%s.impl.disable.cache", new Object[]{new Path(basePath).toUri().getScheme()});
+			hadoopConf.setBoolean(disableCacheName, true);
+			for (String key : fsConfig.keySet()) {
+				hadoopConf.set(key, fsConfig.getString(key, null));
+			}
+		}
+
+		fs = new Path(basePath).getFileSystem(hadoopConf);
 	}
 
 	@Override
@@ -456,8 +506,6 @@ public class BucketingSink<T>
 	private void openNewPartFile(Path bucketPath, BucketState<T> bucketState) throws Exception {
 		closeCurrentPartFile(bucketState);
 
-		FileSystem fs = new Path(basePath).getFileSystem(hadoopConf);
-
 		if (!fs.exists(bucketPath)) {
 			try {
 				if (fs.mkdirs(bucketPath)) {
@@ -511,7 +559,6 @@ public class BucketingSink<T>
 			Path currentPartPath = new Path(bucketState.currentFile);
 			Path inProgressPath = new Path(currentPartPath.getParent(), inProgressPrefix + currentPartPath.getName()).suffix(inProgressSuffix);
 			Path pendingPath = new Path(currentPartPath.getParent(), pendingPrefix + currentPartPath.getName()).suffix(pendingSuffix);
-			FileSystem fs = inProgressPath.getFileSystem(hadoopConf);
 			fs.rename(inProgressPath, pendingPath);
 			LOG.debug("Moving in-progress bucket {} to pending file {}",
 				inProgressPath,
@@ -589,7 +636,6 @@ public class BucketingSink<T>
 								Path pendingPath = new Path(finalPath.getParent(),
 									pendingPrefix + finalPath.getName()).suffix(pendingSuffix);
 
-								FileSystem fs = pendingPath.getFileSystem(hadoopConf);
 								fs.rename(pendingPath, finalPath);
 								LOG.debug(
 									"Moving pending file {} to final location having completed checkpoint {}.",
@@ -634,9 +680,8 @@ public class BucketingSink<T>
 	public void restoreState(State<T> state) {
 		this.state = state;
 
-		FileSystem fs;
 		try {
-			fs = new Path(basePath).getFileSystem(HadoopFileSystem.getHadoopConfiguration());
+			initFileSystem();
 		} catch (IOException e) {
 			LOG.error("Error while creating FileSystem in checkpoint restore.", e);
 			throw new RuntimeException("Error while creating FileSystem in checkpoint restore.", e);
