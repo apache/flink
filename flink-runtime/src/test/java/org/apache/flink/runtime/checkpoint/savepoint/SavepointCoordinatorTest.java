@@ -271,7 +271,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 		assertNotNull(savepointPath);
 
 		// Rollback
-		coordinator.restoreSavepoint(createExecutionJobVertexMap(jobVertices), savepointPath);
+		coordinator.restoreSavepoint(createExecutionJobVertexMap(jobVertices), savepointPath, false);
 
 		// Verify all executions have been reset
 		for (ExecutionVertex vertex : ackVertices) {
@@ -339,7 +339,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 			// Rollback
 			coordinator.restoreSavepoint(
 					createExecutionJobVertexMap(jobVertices),
-					savepointPath);
+					savepointPath, false);
 			fail("Did not throw expected Exception after rollback with parallelism mismatch.");
 		}
 		catch (Exception ignored) {
@@ -385,7 +385,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 			// Rollback
 			coordinator.restoreSavepoint(
 					createExecutionJobVertexMap(jobVertex),
-					savepointPath);
+					savepointPath, false);
 
 			fail("Did not throw expected Exception after rollback with savepoint store failure.");
 		}
@@ -416,7 +416,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 				checkpointIdCounter,
 				savepointStore);
 
-		coordinator.restoreSavepoint(createExecutionJobVertexMap(), "any");
+		coordinator.restoreSavepoint(createExecutionJobVertexMap(), "any", false);
 
 		verify(checkpointIdCounter).setCount(eq(12312312L + 1));
 

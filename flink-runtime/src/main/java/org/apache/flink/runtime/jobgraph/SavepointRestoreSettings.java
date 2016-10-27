@@ -33,26 +33,26 @@ public class SavepointRestoreSettings implements Serializable {
 	private final static SavepointRestoreSettings NONE = new SavepointRestoreSettings(null, false);
 
 	/** By default, be strict when restoring from a savepoint.  */
-	private final static boolean DEFAULT_IGNORE_UNMAPPED_STATE = false;
+	private final static boolean DEFAULT_ALLOW_NON_RESTORED_STATE = false;
 
 	/** Savepoint restore path. */
 	private final String restorePath;
 
 	/**
-	 * Flag indicating whether the restore should ignore if the savepoint contains
-	 * state for an operator that is not part of the job.
+	 * Flag indicating whether non restored state is allowed if the savepoint
+	 * contains state for an operator that is not part of the job.
 	 */
-	private final boolean ignoreUnmappedState;
+	private final boolean allowNonRestoredState;
 
 	/**
 	 * Creates the restore settings.
 	 *
 	 * @param restorePath Savepoint restore path.
-	 * @param ignoreUnmappedState Ignore unmapped state.
+	 * @param allowNonRestoredState Ignore unmapped state.
 	 */
-	private SavepointRestoreSettings(String restorePath, boolean ignoreUnmappedState) {
+	private SavepointRestoreSettings(String restorePath, boolean allowNonRestoredState) {
 		this.restorePath = restorePath;
-		this.ignoreUnmappedState = ignoreUnmappedState;
+		this.allowNonRestoredState = allowNonRestoredState;
 	}
 
 	/**
@@ -73,14 +73,14 @@ public class SavepointRestoreSettings implements Serializable {
 	}
 
 	/**
-	 * Returns whether the restore should ignore whether the savepoint contains
-	 * state that cannot be mapped to the job.
+	 * Returns whether non restored state is allowed if the savepoint contains
+	 * state that cannot be mapped back to the job.
 	 *
-	 * @return <code>true</code> if restore should ignore whether the savepoint contains
-	 * state that cannot be mapped to the job.
+	 * @return <code>true</code> if non restored state is allowed if the savepoint
+	 * contains state that cannot be mapped  back to the job.
 	 */
-	public boolean ignoreUnmappedState() {
-		return ignoreUnmappedState;
+	public boolean allowNonRestoredState() {
+		return allowNonRestoredState;
 	}
 
 	@Override
@@ -88,7 +88,7 @@ public class SavepointRestoreSettings implements Serializable {
 		if (restoreSavepoint()) {
 			return "SavepointRestoreSettings.forPath(" +
 					"restorePath='" + restorePath + '\'' +
-					", ignoreUnmappedState=" + ignoreUnmappedState +
+					", allowNonRestoredState=" + allowNonRestoredState +
 					')';
 		} else {
 			return "SavepointRestoreSettings.none()";
@@ -102,12 +102,12 @@ public class SavepointRestoreSettings implements Serializable {
 	}
 
 	public static SavepointRestoreSettings forPath(String savepointPath) {
-		return forPath(savepointPath, DEFAULT_IGNORE_UNMAPPED_STATE);
+		return forPath(savepointPath, DEFAULT_ALLOW_NON_RESTORED_STATE);
 	}
 
-	public static SavepointRestoreSettings forPath(String savepointPath, boolean ignoreUnmappedState) {
+	public static SavepointRestoreSettings forPath(String savepointPath, boolean allowNonRestoredState) {
 		checkNotNull(savepointPath, "Savepoint restore path.");
-		return new SavepointRestoreSettings(savepointPath, ignoreUnmappedState);
+		return new SavepointRestoreSettings(savepointPath, allowNonRestoredState);
 	}
 
 }
