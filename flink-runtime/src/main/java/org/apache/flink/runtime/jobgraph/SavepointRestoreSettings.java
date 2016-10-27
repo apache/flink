@@ -84,6 +84,23 @@ public class SavepointRestoreSettings implements Serializable {
 	}
 
 	@Override
+	public boolean equals(Object o) {
+		if (this == o) { return true; }
+		if (o == null || getClass() != o.getClass()) { return false; }
+
+		SavepointRestoreSettings that = (SavepointRestoreSettings) o;
+		return allowNonRestoredState == that.allowNonRestoredState &&
+				(restorePath != null ? restorePath.equals(that.restorePath) : that.restorePath == null);
+	}
+
+	@Override
+	public int hashCode() {
+		int result = restorePath != null ? restorePath.hashCode() : 0;
+		result = 31 * result + (allowNonRestoredState ? 1 : 0);
+		return result;
+	}
+
+	@Override
 	public String toString() {
 		if (restoreSavepoint()) {
 			return "SavepointRestoreSettings.forPath(" +

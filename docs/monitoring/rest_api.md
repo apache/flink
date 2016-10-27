@@ -74,6 +74,11 @@ Values in angle brackets are variables, for example `http://hostname:8081/jobs/<
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtasknum>/attempts/<attempt>`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtasknum>/attempts/<attempt>/accumulators`
   - `/jobs/<jobid>/plan`
+  - `/jars/upload`
+  - `/jars`
+  - `/jars/:jarid`
+  - `/jars/:jarid/plan`
+  - `/jars/:jarid/run`
 
 
 ### General
@@ -652,3 +657,34 @@ The `savepointPath` points to the external path of the savepoint, which can be u
   "cause": "<error message>"
 }
 ~~~
+
+### Submitting Programs
+
+It is possible to upload, run, and list Flink programs via the REST APIs and web frontend.
+
+#### Run a Program (POST)
+
+Send a `POST` request to `/jars/:jarid/run`. The `jarid` parameter is the file name of the program JAR in the configured web frontend upload directory (configuration key `jobmanager.web.upload.dir`).
+
+You can specify the following query parameters (all optional):
+
+- **Program arguments**: `program-args=arg1 arg2 arg3`
+- **Main class to execute**: `entry-class=EntryClassName.class`
+- **Default parallelism**: `parallelism=4`
+- **Savepoint path to restore from**: `savepointPath=hdfs://path/to/savepoint`
+- **Allow non restored state**:  `allowNonRestoredState=true`
+
+If the call succeeds, you will get a response with the ID of the submitted job.
+
+**Example:** Run program with a savepoint
+
+Request:
+~~~
+POST: /jars/MyProgram.jar/run?savepointPath=/my-savepoints/savepoint-1bae02a80464&allowNonRestoredState=true
+~~~
+
+Response:
+~~~
+{"jobid": "869a9868d49c679e7355700e0857af85"}
+~~~
+
