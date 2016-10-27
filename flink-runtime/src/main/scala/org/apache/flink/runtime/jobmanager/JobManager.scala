@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobmanager
 
 import java.io.{File, IOException}
 import java.lang.management.ManagementFactory
-import java.net.{BindException, InetAddress, InetSocketAddress, ServerSocket, UnknownHostException}
+import java.net._
 import java.util.UUID
 import java.util.concurrent.{ExecutorService, TimeUnit, TimeoutException}
 import javax.management.ObjectName
@@ -49,7 +49,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
-import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
+import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionGraphException, ExecutionJobVertex}
 import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceManager}
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertexID}
@@ -63,7 +63,7 @@ import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{Heartbeat, SendStackTrace}
 import org.apache.flink.runtime.messages.TaskMessages.{PartitionState, UpdateTaskExecutionState}
-import org.apache.flink.runtime.messages.accumulators.{AccumulatorMessage, AccumulatorResultStringsFound, AccumulatorResultsErroneous, AccumulatorResultsFound, RequestAccumulatorResults, RequestAccumulatorResultsStringified}
+import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, AcknowledgeCheckpoint, DeclineCheckpoint}
 import org.apache.flink.runtime.messages.webmonitor.{InfoMessage, _}
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup
@@ -831,8 +831,15 @@ class JobManager(
     case ScheduleOrUpdateConsumers(jobId, partitionId) =>
       currentJobs.get(jobId) match {
         case Some((executionGraph, _)) =>
-          sender ! decorateMessage(Acknowledge)
-          executionGraph.scheduleOrUpdateConsumers(partitionId)
+          try {
+            executionGraph.scheduleOrUpdateConsumers(partitionId)
+            sender ! decorateMessage(Acknowledge)
+          } catch {
+            case e: ExecutionGraphException =>
+              sender ! decorateMessage(
+                Failure(new Exception("Could not schedule or update consumers.", e))
+              )
+          }
         case None =>
           log.error(s"Cannot find execution graph for job ID $jobId to schedule or update " +
             s"consumers.")

@@ -22,6 +22,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Kill;
 import akka.actor.Props;
+import akka.actor.Status;
 import akka.japi.Creator;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -42,6 +43,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -67,6 +69,7 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.StoppableInvokable;
+import org.apache.flink.types.IntValue;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -78,8 +81,10 @@ import org.slf4j.LoggerFactory;
 import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
+import scala.concurrent.Promise;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
@@ -123,7 +128,7 @@ public class TaskManagerTest extends TestLogger {
 	}
 
 	@Test
-	public void testSubmitAndExecuteTask() {
+	public void testSubmitAndExecuteTask() throws IOException {
 		new JavaTestKit(system){{
 
 			ActorGateway taskManager = null;
@@ -220,10 +225,6 @@ public class TaskManagerTest extends TestLogger {
 
 					}
 				};
-			}
-			catch (Exception e) {
-				e.printStackTrace();
-				fail(e.getMessage());
 			}
 			finally {
 				// shut down the actors
@@ -1392,6 +1393,77 @@ public class TaskManagerTest extends TestLogger {
 			}
 		}};
 	}
+
+	/**
+	 * Test that a failing schedule or update consumers call leads to the failing of the respective
+	 * task.
+	 *
+	 * IMPORTANT: We have to make sure that the invokable's cancel method is called, because only
+	 * then the future is completed. We do this by not eagerly deploy consumer tasks and requiring
+	 * the invokable to fill one memory segment. The completed memory segment will trigger the
+	 * scheduling of the downstream operator since it is in pipeline mode. After we've filled the
+	 * memory segment, we'll block the invokable and wait for the task failure due to the failed
+	 * schedule or update consumers call.
+	 */
+	@Test(timeout = 10000L)
+	public void testFailingScheduleOrUpdateConsumersMessage() throws Exception {
+		new JavaTestKit(system) {{
+			final Configuration configuration = new Configuration();
+
+			// set the memory segment to the smallest size possible, because we have to fill one
+			// memory buffer to trigger the schedule or update consumers message to the downstream
+			// operators
+			configuration.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY, 4096);
+
+			final JobID jid = new JobID();
+			final JobVertexID vid = new JobVertexID();
+			final ExecutionAttemptID eid = new ExecutionAttemptID();
+			final SerializedValue<ExecutionConfig> executionConfig = new SerializedValue<>(new ExecutionConfig());
+
+			final ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor = new ResultPartitionDeploymentDescriptor(
+				new IntermediateDataSetID(),
+				new IntermediateResultPartitionID(),
+				ResultPartitionType.PIPELINED,
+				1,
+				false // don't deploy eagerly but with the first completed memory buffer
+			);
+
+			final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, "TestJob", vid, eid, executionConfig,
+				"TestTask", 0, 1, 0, new Configuration(), new Configuration(),
+				TestInvokableRecordCancel.class.getName(),
+				Collections.singletonList(resultPartitionDeploymentDescriptor),
+				Collections.<InputGateDeploymentDescriptor>emptyList(),
+				new ArrayList<BlobKey>(), Collections.<URL>emptyList(), 0);
+
+
+			ActorRef jmActorRef = system.actorOf(Props.create(FailingScheduleOrUpdateConsumersJobManager.class, leaderSessionID), "jobmanager");
+			ActorGateway jobManager = new AkkaActorGateway(jmActorRef, leaderSessionID);
+
+			final ActorGateway taskManager = TestingUtils.createTaskManager(
+				system,
+				jobManager,
+				configuration,
+				true,
+				true);
+
+			try {
+				TestInvokableRecordCancel.resetGotCanceledFuture();
+
+				Future<Object> result = taskManager.ask(new SubmitTask(tdd), timeout);
+
+				Await.result(result, timeout);
+
+				Future<Boolean> cancelFuture = TestInvokableRecordCancel.gotCanceled();
+
+				boolean cancelResult = Await.result(cancelFuture, timeout);
+
+				assertEquals(true, cancelResult);
+			} finally {
+				TestingUtils.stopActor(taskManager);
+				TestingUtils.stopActor(jobManager);
+			}
+		}};
+	}
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -1427,6 +1499,25 @@ public class TaskManagerTest extends TestLogger {
 		}
 	}
 
+	public static class FailingScheduleOrUpdateConsumersJobManager extends SimpleJobManager {
+
+		public FailingScheduleOrUpdateConsumersJobManager(UUID leaderSessionId) {
+			super(leaderSessionId);
+		}
+
+		@Override
+		public void handleMessage(Object message) throws Exception {
+			if (message instanceof ScheduleOrUpdateConsumers) {
+				getSender().tell(
+					decorateMessage(
+						new Status.Failure(new Exception("Could not schedule or update consumers."))),
+					getSelf());
+			} else {
+				super.handleMessage(message);
+			}
+		}
+	}
+
 	public static class SimpleLookupJobManager extends SimpleJobManager {
 
 		public SimpleLookupJobManager(UUID leaderSessionID) {
@@ -1452,7 +1543,7 @@ public class TaskManagerTest extends TestLogger {
 
 		public SimpleLookupFailingUpdateJobManager(UUID leaderSessionID, Set<ExecutionAttemptID> ids) {
 			super(leaderSessionID);
-			this.validIDs = new HashSet<ExecutionAttemptID>(ids);
+			this.validIDs = new HashSet<>(ids);
 		}
 
 		@Override
@@ -1569,7 +1660,7 @@ public class TaskManagerTest extends TestLogger {
 		public void invoke() {}
 	}
 	
-	public static final class TestInvokableBlockingCancelable extends AbstractInvokable {
+	public static class TestInvokableBlockingCancelable extends AbstractInvokable {
 
 		@Override
 		public void invoke() throws Exception {
@@ -1580,6 +1671,49 @@ public class TaskManagerTest extends TestLogger {
 				while (true) {
 					o.wait();
 				}
+			}
+		}
+	}
+
+	public static final class TestInvokableRecordCancel extends AbstractInvokable {
+
+		private static final Object lock = new Object();
+		private static Promise<Boolean> gotCanceledFuture = new scala.concurrent.impl.Promise.DefaultPromise<>();
+
+		@Override
+		public void invoke() throws Exception {
+			final Object o = new Object();
+			RecordWriter<IntValue> recordWriter = new RecordWriter<>(getEnvironment().getWriter(0));
+
+			for (int i = 0; i < 1024; i++) {
+				recordWriter.emit(new IntValue(42));
+			}
+
+			synchronized (o) {
+				//noinspection InfiniteLoopStatement
+				while (true) {
+					o.wait();
+				}
+			}
+
+		}
+
+		@Override
+		public void cancel() {
+			synchronized (lock) {
+				gotCanceledFuture.success(true);
+			}
+		}
+
+		public static void resetGotCanceledFuture() {
+			synchronized (lock) {
+				gotCanceledFuture = new scala.concurrent.impl.Promise.DefaultPromise<>();
+			}
+		}
+
+		public static Future<Boolean> gotCanceled() {
+			synchronized (lock) {
+				return gotCanceledFuture.future();
 			}
 		}
 	}
