@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -84,7 +85,7 @@ public class AsyncWaitOperator<IN, OUT>
 	}
 
 	public void init() {
-		this.buffer = new AsyncCollectorBuffer<>(bufferSize, mode);
+		this.buffer = new AsyncCollectorBuffer<>(bufferSize, mode, this);
 		this.collector = new TimestampedCollector<>(output);
 		this.buffer.setOutput(collector, output);
 
@@ -131,6 +132,11 @@ public class AsyncWaitOperator<IN, OUT>
 	}
 
 	@Override
+	public void processLatencyMarker(LatencyMarker latencyMarker) throws Exception {
+		buffer.add(latencyMarker);
+	}
+
+	@Override
 	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
 		List<StreamElement> elements = buffer.getStreamElementsInBuffer();
 
@@ -157,6 +163,10 @@ public class AsyncWaitOperator<IN, OUT>
 		buffer.stopEmitterThread();
 	}
 
+	public void sendLatencyMarker(LatencyMarker marker) throws Exception {
+		super.processLatencyMarker(marker);
+	}
+
 	private void serializeStreamElements(List<StreamElement> input,
 										FSDataOutputStream stream) throws IOException {
 		stream.write(input.size());
@@ -174,7 +184,7 @@ public class AsyncWaitOperator<IN, OUT>
 
 				stream.write(outputSerializer.getCopyOfBuffer());
 			}
-			else {
+			else if (element.isWatermark()) {
 				stream.write(0);
 
 				Watermark watermark = element.asWatermark();
@@ -183,6 +193,21 @@ public class AsyncWaitOperator<IN, OUT>
 				outputSerializer.writeLong(watermark.getTimestamp());
 
 				stream.write(outputSerializer.getCopyOfBuffer());
+			}
+			else if (element.isLatencyMarker()) {
+				stream.write(2);
+
+				LatencyMarker marker = element.asLatencyMarker();
+
+				outputSerializer.clear();
+				outputSerializer.writeLong(marker.getMarkedTime());
+				outputSerializer.writeInt(marker.getVertexID());
+				outputSerializer.writeInt(marker.getSubtaskIndex());
+
+				stream.write(outputSerializer.getCopyOfBuffer());
+			}
+			else {
+				throw new IOException("Unknown element type: "+element);
 			}
 		}
 	}
@@ -208,10 +233,21 @@ public class AsyncWaitOperator<IN, OUT>
 
 				ret.add(record);
 			}
-			else {
+			else if (flag == 0) {
 				long ts = wrapper.readLong();
 
 				ret.add(new Watermark(ts));
+			}
+			else if (flag == 2) {
+				long ts = wrapper.readLong();
+				int vertexId = wrapper.readInt();
+				int subTaskIndex = wrapper.readInt();
+
+				LatencyMarker marker = new LatencyMarker(ts, vertexId, subTaskIndex);
+				ret.add(marker);
+			}
+			else {
+				throw new IOException("Unknown element type while deserialization: "+flag);
 			}
 		}
 

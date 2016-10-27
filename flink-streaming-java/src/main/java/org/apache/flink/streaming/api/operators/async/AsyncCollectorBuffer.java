@@ -23,13 +23,13 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -54,6 +54,8 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	private final int bufferSize;
 
 	private final AsyncDataStream.OutputMode mode;
+
+	private final AsyncWaitOperator<IN, OUT> operator;
 
 	/**
 	 * {@link AsyncCollector} queue.
@@ -94,11 +96,12 @@ public class AsyncCollectorBuffer<IN, OUT> {
 
 	private boolean isCheckpointing;
 
-	public AsyncCollectorBuffer(int maxSize, AsyncDataStream.OutputMode mode) {
+	public AsyncCollectorBuffer(int maxSize, AsyncDataStream.OutputMode mode, AsyncWaitOperator operator) {
 		Preconditions.checkArgument(maxSize > 0, "Future buffer size should be greater than 0.");
 
 		this.bufferSize = maxSize;
 		this.mode = mode;
+		this.operator = operator;
 
 		this.lock = new ReentrantLock(true);
 		this.notFull = this.lock.newCondition();
@@ -156,6 +159,23 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	 * @throws Exception Exceptions from async operation.
 	 */
 	public AsyncCollector<IN, OUT> add(Watermark watermark) throws Exception {
+		return processMark(watermark);
+	}
+
+	/**
+	 * Add a {@link LatencyMarker} into queue. A new AsyncCollector will be created and returned.
+	 * <p>
+	 * If queue is full, caller will be blocked here.
+	 *
+	 * @param latencyMarker LatencyMarker
+	 * @return AsyncCollector
+	 * @throws Exception Exceptions from async operation.
+	 */
+	public AsyncCollector<IN, OUT> add(LatencyMarker latencyMarker) throws Exception {
+		return processMark(latencyMarker);
+	}
+
+	private AsyncCollector<IN, OUT> processMark(StreamElement mark) throws Exception {
 		try {
 			lock.lock();
 
@@ -171,7 +191,7 @@ public class AsyncCollectorBuffer<IN, OUT> {
 			AsyncCollector<IN, OUT> collector = new AsyncCollector(this, true);
 
 			collectorToQueue.put(collector, queue.add(collector));
-			collectorToStreamElement.put(collector, watermark);
+			collectorToStreamElement.put(collector, mark);
 
 			// signal emitter thread that current collector is ready
 			mark(collector);
@@ -280,18 +300,18 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	private class Emitter implements Runnable {
 		private volatile boolean running = true;
 
-		private void output(AsyncCollector collector) throws IOException {
+		private void output(AsyncCollector collector) throws Exception {
 			List<OUT> result = collector.getResult();
 
 			// update timestamp for output stream records based on the input stream record.
 			StreamElement element = collectorToStreamElement.get(collector);
 			if (element == null) {
-				throw new RuntimeException("No input stream record or watermark for current AsyncCollector: "+collector);
+				throw new Exception("No input stream record or watermark for current AsyncCollector: "+collector);
 			}
 
 			if (element.isRecord()) {
 				if (result == null) {
-					throw new RuntimeException("Result for stream record "+element+" is null");
+					throw new Exception("Result for stream record "+element+" is null");
 				}
 
 				timestampedCollector.setTimestamp(element.asRecord());
@@ -299,8 +319,14 @@ public class AsyncCollectorBuffer<IN, OUT> {
 					timestampedCollector.collect(val);
 				}
 			}
-			else {
+			else if (element.isWatermark()) {
 				output.emitWatermark(element.asWatermark());
+			}
+			else if (element.isLatencyMarker()) {
+				operator.sendLatencyMarker(element.asLatencyMarker());
+			}
+			else {
+				throw new Exception("Unknown input record: "+element);
 			}
 		}
 
@@ -327,7 +353,7 @@ public class AsyncCollectorBuffer<IN, OUT> {
 
 					notFull.signal();
 				}
-				catch (IOException e) {
+				catch (Exception e) {
 					error = e;
 					break;
 				}
@@ -350,7 +376,7 @@ public class AsyncCollectorBuffer<IN, OUT> {
 
 					collector = finishedCollectors.pollFirst();
 				}
-				catch (IOException e) {
+				catch (Exception e) {
 					error = e;
 					break;
 				}
@@ -399,8 +425,10 @@ public class AsyncCollectorBuffer<IN, OUT> {
 				return true;
 			}
 
-			// check head element of the queue
-			if (collectorToStreamElement.get(queue.get(0)).isWatermark()) {
+			// check head element of the queue, it is OK to process Watermark or LatencyMarker
+			if (collectorToStreamElement.get(queue.get(0)).isWatermark() ||
+				collectorToStreamElement.get(queue.get(0)).isLatencyMarker())
+			{
 				return false;
 			}
 

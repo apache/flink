@@ -18,18 +18,21 @@
 package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
+import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.MockOutput;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 import org.mockito.internal.util.reflection.Whitebox;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -49,33 +52,73 @@ import java.util.concurrent.Executors;
  * </ul>
  */
 public class AsyncCollectorBufferTest {
+	private AsyncFunction<Integer, Integer> function;
+
+	private AsyncWaitOperator<Integer, Integer> operator;
+
+	private AsyncCollectorBuffer<Integer, Integer> buffer;
+
+	private Output<StreamRecord<Integer>> output;
+
+	@Before
+	public void setUp() throws Exception {
+		function = new AsyncFunction<Integer, Integer>() {
+			@Override
+			public void asyncInvoke(Integer input, AsyncCollector<Integer, Integer> collector) throws Exception {
+
+			}
+		};
+
+		operator = new AsyncWaitOperator<>(function);
+		Class<?>[] classes = AbstractStreamOperator.class.getDeclaredClasses();
+		Class<?> latencyClass = null;
+		for (Class<?> c : classes) {
+			if (c.getName().indexOf("LatencyGauge") != -1) {
+				latencyClass = c;
+			}
+		}
+
+		Constructor<?> explicitConstructor = latencyClass.getDeclaredConstructors()[0];
+		explicitConstructor.setAccessible(true);
+		Whitebox.setInternalState(operator, "latencyGauge", explicitConstructor.newInstance(10));
+
+		output = new FakedOutput(new ArrayList<Long>());
+		TimestampedCollector<Integer> collector =new TimestampedCollector(output);
+		buffer =
+			new AsyncCollectorBuffer<>(3, AsyncDataStream.OutputMode.ORDERED, operator);
+		buffer.setOutput(collector, output);
+
+		Whitebox.setInternalState(operator, "output", output);
+	}
+
 	@Test
 	public void testAdd() throws Exception {
-		TimestampedCollector<Integer> output = Mockito.mock(TimestampedCollector.class);
-		AsyncCollectorBuffer<Integer, Integer> buffer =
-			new AsyncCollectorBuffer<>(1, AsyncDataStream.OutputMode.ORDERED);
-		buffer.setOutput(output, new MockOutput<>(new ArrayList<Integer>()));
 		Thread.sleep(1000);
 		buffer.add(new Watermark(0l));
-		Assert.assertEquals(((SimpleLinkedList) Whitebox.getInternalState(buffer, "queue")).size(), 1);
-		Assert.assertEquals(((Map) Whitebox.getInternalState(buffer, "collectorToStreamElement")).size(), 1);
-		Assert.assertEquals(((Map) Whitebox.getInternalState(buffer, "collectorToQueue")).size(), 1);
+		buffer.add(new LatencyMarker(111L, 1, 1));
+		Assert.assertEquals(((SimpleLinkedList) Whitebox.getInternalState(buffer, "queue")).size(), 2);
+		Assert.assertEquals(((Map) Whitebox.getInternalState(buffer, "collectorToStreamElement")).size(), 2);
+		Assert.assertEquals(((Map) Whitebox.getInternalState(buffer, "collectorToQueue")).size(), 2);
 
 		AsyncCollector collector = (AsyncCollector)((SimpleLinkedList) Whitebox.getInternalState(buffer, "queue")).get(0);
 		Watermark ret = ((StreamElement)((Map) Whitebox.getInternalState(buffer, "collectorToStreamElement")).get(collector)).asWatermark();
 		Assert.assertEquals(ret.getTimestamp(), 0l);
 
+		AsyncCollector collector2 = (AsyncCollector)((SimpleLinkedList) Whitebox.getInternalState(buffer, "queue")).get(1);
+		LatencyMarker latencyMarker = ((StreamElement)((Map) Whitebox.getInternalState(buffer, "collectorToStreamElement")).get(collector2)).asLatencyMarker();
+		Assert.assertEquals(latencyMarker.getMarkedTime(), 111l);
+
 		SimpleLinkedList list = (SimpleLinkedList) Whitebox.getInternalState(buffer, "queue");
 		Assert.assertEquals(list.node(0), ((Map) Whitebox.getInternalState(buffer, "collectorToQueue")).get(collector));
 
 		List<StreamElement> elements = buffer.getStreamElementsInBuffer();
-		Assert.assertEquals(elements.size(), 1);
+		Assert.assertEquals(elements.size(), 2);
 	}
 
 	public class OrderedPutThread extends Thread {
-		final int ASYNC_COLLECTOR_NUM = 6;
-		int[] orderedSeq = new int[] {0, 1, 2, 3, 4, 5};
-		int[] sleepTimeArr = new int[] {5, 7, 3, 0, 1, 9};
+		final int ASYNC_COLLECTOR_NUM = 7;
+		int[] orderedSeq = new int[] {0, 1, 2, 3, 4, 5, 6};
+		int[] sleepTimeArr = new int[] {5, 7, 3, 0, 1, 9, 9};
 
 		AsyncCollectorBuffer<Integer, Integer> buffer;
 		ExecutorService service = Executors.newFixedThreadPool(10);
@@ -106,6 +149,8 @@ public class AsyncCollectorBufferTest {
 
 					if (i == 3)
 						buffer.add(new Watermark(333l));
+					else if (i == 6)
+						buffer.add(new LatencyMarker(111L, 0, 0));
 					else {
 						StreamRecord record = new StreamRecord(i);
 						record.setTimestamp(i*i);
@@ -160,6 +205,11 @@ public class AsyncCollectorBufferTest {
 		}
 
 		@Override
+		public void emitLatencyMarker(LatencyMarker latencyMarker) {
+			outputs.add(latencyMarker.getMarkedTime());
+		}
+
+		@Override
 		public void close() {
 		}
 
@@ -177,11 +227,6 @@ public class AsyncCollectorBufferTest {
 
 	@Test
 	public void testOrderedBuffer() throws Exception {
-		Output<StreamRecord<Integer>> output = new FakedOutput(new ArrayList<Long>());
-		TimestampedCollector<Integer> collector =new TimestampedCollector(output);
-		AsyncCollectorBuffer<Integer, Integer> buffer =
-			new AsyncCollectorBuffer<>(3, AsyncDataStream.OutputMode.ORDERED);
-		buffer.setOutput(collector, output);
 		buffer.startEmitterThread();
 		Watermark watermark = new Watermark(0L);
 		buffer.add(watermark);
@@ -197,7 +242,7 @@ public class AsyncCollectorBufferTest {
 
 		buffer.stopEmitterThread();
 
-		Assert.assertEquals(((FakedOutput)output).getResult(), "0,0,1,2,333,4,5,");
+		Assert.assertEquals(((FakedOutput)output).getResult(), "0,0,1,2,333,4,5,111,");
 		Assert.assertEquals(((FakedOutput)output).getTimestamp(), "0,1,4,16,25,");
 	}
 
@@ -212,11 +257,6 @@ public class AsyncCollectorBufferTest {
 
 	@Test
 	public void testUnorderedBuffer() throws Exception {
-		Output<StreamRecord<Integer>> output = new FakedOutput(new ArrayList<Long>());
-		TimestampedCollector<Integer> collector =new TimestampedCollector(output);
-		AsyncCollectorBuffer<Integer, Integer> buffer =
-			new AsyncCollectorBuffer<>(10, AsyncDataStream.OutputMode.UNORDERED);
-		buffer.setOutput(collector, output);
 		buffer.startEmitterThread();
 		Watermark watermark = new Watermark(0L);
 		buffer.add(watermark);
@@ -232,16 +272,12 @@ public class AsyncCollectorBufferTest {
 
 		buffer.stopEmitterThread();
 
-		Assert.assertEquals(sort(((FakedOutput)output).getResult()), "[0, 0, 1, 2, 4, 5, 333]");
+		Assert.assertEquals(sort(((FakedOutput)output).getResult()), "[0, 0, 1, 2, 4, 5, 111, 333]");
 		Assert.assertEquals(sort(((FakedOutput)output).getTimestamp()), "[0, 1, 4, 16, 25]");
 	}
 
 	@Test(expected = IOException.class)
 	public void testBufferWithException() throws Exception {
-		Output<StreamRecord<Integer>> output = new FakedOutput(new ArrayList<Long>());
-		TimestampedCollector<Integer> collector =new TimestampedCollector(output);
-		AsyncCollectorBuffer<Integer, Integer> buffer = new AsyncCollectorBuffer<>(3, AsyncDataStream.OutputMode.ORDERED);
-		buffer.setOutput(collector, output);
 		buffer.startEmitterThread();
 
 		OrderedPutThread putThread = new OrderedPutThread(buffer, true);
