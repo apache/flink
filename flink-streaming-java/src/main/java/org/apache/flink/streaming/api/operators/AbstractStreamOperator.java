@@ -28,11 +28,11 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
@@ -58,10 +58,10 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -362,19 +362,24 @@ public abstract class AbstractStreamOperator<OUT>
 		if (getKeyedStateBackend() != null) {
 			KeyedStateCheckpointOutputStream out = context.getRawKeyedOperatorStateOutput();
 
+			Map<String, HeapInternalTimerService.TimerServiceSnapshot<?, ?>> snapshotMap = new HashMap<>();
+			for (Map.Entry<String, HeapInternalTimerService<?, ?>> entry : timerServices.entrySet()) {
+				snapshotMap.put(entry.getKey(), entry.getValue().snapshotTimers());
+			}
+
 			KeyGroupsList allKeyGroups = out.getKeyGroupList();
 			for (int keyGroupIdx : allKeyGroups) {
 				out.startNewKeyGroup(keyGroupIdx);
 
 				DataOutputViewStreamWrapper dov = new DataOutputViewStreamWrapper(out);
-				dov.writeInt(timerServices.size());
+				dov.writeInt(snapshotMap.size());
 
-				for (Map.Entry<String, HeapInternalTimerService<?, ?>> entry : timerServices.entrySet()) {
+				for (Map.Entry<String, HeapInternalTimerService.TimerServiceSnapshot<?, ?>> entry : snapshotMap.entrySet()) {
 					String serviceName = entry.getKey();
-					HeapInternalTimerService<?, ?> timerService = entry.getValue();
+					HeapInternalTimerService.TimerServiceSnapshot<?, ?> timerService = entry.getValue();
 
 					dov.writeUTF(serviceName);
-					timerService.snapshotTimersForKeyGroup(dov, keyGroupIdx);
+					timerService.writeKeyGroup(dov, keyGroupIdx);
 				}
 			}
 		}
@@ -388,7 +393,7 @@ public abstract class AbstractStreamOperator<OUT>
 	public void initializeState(StateInitializationContext context) throws Exception {
 		if (getKeyedStateBackend() != null) {
 			int totalKeyGroups = getKeyedStateBackend().getNumberOfKeyGroups();
-			KeyGroupsList localKeyGroupRange = getKeyedStateBackend().getKeyGroupRange();
+			KeyGroupRange localKeyGroupRange = getKeyedStateBackend().getKeyGroupRange();
 
 			// initialize the map with the timer services
 			this.timerServices = new HashMap<>();

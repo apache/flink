@@ -66,87 +66,6 @@ public class HeapInternalTimerServiceTest {
 		this.maxParallelism = maxParallelism;
 	}
 
-	@Test
-	public void testKeyGroupStartIndexSetting() {
-
-		int startKeyGroupIdx = 7;
-		int endKeyGroupIdx = 21;
-		KeyGroupsList testKeyGroupList = new KeyGroupRange(startKeyGroupIdx, endKeyGroupIdx);
-
-		TestKeyContext keyContext = new TestKeyContext();
-
-		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
-
-		HeapInternalTimerService<Integer, String> service =
-				new HeapInternalTimerService<>(
-						testKeyGroupList.getNumberOfKeyGroups(),
-						testKeyGroupList,
-						keyContext,
-						processingTimeService);
-
-		Assert.assertEquals(startKeyGroupIdx, service.getLocalKeyGroupRangeStartIdx());
-	}
-
-	@Test
-	public void testTimerAssignmentToKeyGroups() {
-		int totalNoOfTimers = 100;
-
-		int totalNoOfKeyGroups = 100;
-		int startKeyGroupIdx = 0;
-		int endKeyGroupIdx = totalNoOfKeyGroups - 1; // we have 0 to 99
-
-		@SuppressWarnings("unchecked")
-		Set<InternalTimer<Integer, String>>[] expectedNonEmptyTimerSets = new HashSet[totalNoOfKeyGroups];
-
-		TestKeyContext keyContext = new TestKeyContext();
-		HeapInternalTimerService<Integer, String> timerService =
-				new HeapInternalTimerService<>(
-						totalNoOfKeyGroups,
-						new KeyGroupRange(startKeyGroupIdx, endKeyGroupIdx),
-						keyContext,
-						new TestProcessingTimeService());
-
-		timerService.startTimerService(IntSerializer.INSTANCE, StringSerializer.INSTANCE, mock(Triggerable.class));
-
-		for (int i = 0; i < totalNoOfTimers; i++) {
-
-			// create the timer to be registered
-			InternalTimer<Integer, String> timer = new InternalTimer<>(10 + i, i, "hello_world_"+ i);
-			int keyGroupIdx =  KeyGroupRangeAssignment.assignToKeyGroup(timer.getKey(), totalNoOfKeyGroups);
-
-			// add it in the adequate expected set of timers per keygroup
-			Set<InternalTimer<Integer, String>> timerSet = expectedNonEmptyTimerSets[keyGroupIdx];
-			if (timerSet == null) {
-				timerSet = new HashSet<>();
-				expectedNonEmptyTimerSets[keyGroupIdx] = timerSet;
-			}
-			timerSet.add(timer);
-
-			// register the timer as both processing and event time one
-			keyContext.setCurrentKey(timer.getKey());
-			timerService.registerEventTimeTimer(timer.getNamespace(), timer.getTimestamp());
-			timerService.registerProcessingTimeTimer(timer.getNamespace(), timer.getTimestamp());
-		}
-
-		Set<InternalTimer<Integer, String>>[] eventTimeTimers = timerService.getEventTimeTimersPerKeyGroup();
-		Set<InternalTimer<Integer, String>>[] processingTimeTimers = timerService.getProcessingTimeTimersPerKeyGroup();
-
-		// finally verify that the actual timers per key group sets are the expected ones.
-		for (int i = 0; i < expectedNonEmptyTimerSets.length; i++) {
-			Set<InternalTimer<Integer, String>> expected = expectedNonEmptyTimerSets[i];
-			Set<InternalTimer<Integer, String>> actualEvent = eventTimeTimers[i];
-			Set<InternalTimer<Integer, String>> actualProcessing = processingTimeTimers[i];
-
-			if (expected == null) {
-				Assert.assertNull(actualEvent);
-				Assert.assertNull(actualProcessing);
-			} else {
-				Assert.assertArrayEquals(expected.toArray(), actualEvent.toArray());
-				Assert.assertArrayEquals(expected.toArray(), actualProcessing.toArray());
-			}
-		}
-	}
-
 	/**
 	 * Verify that we only ever have one processing-time task registered at the
 	 * {@link ProcessingTimeService}.
@@ -573,10 +492,12 @@ public class HeapInternalTimerServiceTest {
 		assertEquals(1, timerService.numEventTimeTimers("hello"));
 		assertEquals(1, timerService.numEventTimeTimers("ciao"));
 
+		HeapInternalTimerService.TimerServiceSnapshot<Integer, String> snapshotTimers = timerService.snapshotTimers();
+
 		Map<Integer, byte[]> snapshot = new HashMap<>();
 		for (Integer keyGroupIndex : testKeyGroupRange) {
 			ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-			timerService.snapshotTimersForKeyGroup(new DataOutputViewStreamWrapper(outStream), keyGroupIndex);
+			snapshotTimers.writeKeyGroup(new DataOutputViewStreamWrapper(outStream), keyGroupIndex);
 			outStream.close();
 			snapshot.put(keyGroupIndex, outStream.toByteArray());
 		}
@@ -653,9 +574,10 @@ public class HeapInternalTimerServiceTest {
 		// one map per sub key-group range
 		Map<Integer, byte[]> snapshot1 = new HashMap<>();
 		Map<Integer, byte[]> snapshot2 = new HashMap<>();
+		HeapInternalTimerService.TimerServiceSnapshot<Integer, String> snapshotTimers = timerService.snapshotTimers();
 		for (Integer keyGroupIndex : testKeyGroupRange) {
 			ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-			timerService.snapshotTimersForKeyGroup(new DataOutputViewStreamWrapper(outStream), keyGroupIndex);
+			snapshotTimers.writeKeyGroup(new DataOutputViewStreamWrapper(outStream), keyGroupIndex);
 			outStream.close();
 			if (subKeyGroupRange1.contains(keyGroupIndex)) {
 				snapshot1.put(keyGroupIndex, outStream.toByteArray());
@@ -759,7 +681,7 @@ public class HeapInternalTimerServiceTest {
 			Triggerable<Integer, String> triggerable,
 			KeyContext keyContext,
 			ProcessingTimeService processingTimeService,
-			KeyGroupsList keyGroupList,
+			KeyGroupRange keyGroupList,
 			int maxParallelism) {
 		HeapInternalTimerService<Integer, String> service =
 			new HeapInternalTimerService<>(
@@ -777,7 +699,7 @@ public class HeapInternalTimerServiceTest {
 			Triggerable<Integer, String> triggerable,
 			KeyContext keyContext,
 			ProcessingTimeService processingTimeService,
-			KeyGroupsList keyGroupsList,
+			KeyGroupRange keyGroupsList,
 			int maxParallelism) throws Exception {
 
 		// create an empty service
