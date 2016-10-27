@@ -38,6 +38,50 @@ under the License.
   <defs
      id="defs4">
     <marker
+       inkscape:isstock="true"
+       style="overflow:visible"
+       id="marker4737"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow2Mend">
+      <path
+         inkscape:connector-curvature="0"
+         transform="scale(-0.6,-0.6)"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1"
+         id="path4739" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker4552"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path4298"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <marker
+       inkscape:isstock="true"
+       style="overflow:visible"
+       id="marker4551"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow2Mend">
+      <path
+         inkscape:connector-curvature="0"
+         transform="scale(-0.6,-0.6)"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1"
+         id="path4553" />
+    </marker>
+    <marker
        inkscape:stockid="Arrow2Mstart"
        orient="auto"
        refY="0.0"
@@ -343,7 +387,8 @@ under the License.
        refX="0"
        id="Arrow2Mend"
        style="overflow:visible"
-       inkscape:isstock="true">
+       inkscape:isstock="true"
+       inkscape:collect="always">
       <path
          id="path4486"
          style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1"
@@ -404,17 +449,17 @@ under the License.
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.4"
-     inkscape:cx="366.44711"
-     inkscape:cy="435.59833"
+     inkscape:zoom="0.98994949"
+     inkscape:cx="333.41527"
+     inkscape:cy="460.79478"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
-     inkscape:window-width="1402"
-     inkscape:window-height="855"
-     inkscape:window-x="38"
-     inkscape:window-y="1"
-     inkscape:window-maximized="1">
+     inkscape:window-width="1916"
+     inkscape:window-height="1300"
+     inkscape:window-x="1855"
+     inkscape:window-y="21"
+     inkscape:window-maximized="0">
     <inkscape:grid
        type="xygrid"
        id="grid4136" />
@@ -438,13 +483,13 @@ under the License.
      transform="translate(0,-272.83465)">
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-start:url(#Arrow2Mstart);marker-end:url(#marker4407)"
-       d="M 369.28571,490.93361 C 340,572.36218 330,712.36218 340.71429,802.36218"
+       d="M 409.28571,490.93361 C 380,572.36218 370,712.36218 380.71429,802.36218"
        id="path3473"
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="cc" />
     <g
        id="g4324"
-       transform="translate(-30.285714,162.34191)">
+       transform="translate(9.714286,162.34191)">
       <rect
          ry="22.587013"
          rx="21.337021"
@@ -468,7 +513,7 @@ under the License.
     </g>
     <g
        id="g4286"
-       transform="translate(-39.560883,231.66354)">
+       transform="translate(0.439117,231.66354)">
       <rect
          style="opacity:1;fill:#5599ff;fill-opacity:1;stroke:#000000;stroke-width:1.5;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
          id="rect4254"
@@ -492,7 +537,7 @@ under the License.
     </g>
     <g
        id="g4426"
-       transform="translate(38,166)">
+       transform="translate(78,166)">
       <rect
          style="opacity:1;fill:#5599ff;fill-opacity:1;stroke:#000000;stroke-width:4;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:24, 4;stroke-dashoffset:0;stroke-opacity:1"
          id="rect4260"
@@ -516,7 +561,7 @@ under the License.
     </g>
     <g
        id="g4276"
-       transform="translate(-8.802002,175.91335)">
+       transform="translate(31.198,175.91335)">
       <rect
          style="opacity:1;fill:#5599ff;fill-opacity:1;stroke:#000000;stroke-width:1.5;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
          id="rect4256"
@@ -540,7 +585,7 @@ under the License.
     </g>
     <g
        id="g4421"
-       transform="translate(40,166)">
+       transform="translate(80,166)">
       <rect
          ry="22.587013"
          rx="21.337021"
@@ -564,7 +609,7 @@ under the License.
     </g>
     <g
        id="g4416"
-       transform="translate(14,166)">
+       transform="translate(54,166)">
       <rect
          ry="22.500114"
          rx="26.670492"
@@ -588,7 +633,7 @@ under the License.
     </g>
     <g
        id="g4431"
-       transform="translate(38,166)">
+       transform="translate(78,166)">
       <rect
          ry="22.551325"
          rx="23.453072"
@@ -612,7 +657,7 @@ under the License.
     </g>
     <g
        id="g4411"
-       transform="translate(14,166)">
+       transform="translate(54,166)">
       <rect
          style="opacity:1;fill:#5599ff;fill-opacity:1;stroke:#000000;stroke-width:1.5;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
          id="rect4250"
@@ -636,7 +681,7 @@ under the License.
     </g>
     <g
        id="g4436"
-       transform="translate(11.142857,169.57143)">
+       transform="translate(51.14286,169.57143)">
       <rect
          style="opacity:1;fill:#5599ff;fill-opacity:1;stroke:#000000;stroke-width:4;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:24, 4;stroke-dashoffset:0;stroke-opacity:1"
          id="rect4264"
@@ -660,7 +705,7 @@ under the License.
     </g>
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend)"
-       d="m 175.31595,646.72195 122.27415,0.17603"
+       d="m 215.33702,647.73984 122.07008,0"
        id="path4441"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -669,7 +714,7 @@ under the License.
        sodipodi:nodetypes="cc" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker4831)"
-       d="m 423.67902,643.73984 146.73144,0"
+       d="m 464.00971,647.73984 146.07006,0"
        id="path4443"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -677,7 +722,7 @@ under the License.
        inkscape:connection-end="#g4426" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker5157)"
-       d="M 143.45346,625.15282 C 240.11678,592.2528 289.05237,539.16028 337.31308,485.78223"
+       d="M 184.13444,625.15282 382.19596,485.78223"
        id="path4445"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -686,7 +731,7 @@ under the License.
        sodipodi:nodetypes="cc" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker5075)"
-       d="m 437.2653,459.19522 132.84994,10e-6"
+       d="m 477.59599,463.19522 132.18856,10e-6"
        id="path4447"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -694,7 +739,7 @@ under the License.
        inkscape:connection-end="#g4421" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker4947)"
-       d="M 140.03639,670.32685 308.21925,805.99316"
+       d="M 179.41675,670.32685 343.87778,805.99316"
        id="path4449"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -702,7 +747,7 @@ under the License.
        inkscape:connection-end="#g4416" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker5005)"
-       d="m 409.8612,824.4933 148.36356,3e-5"
+       d="m 450.27779,828.4933 147.58232,3e-5"
        id="path4451"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -710,7 +755,7 @@ under the License.
        inkscape:connection-end="#g4431" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker5237)"
-       d="M 119.50359,668.89828 C 120,902.36221 317.44733,915.62541 504.35792,974.20919"
+       d="M 121.48606,668.30654 C 138.78064,811.61536 345.26224,888.30903 548.95582,965.9844"
        id="path4453"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -720,107 +765,107 @@ under the License.
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="182.57143"
+       x="222.57141"
        y="643.07654"
        id="text4913"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan4915"
-         x="182.57143"
+         x="222.57141"
          y="643.07654"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start">Schedule job</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="432"
+       x="472"
        y="638.36218"
        id="text4929"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan4931"
-         x="432"
+         x="472"
          y="638.36218"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start">All job vertices </tspan><tspan
          sodipodi:role="line"
-         x="432"
+         x="472"
          y="657.11218"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start"
          id="tspan4933">in final state</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="424"
+       x="464"
        y="820.36218"
        id="text5063"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan5065"
-         x="424"
+         x="464"
          y="820.36218"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start">All job vertices </tspan><tspan
          sodipodi:role="line"
-         x="424"
+         x="464"
          y="839.11218"
          id="tspan5067"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start">in final state</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="442"
+       x="482"
        y="456.36221"
        id="text5139"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan5141"
-         x="442"
+         x="482"
          y="456.36221"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start">All job vertices </tspan><tspan
          sodipodi:role="line"
-         x="442"
+         x="482"
          y="475.11221"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start"
          id="tspan5143">in final state &amp; </tspan><tspan
          sodipodi:role="line"
-         x="442"
+         x="482"
          y="493.86221"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start"
          id="tspan5145">not restartable</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="219"
+       x="259"
        y="606.93359"
        id="text5227"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan5229"
-         x="219"
+         x="259"
          y="606.93359"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start">Fail job</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="156.57143"
+       x="196.57141"
        y="764.07648"
        id="text5565"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan5567"
-         x="156.57143"
+         x="196.57141"
          y="764.07648"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start">Cancel job</tspan></text>
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker5892)"
-       d="m 314.18121,477.05236 c -47.69818,20.03987 -84.94599,9.32911 -116.30849,2.14285"
+       d="m 350.99338,463.19522 -106.2755,-1e-5"
        id="path5569"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
-       inkscape:connection-start="#g4276"
+       sodipodi:nodetypes="cc"
        inkscape:connection-end="#g4411"
-       sodipodi:nodetypes="cc" />
+       inkscape:connection-start="#g4276" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker6174)"
-       d="M 419.49016,485.78223 C 974.28571,652.36221 835.65722,822.42397 665.47877,968.49491"
+       d="M 453.86766,483.76192 C 1064.7153,696.2824 753.48364,871.76678 689.84395,959.92348"
        id="path5571"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -829,7 +874,7 @@ under the License.
        sodipodi:nodetypes="cc" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker6280)"
-       d="m 413.71359,666.04114 c 466.9675,42.03536 351.85357,186.4168 228.2627,292.45377"
+       d="M 446.3093,669.3167 C 966.50293,715.92449 749.288,844.81821 673.74388,957.90317"
        id="path5573"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -838,7 +883,7 @@ under the License.
        sodipodi:nodetypes="cc" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker6392)"
-       d="M 375.26539,850.99339 556.58971,959.92348"
+       d="M 408.60702,850.99339 589.93134,959.92348"
        id="path5575"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -846,7 +891,7 @@ under the License.
        inkscape:connection-end="#g4436" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker6074)"
-       d="M 173.42792,441.40962 C 790,62.362207 855,633.79078 686.95342,807.37059"
+       d="M 189.43309,439.22831 C 890,72.362179 790,652.36218 702.11815,804.93187"
        id="path5579"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -855,15 +900,16 @@ under the License.
        sodipodi:nodetypes="cc" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker6764)"
-       d="M 123.688,485.69533 113.6599,625.15282"
+       d="m 148.78827,484.68518 -0.14393,138.44734"
        id="path5581"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
        inkscape:connection-start="#g4411"
-       inkscape:connection-end="#g4324" />
+       inkscape:connection-end="#g4324"
+       sodipodi:nodetypes="cc" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker6510)"
-       d="m 400.64822,624.43854 c 14.16495,-34.7353 13.47368,-78.92413 6.68911,-136.51345"
+       d="m 437.72662,622.12237 c 22.19839,-49.88375 12.35398,-92.37301 0.15901,-134.31983"
        id="path5585"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -872,7 +918,7 @@ under the License.
        inkscape:connection-start="#g4286" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker6634)"
-       d="m 394.21832,671.04114 c 18.43152,58.30256 7.7951,100.67644 -12.18276,132.80916"
+       d="m 423.27918,670.32685 c 16.08015,35.64642 30.49507,77.65921 -0.96955,134.65616"
        id="path5587"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -881,125 +927,125 @@ under the License.
        sodipodi:nodetypes="cc" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker7718)"
-       d="M 194.71429,444.79077 C 295.26058,393.86555 426.46327,380.03465 584,438.3622"
+       d="M 234.71429,444.79077 C 335.26058,393.86555 466.46327,380.03465 624,438.3622"
        id="path7710"
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="cc" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="10"
-       y="556.36218"
+       x="74.24366"
+       y="557.37231"
        id="text8166"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan8168"
-         x="10"
-         y="556.36218"
+         x="74.24366"
+         y="557.37231"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start">Restarted job</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="156"
-       y="906.36218"
+       x="130.87746"
+       y="919.43469"
        id="text8170"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan8172"
-         x="156"
-         y="906.36218"
+         x="130.87746"
+         y="919.43469"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start">Suspend job</tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text8174"
        y="906.93359"
-       x="468.57144"
+       x="508.57141"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        xml:space="preserve"><tspan
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start"
          y="906.93359"
-         x="468.57144"
+         x="508.57141"
          id="tspan8176"
          sodipodi:role="line">Suspend job</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="746.42859"
-       y="906.2193"
+       x="749.28571"
+       y="931.93359"
        id="text8178"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan8180"
-         x="746.42859"
-         y="906.2193"
+         x="749.28571"
+         y="931.93359"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start">Suspend job</tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text8182"
        y="717.64789"
-       x="482.14288"
+       x="522.14288"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        xml:space="preserve"><tspan
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start"
          y="717.64789"
-         x="482.14288"
+         x="522.14288"
          id="tspan8184"
          sodipodi:role="line">Suspend job</tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text8186"
        y="752.64789"
-       x="409.42856"
+       x="449.42859"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        xml:space="preserve"><tspan
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start"
          y="752.64789"
-         x="409.42856"
+         x="449.42859"
          id="tspan8188"
          sodipodi:role="line">Cancel job</tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text8190"
-       y="390.50507"
-       x="361.14285"
+       y="390.08667"
+       x="344.87888"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        xml:space="preserve"><tspan
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start"
-         y="390.50507"
-         x="361.14285"
+         y="390.08667"
+         x="344.87888"
          id="tspan8192"
-         sodipodi:role="line">Fail job</tspan></text>
+         sodipodi:role="line">Fail and job not restartable</tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text8194"
        y="306.21933"
-       x="487.28571"
+       x="527.28571"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        xml:space="preserve"><tspan
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start"
          y="306.21933"
-         x="487.28571"
+         x="527.28571"
          id="tspan8196"
          sodipodi:role="line">Cancel job</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="174"
+       x="214"
        y="510.36221"
        id="text8198"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan8200"
-         x="174"
+         x="214"
          y="510.36221"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start">All job vertices</tspan><tspan
          sodipodi:role="line"
-         x="174"
+         x="214"
          y="529.11218"
          id="tspan8202"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start">in final state &amp;</tspan><tspan
          sodipodi:role="line"
-         x="174"
+         x="214"
          y="547.86218"
          id="tspan8204"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start">restartable</tspan></text>
@@ -1007,43 +1053,80 @@ under the License.
        sodipodi:linespacing="125%"
        id="text8206"
        y="566.93372"
-       x="418.28571"
+       x="458.28571"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        xml:space="preserve"><tspan
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start"
          y="566.93372"
-         x="418.28571"
+         x="458.28571"
          id="tspan8208"
          sodipodi:role="line">Fail job</tspan></text>
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker4534)"
-       d="M 9.5714286,648.36221 46,648.36221"
+       d="m 49.57143,648.36221 36.42857,0"
        id="path3470"
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="cc" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:25px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="250.71428"
+       x="290.71429"
        y="710.93359"
        id="text7267"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan7269"
-         x="250.71428"
+         x="290.71429"
          y="710.93359"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;font-family:Sans-serif;-inkscape-font-specification:Sans-serif">Cancel job</tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text7271"
        y="565.505"
-       x="293.28571"
+       x="333.28571"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        xml:space="preserve"><tspan
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start"
          y="565.505"
-         x="293.28571"
+         x="333.28571"
          id="tspan7273"
          sodipodi:role="line">Fail job</tspan></text>
+    <path
+       inkscape:connector-curvature="0"
+       inkscape:connector-type="polyline"
+       id="path4525"
+       d="M 89.65484,475.69533 C -64.057054,715.31058 17.022511,901.60666 537.98082,988.00996"
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker4551)"
+       sodipodi:nodetypes="cc" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:25px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="80"
+       y="792.36218"
+       id="text4597"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4599"
+         x="80"
+         y="792.36218"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;font-family:sans-serif;-inkscape-font-specification:sans-serif">Suspend job</tspan></text>
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#marker4737)"
+       d="M 96.56344,444.48401 C -20,312.36218 270,332.36218 156.87312,441.05766"
+       id="path4289"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cc" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:25px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="41.817253"
+       y="342.46371"
+       id="text4905"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4907"
+         x="41.817253"
+         y="342.46371"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;font-family:sans-serif;-inkscape-font-specification:sans-serif">Fail and job restartable</tspan></text>
   </g>
 </svg>
