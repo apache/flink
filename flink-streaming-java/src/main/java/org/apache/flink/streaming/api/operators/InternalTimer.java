@@ -36,11 +36,14 @@ public class InternalTimer<K, N> implements Comparable<InternalTimer<K, N>> {
 	private final long timestamp;
 	private final K key;
 	private final N namespace;
+	private final int keyHashCode;
 
 	public InternalTimer(long timestamp, K key, N namespace) {
 		this.timestamp = timestamp;
 		this.key = key;
 		this.namespace = namespace;
+		//cache the key hash code, it may be expensive to compute
+		this.keyHashCode = key.hashCode();
 	}
 
 	public long getTimestamp() {
@@ -77,10 +80,14 @@ public class InternalTimer<K, N> implements Comparable<InternalTimer<K, N>> {
 
 	}
 
+	public int getKeyHashCode() {
+		return keyHashCode;
+	}
+
 	@Override
 	public int hashCode() {
 		int result = (int) (timestamp ^ (timestamp >>> 32));
-		result = 31 * result + key.hashCode();
+		result = 31 * result + keyHashCode;
 		result = 31 * result + namespace.hashCode();
 		return result;
 	}

@@ -387,7 +387,8 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		int[] histogram = new int[range.getNumberOfKeyGroups() + 1];
 
 		for (InternalTimer<K, N> t : allTimers) {
-			int effectiveKgIdx = KeyGroupRangeAssignment.assignToKeyGroup(t.getKey(), totalKeyGroups) - baseKgIdx + 1;
+			int effectiveKgIdx =
+					KeyGroupRangeAssignment.computeKeyGroupForKeyHash(t.getKeyHashCode(), totalKeyGroups) - baseKgIdx + 1;
 			++histogram[effectiveKgIdx];
 		}
 
@@ -396,7 +397,8 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		}
 
 		for (InternalTimer<K, N> t : allTimers) {
-			int effectiveKgIdx = KeyGroupRangeAssignment.assignToKeyGroup(t.getKey(), totalKeyGroups) - baseKgIdx;
+			int effectiveKgIdx =
+					KeyGroupRangeAssignment.computeKeyGroupForKeyHash(t.getKeyHashCode(), totalKeyGroups) - baseKgIdx;
 			keyGroupedTimers[histogram[effectiveKgIdx]++] = t;
 		}
 
