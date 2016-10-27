@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.ml.classification.SVM
 import org.apache.flink.ml.common.{ParameterMap, LabeledVector}
 import org.apache.flink.ml.math._
-import org.apache.flink.ml.preprocessing.{PolynomialFeatures, StandardScaler}
+import org.apache.flink.ml.preprocessing.{FeatureHashing, PolynomialFeatures, StandardScaler}
 import org.apache.flink.ml.regression.MultipleLinearRegression
 import org.apache.flink.ml.util.FlinkTestBase
 import org.scalatest.{Matchers, FlatSpec}
@@ -30,6 +30,25 @@ import org.scalatest.{Matchers, FlatSpec}
 class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
   behavior of "Flink's pipelines"
 
+
+  it should "pass my first test" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val rData = env.fromCollection(List("cat", "dog"))
+
+    val featureHashing = FeatureHashing()
+
+
+
+
+
+
+
+
+
+  }
+
+  /*
   it should "support chaining of compatible transformer" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -208,4 +227,5 @@ class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
       svm.predict(doubleData)
     }
   }
+  */
 }
