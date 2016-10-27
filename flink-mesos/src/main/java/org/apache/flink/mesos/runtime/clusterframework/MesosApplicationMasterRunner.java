@@ -636,6 +636,53 @@ public class MesosApplicationMasterRunner {
 
 		info.setCommand(cmd);
 
+		// Set container for task manager if specified in configs.
+		String tmImageName = flinkConfig.getString(
+			ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_IMAGE_NAME, "");
+
+		if (tmImageName.length() > 0) {
+			String taskManagerContainerType = flinkConfig.getString(
+				ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE,
+				ConfigConstants.DEFAULT_MESOS_RESOURCEMANAGER_TASKS_CONTAINER_IMAGE_TYPE);
+
+			Protos.ContainerInfo.Builder containerInfo;
+
+			switch (taskManagerContainerType) {
+				case ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_MESOS:
+					containerInfo = Protos.ContainerInfo.newBuilder()
+						.setType(Protos.ContainerInfo.Type.MESOS)
+						.setMesos(Protos.ContainerInfo.MesosInfo.newBuilder()
+							.setImage(Protos.Image.newBuilder()
+								.setType(Protos.Image.Type.DOCKER)
+								.setDocker(Protos.Image.Docker.newBuilder()
+									.setName(tmImageName))));
+					break;
+				case ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_DOCKER:
+					containerInfo = Protos.ContainerInfo.newBuilder()
+						.setType(Protos.ContainerInfo.Type.DOCKER)
+						.setDocker(Protos.ContainerInfo.DockerInfo.newBuilder()
+							.setNetwork(Protos.ContainerInfo.DockerInfo.Network.HOST)
+							.setImage(tmImageName));
+					break;
+				default:
+					LOG.warn(
+						"Invalid container type '{}' provided for setting {}. Valid values are '{}' or '{}'. " +
+							"Starting task managers now without container.",
+						taskManagerContainerType,
+						ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE,
+						ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_MESOS,
+						ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_DOCKER);
+
+					containerInfo = null;
+
+					break;
+			}
+
+			if (containerInfo != null) {
+				info.setContainer(containerInfo);
+			}
+		}
+
 		return info;
 	}
 }
