@@ -188,7 +188,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	@Override
 	public boolean hasData() {
 		// either data in current target buffer or intermediate buffers
-		return (this.position > 0 && this.position < this.limit) || (this.lengthBuffer.hasRemaining() || this.dataBuffer.hasRemaining());
+		return this.position > 0 || (this.lengthBuffer.hasRemaining() || this.dataBuffer.hasRemaining());
 	}
 
 	@Override
