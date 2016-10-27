@@ -181,13 +181,16 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 	 *
 	 * @param tasks         Tasks that will possibly be reset
 	 * @param savepointPath The path of the savepoint to rollback to
+	 * @param ignoreUnmappedState Ignore checkpoint state that cannot be mapped
+	 * to any job vertex in tasks.
 	 * @throws IllegalStateException If coordinator is shut down
 	 * @throws IllegalStateException If mismatch between program and savepoint state
 	 * @throws Exception             If savepoint store failure
 	 */
 	public void restoreSavepoint(
 			Map<JobVertexID, ExecutionJobVertex> tasks,
-			String savepointPath) throws Exception {
+			String savepointPath,
+			boolean ignoreUnmappedState) throws Exception {
 
 		checkNotNull(savepointPath, "Savepoint path");
 
@@ -208,8 +211,8 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 						String msg = String.format("Failed to rollback to savepoint %s. " +
 										"Parallelism mismatch between savepoint state and new program. " +
 										"Cannot map operator %s with parallelism %d to new program with " +
-										"parallelism %d. This indicates that the program has been changed " +
-										"in a non-compatible way after the savepoint.",
+										"parallelism %d. You cannot change parallelism of " +
+										"Flink 1.1 programs.",
 								savepoint,
 								taskState.getJobVertexID(),
 								taskState.getParallelism(),
@@ -239,12 +242,15 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 
 						currentExecutionAttempt.setInitialState(state, kvStateForTaskMap);
 					}
+				} else if (ignoreUnmappedState) {
+					LOG.info("Ignoring checkpoint state for operator {}.", taskState.getJobVertexID());
 				} else {
 					String msg = String.format("Failed to rollback to savepoint %s. " +
-									"Cannot map old state for task %s to the new program. " +
-									"This indicates that the program has been changed in a " +
-									"non-compatible way  after the savepoint.", savepointPath,
-							taskState.getJobVertexID());
+									"Cannot map savepoint state for operator %s to the new program, " +
+									"because the operator is not available in the new program. If " +
+									"you want to ignore this, you can set the --ignoreUnmappedState " +
+									"option on the CLI.",
+							savepointPath, taskState.getJobVertexID());
 					throw new IllegalStateException(msg);
 				}
 			}

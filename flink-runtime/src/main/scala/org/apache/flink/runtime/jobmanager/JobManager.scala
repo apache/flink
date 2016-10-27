@@ -1299,7 +1299,9 @@ class JobManager(
               val savepointPath = savepointSettings.getRestorePath()
 
               try {
-                executionGraph.restoreSavepoint(savepointPath)
+                executionGraph.restoreSavepoint(
+                  savepointPath,
+                  savepointSettings.ignoreUnmappedState())
               } catch {
                 case e: Exception =>
                   jobInfo.client ! decorateMessage(JobResultFailure(new SerializedThrowable(e)))
