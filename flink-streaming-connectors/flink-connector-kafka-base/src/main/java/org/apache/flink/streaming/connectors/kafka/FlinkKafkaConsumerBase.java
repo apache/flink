@@ -346,9 +346,6 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				// originally restored offsets or the assigned partitions
 
 				if (restoreToOffset != null) {
-					// the map cannot be asynchronously updated, because only one checkpoint call can happen
-					// on this function at a time: either snapshotState() or notifyCheckpointComplete()
-					pendingOffsetsToCommit.put(context.getCheckpointId(), restoreToOffset);
 
 					for (Map.Entry<KafkaTopicPartition, Long> kafkaTopicPartitionLongEntry : restoreToOffset.entrySet()) {
 						offsetsStateForCheckpoint.add(
@@ -360,6 +357,10 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 								Tuple2.of(subscribedPartition, KafkaTopicPartitionState.OFFSET_NOT_SET));
 					}
 				}
+
+				// the map cannot be asynchronously updated, because only one checkpoint call can happen
+				// on this function at a time: either snapshotState() or notifyCheckpointComplete()
+				pendingOffsetsToCommit.put(context.getCheckpointId(), restoreToOffset);
 			} else {
 				HashMap<KafkaTopicPartition, Long> currentOffsets = fetcher.snapshotCurrentState();
 
