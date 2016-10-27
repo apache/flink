@@ -1119,17 +1119,23 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 	}
 
-	public void scheduleOrUpdateConsumers(ResultPartitionID partitionId) {
+	/**
+	 * Schedule or updates consumers of the given result partition.
+	 *
+	 * @param partitionId specifying the result partition whose consumer shall be scheduled or updated
+	 * @throws ExecutionGraphException if the schedule or update consumers operation could not be executed
+	 */
+	public void scheduleOrUpdateConsumers(ResultPartitionID partitionId) throws ExecutionGraphException {
 
 		final Execution execution = currentExecutions.get(partitionId.getProducerId());
 
 		if (execution == null) {
-			fail(new IllegalStateException("Cannot find execution for execution ID " +
-					partitionId.getPartitionId()));
+			throw new ExecutionGraphException("Cannot find execution for execution Id " +
+				partitionId.getPartitionId() + '.');
 		}
 		else if (execution.getVertex() == null){
-			fail(new IllegalStateException("Execution with execution ID " +
-					partitionId.getPartitionId() + " has no vertex assigned."));
+			throw new ExecutionGraphException("Execution with execution Id " +
+				partitionId.getPartitionId() + " has no vertex assigned.");
 		} else {
 			execution.getVertex().scheduleOrUpdateConsumers(partitionId);
 		}

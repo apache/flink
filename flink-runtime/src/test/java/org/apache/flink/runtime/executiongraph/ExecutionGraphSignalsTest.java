@@ -28,13 +28,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,6 +44,9 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.api.mockito.PowerMockito;
 
 import scala.concurrent.duration.FiniteDuration;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.same;
@@ -147,7 +151,7 @@ public class ExecutionGraphSignalsTest {
 
 	@Test
 	public void testCancel() throws Exception {
-		Assert.assertEquals(JobStatus.CREATED, eg.getState());
+		assertEquals(JobStatus.CREATED, eg.getState());
 		eg.cancel();
 
 		verifyCancel(1);
@@ -156,42 +160,42 @@ public class ExecutionGraphSignalsTest {
 		eg.cancel();
 
 		verifyCancel(2);
-		Assert.assertEquals(JobStatus.CANCELLING, eg.getState());
+		assertEquals(JobStatus.CANCELLING, eg.getState());
 
 		eg.cancel();
 
 		verifyCancel(2);
-		Assert.assertEquals(JobStatus.CANCELLING, eg.getState());
+		assertEquals(JobStatus.CANCELLING, eg.getState());
 
 		f.set(eg, JobStatus.CANCELED);
 		eg.cancel();
 
 		verifyCancel(2);
-		Assert.assertEquals(JobStatus.CANCELED, eg.getState());
+		assertEquals(JobStatus.CANCELED, eg.getState());
 
 		f.set(eg, JobStatus.FAILED);
 		eg.cancel();
 
 		verifyCancel(2);
-		Assert.assertEquals(JobStatus.FAILED, eg.getState());
+		assertEquals(JobStatus.FAILED, eg.getState());
 
 		f.set(eg, JobStatus.FAILING);
 		eg.cancel();
 
 		verifyCancel(2);
-		Assert.assertEquals(JobStatus.CANCELLING, eg.getState());
+		assertEquals(JobStatus.CANCELLING, eg.getState());
 
 		f.set(eg, JobStatus.FINISHED);
 		eg.cancel();
 
 		verifyCancel(2);
-		Assert.assertEquals(JobStatus.FINISHED, eg.getState());
+		assertEquals(JobStatus.FINISHED, eg.getState());
 
 		f.set(eg, JobStatus.RESTARTING);
 		eg.cancel();
 
 		verifyCancel(2);
-		Assert.assertEquals(JobStatus.CANCELED, eg.getState());
+		assertEquals(JobStatus.CANCELED, eg.getState());
 	}
 
 	private void verifyCancel(int times) {
@@ -206,65 +210,65 @@ public class ExecutionGraphSignalsTest {
 	 */
 	@Test
 	public void testSuspend() throws Exception {
-		Assert.assertEquals(JobStatus.CREATED, eg.getState());
+		assertEquals(JobStatus.CREATED, eg.getState());
 		Exception testException = new Exception("Test exception");
 
 		eg.suspend(testException);
 
 		verifyCancel(1);
-		Assert.assertEquals(JobStatus.SUSPENDED, eg.getState());
+		assertEquals(JobStatus.SUSPENDED, eg.getState());
 
 		f.set(eg, JobStatus.RUNNING);
 
 		eg.suspend(testException);
 
 		verifyCancel(2);
-		Assert.assertEquals(JobStatus.SUSPENDED, eg.getState());
+		assertEquals(JobStatus.SUSPENDED, eg.getState());
 
 		f.set(eg, JobStatus.FAILING);
 
 		eg.suspend(testException);
 
 		verifyCancel(3);
-		Assert.assertEquals(JobStatus.SUSPENDED, eg.getState());
+		assertEquals(JobStatus.SUSPENDED, eg.getState());
 
 		f.set(eg, JobStatus.CANCELLING);
 
 		eg.suspend(testException);
 
 		verifyCancel(4);
-		Assert.assertEquals(JobStatus.SUSPENDED, eg.getState());
+		assertEquals(JobStatus.SUSPENDED, eg.getState());
 
 		f.set(eg, JobStatus.FAILED);
 
 		eg.suspend(testException);
 
 		verifyCancel(4);
-		Assert.assertEquals(JobStatus.FAILED, eg.getState());
+		assertEquals(JobStatus.FAILED, eg.getState());
 
 		f.set(eg, JobStatus.FINISHED);
 
 		eg.suspend(testException);
 
 		verifyCancel(4);
-		Assert.assertEquals(JobStatus.FINISHED, eg.getState());
+		assertEquals(JobStatus.FINISHED, eg.getState());
 
 		f.set(eg, JobStatus.CANCELED);
 
 		eg.suspend(testException);
 
 		verifyCancel(4);
-		Assert.assertEquals(JobStatus.CANCELED, eg.getState());
+		assertEquals(JobStatus.CANCELED, eg.getState());
 
 		f.set(eg, JobStatus.SUSPENDED);
 
 		eg.fail(testException);
 
-		Assert.assertEquals(JobStatus.SUSPENDED, eg.getState());
+		assertEquals(JobStatus.SUSPENDED, eg.getState());
 
 		eg.cancel();
 
-		Assert.assertEquals(JobStatus.SUSPENDED, eg.getState());
+		assertEquals(JobStatus.SUSPENDED, eg.getState());
 	}
 
 	// test that all source tasks receive STOP signal
@@ -296,5 +300,29 @@ public class ExecutionGraphSignalsTest {
 		eg.stop();
 	}
 
+	/**
+	 * Tests that a failing scheduleOrUpdateConsumers call with a non-existing execution attempt
+	 * id, will not fail the execution graph.
+	 */
+	@Test
+	public void testFailingScheduleOrUpdateConsumers() throws IllegalAccessException {
+		IntermediateResultPartitionID intermediateResultPartitionId = new IntermediateResultPartitionID();
+		// The execution attempt id does not exist and thus the scheduleOrUpdateConsumers call
+		// should fail
+		ExecutionAttemptID producerId = new ExecutionAttemptID();
+		ResultPartitionID resultPartitionId = new ResultPartitionID(intermediateResultPartitionId, producerId);
 
+		f.set(eg, JobStatus.RUNNING);
+
+		assertEquals(JobStatus.RUNNING, eg.getState());
+
+		try {
+			eg.scheduleOrUpdateConsumers(resultPartitionId);
+			fail("Expected ExecutionGraphException.");
+		} catch (ExecutionGraphException e) {
+			// we've expected this exception to occur
+		}
+
+		assertEquals(JobStatus.RUNNING, eg.getState());
+	}
 }
