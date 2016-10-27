@@ -132,7 +132,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	/** Optional Jar file to include in the system class loader of all application nodes
 	 * (for per-job submission) */
-	private List<File> userJarFiles;
+	private Set<File> userJarFiles;
 
 	public AbstractYarnClusterDescriptor() {
 		// for unit tests only
@@ -244,17 +244,29 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	/**
-	 * Returns true if the descriptor has a job jar file to include in the classpath
+	 * Returns true if the descriptor has the job jars to include in the classpath.
 	 */
-	public boolean hasUserJarFiles() {
-		return userJarFiles != null && userJarFiles.size() > 0;
+	public boolean hasUserJarFiles(List<URL> requiredJarFiles) {
+		if (userJarFiles == null || userJarFiles.size() != requiredJarFiles.size()) {
+			return false;
+		}
+		try {
+			for(URL jarFile : requiredJarFiles) {
+				if (!userJarFiles.contains(new File(jarFile.toURI()))) {
+					return false;
+				}
+			}
+		} catch (URISyntaxException e) {
+			return false;
+		}
+		return true;
 	}
 
 	/**
 	 * Sets the user jar which is included in the system classloader of all nodes.
 	 */
 	public void setProvidedUserJarFiles(List<URL> userJarFiles) {
-		List<File> localUserJarFiles = new ArrayList<>(userJarFiles.size());
+		Set<File> localUserJarFiles = new HashSet<>(userJarFiles.size());
 		for (URL jarFile : userJarFiles) {
 			try {
 				localUserJarFiles.add(new File(jarFile.toURI()));

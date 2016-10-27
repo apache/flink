@@ -310,7 +310,7 @@ public abstract class ClusterClient {
 		if (prog.isUsingProgramEntryPoint()) {
 
 			final JobWithJars jobWithJars;
-			if (hasUserJarsInClassPath()) {
+			if (hasUserJarsInClassPath(prog.getAllLibraries())) {
 				jobWithJars = prog.getPlanWithoutJars();
 			} else {
 				jobWithJars = prog.getPlanWithJars();
@@ -322,7 +322,7 @@ public abstract class ClusterClient {
 			LOG.info("Starting program in interactive mode");
 
 			final List<URL> libraries;
-			if (hasUserJarsInClassPath()) {
+			if (hasUserJarsInClassPath(prog.getAllLibraries())) {
 				libraries = Collections.emptyList();
 			} else {
 				libraries = prog.getAllLibraries();
@@ -776,7 +776,7 @@ public abstract class ClusterClient {
 	 * Returns true if the client already has the user jar and providing it again would
 	 * result in duplicate uploading of the jar.
 	 */
-	public abstract boolean hasUserJarsInClassPath();
+	public abstract boolean hasUserJarsInClassPath(List<URL> userJarFiles);
 
 	/**
 	 * Calls the subclasses' submitJob method. It may decide to simply call one of the run methods or it may perform

@@ -28,6 +28,7 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
@@ -87,7 +88,7 @@ public class StandaloneClusterClient extends ClusterClient {
 	}
 
 	@Override
-	public boolean hasUserJarsInClassPath() {
+	public boolean hasUserJarsInClassPath(List<URL> userJarFiles) {
 		return false;
 	}
 
