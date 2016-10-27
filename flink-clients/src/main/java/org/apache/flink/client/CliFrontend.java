@@ -234,7 +234,7 @@ public class CliFrontend {
 		ClusterClient client = null;
 		try {
 
-			client = createClient(options, program.getMainClassName());
+			client = createClient(options, program);
 			client.setPrintStatusDuringExecution(options.getStdoutLogging());
 			client.setDetached(options.getDetachedMode());
 			LOG.debug("Client slots is set to {}", client.getMaxSlots());
@@ -871,12 +871,12 @@ public class CliFrontend {
 	/**
 	 * Creates a {@link ClusterClient} object from the given command line options and other parameters.
 	 * @param options Command line options
-	 * @param programName Program name
+	 * @param program The program for which to create the client.
 	 * @throws Exception
 	 */
 	protected ClusterClient createClient(
 			CommandLineOptions options,
-			String programName) throws Exception {
+			PackagedProgram program) throws Exception {
 
 		// Get the custom command-line (e.g. Standalone/Yarn/Mesos)
 		CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
@@ -887,8 +887,12 @@ public class CliFrontend {
 			logAndSysout("Cluster configuration: " + client.getClusterIdentifier());
 		} catch (UnsupportedOperationException e) {
 			try {
-				String applicationName = "Flink Application: " + programName;
-				client = activeCommandLine.createCluster(applicationName, options.getCommandLine(), config);
+				String applicationName = "Flink Application: " + program.getMainClassName();
+				client = activeCommandLine.createCluster(
+					applicationName,
+					options.getCommandLine(),
+					config,
+					program.getAllLibraries());
 				logAndSysout("Cluster started: " + client.getClusterIdentifier());
 			} catch (UnsupportedOperationException e2) {
 				throw new IllegalConfigurationException(
