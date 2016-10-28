@@ -69,7 +69,9 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 	@Override
 	protected void cleanup() throws Exception {
-		inputProcessor.cleanup();
+		if (inputProcessor != null) {
+			inputProcessor.cleanup();
+		}
 	}
 
 	@Override
