@@ -202,11 +202,38 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 				Utils.getCallLocationName(),
 				true);
 
+		return flatMap(flatMapper, outType);
+	}
+
+	/**
+	 * Applies the given {@link TimelyFlatMapFunction} on the input stream, thereby
+	 * creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the stream and can produce
+	 * zero or more output. The function can also query the time and set timers. When
+	 * reacting to the firing of set timers the function can emit yet more elements.
+	 *
+	 * <p>A {@link org.apache.flink.streaming.api.functions.RichTimelyFlatMapFunction}
+	 * can be used to gain access to features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 *
+	 * @param flatMapper The {@link TimelyFlatMapFunction} that is called for each element
+	 *                      in the stream.
+	 * @param outputType {@link TypeInformation} for the result type of the function.
+	 *
+	 * @param <R> The of elements emitted by the {@code TimelyFlatMapFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@Internal
+	public <R> SingleOutputStreamOperator<R> flatMap(
+			TimelyFlatMapFunction<T, R> flatMapper,
+			TypeInformation<R> outputType) {
+
 		StreamTimelyFlatMap<KEY, T, R> operator =
 				new StreamTimelyFlatMap<>(keyType.createSerializer(getExecutionConfig()), clean(flatMapper));
 
-		return transform("Flat Map", outType, operator);
-
+		return transform("Flat Map", outputType, operator);
 	}
 
 
