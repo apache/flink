@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
@@ -26,10 +25,10 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -37,7 +36,6 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
-import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
@@ -356,7 +354,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		configureChainedTestingStreamOperator(streamConfig, numberChainedTasks, seed, recoveryTimestamp);
 
-		AcknowledgeStreamMockEnvironment env = new AcknowledgeStreamMockEnvironment(
+		StreamMockEnvironment env = new StreamMockEnvironment(
 			testHarness.jobConfig,
 			testHarness.taskConfig,
 			testHarness.executionConfig,
@@ -372,22 +370,20 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointTimestamp);
 
-		while(!streamTask.triggerCheckpoint(checkpointMetaData));
+		Tuple2<CheckpointMetaData, SubtaskState> checkpoint = testHarness.performCheckpoint(checkpointMetaData);
 
 		// since no state was set, there shouldn't be restore calls
 		assertEquals(0, TestingStreamOperator.numberRestoreCalls);
 
-		env.getCheckpointLatch().await();
-
-		assertEquals(checkpointId, env.getCheckpointId());
+		assertEquals(checkpointId, checkpoint.f0.getCheckpointId());
 
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
 
 		final OneInputStreamTask<String, String> restoredTask = new OneInputStreamTask<String, String>();
-		restoredTask.setInitialState(new TaskStateHandles(env.getCheckpointStateHandles()));
 
-		final OneInputStreamTaskTestHarness<String, String> restoredTaskHarness = new OneInputStreamTaskTestHarness<String, String>(restoredTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final OneInputStreamTaskTestHarness<String, String> restoredTaskHarness =
+				new OneInputStreamTaskTestHarness<String, String>(restoredTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		restoredTaskHarness.configureForKeyedStream(keySelector, BasicTypeInfo.STRING_TYPE_INFO);
 
 		StreamConfig restoredTaskStreamConfig = restoredTaskHarness.getStreamConfig();
@@ -396,6 +392,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		TestingStreamOperator.numberRestoreCalls = 0;
 
+		restoredTaskHarness.initializeState(checkpoint.f1);
 		restoredTaskHarness.invoke();
 		restoredTaskHarness.endInput();
 		restoredTaskHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
@@ -472,43 +469,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 		@Override
 		public IN getKey(IN value) throws Exception {
 			return value;
-		}
-	}
-
-	private static class AcknowledgeStreamMockEnvironment extends StreamMockEnvironment {
-		private volatile long checkpointId;
-		private volatile SubtaskState checkpointStateHandles;
-
-		private final OneShotLatch checkpointLatch = new OneShotLatch();
-
-		public long getCheckpointId() {
-			return checkpointId;
-		}
-
-		AcknowledgeStreamMockEnvironment(
-				Configuration jobConfig, Configuration taskConfig,
-				ExecutionConfig executionConfig, long memorySize,
-				MockInputSplitProvider inputSplitProvider, int bufferSize) {
-			super(jobConfig, taskConfig, executionConfig, memorySize, inputSplitProvider, bufferSize);
-		}
-
-
-		@Override
-		public void acknowledgeCheckpoint(
-				CheckpointMetaData checkpointMetaData,
-				SubtaskState checkpointStateHandles) {
-
-			this.checkpointId = checkpointMetaData.getCheckpointId();
-			this.checkpointStateHandles = checkpointStateHandles;
-			checkpointLatch.trigger();
-		}
-
-		public OneShotLatch getCheckpointLatch() {
-			return checkpointLatch;
-		}
-
-		public SubtaskState getCheckpointStateHandles() {
-			return checkpointStateHandles;
 		}
 	}
 

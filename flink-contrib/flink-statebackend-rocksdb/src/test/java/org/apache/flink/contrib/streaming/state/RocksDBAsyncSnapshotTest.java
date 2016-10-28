@@ -34,6 +34,7 @@ import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
@@ -73,6 +74,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /**
@@ -141,8 +143,6 @@ public class RocksDBAsyncSnapshotTest {
 					CheckpointMetaData checkpointMetaData,
 					SubtaskState checkpointStateHandles) {
 
-				super.acknowledgeCheckpoint(checkpointMetaData);
-
 				// block on the latch, to verify that triggerCheckpoint returns below,
 				// even though the async checkpoint would not finish
 				try {
@@ -152,7 +152,9 @@ public class RocksDBAsyncSnapshotTest {
 				}
 
 				// should be one k/v state
-				assertNotNull(checkpointStateHandles.getManagedKeyedState());
+				KeyGroupsStateHandle keyedState = checkpointStateHandles.getManagedKeyedState();
+				assertNotNull(keyedState);
+				assertEquals(1, keyedState.getNumberOfKeyGroups());
 
 				// we now know that the checkpoint went through
 				ensureCheckpointLatch.trigger();
