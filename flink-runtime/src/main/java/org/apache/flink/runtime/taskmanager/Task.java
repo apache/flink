@@ -57,6 +57,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateHandles;
@@ -353,6 +354,12 @@ public class Task implements Runnable, TaskActions {
 
 		// finally, create the executing thread, but do not start it
 		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
+
+		// add metrics for buffers
+		this.metrics.getIOMetricGroup().getBuffersGroup().gauge("inputQueueLength", new TaskIOMetricGroup.InputBuffersGauge(this));
+		this.metrics.getIOMetricGroup().getBuffersGroup().gauge("outputQueueLength", new TaskIOMetricGroup.OutputBuffersGauge(this));
+		this.metrics.getIOMetricGroup().getBuffersGroup().gauge("inPoolUsage", new TaskIOMetricGroup.InputBufferPoolUsageGauge(this));
+		this.metrics.getIOMetricGroup().getBuffersGroup().gauge("outPoolUsage", new TaskIOMetricGroup.OutputBufferPoolUsageGauge(this));
 	}
 
 	// ------------------------------------------------------------------------

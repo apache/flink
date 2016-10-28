@@ -220,4 +220,9 @@ class PipelinedSubpartition extends ResultSubpartition {
 			throw new IllegalStateException("Already registered listener.");
 		}
 	}
+
+	@Override
+	public int getNumberOfQueuedBuffers() {
+			return buffers.size();
+	}
 }
