@@ -21,12 +21,15 @@ package org.apache.flink.runtime.messages;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.Preconditions;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
  * Response to the TriggerStackTraceSample message.
  */
-public class StackTraceSampleResponse {
+public class StackTraceSampleResponse implements Serializable {
+
+	private static final long serialVersionUID = -4786454630050578031L;
 
 	private final int sampleId;
 

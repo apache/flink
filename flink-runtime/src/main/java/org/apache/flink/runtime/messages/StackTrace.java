@@ -21,7 +21,11 @@ package org.apache.flink.runtime.messages;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.util.Preconditions;
 
-public class StackTrace {
+import java.io.Serializable;
+
+public class StackTrace implements Serializable {
+
+	private static final long serialVersionUID = -899464298250067416L;
 
 	private final InstanceID instanceId;
 	private final String stackTrace;
