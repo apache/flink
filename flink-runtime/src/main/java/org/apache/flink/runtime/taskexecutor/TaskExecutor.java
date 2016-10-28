@@ -626,10 +626,14 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			resourceManagerConnection =
 				new TaskExecutorToResourceManagerConnection(
 					log,
-					this,
+					getRpcService(),
+					getAddress(),
+					getResourceID(),
+					taskSlotTable.createSlotReport(getResourceID()),
 					newLeaderAddress,
 					newLeaderId,
-					getMainThreadExecutor());
+					getMainThreadExecutor(),
+					new ForwardingFatalErrorHandler());
 			resourceManagerConnection.start();
 		}
 	}
@@ -1051,6 +1055,14 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		@Override
 		public void handleError(Throwable throwable) {
 			onFatalErrorAsync(throwable);
+		}
+	}
+
+	private final class ForwardingFatalErrorHandler implements FatalErrorHandler {
+
+		@Override
+		public void onFatalError(Throwable exception) {
+			onFatalErrorAsync(exception);
 		}
 	}
 
