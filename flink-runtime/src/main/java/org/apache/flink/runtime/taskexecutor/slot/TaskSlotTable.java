@@ -21,8 +21,12 @@ package org.apache.flink.runtime.taskexecutor.slot;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -124,6 +128,33 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 		started = false;
 		timerService.stop();
 		slotActions = null;
+	}
+
+	// ---------------------------------------------------------------------
+	// Slot report methods
+	// ---------------------------------------------------------------------
+
+	public SlotReport createSlotReport(ResourceID resourceId) {
+		final int numberSlots = taskSlots.size();
+
+		List<SlotStatus> slotStatuses = Arrays.asList(new SlotStatus[numberSlots]);
+
+		for (int i = 0; i < numberSlots; i++) {
+			TaskSlot taskSlot = taskSlots.get(i);
+			SlotID slotId = new SlotID(resourceId, taskSlot.getIndex());
+
+			SlotStatus slotStatus = new SlotStatus(
+				slotId,
+				taskSlot.getResourceProfile(),
+				taskSlot.getJobId(),
+				taskSlot.getAllocationId());
+
+			slotStatuses.set(i, slotStatus);
+		}
+
+		final SlotReport slotReport = new SlotReport(slotStatuses);
+
+		return slotReport;
 	}
 
 	// ---------------------------------------------------------------------
