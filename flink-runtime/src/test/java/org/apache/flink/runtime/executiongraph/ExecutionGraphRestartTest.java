@@ -264,8 +264,13 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		assertEquals(JobStatus.RESTARTING, executionGraph.getState());
 
-		// Canceling needs to abort the restart
+		// The restarting should not fail with an ordinary exception
 		executionGraph.fail(new Exception("Test exception"));
+
+		assertEquals(JobStatus.RESTARTING, executionGraph.getState());
+
+		// but it should fail when sending a SuppressRestartsException
+		executionGraph.fail(new SuppressRestartsException(new Exception("Test exception")));
 
 		assertEquals(JobStatus.FAILED, executionGraph.getState());
 
