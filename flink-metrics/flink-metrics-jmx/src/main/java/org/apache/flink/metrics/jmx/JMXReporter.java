@@ -432,7 +432,7 @@ public class JMXReporter implements MetricReporter {
 		long getCount();
 	}
 
-	private class JmxMeter extends AbstractBean implements JmxMeterMBean {
+	private static class JmxMeter extends AbstractBean implements JmxMeterMBean {
 
 		private final Meter meter;
 
