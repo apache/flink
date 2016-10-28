@@ -941,10 +941,38 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "true")
   }
 
+  @Test
+  def testPowerFunction(): Unit = {
+    // int - f7, long - f4, double - f6
+    testAllApis('f6.sqrt(), "f6.sqrt", "sqrt(f6)", "2.1447610589527217")
+    testAllApis('f7.sqrt(), "f7.sqrt", "sqrt(f7)", "1.7320508075688772")
+    testAllApis('f4.sqrt(), "f4.sqrt", "sqrt(f4)", "6.6332495807108")
+
+    // f5: float
+    testAllApis('f5.sqrt(), "f5.sqrt", "sqrt(f5)", "2.1213203435596424")
+    testAllApis('f5.power('f5), "f5.power(f5)", "power(f5, f5)", "869.8739233809259")
+    testAllApis('f5.power('f6), "f5.power(f6)", "power(f5, f6)", "1011.0614768871105")
+    testAllApis('f5.power('f7), "f5.power(f7)", "power(f5, f7)", "91.125")
+    testAllApis('f5.power('f4), "f5.power(f4)", "power(f5, f4)", "5.512525432252026E28")
+
+    // f15: bigDecimal
+    testAllApis('f22.cast(Types.DOUBLE).sqrt(), "f22.cast(DOUBLE).sqrt", "sqrt(f22)", "1.0")
+    testAllApis(
+      'f22.cast(Types.DOUBLE).power('f4), "f22.cast(DOUBLE).power(f5)", "power(f22, f5)", "1.0")
+    testAllApis(
+      'f22.cast(Types.DOUBLE).power('f5), "f22.cast(DOUBLE).power(f6)", "power(f22, f6)", "1.0")
+    testAllApis(
+      'f22.cast(Types.DOUBLE).power('f7), "f22.cast(DOUBLE).power(f7)", "power(f22, f7)", "1.0")
+    testAllApis(
+      'f22.cast(Types.DOUBLE).power('f4), "f22.cast(DOUBLE).power(f4)", "power(f22, f4)", "1.0")
+    testAllApis(
+      'f6.power('f22.cast(Types.DOUBLE)), "f6.power(f22.cast(DOUBLE))", "power(f6, f22)", "4.6")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(22)
+    val testData = new Row(23)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -967,6 +995,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testData.setField(19, 1467012213000L) // +16979 07:23:33.000
     testData.setField(20, 25) // +2-01
     testData.setField(21, null)
+    testData.setField(22, BigDecimal("1").bigDecimal)
     testData
   }
 
@@ -993,6 +1022,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       Types.TIMESTAMP,
       Types.INTERVAL_MILLIS,
       Types.INTERVAL_MONTHS,
-      Types.BOOLEAN)).asInstanceOf[TypeInformation[Any]]
+      Types.BOOLEAN,
+      Types.DECIMAL)).asInstanceOf[TypeInformation[Any]]
   }
 }

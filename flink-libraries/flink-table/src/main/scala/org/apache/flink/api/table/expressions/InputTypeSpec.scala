@@ -49,7 +49,9 @@ trait InputTypeSpec extends Expression {
       ValidationSuccess
     } else {
       ValidationFailure(
-        s"$this fails on input type checking: ${typeMismatches.mkString("[", ", ", "]")}")
+        s"""|$this fails on input type checking: ${typeMismatches.mkString("[", ", ", "]")}.
+            |Operand should be casted to proper type
+            |""".stripMargin)
     }
   }
 }
