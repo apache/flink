@@ -16,24 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.exceptions;
+package org.apache.flink.runtime.rpc.akka.exceptions;
+
+import org.apache.flink.runtime.rpc.exceptions.RpcException;
 
 /**
- * Exception class which is thrown if a rpc connection failed. Usually this happens if the remote
- * host cannot be reached.
+ * Base class for Akka RPC related exceptions.
  */
-public class RpcConnectionException extends RpcException {
-	private static final long serialVersionUID = -5500560405481142472L;
+public class AkkaRpcException extends RpcException {
 
-	public RpcConnectionException(String message) {
+	private static final long serialVersionUID = -3796329968494146418L;
+
+	public AkkaRpcException(String message) {
 		super(message);
 	}
 
-	public RpcConnectionException(String message, Throwable cause) {
+	public AkkaRpcException(String message, Throwable cause) {
 		super(message, cause);
 	}
 
-	public RpcConnectionException(Throwable cause) {
+	public AkkaRpcException(Throwable cause) {
 		super(cause);
 	}
 }
