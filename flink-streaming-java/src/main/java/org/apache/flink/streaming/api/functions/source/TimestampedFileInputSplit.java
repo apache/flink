@@ -46,7 +46,7 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Compara
 
 	/** A special {@link TimestampedFileInputSplit} signaling the end of the stream of splits.*/
 	public static final TimestampedFileInputSplit EOS =
-		new TimestampedFileInputSplit(Long.MIN_VALUE, -1, null, -1, -1, null);
+		new TimestampedFileInputSplit(Long.MAX_VALUE, -1, null, -1, -1, null);
 
 	/**
 	 * Creates a {@link TimestampedFileInputSplit} based on the file modification time and
@@ -106,6 +106,15 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Compara
 			// we cannot just cast the modTimeComp to int
 			// because it may overflow
 			return modTimeComp > 0 ? 1 : -1;
+		}
+
+		// the file input split allows for null paths
+		if (this.getPath() == o.getPath()) {
+			return 0;
+		} else if (this.getPath() == null) {
+			return 1;
+		} else if (o.getPath() == null) {
+			return -1;
 		}
 
 		int pathComp = this.getPath().compareTo(o.getPath());
