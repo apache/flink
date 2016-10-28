@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -26,9 +27,11 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.co.TimelyCoFlatMapFunction;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
+import org.apache.flink.streaming.api.operators.co.CoStreamTimelyFlatMap;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 
 import static java.util.Objects.requireNonNull;
@@ -229,6 +232,66 @@ public class ConnectedStreams<IN1, IN2> {
 
 		return transform("Co-Flat Map", outTypeInfo, new CoStreamFlatMap<>(inputStream1.clean(coFlatMapper)));
 	}
+
+	/**
+	 * Applies the given {@link TimelyCoFlatMapFunction} on the connected input streams,
+	 * thereby creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the streams and can produce
+	 * zero or more output. The function can also query the time and set timers. When
+	 * reacting to the firing of set timers the function can emit yet more elements.
+	 *
+	 * <p>A {@link org.apache.flink.streaming.api.functions.co.RichTimelyCoFlatMapFunction}
+	 * can be used to gain access to features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 *
+	 * @param coFlatMapper The {@link TimelyCoFlatMapFunction} that is called for each element
+	 *                      in the stream.
+	 *
+	 * @param <R> The of elements emitted by the {@code TimelyCoFlatMapFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	public <R> SingleOutputStreamOperator<R> flatMap(
+			TimelyCoFlatMapFunction<IN1, IN2, R> coFlatMapper) {
+
+		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coFlatMapper,
+				TimelyCoFlatMapFunction.class, false, true, getType1(), getType2(),
+				Utils.getCallLocationName(), true);
+
+		return flatMap(coFlatMapper, outTypeInfo);
+	}
+
+	/**
+	 * Applies the given {@link TimelyCoFlatMapFunction} on the connected input streams,
+	 * thereby creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the streams and can produce
+	 * zero or more output. The function can also query the time and set timers. When
+	 * reacting to the firing of set timers the function can emit yet more elements.
+	 *
+	 * <p>A {@link org.apache.flink.streaming.api.functions.co.RichTimelyCoFlatMapFunction}
+	 * can be used to gain access to features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 *
+	 * @param coFlatMapper The {@link TimelyCoFlatMapFunction} that is called for each element
+	 *                      in the stream.
+	 *
+	 * @param <R> The of elements emitted by the {@code TimelyCoFlatMapFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@Internal
+	public <R> SingleOutputStreamOperator<R> flatMap(
+			TimelyCoFlatMapFunction<IN1, IN2, R> coFlatMapper,
+			TypeInformation<R> outputType) {
+
+		CoStreamTimelyFlatMap<Object, IN1, IN2, R> operator = new CoStreamTimelyFlatMap<>(
+				inputStream1.clean(coFlatMapper));
+
+		return transform("Co-Flat Map", outputType, operator);
+	}
+
 
 	@PublicEvolving
 	public <R> SingleOutputStreamOperator<R> transform(String functionName,

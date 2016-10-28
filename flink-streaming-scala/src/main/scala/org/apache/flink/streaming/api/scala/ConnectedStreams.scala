@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.streaming.api.datastream.{ConnectedStreams => JavaCStream, DataStream => JavaStream}
-import org.apache.flink.streaming.api.functions.co.{CoFlatMapFunction, CoMapFunction}
+import org.apache.flink.streaming.api.functions.co.{CoFlatMapFunction, CoMapFunction, TimelyCoFlatMapFunction}
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
 import org.apache.flink.util.Collector
 
@@ -99,6 +99,34 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]    
     asScalaStream(javaStream.map(coMapper).returns(outType).asInstanceOf[JavaStream[R]])
   }
+
+  /**
+   * Applies the given [[TimelyCoFlatMapFunction]] on the connected input streams,
+   * thereby creating a transformed output stream.
+   *
+   * The function will be called for every element in the streams and can produce
+   * zero or more output. The function can also query the time and set timers. When
+   * reacting to the firing of set timers the function can emit yet more elements.
+   *
+   * A [[org.apache.flink.streaming.api.functions.co.RichTimelyCoFlatMapFunction]]
+   * can be used to gain access to features provided by the
+   * [[org.apache.flink.api.common.functions.RichFunction]] interface.
+   *
+   * @param coFlatMapper The [[TimelyCoFlatMapFunction]] that is called for each element
+    *                     in the stream.
+    *
+   * @return The transformed { @link DataStream}.
+   */
+  def flatMap[R: TypeInformation](
+      coFlatMapper: TimelyCoFlatMapFunction[IN1, IN2, R]) : DataStream[R] = {
+
+    if (coFlatMapper == null) throw new NullPointerException("FlatMap function must not be null.")
+
+    val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
+
+    asScalaStream(javaStream.flatMap(coFlatMapper, outType))
+  }
+
 
   /**
    * Applies a CoFlatMap transformation on these connected streams.
