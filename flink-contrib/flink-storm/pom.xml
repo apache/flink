@@ -109,6 +109,54 @@ under the License.
 					<groupId>com.esotericsoftware</groupId>
 					<artifactId>kryo</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>ring</groupId>
+					<artifactId>ring-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ring</groupId>
+					<artifactId>ring-devel</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ring</groupId>
+					<artifactId>ring-servlet</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ring</groupId>
+					<artifactId>ring-jetty-adapter</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jetty</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.jgrapht</groupId>
+					<artifactId>jgrapht-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>compojure</groupId>
+					<artifactId>compojure</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.twitter</groupId>
+					<artifactId>chill-java</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>commons-fileupload</groupId>
+					<artifactId>commons-fileupload</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.servlet</groupId>
+					<artifactId>servlet-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>clout</groupId>
+					<artifactId>clout</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>hiccup</groupId>
+					<artifactId>hiccup</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 		<dependency>
@@ -127,7 +175,7 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
-		
+
 	</dependencies>
 
 </project>
