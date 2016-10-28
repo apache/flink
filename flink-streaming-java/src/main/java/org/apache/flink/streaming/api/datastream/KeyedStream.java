@@ -231,7 +231,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			TypeInformation<R> outputType) {
 
 		StreamTimelyFlatMap<KEY, T, R> operator =
-				new StreamTimelyFlatMap<>(keyType.createSerializer(getExecutionConfig()), clean(flatMapper));
+				new StreamTimelyFlatMap<>(clean(flatMapper));
 
 		return transform("Flat Map", outputType, operator);
 	}
