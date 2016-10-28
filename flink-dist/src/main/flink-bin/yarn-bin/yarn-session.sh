@@ -39,7 +39,7 @@ constructCLIClientClassPath() {
         else
             CC_CLASSPATH="$CC_CLASSPATH":"$jarfile"
         fi
-    done < <(find "$FLINK_LIB_DIR" -name '*.jar' -print0)
+    done < <(find "$FLINK_LIB_DIR" ! -type d -name '*.jar' -print0)
 
     echo $CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS
 }
