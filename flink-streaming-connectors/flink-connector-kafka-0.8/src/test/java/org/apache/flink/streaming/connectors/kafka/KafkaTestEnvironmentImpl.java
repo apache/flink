@@ -31,7 +31,12 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.curator.test.TestingServer;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionLeader;
+import org.apache.flink.streaming.connectors.kafka.internals.ZookeeperOffsetHandler;
 import org.apache.flink.streaming.connectors.kafka.testutils.ZooKeeperStringSerializer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -101,10 +106,30 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public <T> FlinkKafkaProducerBase<T> getProducer(String topic, KeyedSerializationSchema<T> serSchema, Properties props, KafkaPartitioner<T> partitioner) {
+	public <T> StreamSink<T> getProducerSink(
+			String topic,
+			KeyedSerializationSchema<T> serSchema,
+			Properties props,
+			KafkaPartitioner<T> partitioner) {
+		FlinkKafkaProducer08<T> prod = new FlinkKafkaProducer08<>(
+				topic,
+				serSchema,
+				props,
+				partitioner);
+		prod.setFlushOnCheckpoint(true);
+		return new StreamSink<>(prod);
+	}
+
+	@Override
+	public <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic, KeyedSerializationSchema<T> serSchema, Properties props, KafkaPartitioner<T> partitioner) {
 		FlinkKafkaProducer08<T> prod = new FlinkKafkaProducer08<>(topic, serSchema, props, partitioner);
 		prod.setFlushOnCheckpoint(true);
-		return prod;
+		return stream.addSink(prod);
+	}
+
+	@Override
+	public KafkaOffsetHandler createOffsetHandler(Properties props) {
+		return new KafkaOffsetHandlerImpl(props);
 	}
 
 	@Override
@@ -346,6 +371,31 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		}
 
 		throw new Exception("Could not start Kafka after " + numTries + " retries due to port conflicts.");
+	}
+
+	private class KafkaOffsetHandlerImpl implements KafkaOffsetHandler {
+
+		private final CuratorFramework offsetClient;
+		private final String groupId;
+
+		public KafkaOffsetHandlerImpl(Properties props) {
+			offsetClient = createCuratorClient();
+			groupId = props.getProperty("group.id");
+		}
+
+		@Override
+		public Long getCommittedOffset(String topicName, int partition) {
+			try {
+				return ZookeeperOffsetHandler.getOffsetFromZooKeeper(offsetClient, groupId, topicName, partition);
+			} catch (Exception e) {
+				throw new RuntimeException("Exception when getting offsets from Zookeeper", e);
+			}
+		}
+
+		@Override
+		public void close() {
+			offsetClient.close();
+		}
 	}
 
 }

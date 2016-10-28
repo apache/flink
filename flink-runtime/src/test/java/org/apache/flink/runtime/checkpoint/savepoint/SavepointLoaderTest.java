@@ -23,8 +23,11 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,13 +35,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class SavepointLoaderTest {
+
+	@Rule
+	public TemporaryFolder tmpFolder = new TemporaryFolder();
 
 	/**
 	 * Tests loading and validation of savepoints with correct setup,
@@ -46,52 +49,45 @@ public class SavepointLoaderTest {
 	 */
 	@Test
 	public void testLoadAndValidateSavepoint() throws Exception {
+		File tmp = tmpFolder.newFolder();
+
 		int parallelism = 128128;
+		long checkpointId = Integer.MAX_VALUE + 123123L;
 		JobVertexID vertexId = new JobVertexID();
 
 		TaskState state = mock(TaskState.class);
 		when(state.getParallelism()).thenReturn(parallelism);
 		when(state.getJobVertexID()).thenReturn(vertexId);
+		when(state.getMaxParallelism()).thenReturn(parallelism);
+		when(state.getChainLength()).thenReturn(1);
 
 		Map<JobVertexID, TaskState> taskStates = new HashMap<>();
 		taskStates.put(vertexId, state);
 
-		CompletedCheckpoint stored = new CompletedCheckpoint(
-				new JobID(),
-				Integer.MAX_VALUE + 123123L,
-				10200202,
-				1020292988,
-				taskStates,
-				true);
-
 		// Store savepoint
-		SavepointV1 savepoint = new SavepointV1(stored.getCheckpointID(), taskStates.values());
-		SavepointStore store = new HeapSavepointStore();
-		String path = store.storeSavepoint(savepoint);
+		SavepointV1 savepoint = new SavepointV1(checkpointId, taskStates.values());
+		String path = SavepointStore.storeSavepoint(tmp.getAbsolutePath(), savepoint);
 
 		JobID jobId = new JobID();
 
 		ExecutionJobVertex vertex = mock(ExecutionJobVertex.class);
 		when(vertex.getParallelism()).thenReturn(parallelism);
+		when(vertex.getMaxParallelism()).thenReturn(parallelism);
 
 		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
 		tasks.put(vertexId, vertex);
 
 		// 1) Load and validate: everything correct
-		CompletedCheckpoint loaded = SavepointLoader.loadAndValidateSavepoint(jobId, tasks, store, path);
+		CompletedCheckpoint loaded = SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path);
 
 		assertEquals(jobId, loaded.getJobId());
-		assertEquals(stored.getCheckpointID(), loaded.getCheckpointID());
-
-		// The loaded checkpoint should not discard state when its discarded
-		loaded.discardState();
-		verify(state, times(0)).discardState();
+		assertEquals(checkpointId, loaded.getCheckpointID());
 
 		// 2) Load and validate: max parallelism mismatch
 		when(vertex.getMaxParallelism()).thenReturn(222);
 
 		try {
-			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, store, path);
+			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path);
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("Max parallelism mismatch"));
@@ -101,7 +97,7 @@ public class SavepointLoaderTest {
 		assertNotNull(tasks.remove(vertexId));
 
 		try {
-			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, store, path);
+			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path);
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("Cannot map old state"));

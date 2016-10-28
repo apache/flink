@@ -821,8 +821,8 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   @Test
   def testOverlaps(): Unit = {
     testAllApis(
-      temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hour),
-      "temporalOverlaps('2:55:00'.toTime, 1.hour, '3:30:00'.toTime, 2.hour)",
+      temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hours),
+      "temporalOverlaps('2:55:00'.toTime, 1.hour, '3:30:00'.toTime, 2.hours)",
       "(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)",
       "true")
 
@@ -833,25 +833,36 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "true")
 
     testAllApis(
-      temporalOverlaps("9:00:00".toTime, "10:00:00".toTime, "10:15:00".toTime, 3.hour),
-      "temporalOverlaps('9:00:00'.toTime, '10:00:00'.toTime, '10:15:00'.toTime, 3.hour)",
+      temporalOverlaps("9:00:00".toTime, "10:00:00".toTime, "10:15:00".toTime, 3.hours),
+      "temporalOverlaps('9:00:00'.toTime, '10:00:00'.toTime, '10:15:00'.toTime, 3.hours)",
       "(TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR)",
       "false")
 
     testAllApis(
-      temporalOverlaps("2011-03-10".toDate, 10.day, "2011-03-19".toDate, 10.day),
-      "temporalOverlaps('2011-03-10'.toDate, 10.day, '2011-03-19'.toDate, 10.day)",
+      temporalOverlaps("2011-03-10".toDate, 10.days, "2011-03-19".toDate, 10.days),
+      "temporalOverlaps('2011-03-10'.toDate, 10.days, '2011-03-19'.toDate, 10.days)",
       "(DATE '2011-03-10', INTERVAL '10' DAY) OVERLAPS (DATE '2011-03-19', INTERVAL '10' DAY)",
       "true")
 
     testAllApis(
-      temporalOverlaps("2011-03-10 02:02:02.001".toTimestamp, 0.milli,
-        "2011-03-10 02:02:02.002".toTimestamp, "2011-03-10 02:02:02.002".toTimestamp),
-      "temporalOverlaps('2011-03-10 02:02:02.001'.toTimestamp, 0.milli, " +
-        "'2011-03-10 02:02:02.002'.toTimestamp, '2011-03-10 02:02:02.002'.toTimestamp)",
-      "(TIMESTAMP '2011-03-10 02:02:02.001', INTERVAL '0' SECOND) OVERLAPS " +
-        "(TIMESTAMP '2011-03-10 02:02:02.002', TIMESTAMP '2011-03-10 02:02:02.002')",
+      temporalOverlaps("2011-03-10 05:02:02".toTimestamp, 0.milli,
+        "2011-03-10 05:02:02".toTimestamp, "2011-03-10 05:02:01".toTimestamp),
+      "temporalOverlaps('2011-03-10 05:02:02'.toTimestamp, 0.milli, " +
+        "'2011-03-10 05:02:02'.toTimestamp, '2011-03-10 05:02:01'.toTimestamp)",
+      "(TIMESTAMP '2011-03-10 05:02:02', INTERVAL '0' SECOND) OVERLAPS " +
+        "(TIMESTAMP '2011-03-10 05:02:02', TIMESTAMP '2011-03-10 05:02:01')",
       "false")
+
+    // TODO enable once CALCITE-1435 is fixed
+    // comparison of timestamps based on milliseconds is buggy
+    //testAllApis(
+    //  temporalOverlaps("2011-03-10 02:02:02.001".toTimestamp, 0.milli,
+    //    "2011-03-10 02:02:02.002".toTimestamp, "2011-03-10 02:02:02.002".toTimestamp),
+    //  "temporalOverlaps('2011-03-10 02:02:02.001'.toTimestamp, 0.milli, " +
+    //    "'2011-03-10 02:02:02.002'.toTimestamp, '2011-03-10 02:02:02.002'.toTimestamp)",
+    //  "(TIMESTAMP '2011-03-10 02:02:02.001', INTERVAL '0' SECOND) OVERLAPS " +
+    //    "(TIMESTAMP '2011-03-10 02:02:02.002', TIMESTAMP '2011-03-10 02:02:02.002')",
+    //  "false")
   }
 
   @Test
@@ -906,26 +917,26 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "false")
 
     testAllApis(
-      !'f1.isTrue,
-      "!f1.isTrue",
+      'f1.isNotTrue,
+      "f1.isNotTrue",
       "f1 IS NOT TRUE",
       "false")
 
     testAllApis(
-      !'f21.isTrue,
-      "!f21.isTrue",
+      'f21.isNotTrue,
+      "f21.isNotTrue",
       "f21 IS NOT TRUE",
       "true")
 
     testAllApis(
-      !false.isFalse,
-      "!false.isFalse",
+      false.isNotFalse,
+      "false.isNotFalse",
       "FALSE IS NOT FALSE",
       "false")
 
     testAllApis(
-      !'f21.isFalse,
-      "!f21.isFalse",
+      'f21.isNotFalse,
+      "f21.isNotFalse",
       "f21 IS NOT FALSE",
       "true")
   }

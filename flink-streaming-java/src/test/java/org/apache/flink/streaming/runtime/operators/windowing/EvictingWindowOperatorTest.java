@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
@@ -39,8 +40,8 @@ import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
@@ -66,9 +67,12 @@ public class EvictingWindowOperatorTest {
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
+				(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
 
-		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc = new ListStateDescriptor<>("window-contents",
-			new StreamRecordSerializer<>(inputType.createSerializer(new ExecutionConfig())));
+		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
+				new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
 
 		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingWindowOperator<>(
@@ -135,8 +139,12 @@ public class EvictingWindowOperatorTest {
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
 
-		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc = new ListStateDescriptor<>("window-contents",
-			new StreamRecordSerializer<>(inputType.createSerializer(new ExecutionConfig())));
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
+				(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+
+		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
+				new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
 
 		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingWindowOperator<>(
@@ -203,8 +211,12 @@ public class EvictingWindowOperatorTest {
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
-		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc = new ListStateDescriptor<>("window-contents",
-			new StreamRecordSerializer<>(inputType.createSerializer(new ExecutionConfig())));
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
+				(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+
+		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
+				new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
 		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new EvictingWindowOperator<>(
 			TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),

@@ -28,29 +28,30 @@ import org.apache.flink.annotation.Public;
 public class AverageAccumulator implements SimpleAccumulator<Double> {
 
 	private static final long serialVersionUID = 3672555084179165255L;
-	
-	private double localValue;
+
 	private long count;
+
+	private double sum;
 
 	@Override
 	public void add(Double value) {
 		this.count++;
-		this.localValue += value;
+		this.sum += value;
 	}
 
 	public void add(double value) {
 		this.count++;
-		this.localValue += value;
+		this.sum += value;
 	}
 
 	public void add(long value) {
 		this.count++;
-		this.localValue += value;
+		this.sum += value;
 	}
 
 	public void add(int value) {
 		this.count++;
-		this.localValue += value;
+		this.sum += value;
 	}
 
 	@Override
@@ -58,21 +59,21 @@ public class AverageAccumulator implements SimpleAccumulator<Double> {
 		if (this.count == 0) {
 			return 0.0;
 		}
-		return this.localValue / (double)this.count;
+		return this.sum / this.count;
 	}
 
 	@Override
 	public void resetLocal() {
 		this.count = 0;
-		this.localValue = 0;
+		this.sum = 0;
 	}
 
 	@Override
 	public void merge(Accumulator<Double, Double> other) {
 		if (other instanceof AverageAccumulator) {
-			AverageAccumulator temp = (AverageAccumulator)other;
-			this.count += temp.count;
-			this.localValue += other.getLocalValue();
+			AverageAccumulator avg = (AverageAccumulator)other;
+			this.count += avg.count;
+			this.sum += avg.sum;
 		} else {
 			throw new IllegalArgumentException("The merged accumulator must be AverageAccumulator.");
 		}
@@ -81,13 +82,13 @@ public class AverageAccumulator implements SimpleAccumulator<Double> {
 	@Override
 	public AverageAccumulator clone() {
 		AverageAccumulator average = new AverageAccumulator();
-		average.localValue = this.localValue;
 		average.count = this.count;
+		average.sum = this.sum;
 		return average;
 	}
 
 	@Override
 	public String toString() {
-		return "AverageAccumulator " + this.localValue + " count " + this.count;
+		return "AverageAccumulator " + this.getLocalValue() + " for " + this.count + " elements";
 	}
 }

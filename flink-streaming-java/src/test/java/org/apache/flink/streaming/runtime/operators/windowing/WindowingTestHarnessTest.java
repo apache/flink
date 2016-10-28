@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -45,7 +44,6 @@ public class WindowingTestHarnessTest {
 		TumblingEventTimeWindows windowAssigner = TumblingEventTimeWindows.of(Time.milliseconds(WINDOW_SIZE));
 
 		WindowingTestHarness<String, Tuple2<String, Integer>, TimeWindow> testHarness = new WindowingTestHarness<>(
-			new ExecutionConfig(),
 			windowAssigner,
 			BasicTypeInfo.STRING_TYPE_INFO,
 			inputType,
@@ -92,7 +90,6 @@ public class WindowingTestHarnessTest {
 		TumblingProcessingTimeWindows windowAssigner = TumblingProcessingTimeWindows.of(Time.milliseconds(WINDOW_SIZE));
 
 		WindowingTestHarness<String, Tuple2<String, Integer>, TimeWindow> testHarness = new WindowingTestHarness<>(
-			new ExecutionConfig(),
 			windowAssigner,
 			BasicTypeInfo.STRING_TYPE_INFO,
 			inputType,
@@ -145,7 +142,6 @@ public class WindowingTestHarnessTest {
 		TumblingEventTimeWindows windowAssigner = TumblingEventTimeWindows.of(Time.milliseconds(WINDOW_SIZE));
 
 		WindowingTestHarness<String, Tuple2<String, Integer>, TimeWindow> testHarness = new WindowingTestHarness<>(
-			new ExecutionConfig(),
 			windowAssigner,
 			BasicTypeInfo.STRING_TYPE_INFO,
 			inputType,

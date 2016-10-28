@@ -46,14 +46,6 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
   </thead>
   <tbody>
     <tr>
-        <td>flink-connector-kafka</td>
-        <td>0.9.1, 0.10</td>
-        <td>FlinkKafkaConsumer082<br>
-        FlinkKafkaProducer</td>
-        <td>0.8.x</td>
-        <td>Uses the <a href="https://cwiki.apache.org/confluence/display/KAFKA/0.8.0+SimpleConsumer+Example">SimpleConsumer</a> API of Kafka internally. Offsets are committed to ZK by Flink.</td>
-    </tr>
-     <tr>
         <td>flink-connector-kafka-0.8{{ site.scala_version_suffix }}</td>
         <td>1.0.0</td>
         <td>FlinkKafkaConsumer08<br>
@@ -61,13 +53,21 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>0.8.x</td>
         <td>Uses the <a href="https://cwiki.apache.org/confluence/display/KAFKA/0.8.0+SimpleConsumer+Example">SimpleConsumer</a> API of Kafka internally. Offsets are committed to ZK by Flink.</td>
     </tr>
-     <tr>
+    <tr>
         <td>flink-connector-kafka-0.9{{ site.scala_version_suffix }}</td>
         <td>1.0.0</td>
         <td>FlinkKafkaConsumer09<br>
         FlinkKafkaProducer09</td>
         <td>0.9.x</td>
         <td>Uses the new <a href="http://kafka.apache.org/documentation.html#newconsumerapi">Consumer API</a> Kafka.</td>
+    </tr>
+    <tr>
+        <td>flink-connector-kafka-0.10{{ site.scala_version_suffix }}</td>
+        <td>1.2.0</td>
+        <td>FlinkKafkaConsumer010<br>
+        FlinkKafkaProducer010</td>
+        <td>0.10.x</td>
+        <td>This connector supports <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-32+-+Add+timestamps+to+Kafka+message">Kafka messages with timestamps</a> both for producing and consuming.</td>
     </tr>
   </tbody>
 </table>
@@ -87,7 +87,6 @@ Note that the streaming connectors are currently not part of the binary distribu
 ### Installing Apache Kafka
 
 * Follow the instructions from [Kafka's quickstart](https://kafka.apache.org/documentation.html#quickstart) to download the code and launch a server (launching a Zookeeper and a Kafka server is required every time before starting the application).
-* On 32 bit computers [this](http://stackoverflow.com/questions/22325364/unrecognized-vm-option-usecompressedoops-when-running-kafka-from-my-ubuntu-in) problem may occur.
 * If the Kafka and Zookeeper servers are running on a remote machine, then the `advertised.host.name` setting in the `config/server.properties` file must be set to the machine's IP address.
 
 ### Kafka Consumer
@@ -256,15 +255,26 @@ records to partitions.
 
 Example:
 
+
 <div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
+<div data-lang="java, Kafka 0.8+" markdown="1">
 {% highlight java %}
 stream.addSink(new FlinkKafkaProducer08<String>("localhost:9092", "my-topic", new SimpleStringSchema()));
 {% endhighlight %}
 </div>
-<div data-lang="scala" markdown="1">
+<div data-lang="java, Kafka 0.10+" markdown="1">
+{% highlight java %}
+FlinkKafkaProducer010.writeToKafkaWithTimestamps(stream, "my-topic", new SimpleStringSchema(), properties);
+{% endhighlight %}
+</div>
+<div data-lang="scala, Kafka 0.8+" markdown="1">
 {% highlight scala %}
 stream.addSink(new FlinkKafkaProducer08[String]("localhost:9092", "my-topic", new SimpleStringSchema()))
+{% endhighlight %}
+</div>
+<div data-lang="scala, Kafka 0.10+" markdown="1">
+{% highlight scala %}
+FlinkKafkaProducer010.writeToKafkaWithTimestamps(stream, "my-topic", new SimpleStringSchema(), properties);
 {% endhighlight %}
 </div>
 </div>
@@ -287,3 +297,36 @@ higher value.
 
 There is currently no transactional producer for Kafka, so Flink can not guarantee exactly-once delivery
 into a Kafka topic.
+
+### Using Kafka timestamps and Flink event time in Kafka 0.10
+
+Since Apache Kafka 0.10., Kafka's messages can carry [timestamps](https://cwiki.apache.org/confluence/display/KAFKA/KIP-32+-+Add+timestamps+to+Kafka+message), indicating
+the time the event has occurred (see ["event time" in Apache Flink](../event_time.html)) or the time when the message
+has been written to the Kafka broker.
+
+The `FlinkKafkaConsumer010` will emit records with the timestamp attached, if the time characteristic in Flink is 
+set to `TimeCharacteristic.EventTime` (`StreamExecutionEnvironment.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)`).
+
+The Kafka consumer does not emit watermarks. To emit watermarks, the same mechanisms as described above in 
+"Kafka Consumers and Timestamp Extraction/Watermark Emission"  using the `assignTimestampsAndWatermarks` method are applicable.
+
+There is no need to define a timestamp extractor when using the timestamps from Kafka. The `previousElementTimestamp` argument of 
+the `extractTimestamp()` method contains the timestamp carried by the Kafka message.
+
+A timestamp extractor for a Kafka consumer would look like this:
+{% highlight java %}
+public long extractTimestamp(Long element, long previousElementTimestamp) {
+    return previousElementTimestamp;
+}
+{% endhighlight %}
+
+
+
+The `FlinkKafkaProducer010` only emits the record timestamp, if `setWriteTimestampToKafka(true)` is set.
+
+{% highlight java %}
+FlinkKafkaProducer010.FlinkKafkaProducer010Configuration config = FlinkKafkaProducer010.writeToKafkaWithTimestamps(streamWithTimestamps, topic, new SimpleStringSchema(), standardProps);
+config.setWriteTimestampToKafka(true);
+{% endhighlight %}
+
+

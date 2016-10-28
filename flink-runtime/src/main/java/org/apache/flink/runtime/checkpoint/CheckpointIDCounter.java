@@ -18,29 +18,27 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.jobgraph.JobStatus;
+
 /**
  * A checkpoint ID counter.
  */
 public interface CheckpointIDCounter {
 
 	/**
-	 * Starts the {@link CheckpointIDCounter} service.
+	 * Starts the {@link CheckpointIDCounter} service down.
 	 */
 	void start() throws Exception;
 
 	/**
-	 * Shuts the {@link CheckpointIDCounter} service down and frees all created
-	 * resources.
-	 */
-	void shutdown() throws Exception;
-
-	/**
-	 * Suspends the counter.
+	 * Shuts the {@link CheckpointIDCounter} service.
 	 *
-	 * <p>If the implementation allows recovery, the counter state needs to be
-	 * kept. Otherwise, this acts as shutdown.
+	 * <p>The job status is forwarded and used to decide whether state should
+	 * actually be discarded or kept.
+	 *
+	 * @param jobStatus Job state on shut down
 	 */
-	void suspend() throws Exception;
+	void shutdown(JobStatus jobStatus) throws Exception;
 
 	/**
 	 * Atomically increments the current checkpoint ID.

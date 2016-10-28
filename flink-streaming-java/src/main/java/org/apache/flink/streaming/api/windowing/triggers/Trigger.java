@@ -113,10 +113,8 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	 * when a window is purged. Timers set using {@link TriggerContext#registerEventTimeTimer(long)}
 	 * and {@link TriggerContext#registerProcessingTimeTimer(long)} should be deleted here as
 	 * well as state acquired using {@link TriggerContext#getPartitionedState(StateDescriptor)}.
-	 * 
-	 * <p>By default, this method does nothing.
 	 */
-	public void clear(W window, TriggerContext ctx) throws Exception {}
+	public abstract void clear(W window, TriggerContext ctx) throws Exception;
 
 	// ------------------------------------------------------------------------
 	

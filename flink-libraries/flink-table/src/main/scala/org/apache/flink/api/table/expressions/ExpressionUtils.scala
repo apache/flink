@@ -25,22 +25,33 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.table.typeutils.IntervalTypeInfo
+import org.apache.flink.api.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 
 object ExpressionUtils {
 
   private[flink] def toMonthInterval(expr: Expression, multiplier: Int): Expression = expr match {
     case Literal(value: Int, BasicTypeInfo.INT_TYPE_INFO) =>
-      Literal(value * multiplier, IntervalTypeInfo.INTERVAL_MONTHS)
+      Literal(value * multiplier, TimeIntervalTypeInfo.INTERVAL_MONTHS)
     case _ =>
-      Cast(Mul(expr, Literal(multiplier)), IntervalTypeInfo.INTERVAL_MONTHS)
+      Cast(Mul(expr, Literal(multiplier)), TimeIntervalTypeInfo.INTERVAL_MONTHS)
   }
 
   private[flink] def toMilliInterval(expr: Expression, multiplier: Long): Expression = expr match {
     case Literal(value: Int, BasicTypeInfo.INT_TYPE_INFO) =>
-      Literal(value * multiplier, IntervalTypeInfo.INTERVAL_MILLIS)
+      Literal(value * multiplier, TimeIntervalTypeInfo.INTERVAL_MILLIS)
+    case Literal(value: Long, BasicTypeInfo.LONG_TYPE_INFO) =>
+      Literal(value * multiplier, TimeIntervalTypeInfo.INTERVAL_MILLIS)
     case _ =>
-      Cast(Mul(expr, Literal(multiplier)), IntervalTypeInfo.INTERVAL_MILLIS)
+      Cast(Mul(expr, Literal(multiplier)), TimeIntervalTypeInfo.INTERVAL_MILLIS)
+  }
+
+  private[flink] def toRowInterval(expr: Expression): Expression = expr match {
+    case Literal(value: Int, BasicTypeInfo.INT_TYPE_INFO) =>
+      Literal(value.toLong, RowIntervalTypeInfo.INTERVAL_ROWS)
+    case Literal(value: Long, BasicTypeInfo.LONG_TYPE_INFO) =>
+      Literal(value, RowIntervalTypeInfo.INTERVAL_ROWS)
+    case _ =>
+      throw new IllegalArgumentException("Invalid value for row interval literal.")
   }
 
   // ----------------------------------------------------------------------------------------------

@@ -23,6 +23,7 @@ import org.apache.curator.framework.recipes.shared.SharedCount;
 import org.apache.curator.framework.recipes.shared.VersionedValue;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,9 +71,8 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	 *
 	 * @param client      Curator ZooKeeper client
 	 * @param counterPath ZooKeeper path for the counter. It's sufficient to have a path per-job.
-	 * @throws Exception
 	 */
-	public ZooKeeperCheckpointIDCounter(CuratorFramework client, String counterPath) throws Exception {
+	public ZooKeeperCheckpointIDCounter(CuratorFramework client, String counterPath) {
 		this.client = checkNotNull(client, "Curator client");
 		this.counterPath = checkNotNull(counterPath, "Counter path");
 		this.sharedCount = new SharedCount(client, counterPath, 1);
@@ -91,30 +91,17 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	}
 
 	@Override
-	public void shutdown() throws Exception {
+	public void shutdown(JobStatus jobStatus) throws Exception {
 		synchronized (startStopLock) {
 			if (isStarted) {
 				LOG.info("Shutting down.");
 				sharedCount.close();
 				client.getConnectionStateListenable().removeListener(connStateListener);
 
-				LOG.info("Removing {} from ZooKeeper", counterPath);
-				client.delete().deletingChildrenIfNeeded().inBackground().forPath(counterPath);
-
-				isStarted = false;
-			}
-		}
-	}
-
-	@Override
-	public void suspend() throws Exception {
-		synchronized (startStopLock) {
-			if (isStarted) {
-				LOG.info("Suspending.");
-				sharedCount.close();
-				client.getConnectionStateListenable().removeListener(connStateListener);
-
-				// Don't remove any state
+				if (jobStatus.isGloballyTerminalState()) {
+					LOG.info("Removing {} from ZooKeeper", counterPath);
+					client.delete().deletingChildrenIfNeeded().inBackground().forPath(counterPath);
+				}
 
 				isStarted = false;
 			}

@@ -24,9 +24,10 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
@@ -50,7 +51,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 	}
 
 	@Override
-	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
 		final StringWriter writer = new StringWriter();
 		final JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
@@ -84,13 +85,13 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 		int[] jobVerticesPerState = new int[ExecutionState.values().length];
 		gen.writeArrayFieldStart("vertices");
 
-		for (ExecutionJobVertex ejv : graph.getVerticesTopologically()) {
+		for (AccessExecutionJobVertex ejv : graph.getVerticesTopologically()) {
 			int[] tasksPerState = new int[ExecutionState.values().length];
 			long startTime = Long.MAX_VALUE;
 			long endTime = 0;
 			boolean allFinished = true;
 			
-			for (ExecutionVertex vertex : ejv.getTaskVertices()) {
+			for (AccessExecutionVertex vertex : ejv.getTaskVertices()) {
 				final ExecutionState state = vertex.getExecutionState();
 				tasksPerState[state.ordinal()]++;
 
@@ -133,7 +134,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 
 			gen.writeStartObject();
 			gen.writeStringField("id", ejv.getJobVertexId().toString());
-			gen.writeStringField("name", ejv.getJobVertex().getName());
+			gen.writeStringField("name", ejv.getName());
 			gen.writeNumberField("parallelism", ejv.getParallelism());
 			gen.writeStringField("status", jobVertexState.name());
 

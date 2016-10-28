@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.jobgraph.JobStatus;
+
 import java.util.List;
 
 /**
@@ -38,7 +40,7 @@ public interface CompletedCheckpointStore {
 	 *
 	 * <p>Only a bounded number of checkpoints is kept. When exceeding the maximum number of
 	 * retained checkpoints, the oldest one will be discarded via {@link
-	 * CompletedCheckpoint#discard(ClassLoader)}.
+	 * CompletedCheckpoint#discard()}.
 	 */
 	void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception;
 
@@ -49,17 +51,14 @@ public interface CompletedCheckpointStore {
 	CompletedCheckpoint getLatestCheckpoint() throws Exception;
 
 	/**
-	 * Shuts down the store and discards all checkpoint instances.
-	 */
-	void shutdown() throws Exception;
-
-	/**
-	 * Suspends the store.
+	 * Shuts down the store.
 	 *
-	 * <p>If the implementation allows recovery, checkpoint state needs to be
-	 * kept around. Otherwise, this should act like shutdown.
+	 * <p>The job status is forwarded and used to decide whether state should
+	 * actually be discarded or kept.
+	 *
+	 * @param jobStatus Job state on shut down
 	 */
-	void suspend() throws Exception;
+	void shutdown(JobStatus jobStatus) throws Exception;
 
 	/**
 	 * Returns all {@link CompletedCheckpoint} instances.

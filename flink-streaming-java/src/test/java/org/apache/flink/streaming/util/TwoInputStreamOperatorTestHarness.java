@@ -18,24 +18,9 @@
 
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
-
-import java.util.concurrent.ConcurrentLinkedQueue;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * A test harness for testing a {@link TwoInputStreamOperator}.
@@ -45,100 +30,39 @@ import static org.mockito.Mockito.when;
  * and watermarks into the operator. {@link java.util.Deque}s containing the emitted elements
  * and watermarks can be retrieved. you are free to modify these.
  */
-public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
+public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT>extends AbstractStreamOperatorTestHarness<OUT> {
 
-	TwoInputStreamOperator<IN1, IN2, OUT> operator;
+	private final TwoInputStreamOperator<IN1, IN2, OUT> twoInputOperator;
 
-	final ConcurrentLinkedQueue<Object> outputList;
-
-	final ExecutionConfig executionConfig;
-
-	final Object checkpointLock;
-
-	public TwoInputStreamOperatorTestHarness(TwoInputStreamOperator<IN1, IN2, OUT> operator) {
-		this(operator, new StreamConfig(new Configuration()));
+	public TwoInputStreamOperatorTestHarness(TwoInputStreamOperator<IN1, IN2, OUT> operator) throws Exception {
+		this(operator, 1, 1, 0);
 	}
 		
-	public TwoInputStreamOperatorTestHarness(TwoInputStreamOperator<IN1, IN2, OUT> operator, StreamConfig config) {
-		this.operator = operator;
-		this.outputList = new ConcurrentLinkedQueue<Object>();
-		this.executionConfig = new ExecutionConfig();
-		this.checkpointLock = new Object();
+	public TwoInputStreamOperatorTestHarness(
+			TwoInputStreamOperator<IN1, IN2, OUT> operator,
+			int maxParallelism,
+			int numSubtasks,
+			int subtaskIndex) throws Exception {
+		super(operator, maxParallelism, numSubtasks, subtaskIndex);
 
-		Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024);
-		StreamTask<?, ?> mockTask = mock(StreamTask.class);
-		when(mockTask.getName()).thenReturn("Mock Task");
-		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
-		when(mockTask.getConfiguration()).thenReturn(config);
-		when(mockTask.getEnvironment()).thenReturn(env);
-		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
-
-		operator.setup(mockTask, new StreamConfig(new Configuration()), new MockOutput());
-	}
-
-	/**
-	 * Get all the output from the task. This contains StreamRecords and Events interleaved. Use
-	 * {@link org.apache.flink.streaming.util.TestHarnessUtil#getStreamRecordsFromOutput(java.util.List)}
-	 * to extract only the StreamRecords.
-	 */
-	public ConcurrentLinkedQueue<Object> getOutput() {
-		return outputList;
-	}
-
-
-	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open()}.
-	 */
-	public void open() throws Exception {
-		operator.open();
-	}
-
-	/**
-	 * Calls close on the operator.
-	 */
-	public void close() throws Exception {
-		operator.close();
+		this.twoInputOperator = operator;
 	}
 
 	public void processElement1(StreamRecord<IN1> element) throws Exception {
-		operator.processElement1(element);
+		twoInputOperator.setKeyContextElement1(element);
+		twoInputOperator.processElement1(element);
 	}
 
 	public void processElement2(StreamRecord<IN2> element) throws Exception {
-		operator.processElement2(element);
+		twoInputOperator.setKeyContextElement2(element);
+		twoInputOperator.processElement2(element);
 	}
 
 	public void processWatermark1(Watermark mark) throws Exception {
-		operator.processWatermark1(mark);
+		twoInputOperator.processWatermark1(mark);
 	}
 
 	public void processWatermark2(Watermark mark) throws Exception {
-		operator.processWatermark2(mark);
-	}
-
-	private class MockOutput implements Output<StreamRecord<OUT>> {
-
-		private TypeSerializer<OUT> outputSerializer;
-
-		@Override
-		@SuppressWarnings("unchecked")
-		public void emitWatermark(Watermark mark) {
-			outputList.add(mark);
-		}
-
-		@Override
-		@SuppressWarnings("unchecked")
-		public void collect(StreamRecord<OUT> element) {
-			if (outputSerializer == null) {
-				outputSerializer = TypeExtractor.getForObject(element.getValue()).createSerializer(executionConfig);
-			}
-			outputList.add(new StreamRecord<>(outputSerializer.copy(element.getValue()),
-					element.getTimestamp()));
-		}
-
-		@Override
-		public void close() {
-			// ignore
-		}
+		twoInputOperator.processWatermark2(mark);
 	}
 }

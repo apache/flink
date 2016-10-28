@@ -64,7 +64,6 @@ class TestingYarnJobManager(
     leaderElectionService: LeaderElectionService,
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory,
-    savepointStore: SavepointStore,
     jobRecoveryTimeout: FiniteDuration,
     metricRegistry : Option[MetricRegistry])
   extends YarnJobManager(
@@ -79,7 +78,6 @@ class TestingYarnJobManager(
     leaderElectionService,
     submittedJobGraphs,
     checkpointRecoveryFactory,
-    savepointStore,
     jobRecoveryTimeout,
     metricRegistry)
   with TestingJobManagerLike {}

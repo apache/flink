@@ -17,13 +17,13 @@
  */
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -31,15 +31,16 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
+import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.RunnableFuture;
 
 import static org.mockito.Matchers.any;
@@ -48,8 +49,7 @@ import static org.mockito.Mockito.doAnswer;
 
 /**
  * Extension of {@link OneInputStreamOperatorTestHarness} that allows the operator to get
- * a {@link AbstractKeyedStateBackend}.
- *
+ * a {@link KeyedStateBackend}.
  */
 public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		extends OneInputStreamOperatorTestHarness<IN, OUT> {
@@ -60,49 +60,30 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
 	// when we restore we keep the state here so that we can call restore
 	// when the operator requests the keyed state backend
-	private KeyGroupsStateHandle restoredKeyedState = null;
+	private List<KeyGroupsStateHandle> restoredKeyedState = null;
 
 	public KeyedOneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			final KeySelector<IN, K> keySelector,
-			TypeInformation<K> keyType) {
-		super(operator);
+			TypeInformation<K> keyType,
+			int maxParallelism,
+			int numSubtasks,
+			int subtaskIndex) throws Exception {
+		super(operator, maxParallelism, numSubtasks, subtaskIndex);
 
 		ClosureCleaner.clean(keySelector, false);
 		config.setStatePartitioner(0, keySelector);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-		config.setNumberOfKeyGroups(MAX_PARALLELISM);
 
 		setupMockTaskCreateKeyedBackend();
 	}
 
-	public KeyedOneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator,
-			ExecutionConfig executionConfig,
-			KeySelector<IN, K> keySelector,
-			TypeInformation<K> keyType) {
-		super(operator, executionConfig);
 
-		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(0, keySelector);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-		config.setNumberOfKeyGroups(MAX_PARALLELISM);
-
-		setupMockTaskCreateKeyedBackend();
-	}
-
-	public KeyedOneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator,
-			ExecutionConfig executionConfig,
-			TestTimeServiceProvider testTimeProvider,
-			KeySelector<IN, K> keySelector,
-			TypeInformation<K> keyType) {
-		super(operator, executionConfig, testTimeProvider);
-
-		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(0, keySelector);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-		config.setNumberOfKeyGroups(MAX_PARALLELISM);
-
-		setupMockTaskCreateKeyedBackend();
+	public KeyedOneInputStreamOperatorTestHarness(
+			OneInputStreamOperator<IN, OUT> operator,
+			final KeySelector<IN, K> keySelector,
+			TypeInformation<K> keyType) throws Exception {
+		this(operator, keySelector, keyType, 1, 1, 0);
 	}
 
 	private void setupMockTaskCreateKeyedBackend() {
@@ -138,7 +119,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 								keySerializer,
 								numberOfKeyGroups,
 								keyGroupRange,
-								Collections.singletonList(restoredKeyedState),
+								restoredKeyedState,
 								mockTask.getEnvironment().getTaskKvStateRegistry());
 						restoredKeyedState = null;
 						return keyedStateBackend;
@@ -154,7 +135,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	 *
 	 */
 	@Override
-	public StreamStateHandle snapshot(long checkpointId, long timestamp) throws Exception {
+	public StreamStateHandle snapshotLegacy(long checkpointId, long timestamp) throws Exception {
 		// simply use an in-memory handle
 		MemoryStateBackend backend = new MemoryStateBackend();
 
@@ -185,7 +166,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	}
 
 	/**
-	 * 
+	 *
 	 */
 	@Override
 	public void restore(StreamStateHandle snapshot) throws Exception {
@@ -198,18 +179,35 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 			byte keyedStatePresent = (byte) inStream.read();
 			if (keyedStatePresent == 1) {
 				ObjectInputStream ois = new ObjectInputStream(inStream);
-				this.restoredKeyedState = (KeyGroupsStateHandle) ois.readObject();
+				this.restoredKeyedState = Collections.singletonList((KeyGroupsStateHandle) ois.readObject());
 			}
 		}
 	}
 
-	/**
-	 * Calls close and dispose on the operator.
-	 */
-	public void close() throws Exception {
-		super.close();
-		if(keyedStateBackend != null) {
-			keyedStateBackend.dispose();
+	@Override
+	public void initializeState(OperatorStateHandles operatorStateHandles) throws Exception {
+		if (operatorStateHandles != null) {
+			int numKeyGroups = getEnvironment().getTaskInfo().getNumberOfKeyGroups();
+			int numSubtasks = getEnvironment().getTaskInfo().getNumberOfParallelSubtasks();
+			int subtaskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
+
+			// create a new OperatorStateHandles that only contains the state for our key-groups
+
+			List<KeyGroupRange> keyGroupPartitions = StateAssignmentOperation.createKeyGroupPartitions(
+					numKeyGroups,
+					numSubtasks);
+
+			KeyGroupRange localKeyGroupRange =
+					keyGroupPartitions.get(subtaskIndex);
+
+			restoredKeyedState = null;
+			if (operatorStateHandles.getManagedKeyedState() != null) {
+				restoredKeyedState = StateAssignmentOperation.getKeyGroupsStateHandles(
+						operatorStateHandles.getManagedKeyedState(),
+						localKeyGroupRange);
+			}
 		}
+
+		super.initializeState(operatorStateHandles);
 	}
 }

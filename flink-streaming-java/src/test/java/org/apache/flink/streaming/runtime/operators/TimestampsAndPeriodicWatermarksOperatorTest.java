@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.junit.Test;
@@ -39,11 +40,12 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 		final TimestampsAndPeriodicWatermarksOperator<Long> operator = 
 				new TimestampsAndPeriodicWatermarksOperator<Long>(new LongExtractor());
 
-		final ExecutionConfig config = new ExecutionConfig();
-		config.setAutoWatermarkInterval(50);
-		
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness =
-				new OneInputStreamOperatorTestHarness<Long, Long>(operator, config);
+				new OneInputStreamOperatorTestHarness<>(operator);
+
+		testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
+
+		long currentTime = 0;
 
 		testHarness.open();
 		
@@ -71,7 +73,8 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 					// check the invariant
 					assertTrue(lastWatermark < nextElementValue);
 				} else {
-					Thread.sleep(10);
+					currentTime = currentTime + 10;
+					testHarness.setProcessingTime(currentTime);
 				}
 			}
 			
@@ -102,7 +105,8 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 					// check the invariant
 					assertTrue(lastWatermark < nextElementValue);
 				} else {
-					Thread.sleep(10);
+					currentTime = currentTime + 10;
+					testHarness.setProcessingTime(currentTime);
 				}
 			}
 
@@ -121,11 +125,10 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 		final TimestampsAndPeriodicWatermarksOperator<Long> operator =
 				new TimestampsAndPeriodicWatermarksOperator<Long>(assigner);
 
-		final ExecutionConfig config = new ExecutionConfig();
-		config.setAutoWatermarkInterval(50);
-
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness =
-				new OneInputStreamOperatorTestHarness<Long, Long>(operator, config);
+				new OneInputStreamOperatorTestHarness<Long, Long>(operator);
+
+		testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
 
 		testHarness.open();
 

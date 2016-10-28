@@ -55,12 +55,12 @@ The command line can be used to
 -   Run example program with arguments for input and result files
 
         ./bin/flink run ./examples/batch/WordCount.jar \
-                               file:///home/user/hamlet.txt file:///home/user/wordcount_out
+                             --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
 -   Run example program with parallelism 16 and arguments for input and result files
 
         ./bin/flink run -p 16 ./examples/batch/WordCount.jar \
-                                file:///home/user/hamlet.txt file:///home/user/wordcount_out
+                             --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
 -   Run example program with flink log output disabled
 
@@ -74,24 +74,24 @@ The command line can be used to
 
         ./bin/flink run -m myJMHost:6123 \
                                ./examples/batch/WordCount.jar \
-                               file:///home/user/hamlet.txt file:///home/user/wordcount_out
+                               --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
 -   Run example program with a specific class as an entry point:
 
         ./bin/flink run -c org.apache.flink.examples.java.wordcount.WordCount \
                                ./examples/batch/WordCount.jar \
-                               file:///home/user/hamlet.txt file:///home/user/wordcount_out
+                               --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
 -   Run example program using a [per-job YARN cluster]({{site.baseurl}}/setup/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
         ./bin/flink run -m yarn-cluster -yn 2 \
                                ./examples/batch/WordCount.jar \
-                               hdfs:///user/hamlet.txt hdfs:///user/wordcount_out
+                               --input hdfs:///user/hamlet.txt --output hdfs:///user/wordcount_out
 
 -   Display the optimized execution plan for the WordCount example program as JSON:
 
         ./bin/flink info ./examples/batch/WordCount.jar \
-                                file:///home/user/hamlet.txt file:///home/user/wordcount_out
+                                --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
 -   List scheduled and running jobs (including their JobIDs):
 
@@ -112,6 +112,10 @@ The command line can be used to
 -   Cancel a job:
 
         ./bin/flink cancel <jobID>
+
+-   Cancel a job with a savepoint:
+
+        ./bin/flink cancel -s [targetDirectory] <jobID>
 
 -   Stop a job (streaming jobs only):
 
@@ -137,12 +141,26 @@ This allows the job to finish processing all inflight data.
 #### Trigger a savepoint
 
 {% highlight bash %}
-./bin/flink savepoint <jobID>
+./bin/flink savepoint <jobID> [savepointDirectory]
 {% endhighlight %}
 
 Returns the path of the created savepoint. You need this path to restore and dispose savepoints.
 
-#### **Restore a savepoint**
+You can optionally specify a `savepointDirectory` when triggering the savepoint. If you don't specify one here, you need to configure a default savepoint directory for the Flink installation (see [[savepoint.html#configuration]]).
+
+##### Cancel with a savepoint
+
+You can atomically trigger a savepoint and cancel a job.
+
+{% highlight bash %}
+./bin/flink cancel -s  [savepointDirectory] <jobID>
+{% endhighlight %}
+
+If no savepoint directory is configured, you need to configure a default savepoint directory for the Flink installation (see [[savepoint.html#configuration]]).
+
+The job will only be cancelled if the savepoint succeeds.
+
+#### Restore a savepoint
 
 {% highlight bash %}
 ./bin/flink run -s <savepointPath> ...
@@ -150,7 +168,7 @@ Returns the path of the created savepoint. You need this path to restore and dis
 
 The run command has a savepoint flag to submit a job, which restores its state from a savepoint. The savepoint path is returned by the savepoint trigger command.
 
-#### **Dispose a savepoint**
+#### Dispose a savepoint
 
 {% highlight bash %}
 ./bin/flink savepoint -d <savepointPath>
@@ -179,41 +197,51 @@ Action "run" compiles and runs a program.
 
   Syntax: run [OPTIONS] <jar-file> <arguments>
   "run" action options:
-     -c,--class <classname>               Class with the program entry point
-                                          ("main" method or "getPlan()" method.
-                                          Only needed if the JAR file does not
-                                          specify the class in its manifest.
-     -C,--classpath <url>                 Adds a URL to each user code
-                                          classloader  on all nodes in the
-                                          cluster. The paths must specify a
-                                          protocol (e.g. file://) and be
-                                          accessible on all nodes (e.g. by means
-                                          of a NFS share). You can use this
-                                          option multiple times for specifying
-                                          more than one URL. The protocol must
-                                          be supported by the {@link
-                                          java.net.URLClassLoader}.
-     -d,--detached                        If present, runs the job in detached
-                                          mode
-     -m,--jobmanager <host:port>          Address of the JobManager (master) to
-                                          which to connect. Specify
-                                          'yarn-cluster' as the JobManager to
-                                          deploy a YARN cluster for the job. Use
-                                          this flag to connect to a different
-                                          JobManager than the one specified in
-                                          the configuration.
-     -p,--parallelism <parallelism>       The parallelism with which to run the
-                                          program. Optional flag to override the
-                                          default value specified in the
-                                          configuration.
-     -q,--sysoutLogging                   If present, supress logging output to
-                                          standard out.
-     -s,--fromSavepoint <savepointPath>   Path to a savepoint to reset the job
-                                          back to (for example
-                                          file:///flink/savepoint-1537).
-  Additional arguments if -m yarn-cluster is set:
+     -c,--class <classname>                         Class with the program entry
+                                                    point ("main" method or
+                                                    "getPlan()" method. Only
+                                                    needed if the JAR file does
+                                                    not specify the class in its
+                                                    manifest.
+     -C,--classpath <url>                           Adds a URL to each user code
+                                                    classloader  on all nodes in
+                                                    the cluster. The paths must
+                                                    specify a protocol (e.g.
+                                                    file://) and be accessible
+                                                    on all nodes (e.g. by means
+                                                    of a NFS share). You can use
+                                                    this option multiple times
+                                                    for specifying more than one
+                                                    URL. The protocol must be
+                                                    supported by the {@link
+                                                    java.net.URLClassLoader}.
+     -d,--detached                                  If present, runs the job in
+                                                    detached mode
+     -m,--jobmanager <host:port>                    Address of the JobManager
+                                                    (master) to which to
+                                                    connect. Use this flag to
+                                                    connect to a different
+                                                    JobManager than the one
+                                                    specified in the
+                                                    configuration.
+     -p,--parallelism <parallelism>                 The parallelism with which
+                                                    to run the program. Optional
+                                                    flag to override the default
+                                                    value specified in the
+                                                    configuration.
+     -q,--sysoutLogging                             If present, suppress logging
+                                                    output to standard out.
+     -s,--fromSavepoint <savepointPath>             Path to a savepoint to reset
+                                                    the job back to (for example
+                                                    file:///flink/savepoint-1537
+                                                    ).
+     -z,--zookeeperNamespace <zookeeperNamespace>   Namespace to create the
+                                                    Zookeeper sub-paths for high
+                                                    availability mode
+  Options for yarn-cluster mode:
      -yD <arg>                            Dynamic properties
      -yd,--yarndetached                   Start detached
+     -yid,--yarnapplicationId <arg>       Attach to running YARN session
      -yj,--yarnjar <arg>                  Path to Flink jar file
      -yjm,--yarnjobManagerMemory <arg>    Memory for JobManager Container [in
                                           MB]
@@ -230,6 +258,9 @@ Action "run" compiles and runs a program.
                                           (t for transfer)
      -ytm,--yarntaskManagerMemory <arg>   Memory per TaskManager Container [in
                                           MB]
+     -yz,--yarnzookeeperNamespace <arg>   Namespace to create the Zookeeper
+                                          sub-paths for high availability mode
+
 
 
 Action "info" shows the optimized execution plan of the program (JSON).
@@ -240,16 +271,13 @@ Action "info" shows the optimized execution plan of the program (JSON).
                                       method or "getPlan()" method. Only needed
                                       if the JAR file does not specify the class
                                       in its manifest.
-     -m,--jobmanager <host:port>      Address of the JobManager (master) to
-                                      which to connect. Specify 'yarn-cluster'
-                                      as the JobManager to deploy a YARN cluster
-                                      for the job. Use this flag to connect to a
-                                      different JobManager than the one
-                                      specified in the configuration.
      -p,--parallelism <parallelism>   The parallelism with which to run the
                                       program. Optional flag to override the
                                       default value specified in the
                                       configuration.
+  Options for yarn-cluster mode:
+     -yid,--yarnapplicationId <arg>   Attach to running YARN session
+
 
 
 Action "list" lists running and scheduled programs.
@@ -257,41 +285,17 @@ Action "list" lists running and scheduled programs.
   Syntax: list [OPTIONS]
   "list" action options:
      -m,--jobmanager <host:port>   Address of the JobManager (master) to which
-                                   to connect. Specify 'yarn-cluster' as the
-                                   JobManager to deploy a YARN cluster for the
-                                   job. Use this flag to connect to a different
-                                   JobManager than the one specified in the
-                                   configuration.
+                                   to connect. Use this flag to connect to a
+                                   different JobManager than the one specified
+                                   in the configuration.
      -r,--running                  Show only running programs and their JobIDs
      -s,--scheduled                Show only scheduled programs and their JobIDs
-  Additional arguments if -m yarn-cluster is set:
-     -yid <yarnApplicationId>      YARN application ID of Flink YARN session to
-                                   connect to. Must not be set if JobManager HA
-                                   is used. In this case, JobManager RPC
-                                   location is automatically retrieved from
-                                   Zookeeper.
+  Options for yarn-cluster mode:
+     -yid,--yarnapplicationId <arg>   Attach to running YARN session
 
 
-Action "cancel" cancels a running program.
 
-  Syntax: cancel [OPTIONS] <Job ID>
-  "cancel" action options:
-     -m,--jobmanager <host:port>   Address of the JobManager (master) to which
-                                   to connect. Specify 'yarn-cluster' as the
-                                   JobManager to deploy a YARN cluster for the
-                                   job. Use this flag to connect to a different
-                                   JobManager than the one specified in the
-                                   configuration.
-  Additional arguments if -m yarn-cluster is set:
-     -yid <yarnApplicationId>      YARN application ID of Flink YARN session to
-                                   connect to. Must not be set if JobManager HA
-                                   is used. In this case, JobManager RPC
-                                   location is automatically retrieved from
-                                   Zookeeper.
-
-
-Action "stop" stops a running program (streaming jobs only). There are no strong consistency
-guarantees for a stop request.
+Action "stop" stops a running program (streaming jobs only).
 
   Syntax: stop [OPTIONS] <Job ID>
   "stop" action options:
@@ -299,24 +303,40 @@ guarantees for a stop request.
                                    to connect. Use this flag to connect to a
                                    different JobManager than the one specified
                                    in the configuration.
-  Additional arguments if -m yarn-cluster is set:
-     -yid <yarnApplicationId>      YARN application ID of Flink YARN session to
-                                   connect to. Must not be set if JobManager HA
-                                   is used. In this case, JobManager RPC
-                                   location is automatically retrieved from
-                                   Zookeeper.
+  Options for yarn-cluster mode:
+     -yid,--yarnapplicationId <arg>   Attach to running YARN session
+
+
+
+Action "cancel" cancels a running program.
+
+  Syntax: cancel [OPTIONS] <Job ID>
+  "cancel" action options:
+     -m,--jobmanager <host:port>            Address of the JobManager (master)
+                                            to which to connect. Use this flag
+                                            to connect to a different JobManager
+                                            than the one specified in the
+                                            configuration.
+     -s,--withSavepoint <targetDirectory>   Trigger savepoint and cancel job.
+                                            The target directory is optional. If
+                                            no directory is specified, the
+                                            configured default directory
+                                            (state.savepoints.dir) is used.
+  Options for yarn-cluster mode:
+     -yid,--yarnapplicationId <arg>   Attach to running YARN session
+
 
 
 Action "savepoint" triggers savepoints for a running job or disposes existing ones.
 
- Syntax: savepoint [OPTIONS] <Job ID>
- "savepoint" action options:
-    -d,--dispose <arg>            Path of savepoint to dispose.
-    -j,--jarfile <jarfile>        Flink program JAR file.
-    -m,--jobmanager <host:port>   Address of the JobManager (master) to which
-                                  to connect. Use this flag to connect to a
-                                  different JobManager than the one specified
-                                  in the configuration.
- Options for yarn-cluster mode:
-    -yid,--yarnapplicationId <arg>   Attach to running YARN session
+  Syntax: savepoint [OPTIONS] <Job ID> [<target directory>]
+  "savepoint" action options:
+     -d,--dispose <arg>            Path of savepoint to dispose.
+     -j,--jarfile <jarfile>        Flink program JAR file.
+     -m,--jobmanager <host:port>   Address of the JobManager (master) to which
+                                   to connect. Use this flag to connect to a
+                                   different JobManager than the one specified
+                                   in the configuration.
+  Options for yarn-cluster mode:
+     -yid,--yarnapplicationId <arg>   Attach to running YARN session
 ~~~

@@ -19,16 +19,18 @@
 package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * The SavepointLoader is a utility to load and verify a Savepoint, and to create a checkpoint from it. 
+ * The SavepointLoader is a utility to load and verify a Savepoint, and to create a checkpoint from it.
  */
 public class SavepointLoader {
 
@@ -39,7 +41,6 @@ public class SavepointLoader {
 	 *
 	 * @param jobId          The JobID of the job to load the savepoint for.
 	 * @param tasks          Tasks that will possibly be reset
-	 * @param savepointStore The store that holds the savepoint.
 	 * @param savepointPath  The path of the savepoint to rollback to
 	 *
 	 * @throws IllegalStateException If mismatch between program and savepoint state
@@ -48,13 +49,12 @@ public class SavepointLoader {
 	public static CompletedCheckpoint loadAndValidateSavepoint(
 			JobID jobId,
 			Map<JobVertexID, ExecutionJobVertex> tasks,
-			SavepointStore savepointStore,
-			String savepointPath) throws Exception {
+			String savepointPath) throws IOException {
 
 		// (1) load the savepoint
-		Savepoint savepoint = savepointStore.loadSavepoint(savepointPath);
+		Savepoint savepoint = SavepointStore.loadSavepoint(savepointPath);
 		final Map<JobVertexID, TaskState> taskStates = new HashMap<>(savepoint.getTaskStates().size());
-		
+
 		// (2) validate it (parallelism, etc)
 		for (TaskState taskState : savepoint.getTaskStates()) {
 			ExecutionJobVertex executionJobVertex = tasks.get(taskState.getJobVertexID());
@@ -66,12 +66,12 @@ public class SavepointLoader {
 				else {
 					String msg = String.format("Failed to rollback to savepoint %s. " +
 									"Max parallelism mismatch between savepoint state and new program. " +
-									"Cannot map operator %s with parallelism %d to new program with " +
+									"Cannot map operator %s with max parallelism %d to new program with " +
 									"parallelism %d. This indicates that the program has been changed " +
 									"in a non-compatible way after the savepoint.",
 							savepoint,
 							taskState.getJobVertexID(),
-							taskState.getParallelism(),
+							taskState.getMaxParallelism(),
 							executionJobVertex.getParallelism());
 
 					throw new IllegalStateException(msg);
@@ -87,8 +87,9 @@ public class SavepointLoader {
 		}
 
 		// (3) convert to checkpoint so the system can fall back to it
-		return new CompletedCheckpoint(jobId, savepoint.getCheckpointId(), 0L, 0L, taskStates, false);
-	} 
+		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
+		return new CompletedCheckpoint(jobId, savepoint.getCheckpointId(), 0L, 0L, taskStates, props, savepointPath);
+	}
 
 	// ------------------------------------------------------------------------
 

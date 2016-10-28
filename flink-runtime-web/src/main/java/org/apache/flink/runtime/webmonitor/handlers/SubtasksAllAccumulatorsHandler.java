@@ -21,8 +21,8 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import com.fasterxml.jackson.core.JsonGenerator;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
@@ -39,7 +39,7 @@ public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHand
 	}
 
 	@Override
-	public String handleRequest(ExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
@@ -50,7 +50,7 @@ public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHand
 		gen.writeArrayFieldStart("subtasks");
 		
 		int num = 0;
-		for (ExecutionVertex vertex : jobVertex.getTaskVertices()) {
+		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
 
 			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
 			String locationString = location == null ? "(unassigned)" : location.getHostname();

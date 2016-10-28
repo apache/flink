@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
-import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -39,9 +39,7 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -96,8 +94,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			TypeSerializer<IN2> inputSerializer2,
 			StatefulTask checkpointedTask,
 			CheckpointingMode checkpointMode,
-			IOManager ioManager,
-			boolean enableWatermarkMultiplexing) throws IOException {
+			IOManager ioManager) throws IOException {
 		
 		final InputGate inputGate = InputGateUtil.createInputGate(inputGates1, inputGates2);
 
@@ -115,25 +112,11 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			this.barrierHandler.registerCheckpointEventHandler(checkpointedTask);
 		}
 		
-		if (enableWatermarkMultiplexing) {
-			MultiplexingStreamRecordSerializer<IN1> ser = new MultiplexingStreamRecordSerializer<IN1>(inputSerializer1);
-			this.deserializationDelegate1 = new NonReusingDeserializationDelegate<StreamElement>(ser);
-		}
-		else {
-			StreamRecordSerializer<IN1> ser = new StreamRecordSerializer<IN1>(inputSerializer1);
-			this.deserializationDelegate1 = (DeserializationDelegate<StreamElement>)
-					(DeserializationDelegate<?>) new NonReusingDeserializationDelegate<StreamRecord<IN1>>(ser);
-		}
-		
-		if (enableWatermarkMultiplexing) {
-			MultiplexingStreamRecordSerializer<IN2> ser = new MultiplexingStreamRecordSerializer<IN2>(inputSerializer2);
-			this.deserializationDelegate2 = new NonReusingDeserializationDelegate<StreamElement>(ser);
-		}
-		else {
-			StreamRecordSerializer<IN2> ser = new StreamRecordSerializer<IN2>(inputSerializer2);
-			this.deserializationDelegate2 = (DeserializationDelegate<StreamElement>)
-					(DeserializationDelegate<?>) new NonReusingDeserializationDelegate<StreamRecord<IN2>>(ser);
-		}
+		StreamElementSerializer<IN1> ser1 = new StreamElementSerializer<>(inputSerializer1);
+		this.deserializationDelegate1 = new NonReusingDeserializationDelegate<>(ser1);
+
+		StreamElementSerializer<IN2> ser2 = new StreamElementSerializer<>(inputSerializer2);
+		this.deserializationDelegate2 = new NonReusingDeserializationDelegate<>(ser2);
 
 		// Initialize one deserializer per input channel
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
@@ -185,7 +168,13 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 					if (currentChannel < numInputChannels1) {
 						StreamElement recordOrWatermark = deserializationDelegate1.getInstance();
 						if (recordOrWatermark.isWatermark()) {
-							handleWatermark(streamOperator, (Watermark) recordOrWatermark, currentChannel, lock);
+							handleWatermark(streamOperator, recordOrWatermark.asWatermark(), currentChannel, lock);
+							continue;
+						}
+						else if (recordOrWatermark.isLatencyMarker()) {
+							synchronized (lock) {
+								streamOperator.processLatencyMarker1(recordOrWatermark.asLatencyMarker());
+							}
 							continue;
 						}
 						else {
@@ -201,6 +190,12 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 						StreamElement recordOrWatermark = deserializationDelegate2.getInstance();
 						if (recordOrWatermark.isWatermark()) {
 							handleWatermark(streamOperator, recordOrWatermark.asWatermark(), currentChannel, lock);
+							continue;
+						}
+						else if (recordOrWatermark.isLatencyMarker()) {
+							synchronized (lock) {
+								streamOperator.processLatencyMarker2(recordOrWatermark.asLatencyMarker());
+							}
 							continue;
 						}
 						else {
@@ -286,7 +281,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 	 *
 	 * @param metrics metric group
 	 */
-	public void setMetricGroup(IOMetricGroup metrics) {
+	public void setMetricGroup(TaskIOMetricGroup metrics) {
 		metrics.gauge("currentLowWatermark", new Gauge<Long>() {
 			@Override
 			public Long getValue() {

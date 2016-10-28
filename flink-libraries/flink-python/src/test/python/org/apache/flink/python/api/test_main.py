@@ -44,6 +44,8 @@ if __name__ == "__main__":
 
     d7 = env.generate_sequence(0, 999)
 
+    d8 = env.from_elements((1, (2, 3)), (4, (5, 6)))
+
     #Generate Sequence Source
     d7.map(Id()).map_partition(Verify(range(1000), "Sequence")).output()
 
@@ -57,6 +59,8 @@ if __name__ == "__main__":
     csv_data = env.read_csv("src/test/python/org/apache/flink/python/api/data_csv", (INT, INT, STRING))
 
     csv_data.write_csv("/tmp/flink/result1", line_delimiter="\n", field_delimiter="|", write_mode=WriteMode.OVERWRITE)
+
+    d8.write_csv("/tmp/flink/result2", line_delimiter="\n", field_delimiter="|", write_mode=WriteMode.OVERWRITE)
 
     #Text Source/Sink
     text_data = env.read_text("src/test/python/org/apache/flink/python/api/data_text")

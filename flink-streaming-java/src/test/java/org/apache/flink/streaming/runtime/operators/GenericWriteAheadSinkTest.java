@@ -129,7 +129,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 			elementCounter++;
 		}
 
-		testHarness.snapshot(0, 0);
+		testHarness.snapshotLegacy(0, 0);
 		testHarness.notifyOfCompletedCheckpoint(0);
 
 		//isCommitted should have failed, thus sendValues() should never have been called
@@ -140,7 +140,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 			elementCounter++;
 		}
 
-		testHarness.snapshot(1, 0);
+		testHarness.snapshotLegacy(1, 0);
 		testHarness.notifyOfCompletedCheckpoint(1);
 
 		//previous CP should be retried, but will fail the CP commit. Second CP should be skipped.
@@ -151,7 +151,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 			elementCounter++;
 		}
 
-		testHarness.snapshot(2, 0);
+		testHarness.snapshotLegacy(2, 0);
 		testHarness.notifyOfCompletedCheckpoint(2);
 
 		//all CP's should be retried and succeed; since one CP was written twice we have 2 * 10 + 10 + 10 = 40 values

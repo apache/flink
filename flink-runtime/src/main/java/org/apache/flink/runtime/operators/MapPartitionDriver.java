@@ -86,8 +86,8 @@ public class MapPartitionDriver<IT, OT> implements Driver<MapPartitionFunction<I
 
 	@Override
 	public void run() throws Exception {
-		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
-		final Counter numRecordsOut = this.taskContext.getMetricGroup().counter("numRecordsOut");
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 		// cache references on the stack
 		final MutableObjectIterator<IT> input = new CountingMutableObjectIterator<>(this.taskContext.<IT>getInput(0), numRecordsIn);
 		final MapPartitionFunction<IT, OT> function = this.taskContext.getStub();

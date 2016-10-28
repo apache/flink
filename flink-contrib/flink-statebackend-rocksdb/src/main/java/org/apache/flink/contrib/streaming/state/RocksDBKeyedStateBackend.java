@@ -65,6 +65,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -185,7 +186,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			List<KeyGroupsStateHandle> restoreState
+			Collection<KeyGroupsStateHandle> restoreState
 	) throws Exception {
 
 		this(jobId,
@@ -603,7 +604,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 * @throws ClassNotFoundException
 		 * @throws RocksDBException
 		 */
-		public void doRestore(List<KeyGroupsStateHandle> keyGroupsStateHandles)
+		public void doRestore(Collection<KeyGroupsStateHandle> keyGroupsStateHandles)
 				throws IOException, ClassNotFoundException, RocksDBException {
 
 			for (KeyGroupsStateHandle keyGroupsStateHandle : keyGroupsStateHandles) {

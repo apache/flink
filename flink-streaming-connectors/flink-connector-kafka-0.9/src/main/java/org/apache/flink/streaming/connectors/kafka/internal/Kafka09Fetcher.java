@@ -18,17 +18,16 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.ExceptionProxy;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
@@ -67,9 +66,6 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 	/** The schema to convert between Kafka's byte messages, and Flink's objects */
 	private final KeyedDeserializationSchema<T> deserializer;
 
-	/** The subtask's runtime context */
-	private final RuntimeContext runtimeContext;
-
 	/** The configuration for the Kafka consumer */
 	private final Properties kafkaProperties;
 
@@ -94,6 +90,12 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 	/** Flag tracking whether the latest commit request has completed */
 	private volatile boolean commitInProgress;
 
+	/** For Debug output **/
+	private String taskNameWithSubtasks;
+
+	/** We get this from the outside to publish metrics. **/
+	private MetricGroup metricGroup;
+
 	// ------------------------------------------------------------------------
 
 	public Kafka09Fetcher(
@@ -101,24 +103,38 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 			List<KafkaTopicPartition> assignedPartitions,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
-			StreamingRuntimeContext runtimeContext,
+			ProcessingTimeService processingTimeProvider,
+			long autoWatermarkInterval,
+			ClassLoader userCodeClassLoader,
+			boolean enableCheckpointing,
+			String taskNameWithSubtasks,
+			MetricGroup metricGroup,
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
 			boolean useMetrics) throws Exception
 	{
-		super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, runtimeContext, useMetrics);
+		super(
+				sourceContext,
+				assignedPartitions,
+				watermarksPeriodic,
+				watermarksPunctuated,
+				processingTimeProvider,
+				autoWatermarkInterval,
+				userCodeClassLoader,
+				useMetrics);
 
 		this.deserializer = deserializer;
-		this.runtimeContext = runtimeContext;
 		this.kafkaProperties = kafkaProperties;
 		this.pollTimeout = pollTimeout;
 		this.nextOffsetsToCommit = new AtomicReference<>();
 		this.offsetCommitCallback = new CommitCallback();
+		this.taskNameWithSubtasks = taskNameWithSubtasks;
+		this.metricGroup = metricGroup;
 
 		// if checkpointing is enabled, we are not automatically committing to Kafka.
 		kafkaProperties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
-				Boolean.toString(!runtimeContext.isCheckpointingEnabled()));
+				Boolean.toString(!enableCheckpointing));
 	}
 
 	// ------------------------------------------------------------------------
@@ -131,7 +147,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 
 		// rather than running the main fetch loop directly here, we spawn a dedicated thread
 		// this makes sure that no interrupt() call upon canceling reaches the Kafka consumer code
-		Thread runner = new Thread(this, "Kafka 0.9 Fetcher for " + runtimeContext.getTaskNameWithSubtasks());
+		Thread runner = new Thread(this, getFetcherName() + " for " + taskNameWithSubtasks);
 		runner.setDaemon(true);
 		runner.start();
 
@@ -183,10 +199,11 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 
 		// from here on, the consumer will be closed properly
 		try {
-			consumer.assign(convertKafkaPartitions(subscribedPartitions()));
+			assignPartitionsToConsumer(consumer, convertKafkaPartitions(subscribedPartitions()));
+
 
 			if (useMetrics) {
-				final MetricGroup kafkaMetricGroup = runtimeContext.getMetricGroup().addGroup("KafkaConsumer");
+				final MetricGroup kafkaMetricGroup = metricGroup.addGroup("KafkaConsumer");
 				addOffsetStateGauge(kafkaMetricGroup);
 				// register Kafka metrics to Flink
 				Map<MetricName, ? extends Metric> metrics = consumer.metrics();
@@ -204,7 +221,22 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 			// seek the consumer to the initial offsets
 			for (KafkaTopicPartitionState<TopicPartition> partition : subscribedPartitions()) {
 				if (partition.isOffsetDefined()) {
+					LOG.info("Partition {} has restored initial offsets {} from checkpoint / savepoint; seeking the consumer " +
+						"to position {}", partition.getKafkaPartitionHandle(), partition.getOffset(), partition.getOffset() + 1);
+
 					consumer.seek(partition.getKafkaPartitionHandle(), partition.getOffset() + 1);
+				} else {
+					// for partitions that do not have offsets restored from a checkpoint/savepoint,
+					// we need to define our internal offset state for them using the initial offsets retrieved from Kafka
+					// by the KafkaConsumer, so that they are correctly checkpointed and committed on the next checkpoint
+
+					long fetchedOffset = consumer.position(partition.getKafkaPartitionHandle());
+
+					LOG.info("Partition {} has no initial offset; the consumer has position {}, so the initial offset " +
+						"will be set to {}", partition.getKafkaPartitionHandle(), fetchedOffset, fetchedOffset - 1);
+
+					// the fetched offset represents the next record to process, so we need to subtract it by 1
+					partition.setOffset(fetchedOffset - 1);
 				}
 			}
 
@@ -250,7 +282,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 
 						// emit the actual record. this also update offset state atomically
 						// and deals with timestamps and watermark generation
-						emitRecord(value, partition, record.offset());
+						emitRecord(value, partition, record.offset(), record);
 					}
 				}
 			}
@@ -274,6 +306,21 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 		}
 	}
 
+	// Kafka09Fetcher ignores the timestamp, Kafka010Fetcher is extracting the timestamp and passing it to the emitRecord() method.
+	protected void emitRecord(T record, KafkaTopicPartitionState<TopicPartition> partition, long offset, ConsumerRecord consumerRecord) throws Exception {
+		emitRecord(record, partition, offset, Long.MIN_VALUE);
+	}
+	/**
+	 * Protected method to make the partition assignment pluggable, for different Kafka versions.
+	 */
+	protected void assignPartitionsToConsumer(KafkaConsumer<byte[], byte[]> consumer, List<TopicPartition> topicPartitions) {
+		consumer.assign(topicPartitions);
+	}
+
+	protected String getFetcherName() {
+		return "Kafka 0.9 Fetcher";
+	}
+
 	// ------------------------------------------------------------------------
 	//  Kafka 0.9 specific fetcher behavior
 	// ------------------------------------------------------------------------
@@ -284,7 +331,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 	}
 
 	@Override
-	public void commitSpecificOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception {
+	public void commitInternalOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception {
 		KafkaTopicPartitionState<TopicPartition>[] partitions = subscribedPartitions();
 		Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>(partitions.length);
 

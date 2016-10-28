@@ -36,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Responder that returns the status of the Flink cluster, such as how many
  * TaskManagers are currently connected, and how many jobs are running.
  */
-public class ClusterOverviewHandler implements RequestHandler {
+public class ClusterOverviewHandler extends AbstractJsonRequestHandler {
 
 	private static final String version = EnvironmentInformation.getVersion();
 
@@ -49,7 +49,7 @@ public class ClusterOverviewHandler implements RequestHandler {
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		// we need no parameters, get all requests
 		try {
 			if (jobManager != null) {

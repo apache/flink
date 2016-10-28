@@ -36,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ProxyMetricGroup<P extends MetricGroup> implements MetricGroup {
 
-	private final P parentMetricGroup;
+	protected final P parentMetricGroup;
 
 	public ProxyMetricGroup(P parentMetricGroup) {
 		this.parentMetricGroup = checkNotNull(parentMetricGroup);

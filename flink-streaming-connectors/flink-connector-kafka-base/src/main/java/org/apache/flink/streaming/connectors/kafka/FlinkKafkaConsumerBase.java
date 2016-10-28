@@ -19,12 +19,16 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.commons.collections.map.LinkedMap;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -39,7 +43,6 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -95,14 +98,14 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * The assigner is kept in serialized form, to deserialize it into multiple copies */
 	private SerializedValue<AssignerWithPunctuatedWatermarks<T>> punctuatedWatermarkAssigner;
 
-	private transient OperatorStateStore stateStore;
+	private transient ListState<Tuple2<KafkaTopicPartition, Long>> offsetsStateForCheckpoint;
 
 	// ------------------------------------------------------------------------
 	//  runtime state (used individually by each parallel subtask) 
 	// ------------------------------------------------------------------------
 	
-	/** Data for pending but uncommitted checkpoints */
-	private final LinkedMap pendingCheckpoints = new LinkedMap();
+	/** Data for pending but uncommitted offsets */
+	private final LinkedMap pendingOffsetsToCommit = new LinkedMap();
 
 	/** The fetcher implements the connections to the Kafka brokers */
 	private transient volatile AbstractFetcher<T, ?> kafkaFetcher;
@@ -169,6 +172,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			throw new IllegalStateException("A periodic watermark emitter has already been set.");
 		}
 		try {
+			ClosureCleaner.clean(assigner, true);
 			this.punctuatedWatermarkAssigner = new SerializedValue<>(assigner);
 			return this;
 		} catch (Exception e) {
@@ -203,6 +207,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			throw new IllegalStateException("A punctuated watermark emitter has already been set.");
 		}
 		try {
+			ClosureCleaner.clean(assigner, true);
 			this.periodicWatermarkAssigner = new SerializedValue<>(assigner);
 			return this;
 		} catch (Exception e) {
@@ -307,33 +312,33 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void initializeState(OperatorStateStore stateStore) throws Exception {
+	public void initializeState(FunctionInitializationContext context) throws Exception {
 
-		this.stateStore = stateStore;
+		OperatorStateStore stateStore = context.getManagedOperatorStateStore();
+		offsetsStateForCheckpoint = stateStore.getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
 
-		ListState<Serializable> offsets =
-				stateStore.getSerializableListState(OperatorStateStore.DEFAULT_OPERATOR_STATE_NAME);
+		if (context.isRestored()) {
+			restoreToOffset = new HashMap<>();
+			for (Tuple2<KafkaTopicPartition, Long> kafkaOffset : offsetsStateForCheckpoint.get()) {
+				restoreToOffset.put(kafkaOffset.f0, kafkaOffset.f1);
+			}
 
-		restoreToOffset = new HashMap<>();
-
-		for (Serializable serializable : offsets.get()) {
-			@SuppressWarnings("unchecked")
-			Tuple2<KafkaTopicPartition, Long> kafkaOffset = (Tuple2<KafkaTopicPartition, Long>) serializable;
-			restoreToOffset.put(kafkaOffset.f0, kafkaOffset.f1);
+			LOG.info("Setting restore state in the FlinkKafkaConsumer.");
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Using the following offsets: {}", restoreToOffset);
+			}
+		} else {
+			LOG.info("No restore state for FlinkKafkaConsumer.");
 		}
-
-		LOG.info("Setting restore state in the FlinkKafkaConsumer: {}", restoreToOffset);
 	}
 
 	@Override
-	public void prepareSnapshot(long checkpointId, long timestamp) throws Exception {
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		if (!running) {
-			LOG.debug("storeOperatorState() called on closed source");
+			LOG.debug("snapshotState() called on closed source");
 		} else {
 
-			ListState<Serializable> listState =
-					stateStore.getSerializableListState(OperatorStateStore.DEFAULT_OPERATOR_STATE_NAME);
-			listState.clear();
+			offsetsStateForCheckpoint.clear();
 
 			final AbstractFetcher<?, ?> fetcher = this.kafkaFetcher;
 			if (fetcher == null) {
@@ -343,19 +348,16 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				if (restoreToOffset != null) {
 					// the map cannot be asynchronously updated, because only one checkpoint call can happen
 					// on this function at a time: either snapshotState() or notifyCheckpointComplete()
-					pendingCheckpoints.put(checkpointId, restoreToOffset);
-
-					// truncate the map, to prevent infinite growth
-					while (pendingCheckpoints.size() > MAX_NUM_PENDING_CHECKPOINTS) {
-						pendingCheckpoints.remove(0);
-					}
+					pendingOffsetsToCommit.put(context.getCheckpointId(), restoreToOffset);
 
 					for (Map.Entry<KafkaTopicPartition, Long> kafkaTopicPartitionLongEntry : restoreToOffset.entrySet()) {
-						listState.add(Tuple2.of(kafkaTopicPartitionLongEntry.getKey(), kafkaTopicPartitionLongEntry.getValue()));
+						offsetsStateForCheckpoint.add(
+								Tuple2.of(kafkaTopicPartitionLongEntry.getKey(), kafkaTopicPartitionLongEntry.getValue()));
 					}
 				} else if (subscribedPartitions != null) {
 					for (KafkaTopicPartition subscribedPartition : subscribedPartitions) {
-						listState.add(Tuple2.of(subscribedPartition, KafkaTopicPartitionState.OFFSET_NOT_SET));
+						offsetsStateForCheckpoint.add(
+								Tuple2.of(subscribedPartition, KafkaTopicPartitionState.OFFSET_NOT_SET));
 					}
 				}
 			} else {
@@ -363,16 +365,17 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 				// the map cannot be asynchronously updated, because only one checkpoint call can happen
 				// on this function at a time: either snapshotState() or notifyCheckpointComplete()
-				pendingCheckpoints.put(checkpointId, currentOffsets);
-
-				// truncate the map, to prevent infinite growth
-				while (pendingCheckpoints.size() > MAX_NUM_PENDING_CHECKPOINTS) {
-					pendingCheckpoints.remove(0);
-				}
+				pendingOffsetsToCommit.put(context.getCheckpointId(), currentOffsets);
 
 				for (Map.Entry<KafkaTopicPartition, Long> kafkaTopicPartitionLongEntry : currentOffsets.entrySet()) {
-					listState.add(Tuple2.of(kafkaTopicPartitionLongEntry.getKey(), kafkaTopicPartitionLongEntry.getValue()));
+					offsetsStateForCheckpoint.add(
+							Tuple2.of(kafkaTopicPartitionLongEntry.getKey(), kafkaTopicPartitionLongEntry.getValue()));
 				}
+			}
+
+			// truncate the map of pending offsets to commit, to prevent infinite growth
+			while (pendingOffsetsToCommit.size() > MAX_NUM_PENDING_CHECKPOINTS) {
+				pendingOffsetsToCommit.remove(0);
 			}
 		}
 	}
@@ -396,26 +399,26 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		}
 
 		try {
-			final int posInMap = pendingCheckpoints.indexOf(checkpointId);
+			final int posInMap = pendingOffsetsToCommit.indexOf(checkpointId);
 			if (posInMap == -1) {
 				LOG.warn("Received confirmation for unknown checkpoint id {}", checkpointId);
 				return;
 			}
 
 			@SuppressWarnings("unchecked")
-			HashMap<KafkaTopicPartition, Long> checkpointOffsets = 
-					(HashMap<KafkaTopicPartition, Long>) pendingCheckpoints.remove(posInMap);
+			HashMap<KafkaTopicPartition, Long> offsets =
+					(HashMap<KafkaTopicPartition, Long>) pendingOffsetsToCommit.remove(posInMap);
 
 			// remove older checkpoints in map
 			for (int i = 0; i < posInMap; i++) {
-				pendingCheckpoints.remove(0);
+				pendingOffsetsToCommit.remove(0);
 			}
 
-			if (checkpointOffsets == null || checkpointOffsets.size() == 0) {
+			if (offsets == null || offsets.size() == 0) {
 				LOG.debug("Checkpoint state was empty.");
 				return;
 			}
-			fetcher.commitSpecificOffsetsToKafka(checkpointOffsets);
+			fetcher.commitInternalOffsetsToKafka(offsets);
 		}
 		catch (Exception e) {
 			if (running) {

@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.instance;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
@@ -31,8 +34,10 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Base class for task slots. TaskManagers offer one or more task slots, which define a slice of 
- * their resources.
+ * Base class for slots that the Scheduler / ExecutionGraph take from the SlotPool and use to place
+ * tasks to execute into. A slot corresponds to an AllocatedSlot (a slice of a TaskManager's resources),
+ * plus additional fields to track what is currently executed in that slot, or if the slot is still
+ * used or disposed (ExecutionGraph gave it back to the pool).
  *
  * <p>In the simplest case, a slot holds a single task ({@link SimpleSlot}). In the more complex
  * case, a slot is shared ({@link SharedSlot}) and contains a set of tasks. Shared slots may contain
@@ -54,16 +59,13 @@ public abstract class Slot {
 	/** State where all tasks in this slot have been canceled and the slot been given back to the instance */
 	private static final int RELEASED = 2;
 
+	// temporary placeholder for Slots that are not constructed from an AllocatedSlot (prior to FLIP-6)
+	protected static final AllocationID NO_ALLOCATION_ID = new AllocationID(0, 0);
+
 	// ------------------------------------------------------------------------
 
-	/** The ID of the job this slice belongs to. */
-	private final JobID jobID;
-
-	/** The location information of the TaskManager to which this slot belongs */
-	private final TaskManagerLocation taskManagerLocation;
-
-	/** TEMP until the new RPC is in place: The actor gateway to communicate with the TaskManager */
-	private final ActorGateway taskManagerActorGateway;
+	/** The allocated slot that this slot represents. */
+	private final AllocatedSlot allocatedSlot;
 
 	/** The owner of this slot - the slot was taken from that owner and must be disposed to it */
 	private final SlotOwner owner;
@@ -81,9 +83,13 @@ public abstract class Slot {
 
 	/** The state of the vertex, only atomically updated */
 	private volatile int status = ALLOCATED_AND_ALIVE;
-	
+
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * Base constructor for slots.
+	 * 
+	 * <p>This is the old way of constructing slots, prior to the FLIP-6 resource management refactoring.
 	 * 
 	 * @param jobID The ID of the job that this slot is allocated for.
 	 * @param owner The component from which this slot is allocated.
@@ -101,15 +107,48 @@ public abstract class Slot {
 
 		checkArgument(slotNumber >= 0);
 
-		this.jobID = checkNotNull(jobID);
-		this.taskManagerLocation = checkNotNull(location);
+		this.allocatedSlot = new AllocatedSlot(
+				NO_ALLOCATION_ID, jobID, location, slotNumber, ResourceProfile.UNKNOWN, taskManagerActorGateway);
+
 		this.owner = checkNotNull(owner);
-		this.taskManagerActorGateway = checkNotNull(taskManagerActorGateway);
 		this.parent = parent; // may be null
 		this.groupID = groupID; // may be null
 		this.slotNumber = slotNumber;
 	}
+
+	/**
+	 * Base constructor for slots.
+	 *
+	 * @param allocatedSlot The allocated slot that this slot represents.
+	 * @param owner The component from which this slot is allocated.
+	 * @param slotNumber The number of this slot.
+	 * @param parent The parent slot that contains this slot. May be null, if this slot is the root.
+	 * @param groupID The ID that identifies the task group for which this slot is allocated. May be null
+	 *                if the slot does not belong to any task group.   
+	 */
+	protected Slot(
+			AllocatedSlot allocatedSlot, SlotOwner owner, int slotNumber,
+			@Nullable SharedSlot parent, @Nullable AbstractID groupID) {
+
+		checkArgument(slotNumber >= 0);
+
+		this.allocatedSlot = checkNotNull(allocatedSlot);
+		this.owner = checkNotNull(owner);
+		this.parent = parent; // may be null
+		this.groupID = groupID; // may be null
+		this.slotNumber = slotNumber;
+	}
+
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Gets the allocated slot that this slot refers to.
+	 * 
+	 * @return This slot's allocated slot.
+	 */
+	public AllocatedSlot getAllocatedSlot() {
+		return allocatedSlot;
+	}
 
 	/**
 	 * Returns the ID of the job this allocated slot belongs to.
@@ -117,7 +156,7 @@ public abstract class Slot {
 	 * @return the ID of the job this allocated slot belongs to
 	 */
 	public JobID getJobID() {
-		return this.jobID;
+		return allocatedSlot.getJobID();
 	}
 
 	/**
@@ -126,7 +165,7 @@ public abstract class Slot {
 	 * @return The ID of the TaskManager that offers this slot
 	 */
 	public ResourceID getTaskManagerID() {
-		return taskManagerLocation.getResourceID();
+		return allocatedSlot.getTaskManagerLocation().getResourceID();
 	}
 
 	/**
@@ -135,7 +174,7 @@ public abstract class Slot {
 	 * @return The location info of the TaskManager that offers this slot
 	 */
 	public TaskManagerLocation getTaskManagerLocation() {
-		return taskManagerLocation;
+		return allocatedSlot.getTaskManagerLocation();
 	}
 
 	/**
@@ -146,7 +185,7 @@ public abstract class Slot {
 	 * @return The actor gateway that can be used to send messages to the TaskManager.
 	 */
 	public ActorGateway getTaskManagerActorGateway() {
-		return taskManagerActorGateway;
+		return allocatedSlot.getTaskManagerActorGateway();
 	}
 
 	/**
@@ -303,7 +342,7 @@ public abstract class Slot {
 
 	@Override
 	public String toString() {
-		return hierarchy() + " - " + taskManagerLocation + " - " + getStateName(status);
+		return hierarchy() + " - " + getTaskManagerLocation() + " - " + getStateName(status);
 	}
 
 	protected String hierarchy() {

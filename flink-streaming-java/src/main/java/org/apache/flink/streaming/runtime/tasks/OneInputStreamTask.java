@@ -45,8 +45,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			inputProcessor = new StreamInputProcessor<IN>(inputGates, inSerializer,
 					this, 
 					configuration.getCheckpointMode(),
-					getEnvironment().getIOManager(),
-					isSerializingTimestamps());
+					getEnvironment().getIOManager());
 
 			// make sure that stream tasks report their I/O statistics
 			AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
@@ -70,7 +69,9 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 	@Override
 	protected void cleanup() throws Exception {
-		inputProcessor.cleanup();
+		if (inputProcessor != null) {
+			inputProcessor.cleanup();
+		}
 	}
 
 	@Override

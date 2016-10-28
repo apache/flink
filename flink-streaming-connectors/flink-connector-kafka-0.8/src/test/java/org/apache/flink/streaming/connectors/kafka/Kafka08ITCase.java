@@ -19,8 +19,6 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -33,7 +31,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Properties;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
@@ -138,31 +135,21 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		runBrokerFailureTest();
 	}
 
-	// --- special executions ---
+	// --- offset committing ---
 
 	@Test(timeout = 60000)
-	public void testBigRecordJob() throws Exception {
-		runBigRecordTestTopology();
+	public void testCommitOffsetsToZookeeper() throws Exception {
+		runCommitOffsetsToKafka();
 	}
 
 	@Test(timeout = 60000)
-	public void testMultipleTopics() throws Exception {
-		runProduceConsumeMultipleTopics();
+	public void testStartFromZookeeperCommitOffsets() throws Exception {
+		runStartFromKafkaCommitOffsets();
 	}
 
 	@Test(timeout = 60000)
-	public void testAllDeletes() throws Exception {
-		runAllDeletesTest();
-	}
-
-	@Test(timeout=60000)
-	public void testEndOfStream() throws Exception {
-		runEndOfStreamTest();
-	}
-
-	@Test(timeout = 60000)
-	public void testMetrics() throws Throwable {
-		runMetricsTest();
+	public void testAutoOffsetRetrievalAndCommitToZookeeper() throws Exception {
+		runAutoOffsetRetrievalAndCommitToKafka();
 	}
 
 	@Test
@@ -188,59 +175,6 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-	}
-	
-	/**
-	 * Tests that offsets are properly committed to ZooKeeper and initial offsets are read from ZooKeeper.
-	 *
-	 * This test is only applicable if the Flink Kafka Consumer uses the ZooKeeperOffsetHandler.
-	 */
-	@Test(timeout = 60000)
-	public void testOffsetInZookeeper() throws Exception {
-		final int parallelism = 3;
-
-		// write a sequence from 0 to 99 to each of the 3 partitions.
-		final String topicName = writeSequence("testOffsetInZK", 100, parallelism, 1);
-
-		StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-		env1.getConfig().disableSysoutLogging();
-		env1.enableCheckpointing(50);
-		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env1.setParallelism(parallelism);
-
-		StreamExecutionEnvironment env2 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-		env2.getConfig().disableSysoutLogging();
-		env2.enableCheckpointing(50);
-		env2.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env2.setParallelism(parallelism);
-
-		readSequence(env1, standardProps, parallelism, topicName, 100, 0);
-
-		CuratorFramework curatorClient = ((KafkaTestEnvironmentImpl)kafkaServer).createCuratorClient();
-
-		Long o1 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorClient, standardProps.getProperty("group.id"), topicName, 0);
-		Long o2 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorClient, standardProps.getProperty("group.id"), topicName, 1);
-		Long o3 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorClient, standardProps.getProperty("group.id"), topicName, 2);
-
-		LOG.info("Got final offsets from zookeeper o1={}, o2={}, o3={}", o1, o2, o3);
-
-		assertTrue(o1 == null || (o1 >= 0 && o1 <= 100));
-		assertTrue(o2 == null || (o2 >= 0 && o2 <= 100));
-		assertTrue(o3 == null || (o3 >= 0 && o3 <= 100));
-
-		LOG.info("Manipulating offsets");
-
-		// set the offset to 50 for the three partitions
-		ZookeeperOffsetHandler.setOffsetInZooKeeper(curatorClient, standardProps.getProperty("group.id"), topicName, 0, 49);
-		ZookeeperOffsetHandler.setOffsetInZooKeeper(curatorClient, standardProps.getProperty("group.id"), topicName, 1, 49);
-		ZookeeperOffsetHandler.setOffsetInZooKeeper(curatorClient, standardProps.getProperty("group.id"), topicName, 2, 49);
-
-		curatorClient.close();
-
-		// create new env
-		readSequence(env2, standardProps, parallelism, topicName, 50, 50);
-
-		deleteTestTopic(topicName);
 	}
 
 	@Test(timeout = 60000)
@@ -278,156 +212,37 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 
 		// ensure that the offset has been committed
 		boolean atLeastOneOffsetSet = (o1 != null && o1 > 0 && o1 <= 100) ||
-				(o2 != null && o2 > 0 && o2 <= 100) ||
-				(o3 != null && o3 > 0 && o3 <= 100);
+			(o2 != null && o2 > 0 && o2 <= 100) ||
+			(o3 != null && o3 > 0 && o3 <= 100);
 		assertTrue("Expecting at least one offset to be set o1="+o1+" o2="+o2+" o3="+o3, atLeastOneOffsetSet);
 
 		deleteTestTopic(topicName);
 	}
 
-	/**
-	 * This test ensures that when the consumers retrieve some start offset from kafka (earliest, latest), that this offset
-	 * is committed to Zookeeper, even if some partitions are not read
-	 *
-	 * Test:
-	 * - Create 3 topics
-	 * - write 50 messages into each.
-	 * - Start three consumers with auto.offset.reset='latest' and wait until they committed into ZK.
-	 * - Check if the offsets in ZK are set to 50 for the three partitions
-	 *
-	 * See FLINK-3440 as well
-	 */
+	// --- special executions ---
+
 	@Test(timeout = 60000)
-	public void testKafkaOffsetRetrievalToZookeeper() throws Exception {
-		final int parallelism = 3;
-
-		// write a sequence from 0 to 49 to each of the 3 partitions.
-		final String topicName =  writeSequence("testKafkaOffsetToZk", 50, parallelism, 1);
-
-		final StreamExecutionEnvironment env2 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-		env2.getConfig().disableSysoutLogging();
-		env2.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env2.setParallelism(parallelism);
-		env2.enableCheckpointing(200);
-
-		Properties readProps = new Properties();
-		readProps.putAll(standardProps);
-		readProps.setProperty("auto.offset.reset", "latest");
-
-		DataStream<String> stream = env2.addSource(kafkaServer.getConsumer(topicName, new SimpleStringSchema(), readProps));
-		stream.addSink(new DiscardingSink<String>());
-
-		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
-		final Thread runner = new Thread("runner") {
-			@Override
-			public void run() {
-				try {
-					env2.execute();
-				}
-				catch (Throwable t) {
-					if (!(t.getCause() instanceof JobCancellationException)) {
-						errorRef.set(t);
-					}
-				}
-			}
-		};
-		runner.start();
-
-		final CuratorFramework curatorFramework = ((KafkaTestEnvironmentImpl)kafkaServer).createCuratorClient();
-		final Long l49 = 49L;
-				
-		final long deadline = 30000 + System.currentTimeMillis();
-		do {
-			Long o1 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 0);
-			Long o2 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 1);
-			Long o3 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 2);
-
-			if (l49.equals(o1) && l49.equals(o2) && l49.equals(o3)) {
-				break;
-			}
-			
-			Thread.sleep(100);
-		}
-		while (System.currentTimeMillis() < deadline);
-		
-		// cancel the job
-		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
-		
-		final Throwable t = errorRef.get();
-		if (t != null) {
-			throw new RuntimeException("Job failed with an exception", t);
-		}
-
-		// check if offsets are correctly in ZK
-		Long o1 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 0);
-		Long o2 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 1);
-		Long o3 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 2);
-		Assert.assertEquals(Long.valueOf(49L), o1);
-		Assert.assertEquals(Long.valueOf(49L), o2);
-		Assert.assertEquals(Long.valueOf(49L), o3);
-
-		curatorFramework.close();
+	public void testBigRecordJob() throws Exception {
+		runBigRecordTestTopology();
 	}
 
-	@Test
-	public void testJsonTableSource() throws Exception {
-		String topic = UUID.randomUUID().toString();
-
-		// Names and types are determined in the actual test method of the
-		// base test class.
-		Kafka08JsonTableSource tableSource = new Kafka08JsonTableSource(
-				topic,
-				standardProps,
-				new String[] {
-						"long",
-						"string",
-						"boolean",
-						"double",
-						"missing-field"},
-				new TypeInformation<?>[] {
-						BasicTypeInfo.LONG_TYPE_INFO,
-						BasicTypeInfo.STRING_TYPE_INFO,
-						BasicTypeInfo.BOOLEAN_TYPE_INFO,
-						BasicTypeInfo.DOUBLE_TYPE_INFO,
-						BasicTypeInfo.LONG_TYPE_INFO });
-
-		// Don't fail on missing field, but set to null (default)
-		tableSource.setFailOnMissingField(false);
-
-		runJsonTableSource(topic, tableSource);
+	@Test(timeout = 60000)
+	public void testMultipleTopics() throws Exception {
+		runProduceConsumeMultipleTopics();
 	}
 
-	@Test
-	public void testJsonTableSourceWithFailOnMissingField() throws Exception {
-		String topic = UUID.randomUUID().toString();
+	@Test(timeout = 60000)
+	public void testAllDeletes() throws Exception {
+		runAllDeletesTest();
+	}
 
-		// Names and types are determined in the actual test method of the
-		// base test class.
-		Kafka08JsonTableSource tableSource = new Kafka08JsonTableSource(
-				topic,
-				standardProps,
-				new String[] {
-						"long",
-						"string",
-						"boolean",
-						"double",
-						"missing-field"},
-				new TypeInformation<?>[] {
-						BasicTypeInfo.LONG_TYPE_INFO,
-						BasicTypeInfo.STRING_TYPE_INFO,
-						BasicTypeInfo.BOOLEAN_TYPE_INFO,
-						BasicTypeInfo.DOUBLE_TYPE_INFO,
-						BasicTypeInfo.LONG_TYPE_INFO });
+	@Test(timeout=60000)
+	public void testEndOfStream() throws Exception {
+		runEndOfStreamTest();
+	}
 
-		// Don't fail on missing field, but set to null (default)
-		tableSource.setFailOnMissingField(true);
-
-		try {
-			runJsonTableSource(topic, tableSource);
-			fail("Did not throw expected Exception");
-		} catch (Exception e) {
-			Throwable rootCause = e.getCause().getCause().getCause();
-			assertTrue("Unexpected root cause", rootCause instanceof IllegalStateException);
-		}
+	@Test(timeout = 60000)
+	public void testMetrics() throws Throwable {
+		runMetricsTest();
 	}
 }

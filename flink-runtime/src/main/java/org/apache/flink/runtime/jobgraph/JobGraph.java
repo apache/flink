@@ -496,17 +496,20 @@ public class JobGraph implements Serializable {
 	 *
 	 * @param serverAddress
 	 *        the network address of the BLOB server
+	 * @param blobClientConfig
+	 *        the blob client configuration
 	 * @throws IOException
 	 *         thrown if an I/O error occurs during the upload
 	 */
-	public void uploadRequiredJarFiles(InetSocketAddress serverAddress) throws IOException {
+	public void uploadRequiredJarFiles(InetSocketAddress serverAddress,
+			Configuration blobClientConfig) throws IOException {
 		if (this.userJars.isEmpty()) {
 			return;
 		}
 
 		BlobClient bc = null;
 		try {
-			bc = new BlobClient(serverAddress);
+			bc = new BlobClient(serverAddress, blobClientConfig);
 
 			for (final Path jar : this.userJars) {
 
@@ -550,10 +553,12 @@ public class JobGraph implements Serializable {
 	 *
 	 * @param jobManager JobManager actor gateway
 	 * @param askTimeout Ask timeout
+	 * @param blobClientConfig the blob client configuration
 	 * @throws IOException Thrown, if the file upload to the JobManager failed.
 	 */
-	public void uploadUserJars(ActorGateway jobManager, FiniteDuration askTimeout) throws IOException {
-		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(jobManager, askTimeout, userJars);
+	public void uploadUserJars(ActorGateway jobManager, FiniteDuration askTimeout,
+			Configuration blobClientConfig) throws IOException {
+		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(jobManager, askTimeout, blobClientConfig, userJars);
 
 		for (BlobKey blobKey : blobKeys) {
 			if (!userJarBlobKeys.contains(blobKey)) {

@@ -26,7 +26,6 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.RegisteredTaskManagers;
 import org.apache.flink.runtime.messages.JobManagerMessages.TaskManagerInstance;
 import org.apache.flink.util.StringUtils;
-
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -38,7 +37,7 @@ import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
-public class TaskManagersHandler implements RequestHandler {
+public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 
 	public static final String TASK_MANAGER_ID_KEY = "taskmanagerid";
 	
@@ -49,7 +48,7 @@ public class TaskManagersHandler implements RequestHandler {
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {
 			if (jobManager != null) {
 				// whether one task manager's metrics are requested, or all task manager, we

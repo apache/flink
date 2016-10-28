@@ -32,7 +32,7 @@ import org.apache.flink.api.table.validate._
 case class CharLength(child: Expression) extends UnaryExpression {
   override private[flink] def resultType: TypeInformation[_] = INT_TYPE_INFO
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
@@ -55,7 +55,7 @@ case class CharLength(child: Expression) extends UnaryExpression {
 case class InitCap(child: Expression) extends UnaryExpression {
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
@@ -80,7 +80,7 @@ case class Like(str: Expression, pattern: Expression) extends BinaryExpression {
 
   override private[flink] def resultType: TypeInformation[_] = BOOLEAN_TYPE_INFO
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (str.resultType == STRING_TYPE_INFO && pattern.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
@@ -102,7 +102,7 @@ case class Like(str: Expression, pattern: Expression) extends BinaryExpression {
 case class Lower(child: Expression) extends UnaryExpression {
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
@@ -127,7 +127,7 @@ case class Similar(str: Expression, pattern: Expression) extends BinaryExpressio
 
   override private[flink] def resultType: TypeInformation[_] = BOOLEAN_TYPE_INFO
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (str.resultType == STRING_TYPE_INFO && pattern.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
@@ -179,7 +179,7 @@ case class Trim(
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     trimMode match {
       case SymbolExpression(_: TrimMode) =>
         if (trimString.resultType != STRING_TYPE_INFO) {

@@ -50,14 +50,15 @@ public class BlobCacheSuccessTest {
 		try {
 
 			// Start the BLOB server
-			blobServer = new BlobServer(new Configuration());
+			Configuration config = new Configuration();
+			blobServer = new BlobServer(config);
 			final InetSocketAddress serverAddress = new InetSocketAddress(blobServer.getPort());
 
 			// Upload BLOBs
 			BlobClient blobClient = null;
 			try {
 
-				blobClient = new BlobClient(serverAddress);
+				blobClient = new BlobClient(serverAddress, config);
 
 				blobKeys.add(blobClient.put(buf));
 				buf[0] = 1; // Make sure the BLOB key changes

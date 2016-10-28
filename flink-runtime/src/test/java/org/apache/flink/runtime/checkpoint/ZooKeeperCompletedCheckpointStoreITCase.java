@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
@@ -59,9 +60,9 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
 	@Override
 	protected CompletedCheckpointStore createCompletedCheckpoints(
-			int maxNumberOfCheckpointsToRetain, ClassLoader userLoader) throws Exception {
+			int maxNumberOfCheckpointsToRetain) throws Exception {
 
-		return new ZooKeeperCompletedCheckpointStore(maxNumberOfCheckpointsToRetain, userLoader,
+		return new ZooKeeperCompletedCheckpointStore(maxNumberOfCheckpointsToRetain,
 			ZooKeeper.createClient(), CheckpointsPath, new RetrievableStateStorageHelper<CompletedCheckpoint>() {
 			@Override
 			public RetrievableStateHandle<CompletedCheckpoint> store(CompletedCheckpoint state) throws Exception {
@@ -77,8 +78,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 	 */
 	@Test
 	public void testRecover() throws Exception {
-		CompletedCheckpointStore checkpoints = createCompletedCheckpoints(3, ClassLoader
-				.getSystemClassLoader());
+		CompletedCheckpointStore checkpoints = createCompletedCheckpoints(3);
 
 		TestCompletedCheckpoint[] expected = new TestCompletedCheckpoint[] {
 				createCheckpoint(0), createCheckpoint(1), createCheckpoint(2)
@@ -118,14 +118,14 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 	public void testShutdownDiscardsCheckpoints() throws Exception {
 		CuratorFramework client = ZooKeeper.getClient();
 
-		CompletedCheckpointStore store = createCompletedCheckpoints(1, ClassLoader.getSystemClassLoader());
+		CompletedCheckpointStore store = createCompletedCheckpoints(1);
 		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
 
 		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
 		assertNotNull(client.checkExists().forPath(CheckpointsPath + "/" + checkpoint.getCheckpointID()));
 
-		store.shutdown();
+		store.shutdown(JobStatus.FINISHED);
 
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 		assertNull(client.checkExists().forPath(CheckpointsPath + "/" + checkpoint.getCheckpointID()));
@@ -143,14 +143,14 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 	public void testSuspendKeepsCheckpoints() throws Exception {
 		CuratorFramework client = ZooKeeper.getClient();
 
-		CompletedCheckpointStore store = createCompletedCheckpoints(1, ClassLoader.getSystemClassLoader());
+		CompletedCheckpointStore store = createCompletedCheckpoints(1);
 		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
 
 		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
 		assertNotNull(client.checkExists().forPath(CheckpointsPath + "/" + checkpoint.getCheckpointID()));
 
-		store.suspend();
+		store.shutdown(JobStatus.SUSPENDED);
 
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 		assertNotNull(client.checkExists().forPath(CheckpointsPath + "/" + checkpoint.getCheckpointID()));

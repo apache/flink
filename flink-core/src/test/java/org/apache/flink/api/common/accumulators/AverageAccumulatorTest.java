@@ -83,12 +83,18 @@ public class AverageAccumulatorTest {
 
 	@Test
 	public void testMergeSuccess() {
-		AverageAccumulator average = new AverageAccumulator();
-		AverageAccumulator averageNew = new AverageAccumulator();
-		average.add(1);
-		averageNew.add(2);
-		average.merge(averageNew);
-		assertEquals(1.5, average.getLocalValue(), 0.0);
+		AverageAccumulator avg1 = new AverageAccumulator();
+		for (int i = 0; i < 5; i++) {
+			avg1.add(i);
+		}
+
+		AverageAccumulator avg2 = new AverageAccumulator();
+		for (int i = 5; i < 10; i++) {
+			avg2.add(i);
+		}
+
+		avg1.merge(avg2);
+		assertEquals(4.5, avg1.getLocalValue(), 0.0);
 	}
 
 	@Test

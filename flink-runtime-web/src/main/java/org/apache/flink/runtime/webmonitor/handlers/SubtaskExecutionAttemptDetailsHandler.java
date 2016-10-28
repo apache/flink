@@ -24,7 +24,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
@@ -41,7 +41,7 @@ public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemp
 	}
 
 	@Override
-	public String handleRequest(Execution execAttempt, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecution execAttempt, Map<String, String> params) throws Exception {
 		final ExecutionState status = execAttempt.getState();
 		final long now = System.currentTimeMillis();
 
@@ -78,7 +78,7 @@ public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemp
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		gen.writeStartObject();
-		gen.writeNumberField("subtask", execAttempt.getVertex().getParallelSubtaskIndex());
+		gen.writeNumberField("subtask", execAttempt.getParallelSubtaskIndex());
 		gen.writeStringField("status", status.name());
 		gen.writeNumberField("attempt", execAttempt.getAttemptNumber());
 		gen.writeStringField("host", locationString);

@@ -19,11 +19,10 @@
 package org.apache.flink.api.common;
 
 import com.esotericsoftware.kryo.Serializer;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.util.Preconditions;
-
+import org.apache.flink.configuration.TaskManagerOptions;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -31,6 +30,8 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A config to define the behavior of the program execution. It allows to define (among other
@@ -58,7 +59,7 @@ import java.util.Objects;
  * </ul>
  */
 @Public
-public class ExecutionConfig implements Serializable {
+public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecutionConfig> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -121,6 +122,11 @@ public class ExecutionConfig implements Serializable {
 	private long autoWatermarkInterval = 0;
 
 	/**
+	 * Interval in milliseconds for sending latency tracking marks from the sources to the sinks.
+	 */
+	private long latencyTrackingInterval = 2000L;
+
+	/**
 	 * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
 	 */
 	@Deprecated
@@ -129,6 +135,12 @@ public class ExecutionConfig implements Serializable {
 	private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration;
 	
 	private long taskCancellationIntervalMillis = -1;
+
+	/**
+	 * Timeout after which an ongoing task cancellation will lead to a fatal
+	 * TaskManager error, usually killing the JVM.
+	 */
+	private long taskCancellationTimeoutMillis = -1;
 
 	// ------------------------------- User code values --------------------------------------------
 
@@ -205,6 +217,40 @@ public class ExecutionConfig implements Serializable {
 	}
 
 	/**
+	 * Interval for sending latency tracking marks from the sources to the sinks.
+	 * Flink will send latency tracking marks from the sources at the specified interval.
+	 *
+	 * Recommended value: 2000 (2 seconds).
+	 *
+	 * Setting a tracking interval <= 0 disables the latency tracking.
+	 *
+	 * @param interval Interval in milliseconds.
+	 */
+	@PublicEvolving
+	public ExecutionConfig setLatencyTrackingInterval(long interval) {
+		this.latencyTrackingInterval = interval;
+		return this;
+	}
+
+	/**
+	 * Returns the latency tracking interval.
+	 * @return The latency tracking interval in milliseconds
+	 */
+	@PublicEvolving
+	public long getLatencyTrackingInterval() {
+		return latencyTrackingInterval;
+	}
+
+	/**
+	 * Returns if latency tracking is enabled
+	 * @return True, if the tracking is enabled, false otherwise.
+	 */
+	@PublicEvolving
+	public boolean isLatencyTrackingEnabled() {
+		return latencyTrackingInterval > 0;
+	}
+
+	/**
 	 * Gets the parallelism with which operation are executed by default. Operations can
 	 * individually override this value to use a specific parallelism.
 	 *
@@ -266,7 +312,7 @@ public class ExecutionConfig implements Serializable {
 	 */
 	@PublicEvolving
 	public void setMaxParallelism(int maxParallelism) {
-		Preconditions.checkArgument(maxParallelism > 0, "The maximum parallelism must be greater than 0.");
+		checkArgument(maxParallelism > 0, "The maximum parallelism must be greater than 0.");
 		this.maxParallelism = maxParallelism;
 	}
 
@@ -284,6 +330,36 @@ public class ExecutionConfig implements Serializable {
 	 */
 	public ExecutionConfig setTaskCancellationInterval(long interval) {
 		this.taskCancellationIntervalMillis = interval;
+		return this;
+	}
+
+	/**
+	 * Returns the timeout (in milliseconds) after which an ongoing task
+	 * cancellation leads to a fatal TaskManager error.
+	 *
+	 * <p>The value <code>0</code> means that the timeout is disabled. In
+	 * this case a stuck cancellation will not lead to a fatal error.
+	 */
+	@PublicEvolving
+	public long getTaskCancellationTimeout() {
+		return this.taskCancellationTimeoutMillis;
+	}
+
+	/**
+	 * Sets the timeout (in milliseconds) after which an ongoing task cancellation
+	 * is considered failed, leading to a fatal TaskManager error.
+	 *
+	 * <p>The cluster default is configured via {@link TaskManagerOptions#TASK_CANCELLATION_TIMEOUT}.
+	 *
+	 * <p>The value <code>0</code> disables the timeout. In this case a stuck
+	 * cancellation will not lead to a fatal error.
+	 *
+	 * @param timeout The task cancellation timeout (in milliseconds).
+	 */
+	@PublicEvolving
+	public ExecutionConfig setTaskCancellationTimeout(long timeout) {
+		checkArgument(timeout >= 0, "Timeout needs to be >= 0.");
+		this.taskCancellationTimeoutMillis = timeout;
 		return this;
 	}
 
@@ -769,6 +845,11 @@ public class ExecutionConfig implements Serializable {
 
 	public boolean canEqual(Object obj) {
 		return obj instanceof ExecutionConfig;
+	}
+	
+	@Override
+	public ArchivedExecutionConfig archive() {
+		return new ArchivedExecutionConfig(this);
 	}
 
 

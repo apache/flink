@@ -20,8 +20,8 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.state.CheckpointStateHandles;
 
 /**
  * Responder for checkpoint acknowledge and decline messages in the {@link Task}.
@@ -35,7 +35,7 @@ public interface CheckpointResponder {
 	 *             Job ID of the running job
 	 * @param executionAttemptID
 	 *             Execution attempt ID of the running task
-	 * @param checkpointStateHandles
+	 * @param subtaskState
 	 *             State handles for the checkpoint
 	 * @param checkpointMetaData
 	 *             Meta data for this checkpoint
@@ -45,7 +45,7 @@ public interface CheckpointResponder {
 		JobID jobID,
 		ExecutionAttemptID executionAttemptID,
 		CheckpointMetaData checkpointMetaData,
-		CheckpointStateHandles checkpointStateHandles);
+		SubtaskState subtaskState);
 
 	/**
 	 * Declines the given checkpoint.

@@ -22,8 +22,8 @@ import java.io.StringWriter;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.archive.ExecutionConfigSummary;
+import org.apache.flink.api.common.ArchivedExecutionConfig;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
 /**
@@ -36,7 +36,7 @@ public class JobConfigHandler extends AbstractExecutionGraphRequestHandler {
 	}
 
 	@Override
-	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
 
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
@@ -45,7 +45,7 @@ public class JobConfigHandler extends AbstractExecutionGraphRequestHandler {
 		gen.writeStringField("jid", graph.getJobID().toString());
 		gen.writeStringField("name", graph.getJobName());
 
-		final ExecutionConfigSummary summary = graph.getExecutionConfigSummary();
+		final ArchivedExecutionConfig summary = graph.getArchivedExecutionConfig();
 
 		if (summary != null) {
 			gen.writeObjectFieldStart("execution-config");
@@ -59,7 +59,7 @@ public class JobConfigHandler extends AbstractExecutionGraphRequestHandler {
 			Map<String, String> ucVals = summary.getGlobalJobParameters();
 			if (ucVals != null) {
 				gen.writeObjectFieldStart("user-config");
-
+				
 				for (Map.Entry<String, String> ucVal : ucVals.entrySet()) {
 					gen.writeStringField(ucVal.getKey(), ucVal.getValue());
 				}

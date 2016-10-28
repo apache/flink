@@ -35,7 +35,7 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
-import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.junit.Assert;
 
@@ -110,14 +110,14 @@ public class StreamTaskTestHarness<OUT> {
 		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		outputSerializer = outputType.createSerializer(executionConfig);
-		outputStreamRecordSerializer = new MultiplexingStreamRecordSerializer<OUT>(outputSerializer);
+		outputStreamRecordSerializer = new StreamElementSerializer<OUT>(outputSerializer);
 	}
 
-	public TimeServiceProvider getTimerService() {
+	public ProcessingTimeService getProcessingTimeService() {
 		if (!(task instanceof StreamTask)) {
-			throw new UnsupportedOperationException("getTimerService() only supported on StreamTasks.");
+			throw new UnsupportedOperationException("getProcessingTimeService() only supported on StreamTasks.");
 		}
-		return ((StreamTask) task).getTimerService();
+		return ((StreamTask) task).getProcessingTimeService();
 	}
 
 	/**

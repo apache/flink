@@ -19,8 +19,12 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.connectors.kafka.testutils.MockRuntimeContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
@@ -67,16 +71,21 @@ public class AtLeastOnceProducerTest {
 	private void runTest(boolean flushOnCheckpoint) throws Throwable {
 		Properties props = new Properties();
 		final AtomicBoolean snapshottingFinished = new AtomicBoolean(false);
+
 		final TestingKafkaProducer<String> producer = new TestingKafkaProducer<>("someTopic", new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), props,
 				snapshottingFinished);
-		producer.setFlushOnCheckpoint(flushOnCheckpoint);
-		producer.setRuntimeContext(new MockRuntimeContext(0, 1));
 
-		producer.open(new Configuration());
+		producer.setFlushOnCheckpoint(flushOnCheckpoint);
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness =
+				new OneInputStreamOperatorTestHarness<>(new StreamSink(producer));
+
+		testHarness.open();
 
 		for (int i = 0; i < 100; i++) {
-			producer.invoke("msg-" + i);
+			testHarness.processElement(new StreamRecord<>("msg-" + i));
 		}
+
 		// start a thread confirming all pending records
 		final Tuple1<Throwable> runnableError = new Tuple1<>(null);
 		final Thread threadA = Thread.currentThread();
@@ -111,8 +120,10 @@ public class AtLeastOnceProducerTest {
 		};
 		Thread threadB = new Thread(confirmer);
 		threadB.start();
+
 		// this should block:
-		producer.prepareSnapshot(0, 0);
+		testHarness.snapshot(0, 0);
+
 		synchronized (threadA) {
 			threadA.notifyAll(); // just in case, to let the test fail faster
 		}
@@ -126,14 +137,14 @@ public class AtLeastOnceProducerTest {
 			throw runnableError.f0;
 		}
 
-		producer.close();
+		testHarness.close();
 	}
 
 
 	private static class TestingKafkaProducer<T> extends FlinkKafkaProducerBase<T> {
-		private static final long serialVersionUID = -1759403646061180067L;
+		private static final long serialVersionUID = 1L;
 
-		private MockProducer prod;
+		private transient MockProducer prod;
 		private AtomicBoolean snapshottingFinished;
 
 		public TestingKafkaProducer(String defaultTopicId, KeyedSerializationSchema<T> serializationSchema, Properties producerConfig, AtomicBoolean snapshottingFinished) {
@@ -148,9 +159,9 @@ public class AtLeastOnceProducerTest {
 		}
 
 		@Override
-		public void prepareSnapshot(long checkpointId, long timestamp) throws Exception {
+		public void snapshotState(FunctionSnapshotContext ctx) throws Exception {
 			// call the actual snapshot state
-			super.prepareSnapshot(checkpointId, timestamp);
+			super.snapshotState(ctx);
 			// notify test that snapshotting has been done
 			snapshottingFinished.set(true);
 		}

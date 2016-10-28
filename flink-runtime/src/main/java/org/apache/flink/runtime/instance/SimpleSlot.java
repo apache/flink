@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.instance;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
+import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
@@ -48,6 +50,9 @@ public class SimpleSlot extends Slot {
 	/** The locality attached to the slot, defining whether the slot was allocated at the desired location. */
 	private volatile Locality locality = Locality.UNCONSTRAINED;
 
+	// ------------------------------------------------------------------------
+	//  Old Constructors (prior FLIP-6)
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates a new simple slot that stands alone and does not belong to shared slot.
@@ -66,7 +71,7 @@ public class SimpleSlot extends Slot {
 
 	/**
 	 * Creates a new simple slot that belongs to the given shared slot and
-	 * is identified by the given ID..
+	 * is identified by the given ID.
 	 *
 	 * @param jobID The ID of the job that the slot is allocated for.
 	 * @param owner The component from which this slot is allocated.
@@ -80,7 +85,55 @@ public class SimpleSlot extends Slot {
 			ActorGateway taskManagerActorGateway,
 			@Nullable SharedSlot parent, @Nullable AbstractID groupID) {
 
-		super(jobID, owner, location, slotNumber, taskManagerActorGateway, parent, groupID);
+		super(parent != null ?
+				parent.getAllocatedSlot() :
+				new AllocatedSlot(NO_ALLOCATION_ID, jobID, location, slotNumber,
+						ResourceProfile.UNKNOWN, taskManagerActorGateway),
+				owner, slotNumber, parent, groupID);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Constructors
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Creates a new simple slot that stands alone and does not belong to shared slot.
+	 *
+	 * @param allocatedSlot The allocated slot that this slot represents.
+	 * @param owner The component from which this slot is allocated.
+	 * @param slotNumber The number of the task slot on the instance.
+	 */
+	public SimpleSlot(AllocatedSlot allocatedSlot, SlotOwner owner, int slotNumber) {
+		this(allocatedSlot, owner, slotNumber, null, null);
+	}
+
+	/**
+	 * Creates a new simple slot that belongs to the given shared slot and
+	 * is identified by the given ID..
+	 *
+	 * @param parent The parent shared slot.
+	 * @param owner The component from which this slot is allocated.
+	 * @param slotNumber The number of the simple slot in its parent shared slot.
+	 * @param groupID The ID that identifies the group that the slot belongs to.
+	 */
+	public SimpleSlot(SharedSlot parent, SlotOwner owner, int slotNumber, AbstractID groupID) {
+		this(parent.getAllocatedSlot(), owner, slotNumber, parent, groupID);
+	}
+	
+	/**
+	 * Creates a new simple slot that belongs to the given shared slot and
+	 * is identified by the given ID..
+	 *
+	 * @param allocatedSlot The allocated slot that this slot represents.
+	 * @param owner The component from which this slot is allocated.
+	 * @param slotNumber The number of the simple slot in its parent shared slot.
+	 * @param parent The parent shared slot.
+	 * @param groupID The ID that identifies the group that the slot belongs to.
+	 */
+	private SimpleSlot(
+			AllocatedSlot allocatedSlot, SlotOwner owner, int slotNumber,
+			@Nullable SharedSlot parent, @Nullable AbstractID groupID) {
+		super(allocatedSlot, owner, slotNumber, parent, groupID);
 	}
 
 	// ------------------------------------------------------------------------

@@ -22,6 +22,7 @@ import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.security.SecurityContext;
@@ -60,6 +61,8 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -126,6 +129,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	private String customName;
 
 	private String zookeeperNamespace;
+
+	/** Optional Jar file to include in the system class loader of all application nodes
+	 * (for per-job submission) */
+	private Set<File> userJarFiles;
 
 	public AbstractYarnClusterDescriptor() {
 		// for unit tests only
@@ -234,6 +241,41 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	public void setDynamicPropertiesEncoded(String dynamicPropertiesEncoded) {
 		this.dynamicPropertiesEncoded = dynamicPropertiesEncoded;
+	}
+
+	/**
+	 * Returns true if the descriptor has the job jars to include in the classpath.
+	 */
+	public boolean hasUserJarFiles(List<URL> requiredJarFiles) {
+		if (userJarFiles == null || userJarFiles.size() != requiredJarFiles.size()) {
+			return false;
+		}
+		try {
+			for(URL jarFile : requiredJarFiles) {
+				if (!userJarFiles.contains(new File(jarFile.toURI()))) {
+					return false;
+				}
+			}
+		} catch (URISyntaxException e) {
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Sets the user jar which is included in the system classloader of all nodes.
+	 */
+	public void setProvidedUserJarFiles(List<URL> userJarFiles) {
+		Set<File> localUserJarFiles = new HashSet<>(userJarFiles.size());
+		for (URL jarFile : userJarFiles) {
+			try {
+				localUserJarFiles.add(new File(jarFile.toURI()));
+			} catch (URISyntaxException e) {
+				throw new IllegalArgumentException("Couldn't add local user jar: " + jarFile
+					+ " Currently only file:/// URLs are supported.");
+			}
+		}
+		this.userJarFiles = localUserJarFiles;
 	}
 
 	public String getDynamicPropertiesEncoded() {
@@ -529,6 +571,11 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		addLibFolderToShipFiles(effectiveShipFiles);
 
+		// add the user jar to the classpath of the to-be-created cluster
+		if (userJarFiles != null) {
+			effectiveShipFiles.addAll(userJarFiles);
+		}
+
 		// Set-up ApplicationSubmissionContext for the application
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
 
@@ -539,11 +586,11 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// no user specified cli argument for namespace?
 		if (zkNamespace == null || zkNamespace.isEmpty()) {
 			// namespace defined in config? else use applicationId as default.
-			zkNamespace = flinkConfiguration.getString(ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY, String.valueOf(appId));
+			zkNamespace = flinkConfiguration.getString(HighAvailabilityOptions.HA_CLUSTER_ID, String.valueOf(appId));
 			setZookeeperNamespace(zkNamespace);
 		}
 
-		flinkConfiguration.setString(ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
+		flinkConfiguration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
 
 		if (HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfiguration)) {
 			// activate re-execution of failed applications
@@ -742,7 +789,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			try {
 				report = yarnClient.getApplicationReport(appId);
 			} catch (IOException e) {
-				throw new YarnDeploymentException("Failed to deploy the cluster: " + e.getMessage());
+				throw new YarnDeploymentException("Failed to deploy the cluster.", e);
 			}
 			YarnApplicationState appState = report.getYarnApplicationState();
 			LOG.debug("Application State: {}", appState);

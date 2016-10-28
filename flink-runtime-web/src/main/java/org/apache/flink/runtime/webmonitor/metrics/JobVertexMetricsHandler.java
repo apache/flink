@@ -38,17 +38,12 @@ public class JobVertexMetricsHandler extends AbstractMetricsHandler {
 	}
 
 	@Override
-	protected Map<String, Object> getMapFor(Map<String, String> pathParams, MetricStore metrics) {
-		MetricStore.JobMetricStore job = metrics.jobs.get(pathParams.get(JobMetricsHandler.PARAMETER_JOB_ID));
-		if (job == null) {
-			return null;
-		} else {
-			MetricStore.TaskMetricStore task = job.tasks.get(pathParams.get(PARAMETER_VERTEX_ID));
-			if (task == null) {
-				return null;
-			} else {
-				return task.metrics;
-			}
-		}
+	protected Map<String, String> getMapFor(Map<String, String> pathParams, MetricStore metrics) {
+		MetricStore.TaskMetricStore task = metrics.getTaskMetricStore(
+			pathParams.get(JobMetricsHandler.PARAMETER_JOB_ID),
+			pathParams.get(PARAMETER_VERTEX_ID));
+		return task != null
+			? task.metrics
+			: null;
 	}
 }

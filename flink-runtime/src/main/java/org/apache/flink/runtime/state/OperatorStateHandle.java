@@ -38,8 +38,8 @@ public class OperatorStateHandle implements StreamStateHandle {
 	private final StreamStateHandle delegateStateHandle;
 
 	public OperatorStateHandle(
-			StreamStateHandle delegateStateHandle,
-			Map<String, long[]> stateNameToPartitionOffsets) {
+			Map<String, long[]> stateNameToPartitionOffsets,
+			StreamStateHandle delegateStateHandle) {
 
 		this.delegateStateHandle = Preconditions.checkNotNull(delegateStateHandle);
 		this.stateNameToPartitionOffsets = Preconditions.checkNotNull(stateNameToPartitionOffsets);

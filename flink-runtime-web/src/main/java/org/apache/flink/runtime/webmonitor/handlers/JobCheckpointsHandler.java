@@ -22,7 +22,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStats;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.JobCheckpointStats;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import scala.Option;
 
@@ -39,7 +39,7 @@ public class JobCheckpointsHandler extends AbstractExecutionGraphRequestHandler 
 	}
 
 	@Override
-	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
@@ -51,28 +51,35 @@ public class JobCheckpointsHandler extends AbstractExecutionGraphRequestHandler 
 			Option<JobCheckpointStats> stats = tracker.getJobStats();
 
 			if (stats.isDefined()) {
+				JobCheckpointStats jobStats = stats.get();
+
 				// Total number of checkpoints
-				gen.writeNumberField("count", stats.get().getCount());
+				gen.writeNumberField("count", jobStats.getCount());
+
+				// Optional external path
+				if (jobStats.getExternalPath() != null) {
+					gen.writeStringField("external-path", jobStats.getExternalPath());
+				}
 
 				// Duration
 				gen.writeFieldName("duration");
 				gen.writeStartObject();
-				gen.writeNumberField("min", stats.get().getMinDuration());
-				gen.writeNumberField("max", stats.get().getMaxDuration());
-				gen.writeNumberField("avg", stats.get().getAverageDuration());
+				gen.writeNumberField("min", jobStats.getMinDuration());
+				gen.writeNumberField("max", jobStats.getMaxDuration());
+				gen.writeNumberField("avg", jobStats.getAverageDuration());
 				gen.writeEndObject();
 
 				// State size
 				gen.writeFieldName("size");
 				gen.writeStartObject();
-				gen.writeNumberField("min", stats.get().getMinStateSize());
-				gen.writeNumberField("max", stats.get().getMaxStateSize());
-				gen.writeNumberField("avg", stats.get().getAverageStateSize());
+				gen.writeNumberField("min", jobStats.getMinStateSize());
+				gen.writeNumberField("max", jobStats.getMaxStateSize());
+				gen.writeNumberField("avg", jobStats.getAverageStateSize());
 				gen.writeEndObject();
 
 				// Recent history
 				gen.writeArrayFieldStart("history");
-				for (CheckpointStats checkpoint : stats.get().getRecentHistory()) {
+				for (CheckpointStats checkpoint : jobStats.getRecentHistory()) {
 					gen.writeStartObject();
 					gen.writeNumberField("id", checkpoint.getCheckpointId());
 					gen.writeNumberField("timestamp", checkpoint.getTriggerTimestamp());

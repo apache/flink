@@ -20,7 +20,6 @@ package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -92,7 +91,7 @@ public class StackTraceSampleCoordinatorITCase extends TestLogger {
 			try {
 				jobManger = TestingUtils.createJobManager(testActorSystem, new Configuration());
 
-				Configuration config = new Configuration();
+				final Configuration config = new Configuration();
 				config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
 
 				taskManager = TestingUtils.createTaskManager(
@@ -113,6 +112,7 @@ public class StackTraceSampleCoordinatorITCase extends TestLogger {
 								// Submit the job and wait until it is running
 								JobClient.submitJobDetached(
 										jm,
+										config,
 										jobGraph,
 										deadline,
 										ClassLoader.getSystemClassLoader());
@@ -125,7 +125,7 @@ public class StackTraceSampleCoordinatorITCase extends TestLogger {
 								jm.tell(new RequestExecutionGraph(jobGraph.getJobID()), testActor);
 								ExecutionGraphFound executionGraphResponse =
 										expectMsgClass(ExecutionGraphFound.class);
-								ExecutionGraph executionGraph = executionGraphResponse.executionGraph();
+								ExecutionGraph executionGraph = (ExecutionGraph) executionGraphResponse.executionGraph();
 								ExecutionJobVertex vertex = executionGraph.getJobVertex(task.getID());
 
 								StackTraceSampleCoordinator coordinator = new StackTraceSampleCoordinator(

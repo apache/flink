@@ -22,6 +22,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.junit.After;
 import org.junit.Before;
@@ -68,16 +69,16 @@ public class BlobRecoveryITCase {
 
 		try {
 			Configuration config = new Configuration();
-			config.setString(ConfigConstants.HA_MODE, "ZOOKEEPER");
+			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 			config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
-			config.setString(ConfigConstants.HA_ZOOKEEPER_STORAGE_PATH, recoveryDir.getPath());
+			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, recoveryDir.getPath());
 
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config);
 				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
 			}
 
-			client = new BlobClient(serverAddress[0]);
+			client = new BlobClient(serverAddress[0], config);
 
 			// Random data
 			byte[] expected = new byte[1024];
@@ -97,7 +98,7 @@ public class BlobRecoveryITCase {
 
 			// Close the client and connect to the other server
 			client.close();
-			client = new BlobClient(serverAddress[1]);
+			client = new BlobClient(serverAddress[1], config);
 
 			// Verify request 1
 			try (InputStream is = client.get(keys[0])) {

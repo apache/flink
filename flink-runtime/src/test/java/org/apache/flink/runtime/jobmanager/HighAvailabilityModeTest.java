@@ -20,7 +20,8 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.configuration.HighAvailabilityOptions;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -42,7 +43,7 @@ public class HighAvailabilityModeTest {
 		assertEquals(DEFAULT_HA_MODE, HighAvailabilityMode.fromConfig(config));
 
 		// Check not equals default
-		config.setString(ConfigConstants.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
+		config.setString(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
 		assertEquals(HighAvailabilityMode.ZOOKEEPER, HighAvailabilityMode.fromConfig(config));
 	}
 
@@ -54,16 +55,16 @@ public class HighAvailabilityModeTest {
 		Configuration config = new Configuration();
 
 		// Check mapping of old default to new default
-		config.setString(ConfigConstants.RECOVERY_MODE, ConfigConstants.DEFAULT_RECOVERY_MODE);
+		config.setString("recovery.mode", ConfigConstants.DEFAULT_RECOVERY_MODE);
 		assertEquals(DEFAULT_HA_MODE, HighAvailabilityMode.fromConfig(config));
 
 		// Check deprecated config
-		config.setString(ConfigConstants.RECOVERY_MODE, HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
+		config.setString("recovery.mode", HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
 		assertEquals(HighAvailabilityMode.ZOOKEEPER, HighAvailabilityMode.fromConfig(config));
 
 		// Check precedence over deprecated config
-		config.setString(ConfigConstants.HA_MODE, HighAvailabilityMode.NONE.name().toLowerCase());
-		config.setString(ConfigConstants.RECOVERY_MODE, HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
+		config.setString("high-availability", HighAvailabilityMode.NONE.name().toLowerCase());
+		config.setString("recovery.mode", HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
 
 		assertEquals(HighAvailabilityMode.NONE, HighAvailabilityMode.fromConfig(config));
 	}

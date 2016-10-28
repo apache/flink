@@ -31,7 +31,6 @@ The monitoring API is a REST-ful API that accepts HTTP GET requests and responds
 {:toc}
 
 
-
 ## Overview
 
 The monitoring API is backed by a web server that runs as part of the *JobManager*. By default, this server listens at post `8081`, which can be configured in `flink-conf.yaml` via `jobmanager.web.port`. Note that the monitoring API web server and the web dashboard web server are currently the same and thus run together at the same port. They respond to different HTTP URLs, though.
@@ -582,5 +581,74 @@ Sample Result:
       ...
     }
   } ]
+}
+~~~
+
+### Job Cancellation
+
+#### Cancel Job
+
+`DELETE` request to **`/jobs/:jobid/cancel`**.
+
+Triggers job cancellation, result on success is `{}`.
+
+#### Cancel Job with Savepoint
+
+Triggers a savepoint and cancels the job after the savepoint succeeds.
+
+`GET` request to **`/jobs/:jobid/cancel-with-savepoint/`** triggers a savepoint to the default savepoint directory and cancels the job.
+
+`GET` request to **`/jobs/:jobid/cancel-with-savepoint/target-directory/:targetDirectory`** triggers a savepoint to the given target directory and cancels the job.
+
+Since savepoints can take some time to complete this operation happens asynchronously. The result to this request is the location of the in-progress cancellation.
+
+Sample Trigger Result:
+
+~~~
+{
+  "status": "accepted",
+  "request-id": 1,
+  "location": "/jobs/:jobid/cancel-with-savepoint/in-progress/1"
+}
+~~~
+
+##### Monitoring Progress
+
+The progress of the cancellation has to be monitored by the user at
+
+~~~
+/jobs/:jobid/cancel-with-savepoint/in-progress/:requestId
+~~~
+
+The request ID is returned by the trigger result.
+
+###### In-Progress
+
+~~~
+{
+  "status": "in-progress",
+  "request-id": 1
+}
+~~~
+
+###### Success
+
+~~~
+{
+  "status": "success",
+  "request-id": 1,
+  "savepoint-path": "<savepointPath>"
+}
+~~~
+
+The `savepointPath` points to the external path of the savepoint, which can be used to resume the savepoint.
+
+###### Failed
+
+~~~
+{
+  "status": "failed",
+  "request-id": 1,
+  "cause": "<error message>"
 }
 ~~~

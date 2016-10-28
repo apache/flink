@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.NotFoundException;
@@ -30,7 +30,7 @@ import java.util.Map;
  * Base class for request handlers whose response depends on an ExecutionGraph
  * that can be retrieved via "jobid" parameter.
  */
-public abstract class AbstractExecutionGraphRequestHandler implements RequestHandler {
+public abstract class AbstractExecutionGraphRequestHandler extends AbstractJsonRequestHandler {
 	
 	private final ExecutionGraphHolder executionGraphHolder;
 	
@@ -39,7 +39,7 @@ public abstract class AbstractExecutionGraphRequestHandler implements RequestHan
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		String jidString = pathParams.get("jobid");
 		if (jidString == null) {
 			throw new RuntimeException("JobId parameter missing");
@@ -53,7 +53,7 @@ public abstract class AbstractExecutionGraphRequestHandler implements RequestHan
 			throw new RuntimeException("Invalid JobID string '" + jidString + "': " + e.getMessage()); 
 		}
 		
-		ExecutionGraph eg = executionGraphHolder.getExecutionGraph(jid, jobManager);
+		AccessExecutionGraph eg = executionGraphHolder.getExecutionGraph(jid, jobManager);
 		if (eg == null) {
 			throw new NotFoundException("Could not find job with id " + jid);
 		}
@@ -61,5 +61,5 @@ public abstract class AbstractExecutionGraphRequestHandler implements RequestHan
 		return handleRequest(eg, pathParams);
 	}
 	
-	public abstract String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception;
+	public abstract String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception;
 }

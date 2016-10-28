@@ -18,21 +18,15 @@
 
 package org.apache.flink.client.program;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
+import akka.actor.ActorSystem;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
@@ -42,8 +36,6 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -53,10 +45,10 @@ import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusRespon
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsErroneous;
 import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsFound;
 import org.apache.flink.runtime.messages.accumulators.RequestAccumulatorResults;
-import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
@@ -64,13 +56,20 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.Some;
 import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
-import akka.actor.ActorSystem;
+
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -301,18 +300,35 @@ public abstract class ClusterClient {
 	 * @param prog the packaged program
 	 * @param parallelism the parallelism to execute the contained Flink job
 	 * @return The result of the execution
+	 * @throws ProgramMissingJobException
 	 * @throws ProgramInvocationException
 	 */
 	public JobSubmissionResult run(PackagedProgram prog, int parallelism)
-			throws ProgramInvocationException
+			throws ProgramInvocationException, ProgramMissingJobException
 	{
 		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 		if (prog.isUsingProgramEntryPoint()) {
-			return run(prog.getPlanWithJars(), parallelism, prog.getSavepointPath());
+
+			final JobWithJars jobWithJars;
+			if (hasUserJarsInClassPath(prog.getAllLibraries())) {
+				jobWithJars = prog.getPlanWithoutJars();
+			} else {
+				jobWithJars = prog.getPlanWithJars();
+			}
+
+			return run(jobWithJars, parallelism, prog.getSavepointPath());
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			LOG.info("Starting program in interactive mode");
-			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(this, prog.getAllLibraries(),
+
+			final List<URL> libraries;
+			if (hasUserJarsInClassPath(prog.getAllLibraries())) {
+				libraries = Collections.emptyList();
+			} else {
+				libraries = prog.getAllLibraries();
+			}
+
+			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(this, libraries,
 					prog.getClasspaths(), prog.getUserCodeClassLoader(), parallelism, isDetached(),
 					prog.getSavepointPath());
 			ContextEnvironment.setAsContext(factory);
@@ -321,8 +337,7 @@ public abstract class ClusterClient {
 				// invoke main method
 				prog.invokeInteractiveModeForExecution();
 				if (lastJobExecutionResult == null && factory.getLastEnvCreated() == null) {
-					throw new ProgramInvocationException("The program didn't contain Flink jobs. " +
-						"Perhaps you forgot to call execute() on the execution environment.");
+					throw new ProgramMissingJobException();
 				}
 				if (isDetached()) {
 					// in detached mode, we execute the whole user code to extract the Flink job, afterwards we run it here
@@ -350,7 +365,7 @@ public abstract class ClusterClient {
 	 * Runs a program on the Flink cluster to which this client is connected. The call blocks until the
 	 * execution is complete, and returns afterwards.
 	 *
-	 * @param program The program to be executed.
+	 * @param jobWithJars The program to be executed.
 	 * @param parallelism The default parallelism to use when running the program. The default parallelism is used
 	 *                    when the program does not set a parallelism by itself.
 	 *
@@ -360,15 +375,15 @@ public abstract class ClusterClient {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the
 	 *                                    parallel execution failed.
 	 */
-	public JobSubmissionResult run(JobWithJars program, int parallelism, String savepointPath)
+	public JobSubmissionResult run(JobWithJars jobWithJars, int parallelism, String savepointPath)
 			throws CompilerException, ProgramInvocationException {
-		ClassLoader classLoader = program.getUserCodeClassLoader();
+		ClassLoader classLoader = jobWithJars.getUserCodeClassLoader();
 		if (classLoader == null) {
 			throw new IllegalArgumentException("The given JobWithJars does not provide a usercode class loader.");
 		}
 
-		OptimizedPlan optPlan = getOptimizedPlan(compiler, program, parallelism);
-		return run(optPlan, program.getJarFiles(), program.getClasspaths(), classLoader, savepointPath);
+		OptimizedPlan optPlan = getOptimizedPlan(compiler, jobWithJars, parallelism);
+		return run(optPlan, jobWithJars.getJarFiles(), jobWithJars.getClasspaths(), classLoader, savepointPath);
 	}
 
 	public JobSubmissionResult run(
@@ -404,7 +419,7 @@ public abstract class ClusterClient {
 
 		try {
 			logAndSysout("Submitting job with JobID: " + jobGraph.getJobID() + ". Waiting for job completion.");
-			this.lastJobExecutionResult = JobClient.submitJobAndWait(actorSystemLoader.get(),
+			this.lastJobExecutionResult = JobClient.submitJobAndWait(actorSystemLoader.get(), flinkConfig,
 				leaderRetrievalService, jobGraph, timeout, printStatusDuringExecution, classLoader);
 			return this.lastJobExecutionResult;
 		} catch (JobExecutionException e) {
@@ -432,7 +447,7 @@ public abstract class ClusterClient {
 
 		try {
 			logAndSysout("Submitting Job with JobID: " + jobGraph.getJobID() + ". Returning after job submission.");
-			JobClient.submitJobDetached(jobManagerGateway, jobGraph, timeout, classLoader);
+			JobClient.submitJobDetached(jobManagerGateway, flinkConfig, jobGraph, timeout, classLoader);
 			return new JobSubmissionResult(jobGraph.getJobID());
 		} catch (JobExecutionException e) {
 			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);
@@ -632,10 +647,6 @@ public abstract class ClusterClient {
 		return getOptimizedPlan(compiler, prog.getPlan(), parallelism);
 	}
 
-	public JobGraph getJobGraph(PackagedProgram prog, FlinkPlan optPlan) throws ProgramInvocationException {
-		return getJobGraph(optPlan, prog.getAllLibraries(), prog.getClasspaths(), null);
-	}
-
 	public JobGraph getJobGraph(PackagedProgram prog, FlinkPlan optPlan, String savepointPath) throws ProgramInvocationException {
 		return getJobGraph(optPlan, prog.getAllLibraries(), prog.getClasspaths(), savepointPath);
 	}
@@ -760,6 +771,12 @@ public abstract class ClusterClient {
 	 * @return -1 if unknown
 	 */
 	public abstract int getMaxSlots();
+
+	/**
+	 * Returns true if the client already has the user jar and providing it again would
+	 * result in duplicate uploading of the jar.
+	 */
+	public abstract boolean hasUserJarsInClassPath(List<URL> userJarFiles);
 
 	/**
 	 * Calls the subclasses' submitJob method. It may decide to simply call one of the run methods or it may perform

@@ -34,9 +34,36 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<hbase.hadoop1.version>0.98.11-hadoop1</hbase.hadoop1.version>
-		<hbase.hadoop2.version>0.98.11-hadoop2</hbase.hadoop2.version>
+		<hbase.hadoop1.version>0.98.22-hadoop1</hbase.hadoop1.version>
+		<hbase.hadoop2.version>1.2.3</hbase.hadoop2.version>
 	</properties>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.19.1</version>
+				<configuration>
+					<!-- Enforce single fork execution due to heavy mini cluster use in the tests -->
+					<forkCount>1</forkCount>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<!-- Disable inherited shade-flink because of a problem in the shade plugin -->
+						<!-- When enabled you'll run into an infinite loop creating the dependency-reduced-pom.xml -->
+						<!-- Seems similar to https://issues.apache.org/jira/browse/MSHADE-148 -->
+						<id>shade-flink</id>
+						<phase>none</phase>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 
 	<dependencies>
 
@@ -48,26 +75,34 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>${shading-artifact.name}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+
+			<!--Exclude Guava in order to run the HBaseMiniCluster during testing-->
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- HBase server needed for TableOutputFormat -->
@@ -176,9 +211,15 @@ under the License.
 			</activation>
 			<properties>
 				<hbase.version>${hbase.hadoop1.version}</hbase.version>
+				<!--
+				Required test dependencies are only available for Hadoop-2.
+				Disabling tests for Hadoop-1 profile.
+				-->
+				<maven.test.skip>true</maven.test.skip>
 			</properties>
+
 		</profile>
-		
+
 		<profile>
 			<id>hadoop-2</id>
 			<repositories>
@@ -202,6 +243,49 @@ under the License.
 			<properties>
 				<hbase.version>${hbase.hadoop2.version}</hbase.version>
 			</properties>
+
+			<dependencies>
+				<!-- Test dependencies are only available for Hadoop-2. -->
+				<dependency>
+					<groupId>org.apache.hbase</groupId>
+					<artifactId>hbase-server</artifactId>
+					<version>${hbase.version}</version>
+					<classifier>tests</classifier>
+					<scope>test</scope>
+				</dependency>
+
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-minicluster</artifactId>
+					<version>${hadoop.version}</version>
+					<scope>test</scope>
+				</dependency>
+
+				<dependency>
+					<groupId>org.apache.hbase</groupId>
+					<artifactId>hbase-hadoop-compat</artifactId>
+					<version>${hbase.version}</version>
+					<scope>test</scope>
+					<type>test-jar</type>
+				</dependency>
+
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs</artifactId>
+					<version>${hadoop.version}</version>
+					<type>test-jar</type>
+					<scope>test</scope>
+				</dependency>
+
+				<dependency>
+					<groupId>org.apache.hbase</groupId>
+					<artifactId>hbase-hadoop2-compat</artifactId>
+					<version>${hbase.version}</version>
+					<scope>test</scope>
+					<type>test-jar</type>
+				</dependency>
+			</dependencies>
+
 		</profile>
 
 		<profile>

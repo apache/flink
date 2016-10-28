@@ -20,7 +20,6 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -45,6 +44,9 @@ import java.util.concurrent.RunnableFuture;
  */
 public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
+	/** The default namespace for state in cases where no state name is provided */
+	public static final String DEFAULT_OPERATOR_STATE_NAME = "_default_";
+	
 	private final Map<String, PartitionableListState<?>> registeredStates;
 	private final Collection<OperatorStateHandle> restoreSnapshots;
 	private final ClosableRegistry closeStreamOnCancelRegistry;
@@ -72,15 +74,12 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	public DefaultOperatorStateBackend(ClassLoader userClassLoader) {
 		this(userClassLoader, null);
 	}
-
+	@SuppressWarnings("unchecked")
 	@Override
-	public ListState<Serializable> getSerializableListState(String stateName) throws Exception {
-		return getOperatorState(new ListStateDescriptor<>(stateName, javaSerializer));
+	public <T extends Serializable> ListState<T> getSerializableListState(String stateName) throws Exception {
+		return (ListState<T>) getOperatorState(new ListStateDescriptor<>(stateName, javaSerializer));
 	}
-
-	/**
-	 * @see OperatorStateStore
-	 */
+	
 	@Override
 	public <S> ListState<S> getOperatorState(
 			ListStateDescriptor<S> stateDescriptor) throws IOException {
@@ -102,8 +101,9 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			// Try to restore previous state if state handles to snapshots are provided
 			if (restoreSnapshots != null) {
 				for (OperatorStateHandle stateHandle : restoreSnapshots) {
-
-					long[] offsets = stateHandle.getStateNameToPartitionOffsets().get(name);
+					//TODO we coud be even more gc friendly be removing handles from the collections one the map is empty
+					// search and remove to be gc friendly
+					long[] offsets = stateHandle.getStateNameToPartitionOffsets().remove(name);
 
 					if (offsets != null) {
 
@@ -130,10 +130,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 		return partitionableListState;
 	}
-
-	/**
-	 * @see SnapshotProvider
-	 */
+	
 	@Override
 	public RunnableFuture<OperatorStateHandle> snapshot(
 			long checkpointId, long timestamp, CheckpointStreamFactory streamFactory) throws Exception {
@@ -159,7 +156,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 				writtenStatesMetaData.put(entry.getKey(), partitionOffsets);
 			}
 
-			OperatorStateHandle handle = new OperatorStateHandle(out.closeAndGetHandle(), writtenStatesMetaData);
+			OperatorStateHandle handle = new OperatorStateHandle(writtenStatesMetaData, out.closeAndGetHandle());
 
 			return new DoneFuture<>(handle);
 		} finally {
@@ -170,47 +167,58 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 	@Override
 	public void dispose() {
-
+		registeredStates.clear();
 	}
 
 	static final class PartitionableListState<S> implements ListState<S> {
 
-		private final List<S> listState;
+		private final List<S> internalList;
 		private final TypeSerializer<S> partitionStateSerializer;
 
 		public PartitionableListState(TypeSerializer<S> partitionStateSerializer) {
-			this.listState = new ArrayList<>();
+			this.internalList = new ArrayList<>();
 			this.partitionStateSerializer = Preconditions.checkNotNull(partitionStateSerializer);
 		}
 
 		@Override
 		public void clear() {
-			listState.clear();
+			internalList.clear();
 		}
 
 		@Override
 		public Iterable<S> get() {
-			return listState;
+			return internalList;
 		}
 
 		@Override
 		public void add(S value) {
-			listState.add(value);
+			internalList.add(value);
 		}
 
 		public long[] write(FSDataOutputStream out) throws IOException {
 
-			long[] partitionOffsets = new long[listState.size()];
+			long[] partitionOffsets = new long[internalList.size()];
 
 			DataOutputView dov = new DataOutputViewStreamWrapper(out);
 
-			for (int i = 0; i < listState.size(); ++i) {
-				S element = listState.get(i);
+			for (int i = 0; i < internalList.size(); ++i) {
+				S element = internalList.get(i);
 				partitionOffsets[i] = out.getPos();
 				partitionStateSerializer.serialize(element, dov);
 			}
 
 			return partitionOffsets;
+		}
+
+		public List<S> getInternalList() {
+			return internalList;
+		}
+
+		@Override
+		public String toString() {
+			return "PartitionableListState{" +
+					"listState=" + internalList +
+					'}';
 		}
 	}
 
@@ -223,5 +231,6 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	public void close() throws IOException {
 		closeStreamOnCancelRegistry.close();
 	}
+
 }
 

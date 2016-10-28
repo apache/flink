@@ -17,15 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.junit.Test;
-
-import java.util.Properties;
-import java.util.UUID;
-
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 public class Kafka09ITCase extends KafkaConsumerTestBase {
 
@@ -43,15 +35,6 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		runSimpleConcurrentProducerConsumerTopology();
 	}
 
-//	@Test(timeout = 60000)
-//	public void testPunctuatedExplicitWMConsumer() throws Exception {
-//		runExplicitPunctuatedWMgeneratingConsumerTest(false);
-//	}
-
-//	@Test(timeout = 60000)
-//	public void testPunctuatedExplicitWMConsumerWithEmptyTopic() throws Exception {
-//		runExplicitPunctuatedWMgeneratingConsumerTest(true);
-//	}
 
 	@Test(timeout = 60000)
 	public void testKeyValueSupport() throws Exception {
@@ -127,74 +110,20 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		runMetricsTest();
 	}
 
-	@Test
-	public void testJsonTableSource() throws Exception {
-		String topic = UUID.randomUUID().toString();
+	// --- offset committing ---
 
-		Properties props = new Properties();
-		props.putAll(standardProps);
-		props.putAll(secureProps);
-
-		// Names and types are determined in the actual test method of the
-		// base test class.
-		Kafka09JsonTableSource tableSource = new Kafka09JsonTableSource(
-				topic,
-				props,
-				new String[] {
-						"long",
-						"string",
-						"boolean",
-						"double",
-						"missing-field"},
-				new TypeInformation<?>[] {
-						BasicTypeInfo.LONG_TYPE_INFO,
-						BasicTypeInfo.STRING_TYPE_INFO,
-						BasicTypeInfo.BOOLEAN_TYPE_INFO,
-						BasicTypeInfo.DOUBLE_TYPE_INFO,
-						BasicTypeInfo.LONG_TYPE_INFO });
-
-		// Don't fail on missing field, but set to null (default)
-		tableSource.setFailOnMissingField(false);
-
-		runJsonTableSource(topic, tableSource);
+	@Test(timeout = 60000)
+	public void testCommitOffsetsToKafka() throws Exception {
+		runCommitOffsetsToKafka();
 	}
 
-	@Test
-	public void testJsonTableSourceWithFailOnMissingField() throws Exception {
-		String topic = UUID.randomUUID().toString();
-
-		Properties props = new Properties();
-		props.putAll(standardProps);
-		props.putAll(secureProps);
-
-		// Names and types are determined in the actual test method of the
-		// base test class.
-		Kafka09JsonTableSource tableSource = new Kafka09JsonTableSource(
-				topic,
-				props,
-				new String[] {
-						"long",
-						"string",
-						"boolean",
-						"double",
-						"missing-field"},
-				new TypeInformation<?>[] {
-						BasicTypeInfo.LONG_TYPE_INFO,
-						BasicTypeInfo.STRING_TYPE_INFO,
-						BasicTypeInfo.BOOLEAN_TYPE_INFO,
-						BasicTypeInfo.DOUBLE_TYPE_INFO,
-						BasicTypeInfo.LONG_TYPE_INFO });
-
-		// Don't fail on missing field, but set to null (default)
-		tableSource.setFailOnMissingField(true);
-
-		try {
-			runJsonTableSource(topic, tableSource);
-			fail("Did not throw expected Exception");
-		} catch (Exception e) {
-			Throwable rootCause = e.getCause().getCause().getCause();
-			assertTrue("Unexpected root cause", rootCause instanceof IllegalStateException);
-		}
+	@Test(timeout = 60000)
+	public void testStartFromKafkaCommitOffsets() throws Exception {
+		runStartFromKafkaCommitOffsets();
 	}
 
+	@Test(timeout = 60000)
+	public void testAutoOffsetRetrievalAndCommitToKafka() throws Exception {
+		runAutoOffsetRetrievalAndCommitToKafka();
+	}
 }

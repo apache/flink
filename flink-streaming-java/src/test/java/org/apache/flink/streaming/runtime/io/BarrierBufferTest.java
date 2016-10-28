@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -442,10 +443,9 @@ public class BarrierBufferTest {
 			check(sequence[20], buffer.getNextNonBlocked());
 			check(sequence[23], buffer.getNextNonBlocked());
 
-			validateAlignmentTime(startTs, buffer);
-
 			// checkpoint 2 completed
 			check(sequence[12], buffer.getNextNonBlocked());
+			validateAlignmentTime(startTs, buffer);
 			check(sequence[25], buffer.getNextNonBlocked());
 			check(sequence[27], buffer.getNextNonBlocked());
 			check(sequence[30], buffer.getNextNonBlocked());
@@ -974,10 +974,7 @@ public class BarrierBufferTest {
 		}
 
 		@Override
-		public void setInitialState(
-				ChainedStateHandle<StreamStateHandle> chainedState,
-				List<KeyGroupsStateHandle> keyGroupsState,
-				List<Collection<OperatorStateHandle>> partitionableOperatorState) throws Exception {
+		public void setInitialState(TaskStateHandles taskStateHandles) throws Exception {
 			throw new UnsupportedOperationException("should never be called");
 		}
 

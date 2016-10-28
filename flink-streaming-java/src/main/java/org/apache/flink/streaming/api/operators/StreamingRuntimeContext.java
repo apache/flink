@@ -32,12 +32,10 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.util.List;
 import java.util.Map;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Implementation of the {@link org.apache.flink.api.common.functions.RuntimeContext},
@@ -79,8 +77,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		return taskEnvironment.getInputSplitProvider();
 	}
 
-	public TimeServiceProvider getTimeServiceProvider() {
-		return operator.getTimerService();
+	public ProcessingTimeService getProcessingTimeService() {
+		return operator.getProcessingTimeService();
 	}
 
 	// ------------------------------------------------------------------------
@@ -108,36 +106,17 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
 	@Override
 	public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
-		requireNonNull(stateProperties, "The state properties must not be null");
-		try {
-			stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
-			return operator.getPartitionedState(stateProperties);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while getting state", e);
-		}
+		return operator.getKeyedStateStore().getState(stateProperties);
 	}
 
 	@Override
 	public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
-		requireNonNull(stateProperties, "The state properties must not be null");
-		try {
-			stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
-			ListState<T> originalState = operator.getPartitionedState(stateProperties);
-			return new UserFacingListState<T>(originalState);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while getting state", e);
-		}
+		return operator.getKeyedStateStore().getListState(stateProperties);
 	}
 
 	@Override
 	public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
-		requireNonNull(stateProperties, "The state properties must not be null");
-		try {
-			stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
-			return operator.getPartitionedState(stateProperties);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while getting state", e);
-		}
+		return operator.getKeyedStateStore().getReducingState(stateProperties);
 	}
 
 	// ------------------ expose (read only) relevant information from the stream config -------- //

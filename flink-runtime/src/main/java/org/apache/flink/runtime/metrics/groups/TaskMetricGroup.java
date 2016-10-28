@@ -41,7 +41,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 
 	private final Map<String, OperatorMetricGroup> operators = new HashMap<>();
 
-	private final IOMetricGroup ioMetrics;
+	private final TaskIOMetricGroup ioMetrics;
 	
 	/** The execution Id uniquely identifying the executed task represented by this metrics group */
 	private final AbstractID executionId;
@@ -75,7 +75,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 		this.subtaskIndex = subtaskIndex;
 		this.attemptNumber = attemptNumber;
 
-		this.ioMetrics = new IOMetricGroup(this);
+		this.ioMetrics = new TaskIOMetricGroup(this);
 	}
 
 	// ------------------------------------------------------------------------
@@ -109,11 +109,11 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 	}
 
 	/**
-	 * Returns the IOMetricGroup for this task.
+	 * Returns the TaskIOMetricGroup for this task.
 	 *
-	 * @return IOMetricGroup for this task.
+	 * @return TaskIOMetricGroup for this task.
 	 */
-	public IOMetricGroup getIOMetricGroup() {
+	public TaskIOMetricGroup getIOMetricGroup() {
 		return ioMetrics;
 	}
 

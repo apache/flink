@@ -80,8 +80,8 @@ public class MapDriver<IT, OT> implements Driver<MapFunction<IT, OT>, OT> {
 
 	@Override
 	public void run() throws Exception {
-		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
-		final Counter numRecordsOut = this.taskContext.getMetricGroup().counter("numRecordsOut");
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 		// cache references on the stack
 		final MutableObjectIterator<IT> input = this.taskContext.getInput(0);
 		final MapFunction<IT, OT> function = this.taskContext.getStub();

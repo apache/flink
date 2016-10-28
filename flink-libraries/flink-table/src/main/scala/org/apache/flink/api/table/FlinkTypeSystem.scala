@@ -35,9 +35,15 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
   override def getMaxNumericPrecision: Int = Int.MaxValue / 2
 
   override def getDefaultPrecision(typeName: SqlTypeName): Int = typeName match {
+
     // by default all VARCHARs can have the Java default length
     case SqlTypeName.VARCHAR =>
       Int.MaxValue
+
+    // we currenty support only timestamps with milliseconds precision
+    case SqlTypeName.TIMESTAMP =>
+      3
+
     case _ =>
       super.getDefaultPrecision(typeName)
   }

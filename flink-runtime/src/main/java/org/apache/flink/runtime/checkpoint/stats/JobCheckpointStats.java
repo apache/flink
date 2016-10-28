@@ -20,12 +20,13 @@ package org.apache.flink.runtime.checkpoint.stats;
 
 import org.apache.flink.configuration.ConfigConstants;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
  * Snapshot of checkpoint statistics for a job.
  */
-public interface JobCheckpointStats {
+public interface JobCheckpointStats extends Serializable {
 
 	// ------------------------------------------------------------------------
 	// General stats
@@ -46,6 +47,13 @@ public interface JobCheckpointStats {
 	 * @return Total number of completed checkpoints.
 	 */
 	long getCount();
+
+	/**
+	 * Returns the most recent external path of a checkpoint.
+	 *
+	 * @return External checkpoint path or <code>null</code> if none available.
+	 */
+	String getExternalPath();
 
 	// ------------------------------------------------------------------------
 	// Duration

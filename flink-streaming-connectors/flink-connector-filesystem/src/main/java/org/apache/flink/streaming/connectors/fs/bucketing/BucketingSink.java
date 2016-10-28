@@ -31,8 +31,8 @@ import org.apache.flink.streaming.connectors.fs.Clock;
 import org.apache.flink.streaming.connectors.fs.SequenceFileWriter;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.connectors.fs.Writer;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -138,7 +138,7 @@ import java.util.Iterator;
  */
 public class BucketingSink<T>
 		extends RichSinkFunction<T>
-		implements InputTypeConfigurable, Checkpointed<BucketingSink.State<T>>, CheckpointListener, Triggerable {
+		implements InputTypeConfigurable, Checkpointed<BucketingSink.State<T>>, CheckpointListener, ProcessingTimeCallback {
 	private static final long serialVersionUID = 1L;
 
 	private static Logger LOG = LoggerFactory.getLogger(BucketingSink.class);
@@ -281,11 +281,19 @@ public class BucketingSink<T>
 	 */
 	private transient State<T> state;
 
-	private transient org.apache.hadoop.conf.Configuration hadoopConf;
+	/**
+	 * User-defined FileSystem parameters
+	 */
+	private Configuration fsConfig = null;
+
+	/**
+	 * The FileSystem reference.
+	 */
+	private transient FileSystem fs;
 
 	private transient Clock clock;
 
-	private transient TimeServiceProvider processingTimeService;
+	private transient ProcessingTimeService processingTimeService;
 
 	/**
 	 * Creates a new {@code BucketingSink} that writes files to the given base directory.
@@ -300,6 +308,28 @@ public class BucketingSink<T>
 		this.basePath = basePath;
 		this.bucketer = new DateTimeBucketer<T>();
 		this.writerTemplate = new StringWriter<>();
+	}
+
+	/**
+	 * Specify a custom {@code Configuration} that will be used when creating
+	 * the {@link FileSystem} for writing.
+	 */
+	public BucketingSink<T> setFSConfig(Configuration config) {
+		this.fsConfig = new Configuration();
+		fsConfig.addAll(config);
+		return this;
+	}
+
+	/**
+	 * Specify a custom {@code Configuration} that will be used when creating
+	 * the {@link FileSystem} for writing.
+	 */
+	public BucketingSink<T> setFSConfig(org.apache.hadoop.conf.Configuration config) {
+		this.fsConfig = new Configuration();
+		for(Map.Entry<String, String> entry : config) {
+			fsConfig.setString(entry.getKey(), entry.getValue());
+		};
+		return this;
 	}
 
 	@Override
@@ -319,12 +349,11 @@ public class BucketingSink<T>
 		state = new State<T>();
 
 		Path baseDirectory = new Path(basePath);
-		hadoopConf = HadoopFileSystem.getHadoopConfiguration();
-		FileSystem fs = baseDirectory.getFileSystem(hadoopConf);
+		initFileSystem();
 		refTruncate = reflectTruncate(fs);
 
 		processingTimeService =
-				((StreamingRuntimeContext) getRuntimeContext()).getTimeServiceProvider();
+				((StreamingRuntimeContext) getRuntimeContext()).getProcessingTimeService();
 
 		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 
@@ -367,6 +396,27 @@ public class BucketingSink<T>
 			LOG.error("Error while deleting leftover pending/in-progress files: {}", e);
 			throw new RuntimeException("Error while deleting leftover pending/in-progress files.", e);
 		}
+	}
+
+	/**
+	 * create a file system with the user defined hdfs config
+	 * @throws IOException
+	 */
+	private void initFileSystem() throws IOException {
+		if(fs != null) {
+			return;
+		}
+		org.apache.hadoop.conf.Configuration hadoopConf = HadoopFileSystem.getHadoopConfiguration();
+		if(fsConfig != null) {
+			String disableCacheName
+				= String.format("fs.%s.impl.disable.cache", new Object[]{new Path(basePath).toUri().getScheme()});
+			hadoopConf.setBoolean(disableCacheName, true);
+			for (String key : fsConfig.keySet()) {
+				hadoopConf.set(key, fsConfig.getString(key, null));
+			}
+		}
+
+		fs = new Path(basePath).getFileSystem(hadoopConf);
 	}
 
 	@Override
@@ -422,7 +472,7 @@ public class BucketingSink<T>
 	}
 
 	@Override
-	public void trigger(long timestamp) throws Exception {
+	public void onProcessingTime(long timestamp) throws Exception {
 		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 
 		checkForInactiveBuckets(currentProcessingTime);
@@ -455,8 +505,6 @@ public class BucketingSink<T>
 	 */
 	private void openNewPartFile(Path bucketPath, BucketState<T> bucketState) throws Exception {
 		closeCurrentPartFile(bucketState);
-
-		FileSystem fs = new Path(basePath).getFileSystem(hadoopConf);
 
 		if (!fs.exists(bucketPath)) {
 			try {
@@ -511,7 +559,6 @@ public class BucketingSink<T>
 			Path currentPartPath = new Path(bucketState.currentFile);
 			Path inProgressPath = new Path(currentPartPath.getParent(), inProgressPrefix + currentPartPath.getName()).suffix(inProgressSuffix);
 			Path pendingPath = new Path(currentPartPath.getParent(), pendingPrefix + currentPartPath.getName()).suffix(pendingSuffix);
-			FileSystem fs = inProgressPath.getFileSystem(hadoopConf);
 			fs.rename(inProgressPath, pendingPath);
 			LOG.debug("Moving in-progress bucket {} to pending file {}",
 				inProgressPath,
@@ -589,7 +636,6 @@ public class BucketingSink<T>
 								Path pendingPath = new Path(finalPath.getParent(),
 									pendingPrefix + finalPath.getName()).suffix(pendingSuffix);
 
-								FileSystem fs = pendingPath.getFileSystem(hadoopConf);
 								fs.rename(pendingPath, finalPath);
 								LOG.debug(
 									"Moving pending file {} to final location having completed checkpoint {}.",
@@ -634,9 +680,8 @@ public class BucketingSink<T>
 	public void restoreState(State<T> state) {
 		this.state = state;
 
-		FileSystem fs;
 		try {
-			fs = new Path(basePath).getFileSystem(HadoopFileSystem.getHadoopConfiguration());
+			initFileSystem();
 		} catch (IOException e) {
 			LOG.error("Error while creating FileSystem in checkpoint restore.", e);
 			throw new RuntimeException("Error while creating FileSystem in checkpoint restore.", e);

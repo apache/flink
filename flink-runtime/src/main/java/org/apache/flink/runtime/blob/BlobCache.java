@@ -56,21 +56,26 @@ public final class BlobCache implements BlobService {
 	/** The number of retries when the transfer fails */
 	private final int numFetchRetries;
 
+	/** Configuration for the blob client like ssl parameters required to connect to the blob server */
+	private final Configuration blobClientConfig;
 
-	public BlobCache(InetSocketAddress serverAddress, Configuration configuration) {
-		if (serverAddress == null || configuration == null) {
+
+	public BlobCache(InetSocketAddress serverAddress, Configuration blobClientConfig) {
+		if (serverAddress == null || blobClientConfig == null) {
 			throw new NullPointerException();
 		}
 
 		this.serverAddress = serverAddress;
 
+		this.blobClientConfig = blobClientConfig;
+
 		// configure and create the storage directory
-		String storageDirectory = configuration.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
+		String storageDirectory = blobClientConfig.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
 		this.storageDir = BlobUtils.initStorageDirectory(storageDirectory);
 		LOG.info("Created BLOB cache storage directory " + storageDir);
 
 		// configure the number of fetch retries
-		final int fetchRetries = configuration.getInteger(
+		final int fetchRetries = blobClientConfig.getInteger(
 			ConfigConstants.BLOB_FETCH_RETRIES_KEY, ConfigConstants.DEFAULT_BLOB_FETCH_RETRIES);
 		if (fetchRetries >= 0) {
 			this.numFetchRetries = fetchRetries;
@@ -121,7 +126,7 @@ public final class BlobCache implements BlobService {
 					OutputStream os = null;
 
 					try {
-						bc = new BlobClient(serverAddress);
+						bc = new BlobClient(serverAddress, blobClientConfig);
 						is = bc.get(requiredBlob);
 						os = new FileOutputStream(localJarFile);
 
@@ -245,7 +250,7 @@ public final class BlobCache implements BlobService {
 
 	@Override
 	public BlobClient createClient() throws IOException {
-		return new BlobClient(serverAddress);
+		return new BlobClient(serverAddress, blobClientConfig);
 	}
 
 	public File getStorageDir() {

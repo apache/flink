@@ -45,6 +45,7 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerConnection;
@@ -124,8 +125,17 @@ public class InterruptSensitiveRestoreTest {
 			StreamStateHandle state) throws IOException {
 
 		ChainedStateHandle<StreamStateHandle> operatorState = new ChainedStateHandle<>(Collections.singletonList(state));
-		List<KeyGroupsStateHandle> keyGroupState = Collections.emptyList();
-		List<Collection<OperatorStateHandle>> partitionableOperatorState = Collections.emptyList();
+		List<KeyGroupsStateHandle> keyGroupStateFromBackend = Collections.emptyList();
+		List<KeyGroupsStateHandle> keyGroupStateFromStream = Collections.emptyList();
+		List<Collection<OperatorStateHandle>> operatorStateBackend = Collections.emptyList();
+		List<Collection<OperatorStateHandle>> operatorStateStream = Collections.emptyList();
+
+		TaskStateHandles taskStateHandles = new TaskStateHandles(
+				operatorState,
+				operatorStateBackend,
+				operatorStateStream,
+				keyGroupStateFromBackend,
+				keyGroupStateFromStream);
 
 		return new TaskDeploymentDescriptor(
 				new JobID(),
@@ -143,9 +153,7 @@ public class InterruptSensitiveRestoreTest {
 				Collections.<BlobKey>emptyList(),
 				Collections.<URL>emptyList(),
 				0,
-				operatorState,
-				keyGroupState,
-				partitionableOperatorState);
+				taskStateHandles);
 	}
 
 	private static Task createTask(TaskDeploymentDescriptor tdd) throws IOException {

@@ -26,7 +26,7 @@ import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.blob.BlobKey
 import org.apache.flink.runtime.client.{JobStatusMessage, SerializedJobExecutionResult}
-import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
+import org.apache.flink.runtime.executiongraph.{AccessExecutionGraph, ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.{Instance, InstanceID}
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID
 import org.apache.flink.runtime.jobgraph.{IntermediateDataSetID, JobGraph, JobStatus, JobVertexID}
@@ -109,6 +109,21 @@ object JobManagerMessages {
    * @param jobID
    */
   case class CancelJob(jobID: JobID) extends RequiresLeaderSessionID
+
+  /**
+    * Cancels the job with the given [[jobID]] at the JobManager. Before cancellation a savepoint
+    * is triggered without any other checkpoints in between. The result of the cancellation is
+    * the path of the triggered savepoint on success or an exception.
+    *
+    * @param jobID ID of the job to cancel
+    * @param savepointDirectory Optional target directory for the savepoint.
+    *                           If no target directory is specified here, the
+    *                           cluster default is used.
+    */
+  case class CancelJobWithSavepoint(
+      jobID: JobID,
+      savepointDirectory: String = null)
+    extends RequiresLeaderSessionID
 
   /**
    * Stops a (streaming) job with the given [[jobID]] at the JobManager. The result of
@@ -280,7 +295,9 @@ object JobManagerMessages {
    * Denotes a successful job cancellation
    * @param jobID
    */
-  case class CancellationSuccess(jobID: JobID) extends CancellationResponse
+  case class CancellationSuccess(
+    jobID: JobID,
+    savepointPath: String = null) extends CancellationResponse
 
   /**
    * Denotes a failed job cancellation
@@ -354,7 +371,7 @@ object JobManagerMessages {
    * @param jobID
    * @param executionGraph
    */
-  case class JobFound(jobID: JobID, executionGraph: ExecutionGraph) extends JobResponse
+  case class JobFound(jobID: JobID, executionGraph: AccessExecutionGraph) extends JobResponse
 
   /**
    * Denotes that there is no job with [[jobID]] retrievable. This message can be the response of
@@ -467,8 +484,11 @@ object JobManagerMessages {
     * of triggering and acknowledging checkpoints.
     *
     * @param jobId The JobID of the job to trigger the savepoint for.
+    * @param savepointDirectory Optional target directory
     */
-  case class TriggerSavepoint(jobId: JobID) extends RequiresLeaderSessionID
+  case class TriggerSavepoint(
+      jobId: JobID,
+      savepointDirectory : Option[String] = Option.empty) extends RequiresLeaderSessionID
 
   /**
     * Response after a successful savepoint trigger containing the savepoint path.

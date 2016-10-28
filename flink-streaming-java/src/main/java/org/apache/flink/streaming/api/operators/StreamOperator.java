@@ -20,14 +20,12 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import java.io.Serializable;
-import java.util.Collection;
-import java.util.concurrent.RunnableFuture;
 
 /**
  * Basic interface for stream operators. Implementers would implement one of
@@ -105,7 +103,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	 * the runnable might already be finished.
 	 * @throws Exception exception that happened during snapshotting.
 	 */
-	RunnableFuture<OperatorStateHandle> snapshotState(
+	OperatorSnapshotResult snapshotState(
 			long checkpointId, long timestamp, CheckpointStreamFactory streamFactory) throws Exception;
 
 	/**
@@ -113,7 +111,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	 *
 	 * @param stateHandles state handles to the operator state.
 	 */
-	void restoreState(Collection<OperatorStateHandle> stateHandles);
+	void initializeState(OperatorStateHandles stateHandles) throws Exception;
 
 	/**
 	 * Called when the checkpoint with the given ID is completed and acknowledged on the JobManager.

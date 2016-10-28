@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
@@ -76,7 +77,7 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 			CuratorFramework client = ZooKeeper.getClient();
 			assertNotNull(client.checkExists().forPath("/checkpoint-id-counter"));
 
-			counter.shutdown();
+			counter.shutdown(JobStatus.FINISHED);
 			assertNull(client.checkExists().forPath("/checkpoint-id-counter"));
 		}
 
@@ -91,7 +92,7 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 			CuratorFramework client = ZooKeeper.getClient();
 			assertNotNull(client.checkExists().forPath("/checkpoint-id-counter"));
 
-			counter.suspend();
+			counter.shutdown(JobStatus.SUSPENDED);
 			assertNotNull(client.checkExists().forPath("/checkpoint-id-counter"));
 		}
 
@@ -120,7 +121,7 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 			assertEquals(4, counter.getAndIncrement());
 		}
 		finally {
-			counter.shutdown();
+			counter.shutdown(JobStatus.FINISHED);
 		}
 	}
 
@@ -183,7 +184,7 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 				executor.shutdown();
 			}
 
-			counter.shutdown();
+			counter.shutdown(JobStatus.FINISHED);
 		}
 	}
 
@@ -200,7 +201,7 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 		assertEquals(1337, counter.getAndIncrement());
 		assertEquals(1338, counter.getAndIncrement());
 
-		counter.shutdown();
+		counter.shutdown(JobStatus.FINISHED);
 	}
 
 	/**

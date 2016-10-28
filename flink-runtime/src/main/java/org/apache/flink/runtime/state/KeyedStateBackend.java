@@ -54,9 +54,9 @@ public interface KeyedStateBackend<K> {
 	int getNumberOfKeyGroups();
 
 	/**
-	 * Returns the key group range for this backend.
+	 * Returns the key groups for this backend.
 	 */
-	KeyGroupRange getKeyGroupRange();
+	KeyGroupsList getKeyGroupRange();
 
 	/**
 	 * {@link TypeSerializer} for the state backend key type.

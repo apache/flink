@@ -26,10 +26,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.View;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,27 +55,30 @@ public class MetricRegistry {
 	private ScheduledExecutorService executor;
 	private ActorRef queryService;
 
-	private final ScopeFormats scopeFormats;
+	private ViewUpdater viewUpdater;
 
-	private final char delimiter;
+	private final ScopeFormats scopeFormats;
+	private final char globalDelimiter;
+	private final List<Character> delimiters = new ArrayList<>();
 
 	/**
 	 * Creates a new MetricRegistry and starts the configured reporter.
 	 */
 	public MetricRegistry(MetricRegistryConfiguration config) {
 		this.scopeFormats = config.getScopeFormats();
-		this.delimiter = config.getDelimiter();
+		this.globalDelimiter = config.getDelimiter();
 
 		// second, instantiate any custom configured reporters
 		this.reporters = new ArrayList<>();
 
 		List<Tuple2<String, Configuration>> reporterConfigurations = config.getReporterConfigurations();
 
+		this.executor = Executors.newSingleThreadScheduledExecutor();
+
 		if (reporterConfigurations.isEmpty()) {
 			// no reporters defined
 			// by default, don't report anything
 			LOG.info("No metrics reporter configured, no metrics will be exposed/reported.");
-			this.executor = null;
 		} else {
 			// we have some reporters so
 			for (Tuple2<String, Configuration> reporterConfiguration: reporterConfigurations) {
@@ -111,9 +117,6 @@ public class MetricRegistry {
 					reporterInstance.open(metricConfig);
 
 					if (reporterInstance instanceof Scheduled) {
-						if (executor == null) {
-							executor = Executors.newSingleThreadScheduledExecutor();
-						}
 						LOG.info("Periodically reporting metrics in intervals of {} {} for reporter {} of type {}.", period, timeunit.name(), namedReporter, className);
 
 						executor.scheduleWithFixedDelay(
@@ -122,9 +125,15 @@ public class MetricRegistry {
 						LOG.info("Reporting metrics for reporter {} of type {}.", namedReporter, className);
 					}
 					reporters.add(reporterInstance);
+
+					String delimiterForReporter = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, String.valueOf(globalDelimiter));
+					if (delimiterForReporter.length() != 1) {
+						LOG.warn("Failed to parse delimiter '{}' for reporter '{}', using global delimiter '{}'.", delimiterForReporter, namedReporter, globalDelimiter);
+						delimiterForReporter = String.valueOf(globalDelimiter);
+					}
+					this.delimiters.add(delimiterForReporter.charAt(0));
 				}
 				catch (Throwable t) {
-					shutdownExecutor();
 					LOG.error("Could not instantiate metrics reporter {}. Metrics might not be exposed/reported.", namedReporter, t);
 				}
 			}
@@ -135,17 +144,38 @@ public class MetricRegistry {
 	 * Initializes the MetricQueryService.
 	 * 
 	 * @param actorSystem ActorSystem to create the MetricQueryService on
+	 * @param resourceID resource ID used to disambiguate the actor name
      */
-	public void startQueryService(ActorSystem actorSystem) {
+	public void startQueryService(ActorSystem actorSystem, ResourceID resourceID) {
 		try {
-			queryService = MetricQueryService.startMetricQueryService(actorSystem);
+			queryService = MetricQueryService.startMetricQueryService(actorSystem, resourceID);
 		} catch (Exception e) {
 			LOG.warn("Could not start MetricDumpActor. No metrics will be submitted to the WebInterface.", e);
 		}
 	}
 
+	/**
+	 * Returns the global delimiter.
+	 *
+	 * @return global delimiter
+	 */
 	public char getDelimiter() {
-		return this.delimiter;
+		return this.globalDelimiter;
+	}
+
+	/**
+	 * Returns the configured delimiter for the reporter with the given index.
+	 *
+	 * @param reporterIndex index of the reporter whose delimiter should be used
+	 * @return configured reporter delimiter, or global delimiter if index is invalid
+	 */
+	public char getDelimiter(int reporterIndex) {
+		try {
+			return delimiters.get(reporterIndex);
+		} catch (IndexOutOfBoundsException e) {
+			LOG.warn("Delimiter for reporter index {} not found, returning global delimiter.", reporterIndex);
+			return this.globalDelimiter;
+		}
 	}
 
 	public List<MetricReporter> getReporters() {
@@ -198,17 +228,25 @@ public class MetricRegistry {
 	 * @param metricName  the name of the metric
 	 * @param group       the group that contains the metric
 	 */
-	public void register(Metric metric, String metricName, MetricGroup group) {
+	public void register(Metric metric, String metricName, AbstractMetricGroup group) {
 		try {
 			if (reporters != null) {
-				for (MetricReporter reporter : reporters) {
+				for (int i = 0; i < reporters.size(); i++) {
+					MetricReporter reporter = reporters.get(i);
 					if (reporter != null) {
-						reporter.notifyOfAddedMetric(metric, metricName, group);
+						FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
+						reporter.notifyOfAddedMetric(metric, metricName, front);
 					}
 				}
 			}
 			if (queryService != null) {
-				MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, (AbstractMetricGroup) group);
+				MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, group);
+			}
+			if (metric instanceof View) {
+				if (viewUpdater == null) {
+					viewUpdater = new ViewUpdater(executor);
+				}
+				viewUpdater.notifyOfAddedView((View) metric);
 			}
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);
@@ -222,17 +260,24 @@ public class MetricRegistry {
 	 * @param metricName  the name of the metric
 	 * @param group       the group that contains the metric
 	 */
-	public void unregister(Metric metric, String metricName, MetricGroup group) {
+	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
 		try {
 			if (reporters != null) {
-				for (MetricReporter reporter : reporters) {
+				for (int i = 0; i < reporters.size(); i++) {
+					MetricReporter reporter = reporters.get(i);
 					if (reporter != null) {
-						reporter.notifyOfRemovedMetric(metric, metricName, group);
+						FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
+						reporter.notifyOfRemovedMetric(metric, metricName, front);
 					}
 				}
 			}
 			if (queryService != null) {
 				MetricQueryService.notifyOfRemovedMetric(queryService, metric);
+			}
+			if (metric instanceof View) {
+				if (viewUpdater != null) {
+					viewUpdater.notifyOfRemovedView((View) metric);
+				}
 			}
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);

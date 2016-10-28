@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.util.Collector;
 
 /**
@@ -39,4 +40,6 @@ public interface Output<T> extends Collector<T> {
 	 * timestamp will be emitted in the future.
 	 */
 	void emitWatermark(Watermark mark);
+
+	void emitLatencyMarker(LatencyMarker latencyMarker);
 }

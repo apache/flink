@@ -128,13 +128,20 @@ public class MetricGroupTest extends TestLogger {
 		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
 		TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");
 		TaskMetricGroup task = new TaskMetricGroup(registry, job, vid, eid, "taskName", 4, 5);
-		GenericMetricGroup userGroup = new GenericMetricGroup(registry, task, "hello");
+		GenericMetricGroup userGroup1 = new GenericMetricGroup(registry, task, "hello");
+		GenericMetricGroup userGroup2 = new GenericMetricGroup(registry, userGroup1, "world");
 
-		QueryScopeInfo.TaskQueryScopeInfo info = (QueryScopeInfo.TaskQueryScopeInfo) userGroup.createQueryServiceMetricInfo(new DummyCharacterFilter());
-		assertEquals("hello", info.scope);
-		assertEquals(jid.toString(), info.jobID);
-		assertEquals(vid.toString(), info.vertexID);
-		assertEquals(4, info.subtaskIndex);
+		QueryScopeInfo.TaskQueryScopeInfo info1 = (QueryScopeInfo.TaskQueryScopeInfo) userGroup1.createQueryServiceMetricInfo(new DummyCharacterFilter());
+		assertEquals("hello", info1.scope);
+		assertEquals(jid.toString(), info1.jobID);
+		assertEquals(vid.toString(), info1.vertexID);
+		assertEquals(4, info1.subtaskIndex);
+
+		QueryScopeInfo.TaskQueryScopeInfo info2 = (QueryScopeInfo.TaskQueryScopeInfo) userGroup2.createQueryServiceMetricInfo(new DummyCharacterFilter());
+		assertEquals("hello.world", info2.scope);
+		assertEquals(jid.toString(), info2.jobID);
+		assertEquals(vid.toString(), info2.vertexID);
+		assertEquals(4, info2.subtaskIndex);
 	}
 	
 	// ------------------------------------------------------------------------
@@ -146,12 +153,12 @@ public class MetricGroupTest extends TestLogger {
 		}
 
 		@Override
-		public void register(Metric metric, String name, MetricGroup parent) {
+		public void register(Metric metric, String name, AbstractMetricGroup parent) {
 			fail("Metric should never be registered");
 		}
 
 		@Override
-		public void unregister(Metric metric, String name, MetricGroup parent) {
+		public void unregister(Metric metric, String name, AbstractMetricGroup parent) {
 			fail("Metric should never be un-registered");
 		}
 	}

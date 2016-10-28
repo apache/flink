@@ -68,10 +68,10 @@ public class JobClient {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JobClient.class);
 
-
 	public static ActorSystem startJobClientActorSystem(Configuration config)
 			throws IOException {
 		LOG.info("Starting JobClient actor system");
+
 		Option<Tuple2<String, Object>> remoting = new Some<>(new Tuple2<String, Object>("", 0));
 
 		// start a remote actor system to listen on an arbitrary port
@@ -95,6 +95,7 @@ public class JobClient {
 	 */
 	public static JobListeningContext submitJob(
 			ActorSystem actorSystem,
+			Configuration config,
 			LeaderRetrievalService leaderRetrievalService,
 			JobGraph jobGraph,
 			FiniteDuration timeout,
@@ -113,7 +114,8 @@ public class JobClient {
 		Props jobClientActorProps = JobSubmissionClientActor.createActorProps(
 			leaderRetrievalService,
 			timeout,
-			sysoutLogUpdates);
+			sysoutLogUpdates,
+			config);
 
 		ActorRef jobClientActor = actorSystem.actorOf(jobClientActorProps);
 
@@ -348,6 +350,7 @@ public class JobClient {
 	 * case a [[JobExecutionException]] is thrown.
 	 *
 	 * @param actorSystem The actor system that performs the communication.
+	 * @param config The cluster wide configuration.
 	 * @param leaderRetrievalService Leader retrieval service which used to find the current leading
 	 *                               JobManager
 	 * @param jobGraph    JobGraph describing the Flink job
@@ -360,6 +363,7 @@ public class JobClient {
 	 */
 	public static JobExecutionResult submitJobAndWait(
 			ActorSystem actorSystem,
+			Configuration config,
 			LeaderRetrievalService leaderRetrievalService,
 			JobGraph jobGraph,
 			FiniteDuration timeout,
@@ -368,6 +372,7 @@ public class JobClient {
 
 		JobListeningContext jobListeningContext = submitJob(
 				actorSystem,
+				config,
 				leaderRetrievalService,
 				jobGraph,
 				timeout,
@@ -382,11 +387,13 @@ public class JobClient {
 	 * JobManager and waits for the answer whether the job could be started or not.
 	 *
 	 * @param jobManagerGateway Gateway to the JobManager which will execute the jobs
+	 * @param config The cluster wide configuration.
 	 * @param jobGraph The job
 	 * @param timeout  Timeout in which the JobManager must have responded.
 	 */
 	public static void submitJobDetached(
 			ActorGateway jobManagerGateway,
+			Configuration config,
 			JobGraph jobGraph,
 			FiniteDuration timeout,
 			ClassLoader classLoader) throws JobExecutionException {
@@ -397,7 +404,7 @@ public class JobClient {
 
 		LOG.info("Checking and uploading JAR files");
 		try {
-			jobGraph.uploadUserJars(jobManagerGateway, timeout);
+			jobGraph.uploadUserJars(jobManagerGateway, timeout, config);
 		}
 		catch (IOException e) {
 			throw new JobSubmissionException(jobGraph.getJobID(),

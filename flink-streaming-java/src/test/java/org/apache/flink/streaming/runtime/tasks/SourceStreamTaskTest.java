@@ -53,7 +53,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ResultPartitionWriter.class})
-@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
+@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*", "org.apache.log4j.*" })
 public class SourceStreamTaskTest {
 
 

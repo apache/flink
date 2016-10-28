@@ -50,13 +50,17 @@ public class BlobClientTest {
 	/** The instance of the BLOB server used during the tests. */
 	private static BlobServer BLOB_SERVER;
 
+	/** The blob service client and server configuration */
+	private static Configuration blobServiceConfig;
+
 	/**
 	 * Starts the BLOB server.
 	 */
 	@BeforeClass
 	public static void startServer() {
 		try {
-			BLOB_SERVER = new BlobServer(new Configuration());
+			blobServiceConfig = new Configuration();
+			BLOB_SERVER = new BlobServer(blobServiceConfig);
 		}
 		catch (IOException e) {
 			e.printStackTrace();
@@ -207,7 +211,7 @@ public class BlobClientTest {
 			BlobKey origKey = new BlobKey(md.digest());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
-			client = new BlobClient(serverAddress);
+			client = new BlobClient(serverAddress, blobServiceConfig);
 
 			// Store the data
 			BlobKey receivedKey = client.put(testBuffer);
@@ -255,7 +259,7 @@ public class BlobClientTest {
 			BlobKey origKey = prepareTestFile(testFile);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
-			client = new BlobClient(serverAddress);
+			client = new BlobClient(serverAddress, blobServiceConfig);
 
 			// Store the data
 			is = new FileInputStream(testFile);
@@ -301,7 +305,7 @@ public class BlobClientTest {
 			BlobClient client = null;
 			try {
 				final InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
-				client = new BlobClient(serverAddress);
+				client = new BlobClient(serverAddress, blobServiceConfig);
 
 				// Store the data
 				client.put(jobID, key, testBuffer);
@@ -353,7 +357,7 @@ public class BlobClientTest {
 			try {
 
 				final InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
-				client = new BlobClient(serverAddress);
+				client = new BlobClient(serverAddress, blobServiceConfig);
 
 				// Store the data
 				is = new FileInputStream(testFile);
@@ -384,7 +388,7 @@ public class BlobClientTest {
 	}
 
 	/**
-	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, List)} helper.
+	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, Configuration, List)} helper.
 	 */
 	@Test
 	public void testUploadJarFilesHelper() throws Exception {
@@ -394,11 +398,12 @@ public class BlobClientTest {
 
 		InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
 
-		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(serverAddress, Collections.singletonList(new Path(testFile.toURI())));
+		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(serverAddress, blobServiceConfig,
+			Collections.singletonList(new Path(testFile.toURI())));
 
 		assertEquals(1, blobKeys.size());
 
-		try (BlobClient blobClient = new BlobClient(serverAddress)) {
+		try (BlobClient blobClient = new BlobClient(serverAddress, blobServiceConfig)) {
 			InputStream is = blobClient.get(blobKeys.get(0));
 			validateGet(is, testFile);
 		}

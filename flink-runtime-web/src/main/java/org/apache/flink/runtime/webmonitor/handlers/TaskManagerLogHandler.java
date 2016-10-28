@@ -37,11 +37,14 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.DefaultFileRegion;
 import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.HttpChunkedInput;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.codec.http.router.Routed;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.stream.ChunkedFile;
 import io.netty.util.concurrent.GenericFutureListener;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobCache;
@@ -114,8 +117,9 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 		Future<String> localJobManagerAddressPromise,
 		FiniteDuration timeout,
 		FileMode fileMode,
-		Configuration config) throws IOException {
-		super(retriever, localJobManagerAddressPromise, timeout);
+		Configuration config,
+		boolean httpsEnabled) throws IOException {
+		super(retriever, localJobManagerAddressPromise, timeout, httpsEnabled);
 
 		this.executor = checkNotNull(executor);
 		this.config = config;
@@ -233,16 +237,30 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 						ctx.write(response);
 
 						// write the content.
-						ctx.write(new DefaultFileRegion(fc, 0, fileLength), ctx.newProgressivePromise())
-							.addListener(new GenericFutureListener<io.netty.util.concurrent.Future<? super Void>>() {
+						ChannelFuture lastContentFuture;
+						final GenericFutureListener<io.netty.util.concurrent.Future<? super Void>> completionListener =
+							new GenericFutureListener<io.netty.util.concurrent.Future<? super Void>>() {
 								@Override
-								public void operationComplete(io.netty.util.concurrent.Future<? super Void> future) throws Exception {
-									lastRequestPending.remove(taskManagerID);
-									fc.close();
-									raf.close();
+								public void operationComplete(
+									io.netty.util.concurrent.Future<? super Void> future) throws Exception {
+										lastRequestPending.remove(taskManagerID);
+										fc.close();
+										raf.close();
 								}
-							});
-						ChannelFuture lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+							};
+						if (ctx.pipeline().get(SslHandler.class) == null) {
+							ctx.write(
+								new DefaultFileRegion(fc, 0, fileLength), ctx.newProgressivePromise())
+									.addListener(completionListener);
+							lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+
+						} else {
+							lastContentFuture = ctx.writeAndFlush(
+								new HttpChunkedInput(new ChunkedFile(raf, 0, fileLength, 8192)),
+								ctx.newProgressivePromise())
+									.addListener(completionListener);
+							// HttpChunkedInput will write the end marker (LastHttpContent) for us.
+						}
 
 						// close the connection, if no keep-alive is needed
 						if (!HttpHeaders.isKeepAlive(request)) {

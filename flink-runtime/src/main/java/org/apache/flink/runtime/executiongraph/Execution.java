@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import akka.dispatch.OnComplete;
 import akka.dispatch.OnFailure;
+import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -33,7 +34,6 @@ import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescript
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
@@ -46,19 +46,14 @@ import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.CheckpointStateHandles;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
-
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -102,7 +97,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * occasional double-checking to ensure that the state after a completed call is as expected, and trigger correcting
  * actions if it is not. Many actions are also idempotent (like canceling).
  */
-public class Execution {
+public class Execution implements AccessExecution, Archiveable<ArchivedExecution> {
 
 	private static final AtomicReferenceFieldUpdater<Execution, ExecutionState> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(Execution.class, ExecutionState.class, "state");
@@ -135,12 +130,7 @@ public class Execution {
 
 	private volatile TaskManagerLocation assignedResourceLocation; // for the archived execution
 
-	private ChainedStateHandle<StreamStateHandle> chainedStateHandle;
-
-	private List<Collection<OperatorStateHandle>> chainedPartitionableStateHandle;
-
-	private List<KeyGroupsStateHandle> keyGroupsStateHandles;
-	
+	private TaskStateHandles taskStateHandles;
 
 	/** The execution context which is used to execute futures. */
 	private ExecutionContext executionContext;
@@ -188,14 +178,17 @@ public class Execution {
 		return vertex;
 	}
 
+	@Override
 	public ExecutionAttemptID getAttemptId() {
 		return attemptId;
 	}
 
+	@Override
 	public int getAttemptNumber() {
 		return attemptNumber;
 	}
 
+	@Override
 	public ExecutionState getState() {
 		return state;
 	}
@@ -204,6 +197,7 @@ public class Execution {
 		return assignedResource;
 	}
 
+	@Override
 	public TaskManagerLocation getAssignedResourceLocation() {
 		return assignedResourceLocation;
 	}
@@ -212,43 +206,27 @@ public class Execution {
 		return failureCause;
 	}
 
+	@Override
+	public String getFailureCauseAsString() {
+		return ExceptionUtils.stringifyException(getFailureCause());
+	}
+
+	@Override
 	public long[] getStateTimestamps() {
 		return stateTimestamps;
 	}
 
+	@Override
 	public long getStateTimestamp(ExecutionState state) {
 		return this.stateTimestamps[state.ordinal()];
-	}
-
-	public ChainedStateHandle<StreamStateHandle> getChainedStateHandle() {
-		return chainedStateHandle;
-	}
-
-	public List<KeyGroupsStateHandle> getKeyGroupsStateHandles() {
-		return keyGroupsStateHandles;
-	}
-
-	public List<Collection<OperatorStateHandle>> getChainedPartitionableStateHandle() {
-		return chainedPartitionableStateHandle;
 	}
 
 	public boolean isFinished() {
 		return state.isTerminal();
 	}
 
-	/**
-	 * This method cleans fields that are irrelevant for the archived execution attempt.
-	 */
-	public void prepareForArchiving() {
-		if (assignedResource != null && assignedResource.isAlive()) {
-			throw new IllegalStateException("Cannot archive Execution while the assigned resource is still running.");
-		}
-		assignedResource = null;
-
-		executionContext = null;
-
-		partialInputChannelDeploymentDescriptors.clear();
-		partialInputChannelDeploymentDescriptors = null;
+	public TaskStateHandles getTaskStateHandles() {
+		return taskStateHandles;
 	}
 
 	/**
@@ -257,17 +235,13 @@ public class Execution {
 	 *
 	 * @param checkpointStateHandles all checkpointed operator state
 	 */
-	public void setInitialState(CheckpointStateHandles checkpointStateHandles, List<Collection<OperatorStateHandle>> chainedPartitionableStateHandle) {
+	public void setInitialState(TaskStateHandles checkpointStateHandles) {
 
 		if (state != ExecutionState.CREATED) {
 			throw new IllegalArgumentException("Can only assign operator state when execution attempt is in CREATED");
 		}
 
-		if(checkpointStateHandles != null) {
-			this.chainedStateHandle = checkpointStateHandles.getNonPartitionedStateHandles();
-			this.chainedPartitionableStateHandle = chainedPartitionableStateHandle;
-			this.keyGroupsStateHandles = checkpointStateHandles.getKeyGroupsStateHandle();
-		}
+		this.taskStateHandles = checkpointStateHandles;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -393,9 +367,7 @@ public class Execution {
 			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(
 				attemptId,
 				slot,
-				chainedStateHandle,
-				keyGroupsStateHandles,
-				chainedPartitionableStateHandle,
+				taskStateHandles,
 				attemptNumber);
 
 			// register this execution at the execution graph, to receive call backs
@@ -1055,12 +1027,19 @@ public class Execution {
 		return userAccumulators;
 	}
 
+	@Override
 	public StringifiedAccumulatorResult[] getUserAccumulatorsStringified() {
 		return StringifiedAccumulatorResult.stringifyAccumulatorResults(userAccumulators);
 	}
 
+	@Override
 	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getFlinkAccumulators() {
 		return flinkAccumulators;
+	}
+
+	@Override
+	public int getParallelSubtaskIndex() {
+		return getVertex().getParallelSubtaskIndex();
 	}
 
 	// ------------------------------------------------------------------------
@@ -1071,5 +1050,10 @@ public class Execution {
 	public String toString() {
 		return String.format("Attempt #%d (%s) @ %s - [%s]", attemptNumber, vertex.getSimpleName(),
 				(assignedResource == null ? "(unassigned)" : assignedResource.toString()), state);
+	}
+
+	@Override
+	public ArchivedExecution archive() {
+		return new ArchivedExecution(this);
 	}
 }

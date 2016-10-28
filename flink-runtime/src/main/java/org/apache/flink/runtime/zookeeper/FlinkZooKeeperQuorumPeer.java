@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.zookeeper;
 
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+
 import org.apache.zookeeper.server.ServerConfig;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.apache.zookeeper.server.ZooKeeperServerMain;
@@ -47,7 +47,24 @@ import java.util.UUID;
  */
 public class FlinkZooKeeperQuorumPeer {
 
+	/** ZooKeeper default client port. */
+	public static final int DEFAULT_ZOOKEEPER_CLIENT_PORT = 2181;
+
+	/** ZooKeeper default init limit. */
+	public static final int DEFAULT_ZOOKEEPER_INIT_LIMIT = 10;
+
+	/** ZooKeeper default sync limit. */
+	public static final int DEFAULT_ZOOKEEPER_SYNC_LIMIT = 5;
+
+	/** ZooKeeper default peer port. */
+	public static final int DEFAULT_ZOOKEEPER_PEER_PORT = 2888;
+
+	/** ZooKeeper default leader port. */
+	public static final int DEFAULT_ZOOKEEPER_LEADER_PORT = 3888;
+
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkZooKeeperQuorumPeer.class);
+
+	// ------------------------------------------------------------------------
 
 	public static void main(String[] args) {
 		try {
@@ -66,6 +83,8 @@ public class FlinkZooKeeperQuorumPeer {
 			System.exit(-1);
 		}
 	}
+
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Runs a ZooKeeper {@link QuorumPeer} if further peers are configured or a single
@@ -120,26 +139,23 @@ public class FlinkZooKeeperQuorumPeer {
 	private static void setRequiredProperties(Properties zkProps) {
 		// Set default client port
 		if (zkProps.getProperty("clientPort") == null) {
-			int clientPort = ConfigConstants.DEFAULT_ZOOKEEPER_CLIENT_PORT;
-			zkProps.setProperty("clientPort", String.valueOf(clientPort));
+			zkProps.setProperty("clientPort", String.valueOf(DEFAULT_ZOOKEEPER_CLIENT_PORT));
 
-			LOG.warn("No 'clientPort' configured. Set to '{}'.", clientPort);
+			LOG.warn("No 'clientPort' configured. Set to '{}'.", DEFAULT_ZOOKEEPER_CLIENT_PORT);
 		}
 
 		// Set default init limit
 		if (zkProps.getProperty("initLimit") == null) {
-			int initLimit = ConfigConstants.DEFAULT_ZOOKEEPER_INIT_LIMIT;
-			zkProps.setProperty("initLimit", String.valueOf(initLimit));
+			zkProps.setProperty("initLimit", String.valueOf(DEFAULT_ZOOKEEPER_INIT_LIMIT));
 
-			LOG.warn("No 'initLimit' configured. Set to '{}'.", initLimit);
+			LOG.warn("No 'initLimit' configured. Set to '{}'.", DEFAULT_ZOOKEEPER_INIT_LIMIT);
 		}
 
 		// Set default sync limit
 		if (zkProps.getProperty("syncLimit") == null) {
-			int syncLimit = ConfigConstants.DEFAULT_ZOOKEEPER_SYNC_LIMIT;
-			zkProps.setProperty("syncLimit", String.valueOf(syncLimit));
+			zkProps.setProperty("syncLimit", String.valueOf(DEFAULT_ZOOKEEPER_SYNC_LIMIT));
 
-			LOG.warn("No 'syncLimit' configured. Set to '{}'.", syncLimit);
+			LOG.warn("No 'syncLimit' configured. Set to '{}'.", DEFAULT_ZOOKEEPER_SYNC_LIMIT);
 		}
 
 		// Set default data dir
@@ -152,8 +168,8 @@ public class FlinkZooKeeperQuorumPeer {
 			LOG.warn("No 'dataDir' configured. Set to '{}'.", dataDir);
 		}
 
-		int peerPort = ConfigConstants.DEFAULT_ZOOKEEPER_PEER_PORT;
-		int leaderPort = ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PORT;
+		int peerPort = DEFAULT_ZOOKEEPER_PEER_PORT;
+		int leaderPort = DEFAULT_ZOOKEEPER_LEADER_PORT;
 
 		// Set peer and leader ports if none given, because ZooKeeper complains if multiple
 		// servers are configured, but no ports are given.
@@ -220,12 +236,8 @@ public class FlinkZooKeeperQuorumPeer {
 		
 		// Write myid to file. We use a File Writer, because that properly propagates errors,
 		// while the PrintWriter swallows errors
-		FileWriter writer = new FileWriter(new File(dataDir, "myid"));
-		try {
+		try (FileWriter writer = new FileWriter(new File(dataDir, "myid"))) {
 			writer.write(String.valueOf(id));
-		}
-		finally {
-			writer.close();
 		}
 	}
 }

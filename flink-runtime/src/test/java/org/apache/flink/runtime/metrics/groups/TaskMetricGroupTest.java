@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
@@ -156,13 +155,13 @@ public class TaskMetricGroupTest extends TestLogger {
 		}
 
 		@Override
-		public void register(Metric metric, String metricName, MetricGroup group) {
+		public void register(Metric metric, String metricName, AbstractMetricGroup group) {
 			super.register(metric, metricName, group);
 			counter++;
 		}
 
 		@Override
-		public void unregister(Metric metric, String metricName, MetricGroup group) {
+		public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
 			super.unregister(metric, metricName, group);
 			counter--;
 		}

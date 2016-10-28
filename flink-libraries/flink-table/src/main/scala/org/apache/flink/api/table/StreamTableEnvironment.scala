@@ -24,8 +24,7 @@ import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql2rel.RelDecorrelator
-import org.apache.calcite.tools.Programs
-
+import org.apache.calcite.tools.{Programs, RuleSet}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
@@ -80,6 +79,47 @@ abstract class StreamTableEnvironment(
 
   /** Returns a unique table name according to the internal naming pattern. */
   protected def createUniqueTableName(): String = "_DataStreamTable_" + nameCntr.getAndIncrement()
+
+  /**
+    * Returns field names and field positions for a given [[TypeInformation]].
+    *
+    * Field names are automatically extracted for
+    * [[org.apache.flink.api.common.typeutils.CompositeType]].
+    * The method fails if inputType is not a
+    * [[org.apache.flink.api.common.typeutils.CompositeType]].
+    *
+    * @param inputType The TypeInformation extract the field names and positions from.
+    * @tparam A The type of the TypeInformation.
+    * @return A tuple of two arrays holding the field names and corresponding field positions.
+    */
+  override protected[flink] def getFieldInfo[A](inputType: TypeInformation[A])
+    : (Array[String], Array[Int]) = {
+    val fieldInfo = super.getFieldInfo(inputType)
+    if (fieldInfo._1.contains("rowtime")) {
+      throw new TableException("'rowtime' ia a reserved field name in stream environment.")
+    }
+    fieldInfo
+  }
+
+  /**
+    * Returns field names and field positions for a given [[TypeInformation]] and [[Array]] of
+    * [[Expression]].
+    *
+    * @param inputType The [[TypeInformation]] against which the [[Expression]]s are evaluated.
+    * @param exprs     The expressions that define the field names.
+    * @tparam A The type of the TypeInformation.
+    * @return A tuple of two arrays holding the field names and corresponding field positions.
+    */
+  override protected[flink] def getFieldInfo[A](
+      inputType: TypeInformation[A],
+      exprs: Array[Expression])
+    : (Array[String], Array[Int]) = {
+    val fieldInfo = super.getFieldInfo(inputType, exprs)
+    if (fieldInfo._1.contains("rowtime")) {
+      throw new TableException("'rowtime' is a reserved field name in stream environment.")
+    }
+    fieldInfo
+  }
 
   /**
     * Ingests a registered table and returns the resulting [[Table]].
@@ -204,6 +244,11 @@ abstract class StreamTableEnvironment(
   }
 
   /**
+    * Returns the built-in rules that are defined by the environment.
+    */
+  protected def getBuiltInRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_OPT_RULES
+
+  /**
     * Generates the optimized [[RelNode]] tree from the original relational node tree.
     *
     * @param relNode The root node of the relational expression tree.
@@ -214,7 +259,7 @@ abstract class StreamTableEnvironment(
     val decorPlan = RelDecorrelator.decorrelateQuery(relNode)
 
     // optimize the logical Flink plan
-    val optProgram = Programs.ofRules(FlinkRuleSets.DATASTREAM_OPT_RULES)
+    val optProgram = Programs.ofRules(getRuleSet)
     val flinkOutputProps = relNode.getTraitSet.replace(DataStreamConvention.INSTANCE).simplify()
 
     val dataStreamPlan = try {
@@ -222,11 +267,11 @@ abstract class StreamTableEnvironment(
     }
     catch {
       case e: CannotPlanException =>
-        throw new TableException(
+        throw TableException(
           s"Cannot generate a valid execution plan for the given query: \n\n" +
             s"${RelOptUtil.toString(relNode)}\n" +
             s"This exception indicates that the query uses an unsupported SQL feature.\n" +
-            s"Please check the documentation for the set of currently supported SQL features.")
+            s"Please check the documentation for the set of currently supported SQL features.", e)
     }
     dataStreamPlan
   }

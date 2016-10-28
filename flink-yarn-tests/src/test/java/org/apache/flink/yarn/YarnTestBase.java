@@ -24,6 +24,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
@@ -490,7 +491,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 		final int START_TIMEOUT_SECONDS = 60;
 
-		Runner runner = new Runner(args, type);
+		Runner runner = new Runner(args, type, 0);
 		runner.setName("Frontend (CLI/YARN Client) runner thread (startWithArgs()).");
 		runner.start();
 
@@ -505,7 +506,10 @@ public abstract class YarnTestBase extends TestLogger {
 			// check if thread died
 			if(!runner.isAlive()) {
 				sendOutput();
-				Assert.fail("Runner thread died before the test was finished. Return value = "+runner.getReturnValue());
+				if(runner.getRunnerError() != null) {
+					throw new RuntimeException("Runner failed with exception.", runner.getRunnerError());
+				}
+				Assert.fail("Runner thread died before the test was finished.");
 			}
 		}
 
@@ -524,10 +528,10 @@ public abstract class YarnTestBase extends TestLogger {
 	 * @param terminateAfterString the runner is searching the stdout and stderr for this string. as soon as it appears, the test has passed
 	 * @param failOnPatterns The runner is searching stdout and stderr for the pattern (regexp) specified here. If one appears, the test has failed
 	 * @param type Set the type of the runner
-	 * @param returnCode Expected return code from the runner.
+	 * @param expectedReturnValue Expected return code from the runner.
 	 * @param checkLogForTerminateString  If true, the runner checks also the log4j logger for the terminate string
 	 */
-	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnPatterns, RunTypes type, int returnCode, boolean checkLogForTerminateString) {
+	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnPatterns, RunTypes type, int expectedReturnValue, boolean checkLogForTerminateString) {
 		LOG.info("Running with args {}", Arrays.toString(args));
 
 		outContent = new ByteArrayOutputStream();
@@ -540,7 +544,7 @@ public abstract class YarnTestBase extends TestLogger {
 		final int START_TIMEOUT_SECONDS = 180;
 		final long deadline = System.currentTimeMillis() + (START_TIMEOUT_SECONDS * 1000);
 		
-		Runner runner = new Runner(args, type);
+		Runner runner = new Runner(args, type, expectedReturnValue);
 		runner.start();
 
 		boolean expectedStringSeen = false;
@@ -589,25 +593,22 @@ public abstract class YarnTestBase extends TestLogger {
 			else {
 				// check if thread died
 				if (!runner.isAlive()) {
-					if (runner.getReturnValue() != 0) {
-						Assert.fail("Runner thread died before the test was finished. Return value = "
-								+ runner.getReturnValue());
-					} else {
-						LOG.info("Runner stopped earlier than expected with return value = 0");
-					}
 					// leave loop: the runner died, so we can not expect new strings to show up.
 					break;
 				}
 			}
 		}
-		while (!expectedStringSeen && System.currentTimeMillis() < deadline);
+		while (runner.getRunnerError() == null && !expectedStringSeen && System.currentTimeMillis() < deadline);
 		
 		sendOutput();
+
+		if(runner.getRunnerError() != null) {
+			// this lets the test fail.
+			throw new RuntimeException("Runner failed", runner.getRunnerError());
+		}
 		Assert.assertTrue("During the timeout period of " + START_TIMEOUT_SECONDS + " seconds the " +
 				"expected string did not show up", expectedStringSeen);
 
-		// check for 0 return code
-		Assert.assertEquals("Expected return value", returnCode, runner.getReturnValue());
 		LOG.info("Test was successful");
 	}
 
@@ -621,22 +622,22 @@ public abstract class YarnTestBase extends TestLogger {
 
 	public static class Runner extends Thread {
 		private final String[] args;
-		private int returnValue;
+		private final int expectedReturnValue;
 		private RunTypes type;
 		private FlinkYarnSessionCli yCli;
+		private Throwable runnerError;
 
-		public Runner(String[] args, RunTypes type) {
+		public Runner(String[] args, RunTypes type, int expectedReturnValue) {
 			this.args = args;
 			this.type = type;
+			this.expectedReturnValue = expectedReturnValue;
 		}
 
-		public int getReturnValue() {
-			return returnValue;
-		}
 
 		@Override
 		public void run() {
 			try {
+				int returnValue;
 				switch (type) {
 					case YARN_SESSION:
 						yCli = new FlinkYarnSessionCli("", "", false);
@@ -670,11 +671,13 @@ public abstract class YarnTestBase extends TestLogger {
 						throw new RuntimeException("Unknown type " + type);
 				}
 
-				if (returnValue != 0) {
-					Assert.fail("The YARN session returned with non-null value=" + returnValue);
+				if (returnValue != this.expectedReturnValue) {
+					Assert.fail("The YARN session returned with unexpected value=" + returnValue + " expected=" + expectedReturnValue);
 				}
 			} catch (Throwable t) {
-				Assert.fail(t.getMessage());
+				LOG.info("Runner stopped with exception", t);
+				// save error.
+				this.runnerError = t;
 			}
 		}
 
@@ -683,6 +686,10 @@ public abstract class YarnTestBase extends TestLogger {
 			if(yCli != null) {
 				yCli.stop();
 			}
+		}
+
+		public Throwable getRunnerError() {
+			return runnerError;
 		}
 	}
 
@@ -738,9 +745,9 @@ public abstract class YarnTestBase extends TestLogger {
 		public TestingCLI() throws Exception {}
 
 		@Override
-		protected ClusterClient createClient(CommandLineOptions options, String programName) throws Exception {
+		protected ClusterClient createClient(CommandLineOptions options, PackagedProgram program) throws Exception {
 			// mock the returned ClusterClient to disable shutdown and verify shutdown behavior later on
-			originalClusterClient = super.createClient(options, programName);
+			originalClusterClient = super.createClient(options, program);
 			spiedClusterClient = Mockito.spy(originalClusterClient);
 			Mockito.doNothing().when(spiedClusterClient).shutdown();
 			return spiedClusterClient;
