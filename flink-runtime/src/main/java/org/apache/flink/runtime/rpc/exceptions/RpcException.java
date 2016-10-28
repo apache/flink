@@ -19,21 +19,21 @@
 package org.apache.flink.runtime.rpc.exceptions;
 
 /**
- * Exception class which is thrown if a rpc connection failed. Usually this happens if the remote
- * host cannot be reached.
+ * Base class for RPC related exceptions.
  */
-public class RpcConnectionException extends RpcException {
-	private static final long serialVersionUID = -5500560405481142472L;
+public class RpcException extends Exception {
 
-	public RpcConnectionException(String message) {
+	private static final long serialVersionUID = -7163591879289483630L;
+
+	public RpcException(String message) {
 		super(message);
 	}
 
-	public RpcConnectionException(String message, Throwable cause) {
+	public RpcException(String message, Throwable cause) {
 		super(message, cause);
 	}
 
-	public RpcConnectionException(Throwable cause) {
+	public RpcException(Throwable cause) {
 		super(cause);
 	}
 }
