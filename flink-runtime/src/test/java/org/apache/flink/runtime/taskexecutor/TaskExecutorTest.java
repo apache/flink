@@ -117,6 +117,10 @@ public class TaskExecutorTest extends TestLogger {
 
 			NonHaServices haServices = new NonHaServices(resourceManagerAddress);
 
+			final TaskSlotTable taskSlotTable = mock(TaskSlotTable.class);
+			final SlotReport slotReport = new SlotReport();
+			when(taskSlotTable.createSlotReport(any(ResourceID.class))).thenReturn(slotReport);
+
 			TaskExecutor taskManager = new TaskExecutor(
 				taskManagerServicesConfiguration,
 				taskManagerLocation,
@@ -129,7 +133,7 @@ public class TaskExecutorTest extends TestLogger {
 				mock(TaskManagerMetricGroup.class),
 				mock(BroadcastVariableManager.class),
 				mock(FileCache.class),
-				mock(TaskSlotTable.class),
+				taskSlotTable,
 				mock(JobManagerTable.class),
 				mock(JobLeaderService.class),
 				mock(FatalErrorHandler.class));
@@ -138,7 +142,7 @@ public class TaskExecutorTest extends TestLogger {
 			String taskManagerAddress = taskManager.getAddress();
 
 			verify(rmGateway).registerTaskExecutor(
-					any(UUID.class), eq(taskManagerAddress), eq(resourceID), any(SlotReport.class), any(Time.class));
+					any(UUID.class), eq(taskManagerAddress), eq(resourceID), eq(slotReport), any(Time.class));
 		}
 		finally {
 			rpc.stopService();
@@ -176,6 +180,10 @@ public class TaskExecutorTest extends TestLogger {
 			when(taskManagerLocation.getResourceID()).thenReturn(resourceID);
 			when(taskManagerLocation.getHostname()).thenReturn("foobar");
 
+			final TaskSlotTable taskSlotTable = mock(TaskSlotTable.class);
+			final SlotReport slotReport = new SlotReport();
+			when(taskSlotTable.createSlotReport(any(ResourceID.class))).thenReturn(slotReport);
+
 			TaskExecutor taskManager = new TaskExecutor(
 				taskManagerServicesConfiguration,
 				taskManagerLocation,
@@ -188,7 +196,7 @@ public class TaskExecutorTest extends TestLogger {
 				mock(TaskManagerMetricGroup.class),
 				mock(BroadcastVariableManager.class),
 				mock(FileCache.class),
-				mock(TaskSlotTable.class),
+				taskSlotTable,
 				mock(JobManagerTable.class),
 				mock(JobLeaderService.class),
 				mock(FatalErrorHandler.class));
@@ -213,7 +221,7 @@ public class TaskExecutorTest extends TestLogger {
 			testLeaderService.notifyListener(address2, leaderId2);
 
 			verify(rmGateway2).registerTaskExecutor(
-					eq(leaderId2), eq(taskManagerAddress), eq(resourceID), any(SlotReport.class), any(Time.class));
+					eq(leaderId2), eq(taskManagerAddress), eq(resourceID), eq(slotReport), any(Time.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 		}
 		finally {

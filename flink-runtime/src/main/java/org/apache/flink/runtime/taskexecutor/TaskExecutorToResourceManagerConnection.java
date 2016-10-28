@@ -22,12 +22,14 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.concurrent.Future;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 
 import java.util.UUID;
@@ -41,29 +43,49 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class TaskExecutorToResourceManagerConnection
 		extends RegisteredRpcConnection<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
 
-	/** the TaskExecutor whose connection to the ResourceManager this represents */
-	private final TaskExecutor taskExecutor;
+	private final RpcService rpcService;
+
+	private final String taskManagerAddress;
+
+	private final ResourceID taskManagerResourceId;
+
+	private final SlotReport slotReport;
+
+	private final FatalErrorHandler fatalErrorHandler;
 
 	private InstanceID registrationId;
 
 	public TaskExecutorToResourceManagerConnection(
 			Logger log,
-			TaskExecutor taskExecutor,
+			RpcService rpcService,
+			String taskManagerAddress,
+			ResourceID taskManagerResourceId,
+			SlotReport slotReport,
 			String resourceManagerAddress,
 			UUID resourceManagerLeaderId,
-			Executor executor) {
+			Executor executor,
+			FatalErrorHandler fatalErrorHandler) {
 
 		super(log, resourceManagerAddress, resourceManagerLeaderId, executor);
-		this.taskExecutor = checkNotNull(taskExecutor);
+
+		this.rpcService = Preconditions.checkNotNull(rpcService);
+		this.taskManagerAddress = Preconditions.checkNotNull(taskManagerAddress);
+		this.taskManagerResourceId = Preconditions.checkNotNull(taskManagerResourceId);
+		this.slotReport = Preconditions.checkNotNull(slotReport);
+		this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
 	}
 
 
 	@Override
 	protected RetryingRegistration<ResourceManagerGateway, TaskExecutorRegistrationSuccess> generateRegistration() {
 		return new TaskExecutorToResourceManagerConnection.ResourceManagerRegistration(
-			log, taskExecutor.getRpcService(),
-			getTargetAddress(), getTargetLeaderId(),
-			taskExecutor.getAddress(),taskExecutor.getResourceID());
+			log,
+			rpcService,
+			getTargetAddress(),
+			getTargetLeaderId(),
+			taskManagerAddress,
+			taskManagerResourceId,
+			slotReport);
 	}
 
 	@Override
@@ -78,7 +100,7 @@ public class TaskExecutorToResourceManagerConnection
 	protected void onRegistrationFailure(Throwable failure) {
 		log.info("Failed to register at resource manager {}.", getTargetAddress(), failure);
 
-		taskExecutor.onFatalErrorAsync(failure);
+		fatalErrorHandler.onFatalError(failure);
 	}
 
 	/**
@@ -100,17 +122,21 @@ public class TaskExecutorToResourceManagerConnection
 		
 		private final ResourceID resourceID;
 
+		private final SlotReport slotReport;
+
 		ResourceManagerRegistration(
 				Logger log,
 				RpcService rpcService,
 				String targetAddress,
 				UUID leaderId,
 				String taskExecutorAddress,
-				ResourceID resourceID) {
+				ResourceID resourceID,
+				SlotReport slotReport) {
 
 			super(log, rpcService, "ResourceManager", ResourceManagerGateway.class, targetAddress, leaderId);
 			this.taskExecutorAddress = checkNotNull(taskExecutorAddress);
 			this.resourceID = checkNotNull(resourceID);
+			this.slotReport = checkNotNull(slotReport);
 		}
 
 		@Override
@@ -118,7 +144,7 @@ public class TaskExecutorToResourceManagerConnection
 				ResourceManagerGateway resourceManager, UUID leaderId, long timeoutMillis) throws Exception {
 
 			Time timeout = Time.milliseconds(timeoutMillis);
-			return resourceManager.registerTaskExecutor(leaderId, taskExecutorAddress, resourceID, new SlotReport(), timeout);
+			return resourceManager.registerTaskExecutor(leaderId, taskExecutorAddress, resourceID, slotReport, timeout);
 		}
 	}
 }

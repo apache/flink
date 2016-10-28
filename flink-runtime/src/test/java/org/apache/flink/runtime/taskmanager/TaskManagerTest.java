@@ -1430,12 +1430,25 @@ public class TaskManagerTest extends TestLogger {
 			);
 
 			final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
-				jid, new AllocationID(), "TestJob", vid, eid, executionConfig,
-				"TestTask", 1, 0, 1, 0, new Configuration(), new Configuration(),
+				jid,
+				new AllocationID(),
+				"TestJob",
+				vid,
+				eid,
+				executionConfig,
+				"TestTask",
+				1,
+				0,
+				1,
+				0,
+				new Configuration(),
+				new Configuration(),
 				TestInvokableRecordCancel.class.getName(),
 				Collections.singletonList(resultPartitionDeploymentDescriptor),
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
-				new ArrayList<BlobKey>(), Collections.<URL>emptyList(), 0);
+				new ArrayList<BlobKey>(),
+				Collections.<URL>emptyList(),
+				0);
 
 
 			ActorRef jmActorRef = system.actorOf(Props.create(FailingScheduleOrUpdateConsumersJobManager.class, leaderSessionID), "jobmanager");
