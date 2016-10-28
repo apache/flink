@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.junit.Test;
@@ -177,7 +178,7 @@ public class AbstractStreamOperatorTest {
 	 * assigned to operator subtasks when restoring.
 	 */
 	@Test
-	public void testStateAndTimerStateShuffling() throws Exception {
+	public void testStateAndTimerStateShufflingScalingUp() throws Exception {
 		final int MAX_PARALLELISM = 10;
 
 		// first get two keys that will fall into different key-group ranges that go
@@ -249,7 +250,6 @@ public class AbstractStreamOperatorTest {
 
 		assertTrue(extractResult(testHarness1).isEmpty());
 
-
 		testHarness1.setProcessingTime(10L);
 
 		assertThat(extractResult(testHarness1), contains("ON_PROC_TIME:HELLO"));
@@ -297,6 +297,108 @@ public class AbstractStreamOperatorTest {
 		assertThat(extractResult(testHarness2), contains("ON_PROC_TIME:CIAO"));
 
 		assertTrue(extractResult(testHarness2).isEmpty());
+	}
+
+	@Test
+	public void testStateAndTimerStateShufflingScalingDown() throws Exception {
+		final int MAX_PARALLELISM = 10;
+
+		// first get two keys that will fall into different key-group ranges that go
+		// to different operator subtasks when we restore
+
+		// get two sub key-ranges so that we can restore two ranges separately
+		KeyGroupRange subKeyGroupRange1 = new KeyGroupRange(0, (MAX_PARALLELISM / 2) - 1);
+		KeyGroupRange subKeyGroupRange2 = new KeyGroupRange(subKeyGroupRange1.getEndKeyGroup() + 1, MAX_PARALLELISM - 1);
+
+		// get two different keys, one per sub range
+		int key1 = getKeyInKeyGroupRange(subKeyGroupRange1, MAX_PARALLELISM);
+		int key2 = getKeyInKeyGroupRange(subKeyGroupRange2, MAX_PARALLELISM);
+
+		TestOperator testOperator1 = new TestOperator();
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String> testHarness1 =
+			new KeyedOneInputStreamOperatorTestHarness<>(
+				testOperator1,
+				new TestKeySelector(),
+				BasicTypeInfo.INT_TYPE_INFO,
+				MAX_PARALLELISM,
+				2, /* num subtasks */
+				0 /* subtask index */);
+
+		testHarness1.setup();
+		testHarness1.open();
+
+		testHarness1.processWatermark(0L);
+		testHarness1.setProcessingTime(0L);
+
+		TestOperator testOperator2 = new TestOperator();
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String> testHarness2 =
+			new KeyedOneInputStreamOperatorTestHarness<>(
+				testOperator2,
+				new TestKeySelector(),
+				BasicTypeInfo.INT_TYPE_INFO,
+				MAX_PARALLELISM,
+				2, /* num subtasks */
+				1 /* subtask index */);
+
+
+		testHarness2.setup();
+		testHarness2.open();
+
+		testHarness2.processWatermark(0L);
+		testHarness2.setProcessingTime(0L);
+
+		// register some state with both instances and scale down to parallelism 1
+
+		testHarness1.processElement(new Tuple2<>(key1, "SET_EVENT_TIME_TIMER:30"), 0);
+		testHarness1.processElement(new Tuple2<>(key1, "SET_PROC_TIME_TIMER:30"), 0);
+		testHarness1.processElement(new Tuple2<>(key1, "SET_STATE:HELLO"), 0);
+
+		testHarness2.processElement(new Tuple2<>(key2, "SET_EVENT_TIME_TIMER:40"), 0);
+		testHarness2.processElement(new Tuple2<>(key2, "SET_PROC_TIME_TIMER:40"), 0);
+		testHarness2.processElement(new Tuple2<>(key2, "SET_STATE:CIAO"), 0);
+
+		// take a snapshot from each one of the "parallel" instances of the operator
+		// and combine them into one so that we can scale down
+
+		OperatorStateHandles repackagedState =
+			AbstractStreamOperatorTestHarness.repackageState(
+				testHarness1.snapshot(0, 0),
+				testHarness2.snapshot(0, 0)
+			);
+
+		// now, for the third operator that scales down from parallelism of 2 to 1
+		TestOperator testOperator3 = new TestOperator();
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String> testHarness3 =
+			new KeyedOneInputStreamOperatorTestHarness<>(
+				testOperator3,
+				new TestKeySelector(),
+				BasicTypeInfo.INT_TYPE_INFO,
+				MAX_PARALLELISM,
+				1, /* num subtasks */
+				0 /* subtask index */);
+
+		testHarness3.setup();
+		testHarness3.initializeState(repackagedState);
+		testHarness3.open();
+
+		testHarness3.processWatermark(30L);
+		assertThat(extractResult(testHarness3), contains("ON_EVENT_TIME:HELLO"));
+		assertTrue(extractResult(testHarness3).isEmpty());
+
+		testHarness3.processWatermark(40L);
+		assertThat(extractResult(testHarness3), contains("ON_EVENT_TIME:CIAO"));
+		assertTrue(extractResult(testHarness3).isEmpty());
+
+		testHarness3.setProcessingTime(30L);
+		assertThat(extractResult(testHarness3), contains("ON_PROC_TIME:HELLO"));
+		assertTrue(extractResult(testHarness3).isEmpty());
+
+		testHarness3.setProcessingTime(40L);
+		assertThat(extractResult(testHarness3), contains("ON_PROC_TIME:CIAO"));
+		assertTrue(extractResult(testHarness3).isEmpty());
 	}
 
 	/**
