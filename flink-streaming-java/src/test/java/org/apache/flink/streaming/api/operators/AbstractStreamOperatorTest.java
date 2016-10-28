@@ -448,7 +448,6 @@ public class AbstractStreamOperatorTest {
 
 			this.timerService = getInternalTimerService(
 					"test-timers",
-					IntSerializer.INSTANCE,
 					VoidNamespaceSerializer.INSTANCE,
 					this);
 		}

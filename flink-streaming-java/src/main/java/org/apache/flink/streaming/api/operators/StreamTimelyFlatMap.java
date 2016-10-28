@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.SimpleTimerService;
@@ -34,16 +33,12 @@ public class StreamTimelyFlatMap<K, IN, OUT>
 
 	private static final long serialVersionUID = 1L;
 
-	private final TypeSerializer<K> keySerializer;
-
 	private transient TimestampedCollector<OUT> collector;
 
 	private transient TimerService timerService;
 
-	public StreamTimelyFlatMap(TypeSerializer<K> keySerializer, TimelyFlatMapFunction<IN, OUT> flatMapper) {
+	public StreamTimelyFlatMap(TimelyFlatMapFunction<IN, OUT> flatMapper) {
 		super(flatMapper);
-
-		this.keySerializer = keySerializer;
 
 		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
@@ -54,7 +49,7 @@ public class StreamTimelyFlatMap<K, IN, OUT>
 		collector = new TimestampedCollector<>(output);
 
 		InternalTimerService<VoidNamespace> internalTimerService =
-				getInternalTimerService("user-timers", keySerializer, VoidNamespaceSerializer.INSTANCE, this);
+				getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
 
 		this.timerService = new SimpleTimerService(internalTimerService);
 	}
