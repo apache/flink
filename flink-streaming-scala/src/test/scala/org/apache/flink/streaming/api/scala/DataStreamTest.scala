@@ -22,10 +22,12 @@ import java.lang
 
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.streaming.api.{TimeDomain, TimerService}
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
+import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
-import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamOperator}
+import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamOperator, StreamTimelyFlatMap}
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
 import org.apache.flink.streaming.api.windowing.triggers.{CountTrigger, PurgingTrigger}
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
@@ -313,6 +315,30 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     assert(TypeExtractor.getForClass(classOf[Int]) == flatten.getType())
 
     // TODO check for custom case class
+  }
+
+  /**
+   * Verify that a timely flat map call is correctly translated to an operator.
+   */
+  @Test
+  def testTimelyFlatMapTranslation(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+
+    val src = env.generateSequence(0, 0)
+
+    val timelyFlatMapFunction = new TimelyFlatMapFunction[Long, Int] {
+      override def flatMap(value: Long, timerService: TimerService, out: Collector[Int]): Unit = ???
+      override def onTimer(
+          timestamp: Long,
+          timeDomain: TimeDomain,
+          timerService: TimerService,
+          out: Collector[Int]): Unit = ???
+    }
+
+    val flatMapped = src.keyBy(x => x).flatMap(timelyFlatMapFunction)
+
+    assert(timelyFlatMapFunction == getFunctionForDataStream(flatMapped))
+    assert(getOperatorForDataStream(flatMapped).isInstanceOf[StreamTimelyFlatMap[_, _, _]])
   }
 
   @Test def operatorTest() {
