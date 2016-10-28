@@ -34,7 +34,7 @@ import org.mockito.Mockito
 
 class CaseClassComparatorTest {
 
-  case class CaseTestClass(a: Int, b: Int, c: Int, d: String)
+  case class CaseTestClass(a: Int, b: Int, c: Int, d: String, e: Option[Int])
   
   @Test
   def testNormalizedKeyGeneration(): Unit = {
@@ -85,7 +85,12 @@ class CaseClassComparatorTest {
       var num = 0
       
       while (moreToGo) {
-        val next = CaseTestClass(rnd.nextInt(), rnd.nextInt(), rnd.nextInt(), "")
+        val optional = num % 3 match {
+          case 0 => Option(rnd.nextInt)
+          case 1 => Option.empty
+          case 2 => null
+        }
+        val next = CaseTestClass(rnd.nextInt(), rnd.nextInt(), rnd.nextInt(), "", optional)
         moreToGo = sorter.write(next)
         num += 1
       }

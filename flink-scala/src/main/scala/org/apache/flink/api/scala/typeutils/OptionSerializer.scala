@@ -65,7 +65,7 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
     case Some(a) =>
       target.writeBoolean(true)
       elemSerializer.serialize(a, target)
-    case None =>
+    case _ =>
       target.writeBoolean(false)
   }
 
