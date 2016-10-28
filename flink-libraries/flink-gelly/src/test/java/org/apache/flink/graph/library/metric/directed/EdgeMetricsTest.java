@@ -34,7 +34,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithSimpleGraph()
 			throws Exception {
-		Result expectedResult = new Result(6, 7, 2, 6, 13, 4, 2, 3, 1, 3, 6);
+		Result expectedResult = new Result(6, 7, 0, 2, 6, 13, 4, 2, 3, 1, 3, 6);
 
 		Result edgeMetrics = new EdgeMetrics<IntValue, NullValue, NullValue>()
 			.run(directedSimpleGraph)
@@ -47,11 +47,12 @@ extends AsmTestBase {
 	public void testWithCompleteGraph()
 			throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedEdges = completeGraphVertexCount * expectedDegree;
+		long expectedBidirectionalEdges = completeGraphVertexCount * expectedDegree / 2;
 		long expectedMaximumTriplets = CombinatoricsUtils.binomialCoefficient((int)expectedDegree, 2);
 		long expectedTriplets = completeGraphVertexCount * expectedMaximumTriplets;
 
-		Result expectedResult = new Result(completeGraphVertexCount, expectedEdges, expectedTriplets / 3, 2 * expectedTriplets / 3, expectedTriplets,
+		Result expectedResult = new Result(completeGraphVertexCount, 0, expectedBidirectionalEdges,
+			expectedTriplets / 3, 2 * expectedTriplets / 3, expectedTriplets,
 			expectedDegree, expectedDegree, expectedDegree,
 			expectedMaximumTriplets, expectedMaximumTriplets, expectedMaximumTriplets);
 
@@ -67,7 +68,7 @@ extends AsmTestBase {
 			throws Exception {
 		Result expectedResult;
 
-		expectedResult = new Result(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+		expectedResult = new Result(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
 		Result withoutZeroDegreeVertices = new EdgeMetrics<LongValue, NullValue, NullValue>()
 			.run(emptyGraph)
@@ -79,7 +80,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 			throws Exception {
-		Result expectedResult = new Result(902, 12009, 107817, 315537, 1003442, 463, 334, 342, 820, 3822, 106953);
+		Result expectedResult = new Result(902, 8875, 1567, 107817, 315537, 1003442, 463, 334, 342, 820, 3822, 106953);
 
 		Result withoutZeroDegreeVertices = new EdgeMetrics<LongValue, NullValue, NullValue>()
 			.run(directedRMatGraph)

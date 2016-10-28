@@ -20,25 +20,22 @@ package org.apache.flink.graph.library.metric.undirected;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.accumulators.LongMaximum;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphAnalyticHelper;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeDegreePair;
 import org.apache.flink.graph.library.metric.undirected.EdgeMetrics.Result;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
-import org.apache.flink.util.AbstractID;
 
 import java.io.IOException;
 import java.text.NumberFormat;
@@ -49,6 +46,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * Compute the following edge metrics in an undirected graph:
  *  - number of vertices
  *  - number of edges
+ *  - average degree
  *  - number of triangle triplets
  *  - number of rectangle triplets
  *  - number of triplets
@@ -64,7 +62,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 public class EdgeMetrics<K extends Comparable<K> & CopyableValue<K>, VV, EV>
 extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
-	private String id = new AbstractID().toString();
+	private EdgeMetricsHelper<K> edgeMetricsHelper;
 
 	// Optional configuration
 	private boolean reduceOnTargetId = false;
@@ -127,8 +125,10 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 				.setParallelism(parallelism)
 				.name("Sum edge stats");
 
+		edgeMetricsHelper = new EdgeMetricsHelper<>();
+
 		edgeStats
-			.output(new EdgeMetricsHelper<K, EV>(id))
+			.output(edgeMetricsHelper)
 				.setParallelism(parallelism)
 				.name("Edge metrics");
 
@@ -137,17 +137,15 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 	@Override
 	public Result getResult() {
-		JobExecutionResult res = env.getLastJobExecutionResult();
-
-		long vertexCount = res.getAccumulatorResult(id + "-0");
-		long edgeCount = res.getAccumulatorResult(id + "-1");
-		long triangleTripletCount = res.getAccumulatorResult(id + "-2");
-		long rectangleTripletCount = res.getAccumulatorResult(id + "-3");
-		long tripletCount = res.getAccumulatorResult(id + "-4");
-		long maximumDegree = res.getAccumulatorResult(id + "-5");
-		long maximumTriangleTriplets = res.getAccumulatorResult(id + "-6");
-		long maximumRectangleTriplets = res.getAccumulatorResult(id + "-7");
-		long maximumTriplets = res.getAccumulatorResult(id + "-8");
+		long vertexCount = edgeMetricsHelper.getAccumulator(env, "vertexCount");
+		long edgeCount = edgeMetricsHelper.getAccumulator(env, "edgeCount");
+		long triangleTripletCount = edgeMetricsHelper.getAccumulator(env, "triangleTripletCount");
+		long rectangleTripletCount = edgeMetricsHelper.getAccumulator(env, "rectangleTripletCount");
+		long tripletCount = edgeMetricsHelper.getAccumulator(env, "tripletCount");
+		long maximumDegree = edgeMetricsHelper.getAccumulator(env, "maximumDegree");
+		long maximumTriangleTriplets = edgeMetricsHelper.getAccumulator(env, "maximumTriangleTriplets");
+		long maximumRectangleTriplets = edgeMetricsHelper.getAccumulator(env, "maximumRectangleTriplets");
+		long maximumTriplets = edgeMetricsHelper.getAccumulator(env, "maximumTriplets");
 
 		return new Result(vertexCount, edgeCount / 2, triangleTripletCount, rectangleTripletCount, tripletCount,
 			maximumDegree, maximumTriangleTriplets, maximumRectangleTriplets, maximumTriplets);
@@ -215,10 +213,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 *
 	 * @param <T> ID type
 	 */
-	private static class EdgeMetricsHelper<T extends Comparable<T>, ET>
-	extends RichOutputFormat<Tuple3<T, LongValue, LongValue>> {
-		private final String id;
-
+	private static class EdgeMetricsHelper<T extends Comparable<T>>
+	extends GraphAnalyticHelper<Tuple3<T, LongValue, LongValue>> {
 		private long vertexCount;
 		private long edgeCount;
 		private long triangleTripletCount;
@@ -229,28 +225,10 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		private long maximumRectangleTriplets;
 		private long maximumTriplets;
 
-		/**
-		 * This helper class collects edge metrics by scanning over and
-		 * discarding elements from the given DataSet.
-		 *
-		 * The unique id is required because Flink's accumulator namespace is
-		 * among all operators.
-		 *
-		 * @param id unique string used for accumulator names
-		 */
-		public EdgeMetricsHelper(String id) {
-			this.id = id;
-		}
-
-		@Override
-		public void configure(Configuration parameters) {}
-
-		@Override
-		public void open(int taskNumber, int numTasks) throws IOException {}
-
 		@Override
 		public void writeRecord(Tuple3<T, LongValue, LongValue> record) throws IOException {
 			long degree = record.f1.getValue();
+
 			long lowDegree = record.f2.getValue();
 			long highDegree = degree - lowDegree;
 
@@ -260,10 +238,13 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 			vertexCount++;
 			edgeCount += degree;
+
 			triangleTripletCount += triangleTriplets;
 			rectangleTripletCount += rectangleTriplets;
 			tripletCount += triplets;
+
 			maximumDegree = Math.max(maximumDegree, degree);
+
 			maximumTriangleTriplets = Math.max(maximumTriangleTriplets, triangleTriplets);
 			maximumRectangleTriplets = Math.max(maximumRectangleTriplets, rectangleTriplets);
 			maximumTriplets = Math.max(maximumTriplets, triplets);
@@ -271,15 +252,15 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public void close() throws IOException {
-			getRuntimeContext().addAccumulator(id + "-0", new LongCounter(vertexCount));
-			getRuntimeContext().addAccumulator(id + "-1", new LongCounter(edgeCount));
-			getRuntimeContext().addAccumulator(id + "-2", new LongCounter(triangleTripletCount));
-			getRuntimeContext().addAccumulator(id + "-3", new LongCounter(rectangleTripletCount));
-			getRuntimeContext().addAccumulator(id + "-4", new LongCounter(tripletCount));
-			getRuntimeContext().addAccumulator(id + "-5", new LongMaximum(maximumDegree));
-			getRuntimeContext().addAccumulator(id + "-6", new LongMaximum(maximumTriangleTriplets));
-			getRuntimeContext().addAccumulator(id + "-7", new LongMaximum(maximumRectangleTriplets));
-			getRuntimeContext().addAccumulator(id + "-8", new LongMaximum(maximumTriplets));
+			addAccumulator("vertexCount", new LongCounter(vertexCount));
+			addAccumulator("edgeCount", new LongCounter(edgeCount));
+			addAccumulator("triangleTripletCount", new LongCounter(triangleTripletCount));
+			addAccumulator("rectangleTripletCount", new LongCounter(rectangleTripletCount));
+			addAccumulator("tripletCount", new LongCounter(tripletCount));
+			addAccumulator("maximumDegree", new LongMaximum(maximumDegree));
+			addAccumulator("maximumTriangleTriplets", new LongMaximum(maximumTriangleTriplets));
+			addAccumulator("maximumRectangleTriplets", new LongMaximum(maximumRectangleTriplets));
+			addAccumulator("maximumTriplets", new LongMaximum(maximumTriplets));
 		}
 	}
 
