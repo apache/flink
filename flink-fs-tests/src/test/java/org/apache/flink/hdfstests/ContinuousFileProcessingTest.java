@@ -27,9 +27,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.api.common.io.FilePathFilter;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
+import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -53,10 +55,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class ContinuousFileMonitoringTest {
+public class ContinuousFileProcessingTest {
 
-	private static final int NO_OF_FILES = 10;
+	private static final int NO_OF_FILES = 5;
 	private static final int LINES_PER_FILE = 10;
 
 	private static final long INTERVAL = 100;
@@ -109,10 +113,11 @@ public class ContinuousFileMonitoringTest {
 	public void testFileReadingOperatorWithIngestionTime() throws Exception {
 		Set<org.apache.hadoop.fs.Path> filesCreated = new HashSet<>();
 		Map<Integer, String> expectedFileContents = new HashMap<>();
-
-		for(int i = 0; i < NO_OF_FILES; i++) {
-			Tuple2<org.apache.hadoop.fs.Path, String> file = fillWithData(hdfsURI, "file", i, "This is test line.");
+		Map<String, Long> modTimes = new HashMap<>();
+		for (int i = 0; i < NO_OF_FILES; i++) {
+			Tuple2<org.apache.hadoop.fs.Path, String> file = createFileAndFillWithData(hdfsURI, "file", i, "This is test line.");
 			filesCreated.add(file.f0);
+			modTimes.put(file.f0.getName(), hdfs.getFileStatus(file.f0).getModificationTime());
 			expectedFileContents.put(i, file.f1);
 		}
 
@@ -121,16 +126,13 @@ public class ContinuousFileMonitoringTest {
 
 		final long watermarkInterval = 10;
 
-		ContinuousFileReaderOperator<String, ?> reader = new ContinuousFileReaderOperator<>(format);
-		reader.setOutputType(typeInfo, new ExecutionConfig());
-
-		final OneInputStreamOperatorTestHarness<FileInputSplit, String> tester =
+		ContinuousFileReaderOperator<String> reader = new ContinuousFileReaderOperator<>(format);
+		final OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester =
 			new OneInputStreamOperatorTestHarness<>(reader);
 
 		tester.getExecutionConfig().setAutoWatermarkInterval(watermarkInterval);
-
-
 		tester.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
+		reader.setOutputType(typeInfo, tester.getExecutionConfig());
 
 		tester.open();
 
@@ -138,24 +140,25 @@ public class ContinuousFileMonitoringTest {
 
 		// test that watermarks are correctly emitted
 
+		ConcurrentLinkedQueue<Object> output = tester.getOutput();
+
 		tester.setProcessingTime(201);
+		Assert.assertTrue(output.peek() instanceof Watermark);
+		Assert.assertEquals(200, ((Watermark) output.poll()).getTimestamp());
+
 		tester.setProcessingTime(301);
+		Assert.assertTrue(output.peek() instanceof Watermark);
+		Assert.assertEquals(300, ((Watermark) output.poll()).getTimestamp());
+
 		tester.setProcessingTime(401);
+		Assert.assertTrue(output.peek() instanceof Watermark);
+		Assert.assertEquals(400, ((Watermark) output.poll()).getTimestamp());
+
 		tester.setProcessingTime(501);
+		Assert.assertTrue(output.peek() instanceof Watermark);
+		Assert.assertEquals(500, ((Watermark) output.poll()).getTimestamp());
 
-		int i = 0;
-		for(Object line: tester.getOutput()) {
-			if (!(line instanceof Watermark)) {
-				Assert.fail("Only watermarks are expected here ");
-			}
-			Watermark w = (Watermark) line;
-			Assert.assertEquals(200 + (i * 100), w.getTimestamp());
-			i++;
-		}
-
-		// clear the output to get the elements only and the final watermark
-		tester.getOutput().clear();
-		Assert.assertEquals(0, tester.getOutput().size());
+		Assert.assertTrue(output.isEmpty());
 
 		// create the necessary splits for the test
 		FileInputSplit[] splits = format.createInputSplits(
@@ -168,23 +171,31 @@ public class ContinuousFileMonitoringTest {
 		int lineCounter = 0;	// counter for the lines read from the splits
 		int watermarkCounter = 0;
 
-		for(FileInputSplit split: splits) {
+		for (FileInputSplit split: splits) {
 
 			// set the next "current processing time".
 			long nextTimestamp = tester.getProcessingTime() + watermarkInterval;
 			tester.setProcessingTime(nextTimestamp);
 
-			// send the next split to be read and wait until it is fully read.
-			tester.processElement(new StreamRecord<>(split));
-			synchronized (tester.getCheckpointLock()) {
-				while (tester.getOutput().isEmpty() || tester.getOutput().size() != (LINES_PER_FILE + 1)) {
-					tester.getCheckpointLock().wait(10);
-				}
+			// send the next split to be read and wait until it is fully read, the +1 is for the watermark.
+			tester.processElement(new StreamRecord<>(
+				new TimestampedFileInputSplit(modTimes.get(split.getPath().getName()),
+					split.getSplitNumber(), split.getPath(), split.getStart(),
+					split.getLength(), split.getHostnames())));
+
+			// NOTE: the following check works because each file fits in one split.
+			// In other case it would fail and wait forever.
+			// BUT THIS IS JUST FOR THIS TEST
+			while (tester.getOutput().isEmpty() || tester.getOutput().size() != (LINES_PER_FILE + 1)) {
+				Thread.sleep(10);
 			}
 
 			// verify that the results are the expected
-			for(Object line: tester.getOutput()) {
+			for (Object line: tester.getOutput()) {
+
 				if (line instanceof StreamRecord) {
+
+					@SuppressWarnings("unchecked")
 					StreamRecord<String> element = (StreamRecord<String>) line;
 					lineCounter++;
 
@@ -219,14 +230,14 @@ public class ContinuousFileMonitoringTest {
 		Assert.assertEquals(NO_OF_FILES * LINES_PER_FILE, lineCounter);
 
 		// because we expect one watermark per split.
-		Assert.assertEquals(NO_OF_FILES, watermarkCounter);
+		Assert.assertEquals(splits.length, watermarkCounter);
 
 		// then close the reader gracefully so that the Long.MAX watermark is emitted
 		synchronized (tester.getCheckpointLock()) {
 			tester.close();
 		}
 
-		for(org.apache.hadoop.fs.Path file: filesCreated) {
+		for (org.apache.hadoop.fs.Path file: filesCreated) {
 			hdfs.delete(file, false);
 		}
 
@@ -257,11 +268,13 @@ public class ContinuousFileMonitoringTest {
 	}
 
 	@Test
-	public void testFileReadingOperator() throws Exception {
+	public void testFileReadingOperatorWithEventTime() throws Exception {
 		Set<org.apache.hadoop.fs.Path> filesCreated = new HashSet<>();
+		Map<String, Long> modTimes = new HashMap<>();
 		Map<Integer, String> expectedFileContents = new HashMap<>();
-		for(int i = 0; i < NO_OF_FILES; i++) {
-			Tuple2<org.apache.hadoop.fs.Path, String> file = fillWithData(hdfsURI, "file", i, "This is test line.");
+		for (int i = 0; i < NO_OF_FILES; i++) {
+			Tuple2<org.apache.hadoop.fs.Path, String> file = createFileAndFillWithData(hdfsURI, "file", i, "This is test line.");
+			modTimes.put(file.f0.getName(), hdfs.getFileStatus(file.f0).getModificationTime());
 			filesCreated.add(file.f0);
 			expectedFileContents.put(i, file.f1);
 		}
@@ -269,10 +282,10 @@ public class ContinuousFileMonitoringTest {
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
 		TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
-		ContinuousFileReaderOperator<String, ?> reader = new ContinuousFileReaderOperator<>(format);
+		ContinuousFileReaderOperator<String> reader = new ContinuousFileReaderOperator<>(format);
 		reader.setOutputType(typeInfo, new ExecutionConfig());
 
-		OneInputStreamOperatorTestHarness<FileInputSplit, String> tester =
+		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester =
 			new OneInputStreamOperatorTestHarness<>(reader);
 		tester.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		tester.open();
@@ -282,8 +295,10 @@ public class ContinuousFileMonitoringTest {
 			reader.getRuntimeContext().getNumberOfParallelSubtasks());
 
 		// and feed them to the operator
-		for(FileInputSplit split: splits) {
-			tester.processElement(new StreamRecord<>(split));
+		for (FileInputSplit split: splits) {
+			tester.processElement(new StreamRecord<>(new TimestampedFileInputSplit(
+				modTimes.get(split.getPath().getName()), split.getSplitNumber(), split.getPath(),
+				split.getStart(), split.getLength(), split.getHostnames())));
 		}
 
 		// then close the reader gracefully (and wait to finish reading)
@@ -299,9 +314,12 @@ public class ContinuousFileMonitoringTest {
 
 		Map<Integer, List<String>> actualFileContents = new HashMap<>();
 		Object lastElement = null;
-		for(Object line: tester.getOutput()) {
+		for (Object line: tester.getOutput()) {
 			lastElement = line;
+
 			if (line instanceof StreamRecord) {
+
+				@SuppressWarnings("unchecked")
 				StreamRecord<String> element = (StreamRecord<String>) line;
 
 				int fileIdx = Character.getNumericValue(element.getValue().charAt(0));
@@ -337,240 +355,296 @@ public class ContinuousFileMonitoringTest {
 			Assert.assertEquals(expectedFileContents.get(fileIdx), cntntStr.toString());
 		}
 
-		for(org.apache.hadoop.fs.Path file: filesCreated) {
+		for (org.apache.hadoop.fs.Path file: filesCreated) {
 			hdfs.delete(file, false);
 		}
 	}
 
-	private static class PathFilter extends FilePathFilter {
-
-		@Override
-		public boolean filterPath(Path filePath) {
-			return filePath.getName().startsWith("**");
-		}
-	}
+	////				Monitoring Function Tests				//////
 
 	@Test
 	public void testFilePathFiltering() throws Exception {
-		Set<String> uniqFilesFound = new HashSet<>();
 		Set<org.apache.hadoop.fs.Path> filesCreated = new HashSet<>();
+		Set<String> filesKept = new TreeSet<>();
 
 		// create the files to be discarded
 		for (int i = 0; i < NO_OF_FILES; i++) {
-			Tuple2<org.apache.hadoop.fs.Path, String> file = fillWithData(hdfsURI, "**file", i, "This is test line.");
+			Tuple2<org.apache.hadoop.fs.Path, String> file = createFileAndFillWithData(hdfsURI, "**file", i, "This is test line.");
 			filesCreated.add(file.f0);
 		}
 
 		// create the files to be kept
 		for (int i = 0; i < NO_OF_FILES; i++) {
-			Tuple2<org.apache.hadoop.fs.Path, String> file = fillWithData(hdfsURI, "file", i, "This is test line.");
+			Tuple2<org.apache.hadoop.fs.Path, String> file =
+				createFileAndFillWithData(hdfsURI, "file", i, "This is test line.");
 			filesCreated.add(file.f0);
+			filesKept.add(file.f0.getName());
 		}
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
-		format.setFilesFilter(new PathFilter());
+		format.setFilesFilter(new FilePathFilter() {
+			@Override
+			public boolean filterPath(Path filePath) {
+				return filePath.getName().startsWith("**");
+			}
+		});
+
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
 			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
 				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
 
+		final FileVerifyingSourceContext context =
+			new FileVerifyingSourceContext(new OneShotLatch(), monitoringFunction, 0, -1);
+
 		monitoringFunction.open(new Configuration());
-		monitoringFunction.run(new TestingSourceContext(monitoringFunction, uniqFilesFound));
+		monitoringFunction.run(context);
 
-		Assert.assertEquals(NO_OF_FILES, uniqFilesFound.size());
-		for(int i = 0; i < NO_OF_FILES; i++) {
-			org.apache.hadoop.fs.Path file = new org.apache.hadoop.fs.Path(hdfsURI + "/file" + i);
-			Assert.assertTrue(uniqFilesFound.contains(file.toString()));
-		}
+		Assert.assertArrayEquals(filesKept.toArray(), context.getSeenFiles().toArray());
 
-		for(org.apache.hadoop.fs.Path file: filesCreated) {
+		// finally delete the files created for the test.
+		for (org.apache.hadoop.fs.Path file: filesCreated) {
 			hdfs.delete(file, false);
 		}
 	}
 
 	@Test
-	public void testFileSplitMonitoringReprocessWithAppended() throws Exception {
-		final Set<String> uniqFilesFound = new HashSet<>();
+	public void testSortingOnModTime() throws Exception {
+		final long[] modTimes = new long[NO_OF_FILES];
+		final org.apache.hadoop.fs.Path[] filesCreated = new org.apache.hadoop.fs.Path[NO_OF_FILES];
 
-		FileCreator fc = new FileCreator(INTERVAL, NO_OF_FILES);
-		fc.start();
+		for (int i = 0; i < NO_OF_FILES; i++) {
+			Tuple2<org.apache.hadoop.fs.Path, String> file =
+				createFileAndFillWithData(hdfsURI, "file", i, "This is test line.");
+			Thread.sleep(400);
 
-		Thread t = new Thread(new Runnable() {
-			@Override
-			public void run() {
-				TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
-				format.setFilesFilter(FilePathFilter.createDefaultFilter());
-				ContinuousFileMonitoringFunction<String> monitoringFunction =
-					new ContinuousFileMonitoringFunction<>(format, hdfsURI,
-						FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
-
-				try {
-					monitoringFunction.open(new Configuration());
-					monitoringFunction.run(new TestingSourceContext(monitoringFunction, uniqFilesFound));
-				} catch (Exception e) {
-					// do nothing as we interrupted the thread.
-				}
-			}
-		});
-		t.start();
-
-		// wait until the sink also sees all the splits.
-		synchronized (uniqFilesFound) {
-			uniqFilesFound.wait();
+			filesCreated[i] = file.f0;
+			modTimes[i] = hdfs.getFileStatus(file.f0).getModificationTime();
 		}
-		t.interrupt();
-		fc.join();
-
-		Assert.assertEquals(NO_OF_FILES, fc.getFilesCreated().size());
-		Assert.assertEquals(NO_OF_FILES, uniqFilesFound.size());
-
-		Set<org.apache.hadoop.fs.Path> filesCreated = fc.getFilesCreated();
-		Set<String> fileNamesCreated = new HashSet<>();
-		for (org.apache.hadoop.fs.Path path: fc.getFilesCreated()) {
-			fileNamesCreated.add(path.toString());
-		}
-
-		for(String file: uniqFilesFound) {
-			Assert.assertTrue(fileNamesCreated.contains(file));
-		}
-
-		for(org.apache.hadoop.fs.Path file: filesCreated) {
-			hdfs.delete(file, false);
-		}
-	}
-
-	@Test
-	public void testFileSplitMonitoringProcessOnce() throws Exception {
-		Set<String> uniqFilesFound = new HashSet<>();
-
-		FileCreator fc = new FileCreator(INTERVAL, 1);
-		Set<org.apache.hadoop.fs.Path> filesCreated = fc.getFilesCreated();
-		fc.start();
-
-		// to make sure that at least one file is created
-		if (filesCreated.size() == 0) {
-			synchronized (filesCreated) {
-				if (filesCreated.size() == 0) {
-					filesCreated.wait();
-				}
-			}
-		}
-		Assert.assertTrue(fc.getFilesCreated().size() >= 1);
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
 		format.setFilesFilter(FilePathFilter.createDefaultFilter());
+
+		// this is just to verify that all splits have been forwarded later.
+		FileInputSplit[] splits = format.createInputSplits(1);
+
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
 			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
 				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
 
+		ModTimeVerifyingSourceContext context = new ModTimeVerifyingSourceContext(modTimes);
+
 		monitoringFunction.open(new Configuration());
-		monitoringFunction.run(new TestingSourceContext(monitoringFunction, uniqFilesFound));
+		monitoringFunction.run(context);
+		Assert.assertEquals(splits.length, context.getCounter());
 
-		// wait until all the files are created
-		fc.join();
-
-		Assert.assertEquals(NO_OF_FILES, filesCreated.size());
-
-		Set<String> fileNamesCreated = new HashSet<>();
-		for (org.apache.hadoop.fs.Path path: fc.getFilesCreated()) {
-			fileNamesCreated.add(path.toString());
-		}
-
-		Assert.assertTrue(uniqFilesFound.size() >= 1 && uniqFilesFound.size() < fileNamesCreated.size());
-		for(String file: uniqFilesFound) {
-			Assert.assertTrue(fileNamesCreated.contains(file));
-		}
-
-		for(org.apache.hadoop.fs.Path file: filesCreated) {
-			hdfs.delete(file, false);
+		// delete the created files.
+		for (int i = 0; i < NO_OF_FILES; i++) {
+			hdfs.delete(filesCreated[i], false);
 		}
 	}
 
-	// -------------		End of Tests
+	@Test
+	public void testProcessOnce() throws Exception {
+		final OneShotLatch latch = new OneShotLatch();
 
-	private int getLineNo(String line) {
-		String[] tkns = line.split("\\s");
-		Assert.assertEquals(6, tkns.length);
-		return Integer.parseInt(tkns[tkns.length - 1]);
-	}
+		// create a single file in the directory
+		Tuple2<org.apache.hadoop.fs.Path, String> bootstrap =
+			createFileAndFillWithData(hdfsURI, "file", NO_OF_FILES + 1, "This is test line.");
+		Assert.assertTrue(hdfs.exists(bootstrap.f0));
 
-	/**
-	 * A separate thread creating {@link #NO_OF_FILES} files, one file every {@link #INTERVAL} milliseconds.
-	 * It serves for testing the file monitoring functionality of the {@link ContinuousFileMonitoringFunction}.
-	 * The files are filled with data by the {@link #fillWithData(String, String, int, String)} method.
-	 * */
-	private class FileCreator extends Thread {
+		// the source is supposed to read only this file.
+		final Set<String> filesToBeRead = new TreeSet<>();
+		filesToBeRead.add(bootstrap.f0.getName());
 
-		private final long interval;
-		private final int noOfFilesBeforeNotifying;
+		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
+		format.setFilesFilter(FilePathFilter.createDefaultFilter());
 
-		private final Set<org.apache.hadoop.fs.Path> filesCreated = new HashSet<>();
+		final ContinuousFileMonitoringFunction<String> monitoringFunction =
+			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
+				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
 
-		FileCreator(long interval, int notificationLim) {
-			this.interval = interval;
-			this.noOfFilesBeforeNotifying = notificationLim;
-		}
+		final FileVerifyingSourceContext context =
+			new FileVerifyingSourceContext(latch, monitoringFunction, 1, -1);
 
-		public void run() {
-			try {
-				for(int i = 0; i < NO_OF_FILES; i++) {
-					Tuple2<org.apache.hadoop.fs.Path, String> file =
-						fillWithData(hdfsURI, "file", i, "This is test line.");
-
-					synchronized (filesCreated) {
-						filesCreated.add(file.f0);
-						if (filesCreated.size() == noOfFilesBeforeNotifying) {
-							filesCreated.notifyAll();
-						}
-					}
-					Thread.sleep(interval);
+		final Thread t = new Thread() {
+			@Override
+			public void run() {
+				try {
+					monitoringFunction.open(new Configuration());
+					monitoringFunction.run(context);
+				} catch (Exception e) {
+					Assert.fail(e.getMessage());
 				}
-			} catch (IOException | InterruptedException e) {
-				e.printStackTrace();
 			}
+		};
+		t.start();
+
+		if (!latch.isTriggered()) {
+			latch.await();
 		}
 
-		Set<org.apache.hadoop.fs.Path> getFilesCreated() {
-			return this.filesCreated;
+		// create some additional files that should be processed in the case of PROCESS_CONTINUOUSLY
+		final org.apache.hadoop.fs.Path[] filesCreated = new org.apache.hadoop.fs.Path[NO_OF_FILES];
+		for (int i = 0; i < NO_OF_FILES; i++) {
+			Tuple2<org.apache.hadoop.fs.Path, String> ignoredFile =
+				createFileAndFillWithData(hdfsURI, "file", i, "This is test line.");
+			filesCreated[i] = ignoredFile.f0;
+		}
+
+		// wait until the monitoring thread exits
+		t.join();
+
+		Assert.assertArrayEquals(filesToBeRead.toArray(), context.getSeenFiles().toArray());
+
+		// finally delete the files created for the test.
+		hdfs.delete(bootstrap.f0, false);
+		for (org.apache.hadoop.fs.Path path: filesCreated) {
+			hdfs.delete(path, false);
 		}
 	}
 
-	private class TestingSourceContext implements SourceFunction.SourceContext<FileInputSplit> {
+	@Test
+	public void testProcessContinuously() throws Exception {
+		final OneShotLatch latch = new OneShotLatch();
+
+		// create a single file in the directory
+		Tuple2<org.apache.hadoop.fs.Path, String> bootstrap =
+			createFileAndFillWithData(hdfsURI, "file", NO_OF_FILES + 1, "This is test line.");
+		Assert.assertTrue(hdfs.exists(bootstrap.f0));
+
+		final Set<String> filesToBeRead = new TreeSet<>();
+		filesToBeRead.add(bootstrap.f0.getName());
+
+		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
+		format.setFilesFilter(FilePathFilter.createDefaultFilter());
+
+		final ContinuousFileMonitoringFunction<String> monitoringFunction =
+			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
+				FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
+
+		final int totalNoOfFilesToBeRead = NO_OF_FILES + 1; // 1 for the bootstrap + NO_OF_FILES
+		final FileVerifyingSourceContext context = new FileVerifyingSourceContext(latch,
+			monitoringFunction, 1, totalNoOfFilesToBeRead);
+
+		final Thread t = new Thread() {
+
+			@Override
+			public void run() {
+				try {
+					monitoringFunction.open(new Configuration());
+					monitoringFunction.run(context);
+				} catch (Exception e) {
+					Assert.fail(e.getMessage());
+				}
+			}
+		};
+		t.start();
+
+		if (!latch.isTriggered()) {
+			latch.await();
+		}
+
+		// create some additional files that will be processed in the case of PROCESS_CONTINUOUSLY
+		final org.apache.hadoop.fs.Path[] filesCreated = new org.apache.hadoop.fs.Path[NO_OF_FILES];
+		for (int i = 0; i < NO_OF_FILES; i++) {
+			Tuple2<org.apache.hadoop.fs.Path, String> file =
+				createFileAndFillWithData(hdfsURI, "file", i, "This is test line.");
+			filesCreated[i] = file.f0;
+			filesToBeRead.add(file.f0.getName());
+		}
+
+		// wait until the monitoring thread exits
+		t.join();
+
+		Assert.assertArrayEquals(filesToBeRead.toArray(), context.getSeenFiles().toArray());
+
+		// finally delete the files created for the test.
+		hdfs.delete(bootstrap.f0, false);
+		for (org.apache.hadoop.fs.Path path: filesCreated) {
+			hdfs.delete(path, false);
+		}
+	}
+
+	///////////				Source Contexts Used by the tests				/////////////////
+
+	private static class FileVerifyingSourceContext extends DummySourceContext {
 
 		private final ContinuousFileMonitoringFunction src;
-		private final Set<String> filesFound;
+		private final OneShotLatch latch;
+		private final Set<String> seenFiles;
+		private final int elementsBeforeNotifying;
+
+		private int elementsBeforeCanceling = -1;
+
+		FileVerifyingSourceContext(OneShotLatch latch,
+								ContinuousFileMonitoringFunction src,
+								int elementsBeforeNotifying,
+								int elementsBeforeCanceling) {
+			this.latch = latch;
+			this.seenFiles = new TreeSet<>();
+			this.src = src;
+			this.elementsBeforeNotifying = elementsBeforeNotifying;
+			this.elementsBeforeCanceling = elementsBeforeCanceling;
+		}
+
+		Set<String> getSeenFiles() {
+			return this.seenFiles;
+		}
+
+		@Override
+		public void collect(TimestampedFileInputSplit element) {
+			String seenFileName = element.getPath().getName();
+
+			this.seenFiles.add(seenFileName);
+			if (seenFiles.size() == elementsBeforeNotifying) {
+				latch.trigger();
+			}
+
+			if (elementsBeforeCanceling != -1 && seenFiles.size() == elementsBeforeCanceling) {
+				src.cancel();
+			}
+		}
+	}
+
+	private static class ModTimeVerifyingSourceContext extends DummySourceContext {
+
+		final long[] expectedModificationTimes;
+		int splitCounter;
+		long lastSeenModTime;
+
+		ModTimeVerifyingSourceContext(long[] modTimes) {
+			this.expectedModificationTimes = modTimes;
+			this.splitCounter = 0;
+			this.lastSeenModTime = Long.MIN_VALUE;
+		}
+
+		int getCounter() {
+			return splitCounter;
+		}
+
+		@Override
+		public void collect(TimestampedFileInputSplit element) {
+			try {
+				long modTime = hdfs.getFileStatus(new org.apache.hadoop.fs.Path(element.getPath().getPath())).getModificationTime();
+
+				Assert.assertTrue(modTime >= lastSeenModTime);
+				Assert.assertEquals(expectedModificationTimes[splitCounter], modTime);
+
+				lastSeenModTime = modTime;
+				splitCounter++;
+			} catch (IOException e) {
+				Assert.fail(e.getMessage());
+			}
+		}
+	}
+
+	private static abstract class DummySourceContext
+			implements SourceFunction.SourceContext<TimestampedFileInputSplit> {
+
 		private final Object lock = new Object();
 
-		TestingSourceContext(ContinuousFileMonitoringFunction monitoringFunction, Set<String> uniqFilesFound) {
-			this.filesFound = uniqFilesFound;
-			this.src = monitoringFunction;
-		}
-
 		@Override
-		public void collect(FileInputSplit element) {
-
-			String filePath = element.getPath().toString();
-			if (filesFound.contains(filePath)) {
-				// check if we have duplicate splits that are open during the first time
-				// the monitor sees them, and they then close, so the modification time changes.
-				Assert.fail("Duplicate file: " + filePath);
-			}
-
-			synchronized (filesFound) {
-				filesFound.add(filePath);
-				try {
-					if (filesFound.size() == NO_OF_FILES) {
-						this.src.cancel();
-						this.src.close();
-						filesFound.notifyAll();
-					}
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-		}
-
-		@Override
-		public void collectWithTimestamp(FileInputSplit element, long timestamp) {
+		public void collectWithTimestamp(TimestampedFileInputSplit element, long timestamp) {
 		}
 
 		@Override
@@ -587,10 +661,21 @@ public class ContinuousFileMonitoringTest {
 		}
 	}
 
+	/////////				Auxiliary Methods				/////////////
+
+	private int getLineNo(String line) {
+		String[] tkns = line.split("\\s");
+		Assert.assertEquals(6, tkns.length);
+		return Integer.parseInt(tkns[tkns.length - 1]);
+	}
+
 	/**
-	 * Fill the file with content.
+	 * Create a file with pre-determined String format of the form:
+	 * {@code fileIdx +": "+ sampleLine +" "+ lineNo}.
 	 * */
-	private Tuple2<org.apache.hadoop.fs.Path, String> fillWithData(String base, String fileName, int fileIdx, String sampleLine) throws IOException {
+	private Tuple2<org.apache.hadoop.fs.Path, String> createFileAndFillWithData(
+				String base, String fileName, int fileIdx, String sampleLine) throws IOException {
+
 		assert (hdfs != null);
 
 		org.apache.hadoop.fs.Path file = new org.apache.hadoop.fs.Path(base + "/" + fileName + fileIdx);
@@ -599,7 +684,7 @@ public class ContinuousFileMonitoringTest {
 		org.apache.hadoop.fs.Path tmp = new org.apache.hadoop.fs.Path(base + "/." + fileName + fileIdx);
 		FSDataOutputStream stream = hdfs.create(tmp);
 		StringBuilder str = new StringBuilder();
-		for(int i = 0; i < LINES_PER_FILE; i++) {
+		for (int i = 0; i < LINES_PER_FILE; i++) {
 			String line = fileIdx +": "+ sampleLine + " " + i +"\n";
 			str.append(line);
 			stream.write(line.getBytes());

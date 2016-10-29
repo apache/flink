@@ -19,9 +19,9 @@ package org.apache.flink.hdfstests;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.TextInputFormat;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
+import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -44,16 +45,19 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 
-public class ContinuousFileMonitoringFunctionITCase extends StreamingProgramTestBase {
+public class ContinuousFileProcessingITCase extends StreamingProgramTestBase {
 
-	private static final int NO_OF_FILES = 10;
-	private static final int LINES_PER_FILE = 10;
+	private static final int NO_OF_FILES = 5;
+	private static final int LINES_PER_FILE = 100;
 
+	private static final int PARALLELISM = 4;
 	private static final long INTERVAL = 100;
 
 	private File baseDir;
@@ -111,174 +115,189 @@ public class ContinuousFileMonitoringFunctionITCase extends StreamingProgramTest
 		* reader.
 		* */
 
-		FileCreator fileCreator = new FileCreator(INTERVAL);
-		Thread t = new Thread(fileCreator);
-		t.start();
-
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
 		format.setFilePath(hdfsURI);
+		format.setFilesFilter(FilePathFilter.createDefaultFilter());
 
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(4);
+		// create the stream execution environment with a parallelism > 1 to test
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(PARALLELISM);
 
-			format.setFilesFilter(FilePathFilter.createDefaultFilter());
-			ContinuousFileMonitoringFunction<String> monitoringFunction =
-				new ContinuousFileMonitoringFunction<>(format, hdfsURI,
-					FileProcessingMode.PROCESS_CONTINUOUSLY,
-					env.getParallelism(), INTERVAL);
+		ContinuousFileMonitoringFunction<String> monitoringFunction =
+			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
+				FileProcessingMode.PROCESS_CONTINUOUSLY,
+				env.getParallelism(), INTERVAL);
 
-			TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
-			ContinuousFileReaderOperator<String, ?> reader = new ContinuousFileReaderOperator<>(format);
-			TestingSinkFunction sink = new TestingSinkFunction();
+		// the monitor has always DOP 1
+		DataStream<TimestampedFileInputSplit> splits = env.addSource(monitoringFunction);
+		Assert.assertEquals(1, splits.getParallelism());
 
-			DataStream<FileInputSplit> splits = env.addSource(monitoringFunction);
-			splits.transform("FileSplitReader", typeInfo, reader).addSink(sink).setParallelism(1);
-			env.execute();
+		ContinuousFileReaderOperator<String> reader = new ContinuousFileReaderOperator<>(format);
+		TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
-		} catch (Exception e) {
-			Throwable th = e;
-			int depth = 0;
+		// the readers can be multiple
+		DataStream<String> content = splits.transform("FileSplitReader", typeInfo, reader);
+		Assert.assertEquals(PARALLELISM, content.getParallelism());
 
-			for (; depth < 20; depth++) {
-				if (th instanceof SuccessException) {
-					try {
-						postSubmit();
-					} catch (Exception e1) {
-						e1.printStackTrace();
+		// finally for the sink we set the parallelism to 1 so that we can verify the output
+		TestingSinkFunction sink = new TestingSinkFunction();
+		content.addSink(sink).setParallelism(1);
+
+		Thread job = new Thread() {
+
+			@Override
+			public void run() {
+				try {
+					env.execute("ContinuousFileProcessingITCase Job.");
+				} catch (Exception e) {
+					Throwable th = e;
+					for (int depth = 0; depth < 20; depth++) {
+						if (th instanceof SuccessException) {
+							try {
+								postSubmit();
+							} catch (Exception e1) {
+								e1.printStackTrace();
+							}
+							return;
+						} else if (th.getCause() != null) {
+							th = th.getCause();
+						} else {
+							break;
+						}
 					}
-					return;
-				} else if (th.getCause() != null) {
-					th = th.getCause();
-				} else {
-					break;
+					e.printStackTrace();
+					Assert.fail(e.getMessage());
 				}
 			}
-			e.printStackTrace();
-			Assert.fail(e.getMessage());
+		};
+		job.start();
+
+		// The modification time of the last created file.
+		long lastCreatedModTime = Long.MIN_VALUE;
+
+		// create the files to be read
+		for (int i = 0; i < NO_OF_FILES; i++) {
+			Tuple2<org.apache.hadoop.fs.Path, String> tmpFile;
+			long modTime;
+			do {
+
+				// give it some time so that the files have
+				// different modification timestamps.
+				Thread.sleep(50);
+
+				tmpFile = fillWithData(hdfsURI, "file", i, "This is test line.");
+
+				modTime = hdfs.getFileStatus(tmpFile.f0).getModificationTime();
+				if (modTime <= lastCreatedModTime) {
+					// delete the last created file to recreate it with a different timestamp
+					hdfs.delete(tmpFile.f0, false);
+				}
+			} while (modTime <= lastCreatedModTime);
+			lastCreatedModTime = modTime;
+
+			// put the contents in the expected results list before the reader picks them
+			// this is to guarantee that they are in before the reader finishes (avoid race conditions)
+			expectedContents.put(i, tmpFile.f1);
+
+			org.apache.hadoop.fs.Path file =
+				new org.apache.hadoop.fs.Path(hdfsURI + "/file" + i);
+			hdfs.rename(tmpFile.f0, file);
+			Assert.assertTrue(hdfs.exists(file));
 		}
+
+		// wait for the job to finish.
+		job.join();
 	}
 
 	private static class TestingSinkFunction extends RichSinkFunction<String> {
 
 		private int elementCounter = 0;
-		private Map<Integer, Integer> elementCounters = new HashMap<>();
-		private Map<Integer, List<String>> collectedContent = new HashMap<>();
+		private Map<Integer, Set<String>> actualContent = new HashMap<>();
+
+		private transient Comparator<String> comparator;
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			// this sink can only work with DOP 1
 			assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
-		}
 
-		@Override
-		public void close() {
-			// check if the data that we collected are the ones they are supposed to be.
-
-			Assert.assertEquals(collectedContent.size(), expectedContents.size());
-			for (Integer fileIdx: expectedContents.keySet()) {
-				Assert.assertTrue(collectedContent.keySet().contains(fileIdx));
-
-				List<String> cntnt = collectedContent.get(fileIdx);
-				Collections.sort(cntnt, new Comparator<String>() {
-					@Override
-					public int compare(String o1, String o2) {
-						return getLineNo(o1) - getLineNo(o2);
-					}
-				});
-
-				StringBuilder cntntStr = new StringBuilder();
-				for (String line: cntnt) {
-					cntntStr.append(line);
+			comparator = new Comparator<String>() {
+				@Override
+				public int compare(String o1, String o2) {
+					return getLineNo(o1) - getLineNo(o2);
 				}
-				Assert.assertEquals(cntntStr.toString(), expectedContents.get(fileIdx));
-			}
-			expectedContents.clear();
-		}
-
-		private int getLineNo(String line) {
-			String[] tkns = line.split("\\s");
-			Assert.assertTrue(tkns.length == 6);
-			return Integer.parseInt(tkns[tkns.length - 1]);
+			};
 		}
 
 		@Override
 		public void invoke(String value) throws Exception {
-			int fileIdx = Character.getNumericValue(value.charAt(0));
+			int fileIdx = getFileIdx(value);
 
-			Integer counter = elementCounters.get(fileIdx);
-			if (counter == null) {
-				counter = 0;
-			} else if (counter == LINES_PER_FILE) {
-				// ignore duplicate lines.
-				Assert.fail("Duplicate lines detected.");
-			}
-			elementCounters.put(fileIdx, ++counter);
-
-			List<String> content = collectedContent.get(fileIdx);
+			Set<String> content = actualContent.get(fileIdx);
 			if (content == null) {
-				content = new ArrayList<>();
-				collectedContent.put(fileIdx, content);
+				content = new HashSet<>();
+				actualContent.put(fileIdx, content);
 			}
-			content.add(value + "\n");
+
+			if (!content.add(value + "\n")) {
+				Assert.fail("Duplicate line: "+ value);
+				System.exit(0);
+			}
 
 			elementCounter++;
 			if (elementCounter == NO_OF_FILES * LINES_PER_FILE) {
 				throw new SuccessException();
 			}
 		}
-	}
 
-	/**
-	 * A separate thread creating {@link #NO_OF_FILES} files, one file every {@link #INTERVAL} milliseconds.
-	 * It serves for testing the file monitoring functionality of the {@link ContinuousFileMonitoringFunction}.
-	 * The files are filled with data by the {@link #fillWithData(String, String, int, String)} method.
-	 * */
-	private class FileCreator implements Runnable {
+		@Override
+		public void close() {
+			// check if the data that we collected are the ones they are supposed to be.
+			Assert.assertEquals(expectedContents.size(), actualContent.size());
+			for (Integer fileIdx: expectedContents.keySet()) {
+				Assert.assertTrue(actualContent.keySet().contains(fileIdx));
 
-		private final long interval;
+				List<String> cntnt = new ArrayList<>(actualContent.get(fileIdx));
+				Collections.sort(cntnt, comparator);
 
-		FileCreator(long interval) {
-			this.interval = interval;
-		}
-
-		public void run() {
-			try {
-				for (int i = 0; i < NO_OF_FILES; i++) {
-					fillWithData(hdfsURI, "file", i, "This is test line.");
-					Thread.sleep(interval);
+				StringBuilder cntntStr = new StringBuilder();
+				for (String line: cntnt) {
+					cntntStr.append(line);
 				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			} catch (InterruptedException e) {
-				// we just close without any message.
+				Assert.assertEquals(expectedContents.get(fileIdx), cntntStr.toString());
 			}
+			expectedContents.clear();
+		}
+
+		private int getLineNo(String line) {
+			String[] tkns = line.split("\\s");
+			return Integer.parseInt(tkns[tkns.length - 1]);
+		}
+
+		private int getFileIdx(String line) {
+			String[] tkns = line.split(":");
+			return Integer.parseInt(tkns[0]);
 		}
 	}
 
-	/**
-	 * Fill the file with content.
-	 * */
-	private void fillWithData(String base, String fileName, int fileIdx, String sampleLine) throws IOException {
+	/** Create a file and fill it with content. */
+	private Tuple2<org.apache.hadoop.fs.Path, String> fillWithData(
+		String base, String fileName, int fileIdx, String sampleLine) throws IOException, InterruptedException {
+
 		assert (hdfs != null);
 
-		org.apache.hadoop.fs.Path file = new org.apache.hadoop.fs.Path(base + "/" + fileName + fileIdx);
+		org.apache.hadoop.fs.Path tmp =
+			new org.apache.hadoop.fs.Path(base + "/." + fileName + fileIdx);
 
-		org.apache.hadoop.fs.Path tmp = new org.apache.hadoop.fs.Path(base + "/." + fileName + fileIdx);
 		FSDataOutputStream stream = hdfs.create(tmp);
 		StringBuilder str = new StringBuilder();
 		for (int i = 0; i < LINES_PER_FILE; i++) {
-			String line = fileIdx +": "+ sampleLine + " " + i +"\n";
+			String line = fileIdx + ": " + sampleLine + " " + i + "\n";
 			str.append(line);
 			stream.write(line.getBytes());
 		}
 		stream.close();
-
-		hdfs.rename(tmp, file);
-
-		expectedContents.put(fileIdx, str.toString());
-
-		Assert.assertTrue("No result file present", hdfs.exists(file));
+		return new Tuple2<>(tmp, str.toString());
 	}
 
 	public static class SuccessException extends Exception {

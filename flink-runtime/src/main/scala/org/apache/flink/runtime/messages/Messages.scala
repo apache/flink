@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.messages
 
+import org.apache.flink.runtime.instance.InstanceID
+
 /**
  * Generic messages between JobManager, TaskManager, JobClient.
  */
@@ -39,7 +41,7 @@ object Messages {
    *
    * @param reason The reason for disconnecting, to be displayed in log and error messages.
    */
-  case class Disconnect(reason: String) extends RequiresLeaderSessionID
+  case class Disconnect(instanceId: InstanceID, reason: String) extends RequiresLeaderSessionID
 
   /**
    * Accessor for the case object instance, to simplify Java interoperability.

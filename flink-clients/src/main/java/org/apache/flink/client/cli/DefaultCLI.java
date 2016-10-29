@@ -27,6 +27,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 
 import java.net.InetSocketAddress;
+import java.net.URL;
+import java.util.List;
 
 import static org.apache.flink.client.CliFrontend.setJobManagerAddressInConfig;
 
@@ -76,7 +78,8 @@ public class DefaultCLI implements CustomCommandLine<StandaloneClusterClient> {
 	public StandaloneClusterClient createCluster(
 			String applicationName,
 			CommandLine commandLine,
-			Configuration config) throws UnsupportedOperationException {
+			Configuration config,
+			List<URL> userJarFiles) throws UnsupportedOperationException {
 
 		StandaloneClusterDescriptor descriptor = new StandaloneClusterDescriptor(config);
 		return descriptor.deploy();

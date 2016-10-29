@@ -18,12 +18,13 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -64,6 +65,7 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
@@ -75,6 +77,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -236,6 +239,9 @@ public class Task implements Runnable, TaskActions {
 	/** Initialized from the Flink configuration. May also be set at the ExecutionConfig */
 	private long taskCancellationInterval;
 
+	/** Initialized from the Flink configuration. May also be set at the ExecutionConfig */
+	private long taskCancellationTimeout;
+
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to
 	 * be undone in the case of a failing task deployment.</p>
@@ -270,9 +276,9 @@ public class Task implements Runnable, TaskActions {
 		this.serializedExecutionConfig = checkNotNull(tdd.getSerializedExecutionConfig());
 		this.taskStateHandles = tdd.getTaskStateHandles();
 
-		this.taskCancellationInterval = jobConfiguration.getLong(
-			ConfigConstants.TASK_CANCELLATION_INTERVAL_MILLIS,
-			ConfigConstants.DEFAULT_TASK_CANCELLATION_INTERVAL_MILLIS);
+		Configuration taskConfig = tdd.getTaskConfiguration();
+		this.taskCancellationInterval = taskConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL);
+		this.taskCancellationTimeout = taskConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT);
 
 		this.memoryManager = checkNotNull(memManager);
 		this.ioManager = checkNotNull(ioManager);
@@ -401,6 +407,16 @@ public class Task implements Runnable, TaskActions {
 		return executingThread;
 	}
 
+	@VisibleForTesting
+	long getTaskCancellationInterval() {
+		return taskCancellationInterval;
+	}
+
+	@VisibleForTesting
+	long getTaskCancellationTimeout() {
+		return taskCancellationTimeout;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Task Execution
 	// ------------------------------------------------------------------------
@@ -498,6 +514,11 @@ public class Task implements Runnable, TaskActions {
 				taskCancellationInterval = executionConfig.getTaskCancellationInterval();
 			}
 
+			if (executionConfig.getTaskCancellationTimeout() >= 0) {
+				// override task cancellation timeout from Flink config if set in ExecutionConfig
+				taskCancellationTimeout = executionConfig.getTaskCancellationTimeout();
+			}
+
 			// now load the task's invokable code
 			invokable = loadAndInstantiateInvokable(userCodeClassLoader, nameOfInvokableClass);
 
@@ -567,7 +588,6 @@ public class Task implements Runnable, TaskActions {
 				//noinspection UnusedAssignment
 				taskStateHandles = null;
 			}
-
 
 			// ----------------------------------------------------------------
 			//  actual task core work
@@ -876,12 +896,16 @@ public class Task implements Runnable, TaskActions {
 						// because the canceling may block on user code, we cancel from a separate thread
 						// we do not reuse the async call handler, because that one may be blocked, in which
 						// case the canceling could not continue
+
+						// The canceller calls cancel and interrupts the executing thread once
 						Runnable canceler = new TaskCanceler(
 								LOG,
 								invokable,
 								executingThread,
 								taskNameWithSubtask,
 								taskCancellationInterval,
+								taskCancellationTimeout,
+								taskManagerConnection,
 								producedPartitions,
 								inputGates);
 						Thread cancelThread = new Thread(executingThread.getThreadGroup(), canceler,
@@ -1171,16 +1195,30 @@ public class Task implements Runnable, TaskActions {
 		private final AbstractInvokable invokable;
 		private final Thread executer;
 		private final String taskName;
-		private final long taskCancellationIntervalMillis;
 		private final ResultPartition[] producedPartitions;
 		private final SingleInputGate[] inputGates;
+
+		/** Interrupt interval. */
+		private final long interruptInterval;
+
+		/** Timeout after which a fatal error notification happens. */
+		private final long interruptTimeout;
+
+		/** TaskManager to notify about a timeout */
+		private final TaskManagerConnection taskManager;
+
+		/** Watch Dog thread */
+		@Nullable
+		private final Thread watchDogThread;
 
 		public TaskCanceler(
 				Logger logger,
 				AbstractInvokable invokable,
 				Thread executer,
 				String taskName,
-				long cancelationInterval,
+				long cancellationInterval,
+				long cancellationTimeout,
+				TaskManagerConnection taskManager,
 				ResultPartition[] producedPartitions,
 				SingleInputGate[] inputGates) {
 
@@ -1188,26 +1226,46 @@ public class Task implements Runnable, TaskActions {
 			this.invokable = invokable;
 			this.executer = executer;
 			this.taskName = taskName;
-			this.taskCancellationIntervalMillis = cancelationInterval;
+			this.interruptInterval = cancellationInterval;
+			this.interruptTimeout = cancellationTimeout;
+			this.taskManager = taskManager;
 			this.producedPartitions = producedPartitions;
 			this.inputGates = inputGates;
+
+			if (cancellationTimeout > 0) {
+				// The watch dog repeatedly interrupts the executor until
+				// the cancellation timeout kicks in (at which point the
+				// task manager is notified about a fatal error) or the
+				// executor has terminated.
+				this.watchDogThread = new Thread(
+						executer.getThreadGroup(),
+						new TaskCancelerWatchDog(),
+						"WatchDog for " + taskName + " cancellation");
+				this.watchDogThread.setDaemon(true);
+			} else {
+				this.watchDogThread = null;
+			}
 		}
 
 		@Override
 		public void run() {
 			try {
+				if (watchDogThread != null) {
+					watchDogThread.start();
+				}
+
 				// the user-defined cancel method may throw errors.
 				// we need do continue despite that
 				try {
 					invokable.cancel();
-				}
-				catch (Throwable t) {
+				} catch (Throwable t) {
 					logger.error("Error while canceling the task", t);
 				}
 
 				// Early release of input and output buffer pools. We do this
 				// in order to unblock async Threads, which produce/consume the
-				// intermediate streams outside of the main Task Thread.
+				// intermediate streams outside of the main Task Thread (like
+				// the Kafka consumer).
 				//
 				// Don't do this before cancelling the invokable. Otherwise we
 				// will get misleading errors in the logs.
@@ -1230,16 +1288,46 @@ public class Task implements Runnable, TaskActions {
 				// interrupt the running thread initially
 				executer.interrupt();
 				try {
-					executer.join(taskCancellationIntervalMillis);
+					executer.join(interruptInterval);
 				}
 				catch (InterruptedException e) {
 					// we can ignore this
 				}
 
-				// it is possible that the user code does not react immediately. for that
-				// reason, we spawn a separate thread that repeatedly interrupts the user code until
-				// it exits
+				if (watchDogThread != null) {
+					watchDogThread.interrupt();
+					watchDogThread.join();
+				}
+			} catch (Throwable t) {
+				logger.error("Error in the task canceler", t);
+			}
+		}
+
+		/**
+		 * Watchdog for the cancellation. If the task is stuck in cancellation,
+		 * we notify the task manager about a fatal error.
+		 */
+		private class TaskCancelerWatchDog implements Runnable {
+
+			@Override
+			public void run() {
+				long intervalNanos = TimeUnit.NANOSECONDS.convert(interruptInterval, TimeUnit.MILLISECONDS);
+				long timeoutNanos = TimeUnit.NANOSECONDS.convert(interruptTimeout, TimeUnit.MILLISECONDS);
+				long deadline = System.nanoTime() + timeoutNanos;
+
+				try {
+					// Initial wait before interrupting periodically
+					Thread.sleep(interruptInterval);
+				} catch (InterruptedException ignored) {
+				}
+
+				// It is possible that the user code does not react to the task canceller.
+				// for that reason, we spawn this separate thread that repeatedly interrupts
+				// the user code until it exits. If the suer user code does not exit within
+				// the timeout, we notify the job manager about a fatal error.
 				while (executer.isAlive()) {
+					long now = System.nanoTime();
+
 					// build the stack trace of where the thread is stuck, for the log
 					StringBuilder bld = new StringBuilder();
 					StackTraceElement[] stack = executer.getStackTrace();
@@ -1247,20 +1335,33 @@ public class Task implements Runnable, TaskActions {
 						bld.append(e).append('\n');
 					}
 
-					logger.warn("Task '{}' did not react to cancelling signal, but is stuck in method:\n {}",
-							taskName, bld.toString());
+					if (now >= deadline) {
+						long duration = TimeUnit.SECONDS.convert(interruptInterval, TimeUnit.MILLISECONDS);
+						String msg = String.format("Task '%s' did not react to cancelling signal in " +
+										"the last %d seconds, but is stuck in method:\n %s",
+								taskName,
+								duration,
+								bld.toString());
 
-					executer.interrupt();
-					try {
-						executer.join(taskCancellationIntervalMillis);
-					}
-					catch (InterruptedException e) {
-						// we can ignore this
+						taskManager.notifyFatalError(msg, null);
+
+						return; // done, don't forget to leave the loop
+					} else {
+						logger.warn("Task '{}' did not react to cancelling signal, but is stuck in method:\n {}",
+								taskName, bld.toString());
+
+						executer.interrupt();
+						try {
+							long timeLeftNanos = Math.min(intervalNanos, deadline - now);
+							long timeLeftMillis = TimeUnit.MILLISECONDS.convert(timeLeftNanos, TimeUnit.NANOSECONDS);
+
+							if (timeLeftMillis > 0) {
+								executer.join(timeLeftMillis);
+							}
+						} catch (InterruptedException ignored) {
+						}
 					}
 				}
-			}
-			catch (Throwable t) {
-				logger.error("Error in the task canceler", t);
 			}
 		}
 	}

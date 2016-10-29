@@ -82,10 +82,6 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * An ExecutionEnvironment for streaming jobs. An instance of it is
- * necessary to construct streaming topologies.
- */
-/**
  * The StreamExecutionEnvironment is the context in which a streaming program is executed. A
  * {@link LocalStreamEnvironment} will cause execution in the current JVM, a
  * {@link RemoteStreamEnvironment} will cause execution on a remote setup.
@@ -1350,18 +1346,20 @@ public abstract class StreamExecutionEnvironment {
 		Preconditions.checkNotNull(monitoringMode, "Unspecified monitoring mode.");
 
 		Preconditions.checkArgument(monitoringMode.equals(FileProcessingMode.PROCESS_ONCE) ||
-						interval >= ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL,
-				"The path monitoring interval cannot be less than " +
-						ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL + " ms.");
+				interval >= ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL,
+			"The path monitoring interval cannot be less than " +
+					ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL + " ms.");
 
-		ContinuousFileMonitoringFunction<OUT> monitoringFunction = new ContinuousFileMonitoringFunction<>(
+		ContinuousFileMonitoringFunction<OUT> monitoringFunction =
+			new ContinuousFileMonitoringFunction<>(
 				inputFormat, inputFormat.getFilePath().toString(),
 				monitoringMode, getParallelism(), interval);
 
-		ContinuousFileReaderOperator<OUT, ?> reader = new ContinuousFileReaderOperator<>(inputFormat);
+		ContinuousFileReaderOperator<OUT> reader =
+			new ContinuousFileReaderOperator<>(inputFormat);
 
 		SingleOutputStreamOperator<OUT> source = addSource(monitoringFunction, sourceName)
-				.transform("FileSplitReader_" + sourceName, typeInfo, reader);
+				.transform("Split Reader: " + sourceName, typeInfo, reader);
 
 		return new DataStreamSource<>(source);
 	}
