@@ -49,20 +49,10 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Compute the following edge metrics in a directed graph:
- *  - number of vertices
- *  - number of edges
- *  - number of unidirectional edges
- *  - number of bidirectional edges
- *  - average degree
  *  - number of triangle triplets
  *  - number of rectangle triplets
- *  - number of triplets
- *  - maximum degree
- *  - maximum out degree
- *  - maximum in degree
  *  - maximum number of triangle triplets
  *  - maximum number of rectangle triplets
- *  - maximum number of triplets
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
@@ -134,24 +124,14 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 	@Override
 	public Result getResult() {
-		long vertexCount = edgeMetricsHelper.getAccumulator(env, "vertexCount");
-		long unidirectionalEdgeCount = edgeMetricsHelper.getAccumulator(env, "unidirectionalEdgeCount");
-		long bidirectionalEdgeCount = edgeMetricsHelper.getAccumulator(env, "bidirectionalEdgeCount");
 		long triangleTripletCount = edgeMetricsHelper.getAccumulator(env, "triangleTripletCount");
 		long rectangleTripletCount = edgeMetricsHelper.getAccumulator(env, "rectangleTripletCount");
-		long tripletCount = edgeMetricsHelper.getAccumulator(env, "tripletCount");
-		long maximumDegree = edgeMetricsHelper.getAccumulator(env, "maximumDegree");
-		long maximumOutDegree = edgeMetricsHelper.getAccumulator(env, "maximumOutDegree");
-		long maximumInDegree = edgeMetricsHelper.getAccumulator(env, "maximumInDegree");
 		long maximumTriangleTriplets = edgeMetricsHelper.getAccumulator(env, "maximumTriangleTriplets");
 		long maximumRectangleTriplets = edgeMetricsHelper.getAccumulator(env, "maximumRectangleTriplets");
-		long maximumTriplets = edgeMetricsHelper.getAccumulator(env, "maximumTriplets");
 
 		// each edge is counted twice, once from each vertex, so must be halved
-		return new Result(vertexCount, unidirectionalEdgeCount / 2, bidirectionalEdgeCount / 2,
-			triangleTripletCount, rectangleTripletCount, tripletCount,
-			maximumDegree, maximumOutDegree, maximumInDegree,
-			maximumTriangleTriplets, maximumRectangleTriplets, maximumTriplets);
+		return new Result(triangleTripletCount, rectangleTripletCount,
+			maximumTriangleTriplets, maximumRectangleTriplets);
 	}
 
 	/**
@@ -244,18 +224,10 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 */
 	private static class EdgeMetricsHelper<T extends Comparable<T>>
 	extends GraphAnalyticHelper<Tuple3<T, Degrees, LongValue>> {
-		private long vertexCount;
-		private long unidirectionalEdgeCount;
-		private long bidirectionalEdgeCount;
 		private long triangleTripletCount;
 		private long rectangleTripletCount;
-		private long tripletCount;
-		private long maximumDegree;
-		private long maximumOutDegree;
-		private long maximumInDegree;
 		private long maximumTriangleTriplets;
 		private long maximumRectangleTriplets;
-		private long maximumTriplets;
 
 		@Override
 		public void configure(Configuration parameters) {}
@@ -267,49 +239,26 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		public void writeRecord(Tuple3<T, Degrees, LongValue> record) throws IOException {
 			Degrees degrees = record.f1;
 			long degree = degrees.getDegree().getValue();
-			long outDegree = degrees.getOutDegree().getValue();
-			long inDegree = degrees.getInDegree().getValue();
-
-			long bidirectionalEdges = outDegree + inDegree - degree;
 
 			long lowDegree = record.f2.getValue();
 			long highDegree = degree - lowDegree;
 
 			long triangleTriplets = lowDegree * (lowDegree - 1) / 2;
 			long rectangleTriplets = triangleTriplets + lowDegree * highDegree;
-			long triplets = degree * (degree - 1) / 2;
-
-			vertexCount++;
-			unidirectionalEdgeCount += degree - bidirectionalEdges;
-			bidirectionalEdgeCount += bidirectionalEdges;
 
 			triangleTripletCount += triangleTriplets;
 			rectangleTripletCount += rectangleTriplets;
-			tripletCount += triplets;
-
-			maximumDegree = Math.max(maximumDegree, degree);
-			maximumOutDegree = Math.max(maximumOutDegree, outDegree);
-			maximumInDegree = Math.max(maximumInDegree, inDegree);
 
 			maximumTriangleTriplets = Math.max(maximumTriangleTriplets, triangleTriplets);
 			maximumRectangleTriplets = Math.max(maximumRectangleTriplets, rectangleTriplets);
-			maximumTriplets = Math.max(maximumTriplets, triplets);
 		}
 
 		@Override
 		public void close() throws IOException {
-			addAccumulator("vertexCount", new LongCounter(vertexCount));
-			addAccumulator("unidirectionalEdgeCount", new LongCounter(unidirectionalEdgeCount));
-			addAccumulator("bidirectionalEdgeCount", new LongCounter(bidirectionalEdgeCount));
 			addAccumulator("triangleTripletCount", new LongCounter(triangleTripletCount));
 			addAccumulator("rectangleTripletCount", new LongCounter(rectangleTripletCount));
-			addAccumulator("tripletCount", new LongCounter(tripletCount));
-			addAccumulator("maximumDegree", new LongMaximum(maximumDegree));
-			addAccumulator("maximumOutDegree", new LongMaximum(maximumOutDegree));
-			addAccumulator("maximumInDegree", new LongMaximum(maximumInDegree));
 			addAccumulator("maximumTriangleTriplets", new LongMaximum(maximumTriangleTriplets));
 			addAccumulator("maximumRectangleTriplets", new LongMaximum(maximumRectangleTriplets));
-			addAccumulator("maximumTriplets", new LongMaximum(maximumTriplets));
 		}
 	}
 
@@ -317,80 +266,17 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 * Wraps edge metrics.
 	 */
 	public static class Result {
-		private long vertexCount;
-		private long unidirectionalEdgeCount;
-		private long bidirectionalEdgeCount;
 		private long triangleTripletCount;
 		private long rectangleTripletCount;
-		private long tripletCount;
-		private long maximumDegree;
-		private long maximumOutDegree;
-		private long maximumInDegree;
 		private long maximumTriangleTriplets;
 		private long maximumRectangleTriplets;
-		private long maximumTriplets;
 
-		public Result(long vertexCount, long unidirectionalEdgeCount, long bidirectionalEdgeCount,
-				long triangleTripletCount, long rectangleTripletCount, long tripletCount,
-				long maximumDegree, long maximumOutDegree, long maximumInDegree,
-				long maximumTriangleTriplets, long maximumRectangleTriplets, long maximumTriplets) {
-			this.vertexCount = vertexCount;
-			this.unidirectionalEdgeCount = unidirectionalEdgeCount;
-			this.bidirectionalEdgeCount = bidirectionalEdgeCount;
+		public Result(long triangleTripletCount, long rectangleTripletCount,
+				long maximumTriangleTriplets, long maximumRectangleTriplets) {
 			this.triangleTripletCount = triangleTripletCount;
 			this.rectangleTripletCount = rectangleTripletCount;
-			this.tripletCount = tripletCount;
-			this.maximumDegree = maximumDegree;
-			this.maximumOutDegree = maximumOutDegree;
-			this.maximumInDegree = maximumInDegree;
 			this.maximumTriangleTriplets = maximumTriangleTriplets;
 			this.maximumRectangleTriplets = maximumRectangleTriplets;
-			this.maximumTriplets = maximumTriplets;
-		}
-
-		/**
-		 * Get the number of vertices.
-		 *
-		 * @return number of vertices
-		 */
-		public long getNumberOfVertices() {
-			return vertexCount;
-		}
-
-		/**
-		 * Get the number of edges.
-		 *
-		 * @return number of edges
-		 */
-		public long getNumberOfEdges() {
-			return unidirectionalEdgeCount + 2 * bidirectionalEdgeCount;
-		}
-
-		/**
-		 * Get the number of unidirectional edges.
-		 *
-		 * @return number of unidirectional edges
-		 */
-		public long getNumberOfDirectedEdges() {
-			return unidirectionalEdgeCount;
-		}
-
-		/**
-		 * Get the number of bidirectional edges.
-		 *
-		 * @return number of bidirectional edges
-		 */
-		public long getNumberOfUndirectedEdges() {
-			return bidirectionalEdgeCount;
-		}
-
-		/**
-		 * Get the average degree.
-		 *
-		 * @return average degree
-		 */
-		public float getAverageDegree() {
-			return getNumberOfEdges() / (float)vertexCount;
 		}
 
 		/**
@@ -412,42 +298,6 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		/**
-		 * Get the number of triplets.
-		 *
-		 * @return number of triplets
-		 */
-		public long getNumberOfTriplets() {
-			return tripletCount;
-		}
-
-		/**
-		 * Get the maximum degree.
-		 *
-		 * @return maximum degree
-		 */
-		public long getMaximumDegree() {
-			return maximumDegree;
-		}
-
-		/**
-		 * Get the maximum out degree.
-		 *
-		 * @return maximum out degree
-		 */
-		public long getMaximumOutDegree() {
-			return maximumOutDegree;
-		}
-
-		/**
-		 * Get the maximum in degree.
-		 *
-		 * @return maximum in degree
-		 */
-		public long getMaximumInDegree() {
-			return maximumInDegree;
-		}
-
-		/**
 		 * Get the maximum triangle triplets.
 		 *
 		 * @return maximum triangle triplets
@@ -465,50 +315,23 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 			return maximumRectangleTriplets;
 		}
 
-		/**
-		 * Get the maximum triplets.
-		 *
-		 * @return maximum triplets
-		 */
-		public long getMaximumTriplets() {
-			return maximumTriplets;
-		}
-
 		@Override
 		public String toString() {
 			NumberFormat nf = NumberFormat.getInstance();
 
-			return "vertex count: " + nf.format(vertexCount)
-				+ "; edge count: " + nf.format(getNumberOfEdges())
-				+ "; unidirectional edge count: " + nf.format(unidirectionalEdgeCount)
-				+ "; bidirectional edge count: " + nf.format(bidirectionalEdgeCount)
-				+ "; average degree: " + nf.format(getAverageDegree())
-				+ "; triangle triplet count: " + nf.format(triangleTripletCount)
+			return "triangle triplet count: " + nf.format(triangleTripletCount)
 				+ "; rectangle triplet count: " + nf.format(rectangleTripletCount)
-				+ "; triplet count: " + nf.format(tripletCount)
-				+ "; maximum degree: " + nf.format(maximumDegree)
-				+ "; maximum out degree: " + nf.format(maximumOutDegree)
-				+ "; maximum in degree: " + nf.format(maximumInDegree)
 				+ "; maximum triangle triplets: " + nf.format(maximumTriangleTriplets)
-				+ "; maximum rectangle triplets: " + nf.format(maximumRectangleTriplets)
-				+ "; maximum triplets: " + nf.format(maximumTriplets);
+				+ "; maximum rectangle triplets: " + nf.format(maximumRectangleTriplets);
 		}
 
 		@Override
 		public int hashCode() {
 			return new HashCodeBuilder()
-				.append(vertexCount)
-				.append(unidirectionalEdgeCount)
-				.append(bidirectionalEdgeCount)
 				.append(triangleTripletCount)
 				.append(rectangleTripletCount)
-				.append(tripletCount)
-				.append(maximumDegree)
-				.append(maximumOutDegree)
-				.append(maximumInDegree)
 				.append(maximumTriangleTriplets)
 				.append(maximumRectangleTriplets)
-				.append(maximumTriplets)
 				.hashCode();
 		}
 
@@ -521,18 +344,10 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 			Result rhs = (Result)obj;
 
 			return new EqualsBuilder()
-				.append(vertexCount, rhs.vertexCount)
-				.append(unidirectionalEdgeCount, rhs.unidirectionalEdgeCount)
-				.append(bidirectionalEdgeCount, rhs.bidirectionalEdgeCount)
 				.append(triangleTripletCount, rhs.triangleTripletCount)
 				.append(rectangleTripletCount, rhs.rectangleTripletCount)
-				.append(tripletCount, rhs.tripletCount)
-				.append(maximumDegree, rhs.maximumDegree)
-				.append(maximumOutDegree, rhs.maximumOutDegree)
-				.append(maximumInDegree, rhs.maximumInDegree)
 				.append(maximumTriangleTriplets, rhs.maximumTriangleTriplets)
 				.append(maximumRectangleTriplets, rhs.maximumRectangleTriplets)
-				.append(maximumTriplets, rhs.maximumTriplets)
 				.isEquals();
 		}
 	}
