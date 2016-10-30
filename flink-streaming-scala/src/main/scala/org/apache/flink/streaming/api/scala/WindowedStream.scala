@@ -437,7 +437,7 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
    */
   private[flink] def clean[F <: AnyRef](f: F): F = {
-    new StreamExecutionEnvironment(javaStream.getExecutionEnvironment).scalaClean(f)
+    new StreamExecutionEnvironment(javaStream.getExecutionEnvironment).scalaCheckAndClean(f)
   }
 
   /**
