@@ -32,13 +32,15 @@ public class ScalaObjectChecker {
 		String clsName = cls.getCanonicalName();
 		if (clsName.length() > 0) {
 			char lastChar = clsName.charAt(clsName.length() - 1);
-			if (lastChar == '$') return true;
+			if (lastChar == '$') {
+				return true;
+			} else return false;
 		}
 		return false;
 	}
 
 	public static void assertScalaForbidScalaObjectFunction(Object o) {
-		if(isPotentialScalaObject(o)) {
+		if (isPotentialScalaObject(o)) {
 			String msg = "User defined function implemented by class " + o.getClass().getCanonicalName() +
 				" might be implemented by a Scala Object,it is forbidden by Flink since concurrent modification risks.";
 			throw new InvalidProgramException(msg);
