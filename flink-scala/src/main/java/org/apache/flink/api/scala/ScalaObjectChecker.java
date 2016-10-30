@@ -34,7 +34,9 @@ public class ScalaObjectChecker {
 			char lastChar = clsName.charAt(clsName.length() - 1);
 			if (lastChar == '$') {
 				return true;
-			} else return false;
+			} else {
+				return false;
+			}
 		}
 		return false;
 	}
