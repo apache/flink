@@ -61,6 +61,14 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 public class EdgeMetrics<K extends Comparable<K> & CopyableValue<K>, VV, EV>
 extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
+	private static final String TRIANGLE_TRIPLET_COUNT = "triangleTripletCount";
+
+	private static final String RECTANGLE_TRIPLET_COUNT = "rectangleTripletCount";
+
+	private static final String MAXIMUM_TRIANGLE_TRIPLETS = "maximumTriangleTriplets";
+
+	private static final String MAXIMUM_RECTANGLE_TRIPLETS = "maximumRectangleTriplets";
+
 	private EdgeMetricsHelper<K> edgeMetricsHelper;
 
 	private int parallelism = PARALLELISM_DEFAULT;
@@ -124,10 +132,10 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 	@Override
 	public Result getResult() {
-		long triangleTripletCount = edgeMetricsHelper.getAccumulator(env, "triangleTripletCount");
-		long rectangleTripletCount = edgeMetricsHelper.getAccumulator(env, "rectangleTripletCount");
-		long maximumTriangleTriplets = edgeMetricsHelper.getAccumulator(env, "maximumTriangleTriplets");
-		long maximumRectangleTriplets = edgeMetricsHelper.getAccumulator(env, "maximumRectangleTriplets");
+		long triangleTripletCount = edgeMetricsHelper.getAccumulator(env, TRIANGLE_TRIPLET_COUNT);
+		long rectangleTripletCount = edgeMetricsHelper.getAccumulator(env, RECTANGLE_TRIPLET_COUNT);
+		long maximumTriangleTriplets = edgeMetricsHelper.getAccumulator(env, MAXIMUM_TRIANGLE_TRIPLETS);
+		long maximumRectangleTriplets = edgeMetricsHelper.getAccumulator(env, MAXIMUM_RECTANGLE_TRIPLETS);
 
 		// each edge is counted twice, once from each vertex, so must be halved
 		return new Result(triangleTripletCount, rectangleTripletCount,
@@ -255,10 +263,10 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public void close() throws IOException {
-			addAccumulator("triangleTripletCount", new LongCounter(triangleTripletCount));
-			addAccumulator("rectangleTripletCount", new LongCounter(rectangleTripletCount));
-			addAccumulator("maximumTriangleTriplets", new LongMaximum(maximumTriangleTriplets));
-			addAccumulator("maximumRectangleTriplets", new LongMaximum(maximumRectangleTriplets));
+			addAccumulator(TRIANGLE_TRIPLET_COUNT, new LongCounter(triangleTripletCount));
+			addAccumulator(RECTANGLE_TRIPLET_COUNT, new LongCounter(rectangleTripletCount));
+			addAccumulator(MAXIMUM_TRIANGLE_TRIPLETS, new LongMaximum(maximumTriangleTriplets));
+			addAccumulator(MAXIMUM_RECTANGLE_TRIPLETS, new LongMaximum(maximumRectangleTriplets));
 		}
 	}
 

@@ -57,6 +57,22 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 public class VertexMetrics<K extends Comparable<K> & CopyableValue<K>, VV, EV>
 extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
+	private static final String VERTEX_COUNT = "vertexCount";
+
+	private static final String UNIDIRECTIONAL_EDGE_COUNT = "unidirectionalEdgeCount";
+
+	private static final String BIDIRECTIONAL_EDGE_COUNT = "bidirectionalEdgeCount";
+
+	private static final String TRIPLET_COUNT = "tripletCount";
+
+	private static final String MAXIMUM_DEGREE = "maximumDegree";
+
+	private static final String MAXIMUM_OUT_DEGREE = "maximumOutDegree";
+
+	private static final String MAXIMUM_IN_DEGREE = "maximumInDegree";
+
+	private static final String MAXIMUM_TRIPLETS = "maximumTriplets";
+
 	private VertexMetricsHelper<K> vertexMetricsHelper;
 
 	// Optional configuration
@@ -112,14 +128,14 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 	@Override
 	public Result getResult() {
-		long vertexCount = vertexMetricsHelper.getAccumulator(env, "vertexCount");
-		long unidirectionalEdgeCount = vertexMetricsHelper.getAccumulator(env, "unidirectionalEdgeCount");
-		long bidirectionalEdgeCount = vertexMetricsHelper.getAccumulator(env, "bidirectionalEdgeCount");
-		long tripletCount = vertexMetricsHelper.getAccumulator(env, "tripletCount");
-		long maximumDegree = vertexMetricsHelper.getAccumulator(env, "maximumDegree");
-		long maximumOutDegree = vertexMetricsHelper.getAccumulator(env, "maximumOutDegree");
-		long maximumInDegree = vertexMetricsHelper.getAccumulator(env, "maximumInDegree");
-		long maximumTriplets = vertexMetricsHelper.getAccumulator(env, "maximumTriplets");
+		long vertexCount = vertexMetricsHelper.getAccumulator(env, VERTEX_COUNT);
+		long unidirectionalEdgeCount = vertexMetricsHelper.getAccumulator(env, UNIDIRECTIONAL_EDGE_COUNT);
+		long bidirectionalEdgeCount = vertexMetricsHelper.getAccumulator(env, BIDIRECTIONAL_EDGE_COUNT);
+		long tripletCount = vertexMetricsHelper.getAccumulator(env, TRIPLET_COUNT);
+		long maximumDegree = vertexMetricsHelper.getAccumulator(env, MAXIMUM_DEGREE);
+		long maximumOutDegree = vertexMetricsHelper.getAccumulator(env, MAXIMUM_OUT_DEGREE);
+		long maximumInDegree = vertexMetricsHelper.getAccumulator(env, MAXIMUM_IN_DEGREE);
+		long maximumTriplets = vertexMetricsHelper.getAccumulator(env, MAXIMUM_TRIPLETS);
 
 		// each edge is counted twice, once from each vertex, so must be halved
 		return new Result(vertexCount, unidirectionalEdgeCount / 2, bidirectionalEdgeCount / 2, tripletCount,
@@ -163,14 +179,14 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public void close() throws IOException {
-			addAccumulator("vertexCount", new LongCounter(vertexCount));
-			addAccumulator("unidirectionalEdgeCount", new LongCounter(unidirectionalEdgeCount));
-			addAccumulator("bidirectionalEdgeCount", new LongCounter(bidirectionalEdgeCount));
-			addAccumulator("tripletCount", new LongCounter(tripletCount));
-			addAccumulator("maximumDegree", new LongMaximum(maximumDegree));
-			addAccumulator("maximumOutDegree", new LongMaximum(maximumOutDegree));
-			addAccumulator("maximumInDegree", new LongMaximum(maximumInDegree));
-			addAccumulator("maximumTriplets", new LongMaximum(maximumTriplets));
+			addAccumulator(VERTEX_COUNT, new LongCounter(vertexCount));
+			addAccumulator(UNIDIRECTIONAL_EDGE_COUNT, new LongCounter(unidirectionalEdgeCount));
+			addAccumulator(BIDIRECTIONAL_EDGE_COUNT, new LongCounter(bidirectionalEdgeCount));
+			addAccumulator(TRIPLET_COUNT, new LongCounter(tripletCount));
+			addAccumulator(MAXIMUM_DEGREE, new LongMaximum(maximumDegree));
+			addAccumulator(MAXIMUM_OUT_DEGREE, new LongMaximum(maximumOutDegree));
+			addAccumulator(MAXIMUM_IN_DEGREE, new LongMaximum(maximumInDegree));
+			addAccumulator(MAXIMUM_TRIPLETS, new LongMaximum(maximumTriplets));
 		}
 	}
 

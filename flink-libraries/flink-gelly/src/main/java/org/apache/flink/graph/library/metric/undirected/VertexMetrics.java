@@ -53,6 +53,16 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 public class VertexMetrics<K extends Comparable<K> & CopyableValue<K>, VV, EV>
 extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
+	private static final String VERTEX_COUNT = "vertexCount";
+
+	private static final String EDGE_COUNT = "edgeCount";
+
+	private static final String TRIPLET_COUNT = "tripletCount";
+
+	private static final String MAXIMUM_DEGREE = "maximumDegree";
+
+	private static final String MAXIMUM_TRIPLETS = "maximumTriplets";
+
 	private VertexMetricsHelper<K> vertexMetricsHelper;
 
 	// Optional configuration
@@ -126,11 +136,11 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 	@Override
 	public Result getResult() {
-		long vertexCount = vertexMetricsHelper.getAccumulator(env, "vertexCount");
-		long edgeCount = vertexMetricsHelper.getAccumulator(env, "edgeCount");
-		long tripletCount = vertexMetricsHelper.getAccumulator(env, "tripletCount");
-		long maximumDegree = vertexMetricsHelper.getAccumulator(env, "maximumDegree");
-		long maximumTriplets = vertexMetricsHelper.getAccumulator(env, "maximumTriplets");
+		long vertexCount = vertexMetricsHelper.getAccumulator(env, VERTEX_COUNT);
+		long edgeCount = vertexMetricsHelper.getAccumulator(env, EDGE_COUNT);
+		long tripletCount = vertexMetricsHelper.getAccumulator(env, TRIPLET_COUNT);
+		long maximumDegree = vertexMetricsHelper.getAccumulator(env, MAXIMUM_DEGREE);
+		long maximumTriplets = vertexMetricsHelper.getAccumulator(env, MAXIMUM_TRIPLETS);
 
 		// each edge is counted twice, once from each vertex, so must be halved
 		return new Result(vertexCount, edgeCount / 2, tripletCount, maximumDegree, maximumTriplets);
@@ -163,11 +173,11 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public void close() throws IOException {
-			addAccumulator("vertexCount", new LongCounter(vertexCount));
-			addAccumulator("edgeCount", new LongCounter(edgeCount));
-			addAccumulator("tripletCount", new LongCounter(tripletCount));
-			addAccumulator("maximumDegree", new LongMaximum(maximumDegree));
-			addAccumulator("maximumTriplets", new LongMaximum(maximumTriplets));
+			addAccumulator(VERTEX_COUNT, new LongCounter(vertexCount));
+			addAccumulator(EDGE_COUNT, new LongCounter(edgeCount));
+			addAccumulator(TRIPLET_COUNT, new LongCounter(tripletCount));
+			addAccumulator(MAXIMUM_DEGREE, new LongMaximum(maximumDegree));
+			addAccumulator(MAXIMUM_TRIPLETS, new LongMaximum(maximumTriplets));
 		}
 	}
 
