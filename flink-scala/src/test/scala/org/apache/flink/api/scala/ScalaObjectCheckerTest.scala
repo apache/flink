@@ -26,19 +26,19 @@ import org.junit.Test
 class ScalaObjectCheckerTest {
 
   @Test(expected = classOf[InvalidProgramException])
-  def testAssertScalaForbidScalaObjectFunction() = {
+  def testAssertScalaForbidScalaObjectFunction(): Unit = {
     object AScalaObject
     ScalaObjectChecker.assertScalaForbidScalaObjectFunction(AScalaObject)
   }
 
   @Test
-  def testAssertScalaForbidScalaObjectFunction2() = {
+  def testAssertScalaForbidScalaObjectFunction2(): Unit = {
     class AScalaClass
     ScalaObjectChecker.assertScalaForbidScalaObjectFunction(new AScalaClass)
   }
 
   @Test(expected = classOf[InvalidProgramException])
-  def testEnvForObject() = {
+  def testEnvForObject(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val src = env.fromCollection(Seq(1, 2, 3))
     object RichMapObject extends RichMapFunction[Int, Int] {
@@ -48,7 +48,7 @@ class ScalaObjectCheckerTest {
   }
 
   @Test
-  def testEnvForClass() = {
+  def testEnvForClass(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val src = env.fromCollection(Seq(1, 2, 3))
     class RichMapClass extends RichMapFunction[Int, Int] {
