@@ -185,6 +185,7 @@ public class ExecutionGraphBuilder {
 			}
 
 			/** The default directory for externalized checkpoints. */
+			// TODO create state backend and get directory
 			String externalizedCheckpointsDir = jobManagerConfig.getString(
 					ConfigConstants.CHECKPOINTS_DIRECTORY_KEY, null);
 
