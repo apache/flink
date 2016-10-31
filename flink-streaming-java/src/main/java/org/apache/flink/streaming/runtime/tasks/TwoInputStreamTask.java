@@ -22,7 +22,6 @@ import java.util.List;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -73,9 +72,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 				getEnvironment().getIOManager());
 
 		// make sure that stream tasks report their I/O statistics
-		AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
-		AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
-		this.inputProcessor.setReporter(reporter);
 		inputProcessor.setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());
 	}
 

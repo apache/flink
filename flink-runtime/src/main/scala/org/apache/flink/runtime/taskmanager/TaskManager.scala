@@ -19,19 +19,14 @@
 package org.apache.flink.runtime.taskmanager
 
 import java.io.{File, FileInputStream, IOException}
-import java.lang.management.{ManagementFactory, OperatingSystemMXBean}
+import java.lang.management.ManagementFactory
 import java.net.{InetAddress, InetSocketAddress}
 import java.util
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
 import _root_.akka.actor._
 import _root_.akka.pattern.ask
 import _root_.akka.util.Timeout
-import com.codahale.metrics.json.MetricsModule
-import com.codahale.metrics.jvm.{BufferPoolMetricSet, GarbageCollectorMetricSet, MemoryUsageGaugeSet}
-import com.codahale.metrics.{Gauge, MetricFilter, MetricRegistry}
-import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.flink.configuration._
@@ -155,19 +150,7 @@ class TaskManager(
   /** Handler for distributed files cached by this TaskManager */
   protected val fileCache = new FileCache(config.configuration)
 
-  /** Registry of metrics periodically transmitted to the JobManager */
-  private val metricRegistry = TaskManager.createMetricsRegistry()
-
   private var taskManagerMetricGroup : TaskManagerMetricGroup = _
-
-  /** Metric serialization */
-  private val metricRegistryMapper: ObjectMapper = new ObjectMapper()
-    .registerModule(
-      new MetricsModule(
-        TimeUnit.SECONDS,
-        TimeUnit.MILLISECONDS,
-        false,
-        MetricFilter.ALL))
 
   /** Actors which want to be notified once this task manager has been
     * registered at the job manager */
@@ -1312,7 +1295,8 @@ class TaskManager(
             task.getExecutionId,
             task.getExecutionState,
             task.getFailureCause,
-            accumulators)
+            accumulators,
+            task.getMetricGroup.getIOMetricGroup.createSnapshot())
         )
       )
     }
@@ -1332,7 +1316,6 @@ class TaskManager(
   protected def sendHeartbeatToJobManager(): Unit = {
     try {
       log.debug("Sending heartbeat to JobManager")
-      val metricsReport: Array[Byte] = metricRegistryMapper.writeValueAsBytes(metricRegistry)
 
       val accumulatorEvents =
         scala.collection.mutable.Buffer[AccumulatorSnapshot]()
@@ -1351,7 +1334,7 @@ class TaskManager(
       }
 
        currentJobManager foreach {
-        jm => jm ! decorateMessage(Heartbeat(instanceID, metricsReport, accumulatorEvents))
+        jm => jm ! decorateMessage(Heartbeat(instanceID, accumulatorEvents))
       }
     }
     catch {
@@ -2480,50 +2463,5 @@ object TaskManager {
         }
       case (_, id) => throw new IllegalArgumentException(s"Temporary file directory #$id is null.")
     }
-  }
-
-  /**
-   * Creates the registry of default metrics, including stats about garbage collection, memory
-   * usage, and system CPU load.
-   *
-   * @return The registry with the default metrics.
-   */
-  private def createMetricsRegistry() : MetricRegistry = {
-    val metricRegistry = new MetricRegistry()
-
-    // register default metrics
-    metricRegistry.register("gc", new GarbageCollectorMetricSet)
-    metricRegistry.register("memory", new MemoryUsageGaugeSet)
-    metricRegistry.register("direct-memory", new BufferPoolMetricSet(
-      ManagementFactory.getPlatformMBeanServer))
-    metricRegistry.register("load", new Gauge[Double] {
-      override def getValue: Double =
-        ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage()
-    })
-
-    val osBean: OperatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean()
-
-    try {
-      val fetchCPULoadMethod = Class.forName("com.sun.management.OperatingSystemMXBean")
-        .getMethods()
-        .find( _.getName() == "getProcessCpuLoad" )
-
-      // verify that we can invoke the method
-      fetchCPULoadMethod.map(_.invoke(osBean).asInstanceOf[Double]).getOrElse(-1.0)
-
-      metricRegistry.register("cpuLoad", new Gauge[Double] {
-        override def getValue: Double = fetchCPULoadMethod
-          .map(_.invoke(osBean).asInstanceOf[Double]).getOrElse(-1.0)
-      })
-    }
-    catch {
-      case t: Throwable =>
-        LOG.warn("Cannot access com.sun.management.OperatingSystemMXBean.getProcessCpuLoad()" +
-          " - CPU load metrics will not be available.")
-        metricRegistry.register("cpuLoad", new Gauge[Double] {
-          override def getValue: Double = -1.0
-        })
-    }
-    metricRegistry
   }
 }

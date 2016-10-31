@@ -19,7 +19,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
@@ -46,7 +45,6 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 
 	private final int maxParallelism;
 
-	private final Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> aggregatedMetricAccumulators;
 	private final Option<OperatorCheckpointStats> checkpointStats;
 	private final StringifiedAccumulatorResult[] archivedUserAccumulators;
 
@@ -55,8 +53,6 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 		for (int x = 0; x < taskVertices.length; x++) {
 			taskVertices[x] = jobVertex.getTaskVertices()[x].archive();
 		}
-
-		aggregatedMetricAccumulators = jobVertex.getAggregatedMetricAccumulators();
 
 		Map<String, Accumulator<?, ?>> tmpArchivedUserAccumulators = new HashMap<>();
 		for (ExecutionVertex vertex : jobVertex.getTaskVertices()) {
@@ -114,10 +110,6 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 		}
 
 		return getAggregateJobVertexState(num, parallelism);
-	}
-
-	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getAggregatedMetricAccumulators() {
-		return this.aggregatedMetricAccumulators;
 	}
 
 	// --------------------------------------------------------------------------------------------

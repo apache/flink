@@ -25,6 +25,8 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.RegisteredTaskManagers;
 import org.apache.flink.runtime.messages.JobManagerMessages.TaskManagerInstance;
+import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
+import org.apache.flink.runtime.webmonitor.metrics.MetricStore;
 import org.apache.flink.util.StringUtils;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -42,9 +44,12 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 	public static final String TASK_MANAGER_ID_KEY = "taskmanagerid";
 	
 	private final FiniteDuration timeout;
+
+	private final MetricFetcher fetcher;
 	
-	public TaskManagersHandler(FiniteDuration timeout) {
+	public TaskManagersHandler(FiniteDuration timeout, MetricFetcher fetcher) {
 		this.timeout = requireNonNull(timeout);
+		this.fetcher = fetcher;
 	}
 
 	@Override
@@ -95,10 +100,57 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 
 					// only send metrics when only one task manager requests them.
 					if (pathParams.containsKey(TASK_MANAGER_ID_KEY)) {
-						byte[] report = instance.getLastMetricsReport();
-						if (report != null) {
-							gen.writeFieldName("metrics");
-							gen.writeRawValue(new String(report, "utf-8"));
+						fetcher.update();
+						MetricStore.TaskManagerMetricStore metrics = fetcher.getMetricStore().getTaskManagerMetricStore(instance.getId().toString());
+						if (metrics != null) {
+							gen.writeObjectFieldStart("metrics");
+							long heapUsed = Long.valueOf( metrics.getMetric("Status.JVM.Memory.Heap.Used", "0"));
+							long heapCommitted = Long.valueOf( metrics.getMetric("Status.JVM.Memory.Heap.Committed", "0"));
+							long heapTotal = Long.valueOf( metrics.getMetric("Status.JVM.Memory.Heap.Max", "0"));
+
+							gen.writeNumberField("heapCommitted", heapCommitted);
+							gen.writeNumberField("heapUsed", heapUsed);
+							gen.writeNumberField("heapMax", heapTotal);
+
+							long nonHeapUsed = Long.valueOf( metrics.getMetric("Status.JVM.Memory.NonHeap.Used", "0"));
+							long nonHeapCommitted = Long.valueOf( metrics.getMetric("Status.JVM.Memory.NonHeap.Committed", "0"));
+							long nonHeapTotal = Long.valueOf( metrics.getMetric("Status.JVM.Memory.NonHeap.Max", "0"));
+
+							gen.writeNumberField("nonHeapCommitted", nonHeapCommitted);
+							gen.writeNumberField("nonHeapUsed", nonHeapUsed);
+							gen.writeNumberField("nonHeapMax", nonHeapTotal);
+
+							gen.writeNumberField("totalCommitted", heapCommitted + nonHeapCommitted);
+							gen.writeNumberField("totalUsed", heapUsed + nonHeapUsed);
+							gen.writeNumberField("totalMax", heapTotal + nonHeapTotal);
+
+							gen.writeStringField("directCount", metrics.getMetric("Status.JVM.Memory.Direct.Count", "0"));
+							gen.writeStringField("directUsed", metrics.getMetric("Status.JVM.Memory.Direct.MemoryUsed", "0"));
+							gen.writeStringField("directMax", metrics.getMetric("Status.JVM.Memory.Direct.TotalCapacity", "0"));
+
+							gen.writeStringField("mappedCount", metrics.getMetric("Status.JVM.Memory.Mapped.Count", "0"));
+							gen.writeStringField("mappedUsed", metrics.getMetric("Status.JVM.Memory.Mapped.MemoryUsed", "0"));
+							gen.writeStringField("mappedMax", metrics.getMetric("Status.JVM.Memory.Mapped.TotalCapacity", "0"));
+
+							gen.writeStringField("memorySegmentsAvailable", metrics.getMetric("Status.Network.AvailableMemorySegments", "0"));
+							gen.writeStringField("memorySegmentsTotal", metrics.getMetric("Status.Network.TotalMemorySegments", "0"));
+
+							gen.writeArrayFieldStart("garbageCollectors");
+
+							for (String gcName : metrics.garbageCollectorNames) {
+								String count = metrics.getMetric("Status.JVM.GarbageCollector." + gcName + ".Count", null);
+								String time = metrics.getMetric("Status.JVM.GarbageCollector." + gcName + ".Time", null);
+								if (count != null  && time != null) {
+									gen.writeStartObject();
+									gen.writeStringField("name", gcName);
+									gen.writeStringField("count", count);
+									gen.writeStringField("time", time);
+									gen.writeEndObject();
+								}
+							}
+
+							gen.writeEndArray();
+							gen.writeEndObject();
 						}
 					}
 

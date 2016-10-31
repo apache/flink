@@ -57,21 +57,21 @@ limitations under the License.
     <tbody>
       <tr>
         <td>Heap</td>
-        <td>{{metrics.metrics.gauges['memory.heap.committed'].value | humanizeBytes}}</td>
-        <td>{{metrics.metrics.gauges['memory.heap.init'].value | humanizeBytes}}</td>
-        <td>{{metrics.metrics.gauges['memory.heap.max'].value | humanizeBytes}}</td>
+        <td>{{ metrics.metrics.heapCommitted | humanizeBytes  }}</td>
+        <td>{{ metrics.metrics.heapUsed | humanizeBytes  }}</td>
+        <td>{{ metrics.metrics.heapMax | humanizeBytes  }}</td>
       </tr>
       <tr>
         <td>Non-Heap</td>
-        <td>{{metrics.metrics.gauges['memory.non-heap.committed'].value | humanizeBytes}}</td>
-        <td>{{metrics.metrics.gauges['memory.non-heap.init'].value | humanizeBytes}}</td>
-        <td>{{metrics.metrics.gauges['memory.non-heap.max'].value | humanizeBytes}}</td>
+        <td>{{ metrics.metrics.nonHeapCommitted | humanizeBytes  }}</td>
+        <td>{{ metrics.metrics.nonHeapUsed | humanizeBytes  }}</td>
+        <td>{{ metrics.metrics.nonHeapMax | humanizeBytes  }}</td>
       </tr>
       <tr>
         <td>Total</td>
-        <td>{{metrics.metrics.gauges['memory.total.committed'].value | humanizeBytes}}</td>
-        <td>{{metrics.metrics.gauges['memory.total.init'].value | humanizeBytes}}</td>
-        <td>{{metrics.metrics.gauges['memory.total.max'].value | humanizeBytes}}</td>
+        <td>{{ metrics.metrics.totalCommitted | humanizeBytes  }}</td>
+        <td>{{ metrics.metrics.totalUsed | humanizeBytes  }}</td>
+        <td>{{ metrics.metrics.totalMax | humanizeBytes  }}</td>
       </tr>
     </tbody>
   </table>
@@ -88,15 +88,35 @@ limitations under the License.
     <tbody>
       <tr>
         <td>Direct</td>
-        <td>{{ metrics.metrics.gauges['direct-memory.direct.count'].value }}</td>
-        <td>{{ metrics.metrics.gauges['direct-memory.direct.used'].value | humanizeBytes }}</td>
-        <td>{{ metrics.metrics.gauges['direct-memory.direct.capacity'].value | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.directCount }}</td>
+        <td>{{ metrics.metrics.directUsed }}</td>
+        <td>{{ metrics.metrics.directTotal }}</td>
       </tr>
       <tr>
         <td>Mapped</td>
-        <td>{{ metrics.metrics.gauges['direct-memory.mapped.count'].value }}</td>
-        <td>{{ metrics.metrics.gauges['direct-memory.mapped.used'].value | humanizeBytes }}</td>
-        <td>{{ metrics.metrics.gauges['direct-memory.mapped.capacity'].value | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.mappedCount }}</td>
+        <td>{{ metrics.metrics.mappedUsed }}</td>
+        <td>{{ metrics.metrics.mappedMax }}</td>
+      </tr>
+    </tbody>
+  </table>
+  <h1>Network</h1>
+  <h2>MemorySegments</h2>
+  <table class="table table-properties">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Count</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Available</td>
+        <td>{{ metrics.metrics.memorySegmentsAvailable }}</td>
+      </tr>
+      <tr>
+        <td>Total</td>
+        <td>{{ metrics.metrics.memorySegmentsTotal }}</td>
       </tr>
     </tbody>
   </table>
@@ -109,51 +129,11 @@ limitations under the License.
         <th>Time</th>
       </tr>
     </thead>
-    <tbody>
-      <tr>
-        <td>PS-MarkSweep</td>
-        <td table-property="table-property" value="metrics.metrics.gauges['gc.PS-MarkSweep.count'].value"></td>
-        <td table-property="table-property" value="metrics.metrics.gauges['gc.PS-MarkSweep.time'].value | humanizeDuration"></td>
-      </tr>
-      <tr>
-        <td>PS-Scavenge</td>
-        <td table-property="table-property" value="metrics.metrics.gauges['gc.PS-Scavenge.count'].value"></td>
-        <td table-property="table-property" value="metrics.metrics.gauges['gc.PS-Scavenge.time'].value | humanizeDuration"></td>
-      </tr>
-    </tbody>
-  </table>
-  <h1>Other Memory Pools</h1>
-  <table class="table table-properties">
-    <thead>
-      <tr>
-        <th>Pool</th>
-        <td>Relative Usage</td>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Code Cache</td>
-        <td table-property="table-property" value="metrics.metrics.gauges['memory.pools.Code-Cache.usage'].value | number:2"></td>
-      </tr>
-      <tr>
-        <td>Compressed Class Space</td>
-        <td table-property="table-property" value="metrics.metrics.gauges['memory.pools.Compressed-Class-Space.usage'].value | number:2"></td>
-      </tr>
-      <tr>
-        <td>Metaspace</td>
-        <td table-property="table-property" value="metrics.metrics.gauges['memory.pools.Metaspace.usage'].value | number:2"></td>
-      </tr>
-      <tr>
-        <td>PS Eden Space</td>
-        <td table-property="table-property" value="metrics.metrics.gauges['memory.pools.PS-Eden-Space.usage'].value | number:2"></td>
-      </tr>
-      <tr>
-        <td>PS Old Gen</td>
-        <td table-property="table-property" value="metrics.metrics.gauges['memory.pools.PS-Old-Gen.usage'].value | number:2"></td>
-      </tr>
-      <tr>
-        <td>PS Survivor Space</td>
-        <td table-property="table-property" value="metrics.metrics.gauges['memory.pools.PS-Survivor-Space.usage'].value | number:2"></td>
+    <tbody ng-repeat="g in metrics.metrics.garbageCollectors">
+      <tr> 
+        <td>{{ g.name }}</td>
+        <td>{{ g.count }}</td>
+        <td>{{ g.time }}</td>
       </tr>
     </tbody>
   </table>

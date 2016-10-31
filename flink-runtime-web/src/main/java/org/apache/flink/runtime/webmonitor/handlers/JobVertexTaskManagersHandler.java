@@ -19,15 +19,15 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.LongCounter;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
+import org.apache.flink.runtime.webmonitor.metrics.MetricStore;
 
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -42,8 +42,11 @@ import java.util.Map.Entry;
  */
 public class JobVertexTaskManagersHandler extends AbstractJobVertexRequestHandler {
 
-	public JobVertexTaskManagersHandler(ExecutionGraphHolder executionGraphHolder) {
+	private final MetricFetcher fetcher;
+
+	public JobVertexTaskManagersHandler(ExecutionGraphHolder executionGraphHolder, MetricFetcher fetcher) {
 		super(executionGraphHolder);
+		this.fetcher = fetcher;
 	}
 
 	@Override
@@ -88,10 +91,10 @@ public class JobVertexTaskManagersHandler extends AbstractJobVertexRequestHandle
 			long endTime = 0;
 			boolean allFinished = true;
 
-			LongCounter tmReadBytes = new LongCounter();
-			LongCounter tmWriteBytes = new LongCounter();
-			LongCounter tmReadRecords = new LongCounter();
-			LongCounter tmWriteRecords = new LongCounter();
+			long numBytesIn = 0;
+			long numBytesOut = 0;
+			long numRecordsIn = 0;
+			long numRecordsOut = 0;
 
 			for (AccessExecutionVertex vertex : taskVertices) {
 				final ExecutionState state = vertex.getExecutionState();
@@ -106,20 +109,22 @@ public class JobVertexTaskManagersHandler extends AbstractJobVertexRequestHandle
 				allFinished &= state.isTerminal();
 				endTime = Math.max(endTime, vertex.getStateTimestamp(state));
 
-				Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> metrics = vertex.getCurrentExecutionAttempt().getFlinkAccumulators();
+				IOMetrics ioMetrics = vertex.getCurrentExecutionAttempt().getIOMetrics();
 
-				if (metrics != null) {
-					LongCounter readBytes = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_IN);
-					tmReadBytes.merge(readBytes);
-
-					LongCounter writeBytes = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_OUT);
-					tmWriteBytes.merge(writeBytes);
-
-					LongCounter readRecords = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_IN);
-					tmReadRecords.merge(readRecords);
-
-					LongCounter writeRecords = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_OUT);
-					tmWriteRecords.merge(writeRecords);
+				if (ioMetrics != null) { // execAttempt is already finished, use final metrics stored in ExecutionGraph
+					numBytesIn += ioMetrics.getNumBytesInLocal() + ioMetrics.getNumBytesInRemote();
+					numBytesOut += ioMetrics.getNumBytesOut();
+					numRecordsIn += ioMetrics.getNumRecordsIn();
+					numRecordsOut += ioMetrics.getNumRecordsOut();
+				} else { // execAttempt is still running, use MetricQueryService instead
+					fetcher.update();
+					MetricStore.SubtaskMetricStore metrics = fetcher.getMetricStore().getSubtaskMetricStore(params.get("jobid"), params.get("vertexid"), vertex.getParallelSubtaskIndex());
+					if (metrics != null) {
+						numBytesIn += Long.valueOf(metrics.getMetric("numBytesInLocal", "0")) + Long.valueOf(metrics.getMetric("numBytesInRemote", "0"));
+						numBytesOut += Long.valueOf(metrics.getMetric("numBytesOut", "0"));
+						numRecordsIn += Long.valueOf(metrics.getMetric("numRecordsIn", "0"));
+						numRecordsOut += Long.valueOf(metrics.getMetric("numRecordsOut", "0"));
+					}
 				}
 			}
 
@@ -152,10 +157,10 @@ public class JobVertexTaskManagersHandler extends AbstractJobVertexRequestHandle
 			gen.writeNumberField("duration", duration);
 
 			gen.writeObjectFieldStart("metrics");
-			gen.writeNumberField("read-bytes", tmReadBytes.getLocalValuePrimitive());
-			gen.writeNumberField("write-bytes", tmWriteBytes.getLocalValuePrimitive());
-			gen.writeNumberField("read-records", tmReadRecords.getLocalValuePrimitive());
-			gen.writeNumberField("write-records", tmWriteRecords.getLocalValuePrimitive());
+			gen.writeNumberField("read-bytes", numBytesIn);
+			gen.writeNumberField("write-bytes", numBytesOut);
+			gen.writeNumberField("read-records", numRecordsIn);
+			gen.writeNumberField("write-records", numRecordsOut);
 			gen.writeEndObject();
 
 			gen.writeObjectFieldStart("status-counts");
