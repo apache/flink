@@ -28,7 +28,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
-import org.apache.flink.runtime.jobmanager.Tasks;
+import org.apache.flink.runtime.jobmanager.JobManagerHARecoveryTest;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -51,14 +51,15 @@ public class CoordinatorShutdownTest {
 	public void testCoordinatorShutsDownOnFailure() {
 		LocalFlinkMiniCluster cluster = null;
 		try {
-			Configuration noTaskManagerConfig = new Configuration();
-			noTaskManagerConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 0);
-			cluster = new LocalFlinkMiniCluster(noTaskManagerConfig, true);
+			Configuration config = new Configuration();
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
+			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+			cluster = new LocalFlinkMiniCluster(config, true);
 			cluster.start();
 			
 			// build a test graph with snapshotting enabled
 			JobVertex vertex = new JobVertex("Test Vertex");
-			vertex.setInvokableClass(Tasks.NoOpInvokable.class);
+			vertex.setInvokableClass(JobManagerHARecoveryTest.BlockingInvokable.class);
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 			
 			JobGraph testGraph = new JobGraph("test job", vertex);
@@ -72,11 +73,11 @@ public class CoordinatorShutdownTest {
 					testGraph,
 					ListeningBehaviour.EXECUTION_RESULT);
 			
-			// submit is successful, but then the job dies because no TaskManager / slot is available
+			// submit is successful, but then the job blocks due to the invokable
 			Future<Object> submitFuture = jmGateway.ask(submitMessage, timeout);
 			Await.result(submitFuture, timeout);
 
-			// get the execution graph and make sure the coordinator is properly shut down
+			// get the execution graph and store the ExecutionGraph reference
 			Future<Object> jobRequestFuture = jmGateway.ask(
 					new JobManagerMessages.RequestJob(testGraph.getJobID()),
 					timeout);
@@ -84,8 +85,12 @@ public class CoordinatorShutdownTest {
 			ExecutionGraph graph = (ExecutionGraph)((JobManagerMessages.JobFound) Await.result(jobRequestFuture, timeout)).executionGraph();
 			
 			assertNotNull(graph);
+
+			JobManagerHARecoveryTest.BlockingInvokable.unblock();
+
 			graph.waitUntilFinished();
 			
+			// verify that the coordinator was shut down
 			CheckpointCoordinator coord = graph.getCheckpointCoordinator();
 			assertTrue(coord == null || coord.isShutdown());
 		}
@@ -105,12 +110,15 @@ public class CoordinatorShutdownTest {
 	public void testCoordinatorShutsDownOnSuccess() {
 		LocalFlinkMiniCluster cluster = null;
 		try {
-			cluster = new LocalFlinkMiniCluster(new Configuration(), true);
+			Configuration config = new Configuration();
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
+			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+			cluster = new LocalFlinkMiniCluster(config, true);
 			cluster.start();
 			
 			// build a test graph with snapshotting enabled
 			JobVertex vertex = new JobVertex("Test Vertex");
-			vertex.setInvokableClass(Tasks.NoOpInvokable.class);
+			vertex.setInvokableClass(JobManagerHARecoveryTest.BlockingInvokable.class);
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 
 			JobGraph testGraph = new JobGraph("test job", vertex);
@@ -124,11 +132,11 @@ public class CoordinatorShutdownTest {
 					testGraph,
 					ListeningBehaviour.EXECUTION_RESULT);
 
-			// submit is successful, but then the job dies because no TaskManager / slot is available
+			// submit is successful, but then the job blocks due to the invokable
 			Future<Object> submitFuture = jmGateway.ask(submitMessage, timeout);
 			Await.result(submitFuture, timeout);
 
-			// get the execution graph and make sure the coordinator is properly shut down
+			// get the execution graph and store the ExecutionGraph reference
 			Future<Object> jobRequestFuture = jmGateway.ask(
 					new JobManagerMessages.RequestJob(testGraph.getJobID()),
 					timeout);
@@ -136,8 +144,12 @@ public class CoordinatorShutdownTest {
 			ExecutionGraph graph = (ExecutionGraph)((JobManagerMessages.JobFound) Await.result(jobRequestFuture, timeout)).executionGraph();
 
 			assertNotNull(graph);
+
+			JobManagerHARecoveryTest.BlockingInvokable.unblock();
+			
 			graph.waitUntilFinished();
 
+			// verify that the coordinator was shut down
 			CheckpointCoordinator coord = graph.getCheckpointCoordinator();
 			assertTrue(coord == null || coord.isShutdown());
 		}
