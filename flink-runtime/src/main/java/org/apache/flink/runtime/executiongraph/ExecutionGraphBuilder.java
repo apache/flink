@@ -40,9 +40,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.slf4j.Logger;
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.ExecutionContext$;
-import scala.concurrent.duration.FiniteDuration;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -55,8 +52,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Utility class to encapsulate the logic of building an {@link ExecutionGraph} from a {@link JobGraph}.
  */
 public class ExecutionGraphBuilder {
-
-	/**
+		/**
 	 * Builds the ExecutionGraph from the JobGraph.
 	 * If a prior execution graph exists, the JobGraph will be attached. If no prior execution
 	 * graph exists, then the JobGraph will become attach to a new emoty execution graph.
@@ -66,32 +62,6 @@ public class ExecutionGraphBuilder {
 			JobGraph jobGraph,
 			Configuration jobManagerConfig,
 			Executor executor,
-			ClassLoader classLoader,
-			CheckpointRecoveryFactory recoveryFactory,
-			Time timeout,
-			RestartStrategy restartStrategy,
-			MetricGroup metrics,
-			int parallelismForAutoMax,
-			Logger log)
-			throws JobExecutionException, JobException
-	{
-		final ExecutionContext executionContext = ExecutionContext$.MODULE$.fromExecutor(executor);
-		
-		return buildGraph(prior, jobGraph, jobManagerConfig, executionContext,
-				classLoader, recoveryFactory, timeout, restartStrategy,
-				metrics, parallelismForAutoMax, log);
-	}
-
-	/**
-	 * Builds the ExecutionGraph from the JobGraph.
-	 * If a prior execution graph exists, the JobGraph will be attached. If no prior execution
-	 * graph exists, then the JobGraph will become attach to a new emoty execution graph.
-	 */
-	public static ExecutionGraph buildGraph(
-			@Nullable ExecutionGraph prior,
-			JobGraph jobGraph,
-			Configuration jobManagerConfig,
-			ExecutionContext executionContext,
 			ClassLoader classLoader,
 			CheckpointRecoveryFactory recoveryFactory,
 			Time timeout,
@@ -109,12 +79,12 @@ public class ExecutionGraphBuilder {
 		// create a new execution graph, if none exists so far
 		final ExecutionGraph executionGraph = (prior != null) ? prior :
 				new ExecutionGraph(
-						executionContext,
+						executor,
 						jobId,
 						jobName,
 						jobGraph.getJobConfiguration(),
 						jobGraph.getSerializedExecutionConfig(),
-						new FiniteDuration(timeout.getSize(), timeout.getUnit()),
+						timeout,
 						restartStrategy,
 						jobGraph.getUserJarBlobKeys(),
 						jobGraph.getClasspaths(),

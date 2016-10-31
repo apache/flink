@@ -22,7 +22,7 @@ import java.io.{File, FileInputStream, IOException}
 import java.lang.management.{ManagementFactory, OperatingSystemMXBean}
 import java.net.{InetAddress, InetSocketAddress}
 import java.util
-import java.util.UUID
+import java.util.{Collections, UUID}
 import java.util.concurrent.TimeUnit
 
 import _root_.akka.actor._
@@ -43,10 +43,10 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobCache, BlobClient, BlobService}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
-import org.apache.flink.runtime.deployment.{InputChannelDeploymentDescriptor, TaskDeploymentDescriptor}
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
+import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, PartitionInfo}
 import org.apache.flink.runtime.filecache.FileCache
 import org.apache.flink.runtime.instance.{AkkaActorGateway, HardwareDescription, InstanceID}
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
@@ -55,12 +55,12 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool
 import org.apache.flink.runtime.io.network.{LocalConnectionManager, NetworkEnvironment, TaskEventDispatcher}
 import org.apache.flink.runtime.io.network.netty.{NettyConfig, NettyConnectionManager, PartitionStateChecker}
 import org.apache.flink.runtime.io.network.partition.{ResultPartitionConsumableNotifier, ResultPartitionManager}
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.memory.MemoryManager
+import org.apache.flink.runtime.messages.{Acknowledge, StackTraceSampleResponse}
 import org.apache.flink.runtime.messages.Messages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
-import org.apache.flink.runtime.messages.StackTraceSampleMessages.{ResponseStackTraceSampleFailure, ResponseStackTraceSampleSuccess, SampleTaskStackTrace, StackTraceSampleMessages, TriggerStackTraceSample}
+import org.apache.flink.runtime.messages.StackTraceSampleMessages.{SampleTaskStackTrace, StackTraceSampleMessages, TriggerStackTraceSample}
 import org.apache.flink.runtime.messages.TaskManagerMessages._
 import org.apache.flink.runtime.messages.TaskMessages._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, NotifyCheckpointComplete, TriggerCheckpoint}
@@ -327,16 +327,16 @@ class TaskManager(
     // this message indicates that some actor watched by this TaskManager has died
     case Terminated(actor: ActorRef) =>
       if (isConnected && actor == currentJobManager.orNull) {
-          handleJobManagerDisconnect(sender(), "JobManager is no longer reachable")
+          handleJobManagerDisconnect("JobManager is no longer reachable")
           triggerTaskManagerRegistration()
       } else {
         log.warn(s"Received unrecognized disconnect message " +
             s"from ${if (actor == null) null else actor.path}.")
       }
 
-    case Disconnect(instanceIdToDisconnect, msg) =>
+    case Disconnect(instanceIdToDisconnect, cause) =>
       if (instanceIdToDisconnect.equals(instanceID)) {
-        handleJobManagerDisconnect(sender(), s"JobManager requested disconnect: $msg")
+        handleJobManagerDisconnect(s"JobManager requested disconnect: ${cause.getMessage()}")
         triggerTaskManagerRegistration()
       } else {
         log.debug(s"Received disconnect message for wrong instance id ${instanceIdToDisconnect}.")
@@ -409,7 +409,9 @@ class TaskManager(
 
         // tell the task about the availability of a new input partition
         case UpdateTaskSinglePartitionInfo(executionID, resultID, partitionInfo) =>
-          updateTaskInputPartitions(executionID, List((resultID, partitionInfo)))
+          updateTaskInputPartitions(
+            executionID,
+            Collections.singletonList(new PartitionInfo(resultID, partitionInfo)))
 
         // tell the task about the availability of some new input partitions
         case UpdateTaskMultiplePartitionInfos(executionID, partitionInfos) =>
@@ -486,24 +488,14 @@ class TaskManager(
           if (task != null) {
             try {
               task.stopExecution()
-              sender ! decorateMessage(new TaskOperationResult(executionID, true))
+              sender ! decorateMessage(Acknowledge.get())
             } catch {
               case t: Throwable =>
-                        sender ! decorateMessage(
-                          new TaskOperationResult(
-                            executionID,
-                            false,
-                            t.getClass().getSimpleName() + ": " + t.getLocalizedMessage())
-                        )
+                sender ! decorateMessage(Failure(t))
             }
           } else {
             log.debug(s"Cannot find task to stop for execution ${executionID})")
-            sender ! decorateMessage(
-              new TaskOperationResult(
-               executionID,
-               false,
-               "No task with that execution ID was found.")
-            )
+            sender ! decorateMessage(Acknowledge.get())
           }
  
         // cancels a task
@@ -511,15 +503,10 @@ class TaskManager(
           val task = runningTasks.get(executionID)
           if (task != null) {
             task.cancelExecution()
-            sender ! decorateMessage(new TaskOperationResult(executionID, true))
+            sender ! decorateMessage(Acknowledge.get())
           } else {
             log.debug(s"Cannot find task to cancel for execution $executionID)")
-            sender ! decorateMessage(
-              new TaskOperationResult(
-                executionID,
-                false,
-              "No task with that execution ID was found.")
-            )
+            sender ! decorateMessage(Acknowledge.get())
           }
       }
       }
@@ -781,14 +768,16 @@ class TaskManager(
                     sender)
 
                   context.system.scheduler.scheduleOnce(
-                    delayBetweenSamples,
+                    new FiniteDuration(delayBetweenSamples.getSize, delayBetweenSamples.getUnit),
                     self,
                     msg)(context.dispatcher)
                 } else {
                   // ---- Done ----
                   log.debug(s"Done with stack trace sample $sampleId.")
 
-                  sender ! ResponseStackTraceSampleSuccess(sampleId, executionId, currentTraces)
+
+
+                  sender ! new StackTraceSampleResponse(sampleId, executionId, currentTraces)
                 }
 
               case None =>
@@ -797,7 +786,7 @@ class TaskManager(
                     s"Either the task is not known to the task manager or it is not running.")
                 } else {
                   // Task removed during sampling. Reply with partial result.
-                  sender ! ResponseStackTraceSampleSuccess(sampleId, executionId, currentTraces)
+                  sender ! new StackTraceSampleResponse(sampleId, executionId, currentTraces)
                 }
             }
           } else {
@@ -805,7 +794,7 @@ class TaskManager(
           }
         } catch {
           case e: Exception =>
-            sender ! ResponseStackTraceSampleFailure(sampleId, executionId, e)
+            sender ! Failure(e)
         }
 
       case _ => unhandled(message)
@@ -1046,7 +1035,10 @@ class TaskManager(
 
     // de-register from the JobManager (faster detection of disconnect)
     currentJobManager foreach {
-      _ ! decorateMessage(Disconnect(instanceID, s"TaskManager ${self.path} is disassociating"))
+      _ ! decorateMessage(
+        Disconnect(
+          instanceID,
+          new Exception(s"TaskManager ${self.path} is disassociating")))
     }
 
     currentJobManager = None
@@ -1078,31 +1070,26 @@ class TaskManager(
     }
   }
 
-  protected def handleJobManagerDisconnect(jobManager: ActorRef, msg: String): Unit = {
-    if (isConnected && jobManager != null) {
-
+  protected def handleJobManagerDisconnect(msg: String): Unit = {
+    if (isConnected) {
+      val jobManager = currentJobManager.orNull
       // check if it comes from our JobManager
-      if (jobManager == currentJobManager.orNull) {
-        try {
-          val message = s"TaskManager ${self.path} disconnects from JobManager " +
-            s"${jobManager.path}: " + msg
-          log.info(message)
+      try {
+        val message = s"TaskManager ${self.path} disconnects from JobManager " +
+          s"${jobManager.path}: " + msg
+        log.info(message)
 
-          // cancel all our tasks with a proper error message
-          cancelAndClearEverything(new Exception(message))
+        // cancel all our tasks with a proper error message
+        cancelAndClearEverything(new Exception(message))
 
-          // reset our state to disassociated
-          disassociateFromJobManager()
-        }
-        catch {
-          // this is pretty bad, it leaves the TaskManager in a state where it cannot
-          // cleanly reconnect
-          case t: Throwable =>
-            killTaskManagerFatal("Failed to disassociate from the JobManager", t)
-        }
+        // reset our state to disassociated
+        disassociateFromJobManager()
       }
-      else {
-        log.warn(s"Received erroneous JobManager disconnect message for ${jobManager.path}.")
+      catch {
+        // this is pretty bad, it leaves the TaskManager in a state where it cannot
+        // cleanly reconnect
+        case t: Throwable =>
+          killTaskManagerFatal("Failed to disassociate from the JobManager", t)
       }
     }
   }
@@ -1197,7 +1184,7 @@ class TaskManager(
       // all good, we kick off the task, which performs its own initialization
       task.startTaskThread()
 
-      sender ! decorateMessage(Acknowledge)
+      sender ! decorateMessage(Acknowledge.get())
     }
     catch {
       case t: Throwable =>
@@ -1214,15 +1201,16 @@ class TaskManager(
    */
   private def updateTaskInputPartitions(
        executionId: ExecutionAttemptID,
-       partitionInfos: Seq[(IntermediateDataSetID, InputChannelDeploymentDescriptor)])
+       partitionInfos: java.lang.Iterable[PartitionInfo])
     : Unit = {
 
     Option(runningTasks.get(executionId)) match {
       case Some(task) =>
 
-        val errors: Seq[String] = partitionInfos.flatMap { info =>
+        val errors: Iterable[String] = partitionInfos.asScala.flatMap { info =>
 
-          val (resultID, partitionInfo) = info
+          val resultID = info.getIntermediateDataSetID
+          val partitionInfo = info.getInputChannelDeploymentDescriptor
           val reader = task.getInputGateById(resultID)
 
           if (reader != null) {
@@ -1253,7 +1241,7 @@ class TaskManager(
         }
 
         if (errors.isEmpty) {
-          sender ! decorateMessage(Acknowledge)
+          sender ! decorateMessage(Acknowledge.get())
         } else {
           sender ! decorateMessage(Failure(new Exception(errors.mkString("\n"))))
         }
@@ -1261,7 +1249,7 @@ class TaskManager(
       case None =>
         log.debug(s"Discard update for input partitions of task $executionId : " +
           s"task is no longer running.")
-        sender ! decorateMessage(Acknowledge)
+        sender ! decorateMessage(Acknowledge.get())
     }
   }
 
@@ -1376,7 +1364,7 @@ class TaskManager(
           "Thread: " + thread.getName + '\n' + elements.mkString("\n")
         }.mkString("\n\n")
 
-      recipient ! decorateMessage(StackTrace(instanceID, stackTraceStr))
+      recipient ! decorateMessage(new StackTrace(instanceID, stackTraceStr))
     }
     catch {
       case e: Exception => log.error("Failed to send stack trace to " + recipient.path, e)
@@ -1419,9 +1407,9 @@ class TaskManager(
       case Some(jm) =>
         Option(newJobManagerAkkaURL) match {
           case Some(newJMAkkaURL) =>
-            handleJobManagerDisconnect(jm, s"JobManager $newJMAkkaURL was elected as leader.")
+            handleJobManagerDisconnect(s"JobManager $newJMAkkaURL was elected as leader.")
           case None =>
-            handleJobManagerDisconnect(jm, s"Old JobManager lost its leadership.")
+            handleJobManagerDisconnect(s"Old JobManager lost its leadership.")
         }
       case None =>
     }

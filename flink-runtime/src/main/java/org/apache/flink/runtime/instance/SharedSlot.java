@@ -20,6 +20,7 @@ package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.api.common.JobID;
@@ -63,15 +64,15 @@ public class SharedSlot extends Slot {
 	 * @param owner The component from which this slot is allocated.
 	 * @param location The location info of the TaskManager where the slot was allocated from
 	 * @param slotNumber The number of the slot.
-	 * @param taskManagerActorGateway The actor gateway to communicate with the TaskManager   
+	 * @param taskManagerGateway The gateway to communicate with the TaskManager
 	 * @param assignmentGroup The assignment group that this shared slot belongs to.
 	 */
 	public SharedSlot(
 			JobID jobID, SlotOwner owner, TaskManagerLocation location, int slotNumber,
-			ActorGateway taskManagerActorGateway,
+			TaskManagerGateway taskManagerGateway,
 			SlotSharingGroupAssignment assignmentGroup) {
 
-		this(jobID, owner, location, slotNumber, taskManagerActorGateway, assignmentGroup, null, null);
+		this(jobID, owner, location, slotNumber, taskManagerGateway, assignmentGroup, null, null);
 	}
 
 	/**
@@ -82,18 +83,22 @@ public class SharedSlot extends Slot {
 	 * @param owner The component from which this slot is allocated.
 	 * @param location The location info of the TaskManager where the slot was allocated from
 	 * @param slotNumber The number of the slot.
-	 * @param taskManagerActorGateway The actor gateway to communicate with the TaskManager   
+	 * @param taskManagerGateway The gateway to communicate with the TaskManager
 	 * @param assignmentGroup The assignment group that this shared slot belongs to.
 	 * @param parent The parent slot of this slot.
 	 * @param groupId The assignment group of this slot.
 	 */
 	public SharedSlot(
-			JobID jobID, SlotOwner owner, TaskManagerLocation location, int slotNumber,
-			ActorGateway taskManagerActorGateway,
+			JobID jobID,
+			SlotOwner owner,
+			TaskManagerLocation location,
+			int slotNumber,
+			TaskManagerGateway taskManagerGateway,
 			SlotSharingGroupAssignment assignmentGroup,
-			@Nullable SharedSlot parent, @Nullable AbstractID groupId) {
+			@Nullable SharedSlot parent,
+			@Nullable AbstractID groupId) {
 
-		super(jobID, owner, location, slotNumber, taskManagerActorGateway, parent, groupId);
+		super(jobID, owner, location, slotNumber, taskManagerGateway, parent, groupId);
 
 		this.assignmentGroup = checkNotNull(assignmentGroup);
 		this.subSlots = new HashSet<Slot>();
@@ -218,7 +223,7 @@ public class SharedSlot extends Slot {
 		if (isAlive()) {
 			SimpleSlot slot = new SimpleSlot(
 					getJobID(), getOwner(), getTaskManagerLocation(), subSlots.size(), 
-					getTaskManagerActorGateway(), this, groupId);
+					getTaskManagerGateway(), this, groupId);
 			subSlots.add(slot);
 			return slot;
 		}
@@ -240,7 +245,7 @@ public class SharedSlot extends Slot {
 		if (isAlive()) {
 			SharedSlot slot = new SharedSlot(
 					getJobID(), getOwner(), getTaskManagerLocation(), subSlots.size(), 
-					getTaskManagerActorGateway(), assignmentGroup, this, groupId);
+					getTaskManagerGateway(), assignmentGroup, this, groupId);
 			subSlots.add(slot);
 			return slot;
 		}

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
@@ -62,8 +63,6 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.duration.FiniteDuration;
 import scala.Option;
 
 import java.io.IOException;
@@ -81,6 +80,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -169,7 +169,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	private final long[] stateTimestamps;
 
 	/** The timeout for all messages that require a response/acknowledgement */
-	private final FiniteDuration timeout;
+	private final Time timeout;
 
 	// ------ Configuration of the Execution -------
 
@@ -215,8 +215,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * available after archiving. */
 	private CheckpointStatsTracker checkpointStatsTracker;
 
-	/** The execution context which is used to execute futures. */
-	private ExecutionContext executionContext;
+	/** The executor which is used to execute futures. */
+	private Executor executor;
 
 	/** Registered KvState instances reported by the TaskManagers. */
 	private KvStateLocationRegistry kvStateLocationRegistry;
@@ -232,15 +232,15 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * This constructor is for tests only, because it does not include class loading information.
 	 */
 	ExecutionGraph(
-			ExecutionContext executionContext,
+			Executor executor,
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
 			SerializedValue<ExecutionConfig> serializedConfig,
-			FiniteDuration timeout,
+			Time timeout,
 			RestartStrategy restartStrategy) {
 		this(
-			executionContext,
+			executor,
 			jobId,
 			jobName,
 			jobConfig,
@@ -255,25 +255,25 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	}
 
 	public ExecutionGraph(
-			ExecutionContext executionContext,
+			Executor executor,
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
 			SerializedValue<ExecutionConfig> serializedConfig,
-			FiniteDuration timeout,
+			Time timeout,
 			RestartStrategy restartStrategy,
 			List<BlobKey> requiredJarFiles,
 			List<URL> requiredClasspaths,
 			ClassLoader userClassLoader,
 			MetricGroup metricGroup) {
 
-		checkNotNull(executionContext);
+		checkNotNull(executor);
 		checkNotNull(jobId);
 		checkNotNull(jobName);
 		checkNotNull(jobConfig);
 		checkNotNull(userClassLoader);
 
-		this.executionContext = executionContext;
+		this.executor = executor;
 
 		this.jobID = jobId;
 		this.jobName = jobName;
@@ -595,8 +595,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 *
 	 * @return ExecutionContext associated with this ExecutionGraph
 	 */
-	public ExecutionContext getExecutionContext() {
-		return executionContext;
+	public Executor getExecutor() {
+		return executor;
 	}
 
 	/**

@@ -36,6 +36,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.api.common.JobID;
@@ -69,7 +70,12 @@ public class SchedulerTestUtils {
 		final long GB = 1024L*1024*1024;
 		HardwareDescription resources = new HardwareDescription(4, 4*GB, 3*GB, 2*GB);
 		
-		return new Instance(DummyActorGateway.INSTANCE, ci, new InstanceID(), resources, numSlots);
+		return new Instance(
+			new ActorTaskManagerGateway(DummyActorGateway.INSTANCE),
+			ci,
+			new InstanceID(),
+			resources,
+			numSlots);
 	}
 	
 	

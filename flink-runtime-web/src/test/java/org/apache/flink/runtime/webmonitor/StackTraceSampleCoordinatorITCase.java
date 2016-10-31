@@ -20,10 +20,12 @@ package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -39,7 +41,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import scala.concurrent.Await;
-import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.concurrent.TimeUnit;
@@ -129,23 +130,23 @@ public class StackTraceSampleCoordinatorITCase extends TestLogger {
 								ExecutionJobVertex vertex = executionGraph.getJobVertex(task.getID());
 
 								StackTraceSampleCoordinator coordinator = new StackTraceSampleCoordinator(
-										testActorSystem, 60000);
+										testActorSystem.dispatcher(), 60000);
 
-								Future<?> sampleFuture = coordinator.triggerStackTraceSample(
-										vertex.getTaskVertices(),
-										// Do this often so we have a good
-										// chance of removing the job during
-										// sampling.
-										Integer.MAX_VALUE,
-										new FiniteDuration(10, TimeUnit.MILLISECONDS),
-										0);
+								Future<StackTraceSample> sampleFuture = coordinator.triggerStackTraceSample(
+									vertex.getTaskVertices(),
+									// Do this often so we have a good
+									// chance of removing the job during
+									// sampling.
+									21474700 * 100,
+									Time.milliseconds(10L),
+									0);
 
 								// Wait before cancelling so that some samples
 								// are actually taken.
 								Thread.sleep(sleepTime);
 
 								// Cancel job
-								Future<?> removeFuture = jm.ask(
+								scala.concurrent.Future<?> removeFuture = jm.ask(
 										new TestingJobManagerMessages.NotifyWhenJobRemoved(jobGraph.getJobID()),
 										remaining());
 
@@ -153,7 +154,7 @@ public class StackTraceSampleCoordinatorITCase extends TestLogger {
 
 								try {
 									// Throws Exception on failure
-									Await.result(sampleFuture, remaining());
+									sampleFuture.get(remaining().toMillis(), TimeUnit.MILLISECONDS);
 
 									// OK, we are done. Got the expected
 									// partial result.

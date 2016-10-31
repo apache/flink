@@ -32,8 +32,8 @@ import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.jobmanager.{JobManager, SubmittedJobGraphStore}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
+import org.apache.flink.runtime.messages.Acknowledge
 import org.apache.flink.runtime.messages.JobManagerMessages.{CurrentJobStatus, JobNotFound, RequestJobStatus}
-import org.apache.flink.runtime.messages.Messages.Acknowledge
 import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
 
 import scala.concurrent.duration._
@@ -122,7 +122,7 @@ abstract class ContaineredJobManager(
         )(context.dispatcher)
       }
 
-      sender() ! decorateMessage(Acknowledge)
+      sender() ! decorateMessage(Acknowledge.get())
 
     case msg: GetClusterStatus =>
       sender() ! decorateMessage(

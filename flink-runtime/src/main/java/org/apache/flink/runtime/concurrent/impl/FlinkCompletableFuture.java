@@ -52,8 +52,6 @@ public class FlinkCompletableFuture<T> extends FlinkFuture<T> implements Complet
 
 	@Override
 	public boolean complete(T value) {
-		Preconditions.checkNotNull(value);
-
 		try {
 			promise.success(value);
 

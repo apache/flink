@@ -220,7 +220,7 @@ public class LocalExecutor extends PlanExecutor {
 	public void endSession(JobID jobID) throws Exception {
 		LocalFlinkMiniCluster flink = this.flink;
 		if (flink != null) {
-			ActorGateway leaderGateway = flink.getLeaderGateway(AkkaUtils.getDefaultTimeout());
+			ActorGateway leaderGateway = flink.getLeaderGateway(AkkaUtils.getDefaultTimeoutAsFiniteDuration());
 			leaderGateway.tell(new JobManagerMessages.RemoveCachedJob(jobID));
 		}
 	}

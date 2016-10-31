@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
 
@@ -61,12 +62,12 @@ public class SimpleSlot extends Slot {
 	 * @param owner The component from which this slot is allocated.
 	 * @param location The location info of the TaskManager where the slot was allocated from
 	 * @param slotNumber The number of the task slot on the instance.
-	 * @param taskManagerActorGateway The actor gateway to communicate with the TaskManager of this slot   
+	 * @param taskManagerGateway The gateway to communicate with the TaskManager of this slot
 	 */
 	public SimpleSlot(
 			JobID jobID, SlotOwner owner, TaskManagerLocation location, int slotNumber,
-			ActorGateway taskManagerActorGateway) {
-		this(jobID, owner, location, slotNumber, taskManagerActorGateway, null, null);
+			TaskManagerGateway taskManagerGateway) {
+		this(jobID, owner, location, slotNumber, taskManagerGateway, null, null);
 	}
 
 	/**
@@ -77,18 +78,19 @@ public class SimpleSlot extends Slot {
 	 * @param owner The component from which this slot is allocated.
 	 * @param location The location info of the TaskManager where the slot was allocated from
 	 * @param slotNumber The number of the simple slot in its parent shared slot.
+	 * @param taskManagerGateway to communicate with the associated task manager.
 	 * @param parent The parent shared slot.
 	 * @param groupID The ID that identifies the group that the slot belongs to.
 	 */
 	public SimpleSlot(
 			JobID jobID, SlotOwner owner, TaskManagerLocation location, int slotNumber,
-			ActorGateway taskManagerActorGateway,
+			TaskManagerGateway taskManagerGateway,
 			@Nullable SharedSlot parent, @Nullable AbstractID groupID) {
 
 		super(parent != null ?
 				parent.getAllocatedSlot() :
 				new AllocatedSlot(NO_ALLOCATION_ID, jobID, location, slotNumber,
-						ResourceProfile.UNKNOWN, taskManagerActorGateway),
+						ResourceProfile.UNKNOWN, taskManagerGateway),
 				owner, slotNumber, parent, groupID);
 	}
 
