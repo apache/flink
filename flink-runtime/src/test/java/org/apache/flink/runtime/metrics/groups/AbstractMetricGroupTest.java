@@ -102,12 +102,13 @@ public class AbstractMetricGroupTest {
 		@Override
 		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
 			assertEquals("A-B-C-D-1", group.getMetricIdentifier(metricName));
-			assertEquals("A-B-RR-D-1", group.getMetricIdentifier(metricName, staticCharacterFilter));
-			assertEquals("RR-B-C-D-1", group.getMetricIdentifier(metricName, this));
-			assertEquals("A-RR-C-D-1", group.getMetricIdentifier(metricName, new CharacterFilter() {
+			// ignore all next filters for scope -  because scopeString cached with only first filter
+			assertEquals("A-B-C-D-1", group.getMetricIdentifier(metricName, staticCharacterFilter));
+			assertEquals("A-B-C-D-1", group.getMetricIdentifier(metricName, this));
+			assertEquals("A-B-C-D-4", group.getMetricIdentifier(metricName, new CharacterFilter() {
 				@Override
 				public String filterCharacters(String input) {
-					return input.replace("B", "RR");
+					return input.replace("B", "RR").replace("1", "4");
 				}
 			}));
 			countSuccessChecks++;
@@ -120,13 +121,14 @@ public class AbstractMetricGroupTest {
 		}
 		@Override
 		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-			assertEquals("A!B!C!D!1", group.getMetricIdentifier(metricName));
 			assertEquals("A!RR!C!D!1", group.getMetricIdentifier(metricName, this));
-			assertEquals("A!B!RR!D!1", group.getMetricIdentifier(metricName, staticCharacterFilter));
-			assertEquals("RR!B!C!D!1", group.getMetricIdentifier(metricName, new CharacterFilter() {
+			// ignore all next filters -  because scopeString cached with only first filter
+			assertEquals("A!RR!C!D!1", group.getMetricIdentifier(metricName));
+			assertEquals("A!RR!C!D!1", group.getMetricIdentifier(metricName, staticCharacterFilter));
+			assertEquals("A!RR!C!D!3", group.getMetricIdentifier(metricName, new CharacterFilter() {
 				@Override
 				public String filterCharacters(String input) {
-					return input.replace("A", "RR");
+					return input.replace("A", "RR").replace("1", "3");
 				}
 			}));
 			countSuccessChecks++;
@@ -140,6 +142,7 @@ public class AbstractMetricGroupTest {
 
 		void checkMethod(Metric metric, String metricName, AbstractMetricGroup group) {
 			try {
+				// this filters will be use always because use incorrect of reporterIndex
 				assertEquals("A.B.RR.D.1", group.getMetricIdentifier(metricName, staticCharacterFilter));
 				assertEquals("A.B.RR.D.1", group.getMetricIdentifier(metricName, staticCharacterFilter, getReporters().size() + 2));
 

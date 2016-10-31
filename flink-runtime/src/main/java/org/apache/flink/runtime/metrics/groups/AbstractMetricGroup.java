@@ -86,12 +86,9 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 *  For example ["host-7", "taskmanager-2", "window_word_count", "my-mapper" ]. */
 	private final String[] scopeComponents;
 
-	/** Array the metrics scope represented by this group, as a concatenated string, lazily computed.
+	/** Array containing the metrics scope represented by this group for each reporter, as a concatenated string, lazily computed.
 	 * For example: "host-7.taskmanager-2.window_word_count.my-mapper" */
 	private final String[] scopeStrings;
-
-	/** Character filters which is applied to the scope components and whose scopeString should be cached */
-	private final CharacterFilter[] filters;
 
 	/** The metrics query service scope represented by this group, lazily computed. */
 	protected QueryScopeInfo queryServiceScopeInfo;
@@ -105,8 +102,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 		this.registry = checkNotNull(registry);
 		this.scopeComponents = checkNotNull(scope);
 		this.parent = parent;
-		scopeStrings = new String[registry.getReporters().size()];
-		filters = new CharacterFilter[registry.getReporters().size()];
+		this.scopeStrings = new String[registry.getReporters().size()];
 	}
 
 	public Map<String, String> getAllVariables() {
@@ -188,30 +184,29 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @return fully qualified metric name
 	 */
 	public String getMetricIdentifier(String metricName, CharacterFilter filter, int reporterIndex) {
-		if (filters.length == 0 || (reporterIndex < 0 || reporterIndex >= filters.length)) {
+		if (scopeStrings.length == 0 || (reporterIndex < 0 || reporterIndex >= scopeStrings.length)) {
 			if (filter != null) {
 				String newScopeString = ScopeFormat.concat(filter, registry.getDelimiter(), scopeComponents);
 				return newScopeString + registry.getDelimiter() + filter.filterCharacters(metricName);
 			} else {
-				String newScopeString = ScopeFormat.concat(registry.getDelimiter(reporterIndex), scopeComponents);
-				return newScopeString + registry.getDelimiter(reporterIndex) + metricName;
+				String newScopeString = ScopeFormat.concat(registry.getDelimiter(), scopeComponents);
+				return newScopeString + registry.getDelimiter() + metricName;
+			}
+		}
+		//we assume that a single reporter will only pass identical filters each times
+		if (scopeStrings[reporterIndex] == null) {
+			if (filter != null) {
+				scopeStrings[reporterIndex] = ScopeFormat.concat(filter, registry.getDelimiter(reporterIndex), scopeComponents);
+				return scopeStrings[reporterIndex] + registry.getDelimiter(reporterIndex) + filter.filterCharacters(metricName);
+			} else {
+				scopeStrings[reporterIndex] = ScopeFormat.concat(registry.getDelimiter(reporterIndex), scopeComponents);
+				return scopeStrings[reporterIndex] + registry.getDelimiter(reporterIndex) + metricName;
 			}
 		}
 		if (filter != null) {
-			if (filters[reporterIndex] == null) {
-				filters[reporterIndex] = filter;
-				scopeStrings[reporterIndex] = ScopeFormat.concat(filters[reporterIndex], registry.getDelimiter(reporterIndex), scopeComponents);
-				return scopeStrings[reporterIndex] + registry.getDelimiter(reporterIndex) + filter.filterCharacters(metricName);
-			}
-			if (filters[reporterIndex].equals(filter)) {
-				return scopeStrings[reporterIndex] + registry.getDelimiter(reporterIndex) + filter.filterCharacters(metricName);
-			} else {
-				String newScopeString = ScopeFormat.concat(filter, registry.getDelimiter(reporterIndex), scopeComponents);
-				return newScopeString + registry.getDelimiter(reporterIndex) + filter.filterCharacters(metricName);
-			}
+			return scopeStrings[reporterIndex] + registry.getDelimiter(reporterIndex) + filter.filterCharacters(metricName);
 		} else {
-			String newScopeString = ScopeFormat.concat(registry.getDelimiter(reporterIndex), scopeComponents);
-			return newScopeString + registry.getDelimiter(reporterIndex) + metricName;
+			return scopeStrings[reporterIndex] + registry.getDelimiter(reporterIndex) + metricName;
 		}
 	}
 	
