@@ -24,13 +24,12 @@ import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.accumulators.LongMaximum;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.AbstractGraphAnalytic;
-import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.AnalyticHelper;
+import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
 import org.apache.flink.graph.library.metric.directed.VertexMetrics.Result;
-import org.apache.flink.types.CopyableValue;
 
 import java.io.IOException;
 import java.text.NumberFormat;
@@ -54,7 +53,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
-public class VertexMetrics<K extends Comparable<K> & CopyableValue<K>, VV, EV>
+public class VertexMetrics<K extends Comparable<K>, VV, EV>
 extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 	private static final String VERTEX_COUNT = "vertexCount";
