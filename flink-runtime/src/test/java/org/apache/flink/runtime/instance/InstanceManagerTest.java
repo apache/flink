@@ -186,12 +186,12 @@ public class InstanceManagerTest{
 					probe3.getRef(), ici3, hardwareDescription, 1, leaderSessionID);
 
 			// report some immediate heart beats
-			assertTrue(cm.reportHeartBeat(instanceID1, new byte[] {}));
-			assertTrue(cm.reportHeartBeat(instanceID2, new byte[] {}));
-			assertTrue(cm.reportHeartBeat(instanceID3, new byte[] {}));
+			assertTrue(cm.reportHeartBeat(instanceID1));
+			assertTrue(cm.reportHeartBeat(instanceID2));
+			assertTrue(cm.reportHeartBeat(instanceID3));
 
 			// report heart beat for non-existing instance
-			assertFalse(cm.reportHeartBeat(new InstanceID(), new byte[] {}));
+			assertFalse(cm.reportHeartBeat(new InstanceID()));
 
 			final long WAIT = 200;
 			CommonTestUtils.sleepUninterruptibly(WAIT);
@@ -205,7 +205,7 @@ public class InstanceManagerTest{
 			long h3 = it.next().getLastHeartBeat();
 
 			// send one heart beat again and verify that the
-			assertTrue(cm.reportHeartBeat(instance1.getId(), new byte[] {}));
+			assertTrue(cm.reportHeartBeat(instance1.getId()));
 			long newH1 = instance1.getLastHeartBeat();
 
 			long now = System.currentTimeMillis();
@@ -244,7 +244,7 @@ public class InstanceManagerTest{
 				// expected
 			}
 			
-			assertFalse(cm.reportHeartBeat(new InstanceID(), new byte[] {}));
+			assertFalse(cm.reportHeartBeat(new InstanceID()));
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
