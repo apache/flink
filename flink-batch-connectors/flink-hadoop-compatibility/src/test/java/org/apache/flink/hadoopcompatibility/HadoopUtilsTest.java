@@ -24,11 +24,11 @@ import org.junit.Test;
 
 import java.io.IOException;
 
-public class FlinkHadoopEnvironmentTest extends AbstractParameterToolTest {
+public class HadoopUtilsTest extends AbstractParameterToolTest {
 
 	@Test
 	public void testParamsFromGenericOptionsParser() throws IOException {
-		ParameterTool parameter = FlinkHadoopEnvironment.paramsFromGenericOptionsParser(new String[]{"-D", "input=myInput", "-DexpectedCount=15"});
+		ParameterTool parameter = HadoopUtils.paramsFromGenericOptionsParser(new String[]{"-D", "input=myInput", "-DexpectedCount=15"});
 		validate(parameter);
 	}
 }
