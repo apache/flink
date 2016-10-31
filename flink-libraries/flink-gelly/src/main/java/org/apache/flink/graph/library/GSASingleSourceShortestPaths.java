@@ -31,8 +31,8 @@ import org.apache.flink.graph.gsa.SumFunction;
 /**
  * This is an implementation of the Single Source Shortest Paths algorithm, using a gather-sum-apply iteration
  */
-public class GSASingleSourceShortestPaths<K> implements
-	GraphAlgorithm<K, Double, Double, DataSet<Vertex<K, Double>>> {
+public class GSASingleSourceShortestPaths<K, VV> implements
+	GraphAlgorithm<K, VV, Double, DataSet<Vertex<K, Double>>> {
 
 	private final K srcVertexId;
 	private final Integer maxIterations;
@@ -49,16 +49,16 @@ public class GSASingleSourceShortestPaths<K> implements
 	}
 
 	@Override
-	public DataSet<Vertex<K, Double>> run(Graph<K, Double, Double> input) {
+	public DataSet<Vertex<K, Double>> run(Graph<K, VV, Double> input) {
 
-		return input.mapVertices(new InitVerticesMapper<>(srcVertexId))
+		return input.mapVertices(new InitVerticesMapper<K, VV>(srcVertexId))
 				.runGatherSumApplyIteration(new CalculateDistances(), new ChooseMinDistance(),
 						new UpdateDistance<K>(), maxIterations)
 						.getVertices();
 	}
 
 	@SuppressWarnings("serial")
-	public static final class InitVerticesMapper<K>	implements MapFunction<Vertex<K, Double>, Double> {
+	public static final class InitVerticesMapper<K, VV> implements MapFunction<Vertex<K, VV>, Double> {
 
 		private K srcVertexId;
 
@@ -66,7 +66,7 @@ public class GSASingleSourceShortestPaths<K> implements
 			this.srcVertexId = srcId;
 		}
 
-		public Double map(Vertex<K, Double> value) {
+		public Double map(Vertex<K, VV> value) {
 			if (value.f0.equals(srcVertexId)) {
 				return 0.0;
 			} else {
