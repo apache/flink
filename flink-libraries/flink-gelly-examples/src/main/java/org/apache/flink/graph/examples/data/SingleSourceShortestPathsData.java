@@ -50,10 +50,10 @@ public class SingleSourceShortestPathsData {
 								"4,47.0\n" + "5,48.0";
 
 	public static DataSet<Edge<Long, Double>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
-		
-		List<Edge<Long, Double>> edgeList = new LinkedList<Edge<Long, Double>>();
+
+		List<Edge<Long, Double>> edgeList = new LinkedList<>();
 		for (Object[] edge : DEFAULT_EDGES) {
-			edgeList.add(new Edge<Long, Double>((Long) edge[0], (Long) edge[1], (Double) edge[2]));
+			edgeList.add(new Edge<>((Long) edge[0], (Long) edge[1], (Double) edge[2]));
 		}
 		return env.fromCollection(edgeList);
 	}

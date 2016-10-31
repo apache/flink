@@ -74,12 +74,12 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 	public void testSingleSourceShortestPaths() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
+		Graph<Long, NullValue, Double> inputGraph = Graph.fromDataSet(
 				SingleSourceShortestPathsData.getDefaultEdgeDataSet(env),
 				new InitMapperSSSP(), env);
 
         List<Vertex<Long, Double>> result = inputGraph.run(
-        		new GSASingleSourceShortestPaths<>(1L, 16)).collect();
+				new GSASingleSourceShortestPaths<Long, NullValue>(1L, 16)).collect();
 
 		expectedResult = "1,0.0\n" +
 				"2,12.0\n" +
@@ -98,9 +98,9 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	private static final class InitMapperSSSP implements MapFunction<Long, Double> {
-		public Double map(Long value) {
-			return 0.0;
+	private static final class InitMapperSSSP implements MapFunction<Long, NullValue> {
+		public NullValue map(Long value) {
+			return NullValue.getInstance();
 		}
 	}
 }
