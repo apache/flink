@@ -22,6 +22,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.util.SerializedThrowable;
 
 /**
@@ -48,6 +49,7 @@ public class TaskExecutionState implements java.io.Serializable {
 
 	/** Serialized flink and user-defined accumulators */
 	private final AccumulatorSnapshot accumulators;
+	private final IOMetrics ioMetrics;
 
 	/**
 	 * Creates a new task execution state update, with no attached exception and no accumulators.
@@ -60,7 +62,7 @@ public class TaskExecutionState implements java.io.Serializable {
 	 *        the execution state to be reported
 	 */
 	public TaskExecutionState(JobID jobID, ExecutionAttemptID executionId, ExecutionState executionState) {
-		this(jobID, executionId, executionState, null, null);
+		this(jobID, executionId, executionState, null, null, null);
 	}
 
 	/**
@@ -75,7 +77,7 @@ public class TaskExecutionState implements java.io.Serializable {
 	 */
 	public TaskExecutionState(JobID jobID, ExecutionAttemptID executionId,
 							ExecutionState executionState, Throwable error) {
-		this(jobID, executionId, executionState, error, null);
+		this(jobID, executionId, executionState, error, null, null);
 	}
 
 	/**
@@ -95,7 +97,7 @@ public class TaskExecutionState implements java.io.Serializable {
 	 */
 	public TaskExecutionState(JobID jobID, ExecutionAttemptID executionId,
 			ExecutionState executionState, Throwable error,
-			AccumulatorSnapshot accumulators) {
+			AccumulatorSnapshot accumulators, IOMetrics ioMetrics) {
 
 		if (jobID == null || executionId == null || executionState == null) {
 			throw new NullPointerException();
@@ -110,6 +112,7 @@ public class TaskExecutionState implements java.io.Serializable {
 			this.throwable = null;
 		}
 		this.accumulators = accumulators;
+		this.ioMetrics = ioMetrics;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -162,6 +165,10 @@ public class TaskExecutionState implements java.io.Serializable {
 	 */
 	public AccumulatorSnapshot getAccumulators() {
 		return accumulators;
+	}
+
+	public IOMetrics getIOMetrics() {
+		return ioMetrics;
 	}
 
 	// --------------------------------------------------------------------------------------------

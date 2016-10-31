@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.api.serialization;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.DataInputDeserializer;
 import org.apache.flink.runtime.util.DataOutputSerializer;
@@ -45,8 +44,6 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 	private final SpanningWrapper spanningWrapper;
 
 	private Buffer currentBuffer;
-
-	private AccumulatorRegistry.Reporter reporter;
 
 	public AdaptiveSpanningRecordDeserializer() {
 		this.nonSpanningWrapper = new NonSpanningWrapper();
@@ -93,17 +90,9 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 		if (nonSpanningRemaining >= 4) {
 			int len = this.nonSpanningWrapper.readInt();
 
-			if (reporter != null) {
-				reporter.reportNumBytesIn(len);
-			}
-
 			if (len <= nonSpanningRemaining - 4) {
 				// we can get a full record from here
 				target.read(this.nonSpanningWrapper);
-
-				if (reporter != null) {
-					reporter.reportNumRecordsIn(1);
-				}
 
 				return (this.nonSpanningWrapper.remaining() == 0) ?
 						DeserializationResult.LAST_RECORD_FROM_BUFFER :
@@ -127,10 +116,6 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 		if (this.spanningWrapper.hasFullRecord()) {
 			// get the full record
 			target.read(this.spanningWrapper);
-
-			if (reporter != null) {
-				reporter.reportNumRecordsIn(1);
-			}
 
 			// move the remainder to the non-spanning wrapper
 			// this does not copy it, only sets the memory segment
@@ -157,12 +142,6 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 	@Override
 	public boolean hasUnfinishedData() {
 		return this.nonSpanningWrapper.remaining() > 0 || this.spanningWrapper.getNumGatheredBytes() > 0;
-	}
-
-	@Override
-	public void setReporter(AccumulatorRegistry.Reporter reporter) {
-		this.reporter = reporter;
-		this.spanningWrapper.setReporter(reporter);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
@@ -447,8 +426,6 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 
 		private int recordLimit;
 
-		private AccumulatorRegistry.Reporter reporter;
-
 		public SpanningWrapper() {
 			this.lengthBuffer = ByteBuffer.allocate(4);
 			this.lengthBuffer.order(ByteOrder.BIG_ENDIAN);
@@ -485,10 +462,6 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 					return;
 				} else {
 					this.recordLength = this.lengthBuffer.getInt(0);
-
-					if (reporter != null) {
-						reporter.reportNumBytesIn(this.recordLength);
-					}
 
 					this.lengthBuffer.clear();
 					segmentPosition = toPut;
@@ -633,10 +606,6 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 		@Override
 		public int read(byte[] b) throws IOException {
 			return this.serializationReadBuffer.read(b);
-		}
-
-		public void setReporter(AccumulatorRegistry.Reporter reporter) {
-			this.reporter = reporter;
 		}
 	}
 }

@@ -27,15 +27,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
-import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -50,7 +46,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -335,7 +330,7 @@ public class ExecutionGraphDeploymentTest {
 
 		ExecutionAttemptID attemptID = eg.getJobVertex(v1.getID()).getTaskVertices()[0].getCurrentExecutionAttempt().getAttemptId();
 		eg.updateState(new TaskExecutionState(jobId, attemptID, ExecutionState.RUNNING));
-		eg.updateState(new TaskExecutionState(jobId, attemptID, ExecutionState.FINISHED, null, new AccumulatorSnapshot(jobId, attemptID, new HashMap<AccumulatorRegistry.Metric, Accumulator<?, ?>>(), new HashMap<String, Accumulator<?, ?>>())));
+		eg.updateState(new TaskExecutionState(jobId, attemptID, ExecutionState.FINISHED, null));
 
 		assertEquals(JobStatus.FAILED, eg.getState());
 	}
