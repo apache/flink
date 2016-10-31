@@ -489,6 +489,12 @@ public final class ConfigConstants {
 	 */
 	public static final String MESOS_RESOURCEMANAGER_TASKS_CPUS = "mesos.resourcemanager.tasks.cpus";
 
+
+	/**
+	 * Config parameter to override SSL support for the Artifact Server
+	 */
+	public static final String MESOS_ARTIFACT_SERVER_SSL_ENABLED = "mesos.resourcemanager.artifactserver.ssl.enabled";
+
 	// ------------------------ Hadoop Configuration ------------------------
 
 	/**
@@ -1155,6 +1161,9 @@ public final class ConfigConstants {
 	public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_NAME = "Flink";
 
 	public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE = "*";
+
+	/** Default value to override SSL support for the Artifact Server */
+	public static final boolean DEFAULT_MESOS_ARTIFACT_SERVER_SSL_ENABLED = true;
 
 	// ------------------------ File System Behavior ------------------------
 

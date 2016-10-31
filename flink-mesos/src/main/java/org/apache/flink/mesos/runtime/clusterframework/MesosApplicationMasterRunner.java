@@ -256,7 +256,7 @@ public class MesosApplicationMasterRunner {
 			LOG.debug("Starting Artifact Server");
 			final int artifactServerPort = config.getInteger(ConfigConstants.MESOS_ARTIFACT_SERVER_PORT_KEY,
 				ConfigConstants.DEFAULT_MESOS_ARTIFACT_SERVER_PORT);
-			artifactServer = new MesosArtifactServer(sessionID, akkaHostname, artifactServerPort);
+			artifactServer = new MesosArtifactServer(sessionID, akkaHostname, artifactServerPort, config);
 
 			// ----------------- (3) Generate the configuration for the TaskManagers -------------------
 
