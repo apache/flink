@@ -29,6 +29,7 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
@@ -257,7 +258,8 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 		assertTrue(previousRestartingTime > 0);
 
 		// now lets fail the job while it is in restarting and see whether the restarting time then stops to increase
-		executionGraph.fail(new Exception());
+			// for this to work, we have to use a SuppressRestartException
+			executionGraph.fail(new SuppressRestartsException(new Exception()));
 
 		assertEquals(JobStatus.FAILED, executionGraph.getState());
 
