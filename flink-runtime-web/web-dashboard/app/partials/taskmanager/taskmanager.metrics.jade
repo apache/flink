@@ -50,19 +50,19 @@ div(ng-if="metrics.id")
     tbody
       tr
         td Heap
-        td {{metrics.metrics.gauges['memory.heap.committed'].value | humanizeBytes}}
-        td {{metrics.metrics.gauges['memory.heap.init'].value | humanizeBytes}}
-        td {{metrics.metrics.gauges['memory.heap.max'].value | humanizeBytes}}
+        td {{ metrics.metrics.heapCommitted | humanizeBytes  }}
+        td {{ metrics.metrics.heapUsed | humanizeBytes  }}
+        td {{ metrics.metrics.heapMax | humanizeBytes  }}
       tr
         td Non-Heap
-        td {{metrics.metrics.gauges['memory.non-heap.committed'].value | humanizeBytes}}
-        td {{metrics.metrics.gauges['memory.non-heap.init'].value | humanizeBytes}}
-        td {{metrics.metrics.gauges['memory.non-heap.max'].value | humanizeBytes}}
+        td {{ metrics.metrics.nonHeapCommitted | humanizeBytes  }}
+        td {{ metrics.metrics.nonHeapUsed | humanizeBytes  }}
+        td {{ metrics.metrics.nonHeapMax | humanizeBytes  }}
       tr
         td Total
-        td {{metrics.metrics.gauges['memory.total.committed'].value | humanizeBytes}}
-        td {{metrics.metrics.gauges['memory.total.init'].value | humanizeBytes}}
-        td {{metrics.metrics.gauges['memory.total.max'].value | humanizeBytes}}
+        td {{ metrics.metrics.totalCommitted | humanizeBytes  }}
+        td {{ metrics.metrics.totalUsed | humanizeBytes  }}
+        td {{ metrics.metrics.totalMax | humanizeBytes  }}
 
   h2 Outside JVM
   table.table.table-properties
@@ -75,14 +75,31 @@ div(ng-if="metrics.id")
     tbody
       tr
         td Direct
-        td {{ metrics.metrics.gauges['direct-memory.direct.count'].value }}
-        td {{ metrics.metrics.gauges['direct-memory.direct.used'].value | humanizeBytes }}
-        td {{ metrics.metrics.gauges['direct-memory.direct.capacity'].value | humanizeBytes }}
+        td {{ metrics.metrics.directCount }}
+        td {{ metrics.metrics.directUsed }}
+        td {{ metrics.metrics.directTotal }}
       tr
         td Mapped
-        td {{ metrics.metrics.gauges['direct-memory.mapped.count'].value }}
-        td {{ metrics.metrics.gauges['direct-memory.mapped.used'].value | humanizeBytes }}
-        td {{ metrics.metrics.gauges['direct-memory.mapped.capacity'].value | humanizeBytes }}
+        td {{ metrics.metrics.mappedCount }}
+        td {{ metrics.metrics.mappedUsed }}
+        td {{ metrics.metrics.mappedMax }}
+
+  h1 Network
+
+  h2 MemorySegments
+  table.table.table-properties
+    thead
+      tr
+        th Type
+        th Count
+    tbody
+      tr
+        td Available
+        td {{ metrics.metrics.memorySegmentsAvailable }}
+      tr
+        td Total
+        td {{ metrics.metrics.memorySegmentsTotal }}
+
 
   h1 Garbage Collection
   table.table.table-properties
@@ -91,38 +108,8 @@ div(ng-if="metrics.id")
         th Collector
         th Count
         th Time
-    tbody
-      tr
-        td PS-MarkSweep
-        td(table-property value="metrics.metrics.gauges['gc.PS-MarkSweep.count'].value")
-        td(table-property value="metrics.metrics.gauges['gc.PS-MarkSweep.time'].value | humanizeDuration")
-      tr
-        td PS-Scavenge
-        td(table-property value="metrics.metrics.gauges['gc.PS-Scavenge.count'].value")
-        td(table-property value="metrics.metrics.gauges['gc.PS-Scavenge.time'].value | humanizeDuration")
-
-  h1 Other Memory Pools
-  table.table.table-properties
-    thead
-      tr
-        th Pool
-        td Relative Usage
-    tbody
-      tr
-        td Code Cache
-        td(table-property value="metrics.metrics.gauges['memory.pools.Code-Cache.usage'].value | number:2")
-      tr
-        td Compressed Class Space
-        td(table-property value="metrics.metrics.gauges['memory.pools.Compressed-Class-Space.usage'].value | number:2")
-      tr
-        td Metaspace
-        td(table-property value="metrics.metrics.gauges['memory.pools.Metaspace.usage'].value | number:2")
-      tr
-        td PS Eden Space
-        td(table-property value="metrics.metrics.gauges['memory.pools.PS-Eden-Space.usage'].value | number:2")
-      tr
-        td PS Old Gen
-        td(table-property value="metrics.metrics.gauges['memory.pools.PS-Old-Gen.usage'].value | number:2")
-      tr
-        td PS Survivor Space
-        td(table-property value="metrics.metrics.gauges['memory.pools.PS-Survivor-Space.usage'].value | number:2")
+    tbody(ng-repeat="g in metrics.metrics.garbageCollectors")
+      tr  
+        td {{ g.name }}
+        td {{ g.count }}
+        td {{ g.time }}

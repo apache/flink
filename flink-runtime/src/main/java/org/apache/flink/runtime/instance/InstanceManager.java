@@ -96,7 +96,7 @@ public class InstanceManager {
 		}
 	}
 
-	public boolean reportHeartBeat(InstanceID instanceId, byte[] lastMetricsReport) {
+	public boolean reportHeartBeat(InstanceID instanceId) {
 		if (instanceId == null) {
 			throw new IllegalArgumentException("InstanceID may not be null.");
 		}
@@ -118,7 +118,6 @@ public class InstanceManager {
 			}
 
 			host.reportHeartBeat();
-			host.setMetricsReport(lastMetricsReport);
 
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Received heartbeat from TaskManager " + host);

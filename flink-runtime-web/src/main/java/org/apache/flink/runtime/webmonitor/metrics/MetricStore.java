@@ -23,7 +23,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_COUNTER;
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_GAUGE;
@@ -76,6 +78,10 @@ public class MetricStore {
 					if (tm == null) {
 						tm = new TaskManagerMetricStore();
 						taskManagers.put(tmID, tm);
+					}
+					if (name.contains("GarbageCollector")) {
+						String gcName = name.substring("Status.JVM.GarbageCollector.".length(), name.lastIndexOf('.'));
+						tm.addGarbageCollectorName(gcName);
 					}
 					addMetric(tm.metrics, name, metric);
 					break;
@@ -260,6 +266,11 @@ public class MetricStore {
 	 * Sub-structure containing metrics of a single TaskManager.
 	 */
 	public static class TaskManagerMetricStore extends ComponentMetricStore {
+		public final Set<String> garbageCollectorNames = new HashSet<>();
+		
+		public void addGarbageCollectorName(String name) {
+			garbageCollectorNames.add(name);
+		}
 	}
 
 	/**
