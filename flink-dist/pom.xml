@@ -429,6 +429,43 @@ under the License.
 									<exclude>org.apache.flink:flink-python</exclude>
 									<exclude>org.slf4j:slf4j-log4j12</exclude>
 									<exclude>log4j:log4j</exclude>
+									<!-- start optional Flink batch connectors -->
+									<exclude>org.apache.flink:flink-hadoop-compatibility_2.10</exclude>
+									<exclude>org.apache.flink:flink-hbase_2.10</exclude>
+									<exclude>org.apache.flink:flink-hcatalog</exclude>
+									<exclude>org.apache.flink:flink-jdbc</exclude>
+									<!-- end optional Flink batch connectors -->
+									<!-- start optional Flink streaming connectors -->
+									<exclude>org.apache.flink:flink-connector-cassandra_2.10</exclude>
+									<exclude>org.apache.flink:flink-connector-elasticsearch_2.10</exclude>
+									<exclude>org.apache.flink:flink-connector-elasticsearch2_2.10</exclude>
+									<exclude>org.apache.flink:flink-connector-filesystem_2.10</exclude>
+									<exclude>org.apache.flink:flink-connector-flume_2.10</exclude>
+									<exclude>org.apache.flink:flink-connector-kafka-0.8_2.10</exclude>
+									<exclude>org.apache.flink:flink-connector-kafka-0.9_2.10</exclude>
+									<exclude>org.apache.flink:flink-connector-kafka-0.10_2.10</exclude>
+									<exclude>org.apache.flink:flink-connector-kafka-base_2.10</exclude>
+									<exclude>org.apache.flink:flink-connector-nifi_2.10</exclude>
+									<exclude>org.apache.flink:flink-connector-rabbitmq_2.10</exclude>
+									<exclude>org.apache.flink:flink-connector-redis_2.10</exclude>
+									<exclude>org.apache.flink:flink-connector-twitter_2.10</exclude>
+									<!-- end optional Flink streaming connectors -->
+									<!-- start optional Flink metrics reporters -->
+									<exclude>org.apache.flink:flink-metrics-dropwizard</exclude>
+									<exclude>org.apache.flink:flink-metrics-ganglia</exclude>
+									<exclude>org.apache.flink:flink-metrics-graphite</exclude>
+									<exclude>org.apache.flink:flink-metrics-statsd</exclude>
+									<!-- end optional Flink metrics reporters -->
+									<!-- start optional Flink libraries -->
+									<exclude>org.apache.flink:flink-cep_2.10</exclude>
+									<exclude>org.apache.flink:flink-cep-scala_2.10</exclude>
+									<exclude>org.apache.flink:flink-gelly_2.10</exclude>
+									<exclude>org.apache.flink:flink-gelly-scala_2.10</exclude>
+									<exclude>org.apache.flink:flink-gelly-examples_2.10</exclude>
+									<exclude>org.apache.flink:flink-ml_2.10</exclude>
+									<exclude>org.apache.flink:flink-storm_2.10</exclude>
+									<exclude>org.apache.flink:flink-storm-examples_2.10</exclude>
+									<!-- end optional Flink libraries -->
 								</excludes>
 							</artifactSet>
 							<transformers>
