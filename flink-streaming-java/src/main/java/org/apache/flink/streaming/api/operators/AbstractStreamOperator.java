@@ -163,6 +163,12 @@ public abstract class AbstractStreamOperator<OUT>
 		
 		this.metrics = container.getEnvironment().getMetricGroup().addOperator(config.getOperatorName());
 		this.output = new CountingOutput(output, ((OperatorMetricGroup) this.metrics).getIOMetricGroup().getNumRecordsOutCounter());
+		if (config.isChainStart()) {
+			((OperatorMetricGroup) this.metrics).getIOMetricGroup().reuseInputMetricsForTask();
+		}
+		if (config.isChainEnd()) {
+			((OperatorMetricGroup) this.metrics).getIOMetricGroup().reuseOutputMetricsForTask();
+		}
 		Configuration taskManagerConfig = container.getEnvironment().getTaskManagerInfo().getConfiguration();
 		int historySize = taskManagerConfig.getInteger(ConfigConstants.METRICS_LATENCY_HISTORY_SIZE, ConfigConstants.DEFAULT_METRICS_LATENCY_HISTORY_SIZE);
 		if (historySize <= 0) {

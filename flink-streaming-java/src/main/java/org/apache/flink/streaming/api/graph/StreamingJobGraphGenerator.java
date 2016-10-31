@@ -231,6 +231,9 @@ public class StreamingJobGraphGenerator {
 				config.setChainIndex(chainIndex);
 				config.setOperatorName(streamGraph.getStreamNode(currentNodeId).getOperatorName());
 				chainedConfigs.get(startNodeId).put(currentNodeId, config);
+				if (chainableOutputs.isEmpty()) {
+					config.setChainEnd();
+				}
 			}
 
 			return transitiveOutEdges;
