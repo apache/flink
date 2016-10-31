@@ -53,13 +53,13 @@ public class SlotDescriptor {
 		final TaskManagerLocation location,
 		final int slotNumber,
 		final ResourceProfile resourceProfile,
-		final TaskManagerGateway actorGateway)
+		final TaskManagerGateway taskManagerGateway)
 	{
 		this.jobID = checkNotNull(jobID);
 		this.taskManagerLocation = checkNotNull(location);
 		this.slotNumber = slotNumber;
 		this.resourceProfile = checkNotNull(resourceProfile);
-		this.taskManagerGateway = checkNotNull(actorGateway);
+		this.taskManagerGateway = checkNotNull(taskManagerGateway);
 	}
 
 	public SlotDescriptor(final SlotDescriptor other) {

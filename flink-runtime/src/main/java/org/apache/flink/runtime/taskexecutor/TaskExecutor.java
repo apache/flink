@@ -883,12 +883,12 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 					jobMasterLeaderId,
 					jobMasterGateway,
 					new TaskExecutionState(
-							task.getJobID(),
-							task.getExecutionId(),
-							task.getExecutionState(),
-							task.getFailureCause(),
-							accumulatorSnapshot,
-							task.getMetricGroup().getIOMetricGroup().createSnapshot()));
+						task.getJobID(),
+						task.getExecutionId(),
+						task.getExecutionState(),
+						task.getFailureCause(),
+						accumulatorSnapshot,
+						task.getMetricGroup().getIOMetricGroup().createSnapshot()));
 		} else {
 			log.error("Cannot find task with ID {} to unregister.", executionAttemptID);
 		}
