@@ -23,7 +23,6 @@ import java.io.IOException;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
 /**
@@ -65,11 +64,6 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	void clear();
 	
 	boolean hasData();
-
-	/**
-	 * Setter for the reporter, e.g. for the number of records emitted and the number of bytes read.
-	 */
-	void setReporter(AccumulatorRegistry.Reporter reporter);
 
 	/**
 	 * Insantiates all metrics.

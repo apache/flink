@@ -17,15 +17,11 @@
  */
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import scala.Option;
-
-import java.util.Map;
 
 /**
  * Common interface for the runtime {@link ExecutionJobVertex} and {@link ArchivedExecutionJobVertex}.
@@ -79,15 +75,6 @@ public interface AccessExecutionJobVertex {
 	 * @return checkpoint stats for this job vertex.
 	 */
 	Option<OperatorCheckpointStats> getCheckpointStats();
-
-	/**
-	 * Returns the aggregated system-defined accumulators.
-	 *
-	 * @return aggregated system-defined accumulators.
-	 * @deprecated Will be removed in FLINK-4527
-	 */
-	@Deprecated
-	Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getAggregatedMetricAccumulators();
 
 	/**
 	 * Returns the aggregated user-defined accumulators as strings.

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
@@ -197,15 +196,6 @@ public class RecordWriter<T extends IOReadableWritable> {
 					serializer.clear();
 				}
 			}
-		}
-	}
-
-	/**
-	 * Counter for the number of records emitted and the records processed.
-	 */
-	public void setReporter(AccumulatorRegistry.Reporter reporter) {
-		for(RecordSerializer<?> serializer : serializers) {
-			serializer.setReporter(reporter);
 		}
 	}
 

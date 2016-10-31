@@ -19,8 +19,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.ArchivedCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -31,7 +29,6 @@ import org.apache.flink.util.SerializedValue;
 
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -206,24 +203,6 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	@Override
 	public CheckpointStatsTracker getCheckpointStatsTracker() {
 		return tracker;
-	}
-
-	/**
-	 * Gets the internal flink accumulator map of maps which contains some metrics.
-	 *
-	 * @return A map of accumulators for every executed task.
-	 */
-	@Override
-	public Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> getFlinkAccumulators() {
-		Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators =
-			new HashMap<>();
-
-		for (AccessExecutionVertex vertex : getAllExecutionVertices()) {
-			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> taskAccs = vertex.getCurrentExecutionAttempt().getFlinkAccumulators();
-			flinkAccumulators.put(vertex.getCurrentExecutionAttempt().getAttemptId(), taskAccs);
-		}
-
-		return flinkAccumulators;
 	}
 
 	@Override
