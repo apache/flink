@@ -1429,7 +1429,8 @@ public class TaskManagerTest extends TestLogger {
 				false // don't deploy eagerly but with the first completed memory buffer
 			);
 
-			final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, "TestJob", vid, eid, executionConfig,
+			final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
+				jid, new AllocationID(), "TestJob", vid, eid, executionConfig,
 				"TestTask", 1, 0, 1, 0, new Configuration(), new Configuration(),
 				TestInvokableRecordCancel.class.getName(),
 				Collections.singletonList(resultPartitionDeploymentDescriptor),

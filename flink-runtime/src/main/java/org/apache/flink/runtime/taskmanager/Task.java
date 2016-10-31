@@ -929,7 +929,7 @@ public class Task implements Runnable, TaskActions {
 								taskNameWithSubtask,
 								taskCancellationInterval,
 								taskCancellationTimeout,
-								taskManagerConnection,
+								taskManagerActions,
 								producedPartitions,
 								inputGates);
 						Thread cancelThread = new Thread(executingThread.getThreadGroup(), canceler,
@@ -1229,7 +1229,7 @@ public class Task implements Runnable, TaskActions {
 		private final long interruptTimeout;
 
 		/** TaskManager to notify about a timeout */
-		private final TaskManagerConnection taskManager;
+		private final TaskManagerActions taskManagerActions;
 
 		/** Watch Dog thread */
 		@Nullable
@@ -1242,7 +1242,7 @@ public class Task implements Runnable, TaskActions {
 				String taskName,
 				long cancellationInterval,
 				long cancellationTimeout,
-				TaskManagerConnection taskManager,
+				TaskManagerActions taskManagerActions,
 				ResultPartition[] producedPartitions,
 				SingleInputGate[] inputGates) {
 
@@ -1252,7 +1252,7 @@ public class Task implements Runnable, TaskActions {
 			this.taskName = taskName;
 			this.interruptInterval = cancellationInterval;
 			this.interruptTimeout = cancellationTimeout;
-			this.taskManager = taskManager;
+			this.taskManagerActions = taskManagerActions;
 			this.producedPartitions = producedPartitions;
 			this.inputGates = inputGates;
 
@@ -1367,7 +1367,7 @@ public class Task implements Runnable, TaskActions {
 								duration,
 								bld.toString());
 
-						taskManager.notifyFatalError(msg, null);
+						taskManagerActions.notifyFatalError(msg, null);
 
 						return; // done, don't forget to leave the loop
 					} else {

@@ -142,7 +142,7 @@ public class SlotPool implements SlotOwner {
 					SimpleSlot slot = new SimpleSlot(
 							descriptor.getJobID(), SlotPool.this,
 							descriptor.getTaskManagerLocation(), descriptor.getSlotNumber(),
-							descriptor.getTaskManagerActorGateway());
+							descriptor.getTaskManagerGateway());
 					synchronized (lock) {
 						// double validation since we are out of the lock protection after the slot is granted
 						if (registeredResources.contains(descriptor.getTaskManagerLocation().getResourceID())) {
@@ -198,7 +198,7 @@ public class SlotPool implements SlotOwner {
 				public SharedSlot apply(SlotDescriptor descriptor) {
 					SharedSlot slot = new SharedSlot(
 							descriptor.getJobID(), SlotPool.this, descriptor.getTaskManagerLocation(),
-							descriptor.getSlotNumber(), descriptor.getTaskManagerActorGateway(),
+							descriptor.getSlotNumber(), descriptor.getTaskManagerGateway(),
 							sharingGroupAssignment);
 
 					synchronized (lock) {

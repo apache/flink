@@ -22,6 +22,7 @@ import java.io.{File, FileInputStream, IOException}
 import java.lang.management.ManagementFactory
 import java.net.{InetAddress, InetSocketAddress}
 import java.util
+import java.util.concurrent.TimeUnit
 import java.util.{Collections, UUID}
 
 import _root_.akka.actor._
@@ -1960,13 +1961,5 @@ object TaskManager {
     }
 
     (protocol, hostname, port)
-  }
-
-
-  // --------------------------------------------------------------------------
-  //  Miscellaneous Utilities
-  // --------------------------------------------------------------------------
-
-  /**
   }
 }
