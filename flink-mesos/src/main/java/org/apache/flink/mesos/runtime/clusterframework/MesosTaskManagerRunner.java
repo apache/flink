@@ -21,13 +21,14 @@ package org.apache.flink.mesos.runtime.clusterframework;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.cli.FlinkMesosSessionCli;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
@@ -114,19 +115,18 @@ public class MesosTaskManagerRunner {
 		String hadoopConfDir = envs.get(MesosConfigKeys.ENV_HADOOP_CONF_DIR);
 		LOG.info("hadoopConfDir: {}", hadoopConfDir);
 
-		SecurityContext.SecurityConfiguration sc = new SecurityContext.SecurityConfiguration();
-		sc.setFlinkConfiguration(configuration);
+		SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(configuration);
 		if(hadoopConfDir != null && hadoopConfDir.length() != 0) {
 			sc.setHadoopConfiguration(HadoopUtils.getHadoopConfiguration());
 		}
 
 		try {
-			SecurityContext.install(sc);
+			SecurityUtils.install(sc);
 			LOG.info("Mesos task runs as '{}', setting user to execute Flink TaskManager to '{}'",
 					UserGroupInformation.getCurrentUser().getShortUserName(), effectiveUsername);
-			SecurityContext.getInstalled().runSecured(new SecurityContext.FlinkSecuredRunner<Object>() {
+			SecurityUtils.getInstalledContext().runSecured(new Callable<Object>() {
 				@Override
-				public Object run() throws Exception {
+				public Object call() throws Exception {
 					TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration, resourceId, taskManager);
 					return null;
 				}

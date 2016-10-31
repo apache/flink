@@ -44,7 +44,7 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.process.ProcessReaper;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.Hardware;
@@ -70,6 +70,7 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -145,16 +146,15 @@ public class MesosApplicationMasterRunner {
 
 			final Configuration configuration = createConfiguration(workingDir, dynamicProperties);
 
-			SecurityContext.SecurityConfiguration sc = new SecurityContext.SecurityConfiguration();
-			sc.setFlinkConfiguration(configuration);
+			SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(configuration);
 			sc.setHadoopConfiguration(HadoopUtils.getHadoopConfiguration());
-			SecurityContext.install(sc);
+			SecurityUtils.install(sc);
 
 			LOG.info("Running Flink as user {}", UserGroupInformation.getCurrentUser().getShortUserName());
 
-			return SecurityContext.getInstalled().runSecured(new SecurityContext.FlinkSecuredRunner<Integer>() {
+			return SecurityUtils.getInstalledContext().runSecured(new Callable<Integer>() {
 				@Override
-				public Integer run() {
+				public Integer call() {
 					return runPrivileged(configuration);
 				}
 			});
@@ -279,7 +279,7 @@ public class MesosApplicationMasterRunner {
 			LOG.debug("Starting Artifact Server");
 			final int artifactServerPort = config.getInteger(ConfigConstants.MESOS_ARTIFACT_SERVER_PORT_KEY,
 				ConfigConstants.DEFAULT_MESOS_ARTIFACT_SERVER_PORT);
-			artifactServer = new MesosArtifactServer(sessionID, akkaHostname, artifactServerPort);
+			artifactServer = new MesosArtifactServer(sessionID, akkaHostname, artifactServerPort, config);
 
 			// ----------------- (3) Generate the configuration for the TaskManagers -------------------
 
