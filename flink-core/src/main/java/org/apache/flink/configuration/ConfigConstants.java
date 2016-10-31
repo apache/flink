@@ -498,6 +498,11 @@ public final class ConfigConstants {
 		"mesos.resourcemanager.tasks.container.image.name";
 
 	/**
+	 * Config parameter to override SSL support for the Artifact Server
+	 */
+	public static final String MESOS_ARTIFACT_SERVER_SSL_ENABLED = "mesos.resourcemanager.artifactserver.ssl.enabled";
+
+	/**
 	 * The type of container to use for task managers. Valid values are
 	 * {@code MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_MESOS} or
 	 * {@code MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_DOCKER}.
@@ -1180,6 +1185,9 @@ public final class ConfigConstants {
 	public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_NAME = "Flink";
 
 	public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE = "*";
+
+	/** Default value to override SSL support for the Artifact Server */
+	public static final boolean DEFAULT_MESOS_ARTIFACT_SERVER_SSL_ENABLED = true;
 
 	public static final String DEFAULT_MESOS_RESOURCEMANAGER_TASKS_CONTAINER_IMAGE_TYPE = "mesos";
 

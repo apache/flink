@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.security;
 
 import java.util.concurrent.Callable;
-			LOG.info("Hadoop security is enabled");
 
 /**
  * A security context with may be required to run a Callable.
