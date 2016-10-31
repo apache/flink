@@ -1138,7 +1138,7 @@ class TaskManager(
         runningTasks.put(execId, prevTask)
         throw new IllegalStateException("TaskManager already contains a task for id " + execId)
       }
-
+      
       // all good, we kick off the task, which performs its own initialization
       task.startTaskThread()
 
