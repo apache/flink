@@ -356,13 +356,9 @@ public class Task implements Runnable, TaskActions {
 		// finally, create the executing thread, but do not start it
 		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
 
-		// add metrics for buffers
 		if (this.metrics != null && this.metrics.getIOMetricGroup() != null) {
-			MetricGroup bufferMetrics = this.metrics.getIOMetricGroup().getBuffersGroup();
-			bufferMetrics.gauge("inputQueueLength", new TaskIOMetricGroup.InputBuffersGauge(this));
-			bufferMetrics.gauge("outputQueueLength", new TaskIOMetricGroup.OutputBuffersGauge(this));
-			bufferMetrics.gauge("inPoolUsage", new TaskIOMetricGroup.InputBufferPoolUsageGauge(this));
-			bufferMetrics.gauge("outPoolUsage", new TaskIOMetricGroup.OutputBufferPoolUsageGauge(this));
+			// add metrics for buffers
+			this.metrics.getIOMetricGroup().initializeBufferMetrics(this);
 		}
 	}
 

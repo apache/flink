@@ -50,8 +50,6 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	private final Meter numRecordsInRate;
 	private final Meter numRecordsOutRate;
 
-	private final MetricGroup buffers;
-
 	public TaskIOMetricGroup(TaskMetricGroup parent) {
 		super(parent);
 
@@ -65,8 +63,6 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 		this.numRecordsOut = counter("numRecordsOut", new SumCounter());
 		this.numRecordsInRate = meter("numRecordsInPerSecond", new MeterView(numRecordsIn, 60));
 		this.numRecordsOutRate = meter("numRecordsOutPerSecond", new MeterView(numRecordsOut, 60));
-
-		this.buffers = addGroup("buffers");
 	}
 
 	public IOMetrics createSnapshot() {
@@ -108,18 +104,25 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 		return numBytesOutRate;
 	}
 
-	public MetricGroup getBuffersGroup() {
-		return buffers;
-	}
-
 	// ------------------------------------------------------------------------
 	//  metrics of Buffers group
 	// ------------------------------------------------------------------------
 
 	/**
+	 * initialize Buffer Metrics for a task
+	 */
+	public void initializeBufferMetrics(Task task) {
+		final MetricGroup buffers = addGroup("buffers");
+		buffers.gauge("inputQueueLength", new InputBuffersGauge(task));
+		buffers.gauge("outputQueueLength", new OutputBuffersGauge(task));
+		buffers.gauge("inPoolUsage", new InputBufferPoolUsageGauge(task));
+		buffers.gauge("outPoolUsage", new OutputBufferPoolUsageGauge(task));
+	}
+
+	/**
 	 * Input received buffers gauge of a task
 	 */
-	public static final class InputBuffersGauge implements Gauge<Integer> {
+	private static final class InputBuffersGauge implements Gauge<Integer> {
 
 		private final Task task;
 
@@ -142,7 +145,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	/**
 	 * Output produced buffers gauge of a task
 	 */
-	public static final class OutputBuffersGauge implements Gauge<Integer> {
+	private static final class OutputBuffersGauge implements Gauge<Integer> {
 
 		private final Task task;
 
@@ -200,7 +203,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	/**
 	 * Input buffer pool usage gauge of a task
 	 */
-	public static final class InputBufferPoolUsageGauge implements Gauge<Float> {
+	private static final class InputBufferPoolUsageGauge implements Gauge<Float> {
 
 		private final Task task;
 
@@ -210,16 +213,16 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
 		@Override
 		public Float getValue() {
-			int availableBuffers = 0;
+			int usedBuffers = 0;
 			int bufferPoolSize = 0;
 
 			for (SingleInputGate inputGate : task.getAllInputGates()) {
-				availableBuffers += inputGate.getBufferPool().getNumberOfAvailableMemorySegments();
+				usedBuffers += inputGate.getBufferPool().getNumberOfUsedBuffers();
 				bufferPoolSize += inputGate.getBufferPool().getNumBuffers();
 			}
 
 			if (bufferPoolSize != 0) {
-				return ((float)(bufferPoolSize - availableBuffers)) / bufferPoolSize;
+				return ((float)usedBuffers) / bufferPoolSize;
 			} else {
 				return 0.0f;
 			}
@@ -229,7 +232,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	/**
 	 * Output buffer pool usage gauge of a task
 	 */
-	public static final class OutputBufferPoolUsageGauge implements Gauge<Float> {
+	private static final class OutputBufferPoolUsageGauge implements Gauge<Float> {
 
 		private final Task task;
 
@@ -239,16 +242,16 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
 		@Override
 		public Float getValue() {
-			int availableBuffers = 0;
+			int usedBuffers = 0;
 			int bufferPoolSize = 0;
 
 			for (ResultPartition resultPartition : task.getProducedPartitions()) {
-				availableBuffers += resultPartition.getBufferPool().getNumberOfAvailableMemorySegments();
+				usedBuffers += resultPartition.getBufferPool().getNumberOfUsedBuffers();
 				bufferPoolSize += resultPartition.getBufferPool().getNumBuffers();
 			}
 
 			if (bufferPoolSize != 0) {
-				return ((float)(bufferPoolSize - availableBuffers)) / bufferPoolSize;
+				return ((float)usedBuffers) / bufferPoolSize;
 			} else {
 				return 0.0f;
 			}

@@ -111,6 +111,11 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Override
+	public int getNumberOfUsedBuffers() {
+		return numberOfRequestedMemorySegments - getNumberOfAvailableMemorySegments();
+	}
+
+	@Override
 	public void setBufferPoolOwner(BufferPoolOwner owner) {
 		synchronized (availableMemorySegments) {
 			checkState(this.owner == null, "Buffer pool owner has already been set.");
