@@ -243,6 +243,10 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		String headName =  getEnvironment().getTaskInfo().getTaskName().split("->")[0].trim();
 		this.metrics = getEnvironment().getMetricGroup()
 			.addOperator(headName.startsWith("CHAIN") ? headName.substring(6) : headName);
+		this.metrics.getIOMetricGroup().reuseInputMetricsForTask();
+		if (config.getNumberOfChainedStubs() == 0) {
+			this.metrics.getIOMetricGroup().reuseOutputMetricsForTask();
+		}
 
 		// initialize the readers.
 		// this does not yet trigger any stream consuming or processing.
@@ -1305,6 +1309,10 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 				ct.setup(chainedStubConf, taskName, previous, containingTask, cl, executionConfig, accumulatorMap);
 				chainedTasksTarget.add(0, ct);
+
+				if (i == numChained - 1) {
+					ct.getIOMetrics().reuseOutputMetricsForTask();
+				}
 
 				previous = ct;
 			}

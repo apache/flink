@@ -103,7 +103,11 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 
 		RuntimeContext ctx = createRuntimeContext();
 		Counter completedSplitsCounter = ctx.getMetricGroup().counter("numSplitsProcessed");
+		((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup().reuseInputMetricsForTask();
 		Counter numRecordsOut = ((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup().getNumRecordsOutCounter();
+		if (this.config.getNumberOfChainedStubs() == 0) {
+			((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup().reuseOutputMetricsForTask();
+		}
 
 		if (RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
 			((RichInputFormat) this.format).setRuntimeContext(ctx);
