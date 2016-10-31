@@ -23,7 +23,7 @@ import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.slf4j.Logger;
 
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -43,10 +43,10 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
 		long heartbeatPeriod,
 		long heartbeatTimeout,
 		ResourceID ownResourceID,
-		ExecutorService executorService,
+		Executor executor,
 		ScheduledExecutorService scheduledExecutorService,
 		Logger log) {
-		super(heartbeatTimeout, ownResourceID, executorService, scheduledExecutorService, log);
+		super(heartbeatTimeout, ownResourceID, executor, scheduledExecutorService, log);
 
 		triggerFuture = scheduledExecutorService.scheduleAtFixedRate(this, 0L, heartbeatPeriod, TimeUnit.MILLISECONDS);
 	}

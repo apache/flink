@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestReply;
@@ -129,4 +130,12 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @return Future acknowledge if the task is successfully canceled
 	 */
 	Future<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, @RpcTimeout Time timeout);
+
+	/**
+	 *  Request a heartbeat response from TaskExecutor to ResourceManager
+	 *
+	 * @param resourceManagerId Resource ID of the ResourceManager
+	 * @param resourceManagerLeaderId current leader id of the ResourceManager
+	 */
+	void requestHeartbeatResponseToResourceManager(ResourceID resourceManagerId, UUID resourceManagerLeaderId);
 }

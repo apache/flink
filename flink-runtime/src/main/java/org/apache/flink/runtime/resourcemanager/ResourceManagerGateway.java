@@ -130,4 +130,10 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @return The future to the number of registered TaskManagers.
 	 */
 	Future<Integer> getNumberOfRegisteredTaskManagers(UUID leaderSessionId);
+
+	/* Receives heartbeat response from taskExecutor
+	 *
+	 * @param resourceID the resource id of the TaskExecutor
+	 */
+	void heartbeatResponseFromTaskExecutor(ResourceID resourceID);
 }

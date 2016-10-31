@@ -30,6 +30,7 @@ import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.LeaderIdMismatchException;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -117,6 +118,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	/** All registered listeners for status updates of the ResourceManager. */
 	private ConcurrentMap<String, InfoMessageListenerRpcGateway> infoMessageListeners;
 
+	private HeartbeatService heartbeatService;
+
 	public ResourceManager(
 			RpcService rpcService,
 			ResourceManagerConfiguration resourceManagerConfiguration,
@@ -139,6 +142,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		this.taskExecutors = new HashMap<>(8);
 		this.leaderSessionId = null;
 		infoMessageListeners = new ConcurrentHashMap<>(8);
+
+		heartbeatService = new HeartbeatService(resourceManagerConfiguration, rpcService.getExecutor());
 	}
 
 	// ------------------------------------------------------------------------
@@ -171,12 +176,24 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			throw new ResourceManagerException("Could not start the job leader id service.", e);
 		}
 
+		try {
+			heartbeatService.start(new HeartbeatListenerWithTaskExecutor());
+		} catch(Exception e) {
+			throw new ResourceManagerException("Could not start the heartbeat service.", e);
+		}
+
 		initialize();
 	}
 
 	@Override
 	public void shutDown() throws Exception {
 		Exception exception = null;
+
+		try {
+			heartbeatService.stop();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
 
 		try {
 			jobLeaderIdService.stop();
@@ -364,7 +381,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 						taskExecutors.put(resourceID, registration);
 						slotManager.registerTaskExecutor(resourceID, registration, slotReport);
-
+						heartbeatService.monitorTaskExecutor(resourceID, taskExecutorGateway);
 						return new TaskExecutorRegistrationSuccess(
 							registration.getInstanceID(),
 							resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds());
@@ -507,10 +524,19 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	public Integer getNumberOfRegisteredTaskManagers(UUID leaderSessionId) throws LeaderIdMismatchException {
 		if (this.leaderSessionId != null && this.leaderSessionId.equals(leaderSessionId)) {
 			return taskExecutors.size();
-		}
-		else {
+		} else {
 			throw new LeaderIdMismatchException(this.leaderSessionId, leaderSessionId);
 		}
+	}
+
+	/**
+	 * Receive heartbeat response from taskExecutor
+	 *
+	 * @param resourceID
+	 */
+	@RpcMethod
+	public void heartbeatResponseFromTaskExecutor(ResourceID resourceID) {
+		heartbeatService.heartbeatResponseFromTaskExecutor(resourceID);
 	}
 
 	// ------------------------------------------------------------------------
@@ -735,6 +761,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 					log.info("Task manager {} failed because {}.", resourceID, message);
 					// TODO :: suggest failed task executor to stop itself
 					slotManager.notifyTaskManagerFailure(resourceID);
+					heartbeatService.unmonitor(resourceID);
 				} else {
 					log.debug("Could not find a registered task manager with the process id {}.", resourceID);
 				}
@@ -829,6 +856,25 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		@Override
 		public void handleError(Throwable error) {
 			onFatalErrorAsync(error);
+		}
+	}
+
+	private class HeartbeatListenerWithTaskExecutor implements HeartbeatListener<Void, UUID> {
+
+		@Override
+		public void notifyHeartbeatTimeout(ResourceID resourceID) {
+			log.warn("Lost heartbeat with taskExecutor {}, mark the taskExecutor as failed ", resourceID);
+			notifyWorkerFailed(resourceID, "Heartbeat timeout");
+		}
+
+		@Override
+		public void reportPayload(ResourceID resourceID, Void payload) {
+			// do nothing
+		}
+
+		@Override
+		public Future<UUID> retrievePayload() {
+			return FlinkCompletableFuture.completed(ResourceManager.this.leaderSessionId);
 		}
 	}
 }
