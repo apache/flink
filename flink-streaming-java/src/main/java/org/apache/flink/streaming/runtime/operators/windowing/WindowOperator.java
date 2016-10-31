@@ -181,7 +181,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	@Override
-	public final void open() throws Exception {
+	public void open() throws Exception {
 		super.open();
 
 		timestampedCollector = new TimestampedCollector<>(output);
@@ -200,7 +200,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	@Override
-	public final void close() throws Exception {
+	public void close() throws Exception {
 		super.close();
 		timestampedCollector = null;
 		context = null;
