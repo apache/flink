@@ -25,7 +25,6 @@ import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -65,8 +64,6 @@ import static org.junit.Assert.assertTrue;
 public class ArchivedExecutionGraphTest {
 	private static JobVertexID v1ID = new JobVertexID();
 	private static JobVertexID v2ID = new JobVertexID();
-
-	private static ExecutionAttemptID executionWithAccumulatorsID;
 
 	private static ExecutionGraph runtimeGraph;
 
@@ -119,15 +116,10 @@ public class ArchivedExecutionGraphTest {
 			null,
 			new TestCheckpointStatsTracker());
 
-		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators = new HashMap<>();
-		flinkAccumulators.put(AccumulatorRegistry.Metric.NUM_BYTES_IN, new LongCounter(32));
-
 		Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<>();
 		userAccumulators.put("userAcc", new LongCounter(64));
 
 		Execution executionWithAccumulators = runtimeGraph.getJobVertex(v1ID).getTaskVertices()[0].getCurrentExecutionAttempt();
-		executionWithAccumulators.setAccumulators(flinkAccumulators, userAccumulators);
-		executionWithAccumulatorsID = executionWithAccumulators.getAttemptId();
 
 		runtimeGraph.getJobVertex(v2ID).getTaskVertices()[0].getCurrentExecutionAttempt().fail(new RuntimeException("This exception was thrown on purpose."));
 	}
@@ -200,7 +192,6 @@ public class ArchivedExecutionGraphTest {
 		// -------------------------------------------------------------------------------------------------------------
 		compareStringifiedAccumulators(runtimeGraph.getAccumulatorResultsStringified(), archivedGraph.getAccumulatorResultsStringified());
 		compareSerializedAccumulators(runtimeGraph.getAccumulatorsSerialized(), archivedGraph.getAccumulatorsSerialized());
-		compareFlinkAccumulators(runtimeGraph.getFlinkAccumulators().get(executionWithAccumulatorsID), archivedGraph.getFlinkAccumulators().get(executionWithAccumulatorsID));
 
 		// -------------------------------------------------------------------------------------------------------------
 		// JobVertices
@@ -250,7 +241,6 @@ public class ArchivedExecutionGraphTest {
 		compareOperatorCheckpointStats(runtimeJobVertex.getCheckpointStats().get(), archivedJobVertex.getCheckpointStats().get());
 
 		compareStringifiedAccumulators(runtimeJobVertex.getAggregatedUserAccumulatorsStringified(), archivedJobVertex.getAggregatedUserAccumulatorsStringified());
-		compareFlinkAccumulators(runtimeJobVertex.getAggregatedMetricAccumulators(), archivedJobVertex.getAggregatedMetricAccumulators());
 
 		AccessExecutionVertex[] runtimeExecutionVertices = runtimeJobVertex.getTaskVertices();
 		AccessExecutionVertex[] archivedExecutionVertices = archivedJobVertex.getTaskVertices();
@@ -294,7 +284,6 @@ public class ArchivedExecutionGraphTest {
 		assertEquals(runtimeExecution.getStateTimestamp(ExecutionState.CANCELED), archivedExecution.getStateTimestamp(ExecutionState.CANCELED));
 		assertEquals(runtimeExecution.getStateTimestamp(ExecutionState.FAILED), archivedExecution.getStateTimestamp(ExecutionState.FAILED));
 		compareStringifiedAccumulators(runtimeExecution.getUserAccumulatorsStringified(), archivedExecution.getUserAccumulatorsStringified());
-		compareFlinkAccumulators(runtimeExecution.getFlinkAccumulators(), archivedExecution.getFlinkAccumulators());
 		assertEquals(runtimeExecution.getParallelSubtaskIndex(), archivedExecution.getParallelSubtaskIndex());
 	}
 
@@ -318,18 +307,6 @@ public class ArchivedExecutionGraphTest {
 			long archivedUserAcc = (long) archivedAccs.get(runtimeAcc.getKey()).deserializeValue(ClassLoader.getSystemClassLoader());
 
 			assertEquals(runtimeUserAcc, archivedUserAcc);
-		}
-	}
-
-	private static void compareFlinkAccumulators(Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> runtimeAccs, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> archivedAccs) {
-		assertEquals(runtimeAccs == null, archivedAccs == null);
-		if (runtimeAccs != null && archivedAccs != null) {
-			assertEquals(runtimeAccs.size(), archivedAccs.size());
-			for (Map.Entry<AccumulatorRegistry.Metric, Accumulator<?, ?>> runtimeAcc : runtimeAccs.entrySet()) {
-				Accumulator<?, ?> archivedAcc = archivedAccs.get(runtimeAcc.getKey());
-
-				assertEquals(runtimeAcc.getValue().getLocalValue(), archivedAcc.getLocalValue());
-			}
 		}
 	}
 

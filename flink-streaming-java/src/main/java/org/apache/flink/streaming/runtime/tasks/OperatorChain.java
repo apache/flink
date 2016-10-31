@@ -28,7 +28,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -74,7 +73,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 
 	private final OP headOperator;
 
-	public OperatorChain(StreamTask<OUT, OP> containingTask, AccumulatorRegistry.Reporter reporter) {
+	public OperatorChain(StreamTask<OUT, OP> containingTask) {
 		
 		final ClassLoader userCodeClassloader = containingTask.getUserCodeClassLoader();
 		final StreamConfig configuration = containingTask.getConfiguration();
@@ -99,7 +98,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 				
 				RecordWriterOutput<?> streamOutput = createStreamOutput(
 						outEdge, chainedConfigs.get(outEdge.getSourceId()), i,
-						containingTask.getEnvironment(), reporter, containingTask.getName());
+						containingTask.getEnvironment(), containingTask.getName());
 	
 				this.streamOutputs[i] = streamOutput;
 				streamOutputMap.put(outEdge, streamOutput);
@@ -306,7 +305,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 	private static <T> RecordWriterOutput<T> createStreamOutput(
 			StreamEdge edge, StreamConfig upStreamConfig, int outputIndex,
 			Environment taskEnvironment,
-			AccumulatorRegistry.Reporter reporter, String taskName)
+			String taskName)
 	{
 		TypeSerializer<T> outSerializer = upStreamConfig.getTypeSerializerOut(taskEnvironment.getUserClassLoader());
 
@@ -319,7 +318,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 
 		StreamRecordWriter<SerializationDelegate<StreamRecord<T>>> output = 
 				new StreamRecordWriter<>(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
-		output.setReporter(reporter);
 		output.setMetricGroup(taskEnvironment.getMetricGroup().getIOMetricGroup());
 		
 		return new RecordWriterOutput<>(output, outSerializer);

@@ -23,7 +23,6 @@ import akka.dispatch.OnFailure;
 import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.BiFunction;
@@ -143,9 +142,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	/* Continuously updated map of user-defined accumulators */
 	private volatile Map<String, Accumulator<?, ?>> userAccumulators;
-
-	/* Continuously updated map of internal accumulators */
-	private volatile Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
+	private IOMetrics ioMetrics;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -651,7 +648,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		markFinished(null, null);
 	}
 
-	void markFinished(Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators, Map<String, Accumulator<?, ?>> userAccumulators) {
+	void markFinished(Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
 
 		// this call usually comes during RUNNING, but may also come while still in deploying (very fast tasks!)
 		while (true) {
@@ -673,9 +670,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 						}
 
 						synchronized (accumulatorLock) {
-							this.flinkAccumulators = flinkAccumulators;
 							this.userAccumulators = userAccumulators;
 						}
+						this.ioMetrics = metrics;
 
 						assignedResource.releaseSlot();
 						vertex.getExecutionGraph().deregisterExecution(this);
@@ -1010,14 +1007,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	
 	/**
 	 * Update accumulators (discarded when the Execution has already been terminated).
-	 * @param flinkAccumulators the flink internal accumulators
 	 * @param userAccumulators the user accumulators
 	 */
-	public void setAccumulators(Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators,
-								Map<String, Accumulator<?, ?>> userAccumulators) {
+	public void setAccumulators(Map<String, Accumulator<?, ?>> userAccumulators) {
 		synchronized (accumulatorLock) {
 			if (!state.isTerminal()) {
-				this.flinkAccumulators = flinkAccumulators;
 				this.userAccumulators = userAccumulators;
 			}
 		}
@@ -1033,13 +1027,13 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	@Override
-	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getFlinkAccumulators() {
-		return flinkAccumulators;
-	}
-
-	@Override
 	public int getParallelSubtaskIndex() {
 		return getVertex().getParallelSubtaskIndex();
+	}
+		
+	@Override
+	public IOMetrics getIOMetrics() {
+		return ioMetrics;
 	}
 
 	// ------------------------------------------------------------------------

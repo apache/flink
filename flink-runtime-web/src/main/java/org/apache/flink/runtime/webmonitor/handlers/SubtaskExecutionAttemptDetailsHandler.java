@@ -20,13 +20,13 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.LongCounter;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
+import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
+import org.apache.flink.runtime.webmonitor.metrics.MetricStore;
 
 import java.io.StringWriter;
 import java.util.Map;
@@ -35,9 +35,12 @@ import java.util.Map;
  * Request handler providing details about a single task execution attempt.
  */
 public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemptRequestHandler {
-	
-	public SubtaskExecutionAttemptDetailsHandler(ExecutionGraphHolder executionGraphHolder) {
+
+	private final MetricFetcher fetcher;
+
+	public SubtaskExecutionAttemptDetailsHandler(ExecutionGraphHolder executionGraphHolder, MetricFetcher fetcher) {
 		super(executionGraphHolder);
+		this.fetcher = fetcher;
 	}
 
 	@Override
@@ -55,25 +58,6 @@ public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemp
 		long endTime = status.isTerminal() ? execAttempt.getStateTimestamp(status) : -1;
 		long duration = startTime > 0 ? ((endTime > 0 ? endTime : now) - startTime) : -1;
 
-		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> metrics = execAttempt.getFlinkAccumulators();
-		LongCounter readBytes;
-		LongCounter writeBytes;
-		LongCounter readRecords;
-		LongCounter writeRecords;
-
-		if (metrics != null) {
-			readBytes = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_IN);
-			writeBytes = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_OUT);
-			readRecords = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_IN);
-			writeRecords = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_OUT);
-		}
-		else {
-			readBytes = null;
-			writeBytes = null;
-			readRecords = null;
-			writeRecords = null;
-		}
-
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
@@ -86,11 +70,34 @@ public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemp
 		gen.writeNumberField("end-time", endTime);
 		gen.writeNumberField("duration", duration);
 
+		IOMetrics ioMetrics = execAttempt.getIOMetrics();
+
+		long numBytesIn = 0;
+		long numBytesOut = 0;
+		long numRecordsIn = 0;
+		long numRecordsOut = 0;
+		
+		if (ioMetrics != null) { // execAttempt is already finished, use final metrics stored in ExecutionGraph
+			numBytesIn = ioMetrics.getNumBytesInLocal() + ioMetrics.getNumBytesInRemote();
+			numBytesOut = ioMetrics.getNumBytesOut();
+			numRecordsIn = ioMetrics.getNumRecordsIn();
+			numRecordsOut = ioMetrics.getNumRecordsOut();
+		} else { // execAttempt is still running, use MetricQueryService instead
+			fetcher.update();
+			MetricStore.SubtaskMetricStore metrics = fetcher.getMetricStore().getSubtaskMetricStore(params.get("jobid"), params.get("vertexid"), execAttempt.getParallelSubtaskIndex());
+			if (metrics != null) {
+				numBytesIn = Long.valueOf(metrics.getMetric("numBytesInLocal", "0")) + Long.valueOf(metrics.getMetric("numBytesInRemote", "0"));
+				numBytesOut = Long.valueOf(metrics.getMetric("numBytesOut", "0"));
+				numRecordsIn = Long.valueOf(metrics.getMetric("numRecordsIn", "0"));
+				numRecordsOut = Long.valueOf(metrics.getMetric("numRecordsOut", "0"));
+			}
+		}
+		
 		gen.writeObjectFieldStart("metrics");
-		gen.writeNumberField("read-bytes", readBytes != null ? readBytes.getLocalValuePrimitive() : -1L);
-		gen.writeNumberField("write-bytes", writeBytes != null ? writeBytes.getLocalValuePrimitive() : -1L);
-		gen.writeNumberField("read-records", readRecords != null ? readRecords.getLocalValuePrimitive() : -1L);
-		gen.writeNumberField("write-records",writeRecords != null ? writeRecords.getLocalValuePrimitive() : -1L);
+		gen.writeNumberField("read-bytes", numBytesIn);
+		gen.writeNumberField("write-bytes", numBytesOut);
+		gen.writeNumberField("read-records", numRecordsIn);
+		gen.writeNumberField("write-records", numRecordsOut);
 		gen.writeEndObject();
 
 		gen.writeEndObject();

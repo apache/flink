@@ -29,7 +29,6 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.StoppingException;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -600,23 +599,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	}
 
 	/**
-	 * Gets the internal flink accumulator map of maps which contains some metrics.
-	 * @return A map of accumulators for every executed task.
-	 */
-	@Override
-	public Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?,?>>> getFlinkAccumulators() {
-		Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators =
-				new HashMap<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>>();
-
-		for (ExecutionVertex vertex : getAllExecutionVertices()) {
-			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> taskAccs = vertex.getCurrentExecutionAttempt().getFlinkAccumulators();
-			flinkAccumulators.put(vertex.getCurrentExecutionAttempt().getAttemptId(), taskAccs);
-		}
-
-		return flinkAccumulators;
-	}
-
-	/**
 	 * Merges all accumulator results from the tasks previously executed in the Executions.
 	 * @return The accumulator map
 	 */
@@ -1075,7 +1057,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	/**
 	 * Updates the state of one of the ExecutionVertex's Execution attempts.
-	 * If the new status if "FINISHED", this also updates the
+	 * If the new status if "FINISHED", this also updates the accumulators.
 	 * 
 	 * @param state The state update.
 	 * @return True, if the task update was properly applied, false, if the execution attempt was not found.
@@ -1090,11 +1072,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				case FINISHED:
 					try {
 						AccumulatorSnapshot accumulators = state.getAccumulators();
-						Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators =
-							accumulators.deserializeFlinkAccumulators();
 						Map<String, Accumulator<?, ?>> userAccumulators =
 							accumulators.deserializeUserAccumulators(userClassLoader);
-						attempt.markFinished(flinkAccumulators, userAccumulators);
+						attempt.markFinished(userAccumulators, state.getIOMetrics());
 					}
 					catch (Exception e) {
 						LOG.error("Failed to deserialize final accumulator results.", e);
@@ -1160,16 +1140,14 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * @param accumulatorSnapshot The serialized flink and user-defined accumulators
 	 */
 	public void updateAccumulators(AccumulatorSnapshot accumulatorSnapshot) {
-		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
 		Map<String, Accumulator<?, ?>> userAccumulators;
 		try {
-			flinkAccumulators = accumulatorSnapshot.deserializeFlinkAccumulators();
 			userAccumulators = accumulatorSnapshot.deserializeUserAccumulators(userClassLoader);
 
 			ExecutionAttemptID execID = accumulatorSnapshot.getExecutionAttemptID();
 			Execution execution = currentExecutions.get(execID);
 			if (execution != null) {
-				execution.setAccumulators(flinkAccumulators, userAccumulators);
+				execution.setAccumulators(userAccumulators);
 			} else {
 				LOG.warn("Received accumulator result for unknown execution {}.", execID);
 			}

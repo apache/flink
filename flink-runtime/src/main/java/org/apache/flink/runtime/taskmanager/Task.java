@@ -414,6 +414,10 @@ public class Task implements Runnable, TaskActions {
 		return accumulatorRegistry;
 	}
 
+	public TaskMetricGroup getMetricGroup() {
+		return metrics;
+	}
+
 	public Thread getExecutingThread() {
 		return executingThread;
 	}

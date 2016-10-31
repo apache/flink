@@ -23,7 +23,6 @@ import java.lang.management.ManagementFactory
 import java.net.{InetAddress, InetSocketAddress}
 import java.util
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
 import _root_.akka.actor._
 import _root_.akka.pattern.ask
@@ -1296,7 +1295,8 @@ class TaskManager(
             task.getExecutionId,
             task.getExecutionState,
             task.getFailureCause,
-            accumulators)
+            accumulators,
+            task.getMetricGroup.getIOMetricGroup.createSnapshot())
         )
       )
     }
