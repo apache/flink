@@ -76,8 +76,11 @@ public class PlanJsonParser {
 				printTab(tabCount + 1, pw);
 				pw.print("ship_strategy : " + predecessors.get(0).getShip_strategy() + "\n");
 
-				printTab(tabCount + 1, pw);
-				pw.print("exchange_mode : " + predecessors.get(0).getExchange_mode() + "\n");
+				String mode = predecessors.get(0).getExchange_mode();
+				if (mode != null) {
+					printTab(tabCount + 1, pw);
+					pw.print("exchange_mode : " + mode + "\n");
+				}
 			}
 
 			if (tempNode.getDriver_strategy() != null) {

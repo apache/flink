@@ -13,10 +13,8 @@ Stage 2 : Data Source
 	Stage 3 : Operator
 		content : from: (count, word)
 		ship_strategy : REBALANCE
-		exchange_mode : null
 
 		Stage 4 : Operator
 			content : from: (count, word)
 			ship_strategy : REBALANCE
-			exchange_mode : null
 
