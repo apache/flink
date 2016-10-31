@@ -24,6 +24,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Histogram;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -81,6 +82,8 @@ public class StreamInputProcessor<IN> {
 
 	private Counter numRecordsIn;
 
+	private Histogram recordProcLatency;
+
 	@SuppressWarnings("unchecked")
 	public StreamInputProcessor(
 			InputGate[] inputGates,
@@ -131,6 +134,9 @@ public class StreamInputProcessor<IN> {
 		if (numRecordsIn == null) {
 			numRecordsIn = ((OperatorMetricGroup) streamOperator.getMetricGroup()).getIOMetricGroup().getNumRecordsInCounter();
 		}
+		if (recordProcLatency == null) {
+			recordProcLatency = ((OperatorMetricGroup) streamOperator.getMetricGroup()).getIOMetricGroup().getRecordProcLatency();
+		}
 
 		while (true) {
 			if (currentRecordDeserializer != null) {
@@ -168,12 +174,15 @@ public class StreamInputProcessor<IN> {
 						continue;
 					} else {
 						// now we can do the actual processing
+						long start=System.nanoTime();
 						StreamRecord<IN> record = recordOrMark.asRecord();
 						synchronized (lock) {
 							numRecordsIn.inc();
 							streamOperator.setKeyContextElement1(record);
 							streamOperator.processElement(record);
 						}
+						long end=System.nanoTime();
+						recordProcLatency.update(end - start);
 						return true;
 					}
 				}
