@@ -74,7 +74,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			Class<T> type = getTypeClass();
 			assertNotNull("The test is corrupt: type class is null.", type);
 			
-			assertEquals("Type of the instantiated object is wrong.", type, instance.getClass());
+			checkClass("Type of the instantiated object is wrong.", type, instance.getClass());
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -104,7 +104,6 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			
 			for (T datum : testData) {
 				T copy = serializer.copy(datum);
-				copy.toString();
 				deepEquals("Copied element is not equal to the original element.", datum, copy);
 			}
 		}
@@ -123,7 +122,6 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			
 			for (T datum : testData) {
 				T copy = serializer.copy(datum, serializer.createInstance());
-				copy.toString();
 				deepEquals("Copied element is not equal to the original element.", datum, copy);
 			}
 		}
@@ -144,7 +142,6 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			
 			for (T datum : testData) {
 				T copy = serializer.copy(datum, target);
-				copy.toString();
 				deepEquals("Copied element is not equal to the original element.", datum, copy);
 				target = copy;
 			}
@@ -170,7 +167,6 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 				assertTrue("No data available during deserialization.", in.available() > 0);
 				
 				T deserialized = serializer.deserialize(serializer.createInstance(), in);
- 				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", value, deserialized);
 				
@@ -201,7 +197,6 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 				assertTrue("No data available during deserialization.", in.available() > 0);
 				
 				T deserialized = serializer.deserialize(reuseValue, in);
-				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", value, deserialized);
 				
@@ -233,7 +228,6 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			int num = 0;
 			while (in.available() > 0) {
 				T deserialized = serializer.deserialize(in);
-				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
 				num++;
@@ -265,7 +259,6 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			int num = 0;
 			while (in.available() > 0) {
 				T deserialized = serializer.deserialize(reuseValue, in);
-				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
 				reuseValue = deserialized;
@@ -300,7 +293,6 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 				assertTrue("No data available copying.", toVerify.available() > 0);
 				
 				T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
-				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", value, deserialized);
 				
@@ -337,7 +329,6 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			
 			while (toVerify.available() > 0) {
 				T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
-				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
 				num++;
@@ -376,7 +367,9 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	// --------------------------------------------------------------------------------------------
 	
 	protected void deepEquals(String message, T should, T is) {
-		if (should.getClass().isArray()) {
+		if (should == null || is == null) {
+			assertEquals(message, should, is);
+		} else if (should.getClass().isArray()) {
 			if (should instanceof boolean[]) {
 				Assert.assertTrue(message, Arrays.equals((boolean[]) should, (boolean[]) is));
 			}
@@ -411,6 +404,18 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		else {
 			assertEquals(message,  should, is);
 		}
+	}
+
+	protected void checkClass(String message, Class<?> type, Class<?> instanceType) {
+		Class<?> clazz = instanceType;
+		do {
+			if (type.equals(clazz)) {
+				assertEquals(message, type, clazz);
+				return;
+			}
+			clazz = clazz.getSuperclass();
+		} while (clazz != null);
+		assertEquals(message, type, instanceType);
 	}
 	
 	// --------------------------------------------------------------------------------------------

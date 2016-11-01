@@ -49,32 +49,33 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
   override def copy(from: Option[A]): Option[A] = from match {
     case Some(a) => Some(elemSerializer.copy(a))
     case None => from
+    case null => null
   }
 
   override def copy(from: Option[A], reuse: Option[A]): Option[A] = copy(from)
 
   override def copy(source: DataInputView, target: DataOutputView): Unit = {
-    val isSome = source.readBoolean()
-    target.writeBoolean(isSome)
-    if (isSome) {
+    val value = source.readByte()
+    target.writeByte(value)
+    if (value == 1) {
       elemSerializer.copy(source, target)
     }
   }
 
   override def serialize(either: Option[A], target: DataOutputView): Unit = either match {
     case Some(a) =>
-      target.writeBoolean(true)
+      target.writeByte(1)
       elemSerializer.serialize(a, target)
-    case _ =>
-      target.writeBoolean(false)
+    case None => target.writeByte(0)
+    case null => target.writeByte(2)
   }
 
   override def deserialize(source: DataInputView): Option[A] = {
-    val isSome = source.readBoolean()
-    if (isSome) {
-      Some(elemSerializer.deserialize(source))
-    } else {
-      None
+    val value = source.readByte()
+    value match {
+      case 0 => None
+      case 1 => Some(elemSerializer.deserialize(source))
+      case 2 => null
     }
   }
 
