@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
@@ -28,12 +29,18 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.migration.MigrationUtil;
+import org.apache.flink.migration.runtime.state.KvStateSnapshot;
+import org.apache.flink.migration.runtime.state.filesystem.AbstractFsStateSnapshot;
+import org.apache.flink.migration.runtime.state.memory.AbstractMemStateSnapshot;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.ArrayListSerializer;
@@ -43,6 +50,8 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -103,7 +112,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			LOG.debug("Restoring snapshot from state handles: {}.", restoredState);
 		}
 
-		restorePartitionedState(restoredState);
+		if (MigrationUtil.isOldSavepointKeyedState(restoredState)) {
+			restoreOldSavepointKeyedState(restoredState);
+		} else {
+			restorePartitionedState(restoredState);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -346,4 +359,132 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return "HeapKeyedStateBackend";
 	}
 
+	/**
+	 * REMOVE
+	 */
+	@Internal
+	@Deprecated
+	public Map<String, StateTable<K, ?, ?>> getStateTables() {
+		return stateTables;
+	}
+
+	@Deprecated
+	private void restoreOldSavepointKeyedState(
+			Collection<KeyGroupsStateHandle> stateHandles) throws IOException, ClassNotFoundException {
+
+		if (stateHandles.isEmpty()) {
+			return;
+		}
+
+		Preconditions.checkState(1 == stateHandles.size(), "Only one element expected here.");
+
+		HashMap<String, KvStateSnapshot<K, ?, ?, ?>> namedStates =
+				InstantiationUtil.deserializeObject(stateHandles.iterator().next().openInputStream(), userCodeClassLoader);
+
+		for (Map.Entry<String, KvStateSnapshot<K, ?, ?, ?>> nameToState : namedStates.entrySet()) {
+
+			KvStateSnapshot<K, ?, ?, ?> genericSnapshot = nameToState.getValue();
+
+			final RestoredState restoredState;
+
+			if (genericSnapshot instanceof AbstractMemStateSnapshot) {
+
+				AbstractMemStateSnapshot<K, ?, ?, ?, ?> stateSnapshot =
+						(AbstractMemStateSnapshot<K, ?, ?, ?, ?>) nameToState.getValue();
+
+				restoredState = restoreHeapState(stateSnapshot);
+
+			} else if (genericSnapshot instanceof AbstractFsStateSnapshot) {
+
+				AbstractFsStateSnapshot<K, ?, ?, ?, ?> stateSnapshot =
+						(AbstractFsStateSnapshot<K, ?, ?, ?, ?>) nameToState.getValue();
+				restoredState = restoreFsState(stateSnapshot);
+			} else {
+				throw new IllegalStateException("Unknown state: " + genericSnapshot);
+			}
+
+			Map rawResultMap = restoredState.getRawResultMap();
+			TypeSerializer<?> namespaceSerializer = restoredState.getNamespaceSerializer();
+			TypeSerializer<?> stateSerializer = restoredState.getStateSerializer();
+
+			if (namespaceSerializer instanceof VoidSerializer) {
+				namespaceSerializer = VoidNamespaceSerializer.INSTANCE;
+			}
+
+			Map nullNameSpaceFix = (Map) rawResultMap.remove(null);
+
+			if (null != nullNameSpaceFix) {
+				rawResultMap.put(VoidNamespace.INSTANCE, nullNameSpaceFix);
+			}
+
+			StateTable<K, ?, ?> stateTable = new StateTable<>(stateSerializer, namespaceSerializer, keyGroupRange);
+			stateTable.getState().set(0, rawResultMap);
+
+			// add named state to the backend
+			getStateTables().put(nameToState.getKey(), stateTable);
+		}
+	}
+
+	private RestoredState restoreHeapState(AbstractMemStateSnapshot<K, ?, ?, ?, ?> stateSnapshot) throws IOException {
+		return new RestoredState(
+				stateSnapshot.deserialize(),
+				stateSnapshot.getNamespaceSerializer(),
+				stateSnapshot.getStateSerializer());
+	}
+
+	private RestoredState restoreFsState(AbstractFsStateSnapshot<K, ?, ?, ?, ?> stateSnapshot) throws IOException {
+		FileSystem fs = stateSnapshot.getFilePath().getFileSystem();
+		//TODO register closeable to support fast cancelation?
+		try (FSDataInputStream inStream = fs.open(stateSnapshot.getFilePath())) {
+
+			DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(inStream);
+
+			final int numNamespaces = inView.readInt();
+			HashMap rawResultMap = new HashMap<>(numNamespaces);
+
+			TypeSerializer<K> keySerializer = stateSnapshot.getKeySerializer();
+			TypeSerializer<?> namespaceSerializer = stateSnapshot.getNamespaceSerializer();
+			TypeSerializer<?> stateSerializer = stateSnapshot.getStateSerializer();
+
+			for (int i = 0; i < numNamespaces; i++) {
+				Object namespace = namespaceSerializer.deserialize(inView);
+				final int numKV = inView.readInt();
+				Map<K, Object> namespaceMap = new HashMap<>(numKV);
+				rawResultMap.put(namespace, namespaceMap);
+				for (int j = 0; j < numKV; j++) {
+					K key = keySerializer.deserialize(inView);
+					Object value = stateSerializer.deserialize(inView);
+					namespaceMap.put(key, value);
+				}
+			}
+			return new RestoredState(rawResultMap, namespaceSerializer, stateSerializer);
+		} catch (Exception e) {
+			throw new IOException("Failed to restore state from file system", e);
+		}
+	}
+
+	static final class RestoredState {
+
+		private final Map rawResultMap;
+		private final TypeSerializer<?> namespaceSerializer;
+		private final TypeSerializer<?> stateSerializer ;
+
+		public RestoredState(Map rawResultMap, TypeSerializer<?> namespaceSerializer, TypeSerializer<?> stateSerializer) {
+			this.rawResultMap = rawResultMap;
+			this.namespaceSerializer = namespaceSerializer;
+			this.stateSerializer = stateSerializer;
+		}
+
+		public Map getRawResultMap() {
+			return rawResultMap;
+		}
+
+		public TypeSerializer<?> getNamespaceSerializer() {
+			return namespaceSerializer;
+		}
+
+		public TypeSerializer<?> getStateSerializer() {
+			return stateSerializer;
+		}
+	}
 }

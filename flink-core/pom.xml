@@ -112,7 +112,7 @@ under the License.
 			<artifactId>joda-convert</artifactId>
 			<scope>test</scope>
 		</dependency>
-	</dependencies>
+    </dependencies>
 
 	<build>
 		<plugins>

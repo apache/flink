@@ -816,8 +816,10 @@ class JobManager(
       future {
         try {
           log.info(s"Disposing savepoint at '$savepointPath'.")
-
-          val savepoint = SavepointStore.loadSavepoint(savepointPath)
+          //TODO user code class loader ?
+          val savepoint = SavepointStore.loadSavepoint(
+            savepointPath,
+            Thread.currentThread().getContextClassLoader)
 
           log.debug(s"$savepoint")
 
@@ -1199,7 +1201,7 @@ class JobManager(
               "Cannot set up the user code libraries: " + t.getMessage, t)
         }
 
-        val userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
+        var userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
         if (userCodeLoader == null) {
           throw new JobSubmissionException(jobId,
             "The user code class loader could not be initialized.")
@@ -1316,9 +1318,13 @@ class JobManager(
                 log.info(s"Starting job from savepoint '$savepointPath'" +
                   (if (allowNonRestored) " (allowing non restored state)" else "") + ".")
 
-                // load the savepoint as a checkpoint into the system
-                val savepoint: CompletedCheckpoint = SavepointLoader.loadAndValidateSavepoint(
-                  jobId, executionGraph.getAllVertices, savepointPath, allowNonRestored)
+                  // load the savepoint as a checkpoint into the system
+                  val savepoint: CompletedCheckpoint = SavepointLoader.loadAndValidateSavepoint(
+                    jobId,
+                    executionGraph.getAllVertices,
+                    savepointPath,
+                    executionGraph.getUserClassLoader,
+                    allowNonRestored)
 
                 executionGraph.getCheckpointCoordinator.getCheckpointStore
                   .addCheckpoint(savepoint)

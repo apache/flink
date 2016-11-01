@@ -94,7 +94,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 	}
 
 	@Override
-	public SavepointV1 deserialize(DataInputStream dis) throws IOException {
+	public SavepointV1 deserialize(DataInputStream dis, ClassLoader cl) throws IOException {
 		long checkpointId = dis.readLong();
 
 		// Task states
@@ -124,7 +124,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 		return new SavepointV1(checkpointId, taskStates);
 	}
 
-	public static void serializeSubtaskState(SubtaskState subtaskState, DataOutputStream dos) throws IOException {
+	private static void serializeSubtaskState(SubtaskState subtaskState, DataOutputStream dos) throws IOException {
 
 		dos.writeLong(subtaskState.getDuration());
 
@@ -163,7 +163,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 
 	}
 
-	public static SubtaskState deserializeSubtaskState(DataInputStream dis) throws IOException {
+	private static SubtaskState deserializeSubtaskState(DataInputStream dis) throws IOException {
 
 		long duration = dis.readLong();
 
