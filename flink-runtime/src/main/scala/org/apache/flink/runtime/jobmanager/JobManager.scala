@@ -1301,7 +1301,7 @@ class JobManager(
               try {
                 executionGraph.restoreSavepoint(
                   savepointPath,
-                  savepointSettings.ignoreUnmappedState())
+                  savepointSettings.allowNonRestoredState())
               } catch {
                 case e: Exception =>
                   jobInfo.client ! decorateMessage(JobResultFailure(new SerializedThrowable(e)))

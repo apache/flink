@@ -72,8 +72,10 @@ public class CliFrontendParser {
 	static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,
 			"Path to a savepoint to restore the job from (for example hdfs:///flink/savepoint-1537).");
 
-	static final Option SAVEPOINT_IGNORE_UNMAPPED_STATE_OPTION = new Option("i", "ignoreUnmappedState", false,
-			"Flag indicating whether savepoint state that cannot be mapped to the job shall be ignored.");
+	static final Option SAVEPOINT_ALLOW_NON_RESTORED_OPTION = new Option("a", "allowNonRestoredState", false,
+			"Allow to skip savepoint state that cannot be restored. " +
+					"You need to allow this if you removed an operator from your " +
+					"program that was part of the program when the savepoint was triggered.");
 
 	static final Option SAVEPOINT_DISPOSE_OPTION = new Option("d", "dispose", true,
 			"Path of savepoint to dispose.");
@@ -119,7 +121,7 @@ public class CliFrontendParser {
 		SAVEPOINT_PATH_OPTION.setRequired(false);
 		SAVEPOINT_PATH_OPTION.setArgName("savepointPath");
 
-		SAVEPOINT_IGNORE_UNMAPPED_STATE_OPTION.setRequired(false);
+		SAVEPOINT_ALLOW_NON_RESTORED_OPTION.setRequired(false);
 
 		ZOOKEEPER_NAMESPACE_OPTION.setRequired(false);
 		ZOOKEEPER_NAMESPACE_OPTION.setArgName("zookeeperNamespace");
@@ -168,7 +170,7 @@ public class CliFrontendParser {
 	private static Options getRunOptions(Options options) {
 		options = getProgramSpecificOptions(options);
 		options.addOption(SAVEPOINT_PATH_OPTION);
-		options.addOption(SAVEPOINT_IGNORE_UNMAPPED_STATE_OPTION);
+		options.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
 
 		options = getJobManagerAddressOption(options);
 		return addCustomCliOptions(options, true);
@@ -217,7 +219,7 @@ public class CliFrontendParser {
 	private static Options getRunOptionsWithoutDeprecatedOptions(Options options) {
 		Options o = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
 		o.addOption(SAVEPOINT_PATH_OPTION);
-		o.addOption(SAVEPOINT_IGNORE_UNMAPPED_STATE_OPTION);
+		o.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
 
 		return getJobManagerAddressOption(o);
 	}

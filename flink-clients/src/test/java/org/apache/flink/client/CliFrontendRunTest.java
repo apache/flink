@@ -103,17 +103,17 @@ public class CliFrontendRunTest {
 				SavepointRestoreSettings savepointSettings = options.getSavepointRestoreSettings();
 				assertTrue(savepointSettings.restoreSavepoint());
 				assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
-				assertFalse(savepointSettings.ignoreUnmappedState());
+				assertFalse(savepointSettings.allowNonRestoredState());
 			}
 
 			// test configure savepoint path (with ignore flag)
 			{
-				String[] parameters = {"-s", "expectedSavepointPath", "-i", getTestJarPath()};
+				String[] parameters = {"-s", "expectedSavepointPath", "-a", getTestJarPath()};
 				RunOptions options = CliFrontendParser.parseRunCommand(parameters);
 				SavepointRestoreSettings savepointSettings = options.getSavepointRestoreSettings();
 				assertTrue(savepointSettings.restoreSavepoint());
 				assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
-				assertTrue(savepointSettings.ignoreUnmappedState());
+				assertTrue(savepointSettings.allowNonRestoredState());
 			}
 
 			// test jar arguments

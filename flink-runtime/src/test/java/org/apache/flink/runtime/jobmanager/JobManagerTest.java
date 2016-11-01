@@ -583,14 +583,14 @@ public class JobManagerTest extends TestLogger {
 			Throwable cause = failure.cause().deserializeError(ClassLoader.getSystemClassLoader());
 
 			assertTrue(cause instanceof IllegalStateException);
-			assertTrue(cause.getMessage().contains("ignoreUnmappedState"));
+			assertTrue(cause.getMessage().contains("allowNonRestoredState"));
 
 			// Wait until removed
 			msg = new TestingJobManagerMessages.NotifyWhenJobRemoved(newJobGraph.getJobID());
 
 			Await.ready(jobManager.ask(msg, timeout), timeout);
 
-			// Resubmit, but ignore unmapped state now
+			// Resubmit, but allow non restored state now
 			restoreSettings = SavepointRestoreSettings.forPath(savepointPath, true);
 			newJobGraph.setSavepointRestoreSettings(restoreSettings);
 

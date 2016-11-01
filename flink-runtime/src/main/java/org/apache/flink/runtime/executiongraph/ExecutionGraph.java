@@ -990,18 +990,18 @@ public class ExecutionGraph implements Serializable {
 	 * actor.
 	 *
 	 * @param savepointPath The path of the savepoint to rollback to.
-	 * @param ignoreUnmappedState Ignore checkpoint state that cannot be mapped
+	 * @param allowNonRestoredState Allow to skip checkpoint state that cannot be mapped
 	 * to any job vertex in tasks.
 	 * @throws IllegalStateException If checkpointing is disabled
 	 * @throws IllegalStateException If checkpoint coordinator is shut down
 	 * @throws Exception If failure during rollback
 	 */
-	public void restoreSavepoint(String savepointPath, boolean ignoreUnmappedState) throws Exception {
+	public void restoreSavepoint(String savepointPath, boolean allowNonRestoredState) throws Exception {
 		synchronized (progressLock) {
 			if (savepointCoordinator != null) {
 				LOG.info("Restoring savepoint: " + savepointPath + ".");
 				savepointCoordinator.restoreSavepoint(
-						getAllVertices(), savepointPath, ignoreUnmappedState);
+						getAllVertices(), savepointPath, allowNonRestoredState);
 			} else {
 				throw new IllegalStateException("Savepoints disabled.");
 			}
