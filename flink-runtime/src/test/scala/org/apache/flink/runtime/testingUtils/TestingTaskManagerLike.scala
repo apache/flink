@@ -31,6 +31,7 @@ import org.apache.flink.runtime.messages.Messages.Disconnect
 import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, AlreadyRegistered}
 import org.apache.flink.runtime.messages.TaskMessages.{SubmitTask, TaskInFinalState, UpdateTaskExecutionState}
 import org.apache.flink.runtime.taskmanager.TaskManager
+import org.apache.flink.runtime.taskmanager.heartbeat.messages.{Heartbeat, HeartbeatResponse, HeartbeatTimeout}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
 import org.apache.flink.runtime.testingUtils.TestingMessages._
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages._
@@ -158,23 +159,36 @@ trait TestingTaskManagerLike extends FlinkActor {
     /**
      * Message from task manager that accumulator values changed and need to be reported immediately
      * instead of lazily through the
-     * [[org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat]] message. We forward this
-     * message to the job manager that it knows it should report to the listeners.
+     * [[org.apache.flink.runtime.taskmanager.heartbeat.messages.Heartbeat]] message. We forward
+     * this message to the job manager that it knows it should report to the listeners.
      */
     case msg: AccumulatorsChanged =>
       currentJobManager match {
         case Some(jobManager) =>
           jobManager.forward(msg)
-          sendHeartbeatToJobManager()
+          val accumulatorSnapshots = getAccumulatorSnapshots
+          jobManager ! decorateMessage(
+            new Heartbeat(instanceID, accumulatorSnapshots.asJavaCollection))
           sender ! true
         case None =>
       }
 
-    case msg@Terminated(jobManager) =>
+    case msg: HeartbeatResponse =>
+      // forward the heartbeat response in case of a manual heartbeat triggered by
+      // AccumulatorsChanged
+      heartbeatActor match {
+        case Some(actor) => actor.tell(decorateMessage(msg), sender)
+        case None => log.warn("There is no heartbeat active at the moment.")
+      }
+
+
+    case msg: HeartbeatTimeout =>
+
+      val heartbeatTimeout = msg.asInstanceOf[HeartbeatTimeout]
 
       val currentJM = currentJobManager.getOrElse(ActorRef.noSender)
 
-      val leaderId = if (jobManager.equals(currentJM)) {
+      val leaderId = if (heartbeatTimeout.getTarget().equals(currentJM)) {
         leaderSessionID
       } else {
         None

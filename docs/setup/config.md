@@ -292,6 +292,9 @@ The following parameters configure Flink's JobManager and TaskManagers.
 - `blob.fetch.num-concurrent`: The number concurrent BLOB fetches (such as JAR file downloads) that the JobManager serves (DEFAULT: **50**).
 
 - `blob.fetch.backlog`: The maximum number of queued BLOB fetches (such as JAR file downloads) that the JobManager allows (DEFAULT: **1000**).
+- `heartbeat.interval`: Heartbeat interval for Flink's heartbeat mechanism which is used by all TaskManager to monitor the JobManager. The interval is specified in milliseconds (DEFAULT: **5000**).
+- `heartbeat.initial-acceptable-pause`: Initial acceptable heartbeat pause after which a heartbeat timeout is sent by Flink's heartbeat mechanism. This heartbeat mechanism is used by all TaskManager to monitor the JobManager. The pause is specified in milliseconds (DEFAULT: **20000**). 
+- `heartbeat.max-acceptable-pause`: Maximum acceptable heartbeat pause after which a heartbeat timeout is sent by Flink's heartbeat mechanism. The heartbeat pause can be extended in case of stalling due to garbage collection. This heartbeat mechanism is used by all TaskManager to monitor the JobManager. The pause is specified in milliseconds (DEFAULT: **60000**).
 
 - `task.cancellation-interval`: Time interval between two successive task cancellation attempts in milliseconds (DEFAULT: **30000**).
 

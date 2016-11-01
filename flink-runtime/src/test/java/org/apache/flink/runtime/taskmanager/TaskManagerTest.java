@@ -244,7 +244,7 @@ public class TaskManagerTest extends TestLogger {
 							if (message.equals(toRunning)) {
 								break;
 							}
-							else if (!(message instanceof TaskManagerMessages.Heartbeat)) {
+							else {
 								fail("Unexpected message: " + message);
 							}
 						} while (System.currentTimeMillis() < deadline);
@@ -255,7 +255,7 @@ public class TaskManagerTest extends TestLogger {
 							if (message.equals(toFinished)) {
 								break;
 							}
-							else if (!(message instanceof TaskManagerMessages.Heartbeat)) {
+							else {
 								fail("Unexpected message: " + message);
 							}
 						} while (System.currentTimeMillis() < deadline);

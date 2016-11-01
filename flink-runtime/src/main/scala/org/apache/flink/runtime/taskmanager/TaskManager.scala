@@ -28,6 +28,7 @@ import java.util.{Collections, UUID}
 import _root_.akka.actor._
 import _root_.akka.pattern.ask
 import _root_.akka.util.Timeout
+import akka.actor.SupervisorStrategy.{Decider, Restart, Stop}
 import grizzled.slf4j.Logger
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.flink.api.common.time.Time
@@ -68,6 +69,8 @@ import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
+import org.apache.flink.runtime.taskmanager.heartbeat.HeartbeatActor
+import org.apache.flink.runtime.taskmanager.heartbeat.messages._
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 
@@ -163,9 +166,9 @@ class TaskManager(
   /* The current leading JobManager URL */
   private var jobManagerAkkaURL: Option[String] = None
 
-  private var instanceID: InstanceID = null
+  protected var instanceID: InstanceID = null
 
-  private var heartbeatScheduler: Option[Cancellable] = None
+  protected var heartbeatActor: Option[ActorRef] = None
 
   var leaderSessionID: Option[UUID] = None
 
@@ -179,6 +182,49 @@ class TaskManager(
     TaskManagerActions)] = None
 
   // --------------------------------------------------------------------------
+  //  Supervisor strategy
+  // --------------------------------------------------------------------------
+
+  override val supervisorStrategy = new SupervisorStrategy {
+    val retriesWindow = (Option(10), Option((1 minute).toMillis.toInt))
+
+    override def handleChildTerminated(
+        context: ActorContext,
+        child: ActorRef,
+        children: Iterable[ActorRef])
+      : Unit = ()
+
+    override def processFailure(
+        context: ActorContext,
+        restart: Boolean,
+        child: ActorRef,
+        cause: Throwable,
+        stats: ChildRestartStats,
+        children: Iterable[ChildRestartStats])
+      : Unit = {
+      if (restart && stats.requestRestartPermission(retriesWindow)) {
+        restartChild(child, cause, suspendFirst = false)
+      } else {
+        context.stop(child)
+
+        if (restart) {
+          // we exceeded our restarts so there seems to be something wrong with us
+          killTaskManagerFatal("The child actor " + child.path + " could not be restarted.", cause)
+        }
+      }
+    }
+
+    override def decider: Decider = {
+      case x: ActorInitializationException => Stop
+      case x: ActorKilledException => Stop
+      case _: Exception => Restart
+      case t: Throwable =>
+        killTaskManagerFatal("Encountered error in child actor. This indicates a corrupt state.", t)
+        Stop
+    }
+  }
+
+  // --------------------------------------------------------------------------
   //  Actor messages and life cycle
   // --------------------------------------------------------------------------
 
@@ -188,6 +234,8 @@ class TaskManager(
    * JobManager.
    */
   override def preStart(): Unit = {
+    super.preStart()
+
     log.info(s"Starting TaskManager actor at ${self.path.toSerializationFormat}.")
     log.info(s"TaskManager data connection information: $location")
     log.info(s"TaskManager has $numberOfSlots task slot(s).")
@@ -261,6 +309,8 @@ class TaskManager(
       case t: Exception => log.error("MetricRegistry did not shutdown properly.", t)
     }
 
+    super.postStop()
+
     log.info(s"Task manager ${self.path} is completely shut down.")
   }
 
@@ -287,7 +337,9 @@ class TaskManager(
     // ----- miscellaneous messages ----
 
     // periodic heart beats that transport metrics
-    case SendHeartbeat => sendHeartbeatToJobManager()
+    case msg: RequestAccumulatorSnapshots =>
+      sender ! decorateMessage(
+        new UpdateAccumulatorSnapshots(getAccumulatorSnapshots.asJavaCollection))
 
     // sends the stack trace of this TaskManager to the sender
     case SendStackTrace => sendStackTrace(sender())
@@ -301,8 +353,10 @@ class TaskManager(
         waitForRegistration += sender
       }
 
-    // this message indicates that some actor watched by this TaskManager has died
-    case Terminated(actor: ActorRef) =>
+    // this message indicates that the job manager monitored by the heartbeat actor has died
+    case msg: HeartbeatTimeout =>
+      val heartbeatTimeout = msg.asInstanceOf[HeartbeatTimeout]
+      val actor = heartbeatTimeout.getTarget()
       if (isConnected && actor == currentJobManager.orNull) {
           handleJobManagerDisconnect("JobManager is no longer reachable")
           triggerTaskManagerRegistration()
@@ -980,19 +1034,29 @@ class TaskManager(
     
     MetricUtils.instantiateStatusMetrics(taskManagerMetricGroup)
     MetricUtils.instantiateNetworkMetrics(taskManagerMetricGroup, network)
-    
-    // watch job manager to detect when it dies
-    context.watch(jobManager)
 
-    // schedule regular heartbeat message for oneself
-    heartbeatScheduler = Some(
-      context.system.scheduler.schedule(
-        TaskManager.HEARTBEAT_INTERVAL,
-        TaskManager.HEARTBEAT_INTERVAL,
+    heartbeatActor match {
+      case Some(actor) =>
+        log.warn("Heartbeat is still active while associating to a new JobManager. Will stop the " +
+                   "previous heartbeat.")
+        actor ! Kill
+      case None =>
+    }
+
+    // start the heartbeat actor
+    heartbeatActor = Some(context.actorOf(
+      Props(
+        classOf[HeartbeatActor],
         self,
-        decorateMessage(SendHeartbeat)
-      )(context.dispatcher)
-    )
+        instanceID,
+        jobManager,
+        leaderSessionID.orNull,
+        FiniteDuration(config.getHeartbeatInterval().toMilliseconds, TimeUnit.MILLISECONDS),
+        FiniteDuration(config.getInitialHeartbeatPause().toMilliseconds, TimeUnit.MILLISECONDS),
+        FiniteDuration(config.getMaxHeartbeatPause().toMilliseconds, TimeUnit.MILLISECONDS),
+        log.logger),
+      "HeartbeatActor@" + leaderSessionID.getOrElse(UUID.randomUUID()) // unique actor name
+    ))
 
     // notify all the actors that listen for a successful registration
     for (listener <- waitForRegistration) {
@@ -1015,16 +1079,12 @@ class TaskManager(
 
     log.info("Disassociating from JobManager")
 
-    // stop the periodic heartbeats
-    heartbeatScheduler foreach {
-      _.cancel()
+    heartbeatActor match {
+      case Some(actor) => context.stop(actor)
+      case None => log.warn("Disassociate from JobManager without having started a heartbeat.")
     }
-    heartbeatScheduler = None
 
-    // stop the monitoring of the JobManager
-    currentJobManager foreach {
-      jm => context.unwatch(jm)
-    }
+    heartbeatActor = None
 
     // de-register from the JobManager (faster detection of disconnect)
     currentJobManager foreach {
@@ -1332,37 +1392,24 @@ class TaskManager(
   //  Miscellaneous actions
   // --------------------------------------------------------------------------
 
-  /**
-   * Sends a heartbeat message to the JobManager (if connected) with the current
-   * metrics report.
-   */
-  protected def sendHeartbeatToJobManager(): Unit = {
-    try {
-      log.debug("Sending heartbeat to JobManager")
+  protected def getAccumulatorSnapshots: Iterable[AccumulatorSnapshot] = {
+    log.debug("Create accumulator snaphots.")
 
-      val accumulatorEvents =
-        scala.collection.mutable.Buffer[AccumulatorSnapshot]()
+    val accumulatorSnapshots = scala.collection.mutable.Buffer[AccumulatorSnapshot]()
 
-      runningTasks.asScala foreach {
-        case (execID, task) =>
-          try {
-            val registry = task.getAccumulatorRegistry
-            val accumulators = registry.getSnapshot
-            accumulatorEvents.append(accumulators)
-          } catch {
-            case e: Exception =>
-              log.warn("Failed to take accumulator snapshot for task {}.",
-                execID, ExceptionUtils.getRootCause(e))
-          }
-      }
-
-       currentJobManager foreach {
-        jm => jm ! decorateMessage(Heartbeat(instanceID, accumulatorEvents))
+    for (task <- runningTasks.values().asScala) {
+      try {
+        val registry = task.getAccumulatorRegistry()
+        val accumulatorSnapshot = registry.getSnapshot()
+        accumulatorSnapshots.append(accumulatorSnapshot)
+      } catch {
+        case e: Exception =>
+          log.warn("Failed to take accumulator snapshot for task {}.",
+                   task.getExecutionId(), ExceptionUtils.getRootCause(e))
       }
     }
-    catch {
-      case e: Exception => log.warn("Error sending the metric heartbeat to the JobManager", e)
-    }
+
+    accumulatorSnapshots
   }
 
   /**
@@ -1506,9 +1553,6 @@ object TaskManager {
   /** Time (milli seconds) after which the TaskManager will start logging failed
     * connection attempts */
   val STARTUP_CONNECT_LOG_SUPPRESS = 10000L
-
-  val HEARTBEAT_INTERVAL: FiniteDuration = 5000 milliseconds
-
 
   // --------------------------------------------------------------------------
   //  TaskManager standalone entry point
@@ -1985,4 +2029,16 @@ object TaskManager {
         throw new IOException("Could not connect to TaskManager at " + taskManagerUrl, e)
     }
   }
+    val heartbeatInterval = configuration.getLong(ClusterOptions.HEARTBEAT_INTERVAL)
+    val initialHeartbeatPause = configuration.getLong(
+      ClusterOptions.HEARTBEAT_INITIAL_ACCEPTABLE_PAUSE)
+    // make sure that the max acceptable heartbeat pause is larger or equal than the initial
+    // heartbeat pause
+    val maxHeartbeatPause = math.max(
+      configuration.getLong(ClusterOptions.HEARTBEAT_MAX_ACCEPTABLE_PAUSE),
+      initialHeartbeatPause)
+
+      FiniteDuration(heartbeatInterval, TimeUnit.MILLISECONDS),
+      FiniteDuration(initialHeartbeatPause, TimeUnit.MILLISECONDS),
+      FiniteDuration(maxHeartbeatPause, TimeUnit.MILLISECONDS))
 }

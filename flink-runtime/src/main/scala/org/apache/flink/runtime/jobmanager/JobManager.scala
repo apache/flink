@@ -65,7 +65,6 @@ import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.Messages.Disconnect
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.{Acknowledge, StackTrace}
-import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
 import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState
 import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, AcknowledgeCheckpoint, DeclineCheckpoint}
@@ -82,6 +81,7 @@ import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
 import org.apache.flink.runtime.taskexecutor.TaskExecutor
 import org.apache.flink.runtime.taskexecutor.TaskExecutor.TASK_MANAGER_NAME
 import org.apache.flink.runtime.taskmanager.TaskManager
+import org.apache.flink.runtime.taskmanager.heartbeat.messages.{Heartbeat, HeartbeatResponse}
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
@@ -1091,12 +1091,15 @@ class JobManager(
         TaskManagerInstance(Option(instanceManager.getRegisteredInstanceById(instanceID)))
       )
 
-    case Heartbeat(instanceID, accumulators) =>
-      log.trace(s"Received heartbeat message from $instanceID.")
+    case msg: Heartbeat =>
+      val heartbeat = msg.asInstanceOf[Heartbeat]
+      log.trace(s"Received heartbeat message from ${heartbeat.getInstanceId()}.")
 
-      updateAccumulators(accumulators)
+      sender ! decorateMessage(HeartbeatResponse.getInstance())
 
-      instanceManager.reportHeartBeat(instanceID)
+      updateAccumulators(heartbeat.getAccumulatorSnapshots().asScala)
+
+      instanceManager.reportHeartBeat(heartbeat.getInstanceId())
 
     case message: AccumulatorMessage => handleAccumulatorMessage(message)
 
@@ -1871,7 +1874,7 @@ class JobManager(
    *
    * @param accumulators list of accumulator snapshots
    */
-  private def updateAccumulators(accumulators : Seq[AccumulatorSnapshot]): Unit = {
+  private def updateAccumulators(accumulators : Iterable[AccumulatorSnapshot]): Unit = {
     accumulators.foreach( snapshot => {
         if (snapshot != null) {
           currentJobs.get(snapshot.getJobID) match {

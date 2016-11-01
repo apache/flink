@@ -117,9 +117,12 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				Time.milliseconds(500),
 				Time.seconds(30),
 				Time.seconds(10),
-				1000000, // cleanup interval
+				1000000, // cleanup interval,
+				Time.milliseconds(5000),
+				Time.milliseconds(10000),
+				Time.milliseconds(30000),
 				config,
-				false); // exit-jvm-on-fatal-error
+				false);
 
 			final int networkBufNum = 32;
 			// note: the network buffer memory configured here is not actually used below but set

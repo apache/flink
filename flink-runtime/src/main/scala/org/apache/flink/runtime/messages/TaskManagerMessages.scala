@@ -36,29 +36,6 @@ object TaskManagerMessages {
    * @param description The description of the problem
    */
   case class FatalError(description: String, cause: Throwable)
-  
-  /**
-   * Tells the task manager to send a heartbeat message to the job manager.
-   */
-  case object SendHeartbeat {
-
-    /**
-     * Accessor for the case object instance, to simplify Java interoperability.
-     *
-     * @return The SendHeartbeat case object instance.
-     */
-    def get() : SendHeartbeat.type = SendHeartbeat
-  }
-
-  /**
-   * Reports liveliness of the TaskManager instance with the given instance ID to the
-   * This message is sent to the job.
-   *
-   * @param instanceID The instance ID of the reporting TaskManager.
-   * @param accumulators Accumulators of tasks serialized as Tuple2[internal, user-defined]
-   */
-  case class Heartbeat(instanceID: InstanceID, accumulators: Seq[AccumulatorSnapshot])
-
 
   // --------------------------------------------------------------------------
   //  Reporting the current TaskManager stack trace

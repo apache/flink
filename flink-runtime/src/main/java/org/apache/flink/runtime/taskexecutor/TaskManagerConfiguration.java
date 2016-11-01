@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -54,21 +55,28 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	private final long cleanupInterval;
 
+	private final Time heartbeatInterval;
+	private final Time initialHeartbeatPause;
+	private final Time maxHeartbeatPause;
+
 	private final UnmodifiableConfiguration configuration;
 
 	private final boolean exitJvmOnOutOfMemory;
 
 	public TaskManagerConfiguration(
-		int numberSlots,
-		String[] tmpDirectories,
-		Time timeout,
-		Time maxRegistrationDuration,
-		Time initialRegistrationPause,
-		Time maxRegistrationPause,
-		Time refusedRegistrationPause,
-		long cleanupInterval,
-		Configuration configuration,
-		boolean exitJvmOnOutOfMemory) {
+			int numberSlots,
+			String[] tmpDirectories,
+			Time timeout,
+			Time maxRegistrationDuration,
+			Time initialRegistrationPause,
+			Time maxRegistrationPause,
+			Time refusedRegistrationPause,
+			long cleanupInterval,
+			Time heartbeatInterval,
+			Time initialHeartbeatPause,
+			Time maxHeartbeatPause,
+			Configuration configuration,
+			boolean exitJvmOnOutOfMemory) {
 
 		this.numberSlots = numberSlots;
 		this.tmpDirectories = Preconditions.checkNotNull(tmpDirectories);
@@ -78,6 +86,11 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		this.maxRegistrationPause = Preconditions.checkNotNull(maxRegistrationPause);
 		this.refusedRegistrationPause = Preconditions.checkNotNull(refusedRegistrationPause);
 		this.cleanupInterval = Preconditions.checkNotNull(cleanupInterval);
+
+		this.heartbeatInterval = Preconditions.checkNotNull(heartbeatInterval);
+		this.initialHeartbeatPause = Preconditions.checkNotNull(initialHeartbeatPause);
+		this.maxHeartbeatPause = Preconditions.checkNotNull(maxHeartbeatPause);
+
 		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
 		this.exitJvmOnOutOfMemory = exitJvmOnOutOfMemory;
 	}
@@ -108,6 +121,18 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	public long getCleanupInterval() {
 		return cleanupInterval;
+	}
+
+	public Time getHeartbeatInterval() {
+		return heartbeatInterval;
+	}
+
+	public Time getInitialHeartbeatPause() {
+		return initialHeartbeatPause;
+	}
+
+	public Time getMaxHeartbeatPause() {
+		return maxHeartbeatPause;
 	}
 
 	@Override
@@ -219,6 +244,10 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		final boolean exitOnOom = configuration.getBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY);
 
+		Time heartbeatInterval = Time.milliseconds(configuration.getLong(ClusterOptions.HEARTBEAT_INTERVAL));
+		Time initialHeartbeatPause = Time.milliseconds(configuration.getLong(ClusterOptions.HEARTBEAT_INITIAL_ACCEPTABLE_PAUSE));
+		Time maxHeartbeatPause = Time.milliseconds(configuration.getLong(ClusterOptions.HEARTBEAT_MAX_ACCEPTABLE_PAUSE));
+
 		return new TaskManagerConfiguration(
 			numberSlots,
 			tmpDirPaths,
@@ -228,6 +257,9 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			maxRegistrationPause,
 			refusedRegistrationPause,
 			cleanupInterval,
+			heartbeatInterval,
+			initialHeartbeatPause,
+			maxHeartbeatPause,
 			configuration,
 			exitOnOom);
 	}

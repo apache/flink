@@ -23,6 +23,7 @@ import akka.actor.ActorSystem;
 import akka.actor.InvalidActorNameException;
 import akka.actor.Terminated;
 import akka.testkit.JavaTestKit;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -89,9 +90,8 @@ public class TaskManagerRegistrationTest extends TestLogger {
 	public static void startActorSystem() {
 		config = new Configuration();
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "5 s");
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "200 ms");
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2 s");
-		config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 2.0);
+		config.setLong(ClusterOptions.HEARTBEAT_INTERVAL, 200L);
+		config.setLong(ClusterOptions.HEARTBEAT_INITIAL_ACCEPTABLE_PAUSE, 2000L);
 
 		actorSystem = AkkaUtils.createLocalActorSystem(config);
 	}
@@ -547,7 +547,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 						}
 
 						Terminated terminatedMessage = (Terminated) message;
-						assertEquals(gateway.actor(), terminatedMessage.actor());
+						assertEquals(gateway.actor(), terminatedMessage.getActor());
 					}
 				};
 
