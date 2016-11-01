@@ -22,6 +22,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import org.apache.flink.api.common.JobID
+import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.checkpoint.{CheckpointCoordinator, CompletedCheckpoint}
 import org.apache.flink.runtime.client.JobExecutionException
@@ -831,7 +832,7 @@ class JobManagerITCase(_system: ActorSystem)
           val checkpointCoordinator = mock(classOf[CheckpointCoordinator])
           doThrow(new Exception("Expected Test Exception"))
             .when(checkpointCoordinator)
-            .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
+            .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.any[Path]())
 
           // Update the savepoint coordinator field
           val field = executionGraph.getClass.getDeclaredField("checkpointCoordinator")
@@ -880,11 +881,11 @@ class JobManagerITCase(_system: ActorSystem)
           val checkpointCoordinator = mock(classOf[CheckpointCoordinator])
           doThrow(new Exception("Expected Test Exception"))
             .when(checkpointCoordinator)
-            .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
+            .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.any[Path]())
           val savepointPathPromise = new FlinkCompletableFuture[CompletedCheckpoint]()
           doReturn(savepointPathPromise)
             .when(checkpointCoordinator)
-            .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
+            .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.any[Path]())
 
           // Request the execution graph and set a checkpoint coordinator mock
           jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActor)
@@ -942,12 +943,12 @@ class JobManagerITCase(_system: ActorSystem)
           val checkpointCoordinator = mock(classOf[CheckpointCoordinator])
           doThrow(new Exception("Expected Test Exception"))
             .when(checkpointCoordinator)
-            .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
+            .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.any[Path]())
 
           val savepointPromise = new FlinkCompletableFuture[CompletedCheckpoint]()
           doReturn(savepointPromise)
             .when(checkpointCoordinator)
-            .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
+            .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.any[Path]())
 
           // Request the execution graph and set a checkpoint coordinator mock
           jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActor)
@@ -963,7 +964,7 @@ class JobManagerITCase(_system: ActorSystem)
           jobManager.tell(TriggerSavepoint(jobGraph.getJobID(), Option.apply("any")), testActor)
 
           val checkpoint = Mockito.mock(classOf[CompletedCheckpoint])
-          when(checkpoint.getExternalPath).thenReturn("Expected test savepoint path")
+          when(checkpoint.getExternalPath).thenReturn(new Path("Expected test savepoint path"))
 
           // Succeed the promise
           savepointPromise.complete(checkpoint)

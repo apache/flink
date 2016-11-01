@@ -55,7 +55,7 @@ public class SavepointLoader {
 	public static CompletedCheckpoint loadAndValidateSavepoint(
 			JobID jobId,
 			Map<JobVertexID, ExecutionJobVertex> tasks,
-			String savepointPath,
+			Path savepointPath,
 			boolean allowNonRestoredState) throws IOException {
 
 		// (1) load the savepoint

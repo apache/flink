@@ -21,6 +21,7 @@ package org.apache.flink.runtime.testingUtils
 import akka.actor.{ActorRef, Cancellable, Terminated}
 import akka.pattern.{ask, pipe}
 import org.apache.flink.api.common.JobID
+import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.FlinkActor
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
 import org.apache.flink.runtime.execution.ExecutionState
@@ -310,7 +311,7 @@ trait TestingJobManagerLike extends FlinkActor {
 
     case RequestSavepoint(savepointPath) =>
       try {
-        val savepoint = SavepointStore.loadSavepoint(savepointPath)
+        val savepoint = SavepointStore.loadSavepoint(new Path(savepointPath))
         sender ! ResponseSavepoint(savepoint)
       }
       catch {

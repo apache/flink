@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -29,6 +30,7 @@ import org.mockito.Matchers;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Collection;
@@ -54,13 +56,13 @@ public class SavepointStoreTest {
 	 */
 	@Test
 	public void testStoreLoadDispose() throws Exception {
-		String target = tmp.getRoot().getAbsolutePath();
+		Path target = new Path(tmp.getRoot().getAbsolutePath());
 
 		assertEquals(0, tmp.getRoot().listFiles().length);
 
 		// Store
 		SavepointV1 stored = new SavepointV1(1929292, SavepointV1Test.createTaskStates(4, 24));
-		String path = SavepointStore.storeSavepoint(target, stored);
+		Path path = SavepointStore.storeSavepoint(target, new JobID(), stored);
 		assertEquals(1, tmp.getRoot().listFiles().length);
 
 		// Load
@@ -72,7 +74,7 @@ public class SavepointStoreTest {
 		// Dispose
 		SavepointStore.removeSavepoint(path);
 
-		assertEquals(0, tmp.getRoot().listFiles().length);
+		assertEquals(0, new File(path.getParent().toString()).listFiles().length);
 	}
 
 	/**
@@ -89,7 +91,7 @@ public class SavepointStoreTest {
 		}
 
 		try {
-			SavepointStore.loadSavepoint(filePath.toString());
+			SavepointStore.loadSavepoint(filePath);
 			fail("Did not throw expected Exception");
 		} catch (RuntimeException e) {
 			assertTrue(e.getMessage().contains("Flink 1.0") && e.getMessage().contains("Unexpected magic number"));
@@ -108,7 +110,7 @@ public class SavepointStoreTest {
 
 		assertTrue(serializers.size() >= 1);
 
-		String target = tmp.getRoot().getAbsolutePath();
+		Path target = new Path(tmp.getRoot().getAbsolutePath());
 		assertEquals(0, tmp.getRoot().listFiles().length);
 
 		// New savepoint type for test
@@ -119,12 +121,12 @@ public class SavepointStoreTest {
 		serializers.put(version, NewSavepointSerializer.INSTANCE);
 
 		TestSavepoint newSavepoint = new TestSavepoint(version, checkpointId);
-		String pathNewSavepoint = SavepointStore.storeSavepoint(target, newSavepoint);
+		Path pathNewSavepoint = SavepointStore.storeSavepoint(target, new JobID(), newSavepoint);
 		assertEquals(1, tmp.getRoot().listFiles().length);
 
 		// Savepoint v0
 		Savepoint savepoint = new SavepointV1(checkpointId, SavepointV1Test.createTaskStates(4, 32));
-		String pathSavepoint = SavepointStore.storeSavepoint(target, savepoint);
+		Path pathSavepoint = SavepointStore.storeSavepoint(target, new JobID(), savepoint);
 		assertEquals(2, tmp.getRoot().listFiles().length);
 
 		// Load
@@ -144,7 +146,7 @@ public class SavepointStoreTest {
 		field.setAccessible(true);
 		Map<Integer, SavepointSerializer<?>> serializers = (Map<Integer, SavepointSerializer<?>>) field.get(null);
 
-		String target = tmp.getRoot().getAbsolutePath();
+		Path target = new Path(tmp.getRoot().getAbsolutePath());
 
 		final int version = 123123;
 		SavepointSerializer<TestSavepoint> serializer = mock(SavepointSerializer.class);
@@ -158,7 +160,7 @@ public class SavepointStoreTest {
 		assertEquals(0, tmp.getRoot().listFiles().length);
 
 		try {
-			SavepointStore.storeSavepoint(target, savepoint);
+			SavepointStore.storeSavepoint(target, new JobID(), savepoint);
 		} catch (Throwable ignored) {
 		}
 

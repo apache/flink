@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -60,7 +61,7 @@ public class PendingCheckpointTest {
 	public void testCanBeSubsumed() throws Exception {
 		// Forced checkpoints cannot be subsumed
 		CheckpointProperties forced = new CheckpointProperties(true, true, false, false, false, false, false);
-		PendingCheckpoint pending = createPendingCheckpoint(forced, "ignored");
+		PendingCheckpoint pending = createPendingCheckpoint(forced, new Path("ignored"));
 		assertFalse(pending.canBeSubsumed());
 
 		try {
@@ -72,7 +73,7 @@ public class PendingCheckpointTest {
 
 		// Non-forced checkpoints can be subsumed
 		CheckpointProperties subsumed = new CheckpointProperties(false, true, false, false, false, false, false);
-		pending = createPendingCheckpoint(subsumed, "ignored");
+		pending = createPendingCheckpoint(subsumed, new Path("ignored"));
 		assertTrue(pending.canBeSubsumed());
 	}
 
@@ -87,7 +88,7 @@ public class PendingCheckpointTest {
 		// Persisted checkpoint
 		CheckpointProperties persisted = new CheckpointProperties(false, true, false, false, false, false, false);
 
-		PendingCheckpoint pending = createPendingCheckpoint(persisted, tmp.getAbsolutePath());
+		PendingCheckpoint pending = createPendingCheckpoint(persisted, new Path(tmp.getAbsolutePath()));
 		pending.acknowledgeTask(ATTEMPT_ID, null);
 
 		assertEquals(0, tmp.listFiles().length);
@@ -113,7 +114,7 @@ public class PendingCheckpointTest {
 		CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
 
 		// Abort declined
-		PendingCheckpoint pending = createPendingCheckpoint(props, "ignored");
+		PendingCheckpoint pending = createPendingCheckpoint(props, new Path("ignored"));
 		Future<CompletedCheckpoint> future = pending.getCompletionFuture();
 
 		assertFalse(future.isDone());
@@ -121,7 +122,7 @@ public class PendingCheckpointTest {
 		assertTrue(future.isDone());
 
 		// Abort expired
-		pending = createPendingCheckpoint(props, "ignored");
+		pending = createPendingCheckpoint(props, new Path("ignored"));
 		future = pending.getCompletionFuture();
 
 		assertFalse(future.isDone());
@@ -129,7 +130,7 @@ public class PendingCheckpointTest {
 		assertTrue(future.isDone());
 
 		// Abort subsumed
-		pending = createPendingCheckpoint(props, "ignored");
+		pending = createPendingCheckpoint(props, new Path("ignored"));
 		future = pending.getCompletionFuture();
 
 		assertFalse(future.isDone());
@@ -138,7 +139,7 @@ public class PendingCheckpointTest {
 
 		// Finalize (all ACK'd)
 		String target = tmpFolder.newFolder().getAbsolutePath();
-		pending = createPendingCheckpoint(props, target);
+		pending = createPendingCheckpoint(props, new Path(target));
 		future = pending.getCompletionFuture();
 
 		assertFalse(future.isDone());
@@ -147,7 +148,7 @@ public class PendingCheckpointTest {
 		assertTrue(future.isDone());
 
 		// Finalize (missing ACKs)
-		pending = createPendingCheckpoint(props, "ignored");
+		pending = createPendingCheckpoint(props, new Path("ignored"));
 		future = pending.getCompletionFuture();
 
 		assertFalse(future.isDone());
@@ -169,7 +170,7 @@ public class PendingCheckpointTest {
 		CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
 		TaskState state = mock(TaskState.class);
 
-		String targetDir = tmpFolder.newFolder().getAbsolutePath();
+		Path targetDir = new Path(tmpFolder.newFolder().getAbsolutePath());
 
 		// Abort declined
 		PendingCheckpoint pending = createPendingCheckpoint(props, targetDir);
@@ -208,7 +209,7 @@ public class PendingCheckpointTest {
 
 	// ------------------------------------------------------------------------
 
-	private static PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, String targetDirectory) {
+	private static PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, Path targetDirectory) {
 		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(ACK_TASKS);
 		return new PendingCheckpoint(new JobID(), 0, 1, ackTasks, false, props, targetDirectory);
 	}

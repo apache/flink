@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.junit.Rule;
@@ -54,7 +55,7 @@ public class CompletedCheckpointTest {
 
 		// Verify discard call is forwarded to state
 		CompletedCheckpoint checkpoint = new CompletedCheckpoint(
-				new JobID(), 0, 0, 1, taskStates, CheckpointProperties.forStandardCheckpoint(), file.getAbsolutePath());
+				new JobID(), 0, 0, 1, taskStates, CheckpointProperties.forStandardCheckpoint(), new Path(file.getAbsolutePath()));
 
 		checkpoint.discard(JobStatus.FAILED);
 
@@ -103,7 +104,7 @@ public class CompletedCheckpointTest {
 			// Keep
 			CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
 			CompletedCheckpoint checkpoint = new CompletedCheckpoint(
-					new JobID(), 0, 0, 1, new HashMap<>(taskStates), props, externalPath);
+					new JobID(), 0, 0, 1, new HashMap<>(taskStates), props, new Path(externalPath));
 
 			checkpoint.discard(status);
 			verify(state, times(0)).discardState();

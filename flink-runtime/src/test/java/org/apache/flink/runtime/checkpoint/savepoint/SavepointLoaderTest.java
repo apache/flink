@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -66,7 +67,7 @@ public class SavepointLoaderTest {
 
 		// Store savepoint
 		SavepointV1 savepoint = new SavepointV1(checkpointId, taskStates.values());
-		String path = SavepointStore.storeSavepoint(tmp.getAbsolutePath(), savepoint);
+		Path path = SavepointStore.storeSavepoint(new Path(tmp.getAbsolutePath()), new JobID(), savepoint);
 
 		JobID jobId = new JobID();
 

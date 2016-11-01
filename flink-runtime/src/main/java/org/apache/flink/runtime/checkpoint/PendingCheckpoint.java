@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1;
@@ -74,7 +75,7 @@ public class PendingCheckpoint {
 	private final CheckpointProperties props;
 
 	/** Target directory to potentially persist checkpoint to; <code>null</code> if none configured. */
-	private final String targetDirectory;
+	private final Path targetDirectory;
 
 	/** The promise to fulfill once the checkpoint has been completed. */
 	private final FlinkCompletableFuture<CompletedCheckpoint> onCompletionPromise = new FlinkCompletableFuture<>();
@@ -92,7 +93,7 @@ public class PendingCheckpoint {
 			Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm,
 			boolean isPeriodic,
 			CheckpointProperties props,
-			String targetDirectory) {
+			Path targetDirectory) {
 		this.jobId = checkNotNull(jobId);
 		this.checkpointId = checkpointId;
 		this.checkpointTimestamp = checkpointTimestamp;
@@ -168,7 +169,7 @@ public class PendingCheckpoint {
 		return props;
 	}
 
-	String getTargetDirectory() {
+	Path getTargetDirectory() {
 		return targetDirectory;
 	}
 
@@ -193,12 +194,13 @@ public class PendingCheckpoint {
 				}
 				if (notYetAcknowledgedTasks.isEmpty()) {
 					// Persist if required
-					String externalPath = null;
+					Path externalPath = null;
 					if (props.externalizeCheckpoint()) {
 						try {
 							Savepoint savepoint = new SavepointV1(checkpointId, taskStates.values());
 							externalPath = SavepointStore.storeSavepoint(
 									targetDirectory,
+									jobId,
 									savepoint);
 						} catch (Throwable t) {
 							LOG.error("Failed to persist checkpoints " + checkpointId + ".", t);

@@ -25,6 +25,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -348,7 +349,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			List<ExecutionJobVertex> verticesToCommitTo,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore checkpointStore,
-			String checkpointDir,
+			Path checkpointDir,
 			CheckpointStatsTracker statsTracker) {
 
 		// simple sanity checks

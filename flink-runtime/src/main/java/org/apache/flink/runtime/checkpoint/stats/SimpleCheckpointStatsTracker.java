@@ -279,7 +279,7 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 						// Need to clone in order to have a consistent snapshot.
 						// We can safely update it afterwards.
 						(List<CheckpointStats>) history.clone(),
-						latestCompletedCheckpoint.getExternalPath(),
+						latestCompletedCheckpoint.getExternalPath().toString(),
 						overallCount,
 						overallMinDuration,
 						overallMaxDuration,
@@ -459,7 +459,7 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 		public String getValue() {
 			CompletedCheckpoint checkpoint = latestCompletedCheckpoint;
 			if (checkpoint != null && checkpoint.getExternalPath() != null) {
-				return checkpoint.getExternalPath();
+				return checkpoint.getExternalPath().toString();
 			} else {
 				return "n/a";
 			}
