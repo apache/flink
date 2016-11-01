@@ -72,7 +72,7 @@ public class CliFrontendParser {
 	static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,
 			"Path to a savepoint to restore the job from (for example hdfs:///flink/savepoint-1537).");
 
-	static final Option SAVEPOINT_ALLOW_NON_RESTORED_OPTION = new Option("a", "allowNonRestoredState", false,
+	static final Option SAVEPOINT_ALLOW_NON_RESTORED_OPTION = new Option("n", "allowNonRestoredState", false,
 			"Allow to skip savepoint state that cannot be restored. " +
 					"You need to allow this if you removed an operator from your " +
 					"program that was part of the program when the savepoint was triggered.");
