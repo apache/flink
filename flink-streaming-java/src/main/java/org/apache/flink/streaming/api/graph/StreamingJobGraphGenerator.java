@@ -516,6 +516,17 @@ public class StreamingJobGraphGenerator {
 				cfg.getMaxConcurrentCheckpoints(),
 				externalizedCheckpointSettings);
 		jobGraph.setSnapshotSettings(settings);
+
+		// Sanity check externalized checkpoint configuration if a user
+		// specified state backend has been configured.
+		if (externalizedCheckpointSettings.externalizeCheckpoints() &&
+				streamGraph.getStateBackend() != null &&
+				streamGraph.getStateBackend().getCheckpointDirectory() == null) {
+
+			throw new IllegalStateException("Did not configure checkpoint directory for state " +
+					"backend, but enabled externalized checkpoints. Please configure a " +
+					"checkpoint directory for your state backend.");
+		}
 	}
 
 	// ------------------------------------------------------------------------

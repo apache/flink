@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
@@ -245,8 +244,10 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * handle checkpoint clean up manually when you cancel the job as well
 	 * (terminating with job status {@link JobStatus#CANCELED}).
 	 *
-	 * <p>The target directory for externalized checkpoints is configured
-	 * via {@link ConfigConstants#CHECKPOINTS_DIRECTORY_KEY}.
+	 * <p>The target directory for the checkpoint is determined from the
+	 * checkpoint directory of the used state backend. If no default checkpoint
+	 * directory is available for the backend, you have to manually configure
+	 * it.
 	 *
 	 * @param cleanupMode Externalized checkpoint cleanup behaviour.
 	 */

@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
+import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.util.ClassLoaderUtil;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -412,21 +413,11 @@ public class StreamConfig implements Serializable {
 	// ------------------------------------------------------------------------
 	
 	public void setStateBackend(AbstractStateBackend backend) {
-		if (backend != null) {
-			try {
-				InstantiationUtil.writeObjectToConfig(backend, this.config, STATE_BACKEND);
-			} catch (Exception e) {
-				throw new StreamTaskException("Could not serialize stateHandle provider.", e);
-			}
-		}
+		StateUtil.serializeStateBackend(this.config, backend);
 	}
 	
 	public AbstractStateBackend getStateBackend(ClassLoader cl) {
-		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, STATE_BACKEND, cl);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate statehandle provider.", e);
-		}
+		return StateUtil.deserializeStateBackend(this.config, cl);
 	}
 
 	public byte[] getSerializedStateBackend() {

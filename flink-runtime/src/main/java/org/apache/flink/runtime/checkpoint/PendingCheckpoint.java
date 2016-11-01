@@ -104,12 +104,12 @@ public class PendingCheckpoint {
 		this.targetDirectory = targetDirectory;
 
 		// Sanity check
+		checkArgument(verticesToConfirm.size() > 0,
+				"Checkpoint needs at least one vertex that commits the checkpoint");
+
 		if (props.externalizeCheckpoint() && targetDirectory == null) {
 			throw new NullPointerException("No target directory specified to persist checkpoint to.");
 		}
-
-		checkArgument(verticesToConfirm.size() > 0,
-				"Checkpoint needs at least one vertex that commits the checkpoint");
 	}
 
 	// --------------------------------------------------------------------------------------------

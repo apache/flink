@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
@@ -172,7 +173,9 @@ public class CheckpointCoordinator {
 		checkArgument(minPauseBetweenCheckpoints >= 0, "minPauseBetweenCheckpoints must be >= 0");
 		checkArgument(maxConcurrentCheckpointAttempts >= 1, "maxConcurrentCheckpointAttempts must be >= 1");
 
-		if (externalizeSettings.externalizeCheckpoints() && checkpointDirectory == null) {
+		if (externalizeSettings.externalizeCheckpoints() &&
+				tasksToTrigger.length != 0 &&
+				checkpointDirectory == null) {
 			throw new IllegalStateException("CheckpointConfig says to persist periodic " +
 					"checkpoints, but no checkpoint directory has been configured.");
 		}
@@ -853,6 +856,11 @@ public class CheckpointCoordinator {
 
 	public long getCheckpointTimeout() {
 		return checkpointTimeout;
+	}
+
+	@VisibleForTesting
+	public Path getCheckpointDirectory() {
+		return checkpointDirectory;
 	}
 
 	// --------------------------------------------------------------------------------------------

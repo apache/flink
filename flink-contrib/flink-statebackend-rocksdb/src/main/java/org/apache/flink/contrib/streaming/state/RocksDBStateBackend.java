@@ -61,6 +61,7 @@ import static java.util.Objects.requireNonNull;
  * {@link #setOptions(OptionsFactory)}.
  */
 public class RocksDBStateBackend extends AbstractStateBackend {
+
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackend.class);
@@ -139,7 +140,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		this.checkpointStreamBackend = fsStateBackend;
 	}
 
-
 	public RocksDBStateBackend(String checkpointDataUri, AbstractStateBackend nonPartitionedStateBackend) throws IOException {
 		this(new Path(checkpointDataUri).toUri(), nonPartitionedStateBackend);
 	}
@@ -156,6 +156,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		ois.defaultReadObject();
 		isInitialized = false;
 	}
+
 	// ------------------------------------------------------------------------
 	//  State backend methods
 	// ------------------------------------------------------------------------
@@ -277,6 +278,11 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				numberOfKeyGroups,
 				keyGroupRange,
 				restoredState);
+	}
+
+	@Override
+	public Path getCheckpointDirectory() {
+		return checkpointStreamBackend.getCheckpointDirectory();
 	}
 
 	// ------------------------------------------------------------------------

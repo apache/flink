@@ -211,6 +211,11 @@ public class FsStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
+	public Path getCheckpointDirectory() {
+		return basePath;
+	}
+
+	@Override
 	public String toString() {
 		return "File State Backend @ " + basePath;
 	}

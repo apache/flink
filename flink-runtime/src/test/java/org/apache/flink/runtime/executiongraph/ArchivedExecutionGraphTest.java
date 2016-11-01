@@ -24,6 +24,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -357,7 +358,7 @@ public class ArchivedExecutionGraphTest {
 		}
 
 		@Override
-		public String getExternalPath() {
+		public Path getExternalPath() {
 			return null;
 		}
 

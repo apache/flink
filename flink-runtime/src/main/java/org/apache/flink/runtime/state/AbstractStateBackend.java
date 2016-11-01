@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 
@@ -30,6 +31,7 @@ import java.util.Collection;
  * A state backend defines how state is stored and snapshotted during checkpoints.
  */
 public abstract class AbstractStateBackend implements java.io.Serializable {
+
 	private static final long serialVersionUID = 4620415814639230247L;
 
 	/**
@@ -73,6 +75,12 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 			TaskKvStateRegistry kvStateRegistry
 	) throws Exception;
 
+	/**
+	 * Returns the directory for externalized checkpoints.
+	 *
+	 * @return Path to target directory for externalized checkpoints.
+	 */
+	public abstract Path getCheckpointDirectory();
 
 	/**
 	 * Creates a new {@link OperatorStateBackend} that can be used for storing partitionable operator

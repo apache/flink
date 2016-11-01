@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint.stats;
 
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.core.fs.Path;
 
 import java.io.Serializable;
 import java.util.List;
@@ -53,7 +54,7 @@ public interface JobCheckpointStats extends Serializable {
 	 *
 	 * @return External checkpoint path or <code>null</code> if none available.
 	 */
-	String getExternalPath();
+	Path getExternalPath();
 
 	// ------------------------------------------------------------------------
 	// Duration

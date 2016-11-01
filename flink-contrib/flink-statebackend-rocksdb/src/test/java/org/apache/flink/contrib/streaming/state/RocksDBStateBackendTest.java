@@ -18,15 +18,22 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
+
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for the partitioned state part of {@link RocksDBStateBackend}.
@@ -49,4 +56,25 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		backend.setDbStoragePath(dbPath);
 		return backend;
 	}
+
+	/**
+	 * Tests that the externalized checkpoint directory is set to the base
+	 * checkpoint directory of the checkpoint backend.
+	 */
+	@Test
+	public void testExternalizedCheckpointsDirectoryConfiguration() throws Exception {
+		// Default case, use checkpoint directory
+		Path expected = FsStateBackend.validateAndNormalizeUri(new Path("file://" + tempFolder.newFolder()).toUri());
+		RocksDBStateBackend backend = new RocksDBStateBackend(expected.toUri());
+		assertEquals(expected, backend.getCheckpointDirectory());
+
+		// Use the checkpoint backend external directory
+		AbstractStateBackend checkpointBackend = mock(AbstractStateBackend.class);
+		Path newExpected = new Path(tempFolder.newFolder().getAbsolutePath());
+		when(checkpointBackend.getCheckpointDirectory()).thenReturn(newExpected);
+
+		backend = new RocksDBStateBackend(expected.toUri(), checkpointBackend);
+		assertEquals(newExpected, backend.getCheckpointDirectory());
+	}
+
 }
