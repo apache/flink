@@ -35,6 +35,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -204,7 +205,7 @@ public class JobSubmitTest {
 	public void testAnswerFailureWhenSavepointReadFails() throws Exception {
 		// create a simple job graph
 		JobGraph jg = createSimpleJobGraph();
-		jg.setSavepointPath("pathThatReallyDoesNotExist...");
+		jg.setSavepointRestoreSettings(SavepointRestoreSettings.forPath("pathThatReallyDoesNotExist..."));
 
 		// submit the job
 		Future<Object> submitFuture = jmGateway.ask(

@@ -85,6 +85,13 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
             | {{state['submit-button']}}
           | &nbsp;
           i.fa.fa-spin.fa-spinner(ng-if="state['submit-button'] == 'Submitting'")
+      tr
+        td
+          input.form-control(type="text" placeholder="Savepoint Path" title="Savepoint Path" ng-model="state['savepointPath']")
+        td
+          label.checkbox-inline
+            input.checkbox-inline(type="checkbox", ng-model="state['allowNonRestoredState']")
+            | Allow Non Restored State
 
   table.table.table-no-border(ng-if="jid")
     tbody

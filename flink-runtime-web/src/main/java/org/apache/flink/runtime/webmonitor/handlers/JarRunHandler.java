@@ -50,7 +50,8 @@ public class JarRunHandler extends JarActionHandler {
 	@Override
 	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {
-			Tuple2<JobGraph, ClassLoader> graph = getJobGraphAndClassLoader(pathParams, queryParams);
+			JarActionHandlerConfig config = JarActionHandlerConfig.fromParams(pathParams, queryParams);
+			Tuple2<JobGraph, ClassLoader> graph = getJobGraphAndClassLoader(config);
 			try {
 				graph.f0.uploadUserJars(jobManager, timeout, clientConfig);
 			} catch (IOException e) {

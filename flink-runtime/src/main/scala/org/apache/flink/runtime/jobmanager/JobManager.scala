@@ -1308,40 +1308,39 @@ class JobManager(
         try {
           if (isRecovery) {
             // this is a recovery of a master failure (this master takes over)
-            executionGraph.restoreLatestCheckpointedState()
+            executionGraph.restoreLatestCheckpointedState(false, false)
           }
           else {
             // load a savepoint only if this is not starting from a newer checkpoint
             // as part of an master failure recovery
-            val snapshotSettings = jobGraph.getSnapshotSettings
-            if (snapshotSettings != null) {
-              val savepointPath = snapshotSettings.getSavepointPath()
+            val savepointSettings = jobGraph.getSavepointRestoreSettings
+            if (savepointSettings.restoreSavepoint()) {
+              try {
+                val savepointPath = savepointSettings.getRestorePath()
+                val allowNonRestored = savepointSettings.allowNonRestoredState()
 
-              if (savepointPath != null) {
-                // got a savepoint
-                try {
-                  log.info(s"Starting job from savepoint '$savepointPath'.")
+                log.info(s"Starting job from savepoint '$savepointPath'" +
+                  (if (allowNonRestored) " (allowing non restored state)" else "") + ".")
 
-                  // load the savepoint as a checkpoint into the system
-                  val savepoint: CompletedCheckpoint = SavepointLoader.loadAndValidateSavepoint(
-                    jobId, executionGraph.getAllVertices, savepointPath)
+                // load the savepoint as a checkpoint into the system
+                val savepoint: CompletedCheckpoint = SavepointLoader.loadAndValidateSavepoint(
+                  jobId, executionGraph.getAllVertices, savepointPath, allowNonRestored)
 
-                  executionGraph.getCheckpointCoordinator.getCheckpointStore
-                    .addCheckpoint(savepoint)
+                executionGraph.getCheckpointCoordinator.getCheckpointStore
+                  .addCheckpoint(savepoint)
 
-                  // Reset the checkpoint ID counter
-                  val nextCheckpointId: Long = savepoint.getCheckpointID + 1
-                  log.info(s"Reset the checkpoint ID to $nextCheckpointId")
-                  executionGraph.getCheckpointCoordinator.getCheckpointIdCounter
-                    .setCount(nextCheckpointId)
+                // Reset the checkpoint ID counter
+                val nextCheckpointId: Long = savepoint.getCheckpointID + 1
+                log.info(s"Reset the checkpoint ID to $nextCheckpointId")
+                executionGraph.getCheckpointCoordinator.getCheckpointIdCounter
+                  .setCount(nextCheckpointId)
 
-                  executionGraph.restoreLatestCheckpointedState()
-                } catch {
-                  case e: Exception =>
-                    jobInfo.notifyClients(
-                      decorateMessage(JobResultFailure(new SerializedThrowable(e))))
-                    throw new SuppressRestartsException(e)
-                }
+                executionGraph.restoreLatestCheckpointedState(true, allowNonRestored)
+              } catch {
+                case e: Exception =>
+                  jobInfo.notifyClients(
+                    decorateMessage(JobResultFailure(new SerializedThrowable(e))))
+                  throw new SuppressRestartsException(e)
               }
             }
 

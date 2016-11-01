@@ -24,6 +24,8 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -34,6 +36,8 @@ import java.util.Map;
  */
 public class SavepointLoader {
 
+	private static final Logger LOG = LoggerFactory.getLogger(SavepointLoader.class);
+
 	/**
 	 * Loads a savepoint back as a {@link CompletedCheckpoint}.
 	 *
@@ -42,6 +46,8 @@ public class SavepointLoader {
 	 * @param jobId          The JobID of the job to load the savepoint for.
 	 * @param tasks          Tasks that will possibly be reset
 	 * @param savepointPath  The path of the savepoint to rollback to
+	 * @param allowNonRestoredState Allow to skip checkpoint state that cannot be mapped
+	 * to any job vertex in tasks.
 	 *
 	 * @throws IllegalStateException If mismatch between program and savepoint state
 	 * @throws Exception             If savepoint store failure
@@ -49,7 +55,8 @@ public class SavepointLoader {
 	public static CompletedCheckpoint loadAndValidateSavepoint(
 			JobID jobId,
 			Map<JobVertexID, ExecutionJobVertex> tasks,
-			String savepointPath) throws IOException {
+			String savepointPath,
+			boolean allowNonRestoredState) throws IOException {
 
 		// (1) load the savepoint
 		Savepoint savepoint = SavepointStore.loadSavepoint(savepointPath);
@@ -76,11 +83,14 @@ public class SavepointLoader {
 
 					throw new IllegalStateException(msg);
 				}
+			} else if (allowNonRestoredState) {
+				LOG.info("Skipping savepoint state for operator {}.", taskState.getJobVertexID());
 			} else {
 				String msg = String.format("Failed to rollback to savepoint %s. " +
-								"Cannot map old state for task %s to the new program. " +
-								"This indicates that the program has been changed in a " +
-								"non-compatible way  after the savepoint.",
+								"Cannot map savepoint state for operator %s to the new program, " +
+								"because the operator is not available in the new program. If " +
+								"you want to allow to skip this, you can set the --allowNonRestoredState " +
+								"option on the CLI.",
 						savepointPath, taskState.getJobVertexID());
 				throw new IllegalStateException(msg);
 			}

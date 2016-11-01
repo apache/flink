@@ -241,7 +241,7 @@ public class CliFrontend {
 			client.setDetached(options.getDetachedMode());
 			LOG.debug("Client slots is set to {}", client.getMaxSlots());
 
-			LOG.debug("Savepoint path is set to {}", options.getSavepointPath());
+			LOG.debug(options.getSavepointRestoreSettings().toString());
 
 			int userParallelism = options.getParallelism();
 			LOG.debug("User parallelism is set to {}", userParallelism);
@@ -890,7 +890,7 @@ public class CliFrontend {
 				new PackagedProgram(jarFile, classpaths, programArgs) :
 				new PackagedProgram(jarFile, classpaths, entryPointClass, programArgs);
 
-		program.setSavepointPath(options.getSavepointPath());
+		program.setSavepointRestoreSettings(options.getSavepointRestoreSettings());
 
 		return program;
 	}
