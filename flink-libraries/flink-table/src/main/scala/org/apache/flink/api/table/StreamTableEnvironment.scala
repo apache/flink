@@ -320,9 +320,9 @@ abstract class StreamTableEnvironment(
     val dataStream = translate[Row](table)(TypeExtractor.createTypeInfo(classOf[Row]))
 
     val env = dataStream.getExecutionEnvironment
-    val jasonSqlPlan = env.getExecutionPlan
+    val jsonSqlPlan = env.getExecutionPlan
 
-    val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, false)
+    val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jsonSqlPlan, false)
 
     s"== Abstract Syntax Tree ==" +
       System.lineSeparator +
