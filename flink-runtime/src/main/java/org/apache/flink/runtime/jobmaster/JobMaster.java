@@ -308,9 +308,15 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 		log.info("Starting execution of job {} ({})", jobGraph.getName(), jobGraph.getJobID());
 
-		// start the slot pool make sure the slot pool now accepts messages for this leader
-		log.debug("Staring SlotPool component");
-		slotPool.start(leaderSessionID);
+		try {
+			// start the slot pool make sure the slot pool now accepts messages for this leader
+			log.debug("Staring SlotPool component");
+			slotPool.start(leaderSessionID);
+		} catch (Exception e) {
+			log.error("Faild to start job {} ({})", jobGraph.getName(), jobGraph.getJobID(), e);
+
+			handleFatalError(new Exception("Could not start job execution: Failed to start the slot pool.", e));
+		}
 
 		try {
 			// job is ready to go, try to establish connection with resource manager
@@ -634,24 +640,30 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			final Iterable<SlotOffer> slots,
 			final UUID leaderId) throws Exception {
 
-		validateLeaderSessionId(leaderSessionID);
+		validateLeaderSessionId(leaderId);
 
 		Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManager = registeredTaskManagers.get(taskManagerId);
+
 		if (taskManager == null) {
 			throw new Exception("Unknown TaskManager " + taskManagerId);
 		}
 
 		final JobID jid = jobGraph.getJobID();
 		final TaskManagerLocation taskManagerLocation = taskManager.f0;
-		final TaskExecutorGateway taskManagerGateway = taskManager.f1;
+		final TaskExecutorGateway taskExecutorGateway = taskManager.f1;
 
 		final ArrayList<Tuple2<AllocatedSlot, SlotOffer>> slotsAndOffers = new ArrayList<>();
 
+		final RpcTaskManagerGateway rpcTaskManagerGateway = new RpcTaskManagerGateway(taskExecutorGateway, leaderId);
+
 		for (SlotOffer slotOffer : slots) {
 			final AllocatedSlot slot = new AllocatedSlot(
-					slotOffer.getAllocationId(), jid, taskManagerLocation,
-					slotOffer.getSlotIndex(), slotOffer.getResourceProfile(),
-					taskManagerGateway);
+				slotOffer.getAllocationId(),
+				jid,
+				taskManagerLocation,
+				slotOffer.getSlotIndex(),
+				slotOffer.getResourceProfile(),
+				rpcTaskManagerGateway);
 
 			slotsAndOffers.add(new Tuple2<>(slot, slotOffer));
 		}

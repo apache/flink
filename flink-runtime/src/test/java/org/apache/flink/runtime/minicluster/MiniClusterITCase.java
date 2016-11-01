@@ -45,7 +45,7 @@ public class MiniClusterITCase extends TestLogger {
 		executeJob(miniCluster);
 	}
 
-//	@Test
+	@Test
 	public void runJobWithMultipleRpcServices() throws Exception {
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration();
 		cfg.setUseRpcServicePerComponent();
@@ -54,7 +54,7 @@ public class MiniClusterITCase extends TestLogger {
 		executeJob(miniCluster);
 	}
 
-//	@Test
+	@Test
 	public void runJobWithMultipleJobManagers() throws Exception {
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration();
 		cfg.setNumJobManagers(3);

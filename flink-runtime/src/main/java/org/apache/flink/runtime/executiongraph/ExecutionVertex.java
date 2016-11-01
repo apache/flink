@@ -22,7 +22,6 @@ import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
@@ -627,7 +626,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			serializedJobInformation,
 			serializedJobVertexInformation,
 			executionId,
-			new AllocationID(), // TODO: Obtain the proper allocation id from the slot
+			targetSlot.getAllocatedSlot().getSlotAllocationId(),
 			subTaskIndex,
 			attemptNumber,
 			targetSlot.getRoot().getSlotNumber(),

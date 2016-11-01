@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rpc;
 
-import akka.dispatch.Futures;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
@@ -210,9 +209,9 @@ public class TestingSerialRpcService implements RpcService {
 				if (returnType.equals(Future.class)) {
 					try {
 						Object result = handleRpcInvocationSync(methodName, filteredArguments.f0, filteredArguments.f1, futureTimeout);
-						return Futures.successful(result);
+						return FlinkCompletableFuture.completed(result);
 					} catch (Throwable e) {
-						return Futures.failed(e);
+						return FlinkCompletableFuture.completedExceptionally(e);
 					}
 				} else {
 					return handleRpcInvocationSync(methodName, filteredArguments.f0, filteredArguments.f1, futureTimeout);

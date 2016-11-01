@@ -172,7 +172,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 	 *
 	 * @param jobManagerLeaderId The necessary leader id for running the job.
 	 */
-	public void start(UUID jobManagerLeaderId) {
+	public void start(UUID jobManagerLeaderId) throws Exception {
 		this.jobManagerLeaderId = jobManagerLeaderId;
 
 		// TODO - start should not throw an exception
@@ -295,7 +295,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 		pendingRequests.put(allocationID, new PendingRequest(allocationID, future, resources));
 
 		Future<RMSlotRequestReply> rmResponse = resourceManagerGateway.requestSlot(
-				resourceManagerLeaderId, jobManagerLeaderId,
+				jobManagerLeaderId, resourceManagerLeaderId,
 				new SlotRequest(jobId, allocationID, resources),
 				resourceManagerRequestsTimeout);
 
@@ -579,7 +579,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 	/**
 	 * Organize allocated slots from different points of view.
 	 */
-	private static class AllocatedSlots {
+	static class AllocatedSlots {
 
 		/** All allocated slots organized by TaskManager's id */
 		private final Map<ResourceID, Set<Slot>> allocatedSlotsByTaskManager;
@@ -650,7 +650,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 				Set<Slot> slotsForTM = allocatedSlotsByTaskManager.get(taskManagerId);
 				slotsForTM.remove(slot);
 				if (slotsForTM.isEmpty()) {
-					allocatedSlotsByTaskManager.get(taskManagerId);
+					allocatedSlotsByTaskManager.remove(taskManagerId);
 				}
 				return slot;
 			}
@@ -692,6 +692,15 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 		int size() {
 			return allocatedSlotsById.size();
 		}
+
+		@VisibleForTesting
+		Set<Slot> getSlotsForTaskManager(ResourceID resourceId) {
+			if (allocatedSlotsByTaskManager.containsKey(resourceId)) {
+				return allocatedSlotsByTaskManager.get(resourceId);
+			} else {
+				return Collections.emptySet();
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -699,7 +708,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 	/**
 	 * Organize all available slots from different points of view.
 	 */
-	private static class AvailableSlots {
+	static class AvailableSlots {
 
 		/** All available slots organized by TaskManager */
 		private final HashMap<ResourceID, Set<AllocatedSlot>> availableSlotsByTaskManager;

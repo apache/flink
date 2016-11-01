@@ -53,11 +53,8 @@ public class AllocatedSlot {
 	/** The resource profile of the slot provides */
 	private final ResourceProfile resourceProfile;
 
-	/** TEMP until the new RPC is in place: The actor gateway to communicate with the TaskManager */
-	private final TaskManagerGateway taskManagerGateway;
-
 	/** RPC gateway to call the TaskManager that holds this slot */
-	private final TaskExecutorGateway taskExecutorGateway;
+	private final TaskManagerGateway taskManagerGateway;
 
 	/** The number of the slot on the TaskManager to which slot belongs. Purely informational. */
 	private final int slotNumber;
@@ -69,32 +66,14 @@ public class AllocatedSlot {
 			JobID jobID,
 			TaskManagerLocation location,
 			int slotNumber,
-			ResourceProfile resourceProfile,
-			TaskManagerGateway taskManagerGateway)
-	{
+			ResourceProfile resourceProfile,		
+			TaskManagerGateway taskManagerGateway) {
 		this.slotAllocationId = checkNotNull(slotAllocationId);
 		this.jobID = checkNotNull(jobID);
 		this.taskManagerLocation = checkNotNull(location);
 		this.slotNumber = slotNumber;
 		this.resourceProfile = checkNotNull(resourceProfile);
 		this.taskManagerGateway = checkNotNull(taskManagerGateway);
-		this.taskExecutorGateway = null;
-	}
-
-	public AllocatedSlot(
-			AllocationID slotAllocationId,
-			JobID jobID,
-			TaskManagerLocation location,
-			int slotNumber,
-			ResourceProfile resourceProfile,
-			TaskExecutorGateway taskExecutorGateway) {
-		this.slotAllocationId = checkNotNull(slotAllocationId);
-		this.jobID = checkNotNull(jobID);
-		this.taskManagerLocation = checkNotNull(location);
-		this.slotNumber = slotNumber;
-		this.resourceProfile = checkNotNull(resourceProfile);
-		this.taskManagerGateway = null;
-		this.taskExecutorGateway = checkNotNull(taskExecutorGateway);
 	}
 
 	// ------------------------------------------------------------------------
@@ -164,10 +143,6 @@ public class AllocatedSlot {
 	 */
 	public TaskManagerGateway getTaskManagerGateway() {
 		return taskManagerGateway;
-	}
-
-	public TaskExecutorGateway getTaskExecutorGateway() {
-		return taskExecutorGateway;
 	}
 
 	// ------------------------------------------------------------------------

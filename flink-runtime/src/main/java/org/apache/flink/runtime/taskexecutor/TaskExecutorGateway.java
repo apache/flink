@@ -75,9 +75,13 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 *
 	 * @param executionAttemptID identifying the task
 	 * @param partitionInfos telling where the partition can be retrieved from
+	 * @param timeout for the update partitions operation
 	 * @return Future acknowledge if the partitions have been successfully updated
 	 */
-	Future<Acknowledge> updatePartitions(ExecutionAttemptID executionAttemptID, Iterable<PartitionInfo> partitionInfos);
+	Future<Acknowledge> updatePartitions(
+		ExecutionAttemptID executionAttemptID,
+		Iterable<PartitionInfo> partitionInfos,
+		@RpcTimeout Time timeout);
 
 	/**
 	 * Fail all intermediate result partitions of the given task.
@@ -112,15 +116,17 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * Stop the given task.
 	 *
 	 * @param executionAttemptID identifying the task
+	 * @param timeout for the stop operation
 	 * @return Future acknowledge if the task is successfully stopped
 	 */
-	Future<Acknowledge> stopTask(ExecutionAttemptID executionAttemptID);
+	Future<Acknowledge> stopTask(ExecutionAttemptID executionAttemptID, @RpcTimeout Time timeout);
 
 	/**
 	 * Cancel the given task.
 	 *
 	 * @param executionAttemptID identifying the task
+	 * @param timeout for the cancel operation
 	 * @return Future acknowledge if the task is successfully canceled
 	 */
-	Future<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID);
+	Future<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, @RpcTimeout Time timeout);
 }
