@@ -419,8 +419,10 @@ public class YarnClusterClient extends ClusterClient {
 				== YarnApplicationState.KILLED) {
 				LOG.warn("Application failed. Diagnostics " + appReport.getDiagnostics());
 				LOG.warn("If log aggregation is activated in the Hadoop cluster, we recommend to retrieve "
-					+ "the full application log using this command:\n"
-					+ "\tyarn logs -appReport " + appReport.getApplicationId() + "\n"
+					+ "the full application log using this command:"
+					+ System.lineSeparator()
+					+ "\tyarn logs -applicationId " + appReport.getApplicationId()
+					+ System.lineSeparator()
 					+ "(It sometimes takes a few seconds until the logs are aggregated)");
 			}
 		} catch (Exception e) {
