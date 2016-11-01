@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -53,33 +52,13 @@ public class AllocatedSlot {
 	/** The resource profile of the slot provides */
 	private final ResourceProfile resourceProfile;
 
-	/** TEMP until the new RPC is in place: The actor gateway to communicate with the TaskManager */
-	private final TaskManagerGateway taskManagerGateway;
-
 	/** RPC gateway to call the TaskManager that holds this slot */
-	private final TaskExecutorGateway taskManagerGateway;
+	private final TaskManagerGateway taskManagerGateway;
 
 	/** The number of the slot on the TaskManager to which slot belongs. Purely informational. */
 	private final int slotNumber;
 
 	// ------------------------------------------------------------------------
-
-	public AllocatedSlot(
-			AllocationID slotAllocationId,
-			JobID jobID,
-			TaskManagerLocation location,
-			int slotNumber,
-			ResourceProfile resourceProfile,
-			TaskManagerGateway taskManagerGateway)
-	{
-		this.slotAllocationId = checkNotNull(slotAllocationId);
-		this.jobID = checkNotNull(jobID);
-		this.taskManagerLocation = checkNotNull(location);
-		this.slotNumber = slotNumber;
-		this.resourceProfile = checkNotNull(resourceProfile);
-		this.taskManagerGateway = checkNotNull(taskManagerGateway);
-		this.taskManagerGateway = null;
-	}
 
 	public AllocatedSlot(
 			AllocationID slotAllocationId,
@@ -93,7 +72,6 @@ public class AllocatedSlot {
 		this.taskManagerLocation = checkNotNull(location);
 		this.slotNumber = slotNumber;
 		this.resourceProfile = checkNotNull(resourceProfile);
-		this.taskManagerActorGateway = null;
 		this.taskManagerGateway = checkNotNull(taskManagerGateway);
 	}
 
@@ -163,7 +141,7 @@ public class AllocatedSlot {
 	 * @return The actor gateway that can be used to send messages to the TaskManager.
 	 */
 	public TaskManagerGateway getTaskManagerGateway() {
-		return 	return taskManagerGateway;
+		return taskManagerGateway;
 	}
 
 	// ------------------------------------------------------------------------

@@ -394,6 +394,11 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			UUID resourceManagerLeaderID,
 			SlotRequest slotRequest) {
 
+		log.info("Request slot with profile {} for job {} with allocation id {}.",
+			slotRequest.getResourceProfile(),
+			slotRequest.getJobId(),
+			slotRequest.getAllocationId());
+
 		JobID jobId = slotRequest.getJobId();
 		JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
 

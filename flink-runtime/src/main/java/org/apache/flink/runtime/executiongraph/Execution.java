@@ -298,6 +298,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			});
 
 			// if tasks have to scheduled immediately check that the task has been deployed
+			// TODO: This might be problematic if the future is not completed right away
 			if (!queued) {
 				if (!deploymentFuture.isDone()) {
 					markFailed(new IllegalArgumentException("The slot allocation future has not been completed yet."));
