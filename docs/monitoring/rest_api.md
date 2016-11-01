@@ -672,16 +672,18 @@ You can specify the following query parameters (all optional):
 - **Main class to execute**: `entry-class=EntryClassName.class`
 - **Default parallelism**: `parallelism=4`
 - **Savepoint path to restore from**: `savepointPath=hdfs://path/to/savepoint`
-- **Ignore unmapped savepoint state**:  `ignoreUnmappedState=true`
+- **Allow non restored state**:  `allowNonRestoredState=true`
 
 If the call succeeds, you will get a response with the ID of the submitted job.
 
 **Example:** Run program with a savepoint
 
+Request:
 ~~~
-POST: /jars/MyProgram.jar/run?savepointPath=/my-savepoints/savepoint-1bae02a80464&ignoreUnmappedState=true
+POST: /jars/MyProgram.jar/run?savepointPath=/my-savepoints/savepoint-1bae02a80464&allowNonRestoredState=true
 ~~~
 
+Response:
 ~~~
 {"jobid": "869a9868d49c679e7355700e0857af85"}
 ~~~

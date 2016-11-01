@@ -36,8 +36,10 @@ public class JarActionHandlerTest {
 	public void testSavepointRestoreSettings() throws Exception {
 		Map<String, String> pathParams = new HashMap<>();
 		pathParams.put("jarid", "required"); // required
-		pathParams.put("savepointPath", "ignored"); // should be ignored
-		pathParams.put("ignoreUnmappedState", "ignored"); // should be ignored
+
+		// the following should be ignored, because they are parsed from the query params
+		pathParams.put("savepointPath", "ignored");
+		pathParams.put("allowNonRestoredState", "ignored");
 
 		Map<String, String> queryParams = new HashMap<>(); // <-- everything goes here
 
@@ -47,7 +49,7 @@ public class JarActionHandlerTest {
 
 		// Set path
 		queryParams.put("savepointPath", "the-savepoint-path");
-		queryParams.put("ignoreUnmappedState", "");
+		queryParams.put("allowNonRestoredState", "");
 
 		SavepointRestoreSettings expected = SavepointRestoreSettings.forPath("the-savepoint-path", false);
 
@@ -55,7 +57,7 @@ public class JarActionHandlerTest {
 		assertEquals(expected, config.getSavepointRestoreSettings());
 
 		// Set flag
-		queryParams.put("ignoreUnmappedState", "true");
+		queryParams.put("allowNonRestoredState", "true");
 
 		expected = SavepointRestoreSettings.forPath("the-savepoint-path", true);
 		config = JarActionHandlerConfig.fromParams(pathParams, queryParams);

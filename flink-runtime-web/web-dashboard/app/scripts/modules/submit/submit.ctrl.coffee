@@ -33,7 +33,7 @@ angular.module('flinkApp')
       selected: null,
       parallelism: "",
       savepointPath: "",
-      ignoreUnmappedState: false
+      allowNonRestoredState: false
       'entry-class': "",
       'program-args': "",
       'plan-button': "Show Plan",
@@ -104,7 +104,7 @@ angular.module('flinkApp')
           parallelism: $scope.state.parallelism,
           'program-args': $scope.state['program-args'],
           savepointPath: $scope.state['savepointPath'],
-          ignoreUnmappedState: $scope.state['ignoreUnmappedState']
+          allowNonRestoredState: $scope.state['allowNonRestoredState']
         }
       ).then (data) ->
         if action == $scope.state['action-time']

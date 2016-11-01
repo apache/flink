@@ -90,8 +90,8 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
           input.form-control(type="text" placeholder="Savepoint Path" title="Savepoint Path" ng-model="state['savepointPath']")
         td
           label.checkbox-inline
-            input.checkbox-inline(type="checkbox", ng-model="state['ignoreUnmappedState']")
-            | Ignore Unmapped State
+            input.checkbox-inline(type="checkbox", ng-model="state['allowNonRestoredState']")
+            | Allow Non Restored State
 
   table.table.table-no-border(ng-if="jid")
     tbody

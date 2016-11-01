@@ -89,14 +89,14 @@ public class SavepointRestoreSettings implements Serializable {
 		if (o == null || getClass() != o.getClass()) { return false; }
 
 		SavepointRestoreSettings that = (SavepointRestoreSettings) o;
-		return ignoreUnmappedState == that.ignoreUnmappedState &&
+		return allowNonRestoredState == that.allowNonRestoredState &&
 				(restorePath != null ? restorePath.equals(that.restorePath) : that.restorePath == null);
 	}
 
 	@Override
 	public int hashCode() {
 		int result = restorePath != null ? restorePath.hashCode() : 0;
-		result = 31 * result + (ignoreUnmappedState ? 1 : 0);
+		result = 31 * result + (allowNonRestoredState ? 1 : 0);
 		return result;
 	}
 

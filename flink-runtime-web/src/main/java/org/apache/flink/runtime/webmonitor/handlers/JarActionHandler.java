@@ -188,9 +188,9 @@ public abstract class JarActionHandler extends AbstractJsonRequestHandler {
 			SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.none();
 			String savepointPath = queryParams.get("savepointPath");
 			if (savepointPath != null) {
-				String ignoreOpt = queryParams.get("ignoreUnmappedState");
-				boolean ignoreUnmappedState = ignoreOpt != null && ignoreOpt.equals("true");
-				savepointSettings = SavepointRestoreSettings.forPath(savepointPath, ignoreUnmappedState);
+				String allowNonRestoredOpt = queryParams.get("allowNonRestoredState");
+				boolean allowNonRestoredState = allowNonRestoredOpt != null && allowNonRestoredOpt.equals("true");
+				savepointSettings = SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState);
 			}
 
 			return new JarActionHandlerConfig(jarFile, programArgs, entryClass, parallelism, savepointSettings);
