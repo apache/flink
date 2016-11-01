@@ -171,7 +171,7 @@ The run command has a savepoint flag to submit a job, which restores its state f
 By default, we try to match all savepoint state to the job being submitted. If you want to allow to skip savepoint state that cannot be restored with the new job you can set the `allowNonRestoredState` flag. You need to allow this if you removed an operator from your program that was part of the program when the savepoint was triggered and you still want to use the savepoint.
 
 {% highlight bash %}
-./bin/flink run -s <savepointPath> -a ...
+./bin/flink run -s <savepointPath> -n ...
 {% endhighlight %}
 
 This is useful if your program dropped an operator that was part of the savepoint.
@@ -205,9 +205,6 @@ Action "run" compiles and runs a program.
 
   Syntax: run [OPTIONS] <jar-file> <arguments>
   "run" action options:
-     -a,--allowNonRestoredState                     Allow non restored savepoint
-                                                    state in case an operator has
-                                                    been removed from the job.
      -c,--class <classname>                         Class with the program entry
                                                     point ("main" method or
                                                     "getPlan()" method. Only
@@ -235,6 +232,9 @@ Action "run" compiles and runs a program.
                                                     JobManager than the one
                                                     specified in the
                                                     configuration.
+     -n,--allowNonRestoredState                     Allow non restored savepoint
+                                                    state in case an operator has
+                                                    been removed from the job.
      -p,--parallelism <parallelism>                 The parallelism with which
                                                     to run the program. Optional
                                                     flag to override the default

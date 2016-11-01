@@ -107,7 +107,7 @@ public class CliFrontendRunTest {
 
 			// test configure savepoint path (with ignore flag)
 			{
-				String[] parameters = {"-s", "expectedSavepointPath", "-a", getTestJarPath()};
+				String[] parameters = {"-s", "expectedSavepointPath", "-n", getTestJarPath()};
 				RunOptions options = CliFrontendParser.parseRunCommand(parameters);
 				SavepointRestoreSettings savepointSettings = options.getSavepointRestoreSettings();
 				assertTrue(savepointSettings.restoreSavepoint());
