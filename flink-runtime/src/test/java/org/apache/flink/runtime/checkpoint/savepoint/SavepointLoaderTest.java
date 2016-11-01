@@ -100,7 +100,7 @@ public class SavepointLoaderTest {
 			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, false);
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
-			assertTrue(expected.getMessage().contains("ignoreUnmappedState"));
+			assertTrue(expected.getMessage().contains("allowNonRestoredState"));
 		}
 
 		// 4) Load and validate: ignore missing vertex

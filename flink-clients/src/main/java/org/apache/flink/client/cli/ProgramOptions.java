@@ -34,7 +34,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.LOGGING_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_IGNORE_UNMAPPED_STATE_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_ALLOW_NON_RESTORED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_PATH_OPTION;
 
 /**
@@ -114,8 +114,8 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 		if (line.hasOption(SAVEPOINT_PATH_OPTION.getOpt())) {
 			String savepointPath = line.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
-			boolean ignoreUnmappedState = line.hasOption(SAVEPOINT_IGNORE_UNMAPPED_STATE_OPTION.getOpt());
-			this.savepointSettings = SavepointRestoreSettings.forPath(savepointPath, ignoreUnmappedState);
+			boolean allowNonRestoredState = line.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt());
+			this.savepointSettings = SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState);
 		} else {
 			this.savepointSettings = SavepointRestoreSettings.none();
 		}

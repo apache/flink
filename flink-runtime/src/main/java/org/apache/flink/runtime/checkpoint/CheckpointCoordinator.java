@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -767,7 +768,7 @@ public class CheckpointCoordinator {
 	 * restored via {@link Execution#setInitialState(TaskStateHandles)}.
 	 * @param errorIfNoCheckpoint Fail if no completed checkpoint is available to
 	 * restore from.
-	 * @param ignoreUnmappedState Ignore checkpoint state that cannot be mapped
+	 * @param allowNonRestoredState Allow checkpoint state that cannot be mapped
 	 * to any job vertex in tasks.
 	 * @return <code>true</code> if state was restored, <code>false</code> otherwise.
 	 * @throws IllegalStateException If the CheckpointCoordinator is shut down.
@@ -775,7 +776,7 @@ public class CheckpointCoordinator {
 	 *                               the <code>failIfNoCheckpoint</code> flag has been set.
 	 * @throws IllegalStateException If the checkpoint contains state that cannot be
 	 *                               mapped to any job vertex in <code>tasks</code> and the
-	 *                               <code>ignoreUnmappedState</code> flag has not been set.
+	 *                               <code>allowNonRestoredState</code> flag has not been set.
 	 * @throws IllegalStateException If the max parallelism changed for an operator
 	 *                               that restores state from this checkpoint.
 	 * @throws IllegalStateException If the parallelism changed for an operator
@@ -785,7 +786,7 @@ public class CheckpointCoordinator {
 	public boolean restoreLatestCheckpointedState(
 			Map<JobVertexID, ExecutionJobVertex> tasks,
 			boolean errorIfNoCheckpoint,
-			boolean ignoreUnmappedState) throws Exception {
+			boolean allowNonRestoredState) throws Exception {
 
 		synchronized (lock) {
 			if (shutdown) {
@@ -809,7 +810,7 @@ public class CheckpointCoordinator {
 			LOG.info("Restoring from latest valid checkpoint: {}.", latest);
 
 			StateAssignmentOperation stateAssignmentOperation =
-					new StateAssignmentOperation(LOG, tasks, latest, ignoreUnmappedState);
+					new StateAssignmentOperation(LOG, tasks, latest, allowNonRestoredState);
 
 			stateAssignmentOperation.assignStates();
 

@@ -46,18 +46,18 @@ public class StateAssignmentOperation {
 	private final Logger logger;
 	private final Map<JobVertexID, ExecutionJobVertex> tasks;
 	private final CompletedCheckpoint latest;
-	private final boolean ignoreUnmappedState;
+	private final boolean allowNonRestoredState;
 
 	public StateAssignmentOperation(
 			Logger logger,
 			Map<JobVertexID, ExecutionJobVertex> tasks,
 			CompletedCheckpoint latest,
-			boolean ignoreUnmappedState) {
+			boolean allowNonRestoredState) {
 
 		this.logger = logger;
 		this.tasks = tasks;
 		this.latest = latest;
-		this.ignoreUnmappedState = ignoreUnmappedState;
+		this.allowNonRestoredState = allowNonRestoredState;
 	}
 
 	public boolean assignStates() throws Exception {
@@ -216,8 +216,8 @@ public class StateAssignmentOperation {
 
 					currentExecutionAttempt.setInitialState(taskStateHandles);
 				}
-			} else if (ignoreUnmappedState) {
-				logger.info("Ignoring checkpoint state for operator {}.", taskState.getJobVertexID());
+			} else if (allowNonRestoredState) {
+				logger.info("Skipped checkpoint state for operator {}.", taskState.getJobVertexID());
 			} else {
 				throw new IllegalStateException("There is no execution job vertex for the job" +
 						" vertex ID " + taskGroupStateEntry.getKey());

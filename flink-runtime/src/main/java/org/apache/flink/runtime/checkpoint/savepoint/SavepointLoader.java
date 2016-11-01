@@ -46,7 +46,7 @@ public class SavepointLoader {
 	 * @param jobId          The JobID of the job to load the savepoint for.
 	 * @param tasks          Tasks that will possibly be reset
 	 * @param savepointPath  The path of the savepoint to rollback to
-	 * @param ignoreUnmappedState Ignore checkpoint state that cannot be mapped
+	 * @param allowNonRestoredState Allow to skip checkpoint state that cannot be mapped
 	 * to any job vertex in tasks.
 	 *
 	 * @throws IllegalStateException If mismatch between program and savepoint state
@@ -56,7 +56,7 @@ public class SavepointLoader {
 			JobID jobId,
 			Map<JobVertexID, ExecutionJobVertex> tasks,
 			String savepointPath,
-			boolean ignoreUnmappedState) throws IOException {
+			boolean allowNonRestoredState) throws IOException {
 
 		// (1) load the savepoint
 		Savepoint savepoint = SavepointStore.loadSavepoint(savepointPath);
@@ -83,13 +83,13 @@ public class SavepointLoader {
 
 					throw new IllegalStateException(msg);
 				}
-			} else if (ignoreUnmappedState) {
-				LOG.info("Ignoring savepoint state for operator {}.", taskState.getJobVertexID());
+			} else if (allowNonRestoredState) {
+				LOG.info("Skipping savepoint state for operator {}.", taskState.getJobVertexID());
 			} else {
 				String msg = String.format("Failed to rollback to savepoint %s. " +
 								"Cannot map savepoint state for operator %s to the new program, " +
 								"because the operator is not available in the new program. If " +
-								"you want to ignore this, you can set the --ignoreUnmappedState " +
+								"you want to allow to skip this, you can set the --allowNonRestoredState " +
 								"option on the CLI.",
 						savepointPath, taskState.getJobVertexID());
 				throw new IllegalStateException(msg);

@@ -913,14 +913,14 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * block the job manager actor and run asynchronously.
 	 *
 	 * @param errorIfNoCheckpoint Fail if there is no checkpoint available
-	 * @param ignoreUnmappedState Ignore any checkpoint state that cannot be mapped
+	 * @param allowNonRestoredState Allow to skip checkpoint state that cannot be mapped
 	 * to the the ExecutionGraph vertices (if the checkpoint contains state for a
 	 * job vertex that is not part of this ExecutionGraph).
 	 */
-	public void restoreLatestCheckpointedState(boolean errorIfNoCheckpoint, boolean ignoreUnmappedState) throws Exception {
+	public void restoreLatestCheckpointedState(boolean errorIfNoCheckpoint, boolean allowNonRestoredState) throws Exception {
 		synchronized (progressLock) {
 			if (checkpointCoordinator != null) {
-				checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), errorIfNoCheckpoint, ignoreUnmappedState);
+				checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), errorIfNoCheckpoint, allowNonRestoredState);
 			}
 		}
 	}

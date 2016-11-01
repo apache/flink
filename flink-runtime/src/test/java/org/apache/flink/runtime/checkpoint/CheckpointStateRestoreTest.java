@@ -201,12 +201,12 @@ public class CheckpointStateRestoreTest {
 	}
 
 	/**
-	 * Tests that the unmapped state flag is correctly handled.
+	 * Tests that the allow non restored state flag is correctly handled.
 	 *
-	 * The flag should only apply for state that is part of the checkpoint.
+	 * The flag only applies for state that is part of the checkpoint.
 	 */
 	@Test
-	public void testRestoreUnmappedCheckpointState() throws Exception {
+	public void testNonRestoredState() throws Exception {
 		// --- (1) Create tasks to restore checkpoint with ---
 		JobVertexID jobVertexId1 = new JobVertexID();
 		JobVertexID jobVertexId2 = new JobVertexID();
@@ -276,10 +276,10 @@ public class CheckpointStateRestoreTest {
 
 		coord.getCheckpointStore().addCheckpoint(checkpoint);
 
-		// (i) Ignore unmapped state (should succeed)
+		// (i) Allow non restored state (should succeed)
 		coord.restoreLatestCheckpointedState(tasks, true, true);
 
-		// (ii) Don't ignore unmapped state (should fail)
+		// (ii) Don't allow non restored state (should fail)
 		try {
 			coord.restoreLatestCheckpointedState(tasks, true, false);
 			fail("Did not throw the expected Exception.");
