@@ -165,41 +165,6 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 		}
 	}
 
-	// ============================================================================================
-	// Metric Reuse
-	// ============================================================================================
-	public void reuseRecordsInputCounter(Counter numRecordsInCounter) {
-		this.numRecordsIn.addCounter(numRecordsInCounter);
-	}
-
-	public void reuseRecordsOutputCounter(Counter numRecordsOutCounter) {
-		this.numRecordsOut.addCounter(numRecordsOutCounter);
-	}
-
-	/**
-	 * A {@link SimpleCounter} that can contain other {@link Counter}s. A call to {@link SumCounter#getCount()} returns
-	 * the sum of this counters and all contained counters.
-	 */
-	private static class SumCounter extends SimpleCounter {
-		private final List<Counter> internalCounters = new ArrayList<>();
-
-		SumCounter() {
-		}
-
-		public void addCounter(Counter toAdd) {
-			internalCounters.add(toAdd);
-		}
-
-		@Override
-		public long getCount() {
-			long sum = super.getCount();
-			for (Counter counter : internalCounters) {
-				sum += counter.getCount();
-			}
-			return sum;
-		}
-	}
-
 	/**
 	 * Input buffer pool usage gauge of a task
 	 */
@@ -255,6 +220,41 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 			} else {
 				return 0.0f;
 			}
+		}
+	}
+
+	// ============================================================================================
+	// Metric Reuse
+	// ============================================================================================
+	public void reuseRecordsInputCounter(Counter numRecordsInCounter) {
+		this.numRecordsIn.addCounter(numRecordsInCounter);
+	}
+
+	public void reuseRecordsOutputCounter(Counter numRecordsOutCounter) {
+		this.numRecordsOut.addCounter(numRecordsOutCounter);
+	}
+
+	/**
+	 * A {@link SimpleCounter} that can contain other {@link Counter}s. A call to {@link SumCounter#getCount()} returns
+	 * the sum of this counters and all contained counters.
+	 */
+	private static class SumCounter extends SimpleCounter {
+		private final List<Counter> internalCounters = new ArrayList<>();
+
+		SumCounter() {
+		}
+
+		public void addCounter(Counter toAdd) {
+			internalCounters.add(toAdd);
+		}
+
+		@Override
+		public long getCount() {
+			long sum = super.getCount();
+			for (Counter counter : internalCounters) {
+				sum += counter.getCount();
+			}
+			return sum;
 		}
 	}
 }
