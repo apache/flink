@@ -92,7 +92,7 @@ public abstract class AbstractKeyedStateBackend<K>
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange) {
 
-		this.kvStateRegistry = Preconditions.checkNotNull(kvStateRegistry);
+		this.kvStateRegistry = kvStateRegistry;//Preconditions.checkNotNull(kvStateRegistry);
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.numberOfKeyGroups = Preconditions.checkNotNull(numberOfKeyGroups);
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
