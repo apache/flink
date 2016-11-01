@@ -27,6 +27,7 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.TestLogger;
 import org.hamcrest.core.Is;
@@ -95,26 +96,38 @@ public class AkkaRpcActorTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the {@link AkkaRpcActor} stashes messages until the corresponding
+	 * Tests that the {@link AkkaRpcActor} discards messages until the corresponding
 	 * {@link RpcEndpoint} has been started.
 	 */
 	@Test
-	public void testMessageStashing() throws Exception {
+	public void testMessageDiscarding() throws Exception {
 		int expectedValue = 1337;
 
 		DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
 
 		DummyRpcGateway rpcGateway = rpcEndpoint.getSelf();
 
-		// this message should not be processed until we've started the rpc endpoint
+		// this message should be discarded and completed with an AkkaRpcException
 		Future<Integer> result = rpcGateway.foobar();
+
+		try {
+			result.get(timeout.getSize(), timeout.getUnit());
+			fail("Expected an AkkaRpcException.");
+		} catch (ExecutionException ee) {
+			// expected this exception, because the endpoint has not been started
+			assertTrue(ee.getCause() instanceof AkkaRpcException);
+		}
 
 		// set a new value which we expect to be returned
 		rpcEndpoint.setFoobar(expectedValue);
 
-		// now process the rpc
+		// start the endpoint so that it can process messages
 		rpcEndpoint.start();
 
+		// send the rpc again
+		result = rpcGateway.foobar();
+
+		// now we should receive a result :-)
 		Integer actualValue = result.get(timeout.getSize(), timeout.getUnit());
 
 		assertThat("The new foobar value should have been returned.", actualValue, Is.is(expectedValue));
