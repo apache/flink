@@ -1,10 +1,11 @@
 package org.apache.flink.ml.preprocessing
 
-import org.apache.flink.api.scala.DataSet
-import org.apache.flink.ml.common.{ParameterMap, Parameter}
-import org.apache.flink.ml.pipeline.{TransformDataSetOperation, FitOperation, Transformer}
+import org.apache.flink.api.scala._
+import org.apache.flink.ml.common.{Parameter, ParameterMap}
+import org.apache.flink.ml.pipeline.{FitOperation, TransformDataSetOperation, Transformer}
 import org.apache.flink.ml.preprocessing.StringIndexer.HandleInvalid
-import org.apache.flink.api.common.typeinfo.TypeInformation
+
+import scala.collection.immutable.Seq
 
 /**
   * String Indexer
@@ -41,7 +42,7 @@ object StringIndexer {
 
   implicit def fitStringIndexer ={
     new FitOperation[StringIndexer, String] {
-      def fit(instance: StringIndexer, fitParameters: ParameterMap, input: DataSet[String]) ={
+      def fit(instance: StringIndexer, fitParameters: ParameterMap, input: DataSet[String]):Unit ={
         val metrics = extractIndices( input )
         instance.metricsOption = Some( metrics )
       }
@@ -49,6 +50,8 @@ object StringIndexer {
   }
 
   private def extractIndices(input: DataSet[String]): Map[String, Int] = {
+
+    implicit val resultTypeInformation = createTypeInformation[(String, Int)]
 
     val mapper = input
       .map( s => (s, 1) )
@@ -74,9 +77,22 @@ object StringIndexer {
         val resultingParameters = instance.parameters ++ transformParameters
         val handleInvalid = resultingParameters( HandleInvalid )
 
+        def toHandle(label: String) = handleInvalid match {
+          case "skip"  => Seq.empty[(String,Int)]
+          case _ => throw new Exception(s"label ${label} has not be fitted during the fit phase - " +
+            s"Use setHandleInvalid with skip parameter to filter non fitted labels, or fit your data with " +
+            s"label ${label}")
+        }
+
         instance.metricsOption match {
           case Some( metrics ) => {
-            input.map( l => (l, metrics( l )) )
+            input.flatMap { l =>
+              val count = metrics.get(l)
+              count match {
+                case Some(value) => Seq((l,value))
+                case None => Seq.empty[(String,Int)] //toHandle(l)
+              }
+            }
           }
           case None =>
             throw new RuntimeException( "The StringIndexer has to be fitted to the data. " +
