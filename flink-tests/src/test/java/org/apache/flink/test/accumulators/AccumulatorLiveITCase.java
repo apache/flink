@@ -29,7 +29,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.IntCounter;
-import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.DataSet;
@@ -41,7 +40,6 @@ import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -203,32 +201,14 @@ public class AccumulatorLiveITCase {
 
 
 			TestingJobManagerMessages.UpdatedAccumulators msg = (TestingJobManagerMessages.UpdatedAccumulators) receiveOne(TIMEOUT);
-			Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators = msg.flinkAccumulators();
 			Map<String, Accumulator<?, ?>> userAccumulators = msg.userAccumulators();
 
 			ExecutionAttemptID mapperTaskID = null;
 
-			// find out the first task's execution attempt id
-			for (Map.Entry<ExecutionAttemptID, ?> entry : flinkAccumulators.entrySet()) {
-				if (entry.getValue() != null) {
-					mapperTaskID = entry.getKey();
-					break;
-				}
-			}
-
 			ExecutionAttemptID sinkTaskID = null;
 
-			// find the second's task id
-			for (ExecutionAttemptID key : flinkAccumulators.keySet()) {
-				if (key != mapperTaskID) {
-					sinkTaskID = key;
-					break;
-				}
-			}
-
 			/* Check for accumulator values */
-			if(checkUserAccumulators(0, userAccumulators) &&
-					checkFlinkAccumulators(mapperTaskID, 0, 0, 0, 0, flinkAccumulators)) {
+			if(checkUserAccumulators(0, userAccumulators)) {
 				LOG.info("Passed initial check for map task.");
 			} else {
 				fail("Wrong accumulator results when map task begins execution.");
@@ -242,17 +222,13 @@ public class AccumulatorLiveITCase {
 
 				// receive message
 				msg = (TestingJobManagerMessages.UpdatedAccumulators) receiveOne(TIMEOUT);
-				flinkAccumulators = msg.flinkAccumulators();
 				userAccumulators = msg.userAccumulators();
 
-				LOG.info("{}", flinkAccumulators);
 				LOG.info("{}", userAccumulators);
 
-				if (checkUserAccumulators(expectedAccVal, userAccumulators) &&
-						checkFlinkAccumulators(mapperTaskID, 0, i, 0, i * 4, flinkAccumulators)) {
+				if (checkUserAccumulators(expectedAccVal, userAccumulators)) {
 					LOG.info("Passed round #" + i);
-				} else if (checkUserAccumulators(expectedAccVal, userAccumulators) &&
-						checkFlinkAccumulators(sinkTaskID, 0, i, 0, i * 4, flinkAccumulators)) {
+				} else if (checkUserAccumulators(expectedAccVal, userAccumulators)) {
 					// we determined the wrong task id and need to switch the two here
 					ExecutionAttemptID temp = mapperTaskID;
 					mapperTaskID = sinkTaskID;
@@ -264,11 +240,9 @@ public class AccumulatorLiveITCase {
 			}
 
 			msg = (TestingJobManagerMessages.UpdatedAccumulators) receiveOne(TIMEOUT);
-			flinkAccumulators = msg.flinkAccumulators();
 			userAccumulators = msg.userAccumulators();
 
-			if(checkUserAccumulators(expectedAccVal, userAccumulators) &&
-					checkFlinkAccumulators(sinkTaskID, 0, 0, 0, 0, flinkAccumulators)) {
+			if(checkUserAccumulators(expectedAccVal, userAccumulators)) {
 				LOG.info("Passed initial check for sink task.");
 			} else {
 				fail("Wrong accumulator results when sink task begins execution.");
@@ -280,14 +254,11 @@ public class AccumulatorLiveITCase {
 				// receive message
 				msg = (TestingJobManagerMessages.UpdatedAccumulators) receiveOne(TIMEOUT);
 
-				flinkAccumulators = msg.flinkAccumulators();
 				userAccumulators = msg.userAccumulators();
 
-				LOG.info("{}", flinkAccumulators);
 				LOG.info("{}", userAccumulators);
 
-				if (checkUserAccumulators(expectedAccVal, userAccumulators) &&
-						checkFlinkAccumulators(sinkTaskID, i, 0, i * 4, 0, flinkAccumulators)) {
+				if (checkUserAccumulators(expectedAccVal, userAccumulators)) {
 					LOG.info("Passed round #" + i);
 				} else {
 					fail("Failed in round #" + i);
@@ -304,49 +275,6 @@ public class AccumulatorLiveITCase {
 		LOG.info("checking user accumulators");
 		return accumulatorMap.containsKey(ACCUMULATOR_NAME) && expected == ((IntCounter)accumulatorMap.get(ACCUMULATOR_NAME)).getLocalValue();
 	}
-
-	private static boolean checkFlinkAccumulators(ExecutionAttemptID taskKey, int expectedRecordsIn, int expectedRecordsOut, int expectedBytesIn, int expectedBytesOut,
-												  Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?,?>>> accumulatorMap) {
-		LOG.info("checking flink accumulators");
-
-		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> taskMap = accumulatorMap.get(taskKey);
-		assertTrue(accumulatorMap.size() > 0);
-
-		for (Map.Entry<AccumulatorRegistry.Metric, Accumulator<?, ?>> entry : taskMap.entrySet()) {
-			switch (entry.getKey()) {
-				/**
-				 * The following two cases are for the DataSource and Map task
-				 */
-				case NUM_RECORDS_OUT:
-					if(((LongCounter) entry.getValue()).getLocalValue() < expectedRecordsOut) {
-						return false;
-					}
-					break;
-				case NUM_BYTES_OUT:
-					if (((LongCounter) entry.getValue()).getLocalValue() < expectedBytesOut) {
-						return false;
-					}
-					break;
-				/**
-				 * The following two cases are for the DataSink task
-				 */
-				case NUM_RECORDS_IN:
-					if (((LongCounter) entry.getValue()).getLocalValue() < expectedRecordsIn) {
-						return false;
-					}
-					break;
-				case NUM_BYTES_IN:
-					if (((LongCounter) entry.getValue()).getLocalValue() < expectedBytesIn) {
-						return false;
-					}
-					break;
-				default:
-					fail("Unknown accumulator found.");
-			}
-		}
-		return true;
-	}
-
 
 	/**
 	 * UDF that notifies when it changes the accumulator values

@@ -18,8 +18,6 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
@@ -151,15 +149,6 @@ public interface AccessExecutionGraph {
 	 * @throws IOException indicates that the serialization has failed
 	 */
 	Map<String, SerializedValue<Object>> getAccumulatorsSerialized() throws IOException;
-
-	/**
-	 * Returns the aggregated system-defined accumulators.
-	 *
-	 * @return aggregated system-defined accumulators.
-	 * @deprecated Will be removed in FLINK-4527
-	 */
-	@Deprecated
-	Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> getFlinkAccumulators();
 
 	/**
 	 * Returns whether this execution graph was archived.

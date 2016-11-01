@@ -16,25 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.handlers;
-
-import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
-import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
-import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
-
-import java.util.Map;
+package org.apache.flink.runtime.executiongraph;
 
 /**
- * Request handler providing details about a single task execution attempt.
+ * Base class for exceptions occurring in the {@link ExecutionGraph}.
  */
-public class SubtaskCurrentAttemptDetailsHandler extends SubtaskExecutionAttemptDetailsHandler {
-	
-	public SubtaskCurrentAttemptDetailsHandler(ExecutionGraphHolder executionGraphHolder, MetricFetcher fetcher) {
-		super(executionGraphHolder, fetcher);
+public class ExecutionGraphException extends Exception {
+
+	private static final long serialVersionUID = -8253451032797220657L;
+
+	public ExecutionGraphException(String message) {
+		super(message);
 	}
 
-	@Override
-	public String handleRequest(AccessExecutionVertex vertex, Map<String, String> params) throws Exception {
-		return handleRequest(vertex.getCurrentExecutionAttempt(), params);
+	public ExecutionGraphException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public ExecutionGraphException(Throwable cause) {
+		super(cause);
 	}
 }

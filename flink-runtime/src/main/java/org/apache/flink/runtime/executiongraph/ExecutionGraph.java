@@ -29,7 +29,6 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.StoppingException;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -600,23 +599,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	}
 
 	/**
-	 * Gets the internal flink accumulator map of maps which contains some metrics.
-	 * @return A map of accumulators for every executed task.
-	 */
-	@Override
-	public Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?,?>>> getFlinkAccumulators() {
-		Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators =
-				new HashMap<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>>();
-
-		for (ExecutionVertex vertex : getAllExecutionVertices()) {
-			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> taskAccs = vertex.getCurrentExecutionAttempt().getFlinkAccumulators();
-			flinkAccumulators.put(vertex.getCurrentExecutionAttempt().getAttemptId(), taskAccs);
-		}
-
-		return flinkAccumulators;
-	}
-
-	/**
 	 * Merges all accumulator results from the tasks previously executed in the Executions.
 	 * @return The accumulator map
 	 */
@@ -836,14 +818,13 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				current == JobStatus.SUSPENDED ||
 				current.isGloballyTerminalState()) {
 				return;
-			} else if (current == JobStatus.RESTARTING && transitionState(current, JobStatus.FAILED, t)) {
-				synchronized (progressLock) {
-					postRunCleanup();
-					progressLock.notifyAll();
+			} else if (current == JobStatus.RESTARTING) {
+				this.failureCause = t;
 
-					LOG.info("Job {} failed during restart.", getJobID());
+				if (tryRestartOrFail()) {
 					return;
 				}
+				// concurrent job status change, let's check again
 			} else if (transitionState(current, JobStatus.FAILING, t)) {
 				this.failureCause = t;
 
@@ -920,6 +901,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			scheduleForExecution(slotProvider);
 		}
 		catch (Throwable t) {
+			LOG.warn("Failed to restart the job.", t);
 			fail(t);
 		}
 	}
@@ -1025,15 +1007,10 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 						}
 					}
 					else if (current == JobStatus.FAILING) {
-						boolean allowRestart = !(failureCause instanceof SuppressRestartsException);
-
-						if (allowRestart && restartStrategy.canRestart() && transitionState(current, JobStatus.RESTARTING)) {
-							restartStrategy.restart(this);
-							break;
-						} else if ((!allowRestart || !restartStrategy.canRestart()) && transitionState(current, JobStatus.FAILED, failureCause)) {
-							postRunCleanup();
+						if (tryRestartOrFail()) {
 							break;
 						}
+						// concurrent job status change, let's check again
 					}
 					else if (current == JobStatus.SUSPENDED) {
 						// we've already cleaned up when entering the SUSPENDED state
@@ -1057,6 +1034,47 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 	}
 
+	/**
+	 * Try to restart the job. If we cannot restart the job (e.g. no more restarts allowed), then
+	 * try to fail the job. This operation is only permitted if the current state is FAILING or
+	 * RESTARTING.
+	 *
+	 * @return true if the operation could be executed; false if a concurrent job status change occurred
+	 */
+	private boolean tryRestartOrFail() {
+		JobStatus currentState = state;
+
+		if (currentState == JobStatus.FAILING || currentState == JobStatus.RESTARTING) {
+			synchronized (progressLock) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Try to restart the job or fail it if no longer possible.", failureCause);
+				} else {
+					LOG.info("Try to restart the job or fail it if no longer possible.");
+				}
+
+				boolean isRestartable = !(failureCause instanceof SuppressRestartsException) && restartStrategy.canRestart();
+
+				if (isRestartable && transitionState(currentState, JobStatus.RESTARTING)) {
+					LOG.info("Restarting the job...");
+					restartStrategy.restart(this);
+
+					return true;
+				} else if (!isRestartable && transitionState(currentState, JobStatus.FAILED, failureCause)) {
+					LOG.info("Could not restart the job.", failureCause);
+					postRunCleanup();
+
+					return true;
+				} else {
+					// we must have changed the state concurrently, thus we cannot complete this operation
+					return false;
+				}
+			}
+		} else {
+			// this operation is only allowed in the state FAILING or RESTARTING
+			return false;
+		}
+	}
+
 	private void postRunCleanup() {
 		try {
 			CheckpointCoordinator coord = this.checkpointCoordinator;
@@ -1075,7 +1093,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	/**
 	 * Updates the state of one of the ExecutionVertex's Execution attempts.
-	 * If the new status if "FINISHED", this also updates the
+	 * If the new status if "FINISHED", this also updates the accumulators.
 	 * 
 	 * @param state The state update.
 	 * @return True, if the task update was properly applied, false, if the execution attempt was not found.
@@ -1090,11 +1108,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				case FINISHED:
 					try {
 						AccumulatorSnapshot accumulators = state.getAccumulators();
-						Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators =
-							accumulators.deserializeFlinkAccumulators();
 						Map<String, Accumulator<?, ?>> userAccumulators =
 							accumulators.deserializeUserAccumulators(userClassLoader);
-						attempt.markFinished(flinkAccumulators, userAccumulators);
+						attempt.markFinished(userAccumulators, state.getIOMetrics());
 					}
 					catch (Exception e) {
 						LOG.error("Failed to deserialize final accumulator results.", e);
@@ -1119,17 +1135,23 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 	}
 
-	public void scheduleOrUpdateConsumers(ResultPartitionID partitionId) {
+	/**
+	 * Schedule or updates consumers of the given result partition.
+	 *
+	 * @param partitionId specifying the result partition whose consumer shall be scheduled or updated
+	 * @throws ExecutionGraphException if the schedule or update consumers operation could not be executed
+	 */
+	public void scheduleOrUpdateConsumers(ResultPartitionID partitionId) throws ExecutionGraphException {
 
 		final Execution execution = currentExecutions.get(partitionId.getProducerId());
 
 		if (execution == null) {
-			fail(new IllegalStateException("Cannot find execution for execution ID " +
-					partitionId.getPartitionId()));
+			throw new ExecutionGraphException("Cannot find execution for execution Id " +
+				partitionId.getPartitionId() + '.');
 		}
 		else if (execution.getVertex() == null){
-			fail(new IllegalStateException("Execution with execution ID " +
-					partitionId.getPartitionId() + " has no vertex assigned."));
+			throw new ExecutionGraphException("Execution with execution Id " +
+				partitionId.getPartitionId() + " has no vertex assigned.");
 		} else {
 			execution.getVertex().scheduleOrUpdateConsumers(partitionId);
 		}
@@ -1160,16 +1182,14 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * @param accumulatorSnapshot The serialized flink and user-defined accumulators
 	 */
 	public void updateAccumulators(AccumulatorSnapshot accumulatorSnapshot) {
-		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
 		Map<String, Accumulator<?, ?>> userAccumulators;
 		try {
-			flinkAccumulators = accumulatorSnapshot.deserializeFlinkAccumulators();
 			userAccumulators = accumulatorSnapshot.deserializeUserAccumulators(userClassLoader);
 
 			ExecutionAttemptID execID = accumulatorSnapshot.getExecutionAttemptID();
 			Execution execution = currentExecutions.get(execID);
 			if (execution != null) {
-				execution.setAccumulators(flinkAccumulators, userAccumulators);
+				execution.setAccumulators(userAccumulators);
 			} else {
 				LOG.warn("Received accumulator result for unknown execution {}.", execID);
 			}

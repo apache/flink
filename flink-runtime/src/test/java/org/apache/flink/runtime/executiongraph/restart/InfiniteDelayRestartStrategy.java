@@ -29,13 +29,33 @@ import org.slf4j.LoggerFactory;
 public class InfiniteDelayRestartStrategy implements RestartStrategy {
 	private static final Logger LOG = LoggerFactory.getLogger(InfiniteDelayRestartStrategy.class);
 
+	private final int maxRestartAttempts;
+	private int restartAttemptCounter;
+
+	public InfiniteDelayRestartStrategy() {
+		this(-1);
+	}
+
+	public InfiniteDelayRestartStrategy(int maxRestartAttempts) {
+		this.maxRestartAttempts = maxRestartAttempts;
+		restartAttemptCounter = 0;
+	}
+
 	@Override
 	public boolean canRestart() {
-		return true;
+		if (maxRestartAttempts >= 0) {
+			return restartAttemptCounter < maxRestartAttempts;
+		} else {
+			return true;
+		}
 	}
 
 	@Override
 	public void restart(ExecutionGraph executionGraph) {
 		LOG.info("Delaying retry of job execution forever");
+
+		if (maxRestartAttempts >= 0) {
+			restartAttemptCounter++;
+		}
 	}
 }

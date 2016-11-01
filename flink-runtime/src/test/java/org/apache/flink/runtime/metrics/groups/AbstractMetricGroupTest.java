@@ -39,6 +39,11 @@ public class AbstractMetricGroupTest {
 			protected QueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
 				return null;
 			}
+
+			@Override
+			protected String getGroupName(CharacterFilter filter) {
+				return "";
+			}
 		};
 		assertTrue(group.getAllVariables().isEmpty());
 		

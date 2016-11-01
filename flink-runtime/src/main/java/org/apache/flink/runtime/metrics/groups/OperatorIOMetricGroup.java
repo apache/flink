@@ -56,4 +56,21 @@ public class OperatorIOMetricGroup extends ProxyMetricGroup<OperatorMetricGroup>
 	public Meter getNumRecordsOutRate() {
 		return numRecordsOutRate;
 	}
+
+	/**
+	 * Causes the containing task to use this operators input record counter.
+	 */
+	public void reuseInputMetricsForTask() {
+		TaskIOMetricGroup taskIO = parentMetricGroup.parent().getIOMetricGroup();
+		taskIO.reuseRecordsInputCounter(this.numRecordsIn);
+		
+	}
+
+	/**
+	 * Causes the containing task to use this operators output record counter.
+	 */
+	public void reuseOutputMetricsForTask() {
+		TaskIOMetricGroup taskIO = parentMetricGroup.parent().getIOMetricGroup();
+		taskIO.reuseRecordsOutputCounter(this.numRecordsOut);
+	}
 }
