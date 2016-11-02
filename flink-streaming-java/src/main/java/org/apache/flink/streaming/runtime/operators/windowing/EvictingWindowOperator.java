@@ -28,7 +28,6 @@ import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
@@ -98,10 +97,6 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 			MergingWindowSet<W> mergingWindows = getMergingWindowSet();
 
 			for (W window : elementWindows) {
-				// If there is a merge, it can only result in a window that contains our new
-				// element because we always eagerly merge
-				final Tuple1<TriggerResult> mergeTriggerResult = new Tuple1<>(TriggerResult.CONTINUE);
-
 
 				// adding the new window might result in a merge, in that case the actualWindow
 				// is the merged window and we work with that. If we don't merge then
@@ -115,8 +110,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 								context.key = key;
 								context.window = mergeResult;
 
-								// store for later use
-								mergeTriggerResult.f0 = context.onMerge(mergedWindows);
+								context.onMerge(mergedWindows);
 
 								for (W m : mergedWindows) {
 									context.window = m;
@@ -152,12 +146,9 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 				evictorContext.key = key;
 				evictorContext.window = actualWindow;
 
-				// we might have already fired because of a merge but still call onElement
-				// on the (possibly merged) window
 				TriggerResult triggerResult = context.onElement(element);
-				TriggerResult combinedTriggerResult = TriggerResult.merge(triggerResult, mergeTriggerResult.f0);
 
-				if (combinedTriggerResult.isFire()) {
+				if (triggerResult.isFire()) {
 					Iterable<StreamRecord<IN>> contents = windowState.get();
 					if (contents == null) {
 						// if we have no state, there is nothing to do
@@ -166,7 +157,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 					fire(actualWindow, contents, windowState);
 				}
 
-				if (combinedTriggerResult.isPurge()) {
+				if (triggerResult.isPurge()) {
 					cleanup(actualWindow, windowState, mergingWindows);
 				} else {
 					registerCleanupTimer(actualWindow);

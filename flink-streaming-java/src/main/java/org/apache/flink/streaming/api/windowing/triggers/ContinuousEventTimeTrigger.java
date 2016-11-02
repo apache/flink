@@ -109,13 +109,12 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 	}
 
 	@Override
-	public TriggerResult onMerge(W window, OnMergeContext ctx) throws Exception {
+	public void onMerge(W window, OnMergeContext ctx) throws Exception {
 		ctx.mergePartitionedState(stateDesc);
 		Long nextFireTimestamp = ctx.getPartitionedState(stateDesc).get();
 		if (nextFireTimestamp != null) {
 			ctx.registerEventTimeTimer(nextFireTimestamp);
 		}
-		return TriggerResult.CONTINUE;
 	}
 
 	@Override
