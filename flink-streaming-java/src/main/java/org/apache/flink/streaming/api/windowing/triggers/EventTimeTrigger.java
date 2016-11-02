@@ -67,10 +67,9 @@ public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 	}
 
 	@Override
-	public TriggerResult onMerge(TimeWindow window,
+	public void onMerge(TimeWindow window,
 			OnMergeContext ctx) {
 		ctx.registerEventTimeTimer(window.maxTimestamp());
-		return TriggerResult.CONTINUE;
 	}
 
 	@Override
@@ -88,4 +87,6 @@ public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 	public static EventTimeTrigger create() {
 		return new EventTimeTrigger();
 	}
+
+
 }

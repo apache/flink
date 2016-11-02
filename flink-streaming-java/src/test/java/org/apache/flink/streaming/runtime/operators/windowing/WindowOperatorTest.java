@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,7 +32,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -2451,10 +2450,9 @@ public class WindowOperatorTest extends TestLogger {
 		}
 
 		@Override
-		public TriggerResult onMerge(TimeWindow window,
+		public void onMerge(TimeWindow window,
 									 OnMergeContext ctx) {
 			ctx.registerEventTimeTimer(window.maxTimestamp());
-			return TriggerResult.CONTINUE;
 		}
 
 		@Override

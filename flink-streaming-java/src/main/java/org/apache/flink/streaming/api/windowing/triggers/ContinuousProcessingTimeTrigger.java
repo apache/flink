@@ -97,10 +97,9 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
 	}
 
 	@Override
-	public TriggerResult onMerge(W window,
+	public void onMerge(W window,
 			OnMergeContext ctx) {
 		ctx.mergePartitionedState(stateDesc);
-		return TriggerResult.CONTINUE;
 	}
 
 	@VisibleForTesting
