@@ -126,15 +126,15 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 			cassandra.startProcess();
 		}
 
-		int attempt = 0;
+		long start = System.currentTimeMillis();
+		long deadline = start + 1000 * 30;
 		while (true) {
 			try {
-				attempt++;
 				cluster = builder.getCluster();
 				session = cluster.connect();
 				break;
 			} catch (Exception e) {
-				if (attempt > 30) {
+				if (System.currentTimeMillis() > deadline) {
 					throw e;
 				}
 				try {
@@ -143,7 +143,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 				}
 			}
 		}
-		LOG.debug("Connection established after " + attempt + " attempts.");
+		LOG.debug("Connection established after {}ms.", System.currentTimeMillis() - start);
 
 		session.execute(CREATE_KEYSPACE_QUERY);
 		session.execute(CREATE_TABLE_QUERY.replace("$TABLE", "flink_initial"));
