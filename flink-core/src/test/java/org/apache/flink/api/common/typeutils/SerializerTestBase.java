@@ -402,6 +402,11 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			assertEquals(((Throwable)should).getMessage(), ((Throwable)is).getMessage());
 		}
 		else {
+			// if toString() was overridden we must check it
+			if (!should.toString().equals(should.getClass().getName() +
+										  "@" + Integer.toHexString(should.hashCode()))) {
+				assertEquals(message, should.toString(), is.toString());
+			}
 			assertEquals(message,  should, is);
 		}
 	}
