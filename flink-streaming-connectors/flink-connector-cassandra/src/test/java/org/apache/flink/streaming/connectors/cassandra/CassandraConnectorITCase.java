@@ -56,7 +56,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -124,8 +123,6 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	
 	private static Random random = new Random();
 	private int lastInt;
-
-	private static LocalFlinkMiniCluster flinkCluster;
 
 	@BeforeClass
 	public static void startCassandra() throws IOException {
