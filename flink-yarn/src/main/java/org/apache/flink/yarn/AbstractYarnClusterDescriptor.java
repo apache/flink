@@ -301,6 +301,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			throw new YarnDeploymentException("Flink configuration object has not been set");
 		}
 
+		int numYarnVcores = conf.getInt(YarnConfiguration.NM_VCORES, YarnConfiguration.DEFAULT_NM_VCORES);
+		// don't configure more than the maximum configured number of vcores
+		if (slots > numYarnVcores) {
+			throw new IllegalConfigurationException(
+				String.format("The number of task slots per node was configured with %d" +
+					" but Yarn only has %d virtual cores available.", slots, numYarnVcores));
+		}
+
 		// check if required Hadoop environment variables are set. If not, warn user
 		if(System.getenv("HADOOP_CONF_DIR") == null &&
 			System.getenv("YARN_CONF_DIR") == null) {
@@ -717,14 +725,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		appMasterEnv.putAll(Utils.getEnvironmentVariables(ConfigConstants.YARN_APPLICATION_MASTER_ENV_PREFIX, flinkConfiguration));
 		// set Flink app class path
 		appMasterEnv.put(YarnConfigKeys.ENV_FLINK_CLASSPATH, classPathBuilder.toString());
-
-		int numYarnVcores = conf.getInt(YarnConfiguration.NM_VCORES, YarnConfiguration.DEFAULT_NM_VCORES);
-		// don't configure more than the maximum configured number of vcores
-		if (slots > numYarnVcores) {
-			throw new IllegalConfigurationException(
-				String.format("The number of task slots per node was configured with %d" +
-					" but Yarn only has %d virtual cores available.", slots, numYarnVcores));
-		}
 
 		// set Flink on YARN internal configuration values
 		appMasterEnv.put(YarnConfigKeys.ENV_TM_COUNT, String.valueOf(taskManagerCount));
