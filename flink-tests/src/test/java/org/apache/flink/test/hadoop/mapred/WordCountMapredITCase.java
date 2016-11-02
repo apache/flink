@@ -24,6 +24,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.hadoop.mapred.HadoopOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import static org.apache.flink.hadoopcompatibility.HadoopInputs.readHadoopFile;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
@@ -52,11 +53,24 @@ public class WordCountMapredITCase extends JavaProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
+		internalRun(true);
+		postSubmit();
+		resultPath = getTempDirPath("result2");
+		internalRun(false);
+	}
+
+	private void internalRun(boolean isTestDeprecatedAPI) throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
+		DataSet<Tuple2<LongWritable, Text>> input;
 
-		DataSet<Tuple2<LongWritable, Text>> input = env.readHadoopFile(new TextInputFormat(),
+		if (isTestDeprecatedAPI) {
+			input = env.readHadoopFile(new TextInputFormat(),
 				LongWritable.class, Text.class, textPath);
+		} else {
+			input = env.createInput(readHadoopFile(new TextInputFormat(),
+				LongWritable.class, Text.class, textPath));
+		}
 
 		DataSet<String> text = input.map(new MapFunction<Tuple2<LongWritable, Text>, String>() {
 			@Override

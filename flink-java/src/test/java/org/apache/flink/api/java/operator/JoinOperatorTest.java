@@ -1212,7 +1212,7 @@ public class JoinOperatorTest {
 		public Object nothing;
 		public List<String> countries;
 		public Writable interfaceTest;
-		
+
 		public CustomType() {}
 
 		public CustomType(int i, long l, String s) {
