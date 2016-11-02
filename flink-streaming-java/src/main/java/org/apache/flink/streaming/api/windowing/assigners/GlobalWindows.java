@@ -92,9 +92,7 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 		public void clear(GlobalWindow window, TriggerContext ctx) throws Exception {}
 
 		@Override
-		public TriggerResult onMerge(GlobalWindow window,
-				OnMergeContext ctx) {
-			return TriggerResult.CONTINUE;
+		public void onMerge(GlobalWindow window, OnMergeContext ctx) {
 		}
 	}
 
