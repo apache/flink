@@ -24,7 +24,6 @@ import org.apache.flink.runtime.testutils.TestJvmProcess;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.util.Scanner;
 import java.util.concurrent.CountDownLatch;
 
