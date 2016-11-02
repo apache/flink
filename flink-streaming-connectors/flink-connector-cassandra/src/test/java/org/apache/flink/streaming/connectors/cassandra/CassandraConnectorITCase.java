@@ -27,7 +27,6 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SocketOptions;
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.InputFormat;
@@ -42,9 +41,6 @@ import org.apache.flink.batch.connectors.cassandra.CassandraOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.testutils.CommonTestUtils.PipeForwarder;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -62,21 +58,13 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.Scanner;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
-import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
-import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
-import static org.apache.flink.runtime.testutils.CommonTestUtils.isProcessAlive;
 
 @SuppressWarnings("serial")
 @RunWith(PowerMockRunner.class)
@@ -84,11 +72,10 @@ import static org.apache.flink.runtime.testutils.CommonTestUtils.isProcessAlive;
 public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<String, Integer, Integer>, CassandraConnectorITCase.TestCassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CassandraConnectorITCase.class);
-	private static File tmpDir;
 
 	private static final boolean EMBEDDED = true;
 
-	private static Process cassandra;
+	private static CassandraService cassandra;
 
 	private static ClusterBuilder builder = new ClusterBuilder() {
 		@Override
@@ -118,8 +105,6 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 			collection.add(new Tuple3<>(UUID.randomUUID().toString(), i, 0));
 		}
 	}
-
-	private static StringWriter sw;
 	
 	private static Random random = new Random();
 	private int lastInt;
@@ -130,69 +115,15 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		// check if we should run this test, current Cassandra version requires Java >= 1.8
 		org.apache.flink.core.testutils.CommonTestUtils.assumeJava8();
 
-		// generate temporary files
-		tmpDir = CommonTestUtils.createTempDirectory();
-		ClassLoader classLoader = CassandraConnectorITCase.class.getClassLoader();
-		File file = new File(classLoader.getResource("cassandra.yaml").getFile());
-		File tmp = new File(tmpDir.getAbsolutePath() + File.separator + "cassandra.yaml");
-		
-		assertTrue(tmp.createNewFile());
-
-		try (
-			BufferedWriter b = new BufferedWriter(new FileWriter(tmp));
-
-			//copy cassandra.yaml; inject absolute paths into cassandra.yaml
-			Scanner scanner = new Scanner(file);
-		) {
-			while (scanner.hasNextLine()) {
-				String line = scanner.nextLine();
-				line = line.replace("$PATH", "'" + tmp.getParentFile());
-				b.write(line + "\n");
-				b.flush();
-			}
+		try {
+			cassandra = new CassandraService();
+		} catch (Exception e) {
+			LOG.error("Failed to instantiate cassandra service.", e);
+			fail("Failed to instantiate cassandra service.");
 		}
 
 		if (EMBEDDED) {
-			String javaCommand = getJavaCommandPath();
-
-			// create a logging file for the process
-			File tempLogFile = File.createTempFile("testlogconfig", "properties");
-			CommonTestUtils.printLog4jDebugConfig(tempLogFile);
-
-			// start the task manager process
-			String[] command = new String[]{
-				javaCommand,
-				"-Dlog.level=DEBUG",
-				"-Dlog4j.configuration=file:" + tempLogFile.getAbsolutePath(),
-				"-Dcassandra.config=" + tmp.toURI(),
-				// these options were taken directly from the jvm.options file in the cassandra repo
-				"-XX:+UseThreadPriorities",
-				"-Xss256k",
-				"-XX:+AlwaysPreTouch",
-				"-XX:+UseTLAB",
-				"-XX:+ResizeTLAB",
-				"-XX:+UseNUMA",
-				"-XX:+PerfDisableSharedMem",
-				"-XX:+UseParNewGC",
-				"-XX:+UseConcMarkSweepGC",
-				"-XX:+CMSParallelRemarkEnabled",
-				"-XX:SurvivorRatio=8",
-				"-XX:MaxTenuringThreshold=1",
-				"-XX:CMSInitiatingOccupancyFraction=75",
-				"-XX:+UseCMSInitiatingOccupancyOnly",
-				"-XX:CMSWaitDuration=10000",
-				"-XX:+CMSParallelInitialMarkEnabled",
-				"-XX:+CMSEdenChunksRecordAlways",
-				"-XX:+CMSClassUnloadingEnabled",
-
-				"-classpath", getCurrentClasspath(),
-				EmbeddedCassandraService.class.getName()
-			};
-
-			ProcessBuilder bld = new ProcessBuilder(command);
-			cassandra = bld.start();
-			sw = new StringWriter();
-			new PipeForwarder(cassandra.getErrorStream(), sw);
+			cassandra.startProcess();
 		}
 
 		int attempt = 0;
@@ -239,24 +170,8 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 			cluster.close();
 		}
 
-		if (isProcessAlive(cassandra)) {
-			try {
-				cassandra.getOutputStream().write(1);
-				cassandra.getOutputStream().flush();
-			} catch (IOException e) {
-			}
+		if (EMBEDDED) {
 			cassandra.destroy();
-		}
-
-		if (tmpDir != null) {
-			try {
-				FileUtils.deleteDirectory(tmpDir);
-			} catch (IOException e) {
-				LOG.error("Failed to delete tmp directory.", e);
-			}
-		}
-		if (sw != null) {
-			//System.out.println(sw.toString());
 		}
 	}
 
