@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.functions.utils;
+package org.apache.flink.api.table.functions.utils
 
-import java.math.BigDecimal;
+import java.math.{BigDecimal => JBigDecimal}
 
-public class MathFunctions {
+class MathFunctions {}
 
-	public static double power(double a, BigDecimal b) {
-		return Math.pow(a, b.doubleValue());
-	}
-
+object MathFunctions {
+  def power(a: Double, b: JBigDecimal): Double = {
+    Math.pow(a, b.doubleValue())
+  }
 }
