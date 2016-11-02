@@ -19,7 +19,6 @@
 package org.apache.flink.hadoopcompatibility;
 
 import org.apache.commons.cli.Option;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.hadoop.util.GenericOptionsParser;
 
@@ -39,7 +38,6 @@ public class HadoopUtils {
 	 * @throws IOException If arguments cannot be parsed by {@link GenericOptionsParser}
 	 * @see GenericOptionsParser
 	 */
-	@PublicEvolving
 	public static ParameterTool paramsFromGenericOptionsParser(String[] args) throws IOException {
 		Option[] options = new GenericOptionsParser(args).getCommandLine().getOptions();
 		Map<String, String> map = new HashMap<String, String>();

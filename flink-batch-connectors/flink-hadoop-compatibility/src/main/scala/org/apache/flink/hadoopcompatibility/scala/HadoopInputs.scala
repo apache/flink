@@ -15,151 +15,130 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.scala.hadoop
+package org.apache.flink.hadoopcompatibility.scala
 
-import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.hadoop.mapred.{HadoopInputFormat => MapredHadoopInputFormat}
-import org.apache.flink.api.scala.hadoop.mapreduce.{HadoopInputFormat => MapreduceHadoopInputFormat}
-import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
+import org.apache.flink.api.scala.hadoop.mapreduce
+import org.apache.flink.api.scala.hadoop.mapred
 import org.apache.hadoop.fs.{Path => HadoopPath}
 import org.apache.hadoop.mapred.{JobConf, FileInputFormat => MapredFileInputFormat, InputFormat => MapredInputFormat}
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => MapreduceFileInputFormat}
 import org.apache.hadoop.mapreduce.{Job, InputFormat => MapreduceInputFormat}
 
 /**
- * The FlinkHadoopEnvironment is the context in which a program is executed, connected with hadoop.
- *
- * The environment provides methods to interact with the hadoop cluster (data access).
- *
- *  Use [[FlinkHadoopEnvironment#getHadoopEnvironment]] to get the correct environment.
- */
-@Public
-class FlinkHadoopEnvironment(parentEnv: ExecutionEnvironment) {
+  * HadoopInputs is a utility class to use Apache Hadoop InputFormats with Apache Flink.
+  *
+  * It provides methods to create Flink InputFormat wrappers for Hadoop
+  * [[org.apache.hadoop.mapred.InputFormat]] and [[org.apache.hadoop.mapreduce.InputFormat]].
+  * Key value pairs produced by the Hadoop InputFormats are converted into tuple.
+  *
+  */
+object HadoopInputs {
 
   /**
-   * @return the Execution environment.
-   */
-  def getParentEnv: ExecutionEnvironment = parentEnv
-
-  /**
-    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapred.FileInputFormat]]. The
-    * given inputName is set on the given job.
+    * Creates a [[org.apache.flink.api.scala.hadoop.mapred.HadoopInputFormat]] from the given
+    * [[org.apache.hadoop.mapred.FileInputFormat]]. The given inputName is set on the given job.
     */
-  @PublicEvolving
   def readHadoopFile[K, V](
                             mapredInputFormat: MapredFileInputFormat[K, V],
                             key: Class[K],
                             value: Class[V],
                             inputPath: String,
                             job: JobConf)
-                          (implicit tpe: TypeInformation[(K, V)]): DataSet[(K, V)] = {
-    val result = createHadoopInput(mapredInputFormat, key, value, job)
+                          (implicit tpe:
+                          TypeInformation[(K, V)]): mapred.HadoopInputFormat[K, V] = {
     MapredFileInputFormat.addInputPath(job, new HadoopPath(inputPath))
-    result
+    createHadoopInput(mapredInputFormat, key, value, job)
   }
 
   /**
-    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapred.FileInputFormat]]. A
-    * [[org.apache.hadoop.mapred.JobConf]] with the given inputPath is created.
+    * Creates a [[org.apache.flink.api.scala.hadoop.mapred.HadoopInputFormat]]  from the given
+    * [[org.apache.hadoop.mapred.FileInputFormat]]. A [[org.apache.hadoop.mapred.JobConf]] with
+    * the given inputPath is created.
     */
-  @PublicEvolving
   def readHadoopFile[K, V](
                             mapredInputFormat: MapredFileInputFormat[K, V],
                             key: Class[K],
                             value: Class[V],
                             inputPath: String)
-                          (implicit tpe: TypeInformation[(K, V)]): DataSet[(K, V)] = {
+                          (implicit tpe:
+                          TypeInformation[(K, V)]): mapred.HadoopInputFormat[K, V] = {
     readHadoopFile(mapredInputFormat, key, value, inputPath, new JobConf)
   }
 
   /**
-    * Creates a [[DataSet]] from [[org.apache.hadoop.mapred.SequenceFileInputFormat]]
-    * A [[org.apache.hadoop.mapred.JobConf]] with the given inputPath is created.
+    * Creates a [[[org.apache.flink.api.scala.hadoop.mapred.HadoopInputFormat]] from key
+    * [[java.lang.Class]] and value [[java.lang.Class]] A [[org.apache.hadoop.mapred.JobConf]]
+    * with the given inputPath is created.
     */
-  @PublicEvolving
   def readSequenceFile[K, V](
                               key: Class[K],
                               value: Class[V],
                               inputPath: String)
-                            (implicit tpe: TypeInformation[(K, V)]): DataSet[(K, V)] = {
+                            (implicit tpe:
+                            TypeInformation[(K, V)]): mapred.HadoopInputFormat[K, V] = {
     readHadoopFile(new org.apache.hadoop.mapred.SequenceFileInputFormat[K, V],
       key, value, inputPath)
   }
 
   /**
-    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapred.InputFormat]].
+    * Creates a [[org.apache.flink.api.scala.hadoop.mapred.HadoopInputFormat]] from the given
+    * [[org.apache.hadoop.mapred.InputFormat]].
     */
-  @PublicEvolving
   def createHadoopInput[K, V](
                                mapredInputFormat: MapredInputFormat[K, V],
                                key: Class[K],
                                value: Class[V],
                                job: JobConf)
-                             (implicit tpe: TypeInformation[(K, V)]): DataSet[(K, V)] = {
-    val hadoopInputFormat = new mapred.HadoopInputFormat[K, V](mapredInputFormat, key, value, job)
-    getParentEnv.createInput(hadoopInputFormat)
+                             (implicit tpe:
+                             TypeInformation[(K, V)]): mapred.HadoopInputFormat[K, V] = {
+    new mapred.HadoopInputFormat[K, V](mapredInputFormat, key, value, job)
   }
 
   /**
-    * Creates a [[DataSet]] from the given
+    * Creates a [[org.apache.flink.api.scala.hadoop.mapreduce.HadoopInputFormat]] from the given
     * [[org.apache.hadoop.mapreduce.lib.input.FileInputFormat]].
     * The given inputName is set on the given job.
     */
-  @PublicEvolving
   def readHadoopFile[K, V](
                             mapreduceInputFormat: MapreduceFileInputFormat[K, V],
                             key: Class[K],
                             value: Class[V],
                             inputPath: String,
                             job: Job)
-                          (implicit tpe: TypeInformation[(K, V)]): DataSet[(K, V)] = {
-    val result = createHadoopInput(mapreduceInputFormat, key, value, job)
+                          (implicit tpe:
+                          TypeInformation[(K, V)]): mapreduce.HadoopInputFormat[K, V] = {
     MapreduceFileInputFormat.addInputPath(job, new HadoopPath(inputPath))
-    result
+    createHadoopInput(mapreduceInputFormat, key, value, job)
   }
 
   /**
-    * Creates a [[DataSet]] from the given
+    * Creates a [[org.apache.flink.api.scala.hadoop.mapreduce.HadoopInputFormat]] from the given
     * [[org.apache.hadoop.mapreduce.lib.input.FileInputFormat]]. A
     * [[org.apache.hadoop.mapreduce.Job]] with the given inputPath will be created.
     */
-  @PublicEvolving
   def readHadoopFile[K, V](
                             mapreduceInputFormat: MapreduceFileInputFormat[K, V],
                             key: Class[K],
                             value: Class[V],
                             inputPath: String)
-                          (implicit tpe: TypeInformation[(K, V)]): DataSet[Tuple2[K, V]] = {
+                          (implicit tpe:
+                          TypeInformation[(K, V)]): mapreduce.HadoopInputFormat[K, V]  = {
     readHadoopFile(mapreduceInputFormat, key, value, inputPath, Job.getInstance)
   }
 
   /**
-    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapreduce.InputFormat]].
+    * Creates a [[org.apache.flink.api.scala.hadoop.mapreduce.HadoopInputFormat]] from the given
+    * [[org.apache.hadoop.mapreduce.InputFormat]].
     */
-  @PublicEvolving
   def createHadoopInput[K, V](
                                mapreduceInputFormat: MapreduceInputFormat[K, V],
                                key: Class[K],
                                value: Class[V],
                                job: Job)
-                             (implicit tpe: TypeInformation[(K, V)]): DataSet[Tuple2[K, V]] = {
-    val hadoopInputFormat =
-      new mapreduce.HadoopInputFormat[K, V](mapreduceInputFormat, key, value, job)
-    getParentEnv.createInput(hadoopInputFormat)
+                             (implicit tpe:
+                             TypeInformation[(K, V)]): mapreduce.HadoopInputFormat[K, V] = {
+    new mapreduce.HadoopInputFormat[K, V](mapreduceInputFormat, key, value, job)
   }
-}
-
-@Public
-object FlinkHadoopEnvironment {
-
-  /**
-   * Creates a hadoop environment that represents the context in which the program is
-   * currently executed.
-   */
-  def getHadoopEnvironment(env: ExecutionEnvironment): FlinkHadoopEnvironment = {
-    new FlinkHadoopEnvironment(env)
-  }
-
 }
 
