@@ -476,7 +476,7 @@ public class JobManagerHARecoveryTest {
 		}
 
 		@Override
-		public void abortCheckpointOnBarrier(long checkpointId) {
+		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
 			throw new UnsupportedOperationException("should not be called!");
 		}
 

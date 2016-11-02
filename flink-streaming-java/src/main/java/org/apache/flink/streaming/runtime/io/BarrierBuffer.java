@@ -18,7 +18,11 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineException;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineSubsumedException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.decline.InputEndOfStreamException;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -143,7 +147,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 				}
 				else {
 					if (next.getEvent().getClass() == EndOfPartitionEvent.class) {
-						processEndOfPartition(next.getChannelIndex());
+						processEndOfPartition();
 					}
 					return next;
 				}
@@ -197,7 +201,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 						"Skipping current checkpoint.", barrierId, currentCheckpointId);
 
 				// let the task know we are not completing this
-				notifyAbort(currentCheckpointId);
+				notifyAbort(currentCheckpointId, new CheckpointDeclineSubsumedException(barrierId));
 
 				// abort the current checkpoint
 				releaseBlocksAndResetBarriers();
@@ -242,7 +246,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 			if (barrierId > currentCheckpointId) {
 				// new checkpoint
 				currentCheckpointId = barrierId;
-				notifyAbort(barrierId);
+				notifyAbortOnCancellationBarrier(barrierId);
 			}
 			return;
 		}
@@ -259,7 +263,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 				}
 
 				releaseBlocksAndResetBarriers();
-				notifyAbort(barrierId);
+				notifyAbortOnCancellationBarrier(barrierId);
 			}
 			else if (barrierId > currentCheckpointId) {
 				// we canceled the next which also cancels the current
@@ -273,7 +277,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 				currentCheckpointId = barrierId;
 				startOfAlignmentTimestamp = 0L;
 				latestAlignmentDurationNanos = 0L;
-				notifyAbort(barrierId);
+				notifyAbortOnCancellationBarrier(barrierId);
 			}
 
 			// else: ignore trailing (cancellation) barrier from an earlier checkpoint (obsolete now)
@@ -293,7 +297,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 				LOG.debug("Checkpoint {} canceled, skipping alignment", barrierId);
 			}
 
-			notifyAbort(barrierId);
+			notifyAbortOnCancellationBarrier(barrierId);
 		}
 
 		// else: trailing barrier from either
@@ -301,12 +305,12 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		//   - the current checkpoint if it was already canceled
 	}
 
-	private void processEndOfPartition(int channel) throws Exception {
+	private void processEndOfPartition() throws Exception {
 		numClosedChannels++;
 
 		if (numBarriersReceived > 0) {
 			// let the task know we skip a checkpoint
-			notifyAbort(currentCheckpointId);
+			notifyAbort(currentCheckpointId, new InputEndOfStreamException());
 
 			// no chance to complete this checkpoint
 			releaseBlocksAndResetBarriers();
@@ -326,9 +330,13 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		}
 	}
 
-	private void notifyAbort(long checkpointId) throws Exception {
+	private void notifyAbortOnCancellationBarrier(long checkpointId) throws Exception {
+		notifyAbort(checkpointId, new CheckpointDeclineOnCancellationBarrierException());
+	}
+
+	private void notifyAbort(long checkpointId, CheckpointDeclineException cause) throws Exception {
 		if (toNotifyOnCheckpoint != null) {
-			toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId);
+			toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId, cause);
 		}
 	}
 

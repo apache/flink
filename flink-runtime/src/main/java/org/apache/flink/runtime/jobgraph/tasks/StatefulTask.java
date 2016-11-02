@@ -69,7 +69,7 @@ public interface StatefulTask {
 	 * 
 	 * @param checkpointId The ID of the checkpoint to be aborted.
 	 */
-	void abortCheckpointOnBarrier(long checkpointId) throws Exception;
+	void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception;
 
 	/**
 	 * Invoked when a checkpoint has been completed, i.e., when the checkpoint coordinator has received

@@ -482,7 +482,7 @@ public class BarrierTrackerTest {
 		}
 
 		@Override
-		public void abortCheckpointOnBarrier(long checkpointId) {
+		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
 			assertTrue("More checkpoints than expected", i < checkpointIDs.length);
 
 			final long expectedId = checkpointIDs[i++];

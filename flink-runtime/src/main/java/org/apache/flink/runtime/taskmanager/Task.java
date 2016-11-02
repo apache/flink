@@ -29,6 +29,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotCheckpointingException;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotReadyException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -1008,15 +1010,13 @@ public class Task implements Runnable, TaskActions {
 	 * @param checkpointID The ID identifying the checkpoint.
 	 * @param checkpointTimestamp The timestamp associated with the checkpoint.
 	 */
-	public void triggerCheckpointBarrier(long checkpointID, long checkpointTimestamp) {
-
-		AbstractInvokable invokable = this.invokable;
-
+	public void triggerCheckpointBarrier(final long checkpointID, long checkpointTimestamp) {
+		final AbstractInvokable invokable = this.invokable;
 		final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointID, checkpointTimestamp);
 
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
-			if (invokable instanceof StatefulTask) {
 
+			if (invokable instanceof StatefulTask) {
 				// build a local closure
 				final StatefulTask statefulTask = (StatefulTask) invokable;
 				final String taskName = taskNameWithSubtask;
@@ -1027,12 +1027,14 @@ public class Task implements Runnable, TaskActions {
 						try {
 							boolean success = statefulTask.triggerCheckpoint(checkpointMetaData);
 							if (!success) {
-								checkpointResponder.declineCheckpoint(jobId, getExecutionId(), checkpointMetaData);
+								checkpointResponder.declineCheckpoint(
+										getJobID(), getExecutionId(), checkpointID,
+										new CheckpointDeclineTaskNotReadyException(taskName));
 							}
 						}
 						catch (Throwable t) {
 							if (getExecutionState() == ExecutionState.RUNNING) {
-								failExternally(new RuntimeException(
+								failExternally(new Exception(
 									"Error while triggering checkpoint for " + taskName,
 									t));
 							}
@@ -1042,12 +1044,19 @@ public class Task implements Runnable, TaskActions {
 				executeAsyncCallRunnable(runnable, "Checkpoint Trigger for " + taskName);
 			}
 			else {
+				checkpointResponder.declineCheckpoint(jobId, executionId, checkpointID,
+						new CheckpointDeclineTaskNotCheckpointingException(taskNameWithSubtask));
+
 				LOG.error("Task received a checkpoint request, but is not a checkpointing task - "
 						+ taskNameWithSubtask);
 			}
 		}
 		else {
-			LOG.debug("Ignoring request to trigger a checkpoint for non-running task.");
+			LOG.debug("Declining checkpoint request for non-running task");
+
+			// send back a message that we did not do the checkpoint
+			checkpointResponder.declineCheckpoint(jobId, executionId, checkpointID,
+					new CheckpointDeclineTaskNotReadyException(taskNameWithSubtask));
 		}
 	}
 

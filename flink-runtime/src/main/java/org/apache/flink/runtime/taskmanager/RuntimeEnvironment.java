@@ -254,6 +254,11 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
+	public void declineCheckpoint(long checkpointId, Throwable cause) {
+		checkpointResponder.declineCheckpoint(jobId, executionId, checkpointId, cause);
+	}
+
+	@Override
 	public void failExternally(Throwable cause) {
 		this.containingTask.failExternally(cause);
 	}
