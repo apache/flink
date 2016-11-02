@@ -1,4 +1,4 @@
-/**
+/*
 * Licensed to the Apache Software Foundation (ASF) under one
 * or more contributor license agreements.  See the NOTICE file
 * distributed with this work for additional information
@@ -57,20 +57,20 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns.
  */
 @Internal
-public class EvictingWindowOperator<K, IN, OUT, W extends Window> 
+public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		extends WindowOperator<K, IN, Iterable<IN>, OUT, W> {
 
 	private static final long serialVersionUID = 1L;
 
 	// ------------------------------------------------------------------------
-	// these fields are set by the API stream graph builder to configure the operator 
-	
+	// these fields are set by the API stream graph builder to configure the operator
+
 	private final Evictor<? super IN, ? super W> evictor;
 
 	private final StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> evictingWindowStateDescriptor;
 
 	// ------------------------------------------------------------------------
-	// the fields below are instantiated once the operator runs in the runtime 
+	// the fields below are instantiated once the operator runs in the runtime
 
 	private transient EvictorContext evictorContext;
 
@@ -146,7 +146,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 				if (stateWindow == null) {
 					throw new IllegalStateException("Window " + window + " is not in in-flight window set.");
 				}
-				
+
 				evictingWindowState.setCurrentNamespace(stateWindow);
 				evictingWindowState.add(element);
 
@@ -163,14 +163,13 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 						// if we have no state, there is nothing to do
 						continue;
 					}
-					fire(actualWindow, contents, evictingWindowState);
+					emitWindowContents(actualWindow, contents, evictingWindowState);
 				}
 
 				if (triggerResult.isPurge()) {
-					cleanup(actualWindow, evictingWindowState, mergingWindows);
-				} else {
-					registerCleanupTimer(actualWindow);
+					evictingWindowState.clear();
 				}
+				registerCleanupTimer(actualWindow);
 			}
 
 			mergingWindows.persist();
@@ -198,14 +197,13 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 						// if we have no state, there is nothing to do
 						continue;
 					}
-					fire(window, contents, evictingWindowState);
+					emitWindowContents(window, contents, evictingWindowState);
 				}
 
 				if (triggerResult.isPurge()) {
-					cleanup(window, evictingWindowState, null);
-				} else {
-					registerCleanupTimer(window);
+					evictingWindowState.clear();
 				}
+				registerCleanupTimer(window);
 			}
 		}
 	}
@@ -218,37 +216,42 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		evictorContext.key = timer.getKey();
 		evictorContext.window = timer.getNamespace();
 
-		ListState<StreamRecord<IN>> windowState;
 		MergingWindowSet<W> mergingWindows = null;
 
 		if (windowAssigner instanceof MergingWindowAssigner) {
 			mergingWindows = getMergingWindowSet();
 			W stateWindow = mergingWindows.getStateWindow(context.window);
 			if (stateWindow == null) {
-				// then the window is already purged and this is a cleanup
-				// timer set due to allowed lateness that has nothing to clean,
-				// so it is safe to just ignore
+				// Timer firing for non-existent window, this can only happen if a
+				// trigger did not clean up timers. We have already cleared the merging
+				// window and therefore the Trigger state, however, so nothing to do.
 				return;
+			} else {
+				evictingWindowState.setCurrentNamespace(stateWindow);
 			}
-			
-			evictingWindowState.setCurrentNamespace(stateWindow);
 		} else {
 			evictingWindowState.setCurrentNamespace(context.window);
 		}
 
 		Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
-		if (contents == null) {
-			// if we have no state, there is nothing to do
-			return;
+
+		if (contents != null) {
+			TriggerResult triggerResult = context.onEventTime(timer.getTimestamp());
+			if (triggerResult.isFire()) {
+				emitWindowContents(context.window, contents, evictingWindowState);
+			}
+			if (triggerResult.isPurge()) {
+				evictingWindowState.clear();
+			}
 		}
 
-		TriggerResult triggerResult = context.onEventTime(timer.getTimestamp());
-		if (triggerResult.isFire()) {
-			fire(context.window, contents, evictingWindowState);
+		if (windowAssigner.isEventTime() && isCleanupTime(context.window, timer.getTimestamp())) {
+			clearAllState(context.window, evictingWindowState, mergingWindows);
 		}
 
-		if (triggerResult.isPurge() || (windowAssigner.isEventTime() && isCleanupTime(context.window, timer.getTimestamp()))) {
-			cleanup(context.window, evictingWindowState, mergingWindows);
+		if (mergingWindows != null) {
+			// need to make sure to update the merging state in state
+			mergingWindows.persist();
 		}
 	}
 
@@ -259,40 +262,46 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		evictorContext.key = timer.getKey();
 		evictorContext.window = timer.getNamespace();
 
-		ListState<StreamRecord<IN>> windowState;
 		MergingWindowSet<W> mergingWindows = null;
 
 		if (windowAssigner instanceof MergingWindowAssigner) {
 			mergingWindows = getMergingWindowSet();
 			W stateWindow = mergingWindows.getStateWindow(context.window);
 			if (stateWindow == null) {
-				// then the window is already purged and this is a cleanup
-				// timer set due to allowed lateness that has nothing to clean,
-				// so it is safe to just ignore
+				// Timer firing for non-existent window, this can only happen if a
+				// trigger did not clean up timers. We have already cleared the merging
+				// window and therefore the Trigger state, however, so nothing to do.
 				return;
+			} else {
+				evictingWindowState.setCurrentNamespace(stateWindow);
 			}
-			evictingWindowState.setCurrentNamespace(stateWindow);
 		} else {
 			evictingWindowState.setCurrentNamespace(context.window);
 		}
 
 		Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
-		if (contents == null) {
-			// if we have no state, there is nothing to do
-			return;
+
+		if (contents != null) {
+			TriggerResult triggerResult = context.onProcessingTime(timer.getTimestamp());
+			if (triggerResult.isFire()) {
+				emitWindowContents(context.window, contents, evictingWindowState);
+			}
+			if (triggerResult.isPurge()) {
+				evictingWindowState.clear();
+			}
 		}
 
-		TriggerResult triggerResult = context.onProcessingTime(timer.getTimestamp());
-		if (triggerResult.isFire()) {
-			fire(context.window, contents, evictingWindowState);
+		if (!windowAssigner.isEventTime() && isCleanupTime(context.window, timer.getTimestamp())) {
+			clearAllState(context.window, evictingWindowState, mergingWindows);
 		}
 
-		if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(context.window, timer.getTimestamp()))) {
-			cleanup(context.window, evictingWindowState, mergingWindows);
+		if (mergingWindows != null) {
+			// need to make sure to update the merging state in state
+			mergingWindows.persist();
 		}
 	}
 
-	private void fire(W window, Iterable<StreamRecord<IN>> contents, ListState<StreamRecord<IN>> windowState) throws Exception {
+	private void emitWindowContents(W window, Iterable<StreamRecord<IN>> contents, ListState<StreamRecord<IN>> windowState) throws Exception {
 		timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
 
 		// Work around type system restrictions...
@@ -326,6 +335,18 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		}
 	}
 
+	private void clearAllState(
+			W window,
+			ListState<StreamRecord<IN>> windowState,
+			MergingWindowSet<W> mergingWindows) throws Exception {
+
+		windowState.clear();
+		context.clear();
+		if (mergingWindows != null) {
+			mergingWindows.retireWindow(window);
+			mergingWindows.persist();
+		}
+	}
 
 	/**
 	 * {@code EvictorContext} is a utility for handling {@code Evictor} invocations. It can be reused
@@ -372,24 +393,12 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		}
 	}
 
-	private void cleanup(W window,
-						ListState<StreamRecord<IN>> windowState,
-						MergingWindowSet<W> mergingWindows) throws Exception {
-
-		windowState.clear();
-		if (mergingWindows != null) {
-			mergingWindows.retireWindow(window);
-			mergingWindows.persist();
-		}
-		context.clear();
-	}
-
 	@Override
 	public void open() throws Exception {
 		super.open();
 
 		evictorContext = new EvictorContext(null,null);
-		evictingWindowState = (InternalListState<W, StreamRecord<IN>>) 
+		evictingWindowState = (InternalListState<W, StreamRecord<IN>>)
 				getOrCreateKeyedState(windowSerializer, evictingWindowStateDescriptor);
 	}
 
