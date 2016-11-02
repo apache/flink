@@ -37,8 +37,8 @@ under the License.
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<cassandra.version>2.2.5</cassandra.version>
-		<driver.version>3.0.0</driver.version>
+		<cassandra.version>2.2.7</cassandra.version>
+		<driver.version>3.0.3</driver.version>
 	</properties>
 
 	<build>
@@ -157,6 +157,13 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils_2.10</artifactId>
 			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<!-- we need this dependency for the EmbeddedCassandraService-->
+		<dependency>
+			<groupId>org.caffinitas.ohc</groupId>
+			<artifactId>ohc-core</artifactId>
+			<version>0.4.5</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
