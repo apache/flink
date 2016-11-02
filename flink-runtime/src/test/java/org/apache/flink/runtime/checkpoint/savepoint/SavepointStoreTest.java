@@ -40,6 +40,7 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -74,7 +75,7 @@ public class SavepointStoreTest {
 		// Dispose
 		SavepointStore.removeSavepoint(path);
 
-		assertEquals(0, new File(path.getParent().toString()).listFiles().length);
+		assertFalse(new File(path.toString()).exists());
 	}
 
 	/**
