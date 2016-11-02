@@ -147,11 +147,6 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 		session.execute(CREATE_KEYSPACE_QUERY);
 		session.execute(CREATE_TABLE_QUERY.replace("$TABLE", "flink_initial"));
-
-		try {
-			Thread.sleep(5000);
-		} catch (InterruptedException e) {
-		}
 	}
 
 	@Before
