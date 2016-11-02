@@ -1261,6 +1261,7 @@ public class Task implements Runnable, TaskActions {
 			try {
 				if (watchDogThread != null) {
 					watchDogThread.start();
+					logger.info("Started cancellation watch dog");
 				}
 
 				// the user-defined cancel method may throw errors.
@@ -1351,6 +1352,8 @@ public class Task implements Runnable, TaskActions {
 								taskName,
 								duration,
 								bld.toString());
+
+						logger.info("Notifying TaskManager about fatal error. {}.", msg);
 
 						taskManager.notifyFatalError(msg, null);
 
