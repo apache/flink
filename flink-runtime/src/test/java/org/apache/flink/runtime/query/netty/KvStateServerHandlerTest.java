@@ -52,6 +52,7 @@ import org.junit.Test;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
@@ -150,6 +151,13 @@ public class KvStateServerHandlerTest extends TestLogger {
 		assertEquals(expectedValue, actualValue);
 
 		assertEquals(stats.toString(), 1, stats.getNumRequests());
+
+		// Wait for async successful request report
+		long deadline = System.nanoTime() + TimeUnit.NANOSECONDS.convert(30, TimeUnit.SECONDS);
+		while (stats.getNumSuccessful() != 1 && System.nanoTime() <= deadline) {
+			Thread.sleep(10);
+		}
+
 		assertEquals(stats.toString(), 1, stats.getNumSuccessful());
 	}
 
