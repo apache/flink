@@ -31,7 +31,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
@@ -227,9 +226,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			MergingWindowSet<W> mergingWindows = getMergingWindowSet();
 
 			for (W window: elementWindows) {
-				// If there is a merge, it can only result in a window that contains our new
-				// element because we always eagerly merge
-				final Tuple1<TriggerResult> mergeTriggerResult = new Tuple1<>(TriggerResult.CONTINUE);
 
 				// adding the new window might result in a merge, in that case the actualWindow
 				// is the merged window and we work with that. If we don't merge then
@@ -242,8 +238,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 						context.key = key;
 						context.window = mergeResult;
 
-						// store for later use
-						mergeTriggerResult.f0 = context.onMerge(mergedWindows);
+						context.onMerge(mergedWindows);
 
 						for (W m: mergedWindows) {
 							context.window = m;
@@ -278,12 +273,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				context.key = key;
 				context.window = actualWindow;
 
-				// we might have already fired because of a merge but still call onElement
-				// on the (possibly merged) window
 				TriggerResult triggerResult = context.onElement(element);
-				TriggerResult combinedTriggerResult = TriggerResult.merge(triggerResult, mergeTriggerResult.f0);
 
-				if (combinedTriggerResult.isFire()) {
+				if (triggerResult.isFire()) {
 					ACC contents = windowState.get();
 					if (contents == null) {
 						continue;
@@ -291,7 +283,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					fire(actualWindow, contents);
 				}
 
-				if (combinedTriggerResult.isPurge()) {
+				if (triggerResult.isPurge()) {
 					cleanup(actualWindow, windowState, mergingWindows);
 				} else {
 					registerCleanupTimer(actualWindow);
@@ -642,9 +634,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			return trigger.onEventTime(time, window, this);
 		}
 
-		public TriggerResult onMerge(Collection<W> mergedWindows) throws Exception {
+		public void onMerge(Collection<W> mergedWindows) throws Exception {
 			this.mergedWindows = mergedWindows;
-			return trigger.onMerge(window, this);
+			trigger.onMerge(window, this);
 		}
 
 		public void clear() throws Exception {
