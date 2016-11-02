@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Test;
 
@@ -60,7 +61,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class KvStateServerHandlerTest {
+public class KvStateServerHandlerTest extends TestLogger {
 
 	/** Shared Thread pool for query execution */
 	private final static ExecutorService TEST_THREAD_POOL = Executors.newSingleThreadExecutor();
@@ -148,8 +149,8 @@ public class KvStateServerHandlerTest {
 		int actualValue = KvStateRequestSerializer.deserializeValue(response.getSerializedResult(), IntSerializer.INSTANCE);
 		assertEquals(expectedValue, actualValue);
 
-		assertEquals(1, stats.getNumRequests());
-		assertEquals(1, stats.getNumSuccessful());
+		assertEquals(stats.toString(), 1, stats.getNumRequests());
+		assertEquals(stats.toString(), 1, stats.getNumSuccessful());
 	}
 
 	/**
@@ -250,8 +251,6 @@ public class KvStateServerHandlerTest {
 		KvStateRequestFailure response = KvStateRequestSerializer.deserializeKvStateRequestFailure(buf);
 
 		assertEquals(requestId, response.getRequestId());
-
-		System.out.println("RESPOINSE: " + response);
 
 		assertTrue("Did not respond with expected failure cause", response.getCause() instanceof UnknownKeyOrNamespace);
 
