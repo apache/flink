@@ -579,7 +579,7 @@ public class TaskTest extends TestLogger {
 	public void testWatchDogInterruptsTask() throws Exception {
 		Configuration config = new Configuration();
 		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL.key(), 5);
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT.key(), 50);
+		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT.key(), 60 * 1000);
 
 		Task task = createTask(InvokableBlockingInCancel.class, config);
 		task.startTaskThread();
