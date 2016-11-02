@@ -36,8 +36,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
-import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -311,11 +309,8 @@ public class CheckpointCoordinatorTest {
 			assertFalse(checkpoint.isFullyAcknowledged());
 
 			// check that the vertices received the trigger checkpoint message
-			{
-				TriggerCheckpoint expectedMessage2 = new TriggerCheckpoint(jid, attemptID2, checkpointId, timestamp);
-				verify(vertex1.getCurrentExecutionAttempt(), times(1)).triggerCheckpoint(eq(checkpointId), eq(timestamp));
-				verify(vertex2.getCurrentExecutionAttempt(), times(1)).triggerCheckpoint(eq(checkpointId), eq(timestamp));
-			}
+			verify(vertex1.getCurrentExecutionAttempt()).triggerCheckpoint(checkpointId, timestamp);
+			verify(vertex2.getCurrentExecutionAttempt()).triggerCheckpoint(checkpointId, timestamp);
 
 			CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, 0L);
 
@@ -334,41 +329,18 @@ public class CheckpointCoordinatorTest {
 
 			// decline checkpoint from the other task, this should cancel the checkpoint
 			// and trigger a new one
-			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID1, checkpointId, checkpoint.getCheckpointTimestamp()));
+			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID1, checkpointId));
 			assertTrue(checkpoint.isDiscarded());
 
-			// validate that we have a new pending checkpoint
-			assertEquals(1, coord.getNumberOfPendingCheckpoints());
+			// validate that we have no new pending checkpoint
+			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
-
-			long checkpointIdNew = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
-			PendingCheckpoint checkpointNew = coord.getPendingCheckpoints().get(checkpointIdNew);
-
-			assertNotNull(checkpointNew);
-			assertEquals(checkpointIdNew, checkpointNew.getCheckpointId());
-			assertEquals(jid, checkpointNew.getJobId());
-			assertEquals(2, checkpointNew.getNumberOfNonAcknowledgedTasks());
-			assertEquals(0, checkpointNew.getNumberOfAcknowledgedTasks());
-			assertEquals(0, checkpointNew.getTaskStates().size());
-			assertFalse(checkpointNew.isDiscarded());
-			assertFalse(checkpointNew.isFullyAcknowledged());
-			assertNotEquals(checkpoint.getCheckpointId(), checkpointNew.getCheckpointId());
-
-			// check that the vertices received the new trigger checkpoint message
-			{
-				verify(vertex1.getCurrentExecutionAttempt(), times(1)).triggerCheckpoint(eq(checkpointIdNew), eq(checkpointNew.getCheckpointTimestamp()));
-				verify(vertex2.getCurrentExecutionAttempt(), times(1)).triggerCheckpoint(eq(checkpointIdNew), eq(checkpointNew.getCheckpointTimestamp()));
-			}
 
 			// decline again, nothing should happen
 			// decline from the other task, nothing should happen
-			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID1, checkpointId, checkpoint.getCheckpointTimestamp()));
-			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID2, checkpointId, checkpoint.getCheckpointTimestamp()));
+			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID1, checkpointId));
+			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID2, checkpointId));
 			assertTrue(checkpoint.isDiscarded());
-
-			// should still have the same second checkpoint pending
-			long checkpointIdNew2 = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
-			assertEquals(checkpointIdNew2, checkpointIdNew);
 
 			coord.shutdown(JobStatus.FINISHED);
 		}
@@ -464,7 +436,7 @@ public class CheckpointCoordinatorTest {
 
 			// decline checkpoint from one of the tasks, this should cancel the checkpoint
 			// and trigger a new one
-			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID1, checkpoint1Id, checkpoint1.getCheckpointTimestamp()));
+			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID1, checkpoint1Id));
 			assertTrue(checkpoint1.isDiscarded());
 
 			// validate that we have only one pending checkpoint left
@@ -488,8 +460,8 @@ public class CheckpointCoordinatorTest {
 
 			// decline again, nothing should happen
 			// decline from the other task, nothing should happen
-			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID1, checkpoint1Id, checkpoint1.getCheckpointTimestamp()));
-			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID2, checkpoint1Id, checkpoint1.getCheckpointTimestamp()));
+			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID1, checkpoint1Id));
+			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID2, checkpoint1Id));
 			assertTrue(checkpoint1.isDiscarded());
 
 			coord.shutdown(JobStatus.FINISHED);
@@ -1349,8 +1321,6 @@ public class CheckpointCoordinatorTest {
 			verify(vertex1.getCurrentExecutionAttempt(), times(1)).triggerCheckpoint(eq(checkpointIdNew), eq(timestampNew));
 			verify(vertex2.getCurrentExecutionAttempt(), times(1)).triggerCheckpoint(eq(checkpointIdNew), eq(timestampNew));
 
-			NotifyCheckpointComplete confirmMessage1 = new NotifyCheckpointComplete(jid, attemptID1, checkpointIdNew, timestampNew);
-			NotifyCheckpointComplete confirmMessage2 = new NotifyCheckpointComplete(jid, attemptID2, checkpointIdNew, timestampNew);
 			verify(vertex1.getCurrentExecutionAttempt(), times(1)).notifyCheckpointComplete(eq(checkpointIdNew), eq(timestampNew));
 			verify(vertex2.getCurrentExecutionAttempt(), times(1)).notifyCheckpointComplete(eq(checkpointIdNew), eq(timestampNew));
 		}
@@ -1765,11 +1735,7 @@ public class CheckpointCoordinatorTest {
 		assertFalse("Did not trigger savepoint", savepoint1.isDone());
 	}
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
-
-/**
+	/**
 	 * Tests that the checkpointed partitioned and non-partitioned state is assigned properly to
 	 * the {@link Execution} upon recovery.
 	 *
@@ -2328,30 +2294,6 @@ public class CheckpointCoordinatorTest {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	static void sendAckMessageToCoordinator(
-			CheckpointCoordinator coord,
-			long checkpointId, JobID jid,
-			ExecutionJobVertex jobVertex,
-			JobVertexID jobVertexID,
-			List<KeyGroupRange> keyGroupPartitions) throws Exception {
-
-		for (int index = 0; index < jobVertex.getParallelism(); index++) {
-			ChainedStateHandle<StreamStateHandle> state = generateStateForVertex(jobVertexID, index);
-			KeyGroupsStateHandle keyGroupState = generateKeyGroupState(
-					jobVertexID,
-					keyGroupPartitions.get(index), false);
-
-			SubtaskState checkpointStateHandles = new SubtaskState(state, null, null, keyGroupState, null, 0);
-			AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
-					jid,
-					jobVertex.getTaskVertices()[index].getCurrentExecutionAttempt().getAttemptId(),
-					new CheckpointMetaData(checkpointId, 0L),
-					checkpointStateHandles);
-
-			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint);
-		}
-	}
-
 	public static KeyGroupsStateHandle generateKeyGroupState(
 			JobVertexID jobVertexID,
 			KeyGroupRange keyGroupPartition, boolean rawState) throws IOException {
@@ -2467,7 +2409,7 @@ public class CheckpointCoordinatorTest {
 		return generateChainedPartitionableStateHandle(statesListsMap);
 	}
 
-	public static ChainedStateHandle<OperatorStateHandle> generateChainedPartitionableStateHandle(
+	private static ChainedStateHandle<OperatorStateHandle> generateChainedPartitionableStateHandle(
 			Map<String, List<? extends Serializable>> states) throws IOException {
 
 		List<List<? extends Serializable>> namedStateSerializables = new ArrayList<>(states.size());
@@ -2495,7 +2437,7 @@ public class CheckpointCoordinatorTest {
 		return ChainedStateHandle.wrapSingleHandle(operatorStateHandle);
 	}
 
-	public static ExecutionJobVertex mockExecutionJobVertex(
+	private static ExecutionJobVertex mockExecutionJobVertex(
 		JobVertexID jobVertexID,
 		int parallelism,
 		int maxParallelism) {
@@ -2846,96 +2788,5 @@ public class CheckpointCoordinatorTest {
 		Assert.assertTrue("Difference in partition load is > 1 : " + maxLoadDiff, maxLoadDiff <= 1);
 		Assert.assertEquals(expectedTotalPartitions, actualTotalPartitions);
 		Assert.assertEquals(expected, actual);
-	}
-
-	@Test
-	public void testDeclineCheckpointRespectsProperties() throws Exception {
-		final JobID jid = new JobID();
-		final long timestamp = System.currentTimeMillis();
-
-		// create some mock Execution vertices that receive the checkpoint trigger messages
-		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
-		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
-
-		// set up the coordinator and validate the initial state
-		CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				600000,
-				600000,
-				0,
-				Integer.MAX_VALUE,
-				ExternalizedCheckpointSettings.none(),
-				new ExecutionVertex[] { vertex1 },
-				new ExecutionVertex[] { vertex1 },
-				new ExecutionVertex[] { vertex1 },
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(1),
-				null,
-				new DisabledCheckpointStatsTracker());
-
-		assertEquals(0, coord.getNumberOfPendingCheckpoints());
-		assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
-
-		// trigger the first checkpoint. this should succeed
-		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
-		String targetDirectory = "xjasdkjakshdmmmxna";
-
-		CheckpointTriggerResult triggerResult = coord.triggerCheckpoint(timestamp, props, targetDirectory, false);
-		assertTrue(triggerResult.isSuccess());
-
-		// validate that we have a pending checkpoint
-		assertEquals(1, coord.getNumberOfPendingCheckpoints());
-		assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
-
-		long checkpointId = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
-		PendingCheckpoint checkpoint = coord.getPendingCheckpoints().get(checkpointId);
-
-		assertNotNull(checkpoint);
-		assertEquals(checkpointId, checkpoint.getCheckpointId());
-		assertEquals(timestamp, checkpoint.getCheckpointTimestamp());
-		assertEquals(jid, checkpoint.getJobId());
-		assertEquals(1, checkpoint.getNumberOfNonAcknowledgedTasks());
-		assertEquals(0, checkpoint.getNumberOfAcknowledgedTasks());
-		assertEquals(0, checkpoint.getTaskStates().size());
-		assertFalse(checkpoint.isDiscarded());
-		assertFalse(checkpoint.isFullyAcknowledged());
-		assertEquals(props, checkpoint.getProps());
-		assertEquals(targetDirectory, checkpoint.getTargetDirectory());
-
-		{
-			// check that the vertices received the trigger checkpoint message
-			verify(vertex1.getCurrentExecutionAttempt(), times(1)).triggerCheckpoint(eq(checkpointId), eq(timestamp));
-		}
-
-		// decline checkpoint, this should cancel the checkpoint and re-trigger with correct properties
-		coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID1, checkpointId, checkpoint.getCheckpointTimestamp()));
-		assertTrue(checkpoint.isDiscarded());
-
-		// validate that we have a new pending checkpoint
-		assertEquals(1, coord.getNumberOfPendingCheckpoints());
-		assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
-
-		long checkpointIdNew = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
-		PendingCheckpoint checkpointNew = coord.getPendingCheckpoints().get(checkpointIdNew);
-
-		assertNotNull(checkpointNew);
-		assertEquals(checkpointIdNew, checkpointNew.getCheckpointId());
-		assertEquals(jid, checkpointNew.getJobId());
-		assertEquals(1, checkpointNew.getNumberOfNonAcknowledgedTasks());
-		assertEquals(0, checkpointNew.getNumberOfAcknowledgedTasks());
-		assertEquals(0, checkpointNew.getTaskStates().size());
-		assertFalse(checkpointNew.isDiscarded());
-		assertFalse(checkpointNew.isFullyAcknowledged());
-		assertNotEquals(checkpoint.getCheckpointId(), checkpointNew.getCheckpointId());
-		// Respect the properties and target directory from the initial trigger
-		assertEquals(props, checkpointNew.getProps());
-		assertEquals(targetDirectory, checkpointNew.getTargetDirectory());
-
-		// check that the vertices received the new trigger checkpoint message
-		{
-			verify(vertex1.getCurrentExecutionAttempt(), times(1)).triggerCheckpoint(eq(checkpointIdNew), eq(checkpointNew.getCheckpointTimestamp()));
-		}
-
-		coord.shutdown(JobStatus.FINISHED);
 	}
 }

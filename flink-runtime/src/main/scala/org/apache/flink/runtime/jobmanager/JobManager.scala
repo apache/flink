@@ -1435,10 +1435,7 @@ class JobManager(
             if (checkpointCoordinator != null) {
               future {
                 try {
-                  if (!checkpointCoordinator.receiveDeclineMessage(declineMessage)) {
-                    log.info("Received message for non-existing checkpoint " +
-                      declineMessage.getCheckpointId)
-                  }
+                 checkpointCoordinator.receiveDeclineMessage(declineMessage)
                 }
                 catch {
                   case t: Throwable =>

@@ -19,7 +19,14 @@
 package org.apache.flink.runtime.messages.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.decline.AlignmentLimitExceededException;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineSubsumedException;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotCheckpointingException;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotReadyException;
+import org.apache.flink.runtime.checkpoint.decline.InputEndOfStreamException;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.util.SerializedThrowable;
 
 /**
  * This message is sent from the {@link org.apache.flink.runtime.taskmanager.TaskManager} to the
@@ -31,44 +38,48 @@ public class DeclineCheckpoint extends AbstractCheckpointMessage implements java
 
 	private static final long serialVersionUID = 2094094662279578953L;
 
-	/** The timestamp associated with the checkpoint */
-	private final long timestamp;
+	/** The reason why the checkpoint was declined */
+	private final Throwable reason;
 
-	public DeclineCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId, long timestamp) {
+	public DeclineCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId) {
+		this(job, taskExecutionId, checkpointId, null);
+	}
+
+	public DeclineCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId, Throwable reason) {
 		super(job, taskExecutionId, checkpointId);
-		this.timestamp = timestamp;
+		
+		if (reason == null ||
+			reason.getClass() == AlignmentLimitExceededException.class ||
+			reason.getClass() == CheckpointDeclineOnCancellationBarrierException.class ||
+			reason.getClass() == CheckpointDeclineSubsumedException.class ||
+			reason.getClass() == CheckpointDeclineTaskNotCheckpointingException.class ||
+			reason.getClass() == CheckpointDeclineTaskNotReadyException.class ||
+			reason.getClass() == InputEndOfStreamException.class)
+		{
+			// null or known common exceptions that cannot reference any dynamically loaded code
+			this.reason = reason;
+		} else {
+			// some other exception. replace with a serialized throwable, to be on the safe side
+			this.reason = new SerializedThrowable(reason);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
 
-	public long getTimestamp() {
-		return timestamp;
+	/**
+	 * Gets the reason why the checkpoint was declined.
+	 * 
+	 * @return The reason why the checkpoint was declined
+	 */
+	public Throwable getReason() {
+		return reason;
 	}
 
 	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public int hashCode() {
-		return super.hashCode() + (int) (timestamp ^ (timestamp >>> 32));
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		else if (o instanceof DeclineCheckpoint) {
-			DeclineCheckpoint that = (DeclineCheckpoint) o;
-			return this.timestamp == that.timestamp && super.equals(o);
-		}
-		else {
-			return false;
-		}
-	}
 
 	@Override
 	public String toString() {
-		return String.format("Declined Checkpoint %d@%d for (%s/%s)",
-				getCheckpointId(), getTimestamp(), getJob(), getTaskExecutionId());
+		return String.format("Declined Checkpoint %d for (%s/%s): %s",
+				getCheckpointId(), getJob(), getTaskExecutionId(), reason);
 	}
 }

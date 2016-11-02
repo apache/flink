@@ -28,6 +28,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -540,22 +542,24 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	@Override
-	public void abortCheckpointOnBarrier(long checkpointId) throws Exception {
+	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception {
 		LOG.debug("Aborting checkpoint via cancel-barrier {} for task {}", checkpointId, getName());
 
+		// notify the coordinator that we decline this checkpoint
+		getEnvironment().declineCheckpoint(checkpointId, cause);
+
+		// notify all downstream operators that they should not wait for a barrier from us
 		synchronized (lock) {
-			if (isRunning) {
-				operatorChain.broadcastCheckpointCancelMarker(checkpointId);
-			}
+			operatorChain.broadcastCheckpointCancelMarker(checkpointId);
 		}
 	}
 
 	private boolean performCheckpoint(CheckpointMetaData checkpointMetaData) throws Exception {
-
 		LOG.debug("Starting checkpoint {} on task {}", checkpointMetaData.getCheckpointId(), getName());
 
 		synchronized (lock) {
 			if (isRunning) {
+				// we can do a checkpoint
 
 				// Since both state checkpointing and downstream barrier emission occurs in this
 				// lock scope, they are an atomic operation regardless of the order in which they occur.
@@ -566,7 +570,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				checkpointState(checkpointMetaData);
 				return true;
-			} else {
+			}
+			else {
+				// we cannot perform our checkpoint - let the downstream operators know that they
+				// should not wait for any input from this operator
+
+				// we cannot broadcast the cancellation markers on the 'operator chain', because it may not
+				// yet be created
+				final CancelCheckpointMarker message = new CancelCheckpointMarker(checkpointMetaData.getCheckpointId());
+				for (ResultPartitionWriter output : getEnvironment().getAllWriters()) {
+					output.writeEventToAllChannels(message);
+				}
+
 				return false;
 			}
 		}
@@ -832,10 +847,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		private final List<OperatorSnapshotResult> snapshotInProgressList;
 
-		RunnableFuture<KeyGroupsStateHandle> futureKeyedBackendStateHandles;
-		RunnableFuture<KeyGroupsStateHandle> futureKeyedStreamStateHandles;
+		private RunnableFuture<KeyGroupsStateHandle> futureKeyedBackendStateHandles;
+		private RunnableFuture<KeyGroupsStateHandle> futureKeyedStreamStateHandles;
 
-		List<StreamStateHandle> nonPartitionedStateHandles;
+		private List<StreamStateHandle> nonPartitionedStateHandles;
 
 		private final CheckpointMetaData checkpointMetaData;
 
