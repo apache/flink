@@ -136,14 +136,19 @@ Use one of the following commands to __create a project__:
     {% highlight bash %}
     $ mvn archetype:generate                               \
       -DarchetypeGroupId=org.apache.flink              \
-      -DarchetypeArtifactId=flink-quickstart-scala     \
+      -DarchetypeArtifactId=flink-quickstart-scala     \{% unless site.is_stable %}
+      -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
       -DarchetypeVersion={{site.version}}
     {% endhighlight %}
     This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
     </div>
     <div class="tab-pane" id="quickstart-script">
 {% highlight bash %}
-$ curl https://flink.apache.org/q/quickstart-scala.sh | bash
+{% if site.is_stable %}
+    $ curl https://flink.apache.org/q/quickstart-scala.sh | bash
+{% else %}
+    $ curl https://flink.apache.org/q/quickstart-scala-SNAPSHOT.sh | bash
+{% endif %}
 {% endhighlight %}
     </div>
 </div>
@@ -151,34 +156,63 @@ $ curl https://flink.apache.org/q/quickstart-scala.sh | bash
 
 ### Inspect Project
 
-There will be a new directory in your working directory. If you've used the _curl_ approach, the directory is called `quickstart`. Otherwise, it has the name of your artifactId.
+There will be a new directory in your working directory. If you've used
+the _curl_ approach, the directory is called `quickstart`. Otherwise,
+it has the name of your `artifactId`:
+
+{% highlight bash %}
+$ tree quickstart/
+quickstart/
+├── pom.xml
+└── src
+    └── main
+        ├── resources
+        │   └── log4j.properties
+        └── scala
+            └── org
+                └── myorg
+                    └── quickstart
+                        ├── BatchJob.scala
+                        ├── SocketTextStreamWordCount.scala
+                        ├── StreamingJob.scala
+                        └── WordCount.scala
+{% endhighlight %}
 
 The sample project is a __Maven project__, which contains four classes. _StreamingJob_ and _BatchJob_ are basic skeleton programs, _SocketTextStreamWordCount_ is a working streaming example and _WordCountJob_ is a working batch example. Please note that the _main_ method of all classes allow you to start Flink in a development/testing mode.
 
 We recommend you __import this project into your IDE__. For Eclipse, you need the following plugins, which you can install from the provided Eclipse Update Sites:
 
 * _Eclipse 4.x_
-  * [Scala IDE](http://download.scala-ide.org/sdk/e38/scala210/stable/site)
+  * [Scala IDE](http://download.scala-ide.org/sdk/lithium/e44/scala211/stable/site)
   * [m2eclipse-scala](http://alchim31.free.fr/m2e-scala/update-site)
-  * [Build Helper Maven Plugin](https://repository.sonatype.org/content/repositories/forge-sites/m2e-extras/0.15.0/N/0.15.0.201206251206/)
-* _Eclipse 3.7_
-  * [Scala IDE](http://download.scala-ide.org/sdk/e37/scala210/stable/site)
+  * [Build Helper Maven Plugin](https://repo1.maven.org/maven2/.m2e/connectors/m2eclipse-buildhelper/0.15.0/N/0.15.0.201207090124/)
+* _Eclipse 3.8_
+  * [Scala IDE for Scala 2.11](http://download.scala-ide.org/sdk/helium/e38/scala211/stable/site) or [Scala IDE for Scala 2.10](http://download.scala-ide.org/sdk/helium/e38/scala210/stable/site)
   * [m2eclipse-scala](http://alchim31.free.fr/m2e-scala/update-site)
   * [Build Helper Maven Plugin](https://repository.sonatype.org/content/repositories/forge-sites/m2e-extras/0.14.0/N/0.14.0.201109282148/)
 
-The IntelliJ IDE also supports Maven and offers a plugin for Scala development.
+The IntelliJ IDE supports Maven out of the box and offers a plugin for
+Scala development.
 
 
 ### Build Project
 
-If you want to __build your project__, go to your project directory and issue the `mvn clean package -Pbuild-jar` command. You will __find a jar__ that runs on every Flink cluster in __target/your-artifact-id-{{ site.version }}.jar__. There is also a fat-jar,  __target/your-artifact-id-{{ site.version }}-flink-fat-jar.jar__. This
-also contains all dependencies that get added to the maven project.
+If you want to __build your project__, go to your project directory and
+issue the `mvn clean package -Pbuild-jar` command. You will
+__find a jar__ that runs on every Flink cluster with a compatible
+version, __target/original-your-artifact-id-your-version.jar__. There
+is also a fat-jar in  __target/your-artifact-id-your-version.jar__ which,
+additionally, contains all dependencies that were added to the Maven
+project.
 
 ## Next Steps
 
 Write your application!
 
-The quickstart project contains a WordCount implementation, the "Hello World" of Big Data processing systems. The goal of WordCount is to determine the frequencies of words in a text, e.g., how often do the terms "the" or "house" occur in all Wikipedia texts.
+The quickstart project contains a `WordCount` implementation, the
+"Hello World" of Big Data processing systems. The goal of `WordCount`
+is to determine the frequencies of words in a text, e.g., how often do
+the terms "the" or "house" occur in all Wikipedia texts.
 
 __Sample Input__:
 
@@ -194,7 +228,10 @@ data 1
 is 1
 ~~~
 
-The following code shows the WordCount implementation from the Quickstart which processes some text lines with two operators (FlatMap and Reduce), and prints the resulting words and counts to std-out.
+The following code shows the `WordCount` implementation from the
+Quickstart which processes some text lines with two operators (a FlatMap
+and a Reduce operation via aggregating a sum), and prints the resulting
+words and counts to std-out.
 
 ~~~scala
 object WordCountJob {
@@ -213,7 +250,7 @@ object WordCountJob {
       .groupBy(0)
       .sum(1)
 
-    // emit result
+    // emit result and print result
     counts.print()
   }
 }
@@ -221,4 +258,10 @@ object WordCountJob {
 
 {% gh_link flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala "Check GitHub" %} for the full example code.
 
-For a complete overview over our API, have a look at the [DataStream API]({{ site.baseurl }}/dev/datastream_api.html) and [DataSet API]({{ site.baseurl }}/dev/batch/index.html) sections. If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-dev/). We are happy to provide help.
+For a complete overview over our API, have a look at the
+[DataStream API]({{ site.baseurl }}/dev/datastream_api.html),
+[DataSet API]({{ site.baseurl }}/dev/batch/index.html), and
+[Scala API Extensions]({{ site.baseurl }}/dev/scala_api_extensions.html)
+sections. If you have any trouble, ask on our
+[Mailing List](http://mail-archives.apache.org/mod_mbox/flink-dev/).
+We are happy to provide help.
