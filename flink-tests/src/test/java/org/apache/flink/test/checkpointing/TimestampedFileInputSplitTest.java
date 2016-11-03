@@ -23,7 +23,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
@@ -33,14 +32,8 @@ public class TimestampedFileInputSplitTest {
 	@Test
 	public void testSplitEquality() {
 
-		TimestampedFileInputSplit eos1 = TimestampedFileInputSplit.EOS;
-		TimestampedFileInputSplit eos2 = TimestampedFileInputSplit.EOS;
-
-		Assert.assertEquals(eos1, eos2);
-
 		TimestampedFileInputSplit richFirstSplit =
 			new TimestampedFileInputSplit(10, 2, new Path("test"), 0, 100, null);
-		Assert.assertNotEquals(eos1, richFirstSplit);
 
 		TimestampedFileInputSplit richSecondSplit =
 			new TimestampedFileInputSplit(10, 2, new Path("test"), 0, 100, null);
@@ -88,18 +81,6 @@ public class TimestampedFileInputSplitTest {
 
 		// smaller modification time first
 		Assert.assertTrue(richThirdSplit.compareTo(richForthSplit) < 0);
-
-		Assert.assertTrue(richFirstSplit.compareTo(TimestampedFileInputSplit.EOS) < 0);
-		Assert.assertTrue(richSecondSplit.compareTo(TimestampedFileInputSplit.EOS) < 0);
-		Assert.assertTrue(richThirdSplit.compareTo(TimestampedFileInputSplit.EOS) < 0);
-		Assert.assertTrue(richForthSplit.compareTo(TimestampedFileInputSplit.EOS) < 0);
-
-		Assert.assertEquals(0, TimestampedFileInputSplit.EOS.compareTo(TimestampedFileInputSplit.EOS));
-
-		Assert.assertTrue(TimestampedFileInputSplit.EOS.compareTo(richFirstSplit) > 0);
-		Assert.assertTrue(TimestampedFileInputSplit.EOS.compareTo(richSecondSplit) > 0);
-		Assert.assertTrue(TimestampedFileInputSplit.EOS.compareTo(richThirdSplit) > 0);
-		Assert.assertTrue(TimestampedFileInputSplit.EOS.compareTo(richForthSplit) > 0);
 	}
 
 	@Test
@@ -130,14 +111,10 @@ public class TimestampedFileInputSplitTest {
 		TimestampedFileInputSplit richFifthSplit =
 			new TimestampedFileInputSplit(11, 1, new Path("test/test3"), 0, 100, null);
 
-		TimestampedFileInputSplit eos = TimestampedFileInputSplit.EOS;
-
 		Queue<TimestampedFileInputSplit> pendingSplits = new PriorityQueue<>();
 
-		pendingSplits.add(eos);
 		pendingSplits.add(richSecondSplit);
 		pendingSplits.add(richForthSplit);
-		pendingSplits.add(eos);
 		pendingSplits.add(richFirstSplit);
 		pendingSplits.add(richFifthSplit);
 		pendingSplits.add(richFifthSplit);
@@ -158,8 +135,6 @@ public class TimestampedFileInputSplitTest {
 		expectedSortedSplits.add(richForthSplit);
 		expectedSortedSplits.add(richFifthSplit);
 		expectedSortedSplits.add(richFifthSplit);
-		expectedSortedSplits.add(eos);
-		expectedSortedSplits.add(eos);
 
 		Assert.assertArrayEquals(expectedSortedSplits.toArray(), actualSortedSplits.toArray());
 	}

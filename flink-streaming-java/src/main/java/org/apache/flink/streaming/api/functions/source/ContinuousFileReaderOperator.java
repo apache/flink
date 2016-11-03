@@ -42,12 +42,10 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
 
-import static org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit.EOS;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -162,22 +160,18 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 	public void close() throws Exception {
 		super.close();
 
-		// signal that no more splits will come, wait for the reader to finish
-		// and close the collector. Further cleaning up is handled by the dispose().
+		// close the reader to signal that no more splits will come. By doing this,
+		// the reader will exit as soon as it finishes processing the already pending splits.
+		// This method will wait until then. Further cleaning up is handled by the dispose().
 
 		if (reader != null && reader.isAlive() && reader.isRunning()) {
-			// add a dummy element to signal that no more splits will
-			// arrive and wait until the reader finishes
-			reader.addSplit(EOS);
-
-			// we already have the checkpoint lock because close() is
-			// called by the StreamTask while having it.
+			reader.close();
 			checkpointLock.wait();
 		}
 
-		// finally if we are closed normally and we are operating on
-		// event or ingestion time, emit the max watermark indicating
-		// the end of the stream, like a normal source would do.
+		// finally if we are operating on event or ingestion time,
+		// emit the long-max watermark indicating the end of the stream,
+		// like a normal source would do.
 
 		if (readerContext != null) {
 			readerContext.emitWatermark(Watermark.MAX_WATERMARK);
@@ -187,6 +181,8 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 	}
 
 	private class SplitReader<OT> extends Thread {
+
+		private volatile boolean isClosed;
 
 		private volatile boolean isRunning;
 
@@ -213,14 +209,10 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 			this.readerContext = checkNotNull(readerContext, "Unspecified Reader Context.");
 			this.checkpointLock = checkNotNull(checkpointLock, "Unspecified checkpoint lock.");
 
+			this.isClosed = false;
 			this.isRunning = true;
 
-			this.pendingSplits = new PriorityQueue<>(10, new Comparator<TimestampedFileInputSplit>() {
-				@Override
-				public int compare(TimestampedFileInputSplit o1, TimestampedFileInputSplit o2) {
-					return o1.compareTo(o2);
-				}
-			});
+			this.pendingSplits = new PriorityQueue<>();
 
 			// this is the case where a task recovers from a previous failed attempt
 			if (restoredState != null) {
@@ -252,15 +244,19 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 						if (currentSplit == null) {
 							currentSplit = this.pendingSplits.poll();
+
+							// if the list of pending splits is empty (currentSplit == null) then:
+							//   1) if close() was called on the operator then exit the while loop
+							//   2) if not wait 50 ms and try again to fetch a new split to read
+
 							if (currentSplit == null) {
-								checkpointLock.wait(50);
+								if (!this.isClosed) {
+									checkpointLock.wait(50);
+								} else {
+									isRunning = false;
+								}
 								continue;
 							}
-						}
-
-						if (currentSplit.equals(EOS)) {
-							isRunning = false;
-							break;
 						}
 
 						if (this.format instanceof CheckpointableInputFormat && currentSplit.getSplitState() != null) {
@@ -332,7 +328,8 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 			List<TimestampedFileInputSplit> snapshot = new ArrayList<>(this.pendingSplits.size());
 			if (currentSplit != null ) {
 				if (this.format instanceof CheckpointableInputFormat && this.isSplitOpen) {
-					Serializable formatState = ((CheckpointableInputFormat<TimestampedFileInputSplit, Serializable>) this.format).getCurrentState();
+					Serializable formatState =
+						((CheckpointableInputFormat<TimestampedFileInputSplit, Serializable>) this.format).getCurrentState();
 					this.currentSplit.setSplitState(formatState);
 				}
 				snapshot.add(this.currentSplit);
@@ -343,6 +340,10 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 		public void cancel() {
 			this.isRunning = false;
+		}
+
+		public void close() {
+			this.isClosed = true;
 		}
 	}
 
