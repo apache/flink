@@ -20,9 +20,10 @@ package org.apache.flink.streaming.api.functions.windowing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -37,26 +38,27 @@ import java.util.Collections;
 
 @Internal
 public class FoldApplyWindowFunction<K, W extends Window, T, ACC>
-	extends WrappingFunction<WindowFunction<ACC, ACC, K, W>>
-	implements WindowFunction<T, ACC, K, W>, OutputTypeConfigurable<ACC> {
+	extends RichProcessWindowFunction<T, ACC, K, W>
+	implements OutputTypeConfigurable<ACC> {
 
 	private static final long serialVersionUID = 1L;
 
+	private final ProcessWindowFunction<ACC, ACC, K, W> windowFunction;
 	private final FoldFunction<T, ACC> foldFunction;
 
 	private byte[] serializedInitialValue;
 	private TypeSerializer<ACC> accSerializer;
 	private transient ACC initialValue;
 
-	public FoldApplyWindowFunction(ACC initialValue, FoldFunction<T, ACC> foldFunction, WindowFunction<ACC, ACC, K, W> windowFunction) {
-		super(windowFunction);
+	public FoldApplyWindowFunction(ACC initialValue, FoldFunction<T, ACC> foldFunction, ProcessWindowFunction<ACC, ACC, K, W> windowFunction) {
+		this.windowFunction = windowFunction;
 		this.foldFunction = foldFunction;
 		this.initialValue = initialValue;
 	}
 
 	@Override
 	public void open(Configuration configuration) throws Exception {
-		super.open(configuration);
+		FunctionUtils.openFunction(this.windowFunction, configuration);
 
 		if (serializedInitialValue == null) {
 			throw new RuntimeException("No initial value was serialized for the fold " +
@@ -69,14 +71,31 @@ public class FoldApplyWindowFunction<K, W extends Window, T, ACC>
 	}
 
 	@Override
-	public void apply(K key, W window, Iterable<T> values, Collector<ACC> out) throws Exception {
+	public void close() throws Exception {
+		FunctionUtils.closeFunction(this.windowFunction);
+	}
+
+	@Override
+	public void setRuntimeContext(RuntimeContext t) {
+		super.setRuntimeContext(t);
+
+		FunctionUtils.setFunctionRuntimeContext(this.windowFunction, t);
+	}
+
+	@Override
+	public void process(K key, final Context context, Iterable<T> values, Collector<ACC> out) throws Exception {
 		ACC result = accSerializer.copy(initialValue);
 
 		for (T val: values) {
 			result = foldFunction.fold(result, val);
 		}
 
-		wrappedFunction.apply(key, window, Collections.singletonList(result), out);
+		windowFunction.process(key, windowFunction.new Context() {
+			@Override
+			public W window() {
+				return context.window();
+			}
+		}, Collections.singletonList(result), out);
 	}
 
 	@Override

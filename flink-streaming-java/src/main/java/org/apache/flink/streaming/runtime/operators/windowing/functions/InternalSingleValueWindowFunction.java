@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.windowing.windows.Window;
@@ -41,15 +42,20 @@ public final class InternalSingleValueWindowFunction<IN, OUT, KEY, W extends Win
 
 	private static final long serialVersionUID = 1L;
 
-	protected WindowFunction<IN, OUT, KEY, W> wrappedFunction;
+	protected ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction;
 
-	public InternalSingleValueWindowFunction(WindowFunction<IN, OUT, KEY, W> wrappedFunction) {
+	public InternalSingleValueWindowFunction(ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction) {
 		this.wrappedFunction = wrappedFunction;
 	}
 
 	@Override
-	public void apply(KEY key, W window, IN input, Collector<OUT> out) throws Exception {
-		wrappedFunction.apply(key, window, Collections.singletonList(input), out);
+	public void process(KEY key, final W window, IN input, Collector<OUT> out) throws Exception {
+		wrappedFunction.process(key, wrappedFunction.new Context() {
+			@Override
+			public W window() {
+				return window;
+			}
+		}, Collections.singletonList(input), out);
 	}
 
 	@Override

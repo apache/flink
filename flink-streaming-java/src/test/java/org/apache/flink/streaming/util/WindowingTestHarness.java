@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
@@ -183,11 +184,11 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 		}
 	}
 
-	private class PassThroughFunction implements WindowFunction<IN, IN, K, W> {
+	private class PassThroughFunction extends ProcessWindowFunction<IN, IN, K, W> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void apply(K k, W window, Iterable<IN> input, Collector<IN> out) throws Exception {
+		public void process(K k, Context context, Iterable<IN> input, Collector<IN> out) throws Exception {
 			for (IN in: input) {
 				out.collect(in);
 			}

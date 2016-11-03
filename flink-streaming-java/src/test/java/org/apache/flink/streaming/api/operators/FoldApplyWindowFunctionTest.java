@@ -27,6 +27,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.FoldApplyWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
@@ -66,10 +67,10 @@ public class FoldApplyWindowFunctionTest {
 					return accumulator + value;
 				}
 			},
-			new WindowFunction<Integer, Integer, Integer, TimeWindow>() {
+			new ProcessWindowFunction<Integer, Integer, Integer, TimeWindow>() {
 				@Override
-				public void apply(Integer integer,
-					TimeWindow window,
+				public void process(Integer integer,
+					Context context,
 					Iterable<Integer> input,
 					Collector<Integer> out) throws Exception {
 					for (Integer in: input) {
@@ -130,7 +131,12 @@ public class FoldApplyWindowFunctionTest {
 
 		expected.add(initValue);
 
-		foldWindowFunction.apply(0, new TimeWindow(0, 1), input, new ListCollector<Integer>(result));
+		foldWindowFunction.process(0, foldWindowFunction.new Context() {
+			@Override
+			public TimeWindow window() {
+				return new TimeWindow(0, 1);
+			}
+		}, input, new ListCollector<>(result));
 
 		Assert.assertEquals(expected, result);
 	}

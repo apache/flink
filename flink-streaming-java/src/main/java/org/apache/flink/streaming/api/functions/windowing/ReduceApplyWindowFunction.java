@@ -19,7 +19,9 @@ package org.apache.flink.streaming.api.functions.windowing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.java.operators.translation.WrappingFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
@@ -27,23 +29,20 @@ import java.util.Collections;
 
 @Internal
 public class ReduceApplyWindowFunction<K, W extends Window, T, R>
-	extends WrappingFunction<WindowFunction<T, R, K, W>>
-	implements WindowFunction<T, R, K, W> {
+	extends RichProcessWindowFunction<T, R, K, W> {
 
 	private static final long serialVersionUID = 1L;
 
 	private final ReduceFunction<T> reduceFunction;
-	private final WindowFunction<T, R, K, W> windowFunction;
+	private final ProcessWindowFunction<T, R, K, W> windowFunction;
 
-	public ReduceApplyWindowFunction(ReduceFunction<T> reduceFunction,
-		WindowFunction<T, R, K, W> windowFunction) {
-		super(windowFunction);
+	public ReduceApplyWindowFunction(ReduceFunction<T> reduceFunction, ProcessWindowFunction<T, R, K, W> windowFunction) {
 		this.reduceFunction = reduceFunction;
 		this.windowFunction = windowFunction;
 	}
 
 	@Override
-	public void apply(K k, W window, Iterable<T> input, Collector<R> out) throws Exception {
+	public void process(K k, final Context context, Iterable<T> input, Collector<R> out) throws Exception {
 
 		T curr = null;
 		for (T val: input) {
@@ -53,6 +52,28 @@ public class ReduceApplyWindowFunction<K, W extends Window, T, R>
 				curr = reduceFunction.reduce(curr, val);
 			}
 		}
-		windowFunction.apply(k, window, Collections.singletonList(curr), out);
+		windowFunction.process(k, windowFunction.new Context() {
+			@Override
+			public W window() {
+				return context.window();
+			}
+		}, Collections.singletonList(curr), out);
+	}
+
+	@Override
+	public void open(Configuration parameters) throws Exception {
+		FunctionUtils.openFunction(this.windowFunction, parameters);
+	}
+
+	@Override
+	public void close() throws Exception {
+		FunctionUtils.closeFunction(this.windowFunction);
+	}
+
+	@Override
+	public void setRuntimeContext(RuntimeContext t) {
+		super.setRuntimeContext(t);
+
+		FunctionUtils.setFunctionRuntimeContext(this.windowFunction, t);
 	}
 }

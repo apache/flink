@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.windowing.windows.Window;
@@ -39,15 +40,20 @@ public final class InternalIterableWindowFunction<IN, OUT, KEY, W extends Window
 
 	private static final long serialVersionUID = 1L;
 
-	protected final WindowFunction<IN, OUT, KEY, W> wrappedFunction;
+	protected final ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction;
 
-	public InternalIterableWindowFunction(WindowFunction<IN, OUT, KEY, W> wrappedFunction) {
+	public InternalIterableWindowFunction(ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction) {
 		this.wrappedFunction = wrappedFunction;
 	}
 
 	@Override
-	public void apply(KEY key, W window, Iterable<IN> input, Collector<OUT> out) throws Exception {
-		wrappedFunction.apply(key, window, input, out);
+	public void process(KEY key, final W window, Iterable<IN> input, Collector<OUT> out) throws Exception {
+		wrappedFunction.process(key, wrappedFunction.new Context() {
+			@Override
+			public W window() {
+				return window;
+			}
+		}, input, out);
 	}
 
 	@Override

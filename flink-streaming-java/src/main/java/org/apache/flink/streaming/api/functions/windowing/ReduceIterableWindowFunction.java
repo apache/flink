@@ -23,7 +23,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
 @Internal
-public class ReduceIterableWindowFunction<K, W extends Window, T> implements WindowFunction<T, T, K, W> {
+public class ReduceIterableWindowFunction<K, W extends Window, T> extends ProcessWindowFunction<T, T, K, W> {
 	private static final long serialVersionUID = 1L;
 
 	private final ReduceFunction<T> reduceFunction;
@@ -33,7 +33,7 @@ public class ReduceIterableWindowFunction<K, W extends Window, T> implements Win
 	}
 
 	@Override
-	public void apply(K k, W window, Iterable<T> input, Collector<T> out) throws Exception {
+	public void process(K k, Context context, Iterable<T> input, Collector<T> out) throws Exception {
 
 		T curr = null;
 		for (T val: input) {

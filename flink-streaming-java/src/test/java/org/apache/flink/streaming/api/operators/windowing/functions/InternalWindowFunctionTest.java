@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.RichProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -72,7 +73,7 @@ public class InternalWindowFunctionTest {
 		Iterable<Long> i = (Iterable<Long>)mock(Iterable.class);
 		Collector<String> c = (Collector<String>) mock(Collector.class);
 
-		windowFunction.apply(((byte)0), w, i, c);
+		windowFunction.process(((byte)0), w, i, c);
 		verify(mock).apply(w, i, c);
 
 		// check close
@@ -84,7 +85,7 @@ public class InternalWindowFunctionTest {
 	@Test
 	public void testInternalIterableWindowFunction() throws Exception {
 
-		WindowFunctionMock mock = mock(WindowFunctionMock.class);
+		ProcessWindowFunctionMock mock = mock(ProcessWindowFunctionMock.class);
 		InternalIterableWindowFunction<Long, String, Long, TimeWindow> windowFunction =
 			new InternalIterableWindowFunction<>(mock);
 
@@ -113,8 +114,8 @@ public class InternalWindowFunctionTest {
 		Iterable<Long> i = (Iterable<Long>)mock(Iterable.class);
 		Collector<String> c = (Collector<String>) mock(Collector.class);
 
-		windowFunction.apply(42L, w, i, c);
-		verify(mock).apply(42L, w, i, c);
+		windowFunction.process(42L, w, i, c);
+		verify(mock).process(eq(42L), (ProcessWindowFunctionMock.Context) anyObject(), eq(i), eq(c));
 
 		// check close
 		windowFunction.close();
@@ -125,7 +126,7 @@ public class InternalWindowFunctionTest {
 	@Test
 	public void testInternalSingleValueWindowFunction() throws Exception {
 
-		WindowFunctionMock mock = mock(WindowFunctionMock.class);
+		ProcessWindowFunctionMock mock = mock(ProcessWindowFunctionMock.class);
 		InternalSingleValueWindowFunction<Long, String, Long, TimeWindow> windowFunction =
 			new InternalSingleValueWindowFunction<>(mock);
 
@@ -153,8 +154,8 @@ public class InternalWindowFunctionTest {
 		TimeWindow w = mock(TimeWindow.class);
 		Collector<String> c = (Collector<String>) mock(Collector.class);
 
-		windowFunction.apply(42L, w, 23L, c);
-		verify(mock).apply(eq(42L), eq(w), (Iterable<Long>)argThat(IsIterableContainingInOrder.contains(23L)), eq(c));
+		windowFunction.process(42L, w, 23L, c);
+		verify(mock).process(eq(42L), (ProcessWindowFunctionMock.Context) anyObject(), (Iterable<Long>)argThat(IsIterableContainingInOrder.contains(23L)), eq(c));
 
 		// check close
 		windowFunction.close();
@@ -193,7 +194,7 @@ public class InternalWindowFunctionTest {
 		TimeWindow w = mock(TimeWindow.class);
 		Collector<String> c = (Collector<String>) mock(Collector.class);
 
-		windowFunction.apply(((byte)0), w, 23L, c);
+		windowFunction.process(((byte)0), w, 23L, c);
 		verify(mock).apply(eq(w), (Iterable<Long>)argThat(IsIterableContainingInOrder.contains(23L)), eq(c));
 
 		// check close
@@ -201,15 +202,15 @@ public class InternalWindowFunctionTest {
 		verify(mock).close();
 	}
 
-	public static class WindowFunctionMock
-		extends RichWindowFunction<Long, String, Long, TimeWindow>
+	public static class ProcessWindowFunctionMock
+		extends RichProcessWindowFunction<Long, String, Long, TimeWindow>
 		implements OutputTypeConfigurable<String> {
 
 		@Override
 		public void setOutputType(TypeInformation<String> outTypeInfo, ExecutionConfig executionConfig) { }
 
 		@Override
-		public void apply(Long aLong, TimeWindow window, Iterable<Long> input, Collector<String> out) throws Exception { }
+		public void process(Long aLong, Context context, Iterable<Long> input, Collector<String> out) throws Exception { }
 	}
 
 	public static class AllWindowFunctionMock

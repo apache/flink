@@ -34,6 +34,8 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.RichProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -66,7 +68,7 @@ import static org.mockito.Mockito.when;
 public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	@SuppressWarnings("unchecked")
-	private final WindowFunction<String, String, String, TimeWindow> mockFunction = mock(WindowFunction.class);
+	private final ProcessWindowFunction<String, String, String, TimeWindow> mockFunction = mock(ProcessWindowFunction.class);
 
 	@SuppressWarnings("unchecked")
 	private final KeySelector<String, String> mockKeySelector = mock(KeySelector.class);
@@ -78,12 +80,12 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 		}
 	};
 	
-	private final WindowFunction<Integer, Integer, Integer, TimeWindow> validatingIdentityFunction =
-			new WindowFunction<Integer, Integer, Integer, TimeWindow>()
+	private final ProcessWindowFunction<Integer, Integer, Integer, TimeWindow> validatingIdentityFunction =
+			new ProcessWindowFunction<Integer, Integer, Integer, TimeWindow>()
 	{
 		@Override
-		public void apply(Integer key,
-				TimeWindow window,
+		public void process(Integer key,
+				Context context,
 				Iterable<Integer> values,
 				Collector<Integer> out) {
 			for (Integer val : values) {
@@ -660,7 +662,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	// ------------------------------------------------------------------------
 
-	private static class StatefulFunction extends RichWindowFunction<Integer, Integer, Integer, TimeWindow> {
+	private static class StatefulFunction extends RichProcessWindowFunction<Integer, Integer, Integer, TimeWindow> {
 
 		// we use a concurrent map here even though there is no concurrency, to
 		// get "volatile" style access to entries
@@ -676,8 +678,8 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 		}
 
 		@Override
-		public void apply(Integer key,
-						  TimeWindow window,
+		public void process(Integer key,
+						  Context context,
 						  Iterable<Integer> values,
 						  Collector<Integer> out) throws Exception {
 			for (Integer i : values) {

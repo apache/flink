@@ -27,7 +27,9 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceIterableWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.RichProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -740,7 +742,7 @@ public class EvictingWindowOperatorTest {
 		}
 	}
 
-	public static class RichSumReducer<W extends Window> extends RichWindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String, W> {
+	public static class RichSumReducer<W extends Window> extends RichProcessWindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String, W> {
 		private static final long serialVersionUID = 1L;
 
 		private boolean openCalled = false;
@@ -764,8 +766,8 @@ public class EvictingWindowOperatorTest {
 		}
 
 		@Override
-		public void apply(String key,
-			W window,
+		public void process(String key,
+			Context context,
 			Iterable<Tuple2<String, Integer>> input,
 			Collector<Tuple2<String, Integer>> out) throws Exception {
 
@@ -781,7 +783,6 @@ public class EvictingWindowOperatorTest {
 			out.collect(new Tuple2<>(key, sum));
 
 		}
-
 	}
 
 	@SuppressWarnings("unchecked")
