@@ -384,9 +384,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            name of the (public) field on which to perform the aggregation.
 	 *            Additionally, a dot can be used to drill down into nested
 	 *            objects, as in {@code "field1.fieldxy" }.
-	 *            Furthermore, an array index can also be specified in case of an array of
-	 *            a primitive or basic type; or "0" or "*" can be specified in case of a
-	 *            basic type (which is considered as having only one field).
+	 *            Furthermore "*" can be specified in case of a basic type
+	 *            (which is considered as having only one field).
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> sum(String field) {
@@ -400,8 +399,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *
 	 * @param positionToMin
 	 *            The field position in the data points to minimize. This is applicable to
-	 *            Tuple types, basic and primitive array types, Scala case classes,
-	 *            and primitive types (which is considered as having one field).
+	 *            Tuple types, Scala case classes, and primitive types (which is considered
+	 *            as having one field).
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> min(int positionToMin) {
@@ -422,9 +421,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            name of the (public) field on which to perform the aggregation.
 	 *            Additionally, a dot can be used to drill down into nested
 	 *            objects, as in {@code "field1.fieldxy" }.
-	 *            Furthermore, an array index can also be specified in case of an array of
-	 *            a primitive or basic type; or "0" or "*" can be specified in case of a
-	 *            basic type (which is considered as having only one field).
+	 *            Furthermore "*" can be specified in case of a basic type
+	 *            (which is considered as having only one field).
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> min(String field) {
@@ -438,9 +436,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * per key.
 	 *
 	 * @param positionToMax
-	 *            The field position in the data points to maximize. This is applicable to
-	 *            Tuple types, basic and primitive array types, Scala case classes,
-	 *            and primitive types (which is considered as having one field).
+	 *            The field position in the data points to minimize. This is applicable to
+	 *            Tuple types, Scala case classes, and primitive types (which is considered
+	 *            as having one field).
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> max(int positionToMax) {
@@ -461,9 +459,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            name of the (public) field on which to perform the aggregation.
 	 *            Additionally, a dot can be used to drill down into nested
 	 *            objects, as in {@code "field1.fieldxy" }.
-	 *            Furthermore, an array index can also be specified in case of an array of
-	 *            a primitive or basic type; or "0" or "*" can be specified in case of a
-	 *            basic type (which is considered as having only one field).
+	 *            Furthermore "*" can be specified in case of a basic type
+	 *            (which is considered as having only one field).
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> max(String field) {
@@ -484,9 +481,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            name of the (public) field on which to perform the aggregation.
 	 *            Additionally, a dot can be used to drill down into nested
 	 *            objects, as in {@code "field1.fieldxy" }.
-	 *            Furthermore, an array index can also be specified in case of an array of
-	 *            a primitive or basic type; or "0" or "*" can be specified in case of a
-	 *            basic type (which is considered as having only one field).
+	 *            Furthermore "*" can be specified in case of a basic type
+	 *            (which is considered as having only one field).
 	 * @param first
 	 *            If True then in case of field equality the first object will
 	 *            be returned
@@ -511,9 +507,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            name of the (public) field on which to perform the aggregation.
 	 *            Additionally, a dot can be used to drill down into nested
 	 *            objects, as in {@code "field1.fieldxy" }.
-	 *            Furthermore, an array index can also be specified in case of an array of
-	 *            a primitive or basic type; or "0" or "*" can be specified in case of a
-	 *            basic type (which is considered as having only one field).
+	 *            Furthermore "*" can be specified in case of a basic type
+	 *            (which is considered as having only one field).
 	 * @param first
 	 *            If True then in case of field equality the first object will
 	 *            be returned
@@ -532,8 +527,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *
 	 * @param positionToMinBy
 	 *            The field position in the data points to minimize. This is applicable to
-	 *            Tuple types, basic and primitive array types, Scala case classes,
-	 *            and primitive types (which is considered as having one field).
+	 *            Tuple types, Scala case classes, and primitive types (which is considered
+	 *            as having one field).
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> minBy(int positionToMinBy) {
@@ -551,9 +546,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            name of the (public) field on which to perform the aggregation.
 	 *            Additionally, a dot can be used to drill down into nested
 	 *            objects, as in {@code "field1.fieldxy" }.
-	 *            Furthermore, an array index can also be specified in case of an array of
-	 *            a primitive or basic type; or "0" or "*" can be specified in case of a
-	 *            basic type (which is considered as having only one field).
+	 *            Furthermore "*" can be specified in case of a basic type
+	 *            (which is considered as having only one field).
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> minBy(String positionToMinBy) {
@@ -569,8 +563,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *
 	 * @param positionToMinBy
 	 *            The field position in the data points to minimize. This is applicable to
-	 *            Tuple types, basic and primitive array types, Scala case classes,
-	 *            and primitive types (which is considered as having one field).
+	 *            Tuple types, Scala case classes, and primitive types (which is considered
+	 *            as having one field).
 	 * @param first
 	 *            If true, then the operator return the first element with the
 	 *            minimal value, otherwise returns the last
@@ -588,9 +582,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * given position, the operator returns the first one by default.
 	 *
 	 * @param positionToMaxBy
-	 *            The field position in the data points to maximize. This is applicable to
-	 *            Tuple types, basic and primitive array types, Scala case classes,
-	 *            and primitive types (which is considered as having one field).
+	 *            The field position in the data points to minimize. This is applicable to
+	 *            Tuple types, Scala case classes, and primitive types (which is considered
+	 *            as having one field).
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> maxBy(int positionToMaxBy) {
@@ -608,9 +602,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            name of the (public) field on which to perform the aggregation.
 	 *            Additionally, a dot can be used to drill down into nested
 	 *            objects, as in {@code "field1.fieldxy" }.
-	 *            Furthermore, an array index can also be specified in case of an array of
-	 *            a primitive or basic type; or "0" or "*" can be specified in case of a
-	 *            basic type (which is considered as having only one field).
+	 *            Furthermore "*" can be specified in case of a basic type
+	 *            (which is considered as having only one field).
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> maxBy(String positionToMaxBy) {
@@ -625,9 +618,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * depending on the parameter set.
 	 *
 	 * @param positionToMaxBy
-	 *            The field position in the data points to maximize. This is applicable to
-	 *            Tuple types, basic and primitive array types, Scala case classes,
-	 *            and primitive types (which is considered as having one field).
+	 *            The field position in the data points to minimize. This is applicable to
+	 *            Tuple types, Scala case classes, and primitive types (which is considered
+	 *            as having one field).
 	 * @param first
 	 *            If true, then the operator return the first element with the
 	 *            maximum value, otherwise returns the last

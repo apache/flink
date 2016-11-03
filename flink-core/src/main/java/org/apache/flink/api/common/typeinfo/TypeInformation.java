@@ -24,7 +24,6 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.FieldAccessor;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import java.io.Serializable;
@@ -172,39 +171,6 @@ public abstract class TypeInformation<T> implements Serializable {
 	 */
 	@PublicEvolving
 	public abstract TypeSerializer<T> createSerializer(ExecutionConfig config);
-
-
-	/**
-	 * Creates a {@link FieldAccessor} for the given field position, which can be used to get and set
-	 * the specified field on instances of this type.
-	 *
-	 * @param pos The field position (zero-based)
-	 * @param config Configuration object
-	 * @param <F> The type of the field to access
-	 * @return The created FieldAccessor
-	 */
-	@PublicEvolving
-	public <F> FieldAccessor<T, F> getFieldAccessor(int pos, ExecutionConfig config){
-		throw new InvalidFieldReferenceException("Cannot reference field by position on " + this.toString()
-			+ "Referencing a field by position is supported on tuples, case classes, and arrays. "
-			+ "Additionally, you can select the 0th field of a primitive/basic type (e.g. int).");
-	}
-
-	/**
-	 * Creates a {@link FieldAccessor} for the field that is given by a field expression,
-	 * which can be used to get and set the specified field on instances of this type.
-	 *
-	 * @param field The field expression
-	 * @param config Configuration object
-	 * @param <F> The type of the field to access
-	 * @return The created FieldAccessor
-	 */
-	@PublicEvolving
-	public <F> FieldAccessor<T, F> getFieldAccessor(String field, ExecutionConfig config) {
-		throw new InvalidFieldReferenceException("Cannot reference field by field expression on " + this.toString()
-				+ "Field expressions are only supported on POJO types, tuples, and case classes. "
-				+ "(See the Flink documentation on what is considered a POJO.)");
-	}
 
 	@Override
 	public abstract String toString();
