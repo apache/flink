@@ -155,7 +155,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 
 		sink = createSink();
 
-		testHarness =new OneInputStreamOperatorTestHarness<>(sink);
+		testHarness = new OneInputStreamOperatorTestHarness<>(sink);
 
 		testHarness.setup();
 		testHarness.restore(latestSnapshot);

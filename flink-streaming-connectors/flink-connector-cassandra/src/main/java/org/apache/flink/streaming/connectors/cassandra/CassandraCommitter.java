@@ -104,6 +104,7 @@ public class CassandraCommitter extends CheckpointCommitter {
 
 	@Override
 	public void close() throws Exception {
+		this.lastCommittedCheckpoints.clear();
 		try {
 			session.close();
 		} catch (Exception e) {
@@ -123,6 +124,7 @@ public class CassandraCommitter extends CheckpointCommitter {
 			keySpace, table, checkpointId, operatorId, subtaskIdx);
 
 		session.execute(statement);
+		lastCommittedCheckpoints.put(subtaskIdx, checkpointId);
 	}
 
 	@Override
@@ -130,19 +132,21 @@ public class CassandraCommitter extends CheckpointCommitter {
 
 		// Pending checkpointed buffers are committed in ascending order of their
 		// checkpoint id. This way we can tell if a checkpointed buffer was committed
-		// just by asking the third party storage system for the last checkpointed
-		// checkpoint id committed by the specific subtask.
+		// just by asking the third-party storage system for the last checkpoint id
+		// committed by the specified subtask.
 
 		Long lastCommittedCheckpoint = lastCommittedCheckpoints.get(subtaskIdx);
-		if (lastCommittedCheckpoint == null || lastCommittedCheckpoint == -1) {
+		if (lastCommittedCheckpoint == null) {
 			String statement = String.format(
 				"SELECT checkpoint_id FROM %s.%s where sink_id='%s' and sub_id=%d;",
 				keySpace, table, operatorId, subtaskIdx);
 
-			Iterator<Row> result = session.execute(statement).iterator();
-			lastCommittedCheckpoint = result.hasNext() ? result.next().getLong("checkpoint_id") : -1;
-			lastCommittedCheckpoints.put(subtaskIdx, lastCommittedCheckpoint);
+			Iterator<Row> resultIt = session.execute(statement).iterator();
+			if (resultIt.hasNext()) {
+				lastCommittedCheckpoint = resultIt.next().getLong("checkpoint_id");
+				lastCommittedCheckpoints.put(subtaskIdx, lastCommittedCheckpoint);
+			}
 		}
-		return checkpointId <= lastCommittedCheckpoint;
+		return lastCommittedCheckpoint != null && checkpointId <= lastCommittedCheckpoint;
 	}
 }

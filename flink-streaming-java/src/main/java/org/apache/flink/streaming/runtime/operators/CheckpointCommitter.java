@@ -90,7 +90,7 @@ public abstract class CheckpointCommitter implements Serializable {
 	 * Mark the given checkpoint as completed in the resource.
 	 *
 	 * @param subtaskIdx the index of the subtask responsible for committing the checkpoint.
-	 * @param checkpointID this id of the checkpoint to be committed.
+	 * @param checkpointID the id of the checkpoint to be committed.
 	 * @throws Exception
 	 */
 	public abstract void commitCheckpoint(int subtaskIdx, long checkpointID) throws Exception;
@@ -99,7 +99,7 @@ public abstract class CheckpointCommitter implements Serializable {
 	 * Checked the resource whether the given checkpoint was committed completely.
 	 *
 	 * @param subtaskIdx the index of the subtask responsible for committing the checkpoint.
-	 * @param checkpointID this id of the checkpoint we are interested in.
+	 * @param checkpointID the id of the checkpoint we are interested in.
 	 * @return true if the checkpoint was committed completely, false otherwise
 	 * @throws Exception
 	 */
