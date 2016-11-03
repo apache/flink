@@ -23,7 +23,7 @@ import java.util.concurrent.ExecutorService
 import akka.actor.{ActorRef, ActorSystem, Props}
 import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.io.FileOutputFormat
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.configuration.{QueryableStateOptions, ConfigConstants, Configuration}
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
@@ -73,6 +73,12 @@ class LocalFlinkMiniCluster(
     config.addAll(userConfiguration)
     setMemory(config)
     initializeIOFormatClasses(config)
+
+    // Disable queryable state server if nothing else is configured explicitly
+    if (!config.containsKey(QueryableStateOptions.SERVER_ENABLE.key())) {
+      LOG.info("Disabled queryable state server")
+      config.setBoolean(QueryableStateOptions.SERVER_ENABLE, false)
+    }
 
     config
   }

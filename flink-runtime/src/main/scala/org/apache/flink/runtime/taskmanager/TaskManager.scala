@@ -1923,30 +1923,30 @@ object TaskManager {
 
     val kvStateRegistry = new KvStateRegistry()
 
-    val kvStateServer = netConfig.nettyConfig match {
-      case Some(nettyConfig) =>
+    val tmConfig = taskManagerConfig.configuration
+    val kvStateServer = tmConfig.getBoolean(QueryableStateOptions.SERVER_ENABLE) match {
+      case true =>
+        val port = tmConfig.getInteger(QueryableStateOptions.SERVER_PORT)
 
-        val numNetworkThreads = if (netConfig.queryServerNetworkThreads == 0) {
-          nettyConfig.getNumberOfSlots
-        } else {
-          netConfig.queryServerNetworkThreads
+        var numNetworkThreads = tmConfig.getInteger(QueryableStateOptions.SERVER_NETWORK_THREADS)
+        if (numNetworkThreads == 0) {
+          numNetworkThreads = taskManagerConfig.numberOfSlots
         }
 
-        val numQueryThreads = if (netConfig.queryServerQueryThreads == 0) {
-          nettyConfig.getNumberOfSlots
-        } else {
-          netConfig.queryServerQueryThreads
+        var numQueryThreads = tmConfig.getInteger(QueryableStateOptions.SERVER_ASYNC_QUERY_THREADS)
+        if (numQueryThreads == 0) {
+          numQueryThreads = taskManagerConfig.numberOfSlots
         }
 
         new KvStateServer(
           taskManagerAddress.getAddress(),
-          netConfig.queryServerPort,
+          port,
           numNetworkThreads,
           numQueryThreads,
           kvStateRegistry,
           new DisabledKvStateRequestStats())
 
-      case None => null
+      case false => null
     }
 
     // we start the network first, to make sure it can allocate its buffers first
@@ -2235,26 +2235,11 @@ object TaskManager {
 
     val ioMode : IOMode = if (syncOrAsync == "async") IOMode.ASYNC else IOMode.SYNC
 
-    val queryServerPort =  configuration.getInteger(
-      ConfigConstants.QUERYABLE_STATE_SERVER_PORT,
-      ConfigConstants.DEFAULT_QUERYABLE_STATE_SERVER_PORT)
-
-    val queryServerNetworkThreads =  configuration.getInteger(
-      ConfigConstants.QUERYABLE_STATE_SERVER_NETWORK_THREADS,
-      ConfigConstants.DEFAULT_QUERYABLE_STATE_SERVER_NETWORK_THREADS)
-
-    val queryServerQueryThreads =  configuration.getInteger(
-      ConfigConstants.QUERYABLE_STATE_SERVER_QUERY_THREADS,
-      ConfigConstants.DEFAULT_QUERYABLE_STATE_SERVER_QUERY_THREADS)
-
     val networkConfig = NetworkEnvironmentConfiguration(
       numNetworkBuffers,
       pageSize,
       memType,
       ioMode,
-      queryServerPort,
-      queryServerNetworkThreads,
-      queryServerQueryThreads,
       nettyConfig)
 
     // ----> timeouts, library caching, profiling
