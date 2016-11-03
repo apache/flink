@@ -101,6 +101,7 @@ object FlinkRuleSets {
     DataSetAggregateRule.INSTANCE,
     DataSetCalcRule.INSTANCE,
     DataSetJoinRule.INSTANCE,
+    DataSetSingleRowCrossRule.INSTANCE,
     DataSetScanRule.INSTANCE,
     DataSetUnionRule.INSTANCE,
     DataSetIntersectRule.INSTANCE,

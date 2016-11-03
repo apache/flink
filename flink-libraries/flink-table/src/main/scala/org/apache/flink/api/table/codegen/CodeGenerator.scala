@@ -25,7 +25,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, Function, MapFunction}
+import org.apache.flink.api.common.functions.{CrossFunction, FlatJoinFunction, FlatMapFunction, Function, MapFunction}
 import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfo}
@@ -227,6 +227,14 @@ class CodeGenerator(
         (s"void join(Object _in1, Object _in2, org.apache.flink.util.Collector $collectorTerm)",
           List(s"$inputTypeTerm1 $input1Term = ($inputTypeTerm1) _in1;",
           s"$inputTypeTerm2 $input2Term = ($inputTypeTerm2) _in2;"))
+      }
+      else if (clazz == classOf[CrossFunction[_,_,_]]) {
+        val inputTypeTerm1 = boxedTypeTermForTypeInfo(input1)
+        val inputTypeTerm2 = boxedTypeTermForTypeInfo(input2.getOrElse(
+          throw new CodeGenException("Input 2 for CrossFunction should not be null")))
+        (s"Object cross(Object _in1, Object _in2)",
+          List(s"$inputTypeTerm1 $input1Term = ($inputTypeTerm1) _in1;",
+            s"$inputTypeTerm2 $input2Term = ($inputTypeTerm2) _in2;"))
       }
       else {
         // TODO more functions
