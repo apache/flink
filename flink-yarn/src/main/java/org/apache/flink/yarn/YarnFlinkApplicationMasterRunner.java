@@ -72,8 +72,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * This class is the executable entry point for the YARN application master.
- * It starts actor system and the actors for {@link org.apache.flink.runtime.jobmaster.JobMaster}
+ * This class is the executable entry point for the YARN flink application master.
+ * It starts {@link org.apache.flink.runtime.jobmaster.JobMaster}
  * and {@link org.apache.flink.yarn.YarnResourceManager}.
  *
  * The JobMasters handles Flink job execution, while the YarnResourceManager handles container
