@@ -19,6 +19,7 @@
 package org.apache.flink.optimizer.dag;
 
 import org.apache.flink.api.common.ExecutionMode;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.optimizer.dataproperties.InterestingProperties;
 import org.apache.flink.optimizer.plandump.DumpableConnection;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
@@ -87,7 +88,12 @@ public class DagConnection implements EstimateProvider, DumpableConnection<Optim
 		this.source = source;
 		this.target = target;
 		this.shipStrategy = shipStrategy;
-		this.dataExchangeMode = exchangeMode;
+		if (source.getOperator().getParameters().containsKey(ConfigConstants.OPERATOR_RESULT_PERSISTENT_TYPE)) {
+			this.dataExchangeMode = ExecutionMode.BATCH_PERSISTENT;
+		}
+		else {
+			this.dataExchangeMode = exchangeMode;
+		}
 	}
 	
 	/**
@@ -104,7 +110,12 @@ public class DagConnection implements EstimateProvider, DumpableConnection<Optim
 		this.source = source;
 		this.target = null;
 		this.shipStrategy = ShipStrategyType.NONE;
-		this.dataExchangeMode = exchangeMode;
+		if (source.getOperator().getParameters().containsKey(ConfigConstants.OPERATOR_RESULT_PERSISTENT_TYPE)) {
+			this.dataExchangeMode = ExecutionMode.BATCH_PERSISTENT;
+		}
+		else {
+			this.dataExchangeMode = exchangeMode;
+		}
 	}
 
 	/**

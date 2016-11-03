@@ -86,6 +86,12 @@ public final class ConfigConstants {
 	public static final String RESTART_STRATEGY_FAILURE_RATE_DELAY = "restart-strategy.failure-rate.delay";
 
 	/**
+	 * Config parameter for the persistent type of the result of an operator
+	 */
+	@PublicEvolving
+	public static final String OPERATOR_RESULT_PERSISTENT_TYPE = "operator.result.persistent-type";
+
+	/**
 	 * Config parameter for the number of re-tries for failed tasks. Setting this
 	 * value to 0 effectively disables fault tolerance.
 	 *

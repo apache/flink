@@ -791,6 +791,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 					!(pred instanceof IterationPlanNode) && // cannot chain with iteration heads currently
 					inConn.getShipStrategy() == ShipStrategyType.FORWARD &&
 					inConn.getLocalStrategy() == LocalStrategy.NONE &&
+					inConn.getDataExchangeMode() != DataExchangeMode.BATCH_PERSISTENT &&
 					pred.getOutgoingChannels().size() == 1 &&
 					node.getParallelism() == pred.getParallelism() &&
 					node.getBroadcastInputs().isEmpty();
@@ -1112,6 +1113,11 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 				resultType = channel.getSource().isOnDynamicPath()
 						? ResultPartitionType.PIPELINED
 						: ResultPartitionType.BLOCKING;
+				break;
+
+			case BATCH_PERSISTENT:
+				// results should be persistent, put it to distribute file system
+				resultType = ResultPartitionType.DFS;
 				break;
 
 			case PIPELINE_WITH_BATCH_FALLBACK:

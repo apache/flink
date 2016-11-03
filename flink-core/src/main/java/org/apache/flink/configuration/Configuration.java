@@ -549,7 +549,13 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			}
 		}
 	}
-	
+
+	public void addAll(Map<String, String> other) {
+		synchronized (this.confData) {
+			this.confData.putAll(other);
+		}
+	}
+
 	/**
 	 * Adds all entries from the given configuration into this configuration. The keys
 	 * are prepended with the given prefix.

@@ -82,5 +82,13 @@ public enum ExecutionMode {
 	 * is typically more expensive to execute than the {@link #BATCH} mode. It does
 	 * guarantee that no successive operations are ever executed concurrently.
 	 */
-	BATCH_FORCED
+	BATCH_FORCED,
+
+	/**
+	 * This mode executes the program in batch way, while data is
+	 * forwarded from producer to distribute file system and then to consumer. This mode
+	 * is typically more expensive to execute than the {@link #BATCH} mode. It does
+	 * guarantee that the result will never be lost and producer can exist after finish.
+	 */
+	BATCH_PERSISTENT
 }

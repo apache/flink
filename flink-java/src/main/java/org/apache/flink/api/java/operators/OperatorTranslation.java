@@ -133,6 +133,7 @@ public class OperatorTranslation {
 		Operator<I> input = translate(typedInput);
 		
 		org.apache.flink.api.common.operators.Operator<O> dataFlowOp = typedOp.translateToDataFlow(input);
+		dataFlowOp.getParameters().addAll(op.getOptions());
 		
 		if (op instanceof UdfOperator<?>) {
 			@SuppressWarnings("unchecked")
@@ -169,6 +170,7 @@ public class OperatorTranslation {
 		Operator<I2> input2 = translate(typedInput2);
 		
 		org.apache.flink.api.common.operators.Operator<O> dataFlowOp = typedOp.translateToDataFlow(input1, input2);
+		dataFlowOp.getParameters().addAll(op.getOptions());
 		
 		if (op instanceof UdfOperator<?> ) {
 			@SuppressWarnings("unchecked")
