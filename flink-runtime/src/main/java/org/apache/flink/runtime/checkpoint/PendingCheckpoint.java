@@ -245,12 +245,10 @@ public class PendingCheckpoint {
 				return false;
 			}
 
-			if (null != checkpointedSubtaskState && checkpointedSubtaskState.hasState()) {
+			if (null != checkpointedSubtaskState) {
 
 				JobVertexID jobVertexID = vertex.getJobvertexId();
-
 				int subtaskIndex = vertex.getParallelSubtaskIndex();
-
 				TaskState taskState = taskStates.get(jobVertexID);
 
 				if (null == taskState) {

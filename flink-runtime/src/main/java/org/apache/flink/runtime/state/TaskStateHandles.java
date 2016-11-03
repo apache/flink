@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.checkpoint.SubtaskState;
-import org.apache.flink.util.CollectionUtil;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -97,14 +96,6 @@ public class TaskStateHandles implements Serializable {
 
 	public List<Collection<OperatorStateHandle>> getManagedOperatorState() {
 		return managedOperatorState;
-	}
-
-	public boolean hasState() {
-		return !ChainedStateHandle.isNullOrEmpty(legacyOperatorState)
-				|| !CollectionUtil.isNullOrEmpty(managedKeyedState)
-				|| !CollectionUtil.isNullOrEmpty(rawKeyedState)
-				|| !CollectionUtil.isNullOrEmpty(rawOperatorState)
-				|| !CollectionUtil.isNullOrEmpty(managedOperatorState);
 	}
 
 	private static List<Collection<OperatorStateHandle>> transform(ChainedStateHandle<OperatorStateHandle> in) {

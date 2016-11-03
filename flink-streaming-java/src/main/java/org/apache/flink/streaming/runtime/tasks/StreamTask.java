@@ -887,11 +887,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						keyedStateHandleBackend,
 						keyedStateHandleStream);
 
-				if (subtaskState.hasState()) {
-					owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData, subtaskState);
-				} else {
-					owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData);
-				}
+				owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData, subtaskState);
 
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("{} - finished asynchronous part of checkpoint {}. Asynchronous duration: {} ms",

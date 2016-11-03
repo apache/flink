@@ -232,6 +232,7 @@ public class SavepointITCase extends TestLogger {
 			// Shut down the Flink cluster (thereby canceling the job)
 			LOG.info("Shutting down Flink cluster.");
 			flink.shutdown();
+			flink.awaitTermination();
 
 			// - Verification START -------------------------------------------
 
@@ -339,6 +340,7 @@ public class SavepointITCase extends TestLogger {
 					SubtaskState subtaskState = taskState.getState(tdd.getIndexInSubtaskGroup());
 
 					assertNotNull(subtaskState);
+
 					errMsg = "Initial operator state mismatch.";
 					assertEquals(errMsg, subtaskState.getLegacyOperatorState(),
 							tdd.getTaskStateHandles().getLegacyOperatorState());
