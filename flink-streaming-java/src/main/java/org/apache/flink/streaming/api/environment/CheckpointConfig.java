@@ -235,8 +235,9 @@ public class CheckpointConfig implements java.io.Serializable {
 	 *
 	 * <p>Externalized checkpoints write their meta data out to persistent
 	 * storage and are <strong>not</strong> automatically cleaned up when
-	 * the owning job fails (terminating with job status {@link JobStatus#FAILED}).
-	 * In this case, you have to manually clean up the checkpoint state, both
+	 * the owning job fails or is suspended (terminating with job status
+	 * {@link JobStatus#FAILED} or {@link JobStatus#SUSPENDED}). In this
+	 * case, you have to manually clean up the checkpoint state, both
 	 * the meta data and actual program state.
 	 *
 	 * <p>The {@link ExternalizedCheckpointCleanup} mode defines how an
