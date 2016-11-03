@@ -24,7 +24,7 @@ import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -163,11 +163,11 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 	// --------------------------			Task Sink			------------------------------
 
 	private static class TestingSinkFunction extends RichSinkFunction<String>
-		implements Checkpointed<Tuple2<Long, Map<Integer, Set<String>>>>, CheckpointListener {
+		implements ListCheckpointed<Tuple2<Long, Map<Integer, Set<String>>>>, CheckpointListener {
 
-		private boolean hasFailed;
+		private boolean hasRestoredAfterFailure;
 
-		private volatile boolean hasSuccessfulCheckpoints;
+		private volatile int successfulCheckpoints;
 
 		private long elementsToFailure;
 
@@ -176,9 +176,9 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 		private Map<Integer, Set<String>> actualContent = new HashMap<>();
 
 		TestingSinkFunction() {
-			hasFailed = false;
+			hasRestoredAfterFailure = false;
 			elementCounter = 0;
-			hasSuccessfulCheckpoints = false;
+			successfulCheckpoints = 0;
 		}
 
 		@Override
@@ -216,13 +216,13 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 				throw new SuccessException();
 			}
 
-			// add some latency so that we have at least one checkpoint in
-			if (!hasFailed && !hasSuccessfulCheckpoints) {
+			// add some latency so that we have at least two checkpoint in
+			if (!hasRestoredAfterFailure && successfulCheckpoints < 2) {
 				Thread.sleep(5);
 			}
 
 			// simulate a node failure
-			if (!hasFailed && hasSuccessfulCheckpoints && elementCounter >= elementsToFailure) {
+			if (!hasRestoredAfterFailure && successfulCheckpoints >= 2 && elementCounter >= elementsToFailure) {
 				throw new Exception("Task Failure @ elem: " + elementCounter + " / " + elementsToFailure);
 			}
 		}
@@ -237,20 +237,22 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 		}
 
 		@Override
-		public Tuple2<Long, Map<Integer, Set<String>>> snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return new Tuple2<>(elementCounter, actualContent);
+		public List<Tuple2<Long, Map<Integer, Set<String>>>> snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+			Tuple2<Long, Map<Integer, Set<String>>> state = new Tuple2<>(elementCounter, actualContent);
+			return Collections.singletonList(state);
 		}
 
 		@Override
-		public void restoreState(Tuple2<Long, Map<Integer, Set<String>>> state) throws Exception {
-			this.hasFailed = true;
-			this.elementCounter = state.f0;
-			this.actualContent = state.f1;
+		public void restoreState(List<Tuple2<Long, Map<Integer, Set<String>>>> state) throws Exception {
+			Tuple2<Long, Map<Integer, Set<String>>> s = state.get(0);
+			this.elementCounter = s.f0;
+			this.actualContent = s.f1;
+			this.hasRestoredAfterFailure = this.elementCounter != 0; // because now restore is also called at initialization
 		}
 
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) throws Exception {
-			hasSuccessfulCheckpoints = true;
+			this.successfulCheckpoints++;
 		}
 
 		private int getFileIdx(String line) {
