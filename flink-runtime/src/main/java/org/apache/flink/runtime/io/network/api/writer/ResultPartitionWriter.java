@@ -37,7 +37,7 @@ import java.io.IOException;
  * The {@link ResultPartitionWriter} is the runtime API for producing results. It
  * supports two kinds of data to be sent: buffers and events.
  */
-public final class ResultPartitionWriter implements EventListener<TaskEvent> {
+public class ResultPartitionWriter implements EventListener<TaskEvent> {
 
 	private final ResultPartition partition;
 

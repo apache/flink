@@ -117,7 +117,7 @@ public class StreamTaskTestHarness<OUT> {
 		if (!(task instanceof StreamTask)) {
 			throw new UnsupportedOperationException("getProcessingTimeService() only supported on StreamTasks.");
 		}
-		return ((StreamTask) task).getProcessingTimeService();
+		return ((StreamTask<?, ?>) task).getProcessingTimeService();
 	}
 
 	/**
