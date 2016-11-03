@@ -18,16 +18,11 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.metrics.Histogram;
-import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -55,13 +50,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		super(sourceFunction);
 
 		this.chainingStrategy = ChainingStrategy.HEAD;
-	}
-
-	@Override
-	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
-		super.setup(containingTask, config, output);
-
-		this.output = new SourceOutput<>(this.output, ((OperatorMetricGroup) this.metrics).getIOMetricGroup());
 	}
 
 	public void run(final Object lockingObject) throws Exception {
@@ -155,44 +143,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		public void close() {
 			latencyMarkTimer.cancel(true);
 			scheduleExecutor.shutdownNow();
-		}
-	}
-
-	/**
-	 * Source Output for specialise collects
-	 */
-	private static class SourceOutput<OUT> implements Output<StreamRecord<OUT>> {
-
-		private final Output<StreamRecord<OUT>> output;
-
-		private final Histogram recordProcLatency;
-
-		public SourceOutput(Output<StreamRecord<OUT>> output, OperatorIOMetricGroup ioMetricGroup) {
-			this.output = output;
-			this.recordProcLatency = ioMetricGroup.getRecordProcLatency();
-		}
-
-		@Override
-		public void emitWatermark(Watermark mark) {
-			output.emitWatermark(mark);
-		}
-
-		@Override
-		public void emitLatencyMarker(LatencyMarker latencyMarker) {
-			output.emitLatencyMarker(latencyMarker);
-		}
-
-		@Override
-		public void collect(StreamRecord<OUT> record) {
-			long start=System.nanoTime();
-			output.collect(record);
-			long end=System.nanoTime();
-			recordProcLatency.update(end - start);
-		}
-
-		@Override
-		public void close() {
-			output.close();
 		}
 	}
 }

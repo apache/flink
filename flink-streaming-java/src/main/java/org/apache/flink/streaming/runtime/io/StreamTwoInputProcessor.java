@@ -90,7 +90,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 
 	private Counter numRecordsIn;
 
-	private Histogram recordProcLatency;
+	private Histogram recordProcessLatency;
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public StreamTwoInputProcessor(
@@ -160,10 +160,6 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			numRecordsIn = ((OperatorMetricGroup)streamOperator.getMetricGroup()).getIOMetricGroup().getNumRecordsInCounter();
 		}
 
-		if (recordProcLatency == null) {
-			recordProcLatency = ((OperatorMetricGroup)streamOperator.getMetricGroup()).getIOMetricGroup().getRecordProcLatency();
-		}
-
 		while (true) {
 			if (currentRecordDeserializer != null) {
 				DeserializationResult result;
@@ -199,7 +195,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 								streamOperator.processElement1(recordOrWatermark.<IN1>asRecord());
 							}
 							long end=System.nanoTime();
-							recordProcLatency.update(end - start);
+							recordProcessLatency.update(end - start);
 							return true;
 
 						}
@@ -224,7 +220,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 								streamOperator.processElement2(recordOrWatermark.<IN2>asRecord());
 							}
 							long end=System.nanoTime();
-							recordProcLatency.update(end - start);
+							recordProcessLatency.update(end - start);
 							return true;
 						}
 					}
@@ -298,6 +294,8 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 	 * @param metrics metric group
 	 */
 	public void setMetricGroup(TaskIOMetricGroup metrics) {
+		recordProcessLatency = metrics.getRecordProcessLatency();
+
 		metrics.gauge("currentLowWatermark", new Gauge<Long>() {
 			@Override
 			public Long getValue() {

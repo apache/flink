@@ -189,6 +189,11 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
+	public Output<StreamRecord<OUT>> getOutput() {
+		return output;
+	}
+
+	@Override
 	public final void initializeState(OperatorStateHandles stateHandles) throws Exception {
 
 		Collection<KeyGroupsStateHandle> keyedStateHandlesRaw = null;

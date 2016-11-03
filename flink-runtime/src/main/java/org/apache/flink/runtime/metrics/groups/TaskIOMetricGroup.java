@@ -18,16 +18,21 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
+import com.codahale.metrics.Reservoir;
+import com.codahale.metrics.SlidingWindowReservoir;
+import com.codahale.metrics.Snapshot;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +55,8 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	private final Meter numRecordsInRate;
 	private final Meter numRecordsOutRate;
 
+	private final LatencyHistogram recordProcessLatency;
+
 	public TaskIOMetricGroup(TaskMetricGroup parent) {
 		super(parent);
 
@@ -63,6 +70,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 		this.numRecordsOut = counter("numRecordsOut", new SumCounter());
 		this.numRecordsInRate = meter("numRecordsInPerSecond", new MeterView(numRecordsIn, 60));
 		this.numRecordsOutRate = meter("numRecordsOutPerSecond", new MeterView(numRecordsOut, 60));
+		this.recordProcessLatency = histogram("recordProcessLatency", new LatencyHistogram(true));
+		if (recordProcessLatency.getLatencyAccumulateCounter() != null) {
+			meter("recordProcTimeProportion", new MeterView(recordProcessLatency.getLatencyAccumulateCounter(), 60));
+		}
 	}
 
 	public IOMetrics createSnapshot() {
@@ -102,6 +113,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
 	public Meter getNumBytesOutRateMeter() {
 		return numBytesOutRate;
+	}
+
+	public Histogram getRecordProcessLatency() {
+		return recordProcessLatency;
 	}
 
 	// ============================================================================================
@@ -255,6 +270,136 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 				sum += counter.getCount();
 			}
 			return sum;
+		}
+	}
+
+	// ============================================================================================
+	// Latency metrics
+	// ============================================================================================
+
+	/**
+	 * Histogram measuring the record processing latency of a task.
+	 * It's element processing time of a task. But an element emitting time for Source Task.
+	 * It could be given a history size or a Reservoir when construct.
+	 * A latency accumulate will be activated if accumulate enabled
+	 */
+	private static class LatencyHistogram implements Histogram {
+
+		private static final int DEFAULT_HISTORY_SIZE = 128;
+
+		// conversion of millisecond and nanosecond
+		private static final double NANOSECONDS_PER_MILLISECOND = 1000000.0D;
+
+		// a reservoir for history data
+		private final Reservoir latencyReservoir;
+
+		// accumulate latency for measurement processing time per second
+		private final SimpleCounter latencyAccumulateCounter;
+
+		public LatencyHistogram() {
+			this(DEFAULT_HISTORY_SIZE);
+		}
+
+		public LatencyHistogram(int historySize) {
+			//default disable accumulate
+			this(historySize, false);
+		}
+
+		public LatencyHistogram(Reservoir latencyReservoir) {
+			//default disable accumulate
+			this(latencyReservoir, false);
+		}
+
+		public LatencyHistogram(boolean enableAccumulate) {
+			this(DEFAULT_HISTORY_SIZE, enableAccumulate);
+		}
+
+		public LatencyHistogram(int historySize, boolean enableAccumulate) {
+			//default with Sliding Window Reservoir
+			this(new SlidingWindowReservoir(historySize), enableAccumulate);
+		}
+
+		public LatencyHistogram(Reservoir latencyReservoir, boolean enableAccumulate) {
+			this.latencyReservoir = latencyReservoir;
+			if (enableAccumulate) {
+				latencyAccumulateCounter = new SimpleCounter();
+			} else {
+				latencyAccumulateCounter = null;
+			}
+		}
+
+		@Override
+		public void update(long nanosecond) {
+			latencyReservoir.update(nanosecond);
+			if (latencyAccumulateCounter != null) {
+				latencyAccumulateCounter.inc((long)(nanosecond / NANOSECONDS_PER_MILLISECOND));
+			}
+		}
+
+		@Override
+		public long getCount() {
+			return latencyReservoir.size();
+		}
+
+		@Override
+		public HistogramStatistics getStatistics() {
+			return new LatencyHistogramStatistics(latencyReservoir.getSnapshot());
+		}
+
+		public Counter getLatencyAccumulateCounter() {
+			return latencyAccumulateCounter;
+		}
+
+
+		private static class LatencyHistogramStatistics extends HistogramStatistics {
+
+			private final Snapshot latencySnapshot;
+
+			public LatencyHistogramStatistics(Snapshot latencySnapshot) {
+				this.latencySnapshot = latencySnapshot;
+			}
+
+			@Override
+			public double getQuantile(double quantile) {
+				return latencySnapshot.getValue(quantile) / NANOSECONDS_PER_MILLISECOND;
+			}
+
+			@Override
+			public long[] getValues() {
+				long [] nanos = latencySnapshot.getValues();
+				long [] millis = new long[nanos.length];
+
+				for (int i = 0; i < nanos.length; ++i) {
+					millis[i] = (long)(nanos[i] / NANOSECONDS_PER_MILLISECOND);
+				}
+
+				return millis;
+			}
+
+			@Override
+			public int size() {
+				return latencySnapshot.size();
+			}
+
+			@Override
+			public double getMean() {
+				return latencySnapshot.getMean() / NANOSECONDS_PER_MILLISECOND;
+			}
+
+			@Override
+			public double getStdDev() {
+				return latencySnapshot.getStdDev() / NANOSECONDS_PER_MILLISECOND;
+			}
+
+			@Override
+			public long getMax() {
+				return (long)(latencySnapshot.getMax() / NANOSECONDS_PER_MILLISECOND);
+			}
+
+			@Override
+			public long getMin() {
+				return (long)(latencySnapshot.getMin() / NANOSECONDS_PER_MILLISECOND);
+			}
 		}
 	}
 }
