@@ -315,16 +315,16 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	 * on different instances of {@link AbstractStreamOperatorTestHarness} (each one representing one subtask)
 	 * and repacks them into a single {@link OperatorStateHandles} so that the parallelism of the test
 	 * can change arbitrarily (i.e. be able to scale both up and down).
-	 * <p/>
+	 * <p>
 	 * After repacking the partial states, use {@link #initializeState(OperatorStateHandles)} to initialize
 	 * a new instance with the resulting state. Bare in mind that for parallelism greater than one, you
 	 * have to use the constructor {@link #AbstractStreamOperatorTestHarness(StreamOperator, int, int, int)}.
 	 *
-	 * <p/>
+	 * <p>
 	 * <b>NOTE: </b> each of the {@code handles} in the argument list is assumed to be from a single task of a single
 	 * operator (i.e. chain length of one).
 	 *
-	 * <p/>
+	 * <p>
 	 * For an example of how to use it, have a look at
 	 * {@link AbstractStreamOperatorTest#testStateAndTimerStateShufflingScalingDown()}.
 	 *
@@ -347,37 +347,25 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 		for (OperatorStateHandles handle: handles) {
 
-			// each one of the collections are expected to have
-			// one member as they run with parallelism of 1
-
 			Collection<OperatorStateHandle> managedOperatorState = handle.getManagedOperatorState();
 			Collection<OperatorStateHandle> rawOperatorState = handle.getRawOperatorState();
 			Collection<KeyGroupsStateHandle> managedKeyedState = handle.getManagedKeyedState();
 			Collection<KeyGroupsStateHandle> rawKeyedState = handle.getRawKeyedState();
 
-
-			if ((managedOperatorState != null && managedOperatorState.size() > 1) ||
-				(rawOperatorState != null && rawOperatorState.size() > 1) ||
-				(managedKeyedState != null && managedKeyedState.size() > 1) ||
-				(rawKeyedState != null && rawKeyedState.size() > 1)) {
-				throw new RuntimeException("Each state is expected to have only one member " +
-					"(state collected for one task of a single operator).");
+			if (managedOperatorState != null) {
+				mergedManagedOperatorState.addAll(managedOperatorState);
 			}
 
-			if (managedOperatorState != null && !managedOperatorState.isEmpty()) {
-				mergedManagedOperatorState.add(managedOperatorState.iterator().next());
+			if (rawOperatorState != null) {
+				mergedRawOperatorState.addAll(rawOperatorState);
 			}
 
-			if (rawOperatorState != null && !rawOperatorState.isEmpty()) {
-				mergedRawOperatorState.add(rawOperatorState.iterator().next());
+			if (managedKeyedState != null) {
+				mergedManagedKeyedState.addAll(managedKeyedState);
 			}
 
-			if (managedKeyedState != null && !managedKeyedState.isEmpty()) {
-				mergedManagedKeyedState.add(managedKeyedState.iterator().next());
-			}
-
-			if (rawKeyedState != null && !rawKeyedState.isEmpty()) {
-				mergedRawKeyedState.add(rawKeyedState.iterator().next());
+			if (rawKeyedState != null) {
+				mergedRawKeyedState.addAll(rawKeyedState);
 			}
 		}
 
