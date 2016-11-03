@@ -18,7 +18,7 @@
 package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.typeinfo.InvalidFieldReferenceException;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
@@ -175,7 +175,7 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 		see.execute();
 	}
 
-	@Test(expected = InvalidFieldReferenceException.class)
+	@Test(expected = CompositeType.InvalidFieldReferenceException.class)
 	public void testFailOnNestedPojoFieldAccessor() throws Exception {
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 

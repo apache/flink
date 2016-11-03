@@ -23,7 +23,6 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
-import org.apache.flink.api.common.typeinfo.InvalidFieldReferenceException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -133,7 +132,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		//   gives only some undefined order.
 		return false;
 	}
-
+	
 
 	@Override
 	@PublicEvolving
@@ -319,39 +318,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 
 		return new PojoSerializer<T>(getTypeClass(), fieldSerializers, reflectiveFields, config);
 	}
-
-	@Override
-	@PublicEvolving
-	public <F> FieldAccessor<T, F> getFieldAccessor(String fieldExpression, ExecutionConfig config) {
-		
-		FieldAccessor.FieldExpression decomp = FieldAccessor.decomposeFieldExpression(fieldExpression);
-
-		// get field
-		PojoField field = null;
-		TypeInformation<?> fieldType = null;
-		for (int i = 0; i < fields.length; i++) {
-			if (fields[i].getField().getName().equals(decomp.head)) {
-				field = fields[i];
-				fieldType = fields[i].getTypeInformation();
-				break;
-			}
-		}
-		if (field == null) {
-			throw new InvalidFieldReferenceException("Unable to find field \""+decomp.head+"\" in type "+this+".");
-		}
-
-		if(decomp.tail == null) {
-			@SuppressWarnings("unchecked")
-			FieldAccessor<F,F> innerAccessor = new FieldAccessor.SimpleFieldAccessor<F>((TypeInformation<F>) fieldType);
-			return new FieldAccessor.PojoFieldAccessor<T, F, F>(field.getField(), innerAccessor);
-		} else {
-			@SuppressWarnings("unchecked")
-			FieldAccessor<Object,F> innerAccessor =
-					(FieldAccessor<Object,F>)fieldType.<F>getFieldAccessor(decomp.tail, config);
-			return new FieldAccessor.PojoFieldAccessor<T, Object, F>(field.getField(), innerAccessor);
-		}
-	}
-
+	
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof PojoTypeInfo) {

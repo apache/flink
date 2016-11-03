@@ -25,12 +25,10 @@ import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.operators.Keys
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType.{FlatFieldDescriptor, TypeComparatorBuilder}
+import org.apache.flink.api.common.typeutils.CompositeType.{FlatFieldDescriptor, InvalidFieldReferenceException, TypeComparatorBuilder}
 import org.apache.flink.api.common.typeutils._
 import Keys.ExpressionKeys
-import org.apache.flink.api.common.typeinfo.InvalidFieldReferenceException
-import org.apache.flink.api.java.typeutils.FieldAccessor.SimpleFieldAccessor
-import org.apache.flink.api.java.typeutils.{FieldAccessor, TupleTypeInfoBase}
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
@@ -236,31 +234,6 @@ abstract class CaseClassTypeInfo[T <: Product](
         fieldComparators.toArray,
         types.take(maxIndex + 1).map(_.createSerializer(config))
       )
-    }
-  }
-
-  override def getFieldAccessor[F](pos: Int, config: ExecutionConfig): FieldAccessor[T, F] = {
-    new ProductFieldAccessor[T,F,F](
-      pos, this, new SimpleFieldAccessor[F](types(pos).asInstanceOf[TypeInformation[F]]), config)
-  }
-
-  override def getFieldAccessor[F](fieldExpression: String, config: ExecutionConfig):
-    FieldAccessor[T, F] = {
-
-    val decomp = FieldAccessor.decomposeFieldExpression(fieldExpression)
-
-    val pos = getFieldIndex(decomp.head)
-    if(pos < 0) {
-      throw new InvalidFieldReferenceException("Invalid field selected: " + fieldExpression)
-    }
-    val fieldType = types(pos)
-
-    if (decomp.tail == null) {
-      getFieldAccessor(pos, config)
-    } else {
-      val innerAccessor =
-        fieldType.getFieldAccessor[F](decomp.tail, config).asInstanceOf[FieldAccessor[AnyRef, F]]
-      new ProductFieldAccessor[T,Object,F](pos, this, innerAccessor, config)
     }
   }
 

@@ -58,7 +58,6 @@ import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.StringComparator;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
-import org.apache.flink.api.java.typeutils.FieldAccessor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -169,31 +168,6 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 			return instantiateComparator(comparatorClass, sortOrderAscending);
 		} else {
 			throw new InvalidTypesException("The type " + clazz.getSimpleName() + " cannot be used as a key.");
-		}
-	}
-
-	@Override
-	@PublicEvolving
-	@SuppressWarnings("unchecked")
-	public <F> FieldAccessor<T, F> getFieldAccessor(int pos, ExecutionConfig config) {
-		if(pos != 0) {
-			throw new InvalidFieldReferenceException("The " + ((Integer) pos).toString() + ". field selected on a " +
-				"basic type (" + this.toString() + "). A field expression on a basic type can only select " +
-				"the 0th field (which means selecting the entire basic type).");
-		}
-		return (FieldAccessor<T, F>) new FieldAccessor.SimpleFieldAccessor<T>(this);
-	}
-
-	@Override
-	@PublicEvolving
-	public <F> FieldAccessor<T, F> getFieldAccessor(String field, ExecutionConfig config) {
-		try {
-			int pos = field.equals("*") ? 0 : Integer.parseInt(field);
-			return getFieldAccessor(pos, config);
-		} catch (NumberFormatException ex) {
-			throw new InvalidFieldReferenceException("You tried to select the field \"" + field +
-				"\" on a " + this.toString() + ". A field expression on a basic type can only be \"*\" or \"0\"" +
-				" (both of which mean selecting the entire basic type).");
 		}
 	}
 
