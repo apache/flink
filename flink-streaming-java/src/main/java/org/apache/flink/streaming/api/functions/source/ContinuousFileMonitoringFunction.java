@@ -147,8 +147,15 @@ public class ContinuousFileMonitoringFunction<OUT>
 				break;
 			case PROCESS_ONCE:
 				synchronized (checkpointLock) {
-					monitorDirAndForwardSplits(fileSystem, context);
-					globalModificationTime = Long.MAX_VALUE;
+
+					// the following check guarantees that if we restart
+					// after a failure and we managed to have a successful
+					// checkpoint, we will not reprocess the directory.
+
+					if (globalModificationTime == Long.MIN_VALUE) {
+						monitorDirAndForwardSplits(fileSystem, context);
+						globalModificationTime = Long.MAX_VALUE;
+					}
 					isRunning = false;
 				}
 				break;
