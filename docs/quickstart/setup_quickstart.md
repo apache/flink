@@ -62,7 +62,7 @@ version will work fine.
 $ cd ~/Downloads        # Go to download directory
 $ tar xzf flink-*.tgz   # Unpack the downloaded archive
 $ cd flink-{{site.version}}
-$ bin/start-local.sh    # Start Flink
+$ ./bin/start-local.sh    # Start Flink
 ~~~
 
 Check the __JobManager's web frontend__ at [http://localhost:8081](http://localhost:8081) and make sure everything is up and running. The web frontend should report a single available TaskManager instance.
@@ -89,7 +89,7 @@ You can find the complete source code for this SocketWindowWordCount example in 
 object SocketWindowWordCount {
 
     def main(args: Array[String]) : Unit = {
-    
+
         // the port to connect to
         val port: Int = try {
             ParameterTool.fromArgs(args).getInt("port")
@@ -102,11 +102,11 @@ object SocketWindowWordCount {
 
         // get the execution environment
         val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-    
+
         // get input data by connecting to the socket
         val text = env.socketTextStream("localhost", port, '\n')
 
-        // parse the data, group it, window it, and aggregate the counts 
+        // parse the data, group it, window it, and aggregate the counts
         val windowCounts = text
             .flatMap { w => w.split("\\s") }
             .map { w => WordWithCount(w, 1) }
@@ -208,7 +208,7 @@ Now, we are going to run this Flink application. It will read text from a socket
 * Submit the Flink program:
 
   ~~~bash
-  $ bin/flink run examples/streaming/SocketWindowWordCount.jar --port 9000
+  $ ./bin/flink run examples/streaming/SocketWindowWordCount.jar --port 9000
 
   03/08/2016 17:21:56 Job execution switched to status RUNNING.
   03/08/2016 17:21:56 Source: Socket Stream -> Flat Map(1/1) switched to SCHEDULED
@@ -254,7 +254,7 @@ Now, we are going to run this Flink application. It will read text from a socket
   To **stop** Flink when you're done type:
 
   ~~~bash
-  $ bin/stop-local.sh
+  $ ./bin/stop-local.sh
   ~~~
 
   <a href="{{ site.baseurl }}/page/img/quickstart-setup/setup.gif" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/setup.gif" alt="Quickstart: Setup"/></a>
