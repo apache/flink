@@ -20,6 +20,9 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -93,12 +96,19 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			TypeSerializer<IN2> inputSerializer2,
 			StatefulTask checkpointedTask,
 			CheckpointingMode checkpointMode,
-			IOManager ioManager) throws IOException {
-		
+			IOManager ioManager,
+			Configuration taskManagerConfig) throws IOException {
+
 		final InputGate inputGate = InputGateUtil.createInputGate(inputGates1, inputGates2);
 
 		if (checkpointMode == CheckpointingMode.EXACTLY_ONCE) {
-			this.barrierHandler = new BarrierBuffer(inputGate, ioManager);
+			long maxAlign = taskManagerConfig.getLong(TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT);
+			if (!(maxAlign == -1 || maxAlign > 0)) {
+				throw new IllegalConfigurationException(
+						TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT.key()
+								+ " must be positive or -1 (infinite)");
+			}
+			this.barrierHandler = new BarrierBuffer(inputGate, ioManager, maxAlign);
 		}
 		else if (checkpointMode == CheckpointingMode.AT_LEAST_ONCE) {
 			this.barrierHandler = new BarrierTracker(inputGate);

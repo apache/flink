@@ -56,9 +56,19 @@ public class TaskManagerOptions {
 			key("task.cancellation.timeout")
 					.defaultValue(180000L);
 
+	/**
+	 * The maximum number of bytes that a checkpoint alignment may buffer.
+	 * If the checkpoint alignment buffers more than the configured amount of
+	 * data, the checkpoint is aborted (skipped).
+	 * 
+	 * <p>The default value of {@code -1} indicates that there is no limit.
+	 */
+	public static final ConfigOption<Long> TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT =
+			key("task.checkpoint.alignment.max-size")
+			.defaultValue(-1L);
+	
 	// ------------------------------------------------------------------------
 
 	/** Not intended to be instantiated */
-	private TaskManagerOptions() {
-	}
+	private TaskManagerOptions() {}
 }

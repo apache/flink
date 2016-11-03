@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.decline.AlignmentLimitExceededException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineSubsumedException;
@@ -36,6 +37,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * The barrier buffer is {@link CheckpointBarrierHandler} that blocks inputs with barriers until
@@ -66,6 +69,9 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	 * further data from the input gate. */
 	private final ArrayDeque<BufferSpiller.SpilledBufferOrEventSequence> queuedBuffered;
 
+	/** The maximum number of bytes that may be buffered before an alignment is broken. -1 means unlimited */
+	private final long maxBufferedBytes;
+
 	/** The sequence of buffers/events that has been unblocked and must now be consumed
 	 * before requesting further data from the input gate */
 	private BufferSpiller.SpilledBufferOrEventSequence currentBuffered;
@@ -83,6 +89,9 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	/** The number of already closed channels */
 	private int numClosedChannels;
 
+	/** The number of bytes in the queued spilled sequences */
+	private long numQueuedBytes;
+
 	/** The timestamp as in {@link System#nanoTime()} at which the last alignment started */
 	private long startOfAlignmentTimestamp;
 
@@ -93,14 +102,37 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	private boolean endOfStream;
 
 	/**
+	 * Creates a new checkpoint stream aligner.
+	 * 
+	 * <p>There is no limit to how much data may be buffered during an alignment.
 	 * 
 	 * @param inputGate The input gate to draw the buffers and events from.
 	 * @param ioManager The I/O manager that gives access to the temp directories.
-	 * 
+	 *
 	 * @throws IOException Thrown, when the spilling to temp files cannot be initialized.
 	 */
 	public BarrierBuffer(InputGate inputGate, IOManager ioManager) throws IOException {
+		this (inputGate, ioManager, -1);
+	}
+
+	/**
+	 * Creates a new checkpoint stream aligner.
+	 * 
+	 * <p>The aligner will allow only alignments that buffer up to the given number of bytes.
+	 * When that number is exceeded, it will stop the alignment and notify the task that the
+	 * checkpoint has been cancelled.
+	 * 
+	 * @param inputGate The input gate to draw the buffers and events from.
+	 * @param ioManager The I/O manager that gives access to the temp directories.
+	 * @param maxBufferedBytes The maximum bytes to be buffered before the checkpoint aborts.
+	 * 
+	 * @throws IOException Thrown, when the spilling to temp files cannot be initialized.
+	 */
+	public BarrierBuffer(InputGate inputGate, IOManager ioManager, long maxBufferedBytes) throws IOException {
+		checkArgument(maxBufferedBytes == -1 || maxBufferedBytes > 0);
+
 		this.inputGate = inputGate;
+		this.maxBufferedBytes = maxBufferedBytes;
 		this.totalNumberOfInputChannels = inputGate.getNumberOfInputChannels();
 		this.blockedChannels = new boolean[this.totalNumberOfInputChannels];
 
@@ -132,6 +164,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 				if (isBlocked(next.getChannelIndex())) {
 					// if the channel is blocked we, we just store the BufferOrEvent
 					bufferSpiller.add(next);
+					checkSizeLimit();
 				}
 				else if (next.isBuffer()) {
 					return next;
@@ -170,6 +203,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		currentBuffered = queuedBuffered.pollFirst();
 		if (currentBuffered != null) {
 			currentBuffered.open();
+			numQueuedBytes -= currentBuffered.size();
 		}
 	}
 
@@ -340,6 +374,16 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		}
 	}
 
+	private void checkSizeLimit() throws Exception {
+		if (maxBufferedBytes > 0 && (numQueuedBytes + bufferSpiller.getBytesWritten()) > maxBufferedBytes) {
+			// exceeded our limit - abort this checkpoint
+			LOG.info("Checkpoint {} aborted because alignment volume limit ({} bytes) exceeded",
+					currentCheckpointId, maxBufferedBytes);
+
+			releaseBlocksAndResetBarriers();
+			notifyAbort(currentCheckpointId, new AlignmentLimitExceededException(maxBufferedBytes));
+		}
+	}
 
 	@Override
 	public void registerCheckpointEventHandler(StatefulTask toNotifyOnCheckpoint) {
@@ -366,6 +410,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 			seq.cleanup();
 		}
 		queuedBuffered.clear();
+		numQueuedBytes = 0L;
 	}
 
 	private void beginNewAlignment(long checkpointId, int channelIndex) throws IOException {
@@ -436,6 +481,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 			if (bufferedNow != null) {
 				bufferedNow.open();
 				queuedBuffered.addFirst(currentBuffered);
+				numQueuedBytes += currentBuffered.size();
 				currentBuffered = bufferedNow;
 			}
 		}
