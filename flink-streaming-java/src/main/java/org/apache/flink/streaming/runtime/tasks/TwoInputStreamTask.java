@@ -71,7 +71,8 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 				this,
 				configuration.getCheckpointMode(),
 				getEnvironment().getIOManager(),
-				isSerializingTimestamps());
+				isSerializingTimestamps(),
+				getEnvironment().getTaskManagerInfo().getConfiguration());
 
 		// make sure that stream tasks report their I/O statistics
 		AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();

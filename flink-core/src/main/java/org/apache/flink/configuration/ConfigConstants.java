@@ -277,6 +277,14 @@ public final class ConfigConstants {
 	@PublicEvolving
 	public static final String TASK_CANCELLATION_TIMEOUT_MILLIS = "task.cancellation.timeout";
 
+	/**
+	 * The maximum number of bytes that a checkpoint alignment may buffer.
+	 * If the checkpoint alignment buffers more than the configured amount of
+	 * data, the checkpoint is aborted (skipped).
+	 */
+	@PublicEvolving
+	public static final String TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT = "task.checkpoint.alignment.max-size";
+
 	// --------------------------- Runtime Algorithms -------------------------------
 	
 	/**
@@ -872,6 +880,13 @@ public final class ConfigConstants {
 	 * deactivated by default.
 	 */
 	public static final long DEFAULT_TASK_CANCELLATION_TIMEOUT_MILLIS = 0; // deactivated
+
+	/**
+	 * The default for the maximum number of bytes that a checkpoint alignment may buffer.
+	 * {@code -1} = infinite.
+	 */
+	@PublicEvolving
+	public static final long DEFAULT_TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT = -1L;
 
 	// ------------------------ Runtime Algorithms ------------------------
 	
