@@ -95,7 +95,7 @@ These options are useful for debugging a Flink application for memory and garbag
 
 ### Kerberos
 
-Flink supports Kerberos authentication for the following services 
+Flink supports Kerberos authentication for the following services
 
 + Hadoop Components: such as HDFS, YARN, or HBase.
 + Kafka Connectors (version 0.9+)
@@ -113,7 +113,7 @@ Hadoop components relies on the UserGroupInformation (UGI) implementation to han
 
 While Hadoop uses Kerberos tickets to authenticate users with services initially, the authentication process continues differently afterwards. Instead of saving the ticket to authenticate on a later access, Hadoop creates its own security tokens (DelegationToken) that it passes around. These are authenticated to Kerberos periodically but are independent of the token renewal time. The tokens have a maximum life span identical to the Kerberos ticket maximum life span.
 
-While using ticket cache mode, please make sure to set the maximum ticket life span high long running jobs. 
+While using ticket cache mode, please make sure to set the maximum ticket life span high long running jobs.
 
 If you are on YARN, then it is sufficient to authenticate the client with Kerberos. On a Flink standalone cluster you need to ensure that, initially, all nodes are authenticated with Kerberos using the `kinit` tool.
 
@@ -437,7 +437,7 @@ Previously this key was named `recovery.mode` and the default value was `standal
 
 - `zookeeper.sasl.disable`: (Default: `true`) Defines if SASL based authentication needs to be enabled or disabled. The configuration value can be set to "true" if ZooKeeper cluster is running in secure mode (Kerberos)
 
-- `zookeeper.sasl.service-name`: (Default: `zookeeper`) If the ZooKeeper server is configured with a different service name (default:"zookeeper") then it can be supplied using this configuration. A mismatch in service name between client and server configuration will cause the authentication to fail. 
+- `zookeeper.sasl.service-name`: (Default: `zookeeper`) If the ZooKeeper server is configured with a different service name (default:"zookeeper") then it can be supplied using this configuration. A mismatch in service name between client and server configuration will cause the authentication to fail.
 
 ## Environment
 
@@ -446,6 +446,8 @@ Previously this key was named `recovery.mode` and the default value was `standal
 ## Queryable State
 
 ### Server
+
+- `query.server.start`: Start the queryable state server (Default: `true`).
 
 - `query.server.port`: Port to bind queryable state server to (Default: `0`, binds to random port).
 

@@ -72,9 +72,6 @@ public class NetworkEnvironmentTest {
 			1024,
 			MemoryType.HEAP,
 			IOManager.IOMode.SYNC,
-			0,
-			0,
-			0,
 			Some.<NettyConfig>empty(),
 			0,
 			0);
