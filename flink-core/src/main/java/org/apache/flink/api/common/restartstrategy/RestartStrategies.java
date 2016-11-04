@@ -178,12 +178,15 @@ public class RestartStrategies {
 		}
 	}
 
+	/**
+	 * Restart strategy configuration that could be used by jobs to use cluster level restart strategy. Useful especially when one has a custom implementation of restart strategy set via yaml
+	 */
 	final public static class FallbackRestartStrategyConfiguration extends RestartStrategyConfiguration{
 		private static final long serialVersionUID = -4441787204284085544L;
 
 		@Override
 		public String getDescription() {
-			return "Cluster Default Restart";
+			return "Cluster level default restart strategy";
 		}
 	}
 }
