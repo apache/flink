@@ -22,7 +22,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.{Parameter, ParameterMap}
 import org.apache.flink.ml.pipeline.{FitOperation, TransformDataSetOperation, Transformer}
 import org.apache.flink.ml.preprocessing.StringIndexer.HandleInvalid
-
+import org.apache.flink.api.scala.utils._
+import org.apache.flink.api.scala.extensions.acceptPartialFunctions
 import scala.collection.immutable.Seq
 
 /**
@@ -32,11 +33,11 @@ import scala.collection.immutable.Seq
   *
   * @example
   * {{{
-  *                val trainingDS: DataSet[String] = env.fromCollection(data)
-  *                val transformer = StringIndexer().setHandleInvalid("skip")
+  *                    val trainingDS: DataSet[String] = env.fromCollection(data)
+  *                    val transformer = StringIndexer().setHandleInvalid("skip")
   *
-  *                transformer.fit(trainingDS)
-  *                val transformedDS = transformer.transform(trainingDS)
+  *                    transformer.fit(trainingDS)
+  *                    val transformedDS = transformer.transform(trainingDS)
   * }}}
   *
   *
@@ -52,7 +53,7 @@ import scala.collection.immutable.Seq
   */
 class StringIndexer extends Transformer[StringIndexer] {
 
-  private[preprocessing] var metricsOption: Option[Map[String, Int]] = None
+  private[preprocessing] var metricsOption: Option[DataSet[(String, Long)]] = None
 
 
   /**
@@ -82,14 +83,14 @@ object StringIndexer {
   // ====================================== Operations ===========================================
 
   /**
-    *  Trains [[StringIndexer]] by learning the count of each labels in the input DataSet.
+    * Trains [[StringIndexer]] by learning the count of each labels in the input DataSet.
     *
     * @return [[FitOperation]] training the [[StringIndexer]] on string labels
     */
   implicit def fitStringIndexer ={
     new FitOperation[StringIndexer, String] {
       def fit(instance: StringIndexer, fitParameters: ParameterMap,
-        input: DataSet[String]): Unit = {
+        input: DataSet[String]): Unit ={
         val metrics = extractIndices( input )
         instance.metricsOption = Some( metrics )
       }
@@ -102,21 +103,18 @@ object StringIndexer {
     * @param input input Dataset containing labels
     * @return a map that returns for each label (key) its index (value)
     */
-  private def extractIndices(input: DataSet[String]): Map[String, Int] ={
+  private def extractIndices(input: DataSet[String]): DataSet[(String, Long)] ={
 
-    implicit val resultTypeInformation = createTypeInformation[(String, Int)]
-
-    val mapper = input
-      .map( s => (s, 1) )
+    val mapping = input
+      .mapWith( s => (s, 1) )
       .groupBy( 0 )
       .reduce( (a, b) => (a._1, a._2 + b._2) )
-      .collect( )
-      .sortBy( r => (r._2, r._1) )
+      .partitionByRange( 1 )
       .zipWithIndex
-      .map { case ((s, c), ind) => (s, ind) }
-      .toMap
+      .mapWith { case (id, (label, count)) => (label, id) }
 
-    mapper
+    mapping
+
   }
 
   /**
