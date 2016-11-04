@@ -214,6 +214,7 @@ public class HeapListStateTest extends HeapStateBackendTestBase {
 					((HeapListState<String, Integer, Long>) state).stateTable;
 
 			assertTrue(stateTable.isEmpty());
+			assertEquals(0, keyedBackend.numStateEntries());
 		}
 		finally {
 			keyedBackend.close();
