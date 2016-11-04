@@ -2736,33 +2736,33 @@ value1 NOT BETWEEN value2 AND value3
     <tr>
       <td>
         {% highlight text %}
-string1 LIKE string2
+string1 LIKE string2 [ ESCAPE string3 ]
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>string1</i> matches pattern <i>string2</i>.</p>
+        <p>Whether <i>string1</i> matches pattern <i>string2</i>. An escape character can be defined if necessary.</p>
       </td>
     </tr>
 
     <tr>
       <td>
         {% highlight text %}
-string1 NOT LIKE string2
+string1 NOT LIKE string2 [ ESCAPE string3 ]
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>string1</i> does not match pattern <i>string2</i>.</p>
+        <p>Whether <i>string1</i> does not match pattern <i>string2</i>. An escape character can be defined if necessary.</p>
       </td>
     </tr>
 
     <tr>
       <td>
         {% highlight text %}
-string1 SIMILAR TO string2
+string1 SIMILAR TO string2 [ ESCAPE string3 ]
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>string1</i> matches regular expression <i>string2</i>.</p>
+        <p>Whether <i>string1</i> matches regular expression <i>string2</i>. An escape character can be defined if necessary.</p>
       </td>
     </tr>
 
@@ -2770,11 +2770,11 @@ string1 SIMILAR TO string2
     <tr>
       <td>
         {% highlight text %}
-string1 NOT SIMILAR TO string2
+string1 NOT SIMILAR TO string2 [ ESCAPE string3 ]
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>string1</i> does not match regular expression <i>string2</i>.</p>
+        <p>Whether <i>string1</i> does not match regular expression <i>string2</i>. An escape character can be defined if necessary.</p>
       </td>
     </tr>
 

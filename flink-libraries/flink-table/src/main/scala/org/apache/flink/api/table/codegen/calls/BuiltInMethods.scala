@@ -32,4 +32,8 @@ object BuiltInMethods {
   val LN = Types.lookupMethod(classOf[Math], "log", classOf[Double])
   val ABS = Types.lookupMethod(classOf[SqlFunctions], "abs", classOf[Double])
   val ABS_DEC = Types.lookupMethod(classOf[SqlFunctions], "abs", classOf[JBigDecimal])
+  val LIKE_WITH_ESCAPE = Types.lookupMethod(classOf[SqlFunctions], "like",
+    classOf[String], classOf[String], classOf[String])
+  val SIMILAR_WITH_ESCAPE = Types.lookupMethod(classOf[SqlFunctions], "similar",
+    classOf[String], classOf[String], classOf[String])
 }
