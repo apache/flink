@@ -85,7 +85,8 @@ public class DeltaEvictor<T, W extends Window> implements Evictor<T, W> {
 
 	/**
 	 * Creates a {@code DeltaEvictor} from the given threshold and {@code DeltaFunction}.
-	 * Eviction is done before the window function
+	 * Eviction is done before the window function.
+	 *
 	 * @param threshold The threshold
 	 * @param deltaFunction The {@code DeltaFunction}
 	 */
@@ -94,6 +95,8 @@ public class DeltaEvictor<T, W extends Window> implements Evictor<T, W> {
 	}
 
 	/**
+	 * Creates a {@code DeltaEvictor} from the given threshold, {@code DeltaFunction}.
+	 * Eviction is done before/after the window function based on the value of doEvictAfter.
 	 *
 	 * @param threshold The threshold
 	 * @param deltaFunction The {@code DeltaFunction}

@@ -18,28 +18,77 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * Stores the value and the timestamp of the record.
+ * 
  * @param <T> The type encapsulated value
  */
 @PublicEvolving
 public class TimestampedValue<T> {
 
+	/** The actual value held by this record */
 	private T value;
+
+	/** The timestamp of the record */
 	private long timestamp;
 
+	/** Flag whether the timestamp is actually set */
+	private boolean hasTimestamp;
+
+	/**
+	 * Creates a new TimestampedValue. The record does not have a timestamp.
+	 */
+	public TimestampedValue(T value) {
+		this.value = value;
+	}
+
+	/**
+	 * Creates a new TimestampedValue wrapping the given value. The timestamp is set to the
+	 * given timestamp.
+	 *
+	 * @param value The value to wrap in this {@link TimestampedValue}
+	 * @param timestamp The timestamp in milliseconds
+	 */
 	public TimestampedValue(T value, long timestamp) {
 		this.value = value;
 		this.timestamp = timestamp;
+		this.hasTimestamp = true;
 	}
 
+	/**
+	 * @return The value wrapped in this {@link TimestampedValue}.
+	 */
 	public T getValue() {
 		return value;
 	}
 
+	/**
+	 * @return The timestamp associated with this stream value in milliseconds.
+     */
 	public long getTimestamp() {
 		return timestamp;
+	}
+
+	/**
+	 * Checks whether this record has a timestamp.
+	 *
+	 * @return True if the record has a timestamp, false if not.
+	 */
+	public boolean hasTimestamp() {
+		return hasTimestamp;
+	}
+
+	/**
+	 * Creates a {@link StreamRecord} from this TimestampedValue.
+     */
+	public StreamRecord<T> getStreamRecord() {
+		StreamRecord<T> streamRecord = new StreamRecord<>(value);
+		if (hasTimestamp) {
+			streamRecord.setTimestamp(timestamp);
+		}
+		return streamRecord;
 	}
 
 }

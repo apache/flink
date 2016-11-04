@@ -83,15 +83,13 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 
 	/**
 	 * @param elements The elements currently in the pane.
-	 * @return The maximum value of timestamp among the elements
+	 * @return The maximum value of timestamp among the elements.
      */
 	private long getMaxTimestamp(Iterable<TimestampedValue<Object>> elements) {
 		long currentTime = Long.MIN_VALUE;
 		for (Iterator<TimestampedValue<Object>> iterator = elements.iterator(); iterator.hasNext();){
 			TimestampedValue<Object> record = iterator.next();
-			if (record.getTimestamp() > currentTime) {
-				currentTime  = record.getTimestamp();
-			}
+			currentTime = Math.max(currentTime, record.getTimestamp());
 		}
 		return currentTime;
 	}
@@ -107,8 +105,9 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 	}
 
 	/**
-	 * Creates an {@code TimeEvictor} that keeps the given number of elements.
-	 * Eviction is done before the window function
+	 * Creates a {@code TimeEvictor} that keeps the given number of elements.
+	 * Eviction is done before the window function.
+	 *
 	 * @param windowSize The amount of time for which to keep elements.
 	 */
 	public static <W extends Window> TimeEvictor<W> of(Time windowSize) {
@@ -116,12 +115,11 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 	}
 
 	/**
-	 * Creates an {@code TimeEvictor} that keeps the given number of elements.
-	 * Eviction is done before/after the window function
-	 * @param windowSize The amount of time for which to keep elements.
-	 * @param doEvictAfter Whether eviction is done after window function
+	 * Creates a {@code TimeEvictor} that keeps the given number of elements.
+	 * Eviction is done before/after the window function based on the value of doEvictAfter.
 	 *
-     * @return
+	 * @param windowSize The amount of time for which to keep elements.
+	 * @param doEvictAfter Whether eviction is done after window function.
      */
 	public static <W extends Window> TimeEvictor<W> of(Time windowSize, boolean doEvictAfter) {
 		return new TimeEvictor<>(windowSize.toMilliseconds(),doEvictAfter);

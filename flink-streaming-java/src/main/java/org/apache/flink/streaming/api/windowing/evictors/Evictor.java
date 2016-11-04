@@ -29,6 +29,7 @@ import java.io.Serializable;
 /**
  * An {@code Evictor} can remove elements from a pane before/after the evaluation of WindowFunction and
  * after the window evaluation gets triggered by a {@link org.apache.flink.streaming.api.windowing.triggers.Trigger}
+ *
  * <p>
  * A pane is the bucket of elements that have the same key (assigned by the
  * {@link org.apache.flink.api.java.functions.KeySelector}) and same {@link Window}. An element can
@@ -44,6 +45,7 @@ public interface Evictor<T, W extends Window> extends Serializable {
 
 	/**
 	 * Optionally evicts elements. Called before windowing function.
+	 *
 	 * @param elements The elements currently in the pane.
 	 * @param size The current number of elements in the pane.
 	 * @param window The {@link Window}
@@ -53,6 +55,7 @@ public interface Evictor<T, W extends Window> extends Serializable {
 
 	/**
 	 * Optionally evicts elements. Called after windowing function.
+	 *
 	 * @param elements The elements currently in the pane.
 	 * @param size The current number of elements in the pane.
 	 * @param window The {@link Window}

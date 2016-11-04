@@ -49,7 +49,7 @@ import static java.util.Objects.requireNonNull;
  *
  * <p>
  * The {@code Evictor} is used to remove elements from a pane before/after the evaluation of WindowFunction and
- * after the window evaluation gets triggered by a {@link org.apache.flink.streaming.api.windowing.triggers.Trigger}
+ * after the window evaluation gets triggered by a {@link org.apache.flink.streaming.api.windowing.triggers.Trigger}.
  *
  * @param <K> The type of key returned by the {@code KeySelector}.
  * @param <IN> The type of the incoming elements.
@@ -244,10 +244,10 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 			return;
 		}
 
-				TriggerResult triggerResult = context.onEventTime(timer.getTimestamp());
-				if (triggerResult.isFire()) {
-					fire(context.window, contents, windowState);
-				}
+		TriggerResult triggerResult = context.onEventTime(timer.getTimestamp());
+		if (triggerResult.isFire()) {
+			fire(context.window, contents, windowState);
+		}
 
 		if (triggerResult.isPurge() || (windowAssigner.isEventTime() && isCleanupTime(context.window, timer.getTimestamp()))) {
 			cleanup(context.window, windowState, mergingWindows);
@@ -284,10 +284,10 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 			return;
 		}
 
-				TriggerResult triggerResult = context.onProcessingTime(timer.getTimestamp());
-				if (triggerResult.isFire()) {
-					fire(context.window, contents, windowState);
-				}
+		TriggerResult triggerResult = context.onProcessingTime(timer.getTimestamp());
+		if (triggerResult.isFire()) {
+			fire(context.window, contents, windowState);
+		}
 
 		if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(context.window, timer.getTimestamp()))) {
 			cleanup(context.window, windowState, mergingWindows);
@@ -324,11 +324,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 		//this is inefficient, but there is no other way to remove elements from ListState, which is an AppendingState.
 		windowState.clear();
 		for(TimestampedValue<IN> record : recordsWithTimestamp) {
-			if (record.getTimestamp() < 0) {
-				windowState.add(new StreamRecord<>(record.getValue()));
-			} else {
-				windowState.add(new StreamRecord<>(record.getValue(), record.getTimestamp()));
-			}
+			windowState.add(record.getStreamRecord());
 		}
 	}
 
@@ -336,7 +332,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 	/**
 	 * {@code EvictorContext} is a utility for handling {@code Evictor} invocations. It can be reused
 	 * by setting the {@code key} and {@code window} fields. No internal state must be kept in
-	 * the {@code EvictorContext}
+	 * the {@code EvictorContext}.
 	 */
 
 	class EvictorContext implements Evictor.EvictorContext {

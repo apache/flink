@@ -80,6 +80,7 @@ public class CountEvictor<W extends Window> implements Evictor<Object, W> {
 	/**
 	 * Creates a {@code CountEvictor} that keeps the given number of elements.
 	 * Eviction is done before the window function.
+	 *
 	 * @param maxCount The number of elements to keep in the pane.
 	 */
 	public static <W extends Window> CountEvictor<W> of(long maxCount) {
@@ -88,10 +89,10 @@ public class CountEvictor<W extends Window> implements Evictor<Object, W> {
 
 	/**
 	 * Creates a {@code CountEvictor} that keeps the given number of elements in the pane
-	 * by evicting either before of after the window function
+	 * Eviction is done before/after the window function based on the value of doEvictAfter.
+	 *
 	 * @param maxCount The number of elements to keep in the pane.
-	 * @param doEvictAfter Whether to do eviction after the window function
-     * @return
+	 * @param doEvictAfter Whether to do eviction after the window function.
      */
 	public static <W extends Window> CountEvictor<W> of(long maxCount, boolean doEvictAfter) {
 		return new CountEvictor<>(maxCount,doEvictAfter);
