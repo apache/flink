@@ -197,7 +197,10 @@ public class SocketWindowWordCount {
 
 ## Run the Example
 
-Now, we are going to run this Flink application. It will read text from a socket and once a second print the number of occurances of each distinct word during the previous 5 seconds.
+Now, we are going to run this Flink application. It will read text from
+a socket and once every 5 seconds print the number of occurrences of
+each distinct word during the previous 5 seconds as long as words are
+floating in.
 
 * First of all, we use **netcat** to start local server via
 
@@ -210,13 +213,19 @@ Now, we are going to run this Flink application. It will read text from a socket
   ~~~bash
   $ ./bin/flink run examples/streaming/SocketWindowWordCount.jar --port 9000
 
-  03/08/2016 17:21:56 Job execution switched to status RUNNING.
-  03/08/2016 17:21:56 Source: Socket Stream -> Flat Map(1/1) switched to SCHEDULED
-  03/08/2016 17:21:56 Source: Socket Stream -> Flat Map(1/1) switched to DEPLOYING
-  03/08/2016 17:21:56 Keyed Aggregation -> Sink: Unnamed(1/1) switched to SCHEDULED
-  03/08/2016 17:21:56 Keyed Aggregation -> Sink: Unnamed(1/1) switched to DEPLOYING
-  03/08/2016 17:21:56 Source: Socket Stream -> Flat Map(1/1) switched to RUNNING
-  03/08/2016 17:21:56 Keyed Aggregation -> Sink: Unnamed(1/1) switched to RUNNING
+  Cluster configuration: Standalone cluster with JobManager at /127.0.0.1:6123
+  Using address 127.0.0.1:6123 to connect to JobManager.
+  JobManager web interface address http://127.0.0.1:8081
+  Starting execution of program
+  Submitting job with JobID: 574a10c8debda3dccd0c78a3bde55e1b. Waiting for job completion.
+  Connected to JobManager at Actor[akka.tcp://flink@127.0.0.1:6123/user/jobmanager#297388688]
+  11/04/2016 14:04:50     Job execution switched to status RUNNING.
+  11/04/2016 14:04:50     Source: Socket Stream -> Flat Map(1/1) switched to SCHEDULED
+  11/04/2016 14:04:50     Source: Socket Stream -> Flat Map(1/1) switched to DEPLOYING
+  11/04/2016 14:04:50     Fast TumblingProcessingTimeWindows(5000) of WindowedStream.main(SocketWindowWordCount.java:79) -> Sink: Unnamed(1/1) switched to SCHEDULED
+  11/04/2016 14:04:51     Fast TumblingProcessingTimeWindows(5000) of WindowedStream.main(SocketWindowWordCount.java:79) -> Sink: Unnamed(1/1) switched to DEPLOYING
+  11/04/2016 14:04:51     Fast TumblingProcessingTimeWindows(5000) of WindowedStream.main(SocketWindowWordCount.java:79) -> Sink: Unnamed(1/1) switched to RUNNING
+  11/04/2016 14:04:51     Source: Socket Stream -> Flat Map(1/1) switched to RUNNING
   ~~~
 
   The program connects to the socket and waits for input. You can check the web interface to verify that the job is running as expected:
@@ -230,7 +239,9 @@ Now, we are going to run this Flink application. It will read text from a socket
     </div>
   </div>
 
-* Counts are printed to `stdout`. Monitor the JobManager's output file and write some text in `nc`:
+* Words are counted in time windows of 5 seconds (processing time, tumbling
+  windows) and are printed to `stdout`. Monitor the JobManager's output file
+  and write some text in `nc` (input is sent per line after hitting <RETURN>):
 
   ~~~bash
   $ nc -l 9000
@@ -239,16 +250,14 @@ Now, we are going to run this Flink application. It will read text from a socket
   bye
   ~~~
 
-  The `.out` file will print the counts immediately:
+  The `.out` file will print the counts at the end of each time window as long
+  as words are floating in, e.g.:
 
   ~~~bash
   $ tail -f log/flink-*-jobmanager-*.out
-  (lorem,1)
-  (ipsum,1)
-  (ipsum,2)
-  (ipsum,3)
-  (ipsum,4)
-  (bye,1)
+  lorem : 1
+  bye : 1
+  ipsum : 4
   ~~~~
 
   To **stop** Flink when you're done type:
@@ -256,8 +265,6 @@ Now, we are going to run this Flink application. It will read text from a socket
   ~~~bash
   $ ./bin/stop-local.sh
   ~~~
-
-  <a href="{{ site.baseurl }}/page/img/quickstart-setup/setup.gif" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/setup.gif" alt="Quickstart: Setup"/></a>
 
 ## Next Steps
 
