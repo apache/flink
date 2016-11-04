@@ -62,7 +62,7 @@ object SocketWindowWordCount {
           .flatMap { w => w.split("\\s") }
           .map { w => WordWithCount(w, 1) }
           .keyBy("word")
-          .timeWindow(Time.seconds(5), Time.seconds(1))
+          .timeWindow(Time.seconds(5))
           .sum("count")
 
     // print the results with a single thread, rather than in parallel
