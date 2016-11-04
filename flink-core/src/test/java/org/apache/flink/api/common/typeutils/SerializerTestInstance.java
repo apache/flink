@@ -24,13 +24,14 @@ public class SerializerTestInstance<T> extends SerializerTestBase<T> {
 	private final TypeSerializer<T> serializer;
 
 	private final Class<T> typeClass;
-	
+
 	private final int length;
-	
+
 	private final T[] testData;
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
+	@SafeVarargs
 	public SerializerTestInstance(TypeSerializer<T> serializer, Class<T> typeClass, int length, T... testData) {
 		this.serializer = serializer;
 		this.typeClass = typeClass;
