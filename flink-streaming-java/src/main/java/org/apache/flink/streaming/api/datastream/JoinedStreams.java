@@ -306,7 +306,7 @@ public class JoinedStreams<T1, T2> {
 		public <T> DataStream<T> apply(FlatJoinFunction<T1, T2, T> function) {
 			TypeInformation<T> resultType = TypeExtractor.getBinaryOperatorReturnType(
 					function,
-					JoinFunction.class,
+					FlatJoinFunction.class,
 					true,
 					true,
 					input1.getType(),
