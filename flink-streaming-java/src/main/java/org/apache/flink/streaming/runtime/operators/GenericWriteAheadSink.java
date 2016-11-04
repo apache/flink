@@ -104,8 +104,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	 * @throws IOException in case something went wrong when handling the stream to the backend.
 	 */
 	private void saveHandleInState(final long checkpointId, final long timestamp) throws Exception {
-		Preconditions.checkNotNull(this.pendingCheckpoints, "The operator has not been properly initialized.");
-
+		
 		//only add handle if a new OperatorState was created since the last snapshot
 		if (out != null) {
 			int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
