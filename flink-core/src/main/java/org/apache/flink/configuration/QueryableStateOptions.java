@@ -33,20 +33,24 @@ public class QueryableStateOptions {
 	// ------------------------------------------------------------------------
 
 	/** Flag to indicate whether to start the queryable state server. */
-	public static final ConfigOption<Boolean> START_SERVER =
-			key("query.server.start").defaultValue(true);
+	public static final ConfigOption<Boolean> SERVER_ENABLE =
+			key("query.server.enable")
+			.defaultValue(true);
 
 	/** Port to bind KvState server to (0 => pick random available port). */
 	public static final ConfigOption<Integer> SERVER_PORT =
-			key("query.server.port").defaultValue(0);
+			key("query.server.port")
+			.defaultValue(0);
 
 	/** Number of network (event loop) threads for the KvState server (0 => #slots). */
 	public static final ConfigOption<Integer> SERVER_NETWORK_THREADS =
-			key("query.server.network-threads").defaultValue(0);
+			key("query.server.network-threads")
+			.defaultValue(0);
 
 	/** Number of async query threads for the KvStateServerHandler (0 => #slots). */
 	public static final ConfigOption<Integer> SERVER_ASYNC_QUERY_THREADS =
-			key("query.server.query-threads").defaultValue(0);
+			key("query.server.query-threads")
+			.defaultValue(0);
 
 	// ------------------------------------------------------------------------
 	// Client Options
@@ -54,15 +58,18 @@ public class QueryableStateOptions {
 
 	/** Number of network (event loop) threads for the KvState client (0 => Use number of available cores). */
 	public static final ConfigOption<Integer> CLIENT_NETWORK_THREADS =
-			key("query.client.network-threads").defaultValue(0);
+			key("query.client.network-threads")
+			.defaultValue(0);
 
 	/** Number of retries on location lookup failures. */
 	public static final ConfigOption<Integer> CLIENT_LOOKUP_RETRIES =
-			key("query.client.lookup.num-retries").defaultValue(3);
+			key("query.client.lookup.num-retries")
+			.defaultValue(3);
 
 	/** Retry delay on location lookup failures (millis). */
 	public static final ConfigOption<Integer> CLIENT_LOOKUP_RETRY_DELAY =
-			key("query.client.lookup.retry-delay").defaultValue(1000);
+			key("query.client.lookup.retry-delay")
+			.defaultValue(1000);
 
 	// ------------------------------------------------------------------------
 

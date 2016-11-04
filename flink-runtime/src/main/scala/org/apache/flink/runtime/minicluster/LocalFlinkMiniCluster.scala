@@ -75,9 +75,9 @@ class LocalFlinkMiniCluster(
     initializeIOFormatClasses(config)
 
     // Disable queryable state server if nothing else is configured explicitly
-    if (!config.containsKey(QueryableStateOptions.START_SERVER.key())) {
+    if (!config.containsKey(QueryableStateOptions.SERVER_ENABLE.key())) {
       LOG.info("Disabled queryable state server")
-      config.setBoolean(QueryableStateOptions.START_SERVER, false)
+      config.setBoolean(QueryableStateOptions.SERVER_ENABLE, false)
     }
 
     config

@@ -447,7 +447,7 @@ Previously this key was named `recovery.mode` and the default value was `standal
 
 ### Server
 
-- `query.server.start`: Start the queryable state server (Default: `true`).
+- `query.server.enable`: Enable queryable state (Default: `true`).
 
 - `query.server.port`: Port to bind queryable state server to (Default: `0`, binds to random port).
 

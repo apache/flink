@@ -115,9 +115,9 @@ public class QueryableStateITCase extends TestLogger {
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
-			config.setInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS.key(), 1);
-			config.setBoolean(QueryableStateOptions.START_SERVER.key(), true);
-			config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS.key(), 1);
+			config.setInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS, 1);
+			config.setBoolean(QueryableStateOptions.SERVER_ENABLE, true);
+			config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS, 1);
 
 			cluster = new TestingCluster(config, false);
 			cluster.start(true);

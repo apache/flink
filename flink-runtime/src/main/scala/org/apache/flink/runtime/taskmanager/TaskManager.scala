@@ -1924,7 +1924,7 @@ object TaskManager {
     val kvStateRegistry = new KvStateRegistry()
 
     val tmConfig = taskManagerConfig.configuration
-    val kvStateServer = tmConfig.getBoolean(QueryableStateOptions.START_SERVER) match {
+    val kvStateServer = tmConfig.getBoolean(QueryableStateOptions.SERVER_ENABLE) match {
       case true =>
         val port = tmConfig.getInteger(QueryableStateOptions.SERVER_PORT)
 
