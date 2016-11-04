@@ -23,6 +23,7 @@ import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
 import akka.dispatch.OnComplete;
 import akka.dispatch.Recover;
+import akka.japi.Procedure;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
@@ -30,6 +31,8 @@ import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Option;
 import scala.Tuple2;
 import scala.concurrent.Await;
@@ -43,6 +46,7 @@ import scala.util.Try;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -52,6 +56,8 @@ import java.util.concurrent.TimeoutException;
  * @param <T> type of the future's value
  */
 public class FlinkFuture<T> implements Future<T> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkFuture.class);
 
 	protected scala.concurrent.Future<T> scalaFuture;
 
@@ -335,8 +341,25 @@ public class FlinkFuture<T> implements Future<T> {
 	// Helper functions and types
 	//-----------------------------------------------------------------------------------
 
-	private static ExecutionContext createExecutionContext(Executor executor) {
-		return ExecutionContexts$.MODULE$.fromExecutor(executor);
+	private static ExecutionContext createExecutionContext(final Executor executor) {
+		return ExecutionContexts$.MODULE$.fromExecutor(executor, new Procedure<Throwable>() {
+			@Override
+			public void apply(Throwable throwable) throws Exception {
+				if (executor instanceof ExecutorService) {
+					ExecutorService executorService = (ExecutorService) executor;
+					// only log the exception if the executor service is still running
+					if (!executorService.isShutdown()) {
+						logThrowable(throwable);
+					}
+				} else {
+					logThrowable(throwable);
+				}
+			}
+
+			private void logThrowable(Throwable throwable) {
+				LOG.warn("Uncaught exception in execution context.", throwable);
+			}
+		});
 	}
 
 	/**
