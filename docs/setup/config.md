@@ -131,7 +131,7 @@ For Kafka and ZK, process-wide JAAS config will be created using the provided se
 
 - `taskmanager.log.path`: The config parameter defining the taskmanager log file location
 
-- `jobmanager.web.address`: Address of the JobManager's web interface (DEFAULT: 0.0.0.0).
+- `jobmanager.web.address`: Address of the JobManager's web interface (DEFAULT: anyLocalAddress()).
 
 - `jobmanager.web.port`: Port of the JobManager's web interface (DEFAULT: 8081).
 

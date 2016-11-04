@@ -1200,7 +1200,7 @@ public final class ConfigConstants {
 	/** The config key for the address of the JobManager web frontend. */
 	public static final ConfigOption<String> DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS =
 		key("jobmanager.web.address")
-			.defaultValue("0.0.0.0");
+			.noDefaultValue();
 
 	/** The config key for the port of the JobManager web frontend.
 	 * Setting this value to {@code -1} disables the web frontend. */

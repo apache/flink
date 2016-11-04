@@ -402,7 +402,12 @@ public class WebRuntimeMonitor implements WebMonitor {
 				.channel(NioServerSocketChannel.class)
 				.childHandler(initializer);
 
-		Channel ch = this.bootstrap.bind(configuredAddress, configuredPort).sync().channel();
+		Channel ch;
+		if (configuredAddress == null) {
+			ch = this.bootstrap.bind(configuredPort).sync().channel();
+		} else {
+			ch = this.bootstrap.bind(configuredAddress, configuredPort).sync().channel();
+		}
 		this.serverChannel = ch;
 
 		InetSocketAddress bindAddress = (InetSocketAddress) ch.localAddress();
