@@ -603,8 +603,8 @@ public class TaskTest extends TestLogger {
 	@Test
 	public void testInterruptableSharedLockInInvokeAndCancel() throws Exception {
 		Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL.key(), 5);
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT.key(), 50);
+		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
+		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 50);
 
 		Task task = createTask(InvokableInterruptableSharedLockInInvokeAndCancel.class, config);
 		task.startTaskThread();
@@ -627,8 +627,8 @@ public class TaskTest extends TestLogger {
 	@Test
 	public void testFatalErrorAfterUninterruptibleInvoke() throws Exception {
 		Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL.key(), 5);
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT.key(), 50);
+		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
+		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 50);
 
 		Task task = createTask(InvokableUninterruptibleBlockingInvoke.class, config);
 
@@ -664,8 +664,8 @@ public class TaskTest extends TestLogger {
 		long timeout = interval + 19292;
 
 		Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL.key(), interval);
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT.key(), timeout);
+		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, interval);
+		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, timeout);
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setTaskCancellationInterval(interval + 1337);
