@@ -148,7 +148,7 @@ public class RocksDBAsyncSnapshotTest {
 				try {
 					delayCheckpointLatch.await();
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					throw new RuntimeException(e);
 				}
 
 				// should be one k/v state
