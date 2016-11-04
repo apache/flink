@@ -106,7 +106,7 @@ public abstract class AbstractKeyedStateBackend<K>
 			KeyGroupRange keyGroupRange,
 			ExecutionConfig executionConfig) {
 
-		this.kvStateRegistry = kvStateRegistry;//Preconditions.checkNotNull(kvStateRegistry);
+		this.kvStateRegistry = kvStateRegistry; //Preconditions.checkNotNull(kvStateRegistry);
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.numberOfKeyGroups = Preconditions.checkNotNull(numberOfKeyGroups);
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
@@ -321,7 +321,7 @@ public abstract class AbstractKeyedStateBackend<K>
 			public <T, ACC> FoldingState<T, ACC> createFoldingState(FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
 				return AbstractKeyedStateBackend.this.createFoldingState(namespaceSerializer, stateDesc);
 			}
-			
+
 			@Override
 			public <UK, UV> MapState<UK, UV> createMapState(MapStateDescriptor<UK, UV> stateDesc) throws Exception {
 				return AbstractKeyedStateBackend.this.createMapState(namespaceSerializer, stateDesc);
@@ -394,4 +394,11 @@ public abstract class AbstractKeyedStateBackend<K>
 	public boolean supportsAsynchronousSnapshots() {
 		return false;
 	}
+
+	/**
+	 * Returns the total number of state entries across all keys/namespaces.
+	 */
+	@VisibleForTesting
+	public abstract int numStateEntries();
+
 }

@@ -455,7 +455,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		// ====================================== restore snapshot  ======================================
 
 		env.getExecutionConfig().registerKryoType(TestPojo.class);
-		
+
 		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
 
 		snapshot.discardState();
@@ -804,7 +804,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// this is only available after the backend initialized the serializer
 		TypeSerializer<String> valueSerializer = kvId.getSerializer();
-		
+
 		// some modifications to the state
 		backend.setCurrentKey(1);
 		assertNull(state.value());
@@ -2286,6 +2286,41 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testNumStateEntries() throws Exception {
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
+
+		assertEquals(0, backend.numStateEntries());
+
+		ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		backend.setCurrentKey(0);
+		state.update("hello");
+		state.update("ciao");
+
+		assertEquals(1, backend.numStateEntries());
+
+		backend.setCurrentKey(42);
+		state.update("foo");
+
+		assertEquals(2, backend.numStateEntries());
+
+		backend.setCurrentKey(0);
+		state.clear();
+
+		assertEquals(1, backend.numStateEntries());
+
+		backend.setCurrentKey(42);
+		state.clear();
+
+		assertEquals(0, backend.numStateEntries());
+
+		backend.dispose();
 	}
 
 	private static class AppendingReduce implements ReduceFunction<String> {
