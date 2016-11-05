@@ -34,9 +34,9 @@ import org.apache.flink.util.Collector;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
- * Example of grouped processing time windows.
+ * An example of grouped stream windowing into sliding time windows.
+ * This example uses [[RichParallelSourceFunction]] to generate a list of key-value pairs.
  */
-@SuppressWarnings("serial")
 public class GroupedProcessingTimeWindowExample {
 
 	public static void main(String[] args) throws Exception {
@@ -44,39 +44,7 @@ public class GroupedProcessingTimeWindowExample {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(4);
 
-		DataStream<Tuple2<Long, Long>> stream = env
-				.addSource(new RichParallelSourceFunction<Tuple2<Long, Long>>() {
-
-					private volatile boolean running = true;
-
-					@Override
-					public void run(SourceContext<Tuple2<Long, Long>> ctx) throws Exception {
-
-						final long startTime = System.currentTimeMillis();
-
-						final long numElements = 20000000;
-						final long numKeys = 10000;
-						long val = 1L;
-						long count = 0L;
-
-						while (running && count < numElements) {
-							count++;
-							ctx.collect(new Tuple2<>(val++, 1L));
-
-							if (val > numKeys) {
-								val = 1L;
-							}
-						}
-
-						final long endTime = System.currentTimeMillis();
-						System.out.println("Took " + (endTime - startTime) + " msecs for " + numElements + " values");
-					}
-
-					@Override
-					public void cancel() {
-						running = false;
-					}
-				});
+		DataStream<Tuple2<Long, Long>> stream = env.addSource(new DataSource());
 
 		stream
 			.keyBy(0)
@@ -124,6 +92,42 @@ public class GroupedProcessingTimeWindowExample {
 		@Override
 		public Tuple2<Long, Long> reduce(Tuple2<Long, Long> value1, Tuple2<Long, Long> value2) {
 			return new Tuple2<>(value1.f0, value1.f1 + value2.f1);
+		}
+	}
+
+	/**
+	 * Parallel data source that serves a list of key-value pairs.
+	 */
+	private static class DataSource extends RichParallelSourceFunction<Tuple2<Long, Long>> {
+
+		private volatile boolean running = true;
+
+		@Override
+		public void run(SourceContext<Tuple2<Long, Long>> ctx) throws Exception {
+
+			final long startTime = System.currentTimeMillis();
+
+			final long numElements = 20000000;
+			final long numKeys = 10000;
+			long val = 1L;
+			long count = 0L;
+
+			while (running && count < numElements) {
+				count++;
+				ctx.collect(new Tuple2<>(val++, 1L));
+
+				if (val > numKeys) {
+					val = 1L;
+				}
+			}
+
+			final long endTime = System.currentTimeMillis();
+			System.out.println("Took " + (endTime - startTime) + " msecs for " + numElements + " values");
+		}
+
+		@Override
+		public void cancel() {
+			running = false;
 		}
 	}
 }
