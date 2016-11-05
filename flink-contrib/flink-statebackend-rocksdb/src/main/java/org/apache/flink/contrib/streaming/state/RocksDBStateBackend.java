@@ -40,6 +40,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
@@ -446,5 +447,15 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			columnOptions = opt;
 		}
 		return columnOptions;
+	}
+
+	@Override
+	public String toString() {
+		return "RocksDB State Backend {" +
+			"isInitialized=" + isInitialized +
+			", configuredDbBasePaths=" + Arrays.toString(configuredDbBasePaths) +
+			", initializedDbBasePaths=" + Arrays.toString(initializedDbBasePaths) +
+			", checkpointStreamBackend=" + checkpointStreamBackend +
+			'}';
 	}
 }
