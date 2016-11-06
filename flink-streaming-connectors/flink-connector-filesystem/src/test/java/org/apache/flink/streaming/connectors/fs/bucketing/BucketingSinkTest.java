@@ -146,6 +146,41 @@ public class BucketingSinkTest {
 	}
 
 	@Test
+	public void testInactivityPeriodWithLateNotify() throws Exception {
+		final File outDir = tempFolder.newFolder();
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createRescalingTestSink(outDir, 1, 0, 100);
+		testHarness.setup();
+		testHarness.open();
+
+		testHarness.setProcessingTime(0L);
+
+		testHarness.processElement(new StreamRecord<>("test1", 1L));
+		testHarness.processElement(new StreamRecord<>("test2", 1L));
+		checkFs(outDir, 2, 0 ,0, 0);
+
+		testHarness.setProcessingTime(101L);	// put some in pending
+		checkFs(outDir, 0, 2, 0, 0);
+
+		testHarness.snapshot(0, 0);				// put them in pending for 0
+		checkFs(outDir, 0, 2, 0, 0);
+
+		testHarness.processElement(new StreamRecord<>("test3", 1L));
+		testHarness.processElement(new StreamRecord<>("test4", 1L));
+
+		testHarness.setProcessingTime(202L);	// put some in pending
+
+		testHarness.snapshot(1, 0);				// put them in pending for 1
+		checkFs(outDir, 0, 4, 0, 0);
+
+		testHarness.notifyOfCompletedCheckpoint(0);	// put the pending for 0 to the "committed" state
+		checkFs(outDir, 0, 2, 2, 0);
+
+		testHarness.notifyOfCompletedCheckpoint(1); // put the pending for 1 to the "committed" state
+		checkFs(outDir, 0, 0, 4, 0);
+	}
+
+	@Test
 	public void testBucketStateTransitions() throws Exception {
 		final File outDir = tempFolder.newFolder();
 

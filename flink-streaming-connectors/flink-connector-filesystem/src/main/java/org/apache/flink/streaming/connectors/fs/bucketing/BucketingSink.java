@@ -711,7 +711,8 @@ public class BucketingSink<T>
 					}
 
 					if (!bucketState.isWriterOpen &&
-						bucketState.pendingFiles.isEmpty()) {
+						bucketState.pendingFiles.isEmpty() &&
+						bucketState.pendingFilesPerCheckpoint.isEmpty()) {
 
 						// We've dealt with all the pending files and the writer for this bucket is not currently open.
 						// Therefore this bucket is currently inactive and we can remove it from our state.
@@ -730,7 +731,7 @@ public class BucketingSink<T>
 
 		synchronized (state.bucketStates) {
 			int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
-			
+
 			for (Map.Entry<String, BucketState<T>> bucketStateEntry : state.bucketStates.entrySet()) {
 				BucketState<T> bucketState = bucketStateEntry.getValue();
 
