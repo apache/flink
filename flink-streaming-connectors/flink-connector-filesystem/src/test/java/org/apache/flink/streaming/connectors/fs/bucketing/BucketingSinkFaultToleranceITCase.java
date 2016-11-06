@@ -42,6 +42,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
+import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -92,14 +93,13 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 		}
 	}
 
-
 	@Override
 	public void testProgram(StreamExecutionEnvironment env) {
 		assertTrue("Broken test setup", NUM_STRINGS % 40 == 0);
 
 		int PARALLELISM = 12;
 
-		env.enableCheckpointing(200);
+		env.enableCheckpointing(20);
 		env.setParallelism(PARALLELISM);
 		env.disableOperatorChaining();
 
@@ -130,7 +130,10 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 		// the NUM_STRINGS. If numRead is bigger than the size of the set we have seen some
 		// elements twice.
 		Set<Integer> readNumbers = Sets.newHashSet();
+
 		int numRead = 0;
+		HashSet<String> uniqMessagesRead = new HashSet<>();
+		HashSet<String> messagesInCommittedFiles = new HashSet<>();
 
 		RemoteIterator<LocatedFileStatus> files = dfs.listFiles(new Path(
 				outPath), true);
@@ -161,6 +164,15 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 					Matcher matcher = messageRegex.matcher(line);
 					if (matcher.matches()) {
 						numRead++;
+						uniqMessagesRead.add(line);
+
+						// check that in the committed files there are no duplicates
+						if (!file.getPath().toString().endsWith(".in-progress") && !file.getPath().toString().endsWith(".pending")) {
+							if (!messagesInCommittedFiles.add(line)) {
+								Assert.fail("Duplicate entry in committed bucket.");
+							}
+						}
+
 						int messageId = Integer.parseInt(matcher.group(1));
 						readNumbers.add(messageId);
 					} else {
@@ -178,7 +190,7 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 		Assert.assertEquals(NUM_STRINGS, readNumbers.size());
 
 		// Verify that we don't have duplicates (boom!, exactly-once)
-		Assert.assertEquals(NUM_STRINGS, numRead);
+		Assert.assertEquals(NUM_STRINGS, uniqMessagesRead.size());
 	}
 
 	private static class OnceFailingIdentityMapper extends RichMapFunction<String, String> {

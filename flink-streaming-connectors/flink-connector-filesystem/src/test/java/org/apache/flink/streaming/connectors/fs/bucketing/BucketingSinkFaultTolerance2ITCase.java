@@ -35,6 +35,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayInputStream;
@@ -61,6 +62,10 @@ import static org.junit.Assert.assertTrue;
 * high. This provokes the case that the sink restarts without any checkpoint having been performed.
 * This tests the initial cleanup of pending/in-progress files.
 */
+
+// I suggest to remove this as we no longer clean up lingering files.
+
+@Ignore
 public class BucketingSinkFaultTolerance2ITCase extends StreamFaultToleranceTestBase {
 
 	final long NUM_STRINGS = 16_000;
