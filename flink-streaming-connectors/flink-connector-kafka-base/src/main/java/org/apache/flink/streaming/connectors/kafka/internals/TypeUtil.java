@@ -17,6 +17,9 @@
  */
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
+import org.apache.avro.reflect.ReflectData;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
@@ -34,5 +37,24 @@ public class TypeUtil {
 			typeInfos[i] = TypeExtractor.getForClass(fieldTypes[i]);
 		}
 		return typeInfos;
+	}
+
+	/**
+	 * Create Avro serialization/deserialization schema for a row definition
+	 * @param fieldNames row field names
+	 * @param fieldTypes row field fieldTypes
+	 * @return Avro serialization/deserialization schema
+	 */
+	public static Schema createRowAvroSchema(String[] fieldNames, TypeInformation[] fieldTypes) {
+		SchemaBuilder.FieldAssembler<Schema> fieldAssembler = SchemaBuilder
+			.record("Row").namespace("org.apache.flink.streaming")
+			.fields();
+
+		for (int i = 0; i < fieldNames.length; i++) {
+			Schema schema = ReflectData.get().getSchema(fieldTypes[i].getTypeClass());
+			fieldAssembler.name(fieldNames[i]).type(schema).noDefault();
+		}
+
+		return fieldAssembler.endRecord();
 	}
 }
