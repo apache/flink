@@ -29,11 +29,12 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
+import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.internal.InternalSettingsPreparer;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.transport.Netty4Plugin;
+import org.elasticsearch.transport.Netty3Plugin;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -67,6 +68,8 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 			.put("http.enabled", false)
 			.put("path.home", dataDir.getParent())
 			.put("path.data", dataDir.getAbsolutePath())
+			.put(NetworkModule.HTTP_TYPE_KEY, Netty3Plugin.NETTY_HTTP_TRANSPORT_NAME)
+			.put(NetworkModule.TRANSPORT_TYPE_KEY, Netty3Plugin.NETTY_TRANSPORT_NAME)
 			.build();
 
 		Node node = new PluginNode(settings);
@@ -191,7 +194,7 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 
 	private static class PluginNode extends Node {
 		public PluginNode(Settings settings) {
-			super(InternalSettingsPreparer.prepareEnvironment(settings, null), Collections.<Class<? extends Plugin>>singletonList(Netty4Plugin.class));
+			super(InternalSettingsPreparer.prepareEnvironment(settings, null), Collections.<Class<? extends Plugin>>singletonList(Netty3Plugin.class));
 		}
 	}
 }
