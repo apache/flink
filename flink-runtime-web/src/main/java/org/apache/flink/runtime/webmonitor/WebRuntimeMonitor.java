@@ -159,7 +159,9 @@ public class WebRuntimeMonitor implements WebMonitor {
 		this.retriever = new JobManagerRetriever(this, actorSystem, AkkaUtils.getTimeout(config), timeout);
 		
 		final WebMonitorConfig cfg = new WebMonitorConfig(config);
-		
+
+		final String configuredAddress = cfg.getWebFrontendAddress();
+
 		final int configuredPort = cfg.getWebFrontendPort();
 		if (configuredPort < 0) {
 			throw new IllegalArgumentException("Web frontend port is invalid: " + configuredPort);
@@ -400,7 +402,12 @@ public class WebRuntimeMonitor implements WebMonitor {
 				.channel(NioServerSocketChannel.class)
 				.childHandler(initializer);
 
-		Channel ch = this.bootstrap.bind(configuredPort).sync().channel();
+		Channel ch;
+		if (configuredAddress == null) {
+			ch = this.bootstrap.bind(configuredPort).sync().channel();
+		} else {
+			ch = this.bootstrap.bind(configuredAddress, configuredPort).sync().channel();
+		}
 		this.serverChannel = ch;
 
 		InetSocketAddress bindAddress = (InetSocketAddress) ch.localAddress();

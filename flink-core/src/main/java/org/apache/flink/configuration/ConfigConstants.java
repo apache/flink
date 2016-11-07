@@ -21,6 +21,8 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 
+import static org.apache.flink.configuration.ConfigOptions.key;
+
 /**
  * This class contains all constants for the configuration. That includes the configuration keys and
  * the default values.
@@ -546,7 +548,7 @@ public final class ConfigConstants {
 	
 	
 	// ------------------------- JobManager Web Frontend ----------------------
-	
+
 	/**
 	 * The port for the runtime monitor web-frontend server.
 	 */
@@ -1194,7 +1196,12 @@ public final class ConfigConstants {
 	
 	
 	// ------------------------- JobManager Web Frontend ----------------------
-	
+
+	/** The config key for the address of the JobManager web frontend. */
+	public static final ConfigOption<String> DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS =
+		key("jobmanager.web.address")
+			.noDefaultValue();
+
 	/** The config key for the port of the JobManager web frontend.
 	 * Setting this value to {@code -1} disables the web frontend. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;
