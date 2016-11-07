@@ -46,6 +46,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -122,13 +123,17 @@ public class ContinuousFileProcessingTest {
 			monitoringFunction.run(new DummySourceContext() {
 				@Override
 				public void collect(TimestampedFileInputSplit element) {
-					// do nothing as we are not expected to arrive here with an invalid path.
+					// we should never arrive here with an invalid path
+					Assert.fail("Test passes with an invalid path.");
 				}
 			});
-		} catch (IOException e) {
+
+			// we should never arrive here with an invalid path
+			Assert.fail("Test passed with an invalid path.");
+
+		} catch (FileNotFoundException e) {
 			Assert.assertEquals("The provided file path " + invalidPath + " does not exist.", e.getMessage());
 		}
-
 	}
 
 	@Test
