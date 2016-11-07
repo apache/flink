@@ -176,8 +176,8 @@ The algorithm is implemented using [scatter-gather iterations](#scatter-gather-i
 In each iteration, a vertex sends to its neighbors a message containing the sum its current distance and the edge weight connecting this vertex with the neighbor. Upon receiving candidate distance messages, a vertex calculates the minimum distance and, if a shorter path has been discovered, it updates its value. If a vertex does not change its value during a superstep, then it does not produce messages for its neighbors for the next superstep. The computation terminates after the specified maximum number of supersteps or when there are no value updates.
 
 #### Usage
-The algorithm takes as input a `Graph` with any vertex type, `Double` vertex values, and `Double` edge values. The output is a `DataSet` of vertices where the vertex values
-correspond to the minimum distances from the given source vertex.
+The algorithm takes as input a `Graph` with any vertex type and `Double` edge values. The vertex values can be any type and are not used by this algorithm. The vertex type must implement `equals()`.
+The output is a `DataSet` of vertices where the vertex values correspond to the minimum distances from the given source vertex.
 The constructor takes two parameters:
 
 * `srcVertexId` The vertex ID of the source vertex.
