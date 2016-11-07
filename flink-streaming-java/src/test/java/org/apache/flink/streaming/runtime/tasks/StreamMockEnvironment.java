@@ -22,9 +22,11 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -101,6 +103,10 @@ public class StreamMockEnvironment implements Environment {
 
 	private volatile boolean wasFailedExternally = false;
 
+	private final OneShotLatch checkpointLatch;
+	private Tuple2<CheckpointMetaData, SubtaskState> checkpointStates;
+
+
 	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, ExecutionConfig executionConfig,
 									long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
 		this.taskInfo = new TaskInfo(
@@ -124,6 +130,8 @@ public class StreamMockEnvironment implements Environment {
 
 		KvStateRegistry registry = new KvStateRegistry();
 		this.kvStateRegistry = registry.createTaskRegistry(jobID, getJobVertexId());
+		this.checkpointLatch = new OneShotLatch();
+		this.checkpointLatch.trigger(); // initial state : triggered = true
 	}
 
 	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, long memorySize,
@@ -314,11 +322,20 @@ public class StreamMockEnvironment implements Environment {
 
 	@Override
 	public void acknowledgeCheckpoint(CheckpointMetaData checkpointMetaData) {
+		acknowledgeCheckpoint(checkpointMetaData, null);
 	}
 
 	@Override
-	public void acknowledgeCheckpoint(
-			CheckpointMetaData checkpointMetaData, SubtaskState subtaskState) {
+	public void acknowledgeCheckpoint(CheckpointMetaData checkpointMetaData, SubtaskState subtaskState) {
+
+		if (checkpointLatch.isTriggered()) {
+			throw new IllegalStateException("Unexpected acknowledged checkpoint on unprepared environment: " + checkpointMetaData);
+		}
+
+		this.checkpointStates = new Tuple2<>(checkpointMetaData, subtaskState);
+
+		checkpointLatch.trigger();
+
 	}
 
 	@Override
@@ -338,6 +355,16 @@ public class StreamMockEnvironment implements Environment {
 	@Override
 	public TaskMetricGroup getMetricGroup() {
 		return new UnregisteredTaskMetricsGroup();
+	}
+
+	public void prepareForCheckpoint() {
+		checkpointLatch.reset();
+		checkpointStates = null;
+	}
+
+	public Tuple2<CheckpointMetaData, SubtaskState> receiveCheckpointResult() throws InterruptedException {
+		checkpointLatch.await();
+		return checkpointStates;
 	}
 }
 

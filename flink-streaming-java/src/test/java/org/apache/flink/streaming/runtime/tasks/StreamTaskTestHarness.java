@@ -21,12 +21,17 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -35,8 +40,8 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.junit.Assert;
 
 import java.io.IOException;
@@ -391,6 +396,32 @@ public class StreamTaskTestHarness<OUT> {
 
 		public Throwable getError() {
 			return error;
+		}
+	}
+
+	public Tuple2<CheckpointMetaData, SubtaskState> performCheckpoint(
+			CheckpointMetaData checkpointMetaData) throws Exception {
+
+		if (task instanceof StatefulTask) {
+			StatefulTask statefulTask = (StatefulTask) task;
+			mockEnv.prepareForCheckpoint();
+			while (!statefulTask.triggerCheckpoint(checkpointMetaData)) {
+				Thread.sleep(5);
+			}
+			return mockEnv.receiveCheckpointResult();
+		} else {
+			throw new IllegalStateException("Can not set state for a task that is not stateful!");
+		}
+	}
+
+	public void initializeState(SubtaskState restoreState) throws Exception {
+
+		if (task instanceof StatefulTask) {
+			TaskStateHandles taskStateHandles = new TaskStateHandles(restoreState);
+			StatefulTask statefulTask = (StatefulTask) task;
+			statefulTask.setInitialState(taskStateHandles);
+		} else {
+			throw new IllegalStateException("Can not set state for a task that is not stateful!");
 		}
 	}
 }
