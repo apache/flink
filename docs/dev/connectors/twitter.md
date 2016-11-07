@@ -2,7 +2,7 @@
 title: "Twitter Connector"
 nav-title: Twitter
 nav-parent_id: connectors
-nav-pos: 9
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
