@@ -29,6 +29,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -124,6 +125,9 @@ public class ContinuousFileMonitoringFunction<OUT>
 	@Override
 	public void run(SourceFunction.SourceContext<TimestampedFileInputSplit> context) throws Exception {
 		FileSystem fileSystem = FileSystem.get(new URI(path));
+		if (!fileSystem.exists(new Path(path))) {
+			throw new FileNotFoundException("The provided file path " + path + " does not exist.");
+		}
 
 		checkpointLock = context.getCheckpointLock();
 		switch (watchType) {

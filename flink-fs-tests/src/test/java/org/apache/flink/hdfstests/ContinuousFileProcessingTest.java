@@ -46,6 +46,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -108,6 +109,32 @@ public class ContinuousFileProcessingTest {
 	//						END OF PREPARATIONS
 
 	//						TESTS
+
+	@Test
+	public void testInvalidPathSpecification() throws Exception {
+
+		String invalidPath = "hdfs://" + hdfsCluster.getURI().getHost() + ":" + hdfsCluster.getNameNodePort() +"/invalid/";
+		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
+
+		ContinuousFileMonitoringFunction<String> monitoringFunction =
+			new ContinuousFileMonitoringFunction<>(format, invalidPath,
+				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
+		try {
+			monitoringFunction.run(new DummySourceContext() {
+				@Override
+				public void collect(TimestampedFileInputSplit element) {
+					// we should never arrive here with an invalid path
+					Assert.fail("Test passes with an invalid path.");
+				}
+			});
+
+			// we should never arrive here with an invalid path
+			Assert.fail("Test passed with an invalid path.");
+
+		} catch (FileNotFoundException e) {
+			Assert.assertEquals("The provided file path " + invalidPath + " does not exist.", e.getMessage());
+		}
+	}
 
 	@Test
 	public void testFileReadingOperatorWithIngestionTime() throws Exception {
