@@ -25,7 +25,7 @@ import org.apache.flink.api.common.accumulators.LongMaximum;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAnalyticHelper;
+import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
@@ -148,7 +148,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 * @param <T> ID type
 	 */
 	private static class VertexMetricsHelper<T>
-	extends GraphAnalyticHelper<Vertex<T, Degrees>> {
+	extends AnalyticHelper<Vertex<T, Degrees>> {
 		private long vertexCount;
 		private long unidirectionalEdgeCount;
 		private long bidirectionalEdgeCount;

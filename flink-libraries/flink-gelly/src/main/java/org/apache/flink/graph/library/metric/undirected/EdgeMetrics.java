@@ -31,7 +31,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAnalyticHelper;
+import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeDegreePair;
 import org.apache.flink.graph.library.metric.undirected.EdgeMetrics.Result;
 import org.apache.flink.types.CopyableValue;
@@ -211,7 +211,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 * @param <T> ID type
 	 */
 	private static class EdgeMetricsHelper<T extends Comparable<T>>
-	extends GraphAnalyticHelper<Tuple3<T, LongValue, LongValue>> {
+	extends AnalyticHelper<Tuple3<T, LongValue, LongValue>> {
 		private long triangleTripletCount;
 		private long rectangleTripletCount;
 		private long maximumTriangleTriplets;

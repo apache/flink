@@ -25,7 +25,7 @@ import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAnalyticHelper;
+import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient.Result;
 import org.apache.flink.types.CopyableValue;
 
@@ -104,7 +104,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 * @param <T> ID type
 	 */
 	private static class AverageClusteringCoefficientHelper<T>
-	extends GraphAnalyticHelper<LocalClusteringCoefficient.Result<T>> {
+	extends AnalyticHelper<LocalClusteringCoefficient.Result<T>> {
 		private long vertexCount;
 		private double sumOfLocalClusteringCoefficient;
 

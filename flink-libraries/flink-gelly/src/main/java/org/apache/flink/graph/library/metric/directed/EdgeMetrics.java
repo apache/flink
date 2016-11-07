@@ -34,7 +34,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAnalyticHelper;
+import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.asm.degree.annotate.directed.EdgeDegreesPair;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
 import org.apache.flink.graph.library.metric.directed.EdgeMetrics.Result;
@@ -231,7 +231,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 * @param <T> ID type
 	 */
 	private static class EdgeMetricsHelper<T extends Comparable<T>>
-	extends GraphAnalyticHelper<Tuple3<T, Degrees, LongValue>> {
+	extends AnalyticHelper<Tuple3<T, Degrees, LongValue>> {
 		private long triangleTripletCount;
 		private long rectangleTripletCount;
 		private long maximumTriangleTriplets;

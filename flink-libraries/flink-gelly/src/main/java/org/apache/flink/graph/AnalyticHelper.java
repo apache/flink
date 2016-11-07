@@ -40,7 +40,7 @@ import java.io.Serializable;
  *
  * @param <T> element type
  */
-public abstract class GraphAnalyticHelper<T>
+public abstract class AnalyticHelper<T>
 extends RichOutputFormat<T> {
 
 	private static final String SEPARATOR = "-";
