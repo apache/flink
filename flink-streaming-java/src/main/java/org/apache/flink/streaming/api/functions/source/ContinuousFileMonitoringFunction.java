@@ -124,6 +124,9 @@ public class ContinuousFileMonitoringFunction<OUT>
 	@Override
 	public void run(SourceFunction.SourceContext<TimestampedFileInputSplit> context) throws Exception {
 		FileSystem fileSystem = FileSystem.get(new URI(path));
+		if (!fileSystem.exists(new Path(path))) {
+			throw new IOException("The provided file path " + path + " does not exist.");
+		}
 
 		checkpointLock = context.getCheckpointLock();
 		switch (watchType) {

@@ -311,7 +311,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 			} finally {
 				synchronized (checkpointLock) {
-					LOG.info("Reader terminated, and exiting...");
+					LOG.debug("Reader terminated, and exiting...");
 
 					try {
 						this.format.closeInputFormat();

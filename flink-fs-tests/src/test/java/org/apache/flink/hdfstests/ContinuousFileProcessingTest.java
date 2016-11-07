@@ -110,6 +110,28 @@ public class ContinuousFileProcessingTest {
 	//						TESTS
 
 	@Test
+	public void testInvalidPathSpecification() throws Exception {
+
+		String invalidPath = "hdfs://" + hdfsCluster.getURI().getHost() + ":" + hdfsCluster.getNameNodePort() +"/invalid/";
+		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
+
+		ContinuousFileMonitoringFunction<String> monitoringFunction =
+			new ContinuousFileMonitoringFunction<>(format, invalidPath,
+				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
+		try {
+			monitoringFunction.run(new DummySourceContext() {
+				@Override
+				public void collect(TimestampedFileInputSplit element) {
+					// do nothing as we are not expected to arrive here with an invalid path.
+				}
+			});
+		} catch (IOException e) {
+			Assert.assertEquals("The provided file path " + invalidPath + " does not exist.", e.getMessage());
+		}
+
+	}
+
+	@Test
 	public void testFileReadingOperatorWithIngestionTime() throws Exception {
 		Set<org.apache.hadoop.fs.Path> filesCreated = new HashSet<>();
 		Map<Integer, String> expectedFileContents = new HashMap<>();
