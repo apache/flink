@@ -119,9 +119,8 @@ public class RocksDBAsyncSnapshotTest {
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 
 		File dbDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "state");
-		File chkDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "snapshots");
 
-		RocksDBStateBackend backend = new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), new MemoryStateBackend());
+		RocksDBStateBackend backend = new RocksDBStateBackend(new MemoryStateBackend());
 		backend.setDbStoragePath(dbDir.getAbsolutePath());
 
 		streamConfig.setStateBackend(backend);
@@ -220,11 +219,10 @@ public class RocksDBAsyncSnapshotTest {
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 
 		File dbDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "state");
-		File chkDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "snapshots");
 
 		BlockingStreamMemoryStateBackend memoryStateBackend = new BlockingStreamMemoryStateBackend();
 
-		RocksDBStateBackend backend = new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), memoryStateBackend);
+		RocksDBStateBackend backend = new RocksDBStateBackend(memoryStateBackend);
 		backend.setDbStoragePath(dbDir.getAbsolutePath());
 
 		streamConfig.setStateBackend(backend);

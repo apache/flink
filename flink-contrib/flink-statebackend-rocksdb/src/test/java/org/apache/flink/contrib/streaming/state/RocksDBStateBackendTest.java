@@ -45,7 +45,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	protected RocksDBStateBackend getStateBackend() throws IOException {
 		String dbPath = tempFolder.newFolder().getAbsolutePath();
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
-		RocksDBStateBackend backend = new RocksDBStateBackend(checkpointPath, new FsStateBackend(checkpointPath));
+		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath));
 		backend.setDbStoragePath(dbPath);
 		return backend;
 	}
