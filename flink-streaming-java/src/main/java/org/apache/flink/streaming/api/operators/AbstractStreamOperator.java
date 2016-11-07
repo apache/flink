@@ -784,6 +784,9 @@ public abstract class AbstractStreamOperator<OUT>
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer,
 			Triggerable<K, N> triggerable) {
+		if (getKeyedStateBackend() == null) {
+			throw new UnsupportedOperationException("Timers can only be used on keyed operators.");
+		}
 
 		@SuppressWarnings("unchecked")
 		HeapInternalTimerService<K, N> timerService = (HeapInternalTimerService<K, N>) timerServices.get(name);
