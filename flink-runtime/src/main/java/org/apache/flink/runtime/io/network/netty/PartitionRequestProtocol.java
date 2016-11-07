@@ -22,24 +22,37 @@ import io.netty.channel.ChannelHandler;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
+import org.apache.flink.runtime.net.SSLProtocolHandler;
 
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.NettyMessageEncoder;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.NettyMessageEncoder.createFrameLengthDecoder;
 
-class PartitionRequestProtocol implements NettyProtocol {
+class PartitionRequestProtocol extends SimpleNettyProtocol {
+
+	private final SSLProtocolHandler sslClientHandler;
+	private final SSLProtocolHandler sslServerHandler;
 
 	private final NettyMessageEncoder messageEncoder = new NettyMessageEncoder();
 
 	private final NettyMessage.NettyMessageDecoder messageDecoder = new NettyMessage.NettyMessageDecoder();
 
+	private final PartitionRequestNettyConfig config;
 	private final ResultPartitionProvider partitionProvider;
 	private final TaskEventDispatcher taskEventDispatcher;
 	private final NetworkBufferPool networkbufferPool;
 
-	PartitionRequestProtocol(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher, NetworkBufferPool networkbufferPool) {
+	PartitionRequestProtocol(
+		PartitionRequestNettyConfig config,
+		ResultPartitionProvider partitionProvider,
+		TaskEventDispatcher taskEventDispatcher,
+		NetworkBufferPool networkbufferPool) {
+		this.config = config;
 		this.partitionProvider = partitionProvider;
 		this.taskEventDispatcher = taskEventDispatcher;
 		this.networkbufferPool = networkbufferPool;
+
+		this.sslClientHandler = new SSLProtocolHandler(config, true);
+		this.sslServerHandler = new SSLProtocolHandler(config, false);
 	}
 
 	// +-------------------------------------------------------------------+
@@ -50,10 +63,10 @@ class PartitionRequestProtocol implements NettyProtocol {
 	// |    +----------+----------+            +-----------+----------+    |
 	// |              /|\                                 \|/              |
 	// |               | (2) enqueue                       |               |
-	// |    +----------+----------+                        |               |
-	// |    | Request handler     |                        |               |
-	// |    +----------+----------+                        |               |
-	// |              /|\                                  |               |
+	// |    +----------+----------+            +----------------------+    |
+	// |    | Request handler     |            | SSL handler          |    |
+	// |    +----------+----------+            +----------------------+    |
+	// |              /|\                                 \|/              |
 	// |               |                                   |               |
 	// |    +----------+----------+                        |               |
 	// |    | Message decoder     |                        |               |
@@ -64,6 +77,12 @@ class PartitionRequestProtocol implements NettyProtocol {
 	// |    | Frame decoder       |                        |               |
 	// |    +----------+----------+                        |               |
 	// |              /|\                                  |               |
+	// |               |                                   |               |
+	// |    +----------+----------+                        |               |
+	// |    | SSL handler         |                        |               |
+	// |    +----------+----------+                        |               |
+	// |              /|\                                  |               |
+	// |               |                                   |               |
 	// +---------------+-----------------------------------+---------------+
 	// |               | (1) client request               \|/
 	// +---------------+-----------------------------------+---------------+
@@ -80,6 +99,7 @@ class PartitionRequestProtocol implements NettyProtocol {
 				partitionProvider, taskEventDispatcher, queueOfPartitionQueues, networkbufferPool);
 
 		return new ChannelHandler[] {
+				sslServerHandler,
 				messageEncoder,
 				createFrameLengthDecoder(),
 				messageDecoder,
@@ -100,13 +120,18 @@ class PartitionRequestProtocol implements NettyProtocol {
 	// |    +----------+----------+            +-----------+----------+    |
 	// |              /|\                                 \|/              |
 	// |               |                                   |               |
+	// |    +----------+----------+            +-----------+----------+    |
+	// |    | Message decoder     |            | SSL handler          |    |
+	// |    +----------+----------+            +-----------+----------+    |
+	// |              /|\                                 \|/              |
+	// |               |                                   |               |
 	// |    +----------+----------+                        |               |
-	// |    | Message decoder     |                        |               |
+	// |    | Frame decoder       |                        |               |
 	// |    +----------+----------+                        |               |
 	// |              /|\                                  |               |
 	// |               |                                   |               |
 	// |    +----------+----------+                        |               |
-	// |    | Frame decoder       |                        |               |
+	// |    | SSL handler         |                        |               |
 	// |    +----------+----------+                        |               |
 	// |              /|\                                  |               |
 	// +---------------+-----------------------------------+---------------+
@@ -121,6 +146,7 @@ class PartitionRequestProtocol implements NettyProtocol {
 	@Override
 	public ChannelHandler[] getClientChannelHandlers() {
 		return new ChannelHandler[] {
+				sslClientHandler,
 				messageEncoder,
 				createFrameLengthDecoder(),
 				messageDecoder,

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import io.netty.channel.Channel;
 
+import io.netty.channel.ChannelHandler;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.NetUtils;
 
@@ -90,11 +91,19 @@ public class NettyTestUtil {
 		return connect(serverAndClient.client(), serverAndClient.server());
 	}
 
+	static Channel connect(NettyServerAndClient serverAndClient, ChannelHandler handler) throws Exception {
+		return connect(serverAndClient.client(), serverAndClient.server(), handler);
+	}
+
 	static Channel connect(NettyClient client, NettyServer server) throws Exception {
+		return connect(client, server, null);
+	}
+
+	static Channel connect(NettyClient client, NettyServer server, ChannelHandler handler) throws Exception {
 		final NettyConfig config = server.getConfig();
 
 		return client
-				.connect(new InetSocketAddress(config.getServerAddress(), config.getServerPort()))
+				.connect(new InetSocketAddress(config.getServerAddress(), config.getServerPort()), handler)
 				.sync()
 				.channel();
 	}
@@ -119,26 +128,26 @@ public class NettyTestUtil {
 	}
 
 	// ---------------------------------------------------------------------------------------------
-	// NettyConfig
+	// PartitionRequestNettyConfig
 	// ---------------------------------------------------------------------------------------------
 
-	static NettyConfig createConfig() throws Exception {
+	static PartitionRequestNettyConfig createConfig() throws Exception {
 		return createConfig(DEFAULT_SEGMENT_SIZE, new Configuration());
 	}
 
-	static NettyConfig createConfig(int segmentSize) throws Exception {
+	static PartitionRequestNettyConfig createConfig(int segmentSize) throws Exception {
 		return createConfig(segmentSize, new Configuration());
 	}
 
-	static NettyConfig createConfig(Configuration config) throws Exception {
+	static PartitionRequestNettyConfig createConfig(Configuration config) throws Exception {
 		return createConfig(DEFAULT_SEGMENT_SIZE, config);
 	}
 
-	static NettyConfig createConfig(int segmentSize, Configuration config) throws Exception {
+	static PartitionRequestNettyConfig createConfig(int segmentSize, Configuration config) throws Exception {
 		checkArgument(segmentSize > 0);
 		checkNotNull(config);
 
-		return new NettyConfig(
+		return new PartitionRequestNettyConfig(
 				InetAddress.getLocalHost(),
 				NetUtils.getAvailablePort(),
 				segmentSize,

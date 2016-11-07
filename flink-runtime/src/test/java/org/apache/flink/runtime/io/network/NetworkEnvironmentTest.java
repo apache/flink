@@ -24,7 +24,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.netty.PartitionRequestNettyConfig;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -72,7 +72,7 @@ public class NetworkEnvironmentTest {
 			1024,
 			MemoryType.HEAP,
 			IOManager.IOMode.SYNC,
-			Some.<NettyConfig>empty(),
+			Some.<PartitionRequestNettyConfig>empty(),
 			0,
 			0);
 

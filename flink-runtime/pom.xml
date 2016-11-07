@@ -67,6 +67,12 @@ under the License.
 			<!-- Version is set in root POM -->
 		</dependency>
 
+		<dependency>
+			<groupId>tv.cntt</groupId>
+			<artifactId>netty-router</artifactId>
+			<version>1.10</version>
+		</dependency>
+
 		<!-- See: https://groups.google.com/forum/#!msg/netty/-aAPDBNUnDg/SkGOXL2Ma2QJ -->
 		<dependency>
 			<groupId>org.javassist</groupId>

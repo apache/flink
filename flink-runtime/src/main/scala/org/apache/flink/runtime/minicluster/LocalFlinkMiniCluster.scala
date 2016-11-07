@@ -33,7 +33,7 @@ import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
-import org.apache.flink.runtime.io.network.netty.NettyConfig
+import org.apache.flink.runtime.io.network.netty.{PartitionRequestNettyConfig, NettyConfig}
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist, SubmittedJobGraphStore}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
@@ -371,8 +371,8 @@ class LocalFlinkMiniCluster(
       ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER)
 
     // Reduce number of threads for local execution
-    config.setInteger(NettyConfig.NUM_THREADS_CLIENT, 1)
-    config.setInteger(NettyConfig.NUM_THREADS_SERVER, 2)
+    config.setInteger(PartitionRequestNettyConfig.NUM_THREADS_CLIENT, 1)
+    config.setInteger(PartitionRequestNettyConfig.NUM_THREADS_SERVER, 2)
 
     config
   }

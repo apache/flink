@@ -66,10 +66,13 @@ public class ServerTransportErrorHandlingTest {
 				.createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferProvider.class)))
 				.thenReturn(new InfiniteSubpartitionView(outboundBuffers, sync));
 
-		NettyProtocol protocol = new NettyProtocol() {
+		final PartitionRequestNettyConfig config = createConfig();
+
+		NettyProtocol protocol = new SimpleNettyProtocol() {
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				return new PartitionRequestProtocol(
+						config,
 						partitionManager,
 						mock(TaskEventDispatcher.class),
 						mock(NetworkBufferPool.class)).getServerChannelHandlers();
@@ -95,7 +98,7 @@ public class ServerTransportErrorHandlingTest {
 		NettyServerAndClient serverAndClient = null;
 
 		try {
-			serverAndClient = initServerAndClient(protocol, createConfig());
+			serverAndClient = initServerAndClient(protocol, config);
 
 			Channel ch = connect(serverAndClient);
 

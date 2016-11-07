@@ -16,28 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.netty;
+package org.apache.flink.runtime.net.http;
 
-import io.netty.channel.ChannelHandler;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.util.ReferenceCounted;
 
 /**
- * An abstract Netty protocol.
+ * A RESTful HTTP response, with a typed content body or an error.
+ *
+ * @param <T> the content type.
  */
-public interface NettyProtocol {
+public interface RestResponse<T> extends HttpResponse, ReferenceCounted {
 
 	/**
-	 * Get the server-side channel handler or initializer.
-	 *
-	 * The handler must be sharable.
-	 * @return a handler.
-	*/
-	ChannelHandler getServerChannelHandler();
-
-	/**
-	 * Get the client-side channel handler or initializer.
-	 *
-	 * The handler, if provided here, must be sharable.
-	 * @return a handler, or null if the handler is provided later (at connection time).
+	 * The content associated with the response.
 	 */
-	ChannelHandler getClientChannelHandler();
+	T content();
+
+	/**
+	 * The error associated with the response.
+     */
+	RestError error();
 }

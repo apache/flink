@@ -49,7 +49,7 @@ public class NettyConnectionManagerTest {
 		// Expected number of arenas and threads
 		int numberOfSlots = 2;
 
-		NettyConfig config = new NettyConfig(
+		PartitionRequestNettyConfig config = new PartitionRequestNettyConfig(
 				InetAddress.getLocalHost(),
 				NetUtils.getAvailablePort(),
 				1024,
@@ -114,11 +114,11 @@ public class NettyConnectionManagerTest {
 
 		// Expected number of threads
 		Configuration flinkConfig = new Configuration();
-		flinkConfig.setInteger(NettyConfig.NUM_ARENAS, numberOfArenas);
-		flinkConfig.setInteger(NettyConfig.NUM_THREADS_CLIENT, 3);
-		flinkConfig.setInteger(NettyConfig.NUM_THREADS_SERVER, 4);
+		flinkConfig.setInteger(PartitionRequestNettyConfig.NUM_ARENAS, numberOfArenas);
+		flinkConfig.setInteger(PartitionRequestNettyConfig.NUM_THREADS_CLIENT, 3);
+		flinkConfig.setInteger(PartitionRequestNettyConfig.NUM_THREADS_SERVER, 4);
 
-		NettyConfig config = new NettyConfig(
+		PartitionRequestNettyConfig config = new PartitionRequestNettyConfig(
 				InetAddress.getLocalHost(),
 				NetUtils.getAvailablePort(),
 				1024,

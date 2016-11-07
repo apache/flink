@@ -75,7 +75,9 @@ public class ClientTransportErrorHandlingTest {
 	@Test
 	public void testExceptionOnWrite() throws Exception {
 
-		NettyProtocol protocol = new NettyProtocol() {
+		final PartitionRequestNettyConfig config = createConfig();
+
+		NettyProtocol protocol = new SimpleNettyProtocol() {
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				return new ChannelHandler[0];
@@ -84,6 +86,7 @@ public class ClientTransportErrorHandlingTest {
 			@Override
 			public ChannelHandler[] getClientChannelHandlers() {
 				return new PartitionRequestProtocol(
+						config,
 						mock(ResultPartitionProvider.class),
 						mock(TaskEventDispatcher.class),
 						mock(NetworkBufferPool.class)).getClientChannelHandlers();
@@ -92,7 +95,7 @@ public class ClientTransportErrorHandlingTest {
 
 		// We need a real server and client in this test, because Netty's EmbeddedChannel is
 		// not failing the ChannelPromise of failed writes.
-		NettyServerAndClient serverAndClient = initServerAndClient(protocol, createConfig());
+		NettyServerAndClient serverAndClient = initServerAndClient(protocol, config);
 
 		Channel ch = connect(serverAndClient);
 
@@ -215,7 +218,9 @@ public class ClientTransportErrorHandlingTest {
 	@Test
 	public void testExceptionOnRemoteClose() throws Exception {
 
-		NettyProtocol protocol = new NettyProtocol() {
+		final PartitionRequestNettyConfig config = createConfig();
+
+		NettyProtocol protocol = new SimpleNettyProtocol() {
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				return new ChannelHandler[] {
@@ -234,13 +239,14 @@ public class ClientTransportErrorHandlingTest {
 			@Override
 			public ChannelHandler[] getClientChannelHandlers() {
 				return new PartitionRequestProtocol(
+						config,
 						mock(ResultPartitionProvider.class),
 						mock(TaskEventDispatcher.class),
 						mock(NetworkBufferPool.class)).getClientChannelHandlers();
 			}
 		};
 
-		NettyServerAndClient serverAndClient = initServerAndClient(protocol, createConfig());
+		NettyServerAndClient serverAndClient = initServerAndClient(protocol, config);
 
 		Channel ch = connect(serverAndClient);
 
@@ -380,8 +386,11 @@ public class ClientTransportErrorHandlingTest {
 	// Helpers
 	// ---------------------------------------------------------------------------------------------
 
-	private EmbeddedChannel createEmbeddedChannel() {
+	private EmbeddedChannel createEmbeddedChannel() throws Exception {
+		final PartitionRequestNettyConfig config = createConfig();
+
 		PartitionRequestProtocol protocol = new PartitionRequestProtocol(
+				config,
 				mock(ResultPartitionProvider.class),
 				mock(TaskEventDispatcher.class),
 				mock(NetworkBufferPool.class));
