@@ -238,7 +238,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			// task specific initialization
 			init();
 			
-			// save the work of reloadig state, etc, if the task is already canceled
+			// save the work of reloading state, etc, if the task is already canceled
 			if (canceled) {
 				throw new CancelTaskException();
 			}
@@ -264,6 +264,12 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			// let the task do its work
 			isRunning = true;
 			run();
+
+			// if this left the run() method cleanly despite the fact that this was canceled,
+			// make sure the "clean shutdown" is not attempted
+			if (canceled) {
+				throw new CancelTaskException();
+			}
 
 			LOG.debug("Finished task {}", getName());
 			
