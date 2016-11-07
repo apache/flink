@@ -58,7 +58,7 @@ import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(WrapperSetupHelper.class)
-@PowerMockIgnore("javax.*")
+@PowerMockIgnore({"javax.*", "org.apache.log4j.*"})
 public class WrapperSetupHelperTest extends AbstractTest {
 
 	@Test
