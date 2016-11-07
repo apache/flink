@@ -23,7 +23,8 @@ import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.state.{FoldingStateDescriptor, ListStateDescriptor, ReducingStateDescriptor, ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, KeyedStream => KeyedJavaStream, QueryableStateStream, WindowedStream => WindowedJavaStream}
+import org.apache.flink.streaming.api.datastream.{QueryableStateStream, SingleOutputStreamOperator, DataStream => JavaStream, KeyedStream => KeyedJavaStream, WindowedStream => WindowedJavaStream}
+import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
 import org.apache.flink.streaming.api.functions.query.{QueryableAppendingStateOperator, QueryableValueStateOperator}
@@ -46,6 +47,36 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    */
   @Internal
   def getKeyType = javaStream.getKeyType()
+
+
+  // ------------------------------------------------------------------------
+  //  basic transformations
+  // ------------------------------------------------------------------------
+
+  /**
+    * Applies the given [[TimelyFlatMapFunction]] on the input stream, thereby
+    * creating a transformed output stream.
+    *
+    * The function will be called for every element in the stream and can produce
+    * zero or more output. The function can also query the time and set timers. When
+    * reacting to the firing of set timers the function can emit yet more elements.
+    *
+    * A [[org.apache.flink.streaming.api.functions.RichTimelyFlatMapFunction]]
+    * can be used to gain access to features provided by the
+    * [[org.apache.flink.api.common.functions.RichFunction]]
+    *
+    * @param flatMapper The [[TimelyFlatMapFunction]] that is called for each element
+    *                   in the stream.
+    */
+  def flatMap[R: TypeInformation](
+      flatMapper: TimelyFlatMapFunction[T, R]): DataStream[R] = {
+
+    if (flatMapper == null) {
+      throw new NullPointerException("TimelyFlatMapFunction must not be null.")
+    }
+
+    asScalaStream(javaStream.flatMap(flatMapper, implicitly[TypeInformation[R]]))
+  }
   
   // ------------------------------------------------------------------------
   //  Windowing

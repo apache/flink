@@ -772,21 +772,21 @@ public abstract class AbstractStreamOperator<OUT>
 	 *
 	 * @param name The name of the requested timer service. If no service exists under the given
 	 *             name a new one will be created and returned.
-	 * @param keySerializer {@code TypeSerializer} for the keys of the timers.
 	 * @param namespaceSerializer {@code TypeSerializer} for the timer namespace.
 	 * @param triggerable The {@link Triggerable} that should be invoked when timers fire
 	 *
-	 * @param <K> The type of the timer keys.
 	 * @param <N> The type of the timer namespace.
 	 */
-	public <K, N> InternalTimerService<N> getInternalTimerService(
+	public <N> InternalTimerService<N> getInternalTimerService(
 			String name,
-			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer,
-			Triggerable<K, N> triggerable) {
+			Triggerable<?, N> triggerable) {
+		if (getKeyedStateBackend() == null) {
+			throw new UnsupportedOperationException("Timers can only be used on keyed operators.");
+		}
 
 		@SuppressWarnings("unchecked")
-		HeapInternalTimerService<K, N> timerService = (HeapInternalTimerService<K, N>) timerServices.get(name);
+		HeapInternalTimerService<Object, N> timerService = (HeapInternalTimerService<Object, N>) timerServices.get(name);
 
 		if (timerService == null) {
 			timerService = new HeapInternalTimerService<>(
@@ -796,7 +796,9 @@ public abstract class AbstractStreamOperator<OUT>
 				getRuntimeContext().getProcessingTimeService());
 			timerServices.put(name, timerService);
 		}
-		timerService.startTimerService(keySerializer, namespaceSerializer, triggerable);
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		Triggerable rawTriggerable = (Triggerable) triggerable;
+		timerService.startTimerService(getKeyedStateBackend().getKeySerializer(), namespaceSerializer, rawTriggerable);
 		return timerService;
 	}
 

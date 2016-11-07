@@ -187,7 +187,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		timestampedCollector = new TimestampedCollector<>(output);
 
 		internalTimerService =
-				getInternalTimerService("window-timers", keySerializer, windowSerializer, this);
+				getInternalTimerService("window-timers", windowSerializer, this);
 
 		context = new Context(null, null);
 
