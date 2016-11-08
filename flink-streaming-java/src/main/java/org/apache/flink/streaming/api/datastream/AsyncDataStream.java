@@ -41,9 +41,11 @@ public class AsyncDataStream {
 
 	private static final int DEFAULT_BUFFER_SIZE = 100;
 
-	private static <IN, OUT> SingleOutputStreamOperator<OUT> addOperator(DataStream<IN> in,
-																		AsyncFunction<IN, OUT> func,
-																		int bufSize, OutputMode mode) {
+	private static <IN, OUT> SingleOutputStreamOperator<OUT> addOperator(
+			DataStream<IN> in,
+			AsyncFunction<IN, OUT> func,
+			int bufSize,
+			OutputMode mode) {
 		TypeInformation<OUT> outTypeInfo =
 			TypeExtractor.getUnaryOperatorReturnType((Function) func, AsyncFunction.class, false,
 				true, in.getType(), Utils.getCallLocationName(), true);
@@ -51,7 +53,7 @@ public class AsyncDataStream {
 		// create transform
 		AsyncWaitOperator<IN, OUT> operator = new AsyncWaitOperator<>(in.getExecutionEnvironment().clean(func));
 		operator.setBufferSize(bufSize);
-		operator.setMode(mode);
+		operator.setOutputMode(mode);
 
 		OneInputTransformation<IN, OUT> resultTransform = new OneInputTransformation<>(
 			in.getTransformation(),
@@ -72,37 +74,62 @@ public class AsyncDataStream {
 	 * Add an AsyncWaitOperator. The order of output stream records may be reordered.
 	 *
 	 * @param in Input {@link DataStream}
-	 * @param func AsyncFunction
-	 * @bufSize The max number of async i/o operation that can be triggered
+	 * @param func {@link AsyncFunction}
+	 * @param bufSize The max number of async i/o operation that can be triggered
+	 * @param <IN> Type of input record
+	 * @param <OUT> Type of output record
 	 * @return A new {@link SingleOutputStreamOperator}.
 	 */
-	public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWait(DataStream<IN> in,
-																		AsyncFunction<IN, OUT> func,
-																		int bufSize) {
+	public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWait(
+			DataStream<IN> in,
+			AsyncFunction<IN, OUT> func,
+			int bufSize) {
 		return addOperator(in, func, bufSize, OutputMode.UNORDERED);
 	}
 
-	public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWait(DataStream<IN> in,
-																		AsyncFunction<IN, OUT> func) {
+	/**
+	 * Add an AsyncWaitOperator. The order of output stream records may be reordered.
+	 * @param in Input {@link DataStream}
+	 * @param func {@link AsyncFunction}
+	 * @param <IN> Type of input record
+	 * @param <OUT> Type of output record
+	 * @return A new {@link SingleOutputStreamOperator}.
+   */
+	public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWait(
+			DataStream<IN> in,
+			AsyncFunction<IN, OUT> func) {
 		return addOperator(in, func, DEFAULT_BUFFER_SIZE, OutputMode.UNORDERED);
 	}
 
 	/**
-	 * Add an AsyncWaitOperator. The order of output stream records is guaranteed to be the same as input ones.
+	 * Add an AsyncWaitOperator. The order to process input records is guaranteed to be the same as input ones.
 	 *
-	 * @param in Input data stream
+	 * @param in Input {@link DataStream}
 	 * @param func {@link AsyncFunction}
-	 * @bufSize The max number of async i/o operation that can be triggered
+	 * @param bufSize The max number of async i/o operation that can be triggered
+	 * @param <IN> Type of input record
+	 * @param <OUT> Type of output record
 	 * @return A new {@link SingleOutputStreamOperator}.
 	 */
-	public static <IN, OUT> SingleOutputStreamOperator<OUT> orderedWait(DataStream<IN> in,
-																		AsyncFunction<IN, OUT> func,
-																		int bufSize) {
+	public static <IN, OUT> SingleOutputStreamOperator<OUT> orderedWait(
+			DataStream<IN> in,
+			AsyncFunction<IN, OUT> func,
+			int bufSize) {
 		return addOperator(in, func, bufSize, OutputMode.ORDERED);
 	}
 
-	public static <IN, OUT> SingleOutputStreamOperator<OUT> orderedWait(DataStream<IN> in,
-																		AsyncFunction<IN, OUT> func) {
+	/**
+	 * Add an AsyncWaitOperator. The order to process input records is guaranteed to be the same as input ones.
+	 *
+	 * @param in Input {@link DataStream}
+	 * @param func {@link AsyncFunction}
+	 * @param <IN> Type of input record
+	 * @param <OUT> Type of output record
+	 * @return A new {@link SingleOutputStreamOperator}.
+   */
+	public static <IN, OUT> SingleOutputStreamOperator<OUT> orderedWait(
+			DataStream<IN> in,
+			AsyncFunction<IN, OUT> func) {
 		return addOperator(in, func, DEFAULT_BUFFER_SIZE, OutputMode.ORDERED);
 	}
 }

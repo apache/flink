@@ -22,8 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.runtime.util.DataOutputSerializer;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -35,12 +37,14 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 @Internal
@@ -55,17 +59,21 @@ public class AsyncWaitOperator<IN, OUT>
 	/**
 	 * {@link TypeSerializer} for inputs while making snapshots.
 	 */
-	private transient TypeSerializer<IN> inTypeSerializer;
-	private transient DataOutputSerializer outputSerializer;
+	private transient StreamElementSerializer<IN> inStreamElementSerializer;
 
 	/**
 	 * input stream elements from the state
 	 */
-	private transient List<StreamElement> inputsFromState;
+	private transient Collection<StreamElement> recoveredStreamElements;
 
 	private transient TimestampedCollector<OUT> collector;
 
 	private transient AsyncCollectorBuffer<IN, OUT> buffer;
+
+	/**
+	 * Checkpoint lock from {@link StreamTask#lock}
+	 */
+	private transient Object checkpointLock;
 
 	private int bufferSize = DEFAULT_BUFFER_SIZE;
 	private AsyncDataStream.OutputMode mode;
@@ -80,25 +88,21 @@ public class AsyncWaitOperator<IN, OUT>
 		bufferSize = size;
 	}
 
-	public void setMode(AsyncDataStream.OutputMode mode) {
+	public void setOutputMode(AsyncDataStream.OutputMode mode) {
 		this.mode = mode;
-	}
-
-	public void init() {
-		this.buffer = new AsyncCollectorBuffer<>(bufferSize, mode, this);
-		this.collector = new TimestampedCollector<>(output);
-		this.buffer.setOutput(collector, output);
-
-		this.outputSerializer = new DataOutputSerializer(128);
 	}
 
 	@Override
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		super.setup(containingTask, config, output);
 
-		this.inTypeSerializer = this.getOperatorConfig().getTypeSerializerIn1(getUserCodeClassloader());
+		this.inStreamElementSerializer = new StreamElementSerializer(this.getOperatorConfig().getTypeSerializerIn1(getUserCodeClassloader()));
 
-		init();
+		this.collector = new TimestampedCollector<>(output);
+
+		this.checkpointLock = containingTask.getCheckpointLock();
+
+		this.buffer = new AsyncCollectorBuffer<>(bufferSize, mode, output, collector, this.checkpointLock, this);
 	}
 
 	@Override
@@ -106,46 +110,51 @@ public class AsyncWaitOperator<IN, OUT>
 		super.open();
 
 		// process stream elements from state
-		if (this.inputsFromState != null) {
-			for (StreamElement element : this.inputsFromState) {
+		if (this.recoveredStreamElements != null) {
+			for (StreamElement element : this.recoveredStreamElements) {
 				if (element.isRecord()) {
 					processElement(element.<IN>asRecord());
-				} else {
+				}
+				else if (element.isWatermark()) {
 					processWatermark(element.asWatermark());
 				}
+				else if (element.isLatencyMarker()) {
+					processLatencyMarker(element.asLatencyMarker());
+				}
+				else {
+					throw new Exception("Unknown record type: "+element.getClass());
+				}
 			}
-			this.inputsFromState = null;
+			this.recoveredStreamElements = null;
 		}
-
-		buffer.startEmitterThread();
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		AsyncCollector<IN, OUT> collector = buffer.add(element);
+		AsyncCollector<IN, OUT> collector = buffer.addStreamRecord(element);
 		userFunction.asyncInvoke(element.getValue(), collector);
 	}
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
-		buffer.add(mark);
+		buffer.addWatermark(mark);
 	}
 
 	@Override
 	public void processLatencyMarker(LatencyMarker latencyMarker) throws Exception {
-		buffer.add(latencyMarker);
+		buffer.addLatencyMarker(latencyMarker);
 	}
 
 	@Override
 	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
-		List<StreamElement> elements = buffer.getStreamElementsInBuffer();
+		Collection<StreamElement> elements = buffer.getStreamElementsInBuffer();
 
 		serializeStreamElements(elements, out);
 	}
 
 	@Override
 	public void restoreState(FSDataInputStream in) throws Exception {
-		this.inputsFromState = deserializeStreamElements(in);
+		this.recoveredStreamElements = deserializeStreamElements(in);
 	}
 
 	@Override
@@ -153,102 +162,37 @@ public class AsyncWaitOperator<IN, OUT>
 		super.close();
 
 		buffer.waitEmpty();
-		buffer.stopEmitterThread();
 	}
 
 	@Override
 	public void dispose() throws Exception {
 		super.dispose();
-
-		buffer.stopEmitterThread();
 	}
 
 	public void sendLatencyMarker(LatencyMarker marker) throws Exception {
 		super.processLatencyMarker(marker);
 	}
 
-	private void serializeStreamElements(List<StreamElement> input,
-										FSDataOutputStream stream) throws IOException {
-		stream.write(input.size());
+	private void serializeStreamElements(
+			Collection<StreamElement> input,
+			FSDataOutputStream stream) throws IOException {
+		DataOutputView outputView = new DataOutputViewStreamWrapper(stream);
+
+		outputView.writeInt(input.size());
 
 		for (StreamElement element : input) {
-			if (element.isRecord()) {
-				stream.write(1);
-
-				StreamRecord<IN> record = element.asRecord();
-
-				outputSerializer.clear();
-				inTypeSerializer.serialize(record.getValue(), outputSerializer);
-				outputSerializer.writeLong(record.getTimestamp());
-				outputSerializer.writeBoolean(record.hasTimestamp());
-
-				stream.write(outputSerializer.getCopyOfBuffer());
-			}
-			else if (element.isWatermark()) {
-				stream.write(0);
-
-				Watermark watermark = element.asWatermark();
-
-				outputSerializer.clear();
-				outputSerializer.writeLong(watermark.getTimestamp());
-
-				stream.write(outputSerializer.getCopyOfBuffer());
-			}
-			else if (element.isLatencyMarker()) {
-				stream.write(2);
-
-				LatencyMarker marker = element.asLatencyMarker();
-
-				outputSerializer.clear();
-				outputSerializer.writeLong(marker.getMarkedTime());
-				outputSerializer.writeInt(marker.getVertexID());
-				outputSerializer.writeInt(marker.getSubtaskIndex());
-
-				stream.write(outputSerializer.getCopyOfBuffer());
-			}
-			else {
-				throw new IOException("Unknown element type: "+element);
-			}
+			inStreamElementSerializer.serialize(element, outputView);
 		}
 	}
 
 	private List<StreamElement> deserializeStreamElements(FSDataInputStream stream) throws IOException {
-		DataInputViewStreamWrapper wrapper = new DataInputViewStreamWrapper(stream);
+		DataInputView inputView = new DataInputViewStreamWrapper(stream);
 
-		int size = wrapper.read();
+		int size = inputView.readInt();
 
 		List<StreamElement> ret = new ArrayList<>(size);
 		for (int i = 0; i < size; ++i) {
-			int flag = wrapper.read();
-
-			if (flag == 1) {
-				IN val = inTypeSerializer.deserialize(wrapper);
-				long ts = wrapper.readLong();
-				boolean hasTS = wrapper.readBoolean();
-
-				StreamRecord<IN> record = new StreamRecord<>(val, ts);
-				if (!hasTS) {
-					record.eraseTimestamp();
-				}
-
-				ret.add(record);
-			}
-			else if (flag == 0) {
-				long ts = wrapper.readLong();
-
-				ret.add(new Watermark(ts));
-			}
-			else if (flag == 2) {
-				long ts = wrapper.readLong();
-				int vertexId = wrapper.readInt();
-				int subTaskIndex = wrapper.readInt();
-
-				LatencyMarker marker = new LatencyMarker(ts, vertexId, subTaskIndex);
-				ret.add(marker);
-			}
-			else {
-				throw new IOException("Unknown element type while deserialization: "+flag);
-			}
+			inStreamElementSerializer.deserialize(inputView);
 		}
 
 		return ret;

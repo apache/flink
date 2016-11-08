@@ -19,11 +19,12 @@ package org.apache.flink.streaming.examples.async;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -34,6 +35,7 @@ import org.apache.flink.streaming.api.operators.async.AsyncCollector;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
@@ -48,7 +50,7 @@ public class AsyncIOExample {
 	/**
 	 * A checkpointed source.
 	 */
-	private static class SimpleSource implements SourceFunction<Integer>, Checkpointed<Integer> {
+	private static class SimpleSource implements SourceFunction<Integer>, ListCheckpointed<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		private volatile boolean isRunning = true;
@@ -56,13 +58,14 @@ public class AsyncIOExample {
 		private int start = 0;
 
 		@Override
-		public void restoreState(Integer state) throws Exception {
-			this.start = state;
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(start);
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return start;
+		public void restoreState(List<Integer> state) throws Exception {
+			for (Integer i : state)
+				this.start = i;
 		}
 
 		public SimpleSource(int maxNum) {
@@ -86,23 +89,43 @@ public class AsyncIOExample {
 		}
 	}
 
+	private static void printUsage() {
+		System.out.println("To customize example, use: AsyncIOExample [--fsStatePath <path to fs state>] " +
+			"[--checkpointMode <exactly_once or at_least_once>] [--maxCount <max number of input from source>] " +
+			"[--sleepFactor <interval to sleep for each stream element>] [--failRatio <possibility to throw exception>] " +
+			"[--waitMode <ordered or unordered>] [--waitOperatorParallelism <parallelism for async wait operator>] " +
+			"[--eventType <EventTime or IngestionTime>]");
+	}
 
 	public static void main(String[] args) throws Exception {
 
-		// obtain execution environment and set setBufferTimeout to 1 to enable
-		// continuous flushing of the output buffers (lowest latency)
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment()
-			.setBufferTimeout(1);
+		// obtain execution environment
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		// configurations for the job
-		String statePath = args[0];
-		String cpMode = args[1];
-		int maxCount = Integer.valueOf(args[2]);
-		final int sleepFactor = Integer.valueOf(args[3]);
-		final float failRatio = Float.valueOf(args[4]);
-		String mode = args[5];
-		int taskNum = Integer.valueOf(args[6]);
-		String timeType = args[7];
+		// parse parameters
+		final ParameterTool params = ParameterTool.fromArgs(args);
+
+		// check the configuration for the job
+		final String statePath = params.getRequired("fsStatePath");
+		final String cpMode = params.get("checkpointMode", "exactly_once");
+		final int maxCount = params.getInt("maxCount", 100000);
+		final int sleepFactor = params.getInt("sleepFactor", 100);
+		final float failRatio = params.getFloat("failRatio", 0.001f);
+		final String mode = params.get("waitMode", "ordered");
+		final int taskNum =  params.getInt("waitOperatorParallelism", 1);
+		final String timeType = params.get("eventType", "EventTime");
+
+		System.out.println("Job configuration\n"
+			+"\tFS state path="+statePath+"\n"
+			+"\tCheckpoint mode="+cpMode+"\n"
+			+"\tMax count of input from source="+maxCount+"\n"
+			+"\tSleep factor="+sleepFactor+"\n"
+			+"\tFail ratio="+failRatio+"\n"
+			+"\tWaiting mode="+mode+"\n"
+			+"\tParallelism for async wait operator="+taskNum+"\n"
+			+"\tEvent type="+timeType);
+
+		printUsage();
 
 		// setup state and checkpoint mode
 		env.setStateBackend(new FsStateBackend(statePath));
@@ -122,17 +145,19 @@ public class AsyncIOExample {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		}
 
-		// create input stream of integer pairs
+		// create input stream of an single integer
 		DataStream<Integer> inputStream = env.addSource(new SimpleSource(maxCount));
 
 		// create async function, which will *wait* for a while to simulate the process of async i/o
 		AsyncFunction<Integer, String> function = new RichAsyncFunction<Integer, String>() {
 			transient ExecutorService executorService;
+			transient Random random;
 
 			@Override
 			public void open(Configuration parameters) throws Exception {
 				super.open(parameters);
 				executorService = Executors.newFixedThreadPool(30);
+				random = new Random();
 			}
 
 			@Override
@@ -148,12 +173,12 @@ public class AsyncIOExample {
 					@Override
 					public void run() {
 						// wait for while to simulate async operation here
-						int sleep = (int) (new Random().nextFloat() * sleepFactor);
+						int sleep = (int) (random.nextFloat() * sleepFactor);
 						try {
 							Thread.sleep(sleep);
 							List<String> ret = new ArrayList<>();
 							ret.add("key-"+(input%10));
-							if (new Random().nextFloat() > failRatio) {
+							if (random.nextFloat() < failRatio) {
 								collector.collect(new Exception("wahahahaha..."));
 							}
 							else {

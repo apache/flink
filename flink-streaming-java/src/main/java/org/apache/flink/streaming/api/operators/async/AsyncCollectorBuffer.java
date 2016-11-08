@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
@@ -30,14 +31,12 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * AsyncCollectorBuffer will hold all {@link AsyncCollector} in its internal buffer,
@@ -58,58 +57,44 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	private final AsyncWaitOperator<IN, OUT> operator;
 
 	/**
-	 * {@link AsyncCollector} queue.
+	 * Keep all {@code AsyncCollector} and their input {@link StreamElement}
 	 */
-	private final SimpleLinkedList<AsyncCollector<IN, OUT>> queue = new SimpleLinkedList<>();
+	private final Map<AsyncCollector<IN, OUT>, StreamElement> queue = new LinkedHashMap<>();
 	/**
-	 * A hash map keeping {@link AsyncCollector} and their corresponding {@link StreamElement}
+	 * For the AsyncWaitOperator chained with StreamSource, the checkpoint thread may get the
+	 * {@link org.apache.flink.streaming.runtime.tasks.StreamTask#lock} while {@link AsyncCollectorBuffer#queue}
+	 * is full since main thread waits on this lock. The StreamElement in
+	 * {@link AsyncWaitOperator#processElement(StreamRecord)} should be treated as a part of all StreamElements
+	 * in its queue.
 	 */
-	private final Map<AsyncCollector<IN, OUT>, StreamElement> collectorToStreamElement = new HashMap<>();
-	/**
-	 * A hash map keeping {@link AsyncCollector} and their node references in the #queue.
-	 */
-	private final Map<AsyncCollector<IN, OUT>, SimpleLinkedList.Node> collectorToQueue = new HashMap<>();
-
-	private final LinkedList<AsyncCollector> finishedCollectors = new LinkedList<>();
+	private StreamElement extraStreamElement;
 
 	/**
 	 * {@link TimestampedCollector} and {@link Output} to collect results and watermarks.
 	 */
-	private TimestampedCollector<OUT> timestampedCollector;
-	private Output<StreamRecord<OUT>> output;
+	final private Output<StreamRecord<OUT>> output;
+	final private TimestampedCollector<OUT> timestampedCollector;
 
 	/**
-	 * Locks and conditions to synchronize with main thread and emitter thread.
+	 * Checkpoint lock from {@link org.apache.flink.streaming.runtime.tasks.StreamTask#lock}
 	 */
-	private final Lock lock;
-	private final Condition notFull;
-	private final Condition taskDone;
-	private final Condition isEmpty;
+	private final Object lock;
 
-	/**
-	 * Error from user codes.
-	 */
-	private volatile Exception error;
+	public AsyncCollectorBuffer(
+			int bufferSize,
+			AsyncDataStream.OutputMode mode,
+			Output<StreamRecord<OUT>> output,
+			TimestampedCollector<OUT> collector,
+			Object lock,
+			AsyncWaitOperator operator) {
+		Preconditions.checkArgument(bufferSize > 0, "Future buffer size should be greater than 0.");
 
-	private final Emitter emitter;
-	private final Thread emitThread;
-
-	private boolean isCheckpointing;
-
-	public AsyncCollectorBuffer(int maxSize, AsyncDataStream.OutputMode mode, AsyncWaitOperator operator) {
-		Preconditions.checkArgument(maxSize > 0, "Future buffer size should be greater than 0.");
-
-		this.bufferSize = maxSize;
+		this.bufferSize = bufferSize;
 		this.mode = mode;
+		this.output = output;
+		this.timestampedCollector = collector;
 		this.operator = operator;
-
-		this.lock = new ReentrantLock(true);
-		this.notFull = this.lock.newCondition();
-		this.taskDone = this.lock.newCondition();
-		this.isEmpty = this.lock.newCondition();
-
-		this.emitter = new Emitter();
-		this.emitThread = new Thread(emitter);
+		this.lock = lock;
 	}
 
 	/**
@@ -122,31 +107,25 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	 * @return An AsyncCollector
 	 * @throws Exception InterruptedException or exceptions from AsyncCollector.
 	 */
-	public AsyncCollector<IN, OUT> add(StreamRecord<IN> record) throws Exception {
-		try {
-			lock.lock();
+	public AsyncCollector<IN, OUT> addStreamRecord(StreamRecord<IN> record) throws InterruptedException, IOException {
+		while (queue.size() >= bufferSize) {
+			if (nothingToDo()) {
+				extraStreamElement = record;
 
-			notifyCheckpointDone();
-
-			while (queue.size() >= bufferSize) {
-				notFull.await();
+				lock.wait();
 			}
-
-			// propagate error to the main thread
-			if (error != null) {
-				throw error;
+			else {
+				processFinishedAsyncCollector();
 			}
-
-			AsyncCollector<IN, OUT> collector = new AsyncCollector(this);
-
-			collectorToQueue.put(collector, queue.add(collector));
-			collectorToStreamElement.put(collector, record);
-
-			return collector;
 		}
-		finally {
-			lock.unlock();
-		}
+
+		AsyncCollector<IN, OUT> collector = new AsyncCollector(this);
+
+		queue.put(collector, record);
+
+		extraStreamElement = null;
+
+		return collector;
 	}
 
 	/**
@@ -158,7 +137,7 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	 * @return AsyncCollector
 	 * @throws Exception Exceptions from async operation.
 	 */
-	public AsyncCollector<IN, OUT> add(Watermark watermark) throws Exception {
+	public AsyncCollector<IN, OUT> addWatermark(Watermark watermark) throws Exception {
 		return processMark(watermark);
 	}
 
@@ -171,36 +150,29 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	 * @return AsyncCollector
 	 * @throws Exception Exceptions from async operation.
 	 */
-	public AsyncCollector<IN, OUT> add(LatencyMarker latencyMarker) throws Exception {
+	public AsyncCollector<IN, OUT> addLatencyMarker(LatencyMarker latencyMarker) throws Exception {
 		return processMark(latencyMarker);
 	}
 
-	private AsyncCollector<IN, OUT> processMark(StreamElement mark) throws Exception {
-		try {
-			lock.lock();
+	private AsyncCollector<IN, OUT> processMark(StreamElement mark) throws InterruptedException, IOException {
+		while (queue.size() >= bufferSize) {
+			if (nothingToDo()) {
+				extraStreamElement = mark;
 
-			notifyCheckpointDone();
-
-			while (queue.size() >= bufferSize)
-				notFull.await();
-
-			if (error != null) {
-				throw error;
+				lock.wait();
 			}
-
-			AsyncCollector<IN, OUT> collector = new AsyncCollector(this, true);
-
-			collectorToQueue.put(collector, queue.add(collector));
-			collectorToStreamElement.put(collector, mark);
-
-			// signal emitter thread that current collector is ready
-			mark(collector);
-
-			return collector;
+			else {
+				processFinishedAsyncCollector();
+			}
 		}
-		finally {
-			lock.unlock();
-		}
+
+		AsyncCollector<IN, OUT> collector = new AsyncCollector(this, true);
+
+		queue.put(collector, mark);
+
+		extraStreamElement = null;
+
+		return collector;
 	}
 
 	/**
@@ -208,18 +180,10 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	 *
 	 * @param collector Completed AsyncCollector
 	 */
-	void mark(AsyncCollector<IN, OUT> collector) {
-		try {
-			lock.lock();
-
-			if (mode == AsyncDataStream.OutputMode.UNORDERED) {
-				finishedCollectors.add(collector);
-			}
-
-			taskDone.signal();
-		}
-		finally {
-			lock.unlock();
+	void markCollectorCompleted(AsyncCollector<IN, OUT> collector) {
+		synchronized (lock) {
+			// notify main thread to keep working
+			lock.notifyAll();
 		}
 	}
 
@@ -228,267 +192,181 @@ public class AsyncCollectorBuffer<IN, OUT> {
 	 *
 	 * @throws Exception InterruptedException or Exceptions from AsyncCollector.
 	 */
-	void waitEmpty() throws Exception {
-		try {
-			lock.lock();
-
-			notifyCheckpointDone();
-
-			while (queue.size() != 0)
-				isEmpty.await();
-
-			if (error != null) {
-				throw error;
+	void waitEmpty() throws InterruptedException, IOException {
+		while (queue.size() != 0) {
+			if (nothingToDo()) {
+				lock.wait();
+			}
+			else {
+				processFinishedAsyncCollector();
 			}
 		}
-		finally {
-			lock.unlock();
-		}
-	}
-
-	public void startEmitterThread() {
-		this.emitThread.start();
-	}
-
-	public void stopEmitterThread() {
-		emitter.stop();
-
-		emitThread.interrupt();
 	}
 
 	/**
 	 * Get all StreamElements in the AsyncCollector queue.
 	 * <p>
 	 * Emitter Thread can not output records and will wait for a while due to isCheckpointing flag
-	 * until doing checkpoint has done.
+	 * until checkpointing is done.
 	 *
 	 * @return A List containing StreamElements.
 	 */
 	public List<StreamElement> getStreamElementsInBuffer() {
-		try {
-			lock.lock();
+		List<StreamElement> ret = new ArrayList<>(queue.size());
+		for (Map.Entry<AsyncCollector<IN, OUT>, StreamElement> entry : queue.entrySet()) {
+			ret.add(entry.getValue());
+		}
 
-			// stop emitter thread
-			isCheckpointing = true;
+		if (extraStreamElement != null) {
+			ret.add(extraStreamElement);
+		}
 
-			List<StreamElement> ret = new ArrayList<>();
-			for (int i = 0; i < queue.size(); ++i) {
-				AsyncCollector<IN, OUT> collector = queue.get(i);
-				ret.add(collectorToStreamElement.get(collector));
+		return ret;
+	}
+
+	@VisibleForTesting
+	public Map<AsyncCollector<IN, OUT>, StreamElement> getQueue() {
+		return this.queue;
+	}
+
+	private void output(AsyncCollector collector, StreamElement element) throws Exception {
+		List<OUT> result = collector.getResult();
+
+		// update timestamp for output stream records based on the input stream record.
+		if (element == null) {
+			throw new Exception("No input stream record or watermark for current AsyncCollector: "+collector);
+		}
+
+		if (element.isRecord()) {
+			if (result == null) {
+				throw new Exception("Result for stream record "+element+" is null");
 			}
 
-			return ret;
+			timestampedCollector.setTimestamp(element.asRecord());
+			for (OUT val : result) {
+				timestampedCollector.collect(val);
+			}
 		}
-		finally {
-			lock.unlock();
+		else if (element.isWatermark()) {
+			output.emitWatermark(element.asWatermark());
 		}
-	}
-
-	public void setOutput(TimestampedCollector<OUT> collector, Output<StreamRecord<OUT>> output) {
-		this.timestampedCollector = collector;
-		this.output = output;
-	}
-
-	public void notifyCheckpointDone() {
-		this.isCheckpointing = false;
-		this.taskDone.signalAll();
+		else if (element.isLatencyMarker()) {
+			operator.sendLatencyMarker(element.asLatencyMarker());
+		}
+		else {
+			throw new IOException("Unknown input record: "+element);
+		}
 	}
 
 	/**
-	 * A working thread to output results from {@link AsyncCollector} to the next operator.
+	 * Emit results from the finished head collector and its following finished ones.
 	 */
-	private class Emitter implements Runnable {
-		private volatile boolean running = true;
+	private void orderedProcess() throws IOException {
+		Iterator<Map.Entry<AsyncCollector<IN, OUT>, StreamElement>> iterator = queue.entrySet().iterator();
 
-		private void output(AsyncCollector collector) throws Exception {
-			List<OUT> result = collector.getResult();
+		while (iterator.hasNext()) {
+			try {
+				Map.Entry<AsyncCollector<IN, OUT>, StreamElement> entry = iterator.next();
 
-			// update timestamp for output stream records based on the input stream record.
-			StreamElement element = collectorToStreamElement.get(collector);
-			if (element == null) {
-				throw new Exception("No input stream record or watermark for current AsyncCollector: "+collector);
-			}
+				AsyncCollector<IN, OUT> collector = entry.getKey();
 
-			if (element.isRecord()) {
-				if (result == null) {
-					throw new Exception("Result for stream record "+element+" is null");
-				}
-
-				timestampedCollector.setTimestamp(element.asRecord());
-				for (OUT val : result) {
-					timestampedCollector.collect(val);
-				}
-			}
-			else if (element.isWatermark()) {
-				output.emitWatermark(element.asWatermark());
-			}
-			else if (element.isLatencyMarker()) {
-				operator.sendLatencyMarker(element.asLatencyMarker());
-			}
-			else {
-				throw new Exception("Unknown input record: "+element);
-			}
-		}
-
-		private void clearInfoInMaps(AsyncCollector collector) {
-			collectorToStreamElement.remove(collector);
-			collectorToQueue.remove(collector);
-		}
-
-		/**
-		 * Emit results from the finished head collector and its following finished ones.
-		 */
-		private void orderedProcess() {
-			while (queue.size() > 0) {
-				try {
-					AsyncCollector collector = queue.get(0);
-					if (!collector.isDone()) {
-						break;
-					}
-
-					output(collector);
-
-					queue.remove(0);
-					clearInfoInMaps(collector);
-
-					notFull.signal();
-				}
-				catch (Exception e) {
-					error = e;
+				if (!collector.isDone()) {
 					break;
 				}
+
+				output(collector, entry.getValue());
+
+				iterator.remove();
+			}
+			catch (Exception e) {
+				throw new IOException(e);
 			}
 		}
+	}
 
-		/**
-		 * Emit results for each finished collector.
-		 */
-		private void unorderedProcess() {
-			AsyncCollector collector = finishedCollectors.pollFirst();
-			while (collector != null) {
-				try {
-					output(collector);
+	/**
+	 * Emit results for each finished collector. Try to emit results belonging to the current watermark
+	 * in the queue.
+	 * <p>
+	 * For example, the queue layout is:
+	 * Entry(ac1, record1) -> Entry(ac2, record2) -> Entry(ac3, watermark1) -> Entry(ac4, record3).
+	 * and both of ac2 and ac3 have finished. For unordered-mode, ac1 and ac2 belong to watermark1,
+	 * so ac2 will be emitted. Since ac1 is not ready yet, ac3 have to wait until ac1 is done.
+	 */
+	private void unorderedProcess() throws IOException {
+		Iterator<Map.Entry<AsyncCollector<IN, OUT>, StreamElement>> iterator = queue.entrySet().iterator();
 
-					queue.remove(collectorToQueue.get(collector));
-					clearInfoInMaps(collector);
+		boolean hasUnfinishedCollector = false;
 
-					notFull.signal();
+		while (iterator.hasNext()) {
+			Map.Entry<AsyncCollector<IN, OUT>, StreamElement> entry = iterator.next();
 
-					collector = finishedCollectors.pollFirst();
-				}
-				catch (Exception e) {
-					error = e;
-					break;
-				}
+			StreamElement element = entry.getValue();
+			AsyncCollector<IN, OUT> collector = entry.getKey();
+
+			if (element.isWatermark() && hasUnfinishedCollector) {
+				break;
+			}
+
+			if (collector.isDone() == false) {
+				hasUnfinishedCollector = true;
+
+				continue;
+			}
+
+			try {
+				output(collector, element);
+
+				iterator.remove();
+			}
+			catch (Exception e) {
+				throw new IOException(e);
 			}
 		}
+	}
 
-		/**
-		 * If some bad things happened(like exceptions from async i/o), the operator tries to fail
-		 * itself at:
-		 *   {@link AsyncWaitOperator#processElement}, triggered by calling {@link AsyncCollectorBuffer#add}.
-		 *   {@link AsyncWaitOperator#snapshotState}
-		 *   {@link AsyncWaitOperator#close} while calling {@link AsyncCollectorBuffer#waitEmpty}
-		 *
-		 * It is necessary for Emitter Thread to notify methods blocking on notFull/isEmpty.
-		 */
-		private void processError() {
-			queue.clear();
-			finishedCollectors.clear();
-			collectorToQueue.clear();
-			collectorToStreamElement.clear();
-
-			notFull.signalAll();
-			isEmpty.signalAll();
+	/**
+	 * If
+	 *   In ordered mode, there are some finished async collectors, and one of them is the first element in
+	 *   the queue.
+	 * or
+	 *   In unordered mode, there are some finished async collectors.
+	 * or
+	 *   The first element in the queue is Watermark.
+	 * Then, the emitter thread should keep waiting, rather than waiting on the condition.
+	 *
+	 * Otherwise, the thread should stop for a while until being signalled.
+	 */
+	private boolean nothingToDo() {
+		if (queue.size() == 0) {
+			return true;
 		}
 
-		/**
-		 * If
-		 *   In ordered mode, there are some finished async collectors, and one of them is the first element in
-		 *   the queue.
-		 * or
-		 *   In unordered mode, there are some finished async collectors.
-		 * or
-		 *   The first element in the queue is Watermark.
-		 * Then, the emitter thread should keep waiting, rather than waiting on the condition.
-		 *
-		 * Otherwise, the thread should stop for a while until being signalled.
-		 */
-		private boolean nothingToDo() {
-			if (queue.size() == 0) {
-				isEmpty.signalAll();
-				return true;
-			}
+		// get the first AsyncCollector and StreamElement in the queue.
+		Map.Entry<AsyncCollector<IN, OUT>, StreamElement> firstEntry = queue.entrySet().iterator().next();
+		StreamElement element = firstEntry.getValue();
+		AsyncCollector<IN, OUT> collector = firstEntry.getKey();
 
-			// while doing checkpoints, emitter thread should not try to output records.
-			if (isCheckpointing) {
-				return true;
-			}
-
-			// check head element of the queue, it is OK to process Watermark or LatencyMarker
-			if (collectorToStreamElement.get(queue.get(0)).isWatermark() ||
-				collectorToStreamElement.get(queue.get(0)).isLatencyMarker())
-			{
-				return false;
-			}
-
-			if (mode == AsyncDataStream.OutputMode.UNORDERED) {
-				// no finished async collector...
-				if (finishedCollectors.size() == 0) {
-					return true;
-				}
-				else {
-					return false;
-				}
-			}
-			else {
-				// for ORDERED mode, make sure the first collector in the queue has been done.
-				AsyncCollector collector = queue.get(0);
-				if (collector.isDone() == false) {
-					return true;
-				}
-				else {
-					return false;
-				}
-			}
+		// check head element of the queue, it is OK to process Watermark or LatencyMarker
+		if (element.isWatermark() || element.isLatencyMarker()) {
+			return false;
 		}
 
-		@Override
-		public void run() {
-			while (running) {
-				try {
-					lock.lock();
-
-					if (error != null) {
-						// stop processing finished async collectors, and try to wake up blocked main
-						// thread or checkpoint thread repeatedly.
-						processError();
-						Thread.sleep(1000);
-					}
-					else {
-						while (nothingToDo())
-							taskDone.await();
-
-						if (mode == AsyncDataStream.OutputMode.ORDERED) {
-							orderedProcess();
-						}
-						else {
-							unorderedProcess();
-						}
-					}
-				}
-				catch (InterruptedException e) {
-					LOG.info("Emitter Thread has been interrupted");
-					running = false;
-				}
-				finally {
-					lock.unlock();
-				}
-			}
+		if (mode == AsyncDataStream.OutputMode.ORDERED) {
+			// for ORDERED mode, make sure the first collector in the queue has been done.
+			return !collector.isDone();
 		}
 
-		public void stop() {
-			running = false;
+		// for unordered mode, we have to check it in the queue.
+		return false;
+	}
+
+	public void processFinishedAsyncCollector() throws IOException {
+		if (mode == AsyncDataStream.OutputMode.ORDERED) {
+			orderedProcess();
+		} else {
+			unorderedProcess();
 		}
 	}
 }
+

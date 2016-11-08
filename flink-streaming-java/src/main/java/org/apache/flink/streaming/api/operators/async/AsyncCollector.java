@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.List;
@@ -39,6 +40,8 @@ public class AsyncCollector<IN, OUT> {
 	private final AsyncCollectorBuffer<IN, OUT> buffer;
 
 	public AsyncCollector(AsyncCollectorBuffer<IN, OUT> buffer) {
+		Preconditions.checkNotNull(buffer, "Reference to AsyncCollectorBuffer should not be null");
+
 		this.buffer = buffer;
 	}
 
@@ -48,13 +51,22 @@ public class AsyncCollector<IN, OUT> {
 	}
 
 	/**
-	 * Set result
+	 * Set result.
+	 * <p>
+	 * Note that it should be called for exactly one time in the user code.
+	 * Calling this function for multiple times will cause data lose.
+	 * <p>
+	 * Put all results in a {@link List} and then issue {@link AsyncCollector#collect(List)}.
+	 * <p>
+	 * If the result is NULL, it will cause task fail. If collecting empty result set is allowable and
+	 * should not cause task fail-over, then try to collect an empty list collection.
+	 *
 	 * @param result A list of results.
 	 */
 	public void collect(List<OUT> result) {
 		this.result = result;
 		isDone = true;
-		buffer.mark(this);
+		buffer.markCollectorCompleted(this);
 	}
 
 	/**
@@ -64,7 +76,7 @@ public class AsyncCollector<IN, OUT> {
 	public void collect(Throwable error) {
 		this.error = error;
 		isDone = true;
-		buffer.mark(this);
+		buffer.markCollectorCompleted(this);
 	}
 
 	/**

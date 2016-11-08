@@ -36,6 +36,7 @@ import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -60,6 +61,10 @@ public class AsyncCollectorBufferTest {
 
 	private Output<StreamRecord<Integer>> output;
 
+	private TimestampedCollector<Integer> collector;
+
+	private Object lock = new Object();
+
 	@Before
 	public void setUp() throws Exception {
 		function = new AsyncFunction<Integer, Integer>() {
@@ -83,105 +88,27 @@ public class AsyncCollectorBufferTest {
 		Whitebox.setInternalState(operator, "latencyGauge", explicitConstructor.newInstance(10));
 
 		output = new FakedOutput(new ArrayList<Long>());
-		TimestampedCollector<Integer> collector =new TimestampedCollector(output);
-		buffer =
-			new AsyncCollectorBuffer<>(3, AsyncDataStream.OutputMode.ORDERED, operator);
-		buffer.setOutput(collector, output);
+		collector =new TimestampedCollector(output);
 
 		Whitebox.setInternalState(operator, "output", output);
 	}
 
 	@Test
 	public void testAdd() throws Exception {
-		Thread.sleep(1000);
-		buffer.add(new Watermark(0l));
-		buffer.add(new LatencyMarker(111L, 1, 1));
-		Assert.assertEquals(((SimpleLinkedList) Whitebox.getInternalState(buffer, "queue")).size(), 2);
-		Assert.assertEquals(((Map) Whitebox.getInternalState(buffer, "collectorToStreamElement")).size(), 2);
-		Assert.assertEquals(((Map) Whitebox.getInternalState(buffer, "collectorToQueue")).size(), 2);
+		buffer.addWatermark(new Watermark(0l));
+		buffer.addLatencyMarker(new LatencyMarker(111L, 1, 1));
+		Assert.assertEquals(buffer.getQueue().size(), 2);
 
-		AsyncCollector collector = (AsyncCollector)((SimpleLinkedList) Whitebox.getInternalState(buffer, "queue")).get(0);
-		Watermark ret = ((StreamElement)((Map) Whitebox.getInternalState(buffer, "collectorToStreamElement")).get(collector)).asWatermark();
-		Assert.assertEquals(ret.getTimestamp(), 0l);
+		Iterator<Map.Entry<AsyncCollector<Integer, Integer>, StreamElement>> iterator =
+			buffer.getQueue().entrySet().iterator();
+		Watermark watermark = iterator.next().getValue().asWatermark();
+		Assert.assertEquals(watermark.getTimestamp(), 0l);
 
-		AsyncCollector collector2 = (AsyncCollector)((SimpleLinkedList) Whitebox.getInternalState(buffer, "queue")).get(1);
-		LatencyMarker latencyMarker = ((StreamElement)((Map) Whitebox.getInternalState(buffer, "collectorToStreamElement")).get(collector2)).asLatencyMarker();
+		LatencyMarker latencyMarker = iterator.next().getValue().asLatencyMarker();
 		Assert.assertEquals(latencyMarker.getMarkedTime(), 111l);
-
-		SimpleLinkedList list = (SimpleLinkedList) Whitebox.getInternalState(buffer, "queue");
-		Assert.assertEquals(list.node(0), ((Map) Whitebox.getInternalState(buffer, "collectorToQueue")).get(collector));
 
 		List<StreamElement> elements = buffer.getStreamElementsInBuffer();
 		Assert.assertEquals(elements.size(), 2);
-	}
-
-	public class OrderedPutThread extends Thread {
-		final int ASYNC_COLLECTOR_NUM = 7;
-		int[] orderedSeq = new int[] {0, 1, 2, 3, 4, 5, 6};
-		int[] sleepTimeArr = new int[] {5, 7, 3, 0, 1, 9, 9};
-
-		AsyncCollectorBuffer<Integer, Integer> buffer;
-		ExecutorService service = Executors.newFixedThreadPool(10);
-
-		boolean throwExcept = false;
-		boolean orderedMode = false;
-
-		public OrderedPutThread(AsyncCollectorBuffer buffer, boolean except, boolean orderedMode) {
-			this.buffer = buffer;
-			this.throwExcept = except;
-			this.orderedMode = orderedMode;
-		}
-
-		public OrderedPutThread(AsyncCollectorBuffer buffer, boolean except) {
-			this(buffer, except, true);
-		}
-
-		public OrderedPutThread(AsyncCollectorBuffer buffer) {
-			this(buffer, false);
-		}
-
-		@Override
-		public void run() {
-			try {
-				for (int idx = 0; idx < ASYNC_COLLECTOR_NUM; ++idx) {
-					int i = orderedSeq[idx];
-					final int sleepTS = sleepTimeArr[idx]*1000;
-
-					if (i == 3)
-						buffer.add(new Watermark(333l));
-					else if (i == 6)
-						buffer.add(new LatencyMarker(111L, 0, 0));
-					else {
-						StreamRecord record = new StreamRecord(i);
-						record.setTimestamp(i*i);
-						final AsyncCollector collector = buffer.add(record);
-
-						final int v = i;
-						service.submit(new Runnable() {
-							@Override
-							public void run() {
-								try {
-									int sleep = sleepTS;
-									Thread.sleep(sleep);
-									if (throwExcept)
-										collector.collect(new Exception("wahahaha..."));
-									else {
-										List<Integer> ret = new ArrayList<Integer>();
-										ret.add(v);
-										collector.collect(ret);
-									}
-								} catch (Exception e) {
-									e.printStackTrace();
-								}
-							}
-						});
-					}
-				}
-			}
-			catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
 	}
 
 	public class FakedOutput implements Output<StreamRecord<Integer>> {
@@ -220,29 +147,86 @@ public class AsyncCollectorBufferTest {
 			return sb.toString();
 		}
 
+		public Collection<Long> getOutputs() {
+			return outputs;
+		}
+
 		public String getTimestamp() {
 			return this.sb.toString();
 		}
 	}
 
+	private void work(final boolean throwExcept) throws Exception {
+		final int ASYNC_COLLECTOR_NUM = 7;
+
+		int[] orderedSeq = new int[] {0, 1, 2, 3, 4, 5, 6};
+		int[] sleepTimeArr = new int[] {5, 7, 3, 0, 1, 9, 9};
+
+		ExecutorService service = Executors.newFixedThreadPool(10);
+
+		for (int idx = 0; idx < ASYNC_COLLECTOR_NUM; ++idx) {
+			System.out.println(idx);
+			int i = orderedSeq[idx];
+			final int sleepTS = sleepTimeArr[idx]*100;
+
+			if (i == 3) {
+				synchronized (lock) {
+					buffer.addWatermark(new Watermark(333l));
+				}
+			}
+			else if (i == 6) {
+				synchronized (lock) {
+					buffer.addLatencyMarker(new LatencyMarker(111L, 0, 0));
+				}
+			}
+			else {
+				StreamRecord record = new StreamRecord(i);
+				record.setTimestamp(i*i);
+
+				AsyncCollector tmp;
+				synchronized (lock) {
+					tmp = buffer.addStreamRecord(record);
+				}
+
+				final AsyncCollector collector = tmp;
+
+				final int v = i;
+				service.submit(new Runnable() {
+					@Override
+					public void run() {
+						try {
+							int sleep = sleepTS;
+							Thread.sleep(sleep);
+
+							if (throwExcept) {
+								collector.collect(new Exception("wahahahaha..."));
+							}
+							else {
+								List<Integer> ret = new ArrayList<Integer>();
+
+								ret.add(v);
+								collector.collect(ret);
+							}
+						} catch (InterruptedException e) {
+						}
+					}
+				});
+			}
+		}
+
+		synchronized (lock) {
+			buffer.waitEmpty();
+		}
+	}
+
 	@Test
 	public void testOrderedBuffer() throws Exception {
-		buffer.startEmitterThread();
-		Watermark watermark = new Watermark(0L);
-		buffer.add(watermark);
+		buffer =
+			new AsyncCollectorBuffer<>(3, AsyncDataStream.OutputMode.ORDERED, output, collector, lock, operator);
 
-		OrderedPutThread orderedPutThread = new OrderedPutThread(buffer);
-		Thread.sleep(2000);
+		work(false);
 
-		orderedPutThread.start();
-
-		orderedPutThread.join();
-
-		buffer.waitEmpty();
-
-		buffer.stopEmitterThread();
-
-		Assert.assertEquals(((FakedOutput)output).getResult(), "0,0,1,2,333,4,5,111,");
+		Assert.assertEquals(((FakedOutput)output).getResult(), "0,1,2,333,4,5,111,");
 		Assert.assertEquals(((FakedOutput)output).getTimestamp(), "0,1,4,16,25,");
 	}
 
@@ -257,37 +241,21 @@ public class AsyncCollectorBufferTest {
 
 	@Test
 	public void testUnorderedBuffer() throws Exception {
-		buffer.startEmitterThread();
-		Watermark watermark = new Watermark(0L);
-		buffer.add(watermark);
+		buffer =
+			new AsyncCollectorBuffer<>(3, AsyncDataStream.OutputMode.UNORDERED, output, collector, lock, operator);
 
-		OrderedPutThread orderedPutThread = new OrderedPutThread(buffer, false, false);
-		Thread.sleep(2000);
+		work(false);
 
-		orderedPutThread.start();
-
-		orderedPutThread.join();
-
-		buffer.waitEmpty();
-
-		buffer.stopEmitterThread();
-
-		Assert.assertEquals(sort(((FakedOutput)output).getResult()), "[0, 0, 1, 2, 4, 5, 111, 333]");
+		Assert.assertEquals(((FakedOutput)output).getOutputs().toArray()[3], 333L);
+		Assert.assertEquals(sort(((FakedOutput)output).getResult()), "[0, 1, 2, 4, 5, 111, 333]");
 		Assert.assertEquals(sort(((FakedOutput)output).getTimestamp()), "[0, 1, 4, 16, 25]");
 	}
 
 	@Test(expected = IOException.class)
 	public void testBufferWithException() throws Exception {
-		buffer.startEmitterThread();
+		buffer =
+			new AsyncCollectorBuffer<>(3, AsyncDataStream.OutputMode.UNORDERED, output, collector, lock, operator);
 
-		OrderedPutThread putThread = new OrderedPutThread(buffer, true);
-		Thread.sleep(2000);
-
-		putThread.start();
-
-		putThread.join();
-
-		buffer.waitEmpty();
-		buffer.stopEmitterThread();
+		work(true);
 	}
 }

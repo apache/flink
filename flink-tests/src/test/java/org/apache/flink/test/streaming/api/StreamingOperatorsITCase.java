@@ -232,7 +232,7 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 					@Override
 					public void run() {
 						// wait for while to simulate async operation here
-						int sleep = (int) (new Random().nextFloat() * 1000);
+						int sleep = (int) (new Random().nextFloat() * 100);
 						try {
 							Thread.sleep(sleep);
 							List<Integer> ret = new ArrayList<>();
