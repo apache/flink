@@ -77,8 +77,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </ul>
  */
 public abstract class ResourceManager<WorkerType extends Serializable>
-		extends RpcEndpoint<ResourceManagerGateway>
-		implements LeaderContender {
+	extends RpcEndpoint<ResourceManagerGateway>
+	implements LeaderContender {
 
 	/** Configuration of the resource manager */
 	private final ResourceManagerConfiguration resourceManagerConfiguration;
@@ -113,17 +113,20 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	/** ResourceManager's leader session id which is updated on leader election. */
 	private volatile UUID leaderSessionId;
 
+	/** ResourceID of the resource manager. */
+	private final ResourceID resourceID;
+
 	/** All registered listeners for status updates of the ResourceManager. */
 	private ConcurrentMap<String, InfoMessageListenerRpcGateway> infoMessageListeners;
 
 	public ResourceManager(
-			RpcService rpcService,
-			ResourceManagerConfiguration resourceManagerConfiguration,
-			HighAvailabilityServices highAvailabilityServices,
-			SlotManagerFactory slotManagerFactory,
-			MetricRegistry metricRegistry,
-			JobLeaderIdService jobLeaderIdService,
-			FatalErrorHandler fatalErrorHandler) {
+		RpcService rpcService,
+		ResourceManagerConfiguration resourceManagerConfiguration,
+		HighAvailabilityServices highAvailabilityServices,
+		SlotManagerFactory slotManagerFactory,
+		MetricRegistry metricRegistry,
+		JobLeaderIdService jobLeaderIdService,
+		FatalErrorHandler fatalErrorHandler) {
 
 		super(rpcService);
 
@@ -137,6 +140,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		this.jobManagerRegistrations = new HashMap<>(4);
 		this.taskExecutors = new HashMap<>(8);
 		this.leaderSessionId = null;
+		this.resourceID = ResourceID.generate();
 		infoMessageListeners = new ConcurrentHashMap<>(8);
 	}
 
@@ -208,10 +212,10 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 	@RpcMethod
 	public Future<RegistrationResponse> registerJobManager(
-			final UUID resourceManagerLeaderId,
-			final UUID jobManagerLeaderId,
-			final String jobManagerAddress,
-			final JobID jobId) {
+		final UUID resourceManagerLeaderId,
+		final UUID jobManagerLeaderId,
+		final String jobManagerAddress,
+		final JobID jobId) {
 
 		checkNotNull(resourceManagerLeaderId);
 		checkNotNull(jobManagerLeaderId);
@@ -318,7 +322,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			}, getRpcService().getExecutor());
 		} else {
 			log.debug("Discard register job manager message from {}, because the leader id " +
-				"{} did not match the expected leader id {}.", jobManagerAddress,
+					"{} did not match the expected leader id {}.", jobManagerAddress,
 				resourceManagerLeaderId, leaderSessionId);
 
 			return FlinkCompletableFuture.<RegistrationResponse>completed(
@@ -340,7 +344,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		final UUID resourceManagerLeaderId,
 		final String taskExecutorAddress,
 		final ResourceID resourceID,
-		final SlotReport slotReport) {
+		final SlotReport slotReport)
+	{
 
 		if (leaderSessionId.equals(resourceManagerLeaderId)) {
 			Future<TaskExecutorGateway> taskExecutorGatewayFuture = getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class);
@@ -366,6 +371,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 						return new TaskExecutorRegistrationSuccess(
 							registration.getInstanceID(),
+							resourceID,
 							resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds());
 					}
 				}
@@ -390,9 +396,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 */
 	@RpcMethod
 	public RMSlotRequestReply requestSlot(
-			UUID jobMasterLeaderID,
-			UUID resourceManagerLeaderID,
-			SlotRequest slotRequest) {
+		UUID jobMasterLeaderID,
+		UUID resourceManagerLeaderID,
+		SlotRequest slotRequest) {
 
 		log.info("Request slot with profile {} for job {} with allocation id {}.",
 			slotRequest.getResourceProfile(),
@@ -403,8 +409,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
 
 		if (jobManagerRegistration != null
-				&& jobMasterLeaderID.equals(jobManagerRegistration.getLeaderID())
-				&& resourceManagerLeaderID.equals(leaderSessionId)) {
+			&& jobMasterLeaderID.equals(jobManagerRegistration.getLeaderID())
+			&& resourceManagerLeaderID.equals(leaderSessionId)) {
 			return slotManager.requestSlot(slotRequest);
 		} else {
 			log.info("Ignoring slot request for unknown JobMaster with JobID {}", jobId);
@@ -421,9 +427,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 */
 	@RpcMethod
 	public void notifySlotAvailable(
-			final UUID resourceManagerLeaderId,
-			final InstanceID instanceID,
-			final SlotID slotId) {
+		final UUID resourceManagerLeaderId,
+		final InstanceID instanceID,
+		final SlotID slotId) {
 
 		if (resourceManagerLeaderId.equals(leaderSessionId)) {
 			final ResourceID resourceId = slotId.getResourceID();
@@ -444,7 +450,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			}
 		} else {
 			log.debug("Discarding notify slot available message for slot {}, because the " +
-				"leader id {} did not match the expected leader id {}.", slotId,
+					"leader id {} did not match the expected leader id {}.", slotId,
 				resourceManagerLeaderId, leaderSessionId);
 		}
 	}
@@ -500,6 +506,17 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	public void shutDownCluster(final ApplicationStatus finalStatus, final String optionalDiagnostics) {
 		log.info("shut down cluster because application is in {}, diagnostics {}", finalStatus, optionalDiagnostics);
 		shutDownApplication(finalStatus, optionalDiagnostics);
+	}
+
+	/**
+	 * Send the heartbeat to this resource manager from task manager
+	 *
+	 * @param resourceID
+	 * @param payload
+	 */
+	@RpcMethod
+	public void sendHeartbeatFromTaskManager(final ResourceID resourceID, final Object payload) {
+
 	}
 
 	// ------------------------------------------------------------------------
@@ -821,4 +838,3 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		}
 	}
 }
-
