@@ -19,8 +19,14 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.metrics.Histogram;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * Task for executing streaming sources.
@@ -40,24 +46,65 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends StreamSource<OUT, SRC>>
 	extends StreamTask<OUT, OP> {
 
+	private Output<StreamRecord<OUT>> output;
+
 	@Override
 	protected void init() {
-		// does not hold any resources, so no initialization needed
+		output = new SourceOutput<>(getHeadOutput(), getEnvironment().getMetricGroup().getIOMetricGroup());
 	}
 
 	@Override
 	protected void cleanup() {
-		// does not hold any resources, so no cleanup needed
 	}
 	
 
 	@Override
 	protected void run() throws Exception {
-		headOperator.run(getCheckpointLock());
+		headOperator.run(getCheckpointLock(), output);
 	}
 	
 	@Override
 	protected void cancelTask() throws Exception {
 		headOperator.cancel();
+	}
+
+	/**
+	 * Special output for sources. for example measuring elements emit latency as a metric.
+	 *
+	 *  @param <OUT> Type of the output elements of this source.
+	 */
+	private static class SourceOutput<OUT> implements Output<StreamRecord<OUT>> {
+
+		private final Output<StreamRecord<OUT>> output;
+
+		private final Histogram recordProcessLatency;
+
+		public SourceOutput(Output<StreamRecord<OUT>> output, TaskIOMetricGroup ioMetricGroup) {
+			this.output = output;
+			this.recordProcessLatency = ioMetricGroup.getRecordProcessLatency();
+		}
+
+		@Override
+		public void emitWatermark(Watermark mark) {
+			output.emitWatermark(mark);
+		}
+
+		@Override
+		public void emitLatencyMarker(LatencyMarker latencyMarker) {
+			output.emitLatencyMarker(latencyMarker);
+		}
+
+		@Override
+		public void collect(StreamRecord<OUT> record) {
+			long start=System.nanoTime();
+			output.collect(record);
+			long end=System.nanoTime();
+			recordProcessLatency.update(end - start);
+		}
+
+		@Override
+		public void close() {
+			output.close();
+		}
 	}
 }

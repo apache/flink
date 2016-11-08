@@ -20,8 +20,11 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Histogram;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -84,6 +87,10 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 
 	private final DeserializationDelegate<StreamElement> deserializationDelegate1;
 	private final DeserializationDelegate<StreamElement> deserializationDelegate2;
+
+	private Counter numRecordsIn;
+
+	private Histogram recordProcessLatency;
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public StreamTwoInputProcessor(
@@ -149,6 +156,10 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			return false;
 		}
 
+		if (numRecordsIn == null) {
+			numRecordsIn = ((OperatorMetricGroup)streamOperator.getMetricGroup()).getIOMetricGroup().getNumRecordsInCounter();
+		}
+
 		while (true) {
 			if (currentRecordDeserializer != null) {
 				DeserializationResult result;
@@ -177,10 +188,14 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 							continue;
 						}
 						else {
+							long start=System.nanoTime();
 							synchronized (lock) {
+								numRecordsIn.inc();
 								streamOperator.setKeyContextElement1(recordOrWatermark.<IN1>asRecord());
 								streamOperator.processElement1(recordOrWatermark.<IN1>asRecord());
 							}
+							long end=System.nanoTime();
+							recordProcessLatency.update(end - start);
 							return true;
 
 						}
@@ -198,10 +213,14 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 							continue;
 						}
 						else {
+							long start=System.nanoTime();
 							synchronized (lock) {
+								numRecordsIn.inc();
 								streamOperator.setKeyContextElement2(recordOrWatermark.<IN2>asRecord());
 								streamOperator.processElement2(recordOrWatermark.<IN2>asRecord());
 							}
+							long end=System.nanoTime();
+							recordProcessLatency.update(end - start);
 							return true;
 						}
 					}
@@ -275,6 +294,8 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 	 * @param metrics metric group
 	 */
 	public void setMetricGroup(TaskIOMetricGroup metrics) {
+		recordProcessLatency = metrics.getRecordProcessLatency();
+
 		metrics.gauge("currentLowWatermark", new Gauge<Long>() {
 			@Override
 			public Long getValue() {

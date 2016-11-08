@@ -492,7 +492,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	Output<StreamRecord<OUT>> getHeadOutput() {
-		return operatorChain.getChainEntryPoint();
+		return headOperator.getOutput();
 	}
 
 	RecordWriterOutput<?>[] getStreamOutputs() {

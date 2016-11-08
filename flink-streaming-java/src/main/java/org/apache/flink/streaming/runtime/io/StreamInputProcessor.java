@@ -24,6 +24,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Histogram;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -80,6 +81,8 @@ public class StreamInputProcessor<IN> {
 	private final DeserializationDelegate<StreamElement> deserializationDelegate;
 
 	private Counter numRecordsIn;
+
+	private Histogram recordProcessLatency;
 
 	@SuppressWarnings("unchecked")
 	public StreamInputProcessor(
@@ -168,12 +171,15 @@ public class StreamInputProcessor<IN> {
 						continue;
 					} else {
 						// now we can do the actual processing
+						long start=System.nanoTime();
 						StreamRecord<IN> record = recordOrMark.asRecord();
 						synchronized (lock) {
 							numRecordsIn.inc();
 							streamOperator.setKeyContextElement1(record);
 							streamOperator.processElement(record);
 						}
+						long end=System.nanoTime();
+						recordProcessLatency.update(end - start);
 						return true;
 					}
 				}
@@ -210,6 +216,8 @@ public class StreamInputProcessor<IN> {
 	 * @param metrics metric group
 	 */
 	public void setMetricGroup(TaskIOMetricGroup metrics) {
+		recordProcessLatency = metrics.getRecordProcessLatency();
+
 		metrics.gauge("currentLowWatermark", new Gauge<Long>() {
 			@Override
 			public Long getValue() {

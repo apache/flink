@@ -136,4 +136,6 @@ public interface StreamOperator<OUT> extends Serializable {
 	void setChainingStrategy(ChainingStrategy strategy);
 	
 	MetricGroup getMetricGroup();
+
+	Output<StreamRecord<OUT>> getOutput();
 }
