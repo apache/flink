@@ -312,7 +312,7 @@ public class ClassLoaderITCase extends TestLogger {
 			}
 		}
 
-		assertNotNull(savepointPath, "Failed to trigger savepoint");
+		assertNotNull("Failed to trigger savepoint", savepointPath);
 
 		// Upload JAR
 		LOG.info("Uploading JAR " + CUSTOM_KV_STATE_JAR_PATH + " for savepoint disposal.");
