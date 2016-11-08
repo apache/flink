@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.TimeDomain;
-import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.co.RichTimelyCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.TimelyCoFlatMapFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -46,7 +45,7 @@ import static org.junit.Assert.assertEquals;
 public class TimelyCoFlatMapTest extends TestLogger {
 
 	@Test
-	public void testCurrentEventTime() throws Exception {
+	public void testTimestampAndWatermarkQuerying() throws Exception {
 
 		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
 				new CoStreamTimelyFlatMap<>(new WatermarkQueryingFlatMapFunction());
@@ -72,9 +71,9 @@ public class TimelyCoFlatMapTest extends TestLogger {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		expectedOutput.add(new Watermark(17L));
-		expectedOutput.add(new StreamRecord<>("5WM:17", 12L));
+		expectedOutput.add(new StreamRecord<>("5WM:17 TS:12", 12L));
 		expectedOutput.add(new Watermark(42L));
-		expectedOutput.add(new StreamRecord<>("6WM:42", 13L));
+		expectedOutput.add(new StreamRecord<>("6WM:42 TS:13", 13L));
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -82,7 +81,7 @@ public class TimelyCoFlatMapTest extends TestLogger {
 	}
 
 	@Test
-	public void testCurrentProcessingTime() throws Exception {
+	public void testTimestampAndProcessingTimeQuerying() throws Exception {
 
 		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
 				new CoStreamTimelyFlatMap<>(new ProcessingTimeQueryingFlatMapFunction());
@@ -105,8 +104,8 @@ public class TimelyCoFlatMapTest extends TestLogger {
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		expectedOutput.add(new StreamRecord<>("5PT:17"));
-		expectedOutput.add(new StreamRecord<>("6PT:42"));
+		expectedOutput.add(new StreamRecord<>("5PT:17 TS:null"));
+		expectedOutput.add(new StreamRecord<>("6PT:42 TS:null"));
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -350,20 +349,19 @@ public class TimelyCoFlatMapTest extends TestLogger {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap1(Integer value, TimerService timerService, Collector<String> out) throws Exception {
-			out.collect(value + "WM:" + timerService.currentWatermark());
+		public void flatMap1(Integer value, Context ctx, Collector<String> out) throws Exception {
+			out.collect(value + "WM:" + ctx.timerService().currentWatermark() + " TS:" + ctx.timestamp());
 		}
 
 		@Override
-		public void flatMap2(String value, TimerService timerService, Collector<String> out) throws Exception {
-			out.collect(value + "WM:" + timerService.currentWatermark());
+		public void flatMap2(String value, Context ctx, Collector<String> out) throws Exception {
+			out.collect(value + "WM:" + ctx.timerService().currentWatermark() + " TS:" + ctx.timestamp());
 		}
 
 		@Override
 		public void onTimer(
 				long timestamp,
-				TimeDomain timeDomain,
-				TimerService timerService,
+				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
 		}
 	}
@@ -373,25 +371,24 @@ public class TimelyCoFlatMapTest extends TestLogger {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap1(Integer value, TimerService timerService, Collector<String> out) throws Exception {
+		public void flatMap1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT1:" + value);
-			timerService.registerEventTimeTimer(5);
+			ctx.timerService().registerEventTimeTimer(5);
 		}
 
 		@Override
-		public void flatMap2(String value, TimerService timerService, Collector<String> out) throws Exception {
+		public void flatMap2(String value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT2:" + value);
-			timerService.registerEventTimeTimer(6);
+			ctx.timerService().registerEventTimeTimer(6);
 		}
 
 		@Override
 		public void onTimer(
 				long timestamp,
-				TimeDomain timeDomain,
-				TimerService timerService,
+				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
 
-			assertEquals(TimeDomain.EVENT_TIME, timeDomain);
+			assertEquals(TimeDomain.EVENT_TIME, ctx.timeDomain());
 			out.collect("" + 1777);
 		}
 	}
@@ -404,27 +401,26 @@ public class TimelyCoFlatMapTest extends TestLogger {
 				new ValueStateDescriptor<>("seen-element", StringSerializer.INSTANCE, null);
 
 		@Override
-		public void flatMap1(Integer value, TimerService timerService, Collector<String> out) throws Exception {
+		public void flatMap1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT1:" + value);
 			getRuntimeContext().getState(state).update("" + value);
-			timerService.registerEventTimeTimer(timerService.currentWatermark() + 5);
+			ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
 		}
 
 		@Override
-		public void flatMap2(String value, TimerService timerService, Collector<String> out) throws Exception {
+		public void flatMap2(String value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT2:" + value);
 			getRuntimeContext().getState(state).update(value);
-			timerService.registerEventTimeTimer(timerService.currentWatermark() + 5);
+			ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
 		}
 
 
 		@Override
 		public void onTimer(
 				long timestamp,
-				TimeDomain timeDomain,
-				TimerService timerService,
+				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
-			assertEquals(TimeDomain.EVENT_TIME, timeDomain);
+			assertEquals(TimeDomain.EVENT_TIME, ctx.timeDomain());
 			out.collect("STATE:" + getRuntimeContext().getState(state).value());
 		}
 	}
@@ -434,25 +430,24 @@ public class TimelyCoFlatMapTest extends TestLogger {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap1(Integer value, TimerService timerService, Collector<String> out) throws Exception {
+		public void flatMap1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT1:" + value);
-			timerService.registerProcessingTimeTimer(5);
+			ctx.timerService().registerProcessingTimeTimer(5);
 		}
 
 		@Override
-		public void flatMap2(String value, TimerService timerService, Collector<String> out) throws Exception {
+		public void flatMap2(String value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT2:" + value);
-			timerService.registerProcessingTimeTimer(6);
+			ctx.timerService().registerProcessingTimeTimer(6);
 		}
 
 		@Override
 		public void onTimer(
 				long timestamp,
-				TimeDomain timeDomain,
-				TimerService timerService,
+				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
 
-			assertEquals(TimeDomain.PROCESSING_TIME, timeDomain);
+			assertEquals(TimeDomain.PROCESSING_TIME, ctx.timeDomain());
 			out.collect("" + 1777);
 		}
 	}
@@ -462,20 +457,19 @@ public class TimelyCoFlatMapTest extends TestLogger {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap1(Integer value, TimerService timerService, Collector<String> out) throws Exception {
-			out.collect(value + "PT:" + timerService.currentProcessingTime());
+		public void flatMap1(Integer value, Context ctx, Collector<String> out) throws Exception {
+			out.collect(value + "PT:" + ctx.timerService().currentProcessingTime() + " TS:" + ctx.timestamp());
 		}
 
 		@Override
-		public void flatMap2(String value, TimerService timerService, Collector<String> out) throws Exception {
-			out.collect(value + "PT:" + timerService.currentProcessingTime());
+		public void flatMap2(String value, Context ctx, Collector<String> out) throws Exception {
+			out.collect(value + "PT:" + ctx.timerService().currentProcessingTime() + " TS:" + ctx.timestamp());
 		}
 
 		@Override
 		public void onTimer(
 				long timestamp,
-				TimeDomain timeDomain,
-				TimerService timerService,
+				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
 		}
 	}
@@ -488,27 +482,26 @@ public class TimelyCoFlatMapTest extends TestLogger {
 				new ValueStateDescriptor<>("seen-element", StringSerializer.INSTANCE, null);
 
 		@Override
-		public void flatMap1(Integer value, TimerService timerService, Collector<String> out) throws Exception {
+		public void flatMap1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT1:" + value);
 			getRuntimeContext().getState(state).update("" + value);
-			timerService.registerProcessingTimeTimer(timerService.currentProcessingTime() + 5);
+			ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5);
 		}
 
 		@Override
-		public void flatMap2(String value, TimerService timerService, Collector<String> out) throws Exception {
+		public void flatMap2(String value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT2:" + value);
 			getRuntimeContext().getState(state).update(value);
-			timerService.registerProcessingTimeTimer(timerService.currentProcessingTime() + 5);
+			ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5);
 		}
 
 
 		@Override
 		public void onTimer(
 				long timestamp,
-				TimeDomain timeDomain,
-				TimerService timerService,
+				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
-			assertEquals(TimeDomain.PROCESSING_TIME, timeDomain);
+			assertEquals(TimeDomain.PROCESSING_TIME, ctx.timeDomain());
 			out.collect("STATE:" + getRuntimeContext().getState(state).value());
 		}
 	}
@@ -518,23 +511,22 @@ public class TimelyCoFlatMapTest extends TestLogger {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap1(Integer value, TimerService timerService, Collector<String> out) throws Exception {
-			timerService.registerEventTimeTimer(6);
+		public void flatMap1(Integer value, Context ctx, Collector<String> out) throws Exception {
+			ctx.timerService().registerEventTimeTimer(6);
 		}
 
 		@Override
-		public void flatMap2(String value, TimerService timerService, Collector<String> out) throws Exception {
-			timerService.registerProcessingTimeTimer(5);
+		public void flatMap2(String value, Context ctx, Collector<String> out) throws Exception {
+			ctx.timerService().registerProcessingTimeTimer(5);
 		}
 
 
 		@Override
 		public void onTimer(
 				long timestamp,
-				TimeDomain timeDomain,
-				TimerService timerService,
+				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
-			if (TimeDomain.EVENT_TIME.equals(timeDomain)) {
+			if (TimeDomain.EVENT_TIME.equals(ctx.timeDomain())) {
 				out.collect("EVENT:1777");
 			} else {
 				out.collect("PROC:1777");

@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.TimeDomain;
-import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.RichTimelyFlatMapFunction;
 import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -46,7 +45,7 @@ import static org.junit.Assert.assertEquals;
 public class TimelyFlatMapTest extends TestLogger {
 
 	@Test
-	public void testCurrentEventTime() throws Exception {
+	public void testTimestampAndWatermarkQuerying() throws Exception {
 
 		StreamTimelyFlatMap<Integer, Integer, String> operator =
 				new StreamTimelyFlatMap<>(new QueryingFlatMapFunction(TimeDomain.EVENT_TIME));
@@ -66,9 +65,9 @@ public class TimelyFlatMapTest extends TestLogger {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		expectedOutput.add(new Watermark(17L));
-		expectedOutput.add(new StreamRecord<>("5TIME:17", 12L));
+		expectedOutput.add(new StreamRecord<>("5TIME:17 TS:12", 12L));
 		expectedOutput.add(new Watermark(42L));
-		expectedOutput.add(new StreamRecord<>("6TIME:42", 13L));
+		expectedOutput.add(new StreamRecord<>("6TIME:42 TS:13", 13L));
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -76,7 +75,7 @@ public class TimelyFlatMapTest extends TestLogger {
 	}
 
 	@Test
-	public void testCurrentProcessingTime() throws Exception {
+	public void testTimestampAndProcessingTimeQuerying() throws Exception {
 
 		StreamTimelyFlatMap<Integer, Integer, String> operator =
 				new StreamTimelyFlatMap<>(new QueryingFlatMapFunction(TimeDomain.PROCESSING_TIME));
@@ -95,8 +94,8 @@ public class TimelyFlatMapTest extends TestLogger {
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		expectedOutput.add(new StreamRecord<>("5TIME:17"));
-		expectedOutput.add(new StreamRecord<>("6TIME:42"));
+		expectedOutput.add(new StreamRecord<>("5TIME:17 TS:null"));
+		expectedOutput.add(new StreamRecord<>("6TIME:42 TS:null"));
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -298,19 +297,18 @@ public class TimelyFlatMapTest extends TestLogger {
 		}
 
 		@Override
-		public void flatMap(Integer value, TimerService timerService, Collector<String> out) throws Exception {
+		public void flatMap(Integer value, Context ctx, Collector<String> out) throws Exception {
 			if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
-				out.collect(value + "TIME:" + timerService.currentWatermark());
+				out.collect(value + "TIME:" + ctx.timerService().currentWatermark() + " TS:" + ctx.timestamp());
 			} else {
-				out.collect(value + "TIME:" + timerService.currentProcessingTime());
+				out.collect(value + "TIME:" + ctx.timerService().currentProcessingTime() + " TS:" + ctx.timestamp());
 			}
 		}
 
 		@Override
 		public void onTimer(
 				long timestamp,
-				TimeDomain timeDomain,
-				TimerService timerService,
+				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
 		}
 	}
@@ -326,23 +324,22 @@ public class TimelyFlatMapTest extends TestLogger {
 		}
 
 		@Override
-		public void flatMap(Integer value, TimerService timerService, Collector<Integer> out) throws Exception {
+		public void flatMap(Integer value, Context ctx, Collector<Integer> out) throws Exception {
 			out.collect(value);
 			if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
-				timerService.registerEventTimeTimer(timerService.currentWatermark() + 5);
+				ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
 			} else {
-				timerService.registerProcessingTimeTimer(timerService.currentProcessingTime() + 5);
+				ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5);
 			}
 		}
 
 		@Override
 		public void onTimer(
 				long timestamp,
-				TimeDomain timeDomain,
-				TimerService timerService,
+				OnTimerContext ctx,
 				Collector<Integer> out) throws Exception {
 
-			assertEquals(this.timeDomain, timeDomain);
+			assertEquals(this.timeDomain, ctx.timeDomain());
 			out.collect(1777);
 		}
 	}
@@ -361,23 +358,22 @@ public class TimelyFlatMapTest extends TestLogger {
 		}
 
 		@Override
-		public void flatMap(Integer value, TimerService timerService, Collector<String> out) throws Exception {
+		public void flatMap(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT:" + value);
 			getRuntimeContext().getState(state).update(value);
 			if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
-				timerService.registerEventTimeTimer(timerService.currentWatermark() + 5);
+				ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
 			} else {
-				timerService.registerProcessingTimeTimer(timerService.currentProcessingTime() + 5);
+				ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5);
 			}
 		}
 
 		@Override
 		public void onTimer(
 				long timestamp,
-				TimeDomain timeDomain,
-				TimerService timerService,
+				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
-			assertEquals(this.timeDomain, timeDomain);
+			assertEquals(this.timeDomain, ctx.timeDomain());
 			out.collect("STATE:" + getRuntimeContext().getState(state).value());
 		}
 	}
@@ -387,19 +383,17 @@ public class TimelyFlatMapTest extends TestLogger {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(Integer value, TimerService timerService, Collector<String> out) throws Exception {
-			timerService.registerProcessingTimeTimer(5);
-			timerService.registerEventTimeTimer(6);
-
+		public void flatMap(Integer value, Context ctx, Collector<String> out) throws Exception {
+			ctx.timerService().registerProcessingTimeTimer(5);
+			ctx.timerService().registerEventTimeTimer(6);
 		}
 
 		@Override
 		public void onTimer(
 				long timestamp,
-				TimeDomain timeDomain,
-				TimerService timerService,
+				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
-			if (TimeDomain.EVENT_TIME.equals(timeDomain)) {
+			if (TimeDomain.EVENT_TIME.equals(ctx.timeDomain())) {
 				out.collect("EVENT:1777");
 			} else {
 				out.collect("PROC:1777");
