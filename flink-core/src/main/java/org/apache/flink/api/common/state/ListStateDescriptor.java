@@ -19,19 +19,33 @@
 package org.apache.flink.api.common.state;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 /**
  * A {@link StateDescriptor} for {@link ListState}. This can be used to create a partitioned
  * list state using
  * {@link org.apache.flink.api.common.functions.RuntimeContext#getListState(ListStateDescriptor)}.
  *
- * @param <T> The type of the values that can be added to the list state.
+ * @param <T> The type of the elements in the list state.
  */
 @PublicEvolving
-public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
+public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>> {
 	private static final long serialVersionUID = 1L;
+
+	/** The serializer for the elements in the list. May be eagerly initialized in the constructor,
+	 * or lazily once the type is serialized or an ExecutionConfig is provided. */
+	private TypeSerializer<T> elemTypeSerializer;
+
+	/** The type information describing the type of the elements. Only used to lazily create the serializer
+	 * and dropped during serialization */
+	private transient TypeInformation<T> elemTypeInfo;
 
 	/**
 	 * Creates a new {@code ListStateDescriptor} with the given name and list element type.
@@ -40,30 +54,40 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
 	 * consider using the {@link #ListStateDescriptor(String, TypeInformation)} constructor.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param typeClass The type of the values in the state.
+	 * @param elemTypeClass The type of the elements in the state.
 	 */
-	public ListStateDescriptor(String name, Class<T> typeClass) {
-		super(name, typeClass, null);
+	public ListStateDescriptor(String name, Class<T> elemTypeClass) {
+		super(name);
+
+		try {
+			this.elemTypeInfo = TypeExtractor.createTypeInfo(elemTypeClass);
+		} catch (Exception e) {
+			throw new RuntimeException("Cannot create full type information based on the given class. If the type has generics, please", e);
+		}
 	}
 
 	/**
 	 * Creates a new {@code ListStateDescriptor} with the given name and list element type.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param typeInfo The type of the values in the state.
+	 * @param elemTypeInfo The type of the elements in the state.
 	 */
-	public ListStateDescriptor(String name, TypeInformation<T> typeInfo) {
-		super(name, typeInfo, null);
+	public ListStateDescriptor(String name, TypeInformation<T> elemTypeInfo) {
+		super(name);
+
+		this.elemTypeInfo = elemTypeInfo;
 	}
 
 	/**
 	 * Creates a new {@code ListStateDescriptor} with the given name and list element type.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param typeSerializer The type serializer for the list values.
+	 * @param elemTypeSerializer The type serializer for the elements in the state.
 	 */
-	public ListStateDescriptor(String name, TypeSerializer<T> typeSerializer) {
-		super(name, typeSerializer, null);
+	public ListStateDescriptor(String name, TypeSerializer<T> elemTypeSerializer) {
+		super(name);
+
+		this.elemTypeSerializer = elemTypeSerializer;
 	}
 	
 	// ------------------------------------------------------------------------
@@ -71,6 +95,36 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
 	@Override
 	public ListState<T> bind(StateBackend stateBackend) throws Exception {
 		return stateBackend.createListState(this);
+	}
+
+	/**
+	 * Returns the {@link TypeSerializer} that can be used to serialize the elements in the state.
+	 * Note that the serializer may initialized lazily and is only guaranteed to exist after
+	 * calling {@link #initializeSerializerUnlessSet(ExecutionConfig)}.
+	 */
+	public TypeSerializer<T> getElemSerializer() {
+		if (elemTypeSerializer != null) {
+			return elemTypeSerializer;
+		} else {
+			throw new IllegalStateException("Serializer not yet initialized.");
+		}
+	}
+
+	@Override
+	public boolean isSerializerInitialized() {
+		return elemTypeSerializer != null;
+	}
+
+	@Override
+	public void initializeSerializerUnlessSet(ExecutionConfig executionConfig) {
+		if (elemTypeSerializer == null) {
+			if (elemTypeInfo != null) {
+				elemTypeSerializer = elemTypeInfo.createSerializer(executionConfig);
+			} else {
+				throw new IllegalStateException(
+					"Cannot initialize serializer after TypeInformation was dropped during serialization");
+			}
+		}
 	}
 
 	@Override
@@ -84,13 +138,12 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
 
 		ListStateDescriptor<?> that = (ListStateDescriptor<?>) o;
 
-		return serializer.equals(that.serializer) && name.equals(that.name);
-
+		return elemTypeSerializer.equals(that.elemTypeSerializer) && name.equals(that.name);
 	}
 
 	@Override
 	public int hashCode() {
-		int result = serializer.hashCode();
+		int result = elemTypeSerializer.hashCode();
 		result = 31 * result + name.hashCode();
 		return result;
 	}
@@ -98,8 +151,25 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
 	@Override
 	public String toString() {
 		return "ListStateDescriptor{" +
-				"serializer=" + serializer +
+				"elem serializer=" + elemTypeSerializer +
 				'}';
+	}
+
+	// ------------------------------------------------------------------------
+	//  Serialization
+	// ------------------------------------------------------------------------
+
+	private void writeObject(final ObjectOutputStream out) throws IOException {
+		// make sure we have a serializer before the type information gets lost
+		initializeSerializerUnlessSet(new ExecutionConfig());
+
+		// write all the non-transient fields
+		out.defaultWriteObject();
+	}
+
+	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
+		// read the non-transient fields
+		in.defaultReadObject();
 	}
 
 	@Override

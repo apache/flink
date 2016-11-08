@@ -29,11 +29,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * @param <IN> Input type
  */
 @Internal
-public class QueryableValueStateOperator<IN> extends AbstractQueryableStateOperator<ValueState<IN>, IN> {
+public class QueryableValueStateOperator<IN> extends AbstractQueryableStateOperator<IN, ValueState<IN>, IN> {
 
 	public QueryableValueStateOperator(
 			String registrationName,
-			StateDescriptor<ValueState<IN>, IN> stateDescriptor) {
+			StateDescriptor<ValueState<IN>> stateDescriptor) {
 
 		super(registrationName, stateDescriptor);
 	}

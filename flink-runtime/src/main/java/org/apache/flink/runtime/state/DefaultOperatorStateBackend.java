@@ -106,7 +106,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		Preconditions.checkNotNull(stateDescriptor);
 
 		String name = Preconditions.checkNotNull(stateDescriptor.getName());
-		TypeSerializer<S> partitionStateSerializer = Preconditions.checkNotNull(stateDescriptor.getSerializer());
+		TypeSerializer<S> partitionStateSerializer = Preconditions.checkNotNull(stateDescriptor.getElemSerializer());
 
 		@SuppressWarnings("unchecked")
 		PartitionableListState<S> partitionableListState = (PartitionableListState<S>) registeredStates.get(name);

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.ListState;
 
+import java.io.IOException;
 import java.util.Collections;
 
 /**
@@ -40,7 +41,7 @@ class UserFacingListState<T> implements ListState<T> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public Iterable<T> get() throws Exception {
+	public Iterable<T> get() throws IOException {
 		Iterable<T> original = originalState.get();
 		return original != null ? original : emptyState;
 	}

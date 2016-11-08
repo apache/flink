@@ -181,7 +181,7 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 				throw new Exception("Test Failure");
 			}
 
-			long currentSum = sum.value() + value;
+			long currentSum = sum.get() + value;
 			sum.update(currentSum);
 			allSums.put(value, currentSum);
 			return new Tuple2<Integer, Long>(value, currentSum);
@@ -207,8 +207,8 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 
 		@Override
 		public void invoke(Tuple2<Integer, Long> value) throws Exception {
-			long ac = aCounts.value().value;
-			long bc = bCounts.value();
+			long ac = aCounts.get().value;
+			long bc = bCounts.get();
 			assertEquals(ac, bc);
 			
 			long currentCount = ac + 1;

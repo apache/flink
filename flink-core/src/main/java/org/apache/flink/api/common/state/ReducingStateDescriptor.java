@@ -34,7 +34,7 @@ import static java.util.Objects.requireNonNull;
  * @param <T> The type of the values that can be added to the list state.
  */
 @PublicEvolving
-public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>, T> {
+public class ReducingStateDescriptor<T> extends SimpleStateDescriptor<T, ReducingState<T>> {
 	private static final long serialVersionUID = 1L;
 	
 	
@@ -108,13 +108,13 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
 
 		ReducingStateDescriptor<?> that = (ReducingStateDescriptor<?>) o;
 
-		return serializer.equals(that.serializer) && name.equals(that.name);
+		return typeSerializer.equals(that.typeSerializer) && name.equals(that.name);
 
 	}
 
 	@Override
 	public int hashCode() {
-		int result = serializer.hashCode();
+		int result = typeSerializer.hashCode();
 		result = 31 * result + name.hashCode();
 		return result;
 	}
@@ -122,7 +122,7 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
 	@Override
 	public String toString() {
 		return "ReducingStateDescriptor{" +
-				"serializer=" + serializer +
+				"serializer=" + typeSerializer +
 				", reduceFunction=" + reduceFunction +
 				'}';
 	}

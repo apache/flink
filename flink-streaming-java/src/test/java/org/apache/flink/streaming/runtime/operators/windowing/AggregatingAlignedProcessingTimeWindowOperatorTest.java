@@ -839,8 +839,8 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 		@Override
 		public Tuple2<Integer, Integer> reduce(Tuple2<Integer, Integer> value1, Tuple2<Integer, Integer> value2) throws Exception {
-			state.update(state.value() + 1);
-			globalCounts.put(value1.f0, state.value());
+			state.update(state.get() + 1);
+			globalCounts.put(value1.f0, state.get());
 
 			return new Tuple2<>(value1.f0, value1.f1 + value2.f1);
 		}

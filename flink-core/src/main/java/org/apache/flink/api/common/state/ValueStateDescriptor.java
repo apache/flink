@@ -33,7 +33,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * @param <T> The type of the values that the value state can hold.
  */
 @PublicEvolving
-public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
+public class ValueStateDescriptor<T> extends SimpleStateDescriptor<T, ValueState<T>> {
 	private static final long serialVersionUID = 1L;
 	
 	/**
@@ -139,13 +139,13 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 
 		ValueStateDescriptor<?> that = (ValueStateDescriptor<?>) o;
 
-		return serializer.equals(that.serializer) && name.equals(that.name);
+		return typeSerializer.equals(that.typeSerializer) && name.equals(that.name);
 
 	}
 
 	@Override
 	public int hashCode() {
-		int result = serializer.hashCode();
+		int result = typeSerializer.hashCode();
 		result = 31 * result + name.hashCode();
 		return result;
 	}
@@ -155,7 +155,7 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 		return "ValueStateDescriptor{" +
 				"name=" + name +
 				", defaultValue=" + defaultValue +
-				", serializer=" + serializer +
+				", serializer=" + typeSerializer +
 				'}';
 	}
 

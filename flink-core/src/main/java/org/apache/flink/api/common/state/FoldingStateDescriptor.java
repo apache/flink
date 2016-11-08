@@ -34,7 +34,7 @@ import static java.util.Objects.requireNonNull;
  * @param <ACC> Type of the value in the state
  */
 @PublicEvolving
-public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState<T, ACC>, ACC> {
+public class FoldingStateDescriptor<T, ACC> extends SimpleStateDescriptor<ACC, FoldingState<T, ACC>> {
 	private static final long serialVersionUID = 1L;
 
 
@@ -119,13 +119,13 @@ public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState
 
 		FoldingStateDescriptor<?, ?> that = (FoldingStateDescriptor<?, ?>) o;
 
-		return serializer.equals(that.serializer) && name.equals(that.name);
+		return typeSerializer.equals(that.typeSerializer) && name.equals(that.name);
 
 	}
 
 	@Override
 	public int hashCode() {
-		int result = serializer.hashCode();
+		int result = typeSerializer.hashCode();
 		result = 31 * result + name.hashCode();
 		return result;
 	}
@@ -133,7 +133,7 @@ public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState
 	@Override
 	public String toString() {
 		return "FoldingStateDescriptor{" +
-				"serializer=" + serializer +
+				"serializer=" + typeSerializer +
 				", initialValue=" + defaultValue +
 				", foldFunction=" + foldFunction +
 				'}';

@@ -24,7 +24,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.AppendingState;
-import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -70,7 +69,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 		TypeSerializer<W> windowSerializer,
 		KeySelector<IN, K> keySelector,
 		TypeSerializer<K> keySerializer,
-		StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> windowStateDescriptor,
+		StateDescriptor<? extends ListState<StreamRecord<IN>>> windowStateDescriptor,
 		InternalWindowFunction<Iterable<IN>, OUT, K, W> windowFunction,
 		Trigger<? super IN, ? super W> trigger,
 		Evictor<? super IN, ? super W> evictor,
@@ -123,7 +122,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 									stateWindowResult,
 									mergedStateWindows,
 									windowSerializer,
-									(StateDescriptor<? extends MergingState<?, ?>, ?>) windowStateDescriptor);
+									windowStateDescriptor);
 							}
 						});
 
@@ -408,7 +407,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 	@Override
 	@VisibleForTesting
 	@SuppressWarnings("unchecked, rawtypes")
-	public StateDescriptor<? extends AppendingState<IN, Iterable<IN>>, ?> getStateDescriptor() {
-		return (StateDescriptor<? extends AppendingState<IN, Iterable<IN>>, ?>) windowStateDescriptor;
+	public StateDescriptor<? extends AppendingState<IN, Iterable<IN>>> getStateDescriptor() {
+		return (StateDescriptor<? extends AppendingState<IN, Iterable<IN>>>) windowStateDescriptor;
 	}
 }

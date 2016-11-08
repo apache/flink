@@ -28,16 +28,17 @@ import org.apache.flink.util.Preconditions;
 /**
  * Internal operator handling queryable state instances (setup and update).
  *
+ * @param <V>  Value type
  * @param <S>  State type
  * @param <IN> Input type
  */
 @Internal
-abstract class AbstractQueryableStateOperator<S extends State, IN>
+abstract class AbstractQueryableStateOperator<V, S extends State<V>, IN>
 		extends AbstractStreamOperator<IN>
 		implements OneInputStreamOperator<IN, IN> {
 
 	/** State descriptor for the queryable state instance. */
-	protected final StateDescriptor<? extends S, ?> stateDescriptor;
+	protected final StateDescriptor<? extends S> stateDescriptor;
 
 	/**
 	 * Name under which the queryable state is registered.
@@ -53,7 +54,7 @@ abstract class AbstractQueryableStateOperator<S extends State, IN>
 
 	public AbstractQueryableStateOperator(
 			String registrationName,
-			StateDescriptor<? extends S, ?> stateDescriptor) {
+			StateDescriptor<? extends S> stateDescriptor) {
 
 		this.registrationName = Preconditions.checkNotNull(registrationName, "Registration name");
 		this.stateDescriptor = Preconditions.checkNotNull(stateDescriptor, "State descriptor");

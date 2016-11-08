@@ -800,10 +800,10 @@ public class RescalingITCase extends TestLogger {
 		@Override
 		public void flatMap(Integer value, Collector<Tuple2<Integer, Integer>> out) throws Exception {
 
-			int count = counter.value() + 1;
+			int count = counter.get() + 1;
 			counter.update(count);
 
-			int s = sum.value() + value;
+			int s = sum.get() + value;
 			sum.update(s);
 
 			if (count % numberElements == 0) {

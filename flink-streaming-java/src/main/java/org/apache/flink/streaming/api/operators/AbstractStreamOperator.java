@@ -490,7 +490,7 @@ public abstract class AbstractStreamOperator<OUT>
 	 * @throws IllegalStateException Thrown, if the key/value state was already initialized.
 	 * @throws Exception Thrown, if the state backend cannot create the key/value state.
 	 */
-	protected <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) throws Exception {
+	protected <V, S extends State<V>> S getPartitionedState(StateDescriptor<S> stateDescriptor) throws Exception {
 		return getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
 	}
 
@@ -501,9 +501,9 @@ public abstract class AbstractStreamOperator<OUT>
 	 * @throws Exception Thrown, if the state backend cannot create the key/value state.
 	 */
 	@SuppressWarnings("unchecked")
-	protected <S extends State, N> S getPartitionedState(
+	protected <V, S extends State<V>, N> S getPartitionedState(
 			N namespace, TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<S, ?> stateDescriptor) throws Exception {
+			StateDescriptor<S> stateDescriptor) throws Exception {
 
 		if (keyedStateStore != null) {
 			return keyedStateBackend.getPartitionedState(namespace, namespaceSerializer, stateDescriptor);

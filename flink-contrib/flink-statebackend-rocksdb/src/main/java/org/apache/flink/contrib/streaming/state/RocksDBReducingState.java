@@ -25,8 +25,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDBException;
-import org.rocksdb.WriteOptions;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -38,21 +36,9 @@ import java.io.IOException;
  * @param <N> The type of the namespace.
  * @param <V> The type of value that the state state stores.
  */
-public class RocksDBReducingState<K, N, V>
-	extends AbstractRocksDBState<K, N, ReducingState<V>, ReducingStateDescriptor<V>, V>
-	implements ReducingState<V> {
-
-	/** Serializer for the values */
-	private final TypeSerializer<V> valueSerializer;
-
+public class RocksDBReducingState<K, N, V> extends RocksDBSimpleState<K, N, V> implements ReducingState<V> {
 	/** User-specified reduce function */
 	private final ReduceFunction<V> reduceFunction;
-
-	/**
-	 * We disable writes to the write-ahead-log here. We can't have these in the base class
-	 * because JNI segfaults for some reason if they are.
-	 */
-	private final WriteOptions writeOptions;
 
 	/**
 	 * Creates a new {@code RocksDBReducingState}.
@@ -61,32 +47,16 @@ public class RocksDBReducingState<K, N, V>
 	 * @param stateDesc The state identifier for the state. This contains name
 	 *                     and can create a default state value.
 	 */
-	public RocksDBReducingState(ColumnFamilyHandle columnFamily,
-			TypeSerializer<N> namespaceSerializer,
-			ReducingStateDescriptor<V> stateDesc,
-			RocksDBKeyedStateBackend<K> backend) {
+	public RocksDBReducingState(
+		ColumnFamilyHandle columnFamily,
+		TypeSerializer<N> namespaceSerializer,
+		ReducingStateDescriptor<V> stateDesc,
+		RocksDBKeyedStateBackend<K> backend
+	) {
 
 		super(columnFamily, namespaceSerializer, stateDesc, backend);
-		this.valueSerializer = stateDesc.getSerializer();
+
 		this.reduceFunction = stateDesc.getReduceFunction();
-
-		writeOptions = new WriteOptions();
-		writeOptions.setDisableWAL(true);
-	}
-
-	@Override
-	public V get() {
-		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = keySerializationStream.toByteArray();
-			byte[] valueBytes = backend.db.get(columnFamily, key);
-			if (valueBytes == null) {
-				return null;
-			}
-			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
-		} catch (IOException|RocksDBException e) {
-			throw new RuntimeException("Error while retrieving data from RocksDB", e);
-		}
 	}
 
 	@Override

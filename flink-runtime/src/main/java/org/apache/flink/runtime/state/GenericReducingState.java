@@ -22,6 +22,8 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ValueState;
 
+import java.io.IOException;
+
 /**
  * Generic implementation of {@link ReducingState} based on a wrapped {@link ValueState}.
  *
@@ -62,13 +64,13 @@ public class GenericReducingState<N, T, W extends ValueState<T> & KvState<N>>
 	}
 
 	@Override
-	public T get() throws Exception {
-		return wrappedState.value();
+	public T get() throws IOException {
+		return wrappedState.get();
 	}
 
 	@Override
 	public void add(T value) throws Exception {
-		T currentValue = wrappedState.value();
+		T currentValue = wrappedState.get();
 		if (currentValue == null) {
 			wrappedState.update(value);
 		} else {

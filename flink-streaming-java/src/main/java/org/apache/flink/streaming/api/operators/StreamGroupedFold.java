@@ -77,7 +77,7 @@ public class StreamGroupedFold<IN, OUT, KEY>
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		OUT value = values.value();
+		OUT value = values.get();
 
 		if (value != null) {
 			OUT folded = userFunction.fold(outTypeSerializer.copy(value), element.getValue());

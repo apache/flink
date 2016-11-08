@@ -254,15 +254,15 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 							// the window count state starts with the key, so that we get
 							// different count results for each key
-							if (count.value() == 0) {
+							if (count.get() == 0) {
 								count.update(tuple.<Long>getField(0).intValue());
 							}
 
 							// validate that the function has been opened properly
 							assertTrue(open);
 
-							count.update(count.value() + 1);
-							out.collect(new Tuple4<>(tuple.<Long>getField(0), window.getStart(), window.getEnd(), new IntType(count.value())));
+							count.update(count.get() + 1);
+							out.collect(new Tuple4<>(tuple.<Long>getField(0), window.getStart(), window.getEnd(), new IntType(count.get())));
 						}
 					})
 					.addSink(new CountValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SIZE)).setParallelism(1);

@@ -20,6 +20,8 @@ package org.apache.flink.api.common.state;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.io.IOException;
+
 /**
  * Interface that different types of partitioned state must implement.
  *
@@ -27,9 +29,23 @@ import org.apache.flink.annotation.PublicEvolving;
  * automatically supplied by the system, so the function always sees the value mapped to the
  * key of the current element. That way, the system can handle stream and state partitioning
  * consistently together.
+ *
+ * @param <T> The type of the values in the state.
  */
 @PublicEvolving
-public interface State {
+public interface State<T> {
+	/**
+	 * Returns the current value for the state. When the state is not
+	 * partitioned the returned value is the same for all inputs in a given
+	 * operator instance. If state partitioning is applied, the value returned
+	 * depends on the current operator input, as the operator maintains an
+	 * independent state for each partition.
+	 *
+	 * @return The operator state value corresponding to the current input.
+	 *
+	 * @throws IOException Thrown if the system cannot access the state.
+	 */
+	T get() throws IOException;
 
 	/**
 	 * Removes the value mapped under the current key.

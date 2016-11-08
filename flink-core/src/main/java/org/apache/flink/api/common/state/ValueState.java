@@ -37,27 +37,24 @@ import java.io.IOException;
  * @param <T> Type of the value in the state.
  */
 @PublicEvolving
-public interface ValueState<T> extends State {
-
+public interface ValueState<T> extends State<T> {
 	/**
-	 * Returns the current value for the state. When the state is not
-	 * partitioned the returned value is the same for all inputs in a given
-	 * operator instance. If state partitioning is applied, the value returned
-	 * depends on the current operator input, as the operator maintains an
-	 * independent state for each partition.
+	 * Returns the current value for the state. The method performs the same
+	 * functionality as {@link State#get()}.
 	 *
 	 * <p>If you didn't specify a default value when creating the {@link ValueStateDescriptor}
 	 * this will return {@code null} when to value was previously set using {@link #update(Object)}.
 	 *
 	 * @return The state value corresponding to the current input.
-	 * 
+	 *
 	 * @throws IOException Thrown if the system cannot access the state.
 	 */
+	@Deprecated
 	T value() throws IOException;
 
 	/**
-	 * Updates the operator state accessible by {@link #value()} to the given
-	 * value. The next time {@link #value()} is called (for the same state
+	 * Updates the operator state accessible by {@link #get()} to the given
+	 * value. The next time {@link #get()} is called (for the same state
 	 * partition) the returned state will represent the updated value. When a
 	 * partitioned state is updated with null, the state for the current key 
 	 * will be removed and the default value is returned on the next access.

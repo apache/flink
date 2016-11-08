@@ -52,7 +52,7 @@ public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, Reduc
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		IN value = element.getValue();
-		IN currentValue = values.value();
+		IN currentValue = values.get();
 		
 		if (currentValue != null) {
 			IN reduced = userFunction.reduce(currentValue, value);

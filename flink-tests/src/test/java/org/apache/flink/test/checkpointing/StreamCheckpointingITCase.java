@@ -271,7 +271,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 			}
 			inputCount++;
 		
-			long currentPrefixCount = pCount.value() + value.count;
+			long currentPrefixCount = pCount.get() + value.count;
 			pCount.update(currentPrefixCount);
 			prefixCounts.put(value.prefix, currentPrefixCount);
 			value.count = currentPrefixCount;

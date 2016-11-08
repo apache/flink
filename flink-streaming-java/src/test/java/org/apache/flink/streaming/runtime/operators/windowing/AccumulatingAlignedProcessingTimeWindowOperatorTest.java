@@ -685,8 +685,8 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 				// we need to update this state before emitting elements. Else, the test's main
 				// thread will have received all output elements before the state is updated and
 				// the checks may fail
-				state.update(state.value() + 1);
-				globalCounts.put(key, state.value());
+				state.update(state.get() + 1);
+				globalCounts.put(key, state.get());
 				
 				out.collect(i);
 			}

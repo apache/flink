@@ -69,6 +69,7 @@ public interface KeyedStateBackend<K> {
 	 * @param stateDescriptor The identifier for the state. This contains name and can create a default state value.
 
 	 * @param <N> The type of the namespace.
+	 * @param <V> The type of the values in the state.
 	 * @param <S> The type of the state.
 	 *
 	 * @return A new key/value state backed by this backend.
@@ -76,18 +77,18 @@ public interface KeyedStateBackend<K> {
 	 * @throws Exception Exceptions may occur during initialization of the state and should be forwarded.
 	 */
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	<N, S extends State> S getPartitionedState(
+	<N, V, S extends State<V>> S getPartitionedState(
 			N namespace,
 			TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<S, ?> stateDescriptor) throws Exception;
+			StateDescriptor<S> stateDescriptor) throws Exception;
 
 
 	@SuppressWarnings("unchecked,rawtypes")
-	<N, S extends MergingState<?, ?>> void mergePartitionedStates(
+	<N, V, S extends MergingState<?, V>> void mergePartitionedStates(
 			N target,
 			Collection<N> sources,
 			TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<S, ?> stateDescriptor) throws Exception;
+			StateDescriptor<S> stateDescriptor) throws Exception;
 
 	/**
 	 * Closes the backend and releases all resources.

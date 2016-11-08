@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -40,11 +39,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <SV> The type of the values in the state.
- * @param <S> The type of State
  * @param <SD> The type of StateDescriptor for the State S
  */
-public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>>
-		implements KvState<N>, State {
+public abstract class AbstractHeapState<K, N, SV, SD extends StateDescriptor<?>>
+		implements KvState<N> {
 
 	/** Map containing the actual key/value pairs */
 	protected final StateTable<K, N, SV> stateTable;
@@ -86,38 +84,6 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 	}
 
 	// ------------------------------------------------------------------------
-
-	@Override
-	public final void clear() {
-		Preconditions.checkState(currentNamespace != null, "No namespace set.");
-		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
-
-		Map<N, Map<K, SV>> namespaceMap =
-				stateTable.get(backend.getCurrentKeyGroupIndex());
-
-		if (namespaceMap == null) {
-			return;
-		}
-
-		Map<K, SV> keyedMap = namespaceMap.get(currentNamespace);
-
-		if (keyedMap == null) {
-			return;
-		}
-
-		SV removed = keyedMap.remove(backend.getCurrentKey());
-
-		if (removed == null) {
-			return;
-		}
-
-		if (!keyedMap.isEmpty()) {
-			return;
-		}
-
-		namespaceMap.remove(currentNamespace);
-	}
-
 	@Override
 	public final void setCurrentNamespace(N namespace) {
 		this.currentNamespace = Preconditions.checkNotNull(namespace, "Namespace must not be null.");
@@ -130,37 +96,13 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 		Tuple2<K, N> keyAndNamespace = KvStateRequestSerializer.deserializeKeyAndNamespace(
 				serializedKeyAndNamespace, keySerializer, namespaceSerializer);
 
-		return getSerializedValue(keyAndNamespace.f0, keyAndNamespace.f1);
+		K key = keyAndNamespace.f0;
+		N namespace = keyAndNamespace.f1;
+		int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(key, backend.getNumberOfKeyGroups());
+		return getSerializedValue(keyGroup, keyAndNamespace.f0, keyAndNamespace.f1);
 	}
 
-	public byte[] getSerializedValue(K key, N namespace) throws Exception {
-		Preconditions.checkState(namespace != null, "No namespace given.");
-		Preconditions.checkState(key != null, "No key given.");
-
-		Map<N, Map<K, SV>> namespaceMap =
-				stateTable.get(KeyGroupRangeAssignment.assignToKeyGroup(key, backend.getNumberOfKeyGroups()));
-
-		if (namespaceMap == null) {
-			return null;
-		}
-
-		Map<K, SV> keyedMap = namespaceMap.get(currentNamespace);
-
-		if (keyedMap == null) {
-			return null;
-		}
-
-		SV result = keyedMap.get(key);
-
-		if (result == null) {
-			return null;
-		}
-
-		@SuppressWarnings("unchecked,rawtypes")
-		TypeSerializer serializer = stateDesc.getSerializer();
-
-		return KvStateRequestSerializer.serializeValue(result, serializer);
-	}
+	public abstract byte[] getSerializedValue(int keyGroup, K key, N namespace) throws Exception;
 
 	/**
 	 * Creates a new map for use in Heap based state.

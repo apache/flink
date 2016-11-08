@@ -43,9 +43,7 @@ import java.util.List;
  * @param <N> The type of the namespace.
  * @param <V> The type of the values in the list state.
  */
-public class RocksDBListState<K, N, V>
-	extends AbstractRocksDBState<K, N, ListState<V>, ListStateDescriptor<V>, V>
-	implements ListState<V> {
+public class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N> implements ListState<V> {
 
 	/** Serializer for the values */
 	private final TypeSerializer<V> valueSerializer;
@@ -68,8 +66,8 @@ public class RocksDBListState<K, N, V>
 			ListStateDescriptor<V> stateDesc,
 			RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, stateDesc, backend);
-		this.valueSerializer = stateDesc.getSerializer();
+		super(columnFamily, namespaceSerializer, backend);
+		this.valueSerializer = stateDesc.getElemSerializer();
 
 		writeOptions = new WriteOptions();
 		writeOptions.setDisableWAL(true);
@@ -99,6 +97,17 @@ public class RocksDBListState<K, N, V>
 			return result;
 		} catch (IOException|RocksDBException e) {
 			throw new RuntimeException("Error while retrieving data from RocksDB", e);
+		}
+	}
+
+	@Override
+	public void clear() {
+		try {
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = keySerializationStream.toByteArray();
+			backend.db.remove(columnFamily, writeOptions, key);
+		} catch (IOException|RocksDBException e) {
+			throw new RuntimeException("Error while removing entry from RocksDB", e);
 		}
 	}
 

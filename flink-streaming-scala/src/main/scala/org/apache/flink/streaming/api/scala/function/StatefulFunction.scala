@@ -38,7 +38,7 @@ trait StatefulFunction[I, O, S] extends RichFunction {
   
 
   def applyWithState(in: I, fun: (I, Option[S]) => (O, Option[S])): O = {
-    val (o, s: Option[S]) = fun(in, Option(state.value()))
+    val (o, s: Option[S]) = fun(in, Option(state.get()))
     s match {
       case Some(v) => state.update(v)
       case None => state.update(null.asInstanceOf[S])

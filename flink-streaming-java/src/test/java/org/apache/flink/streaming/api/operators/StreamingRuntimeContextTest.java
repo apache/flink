@@ -80,8 +80,10 @@ public class StreamingRuntimeContextTest {
 		ValueStateDescriptor<TaskInfo> descr = new ValueStateDescriptor<>("name", TaskInfo.class);
 		context.getState(descr);
 		
-		StateDescriptor<?, ?> descrIntercepted = (StateDescriptor<?, ?>) descriptorCapture.get();
-		TypeSerializer<?> serializer = descrIntercepted.getSerializer();
+		StateDescriptor<?> descrIntercepted = (StateDescriptor<?>) descriptorCapture.get();
+		assertTrue(descrIntercepted instanceof ValueStateDescriptor);
+
+		TypeSerializer<?> serializer = ((ValueStateDescriptor)descrIntercepted).getSerializer();
 		
 		// check that the Path class is really registered, i.e., the execution config was applied
 		assertTrue(serializer instanceof KryoSerializer);
@@ -109,8 +111,10 @@ public class StreamingRuntimeContextTest {
 		
 		context.getReducingState(descr);
 
-		StateDescriptor<?, ?> descrIntercepted = (StateDescriptor<?, ?>) descriptorCapture.get();
-		TypeSerializer<?> serializer = descrIntercepted.getSerializer();
+		StateDescriptor<?> descrIntercepted = (StateDescriptor<?>) descriptorCapture.get();
+		assertTrue(descrIntercepted instanceof ReducingStateDescriptor);
+
+		TypeSerializer<?> serializer = ((ReducingStateDescriptor)descrIntercepted).getSerializer();
 
 		// check that the Path class is really registered, i.e., the execution config was applied
 		assertTrue(serializer instanceof KryoSerializer);
@@ -162,8 +166,10 @@ public class StreamingRuntimeContextTest {
 		ListStateDescriptor<TaskInfo> descr = new ListStateDescriptor<>("name", TaskInfo.class);
 		context.getListState(descr);
 
-		StateDescriptor<?, ?> descrIntercepted = (StateDescriptor<?, ?>) descriptorCapture.get();
-		TypeSerializer<?> serializer = descrIntercepted.getSerializer();
+		StateDescriptor<?> descrIntercepted = (StateDescriptor<?>) descriptorCapture.get();
+		assertTrue(descrIntercepted instanceof ListStateDescriptor);
+
+		TypeSerializer<?> serializer = ((ListStateDescriptor<?>)descrIntercepted).getElemSerializer();
 
 		// check that the Path class is really registered, i.e., the execution config was applied
 		assertTrue(serializer instanceof KryoSerializer);

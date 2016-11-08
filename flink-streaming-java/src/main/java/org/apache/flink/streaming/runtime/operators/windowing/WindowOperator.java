@@ -111,7 +111,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	protected final Trigger<? super IN, ? super W> trigger;
 
-	protected final StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor;
+	protected final StateDescriptor<? extends AppendingState<IN, ACC>> windowStateDescriptor;
 
 	protected final ListStateDescriptor<Tuple2<W, W>> mergingWindowsDescriptor;
 
@@ -190,7 +190,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			TypeSerializer<W> windowSerializer,
 			KeySelector<IN, K> keySelector,
 			TypeSerializer<K> keySerializer,
-			StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
+			StateDescriptor<? extends AppendingState<IN, ACC>> windowStateDescriptor,
 			InternalWindowFunction<ACC, OUT, K, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger,
 			long allowedLateness) {
@@ -319,7 +319,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 							stateWindowResult,
 							mergedStateWindows,
 							windowSerializer,
-							(StateDescriptor<? extends MergingState<?,?>, ?>) windowStateDescriptor);
+							(StateDescriptor<? extends MergingState<IN, OUT>>)windowStateDescriptor);
 					}
 				});
 
@@ -643,7 +643,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		@SuppressWarnings("unchecked")
-		public <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) {
+		public <V, S extends State<V>> S getPartitionedState(StateDescriptor<S> stateDescriptor) {
 			try {
 				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateDescriptor);
 			} catch (Exception e) {
@@ -652,7 +652,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		@Override
-		public <S extends MergingState<?, ?>> void mergePartitionedState(StateDescriptor<S, ?> stateDescriptor) {
+		public <V, S extends MergingState<?, V>> void mergePartitionedState(StateDescriptor<S> stateDescriptor) {
 			if (mergedWindows != null && mergedWindows.size() > 0) {
 				try {
 					WindowOperator.this.getKeyedStateBackend().mergePartitionedStates(window,
@@ -1035,7 +1035,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	@VisibleForTesting
-	public StateDescriptor<? extends AppendingState<IN, ACC>, ?> getStateDescriptor() {
+	public StateDescriptor<? extends AppendingState<IN, ACC>> getStateDescriptor() {
 		return windowStateDescriptor;
 	}
 }

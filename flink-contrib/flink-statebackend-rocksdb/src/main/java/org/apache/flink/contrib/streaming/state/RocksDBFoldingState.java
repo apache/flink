@@ -26,8 +26,6 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDBException;
-import org.rocksdb.WriteOptions;
 
 import java.io.IOException;
 
@@ -39,21 +37,9 @@ import java.io.IOException;
  * @param <T> The type of the values that can be folded into the state.
  * @param <ACC> The type of the value in the folding state.
  */
-public class RocksDBFoldingState<K, N, T, ACC>
-	extends AbstractRocksDBState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, ACC>
-	implements FoldingState<T, ACC> {
-
-	/** Serializer for the values */
-	private final TypeSerializer<ACC> valueSerializer;
-
+public class RocksDBFoldingState<K, N, T, ACC> extends RocksDBSimpleState<K, N, ACC> implements FoldingState<T, ACC> {
 	/** User-specified fold function */
 	private final FoldFunction<T, ACC> foldFunction;
-
-	/**
-	 * We disable writes to the write-ahead-log here. We can't have these in the base class
-	 * because JNI segfaults for some reason if they are.
-	 */
-	private final WriteOptions writeOptions;
 
 	/**
 	 * Creates a new {@code RocksDBFoldingState}.
@@ -69,26 +55,7 @@ public class RocksDBFoldingState<K, N, T, ACC>
 
 		super(columnFamily, namespaceSerializer, stateDesc, backend);
 
-		this.valueSerializer = stateDesc.getSerializer();
 		this.foldFunction = stateDesc.getFoldFunction();
-
-		writeOptions = new WriteOptions();
-		writeOptions.setDisableWAL(true);
-	}
-
-	@Override
-	public ACC get() {
-		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = keySerializationStream.toByteArray();
-			byte[] valueBytes = backend.db.get(columnFamily, key);
-			if (valueBytes == null) {
-				return null;
-			}
-			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
-		} catch (IOException|RocksDBException e) {
-			throw new RuntimeException("Error while retrieving data from RocksDB", e);
-		}
 	}
 
 	@Override
