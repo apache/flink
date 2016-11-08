@@ -151,6 +151,17 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 		}
 	}
 
+	/**
+	 * Tests that the externalized checkpoint directory is set to the base
+	 * checkpoint directory.
+	 */
+	@Test
+	public void testExternalizedCheckpointsDirectoryConfiguration() throws Exception {
+		Path externalizedCheckpointsDirectory = FsStateBackend.validateAndNormalizeUri(URI.create("file://" + tempFolder.newFolder().getAbsolutePath()));
+		FsStateBackend backend = new FsStateBackend(externalizedCheckpointsDirectory);
+		assertEquals(externalizedCheckpointsDirectory, backend.getCheckpointDirectory());
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------

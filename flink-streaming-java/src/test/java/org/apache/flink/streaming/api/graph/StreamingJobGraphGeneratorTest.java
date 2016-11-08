@@ -22,7 +22,9 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.util.InstantiationUtil;
@@ -36,6 +38,9 @@ import java.util.Random;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @SuppressWarnings("serial")
 public class StreamingJobGraphGeneratorTest extends TestLogger {
@@ -169,5 +174,29 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
 		JobSnapshottingSettings snapshottingSettings = jobGraph.getSnapshotSettings();
 		assertEquals(Long.MAX_VALUE, snapshottingSettings.getCheckpointInterval());
+	}
+
+	/**
+	 * Tests that the checkpoint directory configuration is checked by the job
+	 * graph generator. This is a sanity check to fail early.
+	 */
+	@Test
+	public void testExternalizedCheckpointsWithoutCheckpointDirectoryFailEarly() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION);
+
+		AbstractStateBackend backend = mock(AbstractStateBackend.class);
+		when(backend.getCheckpointDirectory()).thenReturn(null);
+
+		StreamGraph streamGraph = new StreamGraph(env);
+		streamGraph.setStateBackend(backend);
+
+		StreamingJobGraphGenerator jobGraphGenerator = new StreamingJobGraphGenerator(streamGraph);
+		try {
+			jobGraphGenerator.createJobGraph();
+			fail("Did not throw expected IllegalStateException because of missing checkpoint directory config");
+		} catch (IllegalStateException ignored) {
+		}
 	}
 }

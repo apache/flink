@@ -1260,7 +1260,7 @@ public class CheckpointCoordinatorTest {
 		assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 		// trigger the first checkpoint. this should succeed
-		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
+		Path savepointDir = new Path(tmpFolder.newFolder().getAbsolutePath());
 		Future<CompletedCheckpoint> savepointFuture = coord.triggerSavepoint(timestamp, savepointDir);
 		assertFalse(savepointFuture.isDone());
 
@@ -1393,7 +1393,7 @@ public class CheckpointCoordinatorTest {
 				null,
 				new DisabledCheckpointStatsTracker());
 
-		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
+		Path savepointDir = new Path(tmpFolder.newFolder().getAbsolutePath());
 
 		// Trigger savepoint and checkpoint
 		Future<CompletedCheckpoint> savepointFuture1 = coord.triggerSavepoint(timestamp, savepointDir);
@@ -1707,7 +1707,7 @@ public class CheckpointCoordinatorTest {
 
 		int numSavepoints = 5;
 
-		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
+		Path savepointDir = new Path(tmpFolder.newFolder().getAbsolutePath());
 
 		// Trigger savepoints
 		for (int i = 0; i < numSavepoints; i++) {
@@ -1756,7 +1756,7 @@ public class CheckpointCoordinatorTest {
 				null,
 				new DisabledCheckpointStatsTracker());
 
-		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
+		Path savepointDir = new Path(tmpFolder.newFolder().getAbsolutePath());
 
 		Future<CompletedCheckpoint> savepoint0 = coord.triggerSavepoint(0, savepointDir);
 		assertFalse("Did not trigger savepoint", savepoint0.isDone());
@@ -2303,7 +2303,7 @@ public class CheckpointCoordinatorTest {
 					new ExecutionVertex[] { vertex1 },
 					new StandaloneCheckpointIDCounter(),
 					new StandaloneCompletedCheckpointStore(1),
-					"fake-directory",
+					new Path("fake-directory"),
 					new DisabledCheckpointStatsTracker());
 
 			assertTrue(coord.triggerCheckpoint(timestamp, false));
@@ -2878,7 +2878,7 @@ public class CheckpointCoordinatorTest {
 
 		// trigger the first checkpoint. this should succeed
 		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
-		String targetDirectory = "xjasdkjakshdmmmxna";
+		Path targetDirectory = new Path("xjasdkjakshdmmmxna");
 
 		CheckpointTriggerResult triggerResult = coord.triggerCheckpoint(timestamp, props, targetDirectory, false);
 		assertTrue(triggerResult.isSuccess());

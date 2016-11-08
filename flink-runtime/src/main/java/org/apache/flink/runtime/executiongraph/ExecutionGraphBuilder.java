@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
@@ -39,6 +40,8 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateUtil;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -184,9 +187,34 @@ public class ExecutionGraphBuilder {
 				checkpointStatsTracker = new SimpleCheckpointStatsTracker(historySize, ackVertices, metrics);
 			}
 
-			/** The default directory for externalized checkpoints. */
-			String externalizedCheckpointsDir = jobManagerConfig.getString(
-					ConfigConstants.CHECKPOINTS_DIRECTORY_KEY, null);
+			// Directory for externalized checkpoints.
+			Path checkpointDirectory = null;
+
+			if (snapshotSettings.getExternalizedCheckpointSettings().externalizeCheckpoints()
+					&& !triggerVertices.isEmpty()) {
+
+				// The JobVertex config contains the StreamConfig (see StreamingJobGraphGenerator)
+				Configuration streamConfig = triggerVertices.get(0).getJobVertex().getConfiguration();
+
+				AbstractStateBackend backend = StateUtil.deserializeStateBackend(streamConfig, classLoader);
+
+				if (backend != null) {
+					log.debug("Using user-defined state backend: " + backend);
+				} else {
+					try {
+						backend = StateUtil.createStateBackend(log, jobManagerConfig, classLoader);
+					} catch (Exception e) {
+						throw new RuntimeException("Failed to instantiate StateBackend", e);
+					}
+
+					if (backend == null) {
+						throw new IllegalStateException("No state backend configured to " +
+								"determine checkpoint directory for externalized checkpoints.");
+					}
+				}
+
+				checkpointDirectory = backend.getCheckpointDirectory();
+			}
 
 			executionGraph.enableSnapshotCheckpointing(
 					snapshotSettings.getCheckpointInterval(),
@@ -199,7 +227,7 @@ public class ExecutionGraphBuilder {
 					confirmVertices,
 					checkpointIdCounter,
 					completedCheckpoints,
-					externalizedCheckpointsDir,
+					checkpointDirectory,
 					checkpointStatsTracker);
 		}
 

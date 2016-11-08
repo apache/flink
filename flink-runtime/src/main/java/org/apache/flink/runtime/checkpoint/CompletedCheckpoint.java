@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -61,7 +62,7 @@ public class CompletedCheckpoint implements Serializable {
 	private final CheckpointProperties props;
 
 	/** External path if persisted checkpoint; <code>null</code> otherwise. */
-	private final String externalPath;
+	private final Path externalPath;
 
 	// ------------------------------------------------------------------------
 
@@ -82,7 +83,7 @@ public class CompletedCheckpoint implements Serializable {
 			long completionTimestamp,
 			Map<JobVertexID, TaskState> taskStates,
 			CheckpointProperties props,
-			String externalPath) {
+			Path externalPath) {
 
 		checkArgument(checkpointID >= 0);
 		checkArgument(timestamp >= 0);
@@ -182,7 +183,7 @@ public class CompletedCheckpoint implements Serializable {
 		return taskStates.get(jobVertexID);
 	}
 
-	public String getExternalPath() {
+	public Path getExternalPath() {
 		return externalPath;
 	}
 

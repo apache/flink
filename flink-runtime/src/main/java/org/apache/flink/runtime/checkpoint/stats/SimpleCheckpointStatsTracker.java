@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint.stats;
 
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -353,7 +354,7 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 		// General
 		private final List<CheckpointStats> recentHistory;
 		private final long count;
-		private final String externalPath;
+		private final Path externalPath;
 
 		// Duration
 		private final long minDuration;
@@ -367,7 +368,7 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 
 		public JobCheckpointStatsSnapshot(
 				List<CheckpointStats> recentHistory,
-				String externalPath,
+				Path externalPath,
 				long count,
 				long minDuration,
 				long maxDuration,
@@ -379,6 +380,7 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 			this.recentHistory = recentHistory;
 			this.count = count;
 			this.externalPath = externalPath;
+
 
 			this.minDuration = minDuration;
 			this.maxDuration = maxDuration;
@@ -400,7 +402,7 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 		}
 
 		@Override
-		public String getExternalPath() {
+		public Path getExternalPath() {
 			return externalPath;
 		}
 
@@ -459,7 +461,7 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 		public String getValue() {
 			CompletedCheckpoint checkpoint = latestCompletedCheckpoint;
 			if (checkpoint != null && checkpoint.getExternalPath() != null) {
-				return checkpoint.getExternalPath();
+				return checkpoint.getExternalPath().toString();
 			} else {
 				return "n/a";
 			}

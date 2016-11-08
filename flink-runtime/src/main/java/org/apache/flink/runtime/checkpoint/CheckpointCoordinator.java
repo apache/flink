@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
@@ -96,7 +97,7 @@ public class CheckpointCoordinator {
 	private final CompletedCheckpointStore completedCheckpointStore;
 
 	/** Default directory for persistent checkpoints; <code>null</code> if none configured. */
-	private final String checkpointDirectory;
+	private final Path checkpointDirectory;
 
 	/** A list of recent checkpoint IDs, to identify late messages (vs invalid ones) */
 	private final ArrayDeque<Long> recentPendingCheckpoints;
@@ -163,7 +164,7 @@ public class CheckpointCoordinator {
 			ExecutionVertex[] tasksToCommitTo,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
-			String checkpointDirectory,
+			Path checkpointDirectory,
 			CheckpointStatsTracker statsTracker) {
 
 		// sanity checks
@@ -172,10 +173,11 @@ public class CheckpointCoordinator {
 		checkArgument(minPauseBetweenCheckpoints >= 0, "minPauseBetweenCheckpoints must be >= 0");
 		checkArgument(maxConcurrentCheckpointAttempts >= 1, "maxConcurrentCheckpointAttempts must be >= 1");
 
-		if (externalizeSettings.externalizeCheckpoints() && checkpointDirectory == null) {
+		if (externalizeSettings.externalizeCheckpoints() &&
+				tasksToTrigger.length != 0 &&
+				checkpointDirectory == null) {
 			throw new IllegalStateException("CheckpointConfig says to persist periodic " +
-					"checkpoints, but no checkpoint directory has been configured. You can " +
-					"configure configure one via key '" + ConfigConstants.CHECKPOINTS_DIRECTORY_KEY + "'.");
+					"checkpoints, but no checkpoint directory has been configured.");
 		}
 
 		// it does not make sense to schedule checkpoints more often then the desired
@@ -270,7 +272,7 @@ public class CheckpointCoordinator {
 	 *                               configured
 	 * @throws Exception             Failures during triggering are forwarded
 	 */
-	public Future<CompletedCheckpoint> triggerSavepoint(long timestamp, String targetDirectory) throws Exception {
+	public Future<CompletedCheckpoint> triggerSavepoint(long timestamp, Path targetDirectory) throws Exception {
 		checkNotNull(targetDirectory, "Savepoint target directory");
 
 		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
@@ -302,7 +304,7 @@ public class CheckpointCoordinator {
 	CheckpointTriggerResult triggerCheckpoint(
 			long timestamp,
 			CheckpointProperties props,
-			String targetDirectory,
+			Path targetDirectory,
 			boolean isPeriodic) throws Exception {
 
 		// Sanity check
@@ -854,6 +856,11 @@ public class CheckpointCoordinator {
 
 	public long getCheckpointTimeout() {
 		return checkpointTimeout;
+	}
+
+	@VisibleForTesting
+	public Path getCheckpointDirectory() {
+		return checkpointDirectory;
 	}
 
 	// --------------------------------------------------------------------------------------------

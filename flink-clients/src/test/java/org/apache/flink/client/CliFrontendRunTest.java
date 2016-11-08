@@ -23,6 +23,7 @@ import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -101,7 +102,7 @@ public class CliFrontendRunTest {
 				RunOptions options = CliFrontendParser.parseRunCommand(parameters);
 				SavepointRestoreSettings savepointSettings = options.getSavepointRestoreSettings();
 				assertTrue(savepointSettings.restoreSavepoint());
-				assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
+				assertEquals(new Path("expectedSavepointPath"), savepointSettings.getRestorePath());
 				assertFalse(savepointSettings.allowNonRestoredState());
 			}
 
@@ -111,7 +112,7 @@ public class CliFrontendRunTest {
 				RunOptions options = CliFrontendParser.parseRunCommand(parameters);
 				SavepointRestoreSettings savepointSettings = options.getSavepointRestoreSettings();
 				assertTrue(savepointSettings.restoreSavepoint());
-				assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
+				assertEquals(new Path("expectedSavepointPath"), savepointSettings.getRestorePath());
 				assertTrue(savepointSettings.allowNonRestoredState());
 			}
 

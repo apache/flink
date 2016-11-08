@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -27,6 +28,7 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 
 import java.io.IOException;
@@ -46,6 +48,9 @@ public class MemoryStateBackend extends AbstractStateBackend {
 
 	/** The maximal size that the snapshotted memory state may have */
 	private final int maxStateSize;
+
+	/** Checkpoint directory for externalized checkpoints. */
+	private Path checkpointDirectory;
 
 	/**
 	 * Creates a new memory state backend that accepts states whose serialized forms are
@@ -110,6 +115,31 @@ public class MemoryStateBackend extends AbstractStateBackend {
 				numberOfKeyGroups,
 				keyGroupRange,
 				restoredState);
+	}
+
+	/**
+	 * Sets the the checkpoint directory for externalized checkpoints.
+	 *
+	 * <p>This is required for externalized checkpoints. If you don't specify a
+	 * directory here, externalized checkpoints will fail.
+	 *
+	 * @param checkpointDirectory Target directory for externalized checkpoints.
+	 * The scheme needs to be explicitly specified.
+	 * @throws IOException Thrown if the path is not valid.
+	 */
+	public void setCheckpointDirectory(Path checkpointDirectory) throws IOException {
+		this.checkpointDirectory = FsStateBackend.validateAndNormalizeUri(checkpointDirectory.toUri());
+	}
+
+	@Override
+	public Path getCheckpointDirectory() {
+		if (checkpointDirectory == null) {
+			throw new IllegalStateException("Did not configure checkpoint directory. " +
+					"Please use MemoryStateBackend#setCheckpointDirectory(Path) to configure " +
+					"the target directory for externalized checkpoints.");
+		} else {
+			return checkpointDirectory;
+		}
 	}
 
 }

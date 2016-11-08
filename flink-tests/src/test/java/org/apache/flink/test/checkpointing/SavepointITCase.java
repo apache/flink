@@ -29,6 +29,7 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskState;
@@ -77,7 +78,6 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
@@ -240,8 +240,7 @@ public class SavepointITCase extends TestLogger {
 			files = checkpointDir.listFiles();
 			if (files != null) {
 				assertEquals(errMsg, 1, files.length);
-			}
-			else {
+			} else {
 				fail(errMsg);
 			}
 
@@ -390,10 +389,8 @@ public class SavepointITCase extends TestLogger {
 				assertFalse(errMsg, parent.exists());
 			}
 
-			// All savepoints should have been cleaned up
-			errMsg = "Savepoints directory not cleaned up properly: " +
-					Arrays.toString(savepointDir.listFiles()) + ".";
-			assertEquals(errMsg, 0, savepointDir.listFiles().length);
+			// Savepoints should have been cleaned up
+			assertFalse("Savepoint not cleaned up properly.", new File(savepointPath).exists());
 
 			// - Verification END ---------------------------------------------
 		}
@@ -454,7 +451,7 @@ public class SavepointITCase extends TestLogger {
 
 			// Set non-existing savepoint path
 			jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath("unknown path"));
-			assertEquals("unknown path", jobGraph.getSavepointRestoreSettings().getRestorePath());
+			assertEquals(new Path("unknown path"), jobGraph.getSavepointRestoreSettings().getRestorePath());
 
 			LOG.info("Submitting job " + jobGraph.getJobID() + " in detached mode.");
 

@@ -30,7 +30,7 @@ import grizzled.slf4j.Logger
 import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration, HighAvailabilityOptions}
-import org.apache.flink.core.fs.FileSystem
+import org.apache.flink.core.fs.{Path, FileSystem}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup
 import org.apache.flink.metrics.{Gauge, MetricGroup}
@@ -596,6 +596,13 @@ class JobManager(
 
         log.info(s"Trying to cancel job $jobId with savepoint to $targetDirectory")
 
+        if (targetDirectory == null) {
+          throw new IllegalStateException("No savepoint directory configured. " +
+            "You can either specify a directory when triggering this savepoint or " +
+            "configure a cluster-wide default via key '" +
+            ConfigConstants.SAVEPOINT_DIRECTORY_KEY + "'.")
+        }
+
         currentJobs.get(jobId) match {
           case Some((executionGraph, _)) =>
             // We don't want any checkpoint between the savepoint and cancellation
@@ -603,7 +610,9 @@ class JobManager(
             coord.stopCheckpointScheduler()
 
             // Trigger the savepoint
-            val future = coord.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
+            val future = coord.triggerSavepoint(
+              System.currentTimeMillis(),
+              new Path(targetDirectory))
 
             val senderRef = sender()
             future.handleAsync[Void](
@@ -613,7 +622,7 @@ class JobManager(
                     val path = success.getExternalPath()
                     log.info(s"Savepoint stored in $path. Now cancelling $jobId.")
                     executionGraph.cancel()
-                    senderRef ! decorateMessage(CancellationSuccess(jobId, path))
+                    senderRef ! decorateMessage(CancellationSuccess(jobId, path.toString))
                   } else {
                     val msg = CancellationFailure(
                       jobId,
@@ -779,14 +788,14 @@ class JobManager(
               // contain blocking calls to the state backend or ZooKeeper.
               val savepointFuture = checkpointCoordinator.triggerSavepoint(
                 System.currentTimeMillis(),
-                targetDirectory)
+                new Path(targetDirectory))
 
               savepointFuture.handleAsync[Void](
                 new BiFunction[CompletedCheckpoint, Throwable, Void] {
                   override def apply(success: CompletedCheckpoint, cause: Throwable): Void = {
                     if (success != null) {
                       if (success.getExternalPath != null) {
-                        senderRef ! TriggerSavepointSuccess(jobId, success.getExternalPath)
+                        senderRef ! TriggerSavepointSuccess(jobId, success.getExternalPath.toString)
                       } else {
                         senderRef ! TriggerSavepointFailure(
                           jobId, new Exception("Savepoint has not been persisted."))
@@ -819,8 +828,9 @@ class JobManager(
       future {
         try {
           log.info(s"Disposing savepoint at '$savepointPath'.")
+          val path = new Path(savepointPath)
 
-          val savepoint = SavepointStore.loadSavepoint(savepointPath)
+          val savepoint = SavepointStore.loadSavepoint(path)
 
           log.debug(s"$savepoint")
 
@@ -828,7 +838,7 @@ class JobManager(
           savepoint.dispose()
 
           // Remove the header file
-          SavepointStore.removeSavepoint(savepointPath)
+          SavepointStore.removeSavepoint(path)
 
           senderRef ! DisposeSavepointSuccess
         } catch {

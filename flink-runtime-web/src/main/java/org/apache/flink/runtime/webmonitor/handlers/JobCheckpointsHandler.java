@@ -58,7 +58,7 @@ public class JobCheckpointsHandler extends AbstractExecutionGraphRequestHandler 
 
 				// Optional external path
 				if (jobStats.getExternalPath() != null) {
-					gen.writeStringField("external-path", jobStats.getExternalPath());
+					gen.writeStringField("external-path", jobStats.getExternalPath().toString());
 				}
 
 				// Duration

@@ -33,6 +33,8 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.UUID;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * {@link org.apache.flink.runtime.state.CheckpointStreamFactory} that produces streams that
  * write to a {@link FileSystem}.
@@ -62,6 +64,9 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	/** Cached handle to the file system for file operations */
 	private final FileSystem filesystem;
 
+	/** Prefix for the {@link FsCheckpointStateOutputStream} files. */
+	private final String filePrefix;
+
 	/**
 	 * Creates a new state backend that stores its checkpoint data in the file system and location
 	 * defined by the given URI.
@@ -84,6 +89,33 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			Path checkpointDataUri,
 			JobID jobId,
 			int fileStateSizeThreshold) throws IOException {
+		this(checkpointDataUri, jobId, fileStateSizeThreshold, "");
+	}
+
+	/**
+	 * Creates a new state backend that stores its checkpoint data in the file system and location
+	 * defined by the given URI.
+	 *
+	 * <p>A file system for the file system scheme in the URI (e.g., 'file://', 'hdfs://', or 'S3://')
+	 * must be accessible via {@link FileSystem#get(URI)}.
+	 *
+	 * <p>For a state backend targeting HDFS, this means that the URI must either specify the authority
+	 * (host and port), or that the Hadoop configuration that describes that information must be in the
+	 * classpath.
+	 *
+	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
+	 *                          and the path to the checkpoint data directory.
+	 * @param fileStateSizeThreshold State up to this size will be stored as part of the metadata,
+	 *                             rather than in files
+	 * @param filePrefix Prefix for {@link FsCheckpointStateOutputStream} files.
+	 *
+	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 */
+	public FsCheckpointStreamFactory(
+			Path checkpointDataUri,
+			JobID jobId,
+			int fileStateSizeThreshold,
+			String filePrefix) throws IOException {
 
 		if (fileStateSizeThreshold < 0) {
 			throw new IllegalArgumentException("The threshold for file state size must be zero or larger.");
@@ -105,10 +137,12 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		filesystem.mkdirs(dir);
 
 		checkpointDirectory = dir;
+		this.filePrefix = checkNotNull(filePrefix, "File prefix");
 	}
 
 	@Override
-	public void close() throws Exception {}
+	public void close() throws Exception {
+	}
 
 	@Override
 	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws Exception {
@@ -116,7 +150,20 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		Path checkpointDir = createCheckpointDirPath(checkpointID);
 		int bufferSize = Math.max(DEFAULT_WRITE_BUFFER_SIZE, fileStateThreshold);
-		return new FsCheckpointStateOutputStream(checkpointDir, filesystem, bufferSize, fileStateThreshold);
+		return new FsCheckpointStateOutputStream(checkpointDir, filesystem, bufferSize, fileStateThreshold, filePrefix);
+	}
+
+	/**
+	 * Deletes the checkpoint directory.
+	 *
+	 * @param recursive Delete recursively. If the directory is non-empty and flag
+	 * is <code>false</code>, then the delete operation will fail.
+	 * @throws IOException Failures during FileSystem operations are forwarded.
+	 */
+	public void deleteCheckpointDirectory(boolean recursive) throws IOException {
+		if (filesystem != null) {
+			filesystem.delete(checkpointDirectory, recursive);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -145,6 +192,9 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	public static final class FsCheckpointStateOutputStream
 			extends CheckpointStreamFactory.CheckpointStateOutputStream {
 
+		/** Default file prefix (empty String). */
+		private static final String DEFAULT_FILE_PREFIX = "";
+
 		private final byte[] writeBuffer;
 
 		private int pos;
@@ -157,24 +207,37 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		private final FileSystem fs;
 		
+		private final String filePrefix;
+
 		private Path statePath;
-		
+
 		private boolean closed;
 
 		private boolean isEmpty = true;
 
 		public FsCheckpointStateOutputStream(
-					Path basePath, FileSystem fs,
-					int bufferSize, int localStateThreshold)
-		{
+				Path basePath,
+				FileSystem fs,
+				int bufferSize,
+				int localStateThreshold) {
+			this(basePath, fs, bufferSize, localStateThreshold, DEFAULT_FILE_PREFIX);
+		}
+
+		public FsCheckpointStateOutputStream(
+				Path basePath,
+				FileSystem fs,
+				int bufferSize,
+				int localStateThreshold,
+				String filePrefix) {
 			if (bufferSize < localStateThreshold) {
 				throw new IllegalArgumentException();
 			}
-			
+
 			this.basePath = basePath;
 			this.fs = fs;
 			this.writeBuffer = new byte[bufferSize];
 			this.localStateThreshold = localStateThreshold;
+			this.filePrefix = filePrefix;
 		}
 
 		@Override
@@ -319,7 +382,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		}
 
 		private Path createStatePath() {
-			return new Path(basePath, UUID.randomUUID().toString());
+			return new Path(basePath, filePrefix + UUID.randomUUID().toString());
 		}
 	}
 }

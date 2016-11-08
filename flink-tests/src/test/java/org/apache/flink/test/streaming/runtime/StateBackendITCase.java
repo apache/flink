@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -122,6 +123,11 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 				Collection<KeyGroupsStateHandle> restoredState,
 				TaskKvStateRegistry kvStateRegistry) throws Exception {
 			throw new SuccessException();
+		}
+
+		@Override
+		public Path getCheckpointDirectory() {
+			throw new UnsupportedOperationException();
 		}
 	}
 

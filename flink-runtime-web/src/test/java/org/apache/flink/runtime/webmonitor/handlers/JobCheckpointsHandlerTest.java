@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStats;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.JobCheckpointStats;
@@ -106,7 +107,7 @@ public class JobCheckpointsHandlerTest {
 			}
 
 			@Override
-			public String getExternalPath() {
+			public Path getExternalPath() {
 				return null;
 			}
 

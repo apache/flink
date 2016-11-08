@@ -20,9 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
@@ -39,12 +37,9 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.StateBackendFactory;
+import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateHandles;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -541,7 +536,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	private boolean performCheckpoint(CheckpointMetaData checkpointMetaData) throws Exception {
-
 		LOG.debug("Starting checkpoint {} on task {}", checkpointMetaData.getCheckpointId(), getName());
 
 		synchronized (lock) {
@@ -642,60 +636,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 
 	private AbstractStateBackend createStateBackend() throws Exception {
-		AbstractStateBackend stateBackend = configuration.getStateBackend(getUserCodeClassLoader());
+		Configuration streamConfig = configuration.getConfiguration();
+		AbstractStateBackend backend = StateUtil.deserializeStateBackend(streamConfig, getUserCodeClassLoader());
 
-		if (stateBackend != null) {
-			// backend has been configured on the environment
-			LOG.info("Using user-defined state backend: " + stateBackend);
+		if (backend != null) {
+			LOG.info("Using user-defined state backend: " + backend);
 		} else {
-			// see if we have a backend specified in the configuration
-			Configuration flinkConfig = getEnvironment().getTaskManagerInfo().getConfiguration();
-			String backendName = flinkConfig.getString(ConfigConstants.STATE_BACKEND, null);
-
-			if (backendName == null) {
-				LOG.warn("No state backend has been specified, using default state backend (Memory / JobManager)");
-				backendName = "jobmanager";
-			}
-
-			switch (backendName.toLowerCase()) {
-				case "jobmanager":
-					LOG.info("State backend is set to heap memory (checkpoint to jobmanager)");
-					stateBackend = new MemoryStateBackend();
-					break;
-
-				case "filesystem":
-					FsStateBackend backend = new FsStateBackendFactory().createFromConfig(flinkConfig);
-					LOG.info("State backend is set to heap memory (checkpoints to filesystem \""
-							+ backend.getBasePath() + "\")");
-					stateBackend = backend;
-					break;
-
-				case "rocksdb":
-					backendName = "org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory";
-					// fall through to the 'default' case that uses reflection to load the backend
-					// that way we can keep RocksDB in a separate module
-
-				default:
-					try {
-						@SuppressWarnings("rawtypes")
-						Class<? extends StateBackendFactory> clazz =
-								Class.forName(backendName, false, getUserCodeClassLoader()).
-										asSubclass(StateBackendFactory.class);
-
-						stateBackend = clazz.newInstance().createFromConfig(flinkConfig);
-					} catch (ClassNotFoundException e) {
-						throw new IllegalConfigurationException("Cannot find configured state backend: " + backendName);
-					} catch (ClassCastException e) {
-						throw new IllegalConfigurationException("The class configured under '" +
-								ConfigConstants.STATE_BACKEND + "' is not a valid state backend factory (" +
-								backendName + ')');
-					} catch (Throwable t) {
-						throw new IllegalConfigurationException("Cannot create configured state backend", t);
-					}
-			}
+			Configuration taskManagerConfig = getEnvironment().getTaskManagerInfo().getConfiguration();
+			backend = StateUtil.createStateBackend(LOG, taskManagerConfig, getUserCodeClassLoader());
 		}
 
-		return stateBackend;
+		return backend;
 	}
 
 	public OperatorStateBackend createOperatorStateBackend(

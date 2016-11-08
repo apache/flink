@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.core.fs.Path;
+
 import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -36,7 +38,7 @@ public class SavepointRestoreSettings implements Serializable {
 	private final static boolean DEFAULT_ALLOW_NON_RESTORED_STATE = false;
 
 	/** Savepoint restore path. */
-	private final String restorePath;
+	private final Path restorePath;
 
 	/**
 	 * Flag indicating whether non restored state is allowed if the savepoint
@@ -50,7 +52,7 @@ public class SavepointRestoreSettings implements Serializable {
 	 * @param restorePath Savepoint restore path.
 	 * @param allowNonRestoredState Ignore unmapped state.
 	 */
-	private SavepointRestoreSettings(String restorePath, boolean allowNonRestoredState) {
+	private SavepointRestoreSettings(Path restorePath, boolean allowNonRestoredState) {
 		this.restorePath = restorePath;
 		this.allowNonRestoredState = allowNonRestoredState;
 	}
@@ -68,7 +70,7 @@ public class SavepointRestoreSettings implements Serializable {
 	 * @return Path to the savepoint to restore from or <code>null</code> if
 	 * should not restore.
 	 */
-	public String getRestorePath() {
+	public Path getRestorePath() {
 		return restorePath;
 	}
 
@@ -124,7 +126,7 @@ public class SavepointRestoreSettings implements Serializable {
 
 	public static SavepointRestoreSettings forPath(String savepointPath, boolean allowNonRestoredState) {
 		checkNotNull(savepointPath, "Savepoint restore path.");
-		return new SavepointRestoreSettings(savepointPath, allowNonRestoredState);
+		return new SavepointRestoreSettings(new Path(savepointPath), allowNonRestoredState);
 	}
 
 }
