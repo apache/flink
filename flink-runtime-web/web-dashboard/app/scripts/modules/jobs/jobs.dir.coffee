@@ -168,14 +168,15 @@ angular.module('flinkApp')
     return
 
 # ----------------------------------------------
-.directive 'split', () ->
-  compile:   jQuery () ->
-    Split(['#canvas', '#job-panel'], (
-      sizes: [50, 50]
-      direction: 'vertical'
-    ))
-
-  return
+.directive 'split', () -> 
+  return compile: (tElem, tAttrs) ->
+      getId = (elem) -> "#" + elem.id
+      id1 = getId tElem.children().get(0)
+      id2 = getId tElem.children().get(1)
+      Split([id1, id2], (
+        sizes: [50, 50]
+        direction: 'vertical'
+      ))
 # ----------------------------------------------
 
 .directive 'jobPlan', ($timeout) ->
