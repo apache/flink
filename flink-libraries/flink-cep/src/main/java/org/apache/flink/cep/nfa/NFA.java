@@ -123,7 +123,7 @@ public class NFA<T> implements Serializable {
 	 * resulting event sequences are returned. If computations time out and timeout handling is
 	 * activated, then the timed out event patterns are returned.
 	 *
-	 * @param event The current event to be processed
+	 * @param event The current event to be processed or null if only pruning shall be done
 	 * @param timestamp The timestamp of the current event
 	 * @return Tuple of the collection of matched patterns (e.g. the result of computations which have
 	 * reached a final state) and the collection of timed out patterns (if timeout handling is
@@ -141,7 +141,7 @@ public class NFA<T> implements Serializable {
 			final Collection<ComputationState<T>> newComputationStates;
 
 			if (!computationState.isStartState() &&
-				windowTime > 0 &&
+				windowTime > 0L &&
 				timestamp - computationState.getStartTimestamp() >= windowTime) {
 
 				if (handleTimeout) {
@@ -158,8 +158,10 @@ public class NFA<T> implements Serializable {
 				sharedBuffer.remove(computationState.getState(), computationState.getEvent(), computationState.getTimestamp());
 
 				newComputationStates = Collections.emptyList();
-			} else {
+			} else if (event != null) {
 				newComputationStates = computeNextStates(computationState, event, timestamp);
+			} else {
+				newComputationStates = Collections.singleton(computationState);
 			}
 
 			for (ComputationState<T> newComputationState: newComputationStates) {
@@ -179,7 +181,7 @@ public class NFA<T> implements Serializable {
 		}
 
 		// prune shared buffer based on window length
-		if(windowTime > 0) {
+		if(windowTime > 0L) {
 			long pruningTimestamp = timestamp - windowTime;
 
 			// sanity check to guard against underflows

@@ -197,7 +197,15 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	 * {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, StreamConfig, Output)} ()}
 	 */
 	public void setup() throws Exception {
-		operator.setup(mockTask, config, new MockOutput());
+		setup(null);
+	}
+
+	/**
+	 * Calls
+	 * {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, StreamConfig, Output)} ()}
+	 */
+	public void setup(TypeSerializer<OUT> outputTypeSerializer) {
+		operator.setup(mockTask, config, new MockOutput(outputTypeSerializer));
 		setupCalled = true;
 	}
 
@@ -281,6 +289,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	private class MockOutput implements Output<StreamRecord<OUT>> {
 
 		private TypeSerializer<OUT> outputSerializer;
+
+		public MockOutput(TypeSerializer<OUT> outputSerializer) {
+			this.outputSerializer = outputSerializer;
+		}
 
 		@Override
 		public void emitWatermark(Watermark mark) {
