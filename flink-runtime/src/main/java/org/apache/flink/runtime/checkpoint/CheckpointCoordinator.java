@@ -555,8 +555,8 @@ public class CheckpointCoordinator {
 			checkpoint = pendingCheckpoints.get(checkpointId);
 
 			if (checkpoint != null && !checkpoint.isDiscarded()) {
-				LOG.info("Discarding checkpoint " + checkpointId + " because of checkpoint decline from task " + 
-						message.getTaskExecutionId() + " : " + reason);
+				LOG.info("Discarding checkpoint {} because of checkpoint decline from task {} : {}",
+						checkpointId, message.getTaskExecutionId(), reason);
 
 				pendingCheckpoints.remove(checkpointId);
 				checkpoint.abortDeclined();

@@ -1145,7 +1145,7 @@ public class BarrierBufferTest {
 				/* 12 */ createBuffer(2), createBuffer(1), createBuffer(0),
 
 				// final barrier of aborted checkpoint
-				/* 15 */ createBarrier(1, 2),
+				/* 15 */ createBarrier(2, 0),
 
 				// some more buffers
 				/* 16 */ createBuffer(0), createBuffer(1), createBuffer(2)

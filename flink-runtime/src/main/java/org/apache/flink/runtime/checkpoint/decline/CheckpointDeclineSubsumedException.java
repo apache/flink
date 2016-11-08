@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.checkpoint.decline;
 
 /**
- * Exception indicating that a checkpoint was declined because a task was not
- * ready to perform a checkpoint.
+ * Exception indicating that a checkpoint was declined because a newer checkpoint
+ * barrier was received on an input before the pending checkpoint's barrier. 
  */
 public final class CheckpointDeclineSubsumedException extends CheckpointDeclineException {
 

@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.checkpoint.decline;
 
 /**
- * Exception indicating that a checkpoint was declined because a task was not
- * ready to perform a checkpoint.
+ * Exception indicating that a checkpoint was declined because too many bytes were
+ * buffered in the alignment phase.
  */
 public final class AlignmentLimitExceededException extends CheckpointDeclineException {
 

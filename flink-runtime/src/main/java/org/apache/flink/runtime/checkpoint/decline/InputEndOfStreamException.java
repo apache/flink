@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.checkpoint.decline;
 
 /**
- * Exception indicating that a checkpoint was declined because a task was not
- * ready to perform a checkpoint.
+ * Exception indicating that a checkpoint was declined because one of the input
+ * stream reached its end before the alignment was complete.
  */
 public final class InputEndOfStreamException extends CheckpointDeclineException {
 
