@@ -80,7 +80,7 @@ import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties;
 
 /**
- * The descriptor with deployment information for spwaning or resuming a {@link YarnClusterClient}.
+ * The descriptor with deployment information for spawning or resuming a {@link YarnClusterClient}.
  */
 public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor<YarnClusterClient> {
 	private static final Logger LOG = LoggerFactory.getLogger(YarnClusterDescriptor.class);
@@ -312,7 +312,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// check if required Hadoop environment variables are set. If not, warn user
 		if(System.getenv("HADOOP_CONF_DIR") == null &&
 			System.getenv("YARN_CONF_DIR") == null) {
-			LOG.warn("Neither the HADOOP_CONF_DIR nor the YARN_CONF_DIR environment variable is set." +
+			LOG.warn("Neither the HADOOP_CONF_DIR nor the YARN_CONF_DIR environment variable is set. " +
 				"The Flink YARN Client needs one of these to be set to properly load the Hadoop " +
 				"configuration for accessing YARN.");
 		}
@@ -641,7 +641,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			classPathBuilder.append(shipFile.getName());
 			if (shipFile.isDirectory()) {
 				// add directories to the classpath
-				classPathBuilder.append(File.separator).append("*");
+				classPathBuilder.append(File.separator).append("**");
 			}
 			classPathBuilder.append(File.pathSeparator);
 
