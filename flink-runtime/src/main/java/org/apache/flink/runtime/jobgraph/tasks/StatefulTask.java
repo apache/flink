@@ -66,8 +66,9 @@ public interface StatefulTask<T extends StateHandle<?>> {
 	 * {@link org.apache.flink.runtime.io.network.api.CancelCheckpointMarker} to their outputs.
 	 * 
 	 * @param checkpointId The ID of the checkpoint to be aborted.
+	 * @param cause The reason why the checkpoint was aborted during alignment   
 	 */
-	void abortCheckpointOnBarrier(long checkpointId) throws Exception;
+	void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception;
 
 	/**
 	 * Invoked when a checkpoint has been completed, i.e., when the checkpoint coordinator has received

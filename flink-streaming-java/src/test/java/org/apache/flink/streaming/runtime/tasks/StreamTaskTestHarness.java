@@ -150,21 +150,18 @@ public class StreamTaskTestHarness<OUT> {
 
 	}
 
+	public StreamMockEnvironment createEnvironment() {
+		return new StreamMockEnvironment(
+				jobConfig, taskConfig, executionConfig, memorySize, new MockInputSplitProvider(), bufferSize);
+	}
+	
 	/**
 	 * Invoke the Task. This resets the output of any previous invocation. This will start a new
 	 * Thread to execute the Task in. Use {@link #waitForTaskCompletion()} to wait for the
 	 * Task thread to finish running.
 	 */
 	public void invoke() throws Exception {
-		mockEnv = new StreamMockEnvironment(jobConfig, taskConfig, executionConfig,
-			memorySize, new MockInputSplitProvider(), bufferSize);
-		task.setEnvironment(mockEnv);
-
-		initializeInputs();
-		initializeOutput();
-
-		taskThread = new TaskThread(task);
-		taskThread.start();
+		invoke(createEnvironment());
 	}
 
 	/**
@@ -205,7 +202,7 @@ public class StreamTaskTestHarness<OUT> {
 			if (taskThread.task instanceof StreamTask) {
 				StreamTask<?, ?> streamTask = (StreamTask<?, ?>) taskThread.task;
 				while (!streamTask.isRunning()) {
-					Thread.sleep(100);
+					Thread.sleep(10);
 					if (!taskThread.isAlive()) {
 						if (taskThread.getError() != null) {
 							throw new Exception("Task Thread failed due to an error.", taskThread.getError());
@@ -282,15 +279,15 @@ public class StreamTaskTestHarness<OUT> {
 	/**
 	 * This only returns after all input queues are empty.
 	 */
-	public void waitForInputProcessing() {
-
-
+	public void waitForInputProcessing() throws Exception {
 		// first wait for all input queues to be empty
-		try {
-			Thread.sleep(1);
-		} catch (InterruptedException ignored) {}
-		
+
 		while (true) {
+			Throwable error = taskThread.getError();
+			if (error != null) {
+				throw new Exception("Exception in the task thread", error);
+			}
+
 			boolean allEmpty = true;
 			for (int i = 0; i < numInputGates; i++) {
 				if (!inputGates[i].allQueuesEmpty()) {

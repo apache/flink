@@ -226,7 +226,7 @@ public class TaskAsyncCallTest {
 		}
 
 		@Override
-		public void abortCheckpointOnBarrier(long checkpointId) {
+		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
 			throw new UnsupportedOperationException("Should not be called");
 		}
 

@@ -202,7 +202,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 
 		coordinator.receiveDeclineMessage(new DeclineCheckpoint(
 				jobId, vertices[1].getCurrentExecutionAttempt().getAttemptId(),
-				checkpointId, 0));
+				checkpointId));
 
 
 		// The pending checkpoint is completed

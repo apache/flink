@@ -29,6 +29,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotCheckpointingException;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotReadyException;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -969,13 +971,16 @@ public class Task implements Runnable {
 						try {
 							boolean success = statefulTask.triggerCheckpoint(checkpointID, checkpointTimestamp);
 							if (!success) {
-								DeclineCheckpoint decline = new DeclineCheckpoint(jobId, getExecutionId(), checkpointID, checkpointTimestamp);
+								// task was not ready to trigger this checkpoint
+								DeclineCheckpoint decline = new DeclineCheckpoint(
+										jobId, getExecutionId(), checkpointID,
+										new CheckpointDeclineTaskNotReadyException(taskName));
 								jobManager.tell(decline);
 							}
 						}
 						catch (Throwable t) {
 							if (getExecutionState() == ExecutionState.RUNNING) {
-								failExternally(new RuntimeException(
+								failExternally(new Exception(
 									"Error while triggering checkpoint for " + taskName,
 									t));
 							}
@@ -987,10 +992,21 @@ public class Task implements Runnable {
 			else {
 				LOG.error("Task received a checkpoint request, but is not a checkpointing task - "
 						+ taskNameWithSubtask);
+
+				DeclineCheckpoint decline = new DeclineCheckpoint(
+						jobId, executionId, checkpointID,
+						new CheckpointDeclineTaskNotCheckpointingException(taskNameWithSubtask));
+				jobManager.tell(decline);
 			}
 		}
 		else {
-			LOG.debug("Ignoring request to trigger a checkpoint for non-running task.");
+			LOG.debug("Declining checkpoint request for non-running task");
+
+			// send back a message that we did not do the checkpoint
+			DeclineCheckpoint decline = new DeclineCheckpoint(
+					jobId, executionId, checkpointID,
+					new CheckpointDeclineTaskNotReadyException(taskNameWithSubtask));
+			jobManager.tell(decline);
 		}
 	}
 

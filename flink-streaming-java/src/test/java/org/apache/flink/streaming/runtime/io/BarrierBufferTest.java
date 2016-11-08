@@ -20,6 +20,8 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineSubsumedException;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -45,6 +47,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -566,7 +569,7 @@ public class BarrierBufferTest {
 			check(sequence[12], buffer.getNextNonBlocked());
 			assertEquals(3L, buffer.getCurrentCheckpointId());
 			validateAlignmentTime(startTs, buffer);
-			verify(toNotify).abortCheckpointOnBarrier(2L);
+			verify(toNotify).abortCheckpointOnBarrier(eq(2L), any(CheckpointDeclineSubsumedException.class));
 			check(sequence[16], buffer.getNextNonBlocked());
 
 			// checkpoint 3 alignment in progress
@@ -574,7 +577,7 @@ public class BarrierBufferTest {
 
 			// checkpoint 3 aborted (end of partition)
 			check(sequence[20], buffer.getNextNonBlocked());
-			verify(toNotify).abortCheckpointOnBarrier(3L);
+			verify(toNotify).abortCheckpointOnBarrier(eq(3L), any(CheckpointDeclineSubsumedException.class));
 
 			// replay buffered data from checkpoint 3
 			check(sequence[18], buffer.getNextNonBlocked());
@@ -999,13 +1002,13 @@ public class BarrierBufferTest {
 		check(sequence[6], buffer.getNextNonBlocked());
 		assertEquals(5L, buffer.getCurrentCheckpointId());
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(eq(2L), anyLong());
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(4L);
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(4L), any(CheckpointDeclineOnCancellationBarrierException.class));
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(eq(5L), anyLong());
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 
 		check(sequence[8], buffer.getNextNonBlocked());
 		assertEquals(6L, buffer.getCurrentCheckpointId());
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(6L);
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(6L), any(CheckpointDeclineOnCancellationBarrierException.class));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 		
 		buffer.cleanup();
@@ -1073,7 +1076,7 @@ public class BarrierBufferTest {
 		// canceled checkpoint on last barrier
 		startTs = System.nanoTime();
 		check(sequence[12], buffer.getNextNonBlocked());
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(2L);
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(2L), any(CheckpointDeclineOnCancellationBarrierException.class));
 		validateAlignmentTime(startTs, buffer);
 		check(sequence[13], buffer.getNextNonBlocked());
 
@@ -1088,7 +1091,7 @@ public class BarrierBufferTest {
 
 		// this checkpoint gets immediately canceled
 		check(sequence[24], buffer.getNextNonBlocked());
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(4L);
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(4L), any(CheckpointDeclineOnCancellationBarrierException.class));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 
 		// some buffers
@@ -1104,7 +1107,7 @@ public class BarrierBufferTest {
 		check(sequence[33], buffer.getNextNonBlocked());
 
 		check(sequence[37], buffer.getNextNonBlocked());
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(6L);
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(6L), any(CheckpointDeclineOnCancellationBarrierException.class));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 
 		// all done
@@ -1167,7 +1170,7 @@ public class BarrierBufferTest {
 
 		// re-read the queued cancellation barriers
 		check(sequence[9], buffer.getNextNonBlocked());
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(2L);
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(2L), any(CheckpointDeclineOnCancellationBarrierException.class));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 
 		check(sequence[10], buffer.getNextNonBlocked());
@@ -1184,7 +1187,7 @@ public class BarrierBufferTest {
 
 		// no further checkpoint (abort) notifications
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(anyLong(), anyLong());
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(anyLong());
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(anyLong(), any(CheckpointDeclineOnCancellationBarrierException.class));
 
 		// all done
 		assertNull(buffer.getNextNonBlocked());
@@ -1253,7 +1256,7 @@ public class BarrierBufferTest {
 		// cancelled by cancellation barrier
 		check(sequence[4], buffer.getNextNonBlocked());
 		validateAlignmentTime(startTs, buffer);
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(1L);
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(1L), any(CheckpointDeclineOnCancellationBarrierException.class));
 
 		// the next checkpoint alignment starts now
 		startTs = System.nanoTime();
@@ -1285,7 +1288,7 @@ public class BarrierBufferTest {
 
 		// check overall notifications
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(anyLong(), anyLong());
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(anyLong());
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(anyLong(), any(Throwable.class));
 	}
 
 	/**
@@ -1337,7 +1340,7 @@ public class BarrierBufferTest {
 		// future barrier aborts checkpoint
 		startTs = System.nanoTime();
 		check(sequence[3], buffer.getNextNonBlocked());
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(3L);
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(3L), any(CheckpointDeclineSubsumedException.class));
 		check(sequence[4], buffer.getNextNonBlocked());
 
 		// alignment of next checkpoint
@@ -1366,7 +1369,7 @@ public class BarrierBufferTest {
 
 		// check overall notifications
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(anyLong(), anyLong());
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(anyLong());
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(anyLong(), any(Throwable.class));
 	}
 
 	// ------------------------------------------------------------------------
@@ -1471,7 +1474,7 @@ public class BarrierBufferTest {
 		}
 
 		@Override
-		public void abortCheckpointOnBarrier(long checkpointId) {}
+		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {}
 
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) throws Exception {

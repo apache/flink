@@ -302,6 +302,9 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
+	public void declineCheckpoint(long checkpointId, Throwable cause) {}
+
+	@Override
 	public void failExternally(Throwable cause) {
 		throw new UnsupportedOperationException("StreamMockEnvironment does not support external task failure.");
 	}

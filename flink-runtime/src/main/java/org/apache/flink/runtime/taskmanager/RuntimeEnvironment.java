@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -264,6 +265,12 @@ public class RuntimeEnvironment implements Environment {
 				serializedState,
 				stateSize);
 
+		jobManager.tell(message);
+	}
+
+	@Override
+	public void declineCheckpoint(long checkpointId, Throwable cause) {
+		DeclineCheckpoint message = new DeclineCheckpoint(jobId, executionId, checkpointId, cause);
 		jobManager.tell(message);
 	}
 
