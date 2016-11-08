@@ -28,7 +28,6 @@ import org.scalatest.{Matchers, FlatSpec}
 class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
   behavior of "Flink's pipelines"
 
-
   it should "fit and transform with StringIndexer" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
