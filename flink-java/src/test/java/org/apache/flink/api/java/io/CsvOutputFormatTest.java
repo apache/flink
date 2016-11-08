@@ -37,16 +37,16 @@ import java.util.List;
 public class CsvOutputFormatTest {
 
 	private String path = null;
+	private CsvOutputFormat<Tuple3<String, String, Integer>> csvOutputFormat;
 
 	@Before
 	public void createFile() throws Exception {
 		path = File.createTempFile("csv_output_test_file",".csv").getAbsolutePath();
+		csvOutputFormat = new CsvOutputFormat<>(new Path(path));
 	}
 
 	@Test
 	public void testNullAllow() throws Exception {
-
-		CsvOutputFormat<Tuple3<String, String, Integer>> csvOutputFormat = new CsvOutputFormat<>(new Path(path));
 		csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
 		csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
 		csvOutputFormat.setAllowNullValues(true);
@@ -63,7 +63,6 @@ public class CsvOutputFormatTest {
 
 	@Test(expected = RuntimeException.class)
 	public void testNullDisallowOnDefault() throws Exception {
-		CsvOutputFormat<Tuple3<String, String, Integer>> csvOutputFormat = new CsvOutputFormat<>(new Path(path));
 		csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
 		csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
 		csvOutputFormat.open(0, 1);
@@ -73,6 +72,7 @@ public class CsvOutputFormatTest {
 
 	@After
 	public void cleanUp() throws IOException {
+		csvOutputFormat.close();
 		Files.deleteIfExists(Paths.get(path));
 	}
 
