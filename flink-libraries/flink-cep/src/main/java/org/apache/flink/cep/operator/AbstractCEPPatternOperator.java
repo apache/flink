@@ -97,10 +97,14 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 		// we do our own watermark handling, no super call. we will never be able to use
 		// the timer service like this, however.
 
-		while(!priorityQueue.isEmpty() && priorityQueue.peek().getTimestamp() <= mark.getTimestamp()) {
-			StreamRecord<IN> streamRecord = priorityQueue.poll();
+		if (priorityQueue.isEmpty()) {
+			advanceTime(nfa, mark.getTimestamp());
+		} else {
+			while (!priorityQueue.isEmpty() && priorityQueue.peek().getTimestamp() <= mark.getTimestamp()) {
+				StreamRecord<IN> streamRecord = priorityQueue.poll();
 
-			processEvent(nfa, streamRecord.getValue(), streamRecord.getTimestamp());
+				processEvent(nfa, streamRecord.getValue(), streamRecord.getTimestamp());
+			}
 		}
 
 		output.emitWatermark(mark);
