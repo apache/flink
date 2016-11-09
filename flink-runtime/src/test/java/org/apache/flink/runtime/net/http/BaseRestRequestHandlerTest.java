@@ -129,4 +129,11 @@ public class BaseRestRequestHandlerTest {
 		assertFalse(promise.tryFailure(new RuntimeException("expected")));
 		assertEquals(0, channel.outboundMessages().size());
 	}
+
+	@Test
+	public void testBlockQuote() {
+		assertEquals("> \n", BaseRestRequestHandler.blockquote(""));
+		assertEquals("> A\n", BaseRestRequestHandler.blockquote("A"));
+		assertEquals("> A\n> B\n> C\n", BaseRestRequestHandler.blockquote("A\nB\nC\n"));
+	}
 }

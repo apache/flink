@@ -183,8 +183,11 @@ public abstract class BaseRestRequestHandler<T,OUT>
 		return new DefaultRestResponse(request.getProtocolVersion(), HttpResponseStatus.NOT_FOUND);
 	}
 
-	private static String blockquote(String str) {
-		return String.join("\n> ", str.split("\n"));
+	static String blockquote(String str) {
+		StringBuilder sb = new StringBuilder();
+		for(String line : str.split("\n")) {
+			sb.append("> ").append(line).append("\n");
+		}
+		return sb.toString();
 	}
-
 }
