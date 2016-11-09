@@ -315,7 +315,8 @@ public class Task implements Runnable {
 					networkEnvironment.getPartitionManager(),
 					networkEnvironment.getPartitionConsumableNotifier(),
 					ioManager,
-					networkEnvironment.getDefaultIOMode());
+					networkEnvironment.getDefaultIOMode(),
+					desc.allowLazyScheduling());
 
 			this.writers[i] = new ResultPartitionWriter(this.producedPartitions[i]);
 		}
@@ -1061,7 +1062,11 @@ public class Task implements Runnable {
 			final SingleInputGate inputGate = inputGatesById.get(resultId);
 
 			if (inputGate != null) {
-				if (partitionState == ExecutionState.RUNNING) {
+				if (partitionState == ExecutionState.RUNNING ||
+					partitionState == ExecutionState.FINISHED ||
+					partitionState == ExecutionState.SCHEDULED ||
+					partitionState == ExecutionState.DEPLOYING) {
+
 					// Retrigger the partition request
 					inputGate.retriggerPartitionRequest(partitionId);
 				}
@@ -1218,7 +1223,6 @@ public class Task implements Runnable {
 			try {
 				if (watchDogThread != null) {
 					watchDogThread.start();
-					logger.info("Started cancellation watch dog");
 				}
 
 				// the user-defined cancel method may throw errors.

@@ -119,11 +119,12 @@ public class LocalInputChannelTest {
 					jobId,
 					partitionIds[i],
 					ResultPartitionType.PIPELINED,
-				parallelism,
+					parallelism,
 					partitionManager,
 					partitionConsumableNotifier,
 					ioManager,
-					ASYNC);
+					ASYNC,
+					true);
 
 			// Create a buffer pool for this partition
 			partition.registerBufferPool(
