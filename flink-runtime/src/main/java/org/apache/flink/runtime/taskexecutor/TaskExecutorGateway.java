@@ -135,7 +135,6 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 *  request heartbeat from the resource manager
 	 *
 	 * @param resourceID unique id of the resource manager
-	 * @param payload the payload information of the resource manager
 	 */
-	void requestHeartbeatFromResourceManager(ResourceID resourceID, Object payload);
+	void requestHeartbeatFromResourceManager(ResourceID resourceID);
 }

@@ -457,8 +457,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	// ----------------------------------------------------------------------
 
 	@RpcMethod
-	public void requestHeartbeatFromResourceManager(ResourceID resourceID, Object payload) {
-		heartbeatManager.requestHeartbeat(resourceID, payload);
+	public void requestHeartbeatFromResourceManager(ResourceID resourceID) {
+		heartbeatManager.requestHeartbeat(resourceID, null);
 	}
 
 	// ----------------------------------------------------------------------
