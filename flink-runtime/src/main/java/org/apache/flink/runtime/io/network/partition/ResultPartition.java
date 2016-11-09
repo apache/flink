@@ -93,6 +93,8 @@ public class ResultPartition implements BufferPoolOwner {
 
 	private final ResultPartitionConsumableNotifier partitionConsumableNotifier;
 
+	private final boolean sendScheduleOrUpdateConsumersMessage;
+
 	// - Runtime state --------------------------------------------------------
 
 	private final AtomicBoolean isReleased = new AtomicBoolean();
@@ -129,7 +131,8 @@ public class ResultPartition implements BufferPoolOwner {
 		ResultPartitionManager partitionManager,
 		ResultPartitionConsumableNotifier partitionConsumableNotifier,
 		IOManager ioManager,
-		IOMode defaultIoMode) {
+		IOMode defaultIoMode,
+		boolean sendScheduleOrUpdateConsumersMessage) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		this.jobId = checkNotNull(jobId);
@@ -138,6 +141,7 @@ public class ResultPartition implements BufferPoolOwner {
 		this.subpartitions = new ResultSubpartition[numberOfSubpartitions];
 		this.partitionManager = checkNotNull(partitionManager);
 		this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
+		this.sendScheduleOrUpdateConsumersMessage = sendScheduleOrUpdateConsumersMessage;
 
 		// Create the subpartitions.
 		switch (partitionType) {
@@ -417,8 +421,8 @@ public class ResultPartition implements BufferPoolOwner {
 	/**
 	 * Notifies pipelined consumers of this result partition once.
 	 */
-	private void notifyPipelinedConsumers() throws IOException {
-		if (partitionType.isPipelined() && !hasNotifiedPipelinedConsumers) {
+	private void notifyPipelinedConsumers() {
+		if (sendScheduleOrUpdateConsumersMessage && !hasNotifiedPipelinedConsumers && partitionType.isPipelined()) {
 			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionId);
 
 			hasNotifiedPipelinedConsumers = true;

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class ResultPartitionDeploymentDescriptorTest {
 
@@ -44,8 +45,8 @@ public class ResultPartitionDeploymentDescriptorTest {
 						resultId,
 						partitionId,
 						partitionType,
-						numberOfSubpartitions
-				);
+						numberOfSubpartitions,
+						true);
 
 		ResultPartitionDeploymentDescriptor copy =
 				CommonTestUtils.createCopySerializable(orig);
@@ -54,5 +55,6 @@ public class ResultPartitionDeploymentDescriptorTest {
 		assertEquals(partitionId, copy.getPartitionId());
 		assertEquals(partitionType, copy.getPartitionType());
 		assertEquals(numberOfSubpartitions, copy.getNumberOfSubpartitions());
+		assertTrue(copy.allowLazyScheduling());
 	}
 }
