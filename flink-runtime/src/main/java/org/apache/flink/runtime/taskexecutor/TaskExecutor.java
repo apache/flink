@@ -300,12 +300,12 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		TaskMetricGroup taskMetricGroup = taskManagerMetricGroup.addTaskForJob(tdd);
 
 		InputSplitProvider inputSplitProvider = new RpcInputSplitProvider(
-			jobManagerConnection.getLeaderId(),
-			jobManagerConnection.getJobManagerGateway(),
-			tdd.getJobID(),
-			tdd.getVertexID(),
-			tdd.getExecutionId(),
-			taskManagerConfiguration.getTimeout());
+				jobManagerConnection.getLeaderId(),
+				jobManagerConnection.getJobManagerGateway(),
+				tdd.getJobID(),
+				tdd.getVertexID(),
+				tdd.getExecutionId(),
+				taskManagerConfiguration.getTimeout());
 
 		TaskManagerActions taskManagerActions = jobManagerConnection.getTaskManagerActions();
 		CheckpointResponder checkpointResponder = jobManagerConnection.getCheckpointResponder();
@@ -673,7 +673,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 										final String message = "Could not mark slot " + jobId + " active.";
 										log.debug(message);
 										jobMasterGateway.failSlot(getResourceID(), acceptedSlot.getAllocationId(),
-											leaderId, new Exception(message));
+												leaderId, new Exception(message));
 									}
 
 									// remove the assigned slots so that we can free the left overs
@@ -836,14 +836,14 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	}
 
 	private void updateTaskExecutionState(
-		final UUID jobMasterLeaderId,
-		final JobMasterGateway jobMasterGateway,
-		final TaskExecutionState taskExecutionState)
+			final UUID jobMasterLeaderId,
+			final JobMasterGateway jobMasterGateway,
+			final TaskExecutionState taskExecutionState)
 	{
 		final ExecutionAttemptID executionAttemptID = taskExecutionState.getID();
 
 		Future<Acknowledge> futureAcknowledge = jobMasterGateway.updateTaskExecutionState(
-			jobMasterLeaderId, taskExecutionState);
+				jobMasterLeaderId, taskExecutionState);
 
 		futureAcknowledge.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
 			@Override
@@ -856,9 +856,9 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	}
 
 	private void unregisterTaskAndNotifyFinalState(
-		final UUID jobMasterLeaderId,
-		final JobMasterGateway jobMasterGateway,
-		final ExecutionAttemptID executionAttemptID) {
+			final UUID jobMasterLeaderId,
+			final JobMasterGateway jobMasterGateway,
+			final ExecutionAttemptID executionAttemptID) {
 
 		Task task = taskSlotTable.removeTask(executionAttemptID);
 		if (task != null) {
@@ -876,15 +876,15 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			AccumulatorSnapshot accumulatorSnapshot = task.getAccumulatorRegistry().getSnapshot();
 
 			updateTaskExecutionState(
-				jobMasterLeaderId,
-				jobMasterGateway,
-				new TaskExecutionState(
-					task.getJobID(),
-					task.getExecutionId(),
-					task.getExecutionState(),
-					task.getFailureCause(),
-					accumulatorSnapshot,
-					task.getMetricGroup().getIOMetricGroup().createSnapshot()));
+					jobMasterLeaderId,
+					jobMasterGateway,
+					new TaskExecutionState(
+						task.getJobID(),
+						task.getExecutionId(),
+						task.getExecutionState(),
+						task.getFailureCause(),
+						accumulatorSnapshot,
+						task.getMetricGroup().getIOMetricGroup().createSnapshot()));
 		} else {
 			log.error("Cannot find task with ID {} to unregister.", executionAttemptID);
 		}

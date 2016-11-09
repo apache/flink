@@ -43,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The connection between a TaskExecutor and the ResourceManager.
  */
 public class TaskExecutorToResourceManagerConnection
-	extends RegisteredRpcConnection<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
+		extends RegisteredRpcConnection<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
 
 	private final RpcService rpcService;
 
@@ -60,16 +60,16 @@ public class TaskExecutorToResourceManagerConnection
 	private InstanceID registrationId;
 
 	public TaskExecutorToResourceManagerConnection(
-		Logger log,
-		RpcService rpcService,
-		HeartbeatManagerImpl heartbeatManager,
-		String taskManagerAddress,
-		ResourceID taskManagerResourceId,
-		SlotReport slotReport,
-		String resourceManagerAddress,
-		UUID resourceManagerLeaderId,
-		Executor executor,
-		FatalErrorHandler fatalErrorHandler) {
+			Logger log,
+			RpcService rpcService,
+			HeartbeatManagerImpl heartbeatManager,
+			String taskManagerAddress,
+			ResourceID taskManagerResourceId,
+			SlotReport slotReport,
+			String resourceManagerAddress,
+			UUID resourceManagerLeaderId,
+			Executor executor,
+			FatalErrorHandler fatalErrorHandler) {
 
 		super(log, resourceManagerAddress, resourceManagerLeaderId, executor);
 
@@ -142,13 +142,13 @@ public class TaskExecutorToResourceManagerConnection
 		private final SlotReport slotReport;
 
 		ResourceManagerRegistration(
-			Logger log,
-			RpcService rpcService,
-			String targetAddress,
-			UUID leaderId,
-			String taskExecutorAddress,
-			ResourceID resourceID,
-			SlotReport slotReport) {
+				Logger log,
+				RpcService rpcService,
+				String targetAddress,
+				UUID leaderId,
+				String taskExecutorAddress,
+				ResourceID resourceID,
+				SlotReport slotReport) {
 
 			super(log, rpcService, "ResourceManager", ResourceManagerGateway.class, targetAddress, leaderId);
 			this.taskExecutorAddress = checkNotNull(taskExecutorAddress);
@@ -158,7 +158,7 @@ public class TaskExecutorToResourceManagerConnection
 
 		@Override
 		protected Future<RegistrationResponse> invokeRegistration(
-			ResourceManagerGateway resourceManager, UUID leaderId, long timeoutMillis) throws Exception {
+				ResourceManagerGateway resourceManager, UUID leaderId, long timeoutMillis) throws Exception {
 
 			Time timeout = Time.milliseconds(timeoutMillis);
 			return resourceManager.registerTaskExecutor(leaderId, taskExecutorAddress, resourceID, slotReport, timeout);
