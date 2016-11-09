@@ -525,7 +525,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 
 		ActorRef jobManagerRef = jobManager.getActorRef(actorSystem, timeout);
 		UUID jobManagerLeaderId = leaderListener.getLeaderSessionID();
-		AkkaActorGateway jobManagerGateway = new AkkaActorGateway(jobManagerRef, jobManagerLeaderId);
+		AkkaActorGateway jobManagerGateway = new AkkaActorGateway(jobManagerRef, jobManagerLeaderId, actorSystem.dispatcher());
 
 		jobManagerGateway.tell(new JobManagerMessages.SubmitJob(jobGraph, ListeningBehaviour.DETACHED));
 	}
@@ -580,13 +580,13 @@ public class ChaosMonkeyITCase extends TestLogger {
 			throws Exception {
 
 		ActorRef jobManagerRef = jobManager.getActorRef(actorSystem, timeout);
-		AkkaActorGateway jobManagerGateway = new AkkaActorGateway(jobManagerRef, null);
+		AkkaActorGateway jobManagerGateway = new AkkaActorGateway(jobManagerRef, null, actorSystem.dispatcher());
 
 		Future<Object> archiveFuture = jobManagerGateway.ask(JobManagerMessages.getRequestArchive(), timeout);
 
 		ActorRef archive = ((JobManagerMessages.ResponseArchive) Await.result(archiveFuture, timeout)).actor();
 
-		AkkaActorGateway archiveGateway = new AkkaActorGateway(archive, null);
+		AkkaActorGateway archiveGateway = new AkkaActorGateway(archive, null, actorSystem.dispatcher());
 
 		Deadline deadline = timeout.fromNow();
 
@@ -608,7 +608,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 			throws Exception {
 
 		ActorRef jobManagerRef = jobManager.getActorRef(actorSystem, timeout);
-		AkkaActorGateway jobManagerGateway = new AkkaActorGateway(jobManagerRef, null);
+		AkkaActorGateway jobManagerGateway = new AkkaActorGateway(jobManagerRef, null, actorSystem.dispatcher());
 
 		JobManagerMessages.JobStatusResponse resp = JobManagerActorTestUtils
 				.requestJobStatus(jobId, jobManagerGateway, timeout);
@@ -631,7 +631,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 			throws Exception {
 
 		ActorRef jobManagerRef = jobManager.getActorRef(actorSystem, timeout);
-		AkkaActorGateway jobManagerGateway = new AkkaActorGateway(jobManagerRef, null);
+		AkkaActorGateway jobManagerGateway = new AkkaActorGateway(jobManagerRef, null, actorSystem.dispatcher());
 
 		JobManagerActorTestUtils.waitForJobStatus(jobId, JobStatus.RUNNING, jobManagerGateway, timeout);
 	}
@@ -641,7 +641,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 			throws Exception {
 
 		ActorRef jobManagerRef = jobManager.getActorRef(actorSystem, timeout);
-		AkkaActorGateway jobManagerGateway = new AkkaActorGateway(jobManagerRef, null);
+		AkkaActorGateway jobManagerGateway = new AkkaActorGateway(jobManagerRef, null, actorSystem.dispatcher());
 
 		JobManagerActorTestUtils.waitForJobStatus(jobId, JobStatus.FINISHED, jobManagerGateway, timeout);
 	}
@@ -656,7 +656,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 				minimumNumberOfTaskManagers, jobManager);
 
 		ActorRef jobManagerRef = jobManager.getActorRef(actorSystem, timeout);
-		AkkaActorGateway jobManagerGateway = new AkkaActorGateway(jobManagerRef, null);
+		AkkaActorGateway jobManagerGateway = new AkkaActorGateway(jobManagerRef, null, actorSystem.dispatcher());
 
 		JobManagerActorTestUtils.waitForTaskManagers(
 				minimumNumberOfTaskManagers, jobManagerGateway, timeout);

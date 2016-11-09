@@ -91,10 +91,10 @@ public class JobSubmitTest {
 			LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(jmConfig);
 
 			jmGateway = LeaderRetrievalUtils.retrieveLeaderGateway(
-					lrs,
-					jobManagerSystem,
-					timeout
-			);
+				lrs,
+				jobManagerSystem,
+				jobManagerSystem.dispatcher(),
+				timeout);
 		} catch (Exception e) {
 			fail("Could not retrieve the JobManager gateway. " + e.getMessage());
 		}

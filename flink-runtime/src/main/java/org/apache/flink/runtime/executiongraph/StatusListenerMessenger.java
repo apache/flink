@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.util.SerializedThrowable;
+import scala.concurrent.ExecutionContext;
 
 import java.util.UUID;
 
@@ -40,8 +41,14 @@ public class StatusListenerMessenger implements JobStatusListener, ExecutionStat
 
 	private final AkkaActorGateway target;
 
-	public StatusListenerMessenger(ActorRef target, UUID leaderSessionId) {
-		this.target = new AkkaActorGateway(checkNotNull(target), leaderSessionId);
+	public StatusListenerMessenger(
+			ActorRef target,
+			UUID leaderSessionId,
+			ExecutionContext executionContext) {
+		this.target = new AkkaActorGateway(
+			checkNotNull(target),
+			leaderSessionId,
+			executionContext);
 	}
 
 	@Override

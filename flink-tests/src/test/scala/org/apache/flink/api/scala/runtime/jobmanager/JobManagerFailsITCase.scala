@@ -22,6 +22,7 @@ import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
+import org.apache.flink.runtime.instance.AkkaActorGateway
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingNoOpInvokable, NoOpInvokable}
 import org.apache.flink.runtime.messages.Acknowledge
@@ -29,7 +30,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated, NotifyWhenJobManagerTerminated}
-import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingCluster, TestingUtils}
+import org.apache.flink.runtime.testingUtils.{TestingCluster, TestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -40,8 +41,7 @@ class JobManagerFailsITCase(_system: ActorSystem)
   with ImplicitSender
   with WordSpecLike
   with Matchers
-  with BeforeAndAfterAll
-  with ScalaTestingUtils {
+  with BeforeAndAfterAll {
 
   def this() = this(ActorSystem("TestingActorSystem", AkkaUtils.getDefaultAkkaConfig))
 
@@ -63,12 +63,17 @@ class JobManagerFailsITCase(_system: ActorSystem)
         tm ! DisableDisconnect
 
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(RequestNumberRegisteredTaskManager, self)
+          val selfGateway = new AkkaActorGateway(
+            self,
+            jmGateway.leaderSessionID(),
+            _system.dispatcher)
+
+          jmGateway.tell(RequestNumberRegisteredTaskManager, selfGateway)
           expectMsg(1)
 
           tm ! NotifyWhenJobManagerTerminated(jmGateway.leaderSessionID())
 
-          jmGateway.tell(PoisonPill, self)
+          jmGateway.tell(PoisonPill, selfGateway)
 
           expectMsgClass(classOf[JobManagerTerminated])
 
@@ -77,7 +82,7 @@ class JobManagerFailsITCase(_system: ActorSystem)
           cluster.waitForTaskManagersToBeRegistered()
 
           cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
-            .tell(RequestNumberRegisteredTaskManager, self)
+            .tell(RequestNumberRegisteredTaskManager, selfGateway)
 
           expectMsg(1)
         }
@@ -105,13 +110,18 @@ class JobManagerFailsITCase(_system: ActorSystem)
         var jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
         val tm = cluster.getTaskManagers(0)
 
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), selfGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           tm.tell(NotifyWhenJobManagerTerminated(jmGateway.leaderSessionID()), self)
 
-          jmGateway.tell(PoisonPill, self)
+          jmGateway.tell(PoisonPill, selfGateway)
 
           expectMsgClass(classOf[JobManagerTerminated])
 
@@ -121,10 +131,10 @@ class JobManagerFailsITCase(_system: ActorSystem)
 
           // Ask the job manager for the TMs. Don't ask the TMs, because they
           // can still have state associated with the old job manager.
-          jmGateway.tell(NotifyWhenAtLeastNumTaskManagerAreRegistered(2), self)
+          jmGateway.tell(NotifyWhenAtLeastNumTaskManagerAreRegistered(2), selfGateway)
           expectMsg(Acknowledge.get())
 
-          jmGateway.tell(SubmitJob(jobGraph2, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph2, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
 
           expectMsg(JobSubmitSuccess(jobGraph2.getJobID()))
 

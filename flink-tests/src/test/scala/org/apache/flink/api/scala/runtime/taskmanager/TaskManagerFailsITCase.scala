@@ -24,13 +24,14 @@ import org.apache.flink.configuration.ConfigConstants
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.client.JobExecutionException
+import org.apache.flink.runtime.instance.AkkaActorGateway
 import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingNoOpInvokable, BlockingReceiver, NoOpInvokable, Sender}
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{NotifyWhenRegisteredAtJobManager, RegisteredAtJobManager}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
-import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingCluster, TestingUtils}
+import org.apache.flink.runtime.testingUtils.{TestingCluster, TestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -41,8 +42,7 @@ class TaskManagerFailsITCase(_system: ActorSystem)
   with ImplicitSender
   with WordSpecLike
   with Matchers
-  with BeforeAndAfterAll
-  with ScalaTestingUtils {
+  with BeforeAndAfterAll {
 
   def this() = this(ActorSystem("TestingActorSystem", AkkaUtils.getDefaultAkkaConfig))
 
@@ -65,17 +65,22 @@ class TaskManagerFailsITCase(_system: ActorSystem)
       jmGateway.tell(DisableDisconnect)
 
       try{
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION){
-          jmGateway.tell(RequestNumberRegisteredTaskManager, self)
+          jmGateway.tell(RequestNumberRegisteredTaskManager, selfGateway)
           expectMsg(2)
 
-          jmGateway.tell(NotifyWhenTaskManagerTerminated(taskManagers(0)), self)
+          jmGateway.tell(NotifyWhenTaskManagerTerminated(taskManagers(0)), selfGateway)
 
           taskManagers(0) ! PoisonPill
 
           val TaskManagerTerminated(tm) = expectMsgClass(classOf[TaskManagerTerminated])
 
-          jmGateway.tell(RequestNumberRegisteredTaskManager, self)
+          jmGateway.tell(RequestNumberRegisteredTaskManager, selfGateway)
           expectMsg(1)
         }
       }
@@ -103,15 +108,20 @@ class TaskManagerFailsITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
 
-          jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobID), self)
+          jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobID), selfGateway)
 
           expectMsg(AllVerticesRunning(jobID))
 
-          jmGateway.tell(RequestWorkingTaskManager(jobID), self)
+          jmGateway.tell(RequestWorkingTaskManager(jobID), selfGateway)
 
           val gatewayOption = expectMsgType[WorkingTaskManager].gatewayOption
 
@@ -156,11 +166,16 @@ class TaskManagerFailsITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
 
-          jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobID), self)
+          jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobID), selfGateway)
           expectMsg(AllVerticesRunning(jobID))
 
           // kill one task manager
@@ -201,8 +216,13 @@ class TaskManagerFailsITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
 
       try{
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION){
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           tm ! PoisonPill
@@ -224,7 +244,7 @@ class TaskManagerFailsITCase(_system: ActorSystem)
 
           expectMsg(RegisteredAtJobManager)
 
-          jmGateway.tell(SubmitJob(jobGraph2, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph2, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
 
           expectMsg(JobSubmitSuccess(jobGraph2.getJobID()))
 

@@ -18,25 +18,30 @@
 
 package org.apache.flink.runtime.instance;
 
+import akka.actor.ActorIdentity;
 import akka.actor.ActorRef;
+import akka.actor.Identify;
+import akka.dispatch.OnComplete;
+import akka.dispatch.OnSuccess;
+import akka.pattern.AskTimeoutException;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.messages.LeaderSessionMessageDecorator;
 import org.apache.flink.runtime.messages.MessageDecorator;
+import org.apache.flink.util.Preconditions;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
+import scala.concurrent.Promise;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.Serializable;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Concrete {@link ActorGateway} implementation which uses Akka to communicate with remote actors.
  */
-public class AkkaActorGateway implements ActorGateway, Serializable {
-
-	private static final long serialVersionUID = 42L;
+public class AkkaActorGateway implements ActorGateway {
 
 	// ActorRef of the remote instance
 	private final ActorRef actor;
@@ -44,12 +49,16 @@ public class AkkaActorGateway implements ActorGateway, Serializable {
 	// Associated leader session ID, which is used for RequiresLeaderSessionID messages
 	private final UUID leaderSessionID;
 
+	// Execution context for the future callbacks
+	private final ExecutionContext executionContext;
+
 	// Decorator for messages
 	private final MessageDecorator decorator;
 
-	public AkkaActorGateway(ActorRef actor, UUID leaderSessionID) {
-		this.actor = actor;
+	public AkkaActorGateway(ActorRef actor, UUID leaderSessionID, ExecutionContext executionContext) {
+		this.actor = Preconditions.checkNotNull(actor);
 		this.leaderSessionID = leaderSessionID;
+		this.executionContext = Preconditions.checkNotNull(executionContext);
 		// we want to wrap RequiresLeaderSessionID messages in a LeaderSessionMessage
 		this.decorator = new LeaderSessionMessageDecorator(leaderSessionID);
 	}
@@ -57,6 +66,10 @@ public class AkkaActorGateway implements ActorGateway, Serializable {
 	/**
 	 * Sends a message asynchronously and returns its response. The response to the message is
 	 * returned as a future.
+	 * <p>
+	 * In order to detect network connection problems early, an identify message is sent to the
+	 * target as well. If the identify returns with an empty response, then the returned future
+	 * is failed early with a {@link TimeoutException}.
 	 *
 	 * @param message Message to be sent
 	 * @param timeout Timeout until the Future is completed with an AskTimeoutException
@@ -65,7 +78,43 @@ public class AkkaActorGateway implements ActorGateway, Serializable {
 	@Override
 	public Future<Object> ask(Object message, FiniteDuration timeout) {
 		Object newMessage = decorator.decorate(message);
-		return Patterns.ask(actor, newMessage, new Timeout(timeout));
+		final Promise<Object> promise = new scala.concurrent.impl.Promise.DefaultPromise<>();
+
+		Future<Object> identityFuture = Patterns.ask(actor, new Identify(true), new Timeout(timeout));
+
+		identityFuture.onSuccess(new OnSuccess<Object>() {
+			@Override
+			public void onSuccess(Object result) {
+				if (result instanceof ActorIdentity) {
+					ActorIdentity actorIdentity = (ActorIdentity) result;
+
+					if (actorIdentity.getRef() == null) {
+						promise.failure(new AskTimeoutException("Akka identify message could not be resolved. " +
+							"The remote host seems to be not reachable."));
+					}
+				} else {
+					// We have not received an ActorIdentity response. Let's fail the ask operation,
+					// because this indicates an inconsistent state
+					promise.failure(new IllegalArgumentException("Expected to receive an ActorIdentity " +
+						"response. Instead, received " + result + '.'));
+				}
+			}
+		}, executionContext);
+
+		Future<Object> askFuture = Patterns.ask(actor, newMessage, new Timeout(timeout));
+
+		askFuture.onComplete(new OnComplete<Object>() {
+			@Override
+			public void onComplete(Throwable failure, Object success) throws Throwable {
+				if (failure != null) {
+					promise.failure(failure);
+				} else {
+					promise.success(success);
+				}
+			}
+		}, executionContext);
+
+		return promise.future();
 	}
 
 	/**

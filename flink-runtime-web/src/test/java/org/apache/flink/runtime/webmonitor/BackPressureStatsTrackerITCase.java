@@ -138,7 +138,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 					@Override
 					protected void run() {
 						try {
-							ActorGateway testActor = new AkkaActorGateway(getTestActor(), null);
+							ActorGateway testActor = new AkkaActorGateway(getTestActor(), null, testActorSystem.dispatcher());
 
 							// Submit the job and wait until it is running
 							JobClient.submitJobDetached(

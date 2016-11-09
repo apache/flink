@@ -89,17 +89,17 @@ public class InstanceManagerTest{
 			final JavaTestKit probe3 = new JavaTestKit(system);
 
 			cm.registerTaskManager(
-				new ActorTaskManagerGateway(new AkkaActorGateway(probe1.getRef(), leaderSessionID)),
+				new ActorTaskManagerGateway(new AkkaActorGateway(probe1.getRef(), leaderSessionID, system.dispatcher())),
 				ici1,
 				hardwareDescription,
 				1);
 			cm.registerTaskManager(
-				new ActorTaskManagerGateway(new AkkaActorGateway(probe2.getRef(), leaderSessionID)),
+				new ActorTaskManagerGateway(new AkkaActorGateway(probe2.getRef(), leaderSessionID, system.dispatcher())),
 				ici2,
 				hardwareDescription,
 				2);
 			cm.registerTaskManager(
-				new ActorTaskManagerGateway(new AkkaActorGateway(probe3.getRef(), leaderSessionID)),
+				new ActorTaskManagerGateway(new AkkaActorGateway(probe3.getRef(), leaderSessionID, system.dispatcher())),
 				ici3,
 				hardwareDescription,
 				5);
@@ -144,7 +144,7 @@ public class InstanceManagerTest{
 
 			JavaTestKit probe = new JavaTestKit(system);
 			cm.registerTaskManager(
-				new ActorTaskManagerGateway(new AkkaActorGateway(probe.getRef(), leaderSessionID)),
+				new ActorTaskManagerGateway(new AkkaActorGateway(probe.getRef(), leaderSessionID, system.dispatcher())),
 				ici,
 				resources,
 				1);
@@ -154,7 +154,7 @@ public class InstanceManagerTest{
 
 			try {
 				cm.registerTaskManager(
-					new ActorTaskManagerGateway(new AkkaActorGateway(probe.getRef(), leaderSessionID)),
+					new ActorTaskManagerGateway(new AkkaActorGateway(probe.getRef(), leaderSessionID, system.dispatcher())),
 					ici,
 					resources,
 					1);
@@ -200,17 +200,17 @@ public class InstanceManagerTest{
 			JavaTestKit probe3 = new JavaTestKit(system);
 
 			InstanceID instanceID1 = cm.registerTaskManager(
-				new ActorTaskManagerGateway(new AkkaActorGateway(probe1.getRef(), leaderSessionID)),
+				new ActorTaskManagerGateway(new AkkaActorGateway(probe1.getRef(), leaderSessionID, system.dispatcher())),
 				ici1,
 				hardwareDescription,
 				1);
 			InstanceID instanceID2 = cm.registerTaskManager(
-				new ActorTaskManagerGateway(new AkkaActorGateway(probe2.getRef(), leaderSessionID)),
+				new ActorTaskManagerGateway(new AkkaActorGateway(probe2.getRef(), leaderSessionID, system.dispatcher())),
 				ici2,
 				hardwareDescription,
 				1);
 			InstanceID instanceID3 = cm.registerTaskManager(
-				new ActorTaskManagerGateway(new AkkaActorGateway(probe3.getRef(), leaderSessionID)),
+				new ActorTaskManagerGateway(new AkkaActorGateway(probe3.getRef(), leaderSessionID, system.dispatcher())),
 				ici3,
 				hardwareDescription,
 				1);
@@ -268,7 +268,7 @@ public class InstanceManagerTest{
 
 				JavaTestKit probe = new JavaTestKit(system);
 				cm.registerTaskManager(
-					new ActorTaskManagerGateway(new AkkaActorGateway(probe.getRef(), leaderSessionID)),
+					new ActorTaskManagerGateway(new AkkaActorGateway(probe.getRef(), leaderSessionID, system.dispatcher())),
 					ici,
 					resources,
 					1);

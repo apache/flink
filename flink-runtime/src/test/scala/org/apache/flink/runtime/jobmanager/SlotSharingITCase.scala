@@ -19,18 +19,18 @@
 package org.apache.flink.runtime.jobmanager
 
 import akka.actor.ActorSystem
-import akka.actor.Status.Success
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.runtime.akka.ListeningBehaviour
-import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph}
-import org.apache.flink.runtime.jobmanager.Tasks.{Sender, AgnosticBinaryReceiver, Receiver}
+import org.apache.flink.runtime.instance.AkkaActorGateway
+import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph, JobVertex}
+import org.apache.flink.runtime.jobmanager.Tasks.{AgnosticBinaryReceiver, Receiver, Sender}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
-import org.apache.flink.runtime.messages.JobManagerMessages.{JobSubmitSuccess, JobResultSuccess, SubmitJob}
-import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
+import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, JobSubmitSuccess, SubmitJob}
+import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
@@ -39,8 +39,7 @@ class SlotSharingITCase(_system: ActorSystem)
   with ImplicitSender
   with WordSpecLike
   with Matchers
-  with BeforeAndAfterAll
-  with ScalaTestingUtils {
+  with BeforeAndAfterAll {
   def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
 
   override def afterAll(): Unit = {
@@ -72,8 +71,13 @@ class SlotSharingITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
 
@@ -116,8 +120,13 @@ class SlotSharingITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
         }

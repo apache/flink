@@ -158,8 +158,8 @@ public class YarnFlinkResourceManagerTest extends TestLogger {
 
 				leaderRetrievalService.notifyListener(leader1.path().toString(), leaderSessionID);
 
-				final AkkaActorGateway leader1Gateway = new AkkaActorGateway(leader1, leaderSessionID);
-				final AkkaActorGateway resourceManagerGateway = new AkkaActorGateway(resourceManager, leaderSessionID);
+				final AkkaActorGateway leader1Gateway = new AkkaActorGateway(leader1, leaderSessionID, system.dispatcher());
+				final AkkaActorGateway resourceManagerGateway = new AkkaActorGateway(resourceManager, leaderSessionID, system.dispatcher());
 
 				doAnswer(new Answer() {
 					@Override

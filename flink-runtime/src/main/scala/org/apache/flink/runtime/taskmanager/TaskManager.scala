@@ -908,8 +908,14 @@ class TaskManager(
     currentJobManager = Some(jobManager)
     instanceID = id
 
-    val jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID.orNull)
-    val taskManagerGateway = new AkkaActorGateway(self, leaderSessionID.orNull)
+    val jobManagerGateway = new AkkaActorGateway(
+      jobManager,
+      leaderSessionID.orNull,
+      context.dispatcher)
+    val taskManagerGateway = new AkkaActorGateway(
+      self,
+      leaderSessionID.orNull,
+      context.dispatcher)
 
     val checkpointResponder = new ActorGatewayCheckpointResponder(jobManagerGateway);
 
@@ -1118,7 +1124,10 @@ class TaskManager(
       // create the task. this does not grab any TaskManager resources or download
       // and libraries - the operation does not block
 
-      val jobManagerGateway = new AkkaActorGateway(jobManagerActor, leaderSessionID.orNull)
+      val jobManagerGateway = new AkkaActorGateway(
+        jobManagerActor,
+        leaderSessionID.orNull,
+        context.dispatcher)
 
       val jobInformation = try {
         tdd.getSerializedJobInformation.deserializeValue(getClass.getClassLoader)

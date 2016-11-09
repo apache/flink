@@ -140,7 +140,10 @@ public class JobSubmissionClientActor extends JobClientActor {
 		Futures.future(new Callable<Object>() {
 			@Override
 			public Object call() throws Exception {
-				ActorGateway jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID);
+				ActorGateway jobManagerGateway = new AkkaActorGateway(
+					jobManager,
+					leaderSessionID,
+					getContext().dispatcher());
 
 				LOG.info("Upload jar files to job manager {}.", jobManager.path());
 

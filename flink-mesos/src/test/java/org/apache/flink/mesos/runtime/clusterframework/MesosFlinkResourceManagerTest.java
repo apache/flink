@@ -195,7 +195,7 @@ public class MesosFlinkResourceManagerTest {
 					TestingMesosFlinkResourceManager.class,
 					config, mesosConfig, workerStore, retrievalService, tmParams, taskInfo, 0, LOG));
 			resourceManagerInstance = resourceManagerRef.underlyingActor();
-			resourceManager = new AkkaActorGateway(resourceManagerRef, null);
+			resourceManager = new AkkaActorGateway(resourceManagerRef, null, system.dispatcher());
 
 			verify(schedulerDriver).start();
 			resourceManagerInstance.connectionMonitor.expectMsgClass(ConnectionMonitor.Start.class);

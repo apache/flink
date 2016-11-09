@@ -23,17 +23,15 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import akka.actor.Status.Success
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.runtime.akka.{ListeningBehaviour, AkkaUtils}
+import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
+import org.apache.flink.runtime.instance.AkkaActorGateway
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobVertex}
-import org.apache.flink.runtime.messages.JobManagerMessages.{LeaderSessionMessage, CancelJob,
-JobResultSuccess, SubmitJob}
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning,
-WaitForAllVerticesToBeRunning}
-import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
+import org.apache.flink.runtime.messages.JobManagerMessages.{CancelJob, JobResultSuccess, LeaderSessionMessage, SubmitJob}
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning, WaitForAllVerticesToBeRunning}
+import org.apache.flink.runtime.testingUtils.{TestingUtils}
 import org.junit.runner.RunWith
-import org.scalatest.{FunSuiteLike, Matchers, BeforeAndAfterAll}
+import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, Matchers}
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
@@ -42,8 +40,7 @@ class JobManagerLeaderSessionIDITSuite(_system: ActorSystem)
   with ImplicitSender
   with FunSuiteLike
   with Matchers
-  with BeforeAndAfterAll
-  with ScalaTestingUtils {
+  with BeforeAndAfterAll {
 
   val numTaskManagers = 2
   val taskManagerNumSlots = 2
@@ -72,12 +69,17 @@ class JobManagerLeaderSessionIDITSuite(_system: ActorSystem)
     val jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
     val jm = jmGateway.actor()
 
+    val selfGateway = new AkkaActorGateway(
+      self,
+      jmGateway.leaderSessionID(),
+      _system.dispatcher)
+
     within(TestingUtils.TESTING_DURATION) {
-      jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+      jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
 
       expectMsg(Success(jobGraph.getJobID))
 
-      jmGateway.tell(WaitForAllVerticesToBeRunning(jobGraph.getJobID), self)
+      jmGateway.tell(WaitForAllVerticesToBeRunning(jobGraph.getJobID), selfGateway)
 
       expectMsg(AllVerticesRunning(jobGraph.getJobID))
 

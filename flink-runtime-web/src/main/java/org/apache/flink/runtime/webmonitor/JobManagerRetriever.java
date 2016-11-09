@@ -144,7 +144,9 @@ public class JobManagerRetriever implements LeaderRetrievalListener {
 							@Override
 							public Future<Tuple2<ActorGateway, Object>> apply(ActorRef jobManagerRef) {
 								ActorGateway leaderGateway = new AkkaActorGateway(
-										jobManagerRef, leaderSessionID);
+									jobManagerRef,
+									leaderSessionID,
+									actorSystem.dispatcher());
 
 								Future<Object> webMonitorPort = leaderGateway.ask(
 									JobManagerMessages.getRequestWebMonitorPort(),

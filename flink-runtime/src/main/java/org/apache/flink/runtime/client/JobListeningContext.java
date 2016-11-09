@@ -137,6 +137,7 @@ public final class JobListeningContext {
 			return LeaderRetrievalUtils.retrieveLeaderGateway(
 				LeaderRetrievalUtils.createLeaderRetrievalService(configuration),
 				actorSystem,
+				actorSystem.dispatcher(),
 				AkkaUtils.getLookupTimeout(configuration));
 		} catch (Exception e) {
 			throw new JobRetrievalException(jobID, "Couldn't retrieve leading JobManager.", e);

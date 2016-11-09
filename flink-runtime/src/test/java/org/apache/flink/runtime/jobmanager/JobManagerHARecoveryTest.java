@@ -175,7 +175,7 @@ public class JobManagerHARecoveryTest {
 				Option.apply(null));
 
 			jobManager = system.actorOf(jobManagerProps, "jobmanager");
-			ActorGateway gateway = new AkkaActorGateway(jobManager, leaderSessionID);
+			ActorGateway gateway = new AkkaActorGateway(jobManager, leaderSessionID, system.dispatcher());
 
 			taskManager = TaskManager.startTaskManagerComponentsAndActor(
 					flinkConfiguration,
@@ -187,7 +187,7 @@ public class JobManagerHARecoveryTest {
 					true,
 					TestingTaskManager.class);
 
-			ActorGateway tmGateway = new AkkaActorGateway(taskManager, leaderSessionID);
+			ActorGateway tmGateway = new AkkaActorGateway(taskManager, leaderSessionID, system.dispatcher());
 
 			Future<Object> tmAlive = tmGateway.ask(TestingMessages.getAlive(), deadline.timeLeft());
 

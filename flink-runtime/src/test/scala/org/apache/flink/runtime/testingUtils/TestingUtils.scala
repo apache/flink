@@ -277,7 +277,7 @@ object TestingUtils {
       Await.ready(notificationResult, TESTING_DURATION)
     }
 
-    new AkkaActorGateway(taskManager, null)
+    new AkkaActorGateway(taskManager, null, TestingUtils.defaultExecutionContext)
   }
 
   /** Stops the given actor by sending it a Kill message
@@ -407,7 +407,7 @@ object TestingUtils {
         jobManagerClass,
         classOf[MemoryArchivist])
 
-    new AkkaActorGateway(actor, null)
+    new AkkaActorGateway(actor, null, TestingUtils.defaultExecutionContext)
   }
 
   /** Creates a forwarding JobManager which sends all received message to the forwarding target.
@@ -441,7 +441,7 @@ object TestingUtils {
         )
     }
 
-    new AkkaActorGateway(actor, null)
+    new AkkaActorGateway(actor, null, TestingUtils.defaultExecutionContext)
   }
 
   def submitJobAndWait(
@@ -488,7 +488,7 @@ object TestingUtils {
       LeaderRetrievalUtils.createLeaderRetrievalService(configuration, jobManager),
       classOf[TestingResourceManager])
 
-    new AkkaActorGateway(actor, null)
+    new AkkaActorGateway(actor, null, TestingUtils.defaultExecutionContext)
   }
 
 

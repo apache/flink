@@ -26,13 +26,14 @@ import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.checkpoint.{CheckpointCoordinator, CompletedCheckpoint}
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture
+import org.apache.flink.runtime.instance.AkkaActorGateway
 import org.apache.flink.runtime.jobgraph.tasks.{ExternalizedCheckpointSettings, JobSnapshottingSettings}
 import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph, JobVertex, ScheduleMode}
 import org.apache.flink.runtime.jobmanager.Tasks._
 import org.apache.flink.runtime.jobmanager.scheduler.{NoResourceAvailableException, SlotSharingGroup}
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
-import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
+import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.junit.runner.RunWith
 import org.mockito.Mockito
 import org.mockito.Mockito._
@@ -50,8 +51,7 @@ class JobManagerITCase(_system: ActorSystem)
   with ImplicitSender
   with WordSpecLike
   with Matchers
-  with BeforeAndAfterAll
-  with ScalaTestingUtils {
+  with BeforeAndAfterAll {
   implicit val duration = 1 minute
   implicit val timeout = Timeout.durationToTimeout(duration)
 
@@ -80,8 +80,13 @@ class JobManagerITCase(_system: ActorSystem)
 
         availableSlots should equal(1)
 
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(2 second) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
         }
 
@@ -96,7 +101,7 @@ class JobManagerITCase(_system: ActorSystem)
           }
         }
 
-        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), selfGateway)
         expectMsg(true)
       }
       finally {
@@ -122,8 +127,13 @@ class JobManagerITCase(_system: ActorSystem)
 
         availableSlots should equal(num_tasks)
 
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
 
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
           
@@ -131,7 +141,7 @@ class JobManagerITCase(_system: ActorSystem)
           result.result.getJobId() should equal(jobGraph.getJobID)
         }
 
-        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), selfGateway)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -152,8 +162,13 @@ class JobManagerITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
 
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
@@ -161,7 +176,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           result.result.getJobId() should equal(jobGraph.getJobID)
         }
-        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), selfGateway)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -187,8 +202,13 @@ class JobManagerITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
 
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
@@ -196,7 +216,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           result.result.getJobId() should equal(jobGraph.getJobID)
         }
-        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), selfGateway)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -222,14 +242,19 @@ class JobManagerITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
 
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
         }
-        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), selfGateway)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -259,8 +284,13 @@ class JobManagerITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
 
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
           val failure = expectMsgType[JobResultFailure]
@@ -274,7 +304,7 @@ class JobManagerITCase(_system: ActorSystem)
           }
         }
 
-        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), selfGateway)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -304,14 +334,19 @@ class JobManagerITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
         }
 
-        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), selfGateway)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -348,14 +383,19 @@ class JobManagerITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
 
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
 
-          jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
+          jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), selfGateway)
           expectMsg(true)
         }
       } finally {
@@ -382,13 +422,18 @@ class JobManagerITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(RequestTotalNumberOfSlots, self)
+          jmGateway.tell(RequestTotalNumberOfSlots, selfGateway)
           expectMsg(num_tasks)
         }
 
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           val failure = expectMsgType[JobResultFailure]
@@ -401,7 +446,7 @@ class JobManagerITCase(_system: ActorSystem)
           }
         }
 
-        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), selfGateway)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -430,13 +475,18 @@ class JobManagerITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(RequestTotalNumberOfSlots, self)
+          jmGateway.tell(RequestTotalNumberOfSlots, selfGateway)
           expectMsg(num_tasks)
         }
 
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           val failure = expectMsgType[JobResultFailure]
@@ -449,7 +499,7 @@ class JobManagerITCase(_system: ActorSystem)
           }
         }
 
-        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), selfGateway)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -475,8 +525,13 @@ class JobManagerITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           val failure = expectMsgType[JobResultFailure]
@@ -489,7 +544,7 @@ class JobManagerITCase(_system: ActorSystem)
           }
         }
 
-        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), selfGateway)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -515,11 +570,16 @@ class JobManagerITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(RequestTotalNumberOfSlots, self)
+          jmGateway.tell(RequestTotalNumberOfSlots, selfGateway)
           expectMsg(num_tasks)
 
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           val failure = expectMsgType[JobResultFailure]
@@ -532,7 +592,7 @@ class JobManagerITCase(_system: ActorSystem)
           }
         }
 
-        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), selfGateway)
 
         expectMsg(true)
       } finally {
@@ -563,11 +623,16 @@ class JobManagerITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(RequestTotalNumberOfSlots, self)
+          jmGateway.tell(RequestTotalNumberOfSlots, selfGateway)
           expectMsg(num_tasks)
 
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           val failure = expectMsgType[JobResultFailure]
@@ -580,7 +645,7 @@ class JobManagerITCase(_system: ActorSystem)
           }
         }
 
-        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), selfGateway)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -606,8 +671,13 @@ class JobManagerITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try{
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION){
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
 
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
@@ -615,7 +685,7 @@ class JobManagerITCase(_system: ActorSystem)
 
         sink.finished should equal(true)
 
-        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), selfGateway)
         expectMsg(true)
       } finally{
         cluster.stop()
@@ -637,36 +707,41 @@ class JobManagerITCase(_system: ActorSystem)
       val jm = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jm.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
           /* jobgraph1 is removed after being terminated */
           jobGraph1.setSessionTimeout(9999)
-          jm.tell(SubmitJob(jobGraph1, ListeningBehaviour.EXECUTION_RESULT), self)
+          jm.tell(SubmitJob(jobGraph1, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
           expectMsg(JobSubmitSuccess(jobGraph1.getJobID))
           expectMsgType[JobResultSuccess]
 
           // should not be archived yet
-          jm.tell(RequestExecutionGraph(jobGraph1.getJobID), self)
+          jm.tell(RequestExecutionGraph(jobGraph1.getJobID), selfGateway)
           var cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
           assert(!cachedGraph.isArchived)
 
-          jm.tell(RemoveCachedJob(jobGraph1.getJobID), self)
+          jm.tell(RemoveCachedJob(jobGraph1.getJobID), selfGateway)
 
-          jm.tell(RequestExecutionGraph(jobGraph1.getJobID), self)
+          jm.tell(RequestExecutionGraph(jobGraph1.getJobID), selfGateway)
           cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
           assert(cachedGraph.isArchived)
 
           /* jobgraph2 is removed while running */
           jobGraph2.setSessionTimeout(9999)
-          jm.tell(SubmitJob(jobGraph2, ListeningBehaviour.EXECUTION_RESULT), self)
+          jm.tell(SubmitJob(jobGraph2, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
           expectMsg(JobSubmitSuccess(jobGraph2.getJobID))
 
           // job still running
-          jm.tell(RemoveCachedJob(jobGraph2.getJobID), self)
+          jm.tell(RemoveCachedJob(jobGraph2.getJobID), selfGateway)
 
           expectMsgType[JobResultSuccess]
 
           // should be archived!
-          jm.tell(RequestExecutionGraph(jobGraph2.getJobID), self)
+          jm.tell(RequestExecutionGraph(jobGraph2.getJobID), selfGateway)
           cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
           assert(cachedGraph.isArchived)
         }
@@ -686,6 +761,11 @@ class JobManagerITCase(_system: ActorSystem)
       val jm = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jm.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION) {
           // try multiple times in case of flaky environments
           var testSucceeded = false
@@ -694,30 +774,30 @@ class JobManagerITCase(_system: ActorSystem)
             try {
               // should be removed immediately
               jobGraph.setSessionTimeout(0)
-              jm.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+              jm.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
               expectMsg(JobSubmitSuccess(jobGraph.getJobID))
               expectMsgType[JobResultSuccess]
 
-              jm.tell(RequestExecutionGraph(jobGraph.getJobID), self)
+              jm.tell(RequestExecutionGraph(jobGraph.getJobID), selfGateway)
               val cachedGraph2 = expectMsgType[ExecutionGraphFound].executionGraph
               assert(cachedGraph2.isArchived)
 
               // removed after 2 seconds
               jobGraph.setSessionTimeout(2)
 
-              jm.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+              jm.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
               expectMsg(JobSubmitSuccess(jobGraph.getJobID))
               expectMsgType[JobResultSuccess]
 
               // should not be archived yet
-              jm.tell(RequestExecutionGraph(jobGraph.getJobID), self)
+              jm.tell(RequestExecutionGraph(jobGraph.getJobID), selfGateway)
               val cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
               assert(!cachedGraph.isArchived)
 
               // wait until graph is archived
               Thread.sleep(3000)
 
-              jm.tell(RequestExecutionGraph(jobGraph.getJobID), self)
+              jm.tell(RequestExecutionGraph(jobGraph.getJobID), selfGateway)
               val graph = expectMsgType[ExecutionGraphFound].executionGraph
               assert(graph.isArchived)
 
@@ -746,6 +826,11 @@ class JobManagerITCase(_system: ActorSystem)
       val flinkCluster = TestingUtils.startTestingCluster(0, 0)
 
       try {
+        val testActorGateway = new AkkaActorGateway(
+          testActor,
+          null,
+          _system.dispatcher)
+
         within(deadline.timeLeft) {
           val jobManager = flinkCluster
             .getLeaderGateway(deadline.timeLeft)
@@ -753,7 +838,7 @@ class JobManagerITCase(_system: ActorSystem)
           val jobId = new JobID()
 
           // Trigger savepoint for non-existing job
-          jobManager.tell(TriggerSavepoint(jobId, Option.apply("any")), testActor)
+          jobManager.tell(TriggerSavepoint(jobId, Option.apply("any")), testActorGateway)
           val response = expectMsgType[TriggerSavepointFailure](deadline.timeLeft)
 
           // Verify the response
@@ -772,6 +857,11 @@ class JobManagerITCase(_system: ActorSystem)
       val flinkCluster = TestingUtils.startTestingCluster(1, 1)
 
       try {
+        val testActorGateway = new AkkaActorGateway(
+          testActor,
+          null,
+          _system.dispatcher)
+
         within(deadline.timeLeft) {
           val jobManager = flinkCluster
             .getLeaderGateway(deadline.timeLeft)
@@ -781,11 +871,13 @@ class JobManagerITCase(_system: ActorSystem)
           val jobGraph = new JobGraph(jobVertex)
 
           // Submit job w/o checkpointing configured
-          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
+          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActorGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
 
           // Trigger savepoint for job with disabled checkpointing
-          jobManager.tell(TriggerSavepoint(jobGraph.getJobID(), Option.apply("any")), testActor)
+          jobManager.tell(
+            TriggerSavepoint(jobGraph.getJobID(), Option.apply("any")),
+            testActorGateway)
           val response = expectMsgType[TriggerSavepointFailure](deadline.timeLeft)
 
           // Verify the response
@@ -809,6 +901,11 @@ class JobManagerITCase(_system: ActorSystem)
           val jobManager = flinkCluster
             .getLeaderGateway(deadline.timeLeft)
 
+          val testActorGateway = new AkkaActorGateway(
+            testActor,
+            jobManager.leaderSessionID(),
+            _system.dispatcher)
+
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
           val jobGraph = new JobGraph(jobVertex)
@@ -819,11 +916,11 @@ class JobManagerITCase(_system: ActorSystem)
             60000, 60000, 60000, 1, ExternalizedCheckpointSettings.none))
 
           // Submit job...
-          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
+          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActorGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
 
           // Request the execution graph and set a checkpoint coordinator mock
-          jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActor)
+          jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActorGateway)
           val executionGraph = expectMsgType[ExecutionGraphFound](
             deadline.timeLeft).executionGraph
 
@@ -839,7 +936,9 @@ class JobManagerITCase(_system: ActorSystem)
           field.set(executionGraph, checkpointCoordinator)
 
           // Trigger savepoint for job
-          jobManager.tell(TriggerSavepoint(jobGraph.getJobID(), Option.apply("any")), testActor)
+          jobManager.tell(
+            TriggerSavepoint(jobGraph.getJobID(), Option.apply("any")),
+            testActorGateway)
           val response = expectMsgType[TriggerSavepointFailure](deadline.timeLeft)
 
           // Verify the response
@@ -863,6 +962,11 @@ class JobManagerITCase(_system: ActorSystem)
           val jobManager = flinkCluster
             .getLeaderGateway(deadline.timeLeft)
 
+          val testActorGateway = new AkkaActorGateway(
+            testActor,
+            jobManager.leaderSessionID(),
+            _system.dispatcher)
+
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
           val jobGraph = new JobGraph(jobVertex)
@@ -873,7 +977,7 @@ class JobManagerITCase(_system: ActorSystem)
             60000, 60000, 60000, 1, ExternalizedCheckpointSettings.none))
 
           // Submit job...
-          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
+          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActorGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
 
           // Mock the checkpoint coordinator
@@ -887,7 +991,7 @@ class JobManagerITCase(_system: ActorSystem)
             .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
 
           // Request the execution graph and set a checkpoint coordinator mock
-          jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActor)
+          jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActorGateway)
           val executionGraph = expectMsgType[ExecutionGraphFound](
             deadline.timeLeft).executionGraph
 
@@ -897,7 +1001,9 @@ class JobManagerITCase(_system: ActorSystem)
           field.set(executionGraph, checkpointCoordinator)
 
           // Trigger savepoint for job
-          jobManager.tell(TriggerSavepoint(jobGraph.getJobID(), Option.apply("any")), testActor)
+          jobManager.tell(
+            TriggerSavepoint(jobGraph.getJobID(), Option.apply("any")),
+            testActorGateway)
 
           // Fail the promise
           savepointPathPromise.completeExceptionally(new Exception("Expected Test Exception"))
@@ -925,6 +1031,11 @@ class JobManagerITCase(_system: ActorSystem)
           val jobManager = flinkCluster
             .getLeaderGateway(deadline.timeLeft)
 
+          val testActorGateway = new AkkaActorGateway(
+            testActor,
+            jobManager.leaderSessionID(),
+            _system.dispatcher)
+
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
           val jobGraph = new JobGraph(jobVertex)
@@ -935,7 +1046,7 @@ class JobManagerITCase(_system: ActorSystem)
             60000, 60000, 60000, 1, ExternalizedCheckpointSettings.none))
 
           // Submit job...
-          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
+          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActorGateway)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
 
           // Mock the checkpoint coordinator
@@ -950,7 +1061,7 @@ class JobManagerITCase(_system: ActorSystem)
             .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
 
           // Request the execution graph and set a checkpoint coordinator mock
-          jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActor)
+          jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActorGateway)
           val executionGraph = expectMsgType[ExecutionGraphFound](
             deadline.timeLeft).executionGraph
 
@@ -960,7 +1071,9 @@ class JobManagerITCase(_system: ActorSystem)
           field.set(executionGraph, checkpointCoordinator)
 
           // Trigger savepoint for job
-          jobManager.tell(TriggerSavepoint(jobGraph.getJobID(), Option.apply("any")), testActor)
+          jobManager.tell(
+            TriggerSavepoint(jobGraph.getJobID(), Option.apply("any")),
+            testActorGateway)
 
           val checkpoint = Mockito.mock(classOf[CompletedCheckpoint])
           when(checkpoint.getExternalPath).thenReturn("Expected test savepoint path")

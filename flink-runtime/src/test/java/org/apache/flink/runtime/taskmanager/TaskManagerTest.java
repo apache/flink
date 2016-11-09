@@ -249,12 +249,13 @@ public class TaskManagerTest extends TestLogger {
 			ActorGateway taskManager = null;
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
-					getTestActor(),
-					leaderSessionID);
+				getTestActor(),
+				leaderSessionID,
+				system.dispatcher());
 
 			try {
 				ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, leaderSessionID));
-				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+				jobManager = new AkkaActorGateway(jm, leaderSessionID, system.dispatcher());
 
 				taskManager = TestingUtils.createTaskManager(
 						system,
@@ -386,12 +387,13 @@ public class TaskManagerTest extends TestLogger {
 			ActorGateway taskManager = null;
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
-					getTestActor(),
-					leaderSessionID);
+				getTestActor(),
+				leaderSessionID,
+				system.dispatcher());
 
 			try {
 				ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, leaderSessionID));
-				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+				jobManager = new AkkaActorGateway(jm, leaderSessionID, system.dispatcher());
 
 				taskManager = TestingUtils.createTaskManager(
 						system,
@@ -512,12 +514,13 @@ public class TaskManagerTest extends TestLogger {
 			ActorGateway taskManager = null;
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
-					getTestActor(),
-					leaderSessionID);
+				getTestActor(),
+				leaderSessionID,
+				system.dispatcher());
 
 			try {
 				ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, leaderSessionID));
-				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+				jobManager = new AkkaActorGateway(jm, leaderSessionID, system.dispatcher());
 
 				taskManager = TestingUtils.createTaskManager(
 						system,
@@ -605,8 +608,9 @@ public class TaskManagerTest extends TestLogger {
 			ActorGateway taskManager = null;
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
-					getTestActor(),
-					leaderSessionID);
+				getTestActor(),
+				leaderSessionID,
+				system.dispatcher());
 			try {
 				final JobID jid = new JobID();
 
@@ -617,7 +621,7 @@ public class TaskManagerTest extends TestLogger {
 				final ExecutionAttemptID eid2 = new ExecutionAttemptID();
 
 				ActorRef jm = system.actorOf(Props.create(new SimpleLookupJobManagerCreator(leaderSessionID)));
-				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+				jobManager = new AkkaActorGateway(jm, leaderSessionID, system.dispatcher());
 
 				taskManager = TestingUtils.createTaskManager(
 						system,
@@ -743,8 +747,9 @@ public class TaskManagerTest extends TestLogger {
 			ActorGateway taskManager = null;
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
-					getTestActor(),
-					leaderSessionID);
+				getTestActor(),
+				leaderSessionID,
+				system.dispatcher());
 			try {
 				final JobID jid = new JobID();
 
@@ -762,7 +767,7 @@ public class TaskManagerTest extends TestLogger {
 						)
 				);
 
-				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+				jobManager = new AkkaActorGateway(jm, leaderSessionID, system.dispatcher());
 
 				taskManager = TestingUtils.createTaskManager(
 						system,
@@ -889,8 +894,9 @@ public class TaskManagerTest extends TestLogger {
 			ActorGateway taskManager = null;
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
-					getTestActor(),
-					leaderSessionID);
+				getTestActor(),
+				leaderSessionID,
+				system.dispatcher());
 
 			try {
 				final IntermediateDataSetID resultId = new IntermediateDataSetID();
@@ -899,7 +905,7 @@ public class TaskManagerTest extends TestLogger {
 				ActorRef jm = system.actorOf(Props.create(
 						new SimplePartitionStateLookupJobManagerCreator(leaderSessionID, getTestActor())));
 
-				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+				jobManager = new AkkaActorGateway(jm, leaderSessionID, system.dispatcher());
 
 				final int dataPort = NetUtils.getAvailablePort();
 				Configuration config = new Configuration();
@@ -988,8 +994,9 @@ public class TaskManagerTest extends TestLogger {
 			ActorGateway taskManager = null;
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
-					getTestActor(),
-					leaderSessionID);
+				getTestActor(),
+				leaderSessionID,
+				system.dispatcher());
 
 			try {
 				final IntermediateDataSetID resultId = new IntermediateDataSetID();
@@ -998,7 +1005,7 @@ public class TaskManagerTest extends TestLogger {
 				ActorRef jm = system.actorOf(Props.create(
 						new SimplePartitionStateLookupJobManagerCreator(leaderSessionID, getTestActor())));
 
-				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+				jobManager = new AkkaActorGateway(jm, leaderSessionID, system.dispatcher());
 
 				final Configuration config = new Configuration();
 				config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
@@ -1090,11 +1097,12 @@ public class TaskManagerTest extends TestLogger {
 			// We need this to be a JM that answers to update messages for
 			// robustness on Travis (if jobs need to be resubmitted in (4)).
 			ActorRef jm = system.actorOf(Props.create(new SimpleLookupJobManagerCreator(null)));
-			ActorGateway jobManagerActorGateway = new AkkaActorGateway(jm, null);
+			ActorGateway jobManagerActorGateway = new AkkaActorGateway(jm, null, system.dispatcher());
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
-					getTestActor(),
-					leaderSessionID);
+				getTestActor(),
+				leaderSessionID,
+				system.dispatcher());
 
 			try {
 				final ActorGateway jobManager = jobManagerActorGateway;
@@ -1444,7 +1452,7 @@ public class TaskManagerTest extends TestLogger {
 
 
 			ActorRef jmActorRef = system.actorOf(Props.create(FailingScheduleOrUpdateConsumersJobManager.class, leaderSessionID), "jobmanager");
-			ActorGateway jobManager = new AkkaActorGateway(jmActorRef, leaderSessionID);
+			ActorGateway jobManager = new AkkaActorGateway(jmActorRef, leaderSessionID, system.dispatcher());
 
 			final ActorGateway taskManager = TestingUtils.createTaskManager(
 				system,

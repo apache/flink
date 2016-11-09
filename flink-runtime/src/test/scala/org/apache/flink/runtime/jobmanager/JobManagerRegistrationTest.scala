@@ -31,7 +31,7 @@ import org.apache.flink.runtime.jobmanager.JobManagerRegistrationTest.PlainForwa
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, AlreadyRegistered, RegisterTaskManager}
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation
-
+import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.apache.flink.runtime.testutils.TestingResourceManager
 import org.apache.flink.runtime.util.LeaderRetrievalUtils
 import org.junit.Assert.{assertNotEquals, assertNotNull}
@@ -83,7 +83,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
             connectionInfo1,
             hardwareDescription,
             1),
-          new AkkaActorGateway(tm1, null))
+          new AkkaActorGateway(tm1, null, TestingUtils.defaultExecutionContext))
 
         val response = expectMsgType[LeaderSessionMessage]
         response match {
@@ -100,7 +100,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
             connectionInfo2,
             hardwareDescription,
             1),
-          new AkkaActorGateway(tm2, null))
+          new AkkaActorGateway(tm2, null, TestingUtils.defaultExecutionContext))
 
         val response = expectMsgType[LeaderSessionMessage]
         response match {
@@ -119,7 +119,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       val jm = startTestingJobManager(_system)
       val rm = startTestingResourceManager(_system, jm.actor())
 
-      val selfGateway = new AkkaActorGateway(testActor, null)
+      val selfGateway = new AkkaActorGateway(testActor, null, TestingUtils.defaultExecutionContext)
 
       val resourceID = ResourceID.generate()
       val connectionInfo = new TaskManagerLocation(resourceID, InetAddress.getLocalHost, 1)
@@ -178,7 +178,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       None,
       classOf[JobManager],
       classOf[MemoryArchivist])
-    new AkkaActorGateway(jm, null)
+    new AkkaActorGateway(jm, null, TestingUtils.defaultExecutionContext)
   }
 
   private def startTestingResourceManager(system: ActorSystem, jm: ActorRef): ActorGateway = {
@@ -189,7 +189,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       _system,
       LeaderRetrievalUtils.createLeaderRetrievalService(config, jm),
       classOf[TestingResourceManager])
-    new AkkaActorGateway(rm, null)
+    new AkkaActorGateway(rm, null, TestingUtils.defaultExecutionContext)
   }
 }
 

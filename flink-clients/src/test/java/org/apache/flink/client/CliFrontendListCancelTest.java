@@ -95,7 +95,7 @@ public class CliFrontendListCancelTest {
 						)
 				);
 
-				final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
+				final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID, actorSystem.dispatcher());
 				
 				String[] parameters = { jidString };
 				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
@@ -119,7 +119,7 @@ public class CliFrontendListCancelTest {
 						)
 				);
 
-				final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
+				final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID, actorSystem.dispatcher());
 
 				String[] parameters = { jid2.toString() };
 				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
@@ -145,7 +145,7 @@ public class CliFrontendListCancelTest {
 
 			Props props = Props.create(CliJobManager.class, jid, leaderSessionID);
 			ActorRef jm = actorSystem.actorOf(props);
-			ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
+			ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID, actorSystem.dispatcher());
 
 			String[] parameters = { "-s", jid.toString() };
 			InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
@@ -159,7 +159,7 @@ public class CliFrontendListCancelTest {
 
 			Props props = Props.create(CliJobManager.class, jid, leaderSessionID, "targetDirectory");
 			ActorRef jm = actorSystem.actorOf(props);
-			ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
+			ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID, actorSystem.dispatcher());
 
 			String[] parameters = { "-s", "targetDirectory", jid.toString() };
 			InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
@@ -173,7 +173,7 @@ public class CliFrontendListCancelTest {
 
 			Props props = Props.create(CliJobManager.class, jid, leaderSessionID, "targetDirectory");
 			ActorRef jm = actorSystem.actorOf(props);
-			ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
+			ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID, actorSystem.dispatcher());
 
 			String[] parameters = { "-s", "targetDirectory" };
 			InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
@@ -187,7 +187,7 @@ public class CliFrontendListCancelTest {
 
 			Props props = Props.create(CliJobManager.class, jid, leaderSessionID);
 			ActorRef jm = actorSystem.actorOf(props);
-			ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
+			ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID, actorSystem.dispatcher());
 
 			String[] parameters = { "-s" };
 			InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
@@ -216,7 +216,7 @@ public class CliFrontendListCancelTest {
 								leaderSessionID
 						)
 				);
-				final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
+				final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID, actorSystem.dispatcher());
 				String[] parameters = {"-r", "-s"};
 				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
 				int retCode = testFrontend.list(parameters);

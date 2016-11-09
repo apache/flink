@@ -184,7 +184,7 @@ public class AccumulatorLiveITCase {
 	private static void verifyResults() {
 		new JavaTestKit(system) {{
 
-			ActorGateway selfGateway = new AkkaActorGateway(getRef(), jobManagerGateway.leaderSessionID());
+			ActorGateway selfGateway = new AkkaActorGateway(getRef(), jobManagerGateway.leaderSessionID(), system.dispatcher());
 
 			// register for accumulator changes
 			jobManagerGateway.tell(new TestingJobManagerMessages.NotifyWhenAccumulatorChange(jobID), selfGateway);

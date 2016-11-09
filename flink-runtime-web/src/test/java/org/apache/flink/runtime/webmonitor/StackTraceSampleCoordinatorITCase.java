@@ -108,7 +108,7 @@ public class StackTraceSampleCoordinatorITCase extends TestLogger {
 					@Override
 					protected void run() {
 						try {
-							ActorGateway testActor = new AkkaActorGateway(getTestActor(), null);
+							ActorGateway testActor = new AkkaActorGateway(getTestActor(), null, testActorSystem.dispatcher());
 
 							int maxAttempts = 10;
 							int sleepTime = 100;

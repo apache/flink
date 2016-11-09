@@ -23,7 +23,6 @@ import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.Serializable;
 import java.util.UUID;
 
 /**
@@ -31,7 +30,7 @@ import java.util.UUID;
  *
  * It allows to avoid direct interaction with an ActorRef.
  */
-public interface ActorGateway extends Serializable {
+public interface ActorGateway {
 
 	/**
 	 * Sends a message asynchronously and returns its response. The response to the message is

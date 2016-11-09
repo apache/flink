@@ -195,10 +195,16 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 
 			ActorGateway nonLeadingJobManager;
 			if (bothJobManagers.get(0).equals(leadingJobManager.actor())) {
-				nonLeadingJobManager = new AkkaActorGateway(bothJobManagers.get(1), null);
+				nonLeadingJobManager = new AkkaActorGateway(
+					bothJobManagers.get(1),
+					null,
+					flink.jobManagerActorSystems().get().apply(1).dispatcher());
 			}
 			else {
-				nonLeadingJobManager = new AkkaActorGateway(bothJobManagers.get(0), null);
+				nonLeadingJobManager = new AkkaActorGateway(
+					bothJobManagers.get(0),
+					null,
+					flink.jobManagerActorSystems().get().apply(0).dispatcher());
 			}
 
 			log.info("Leading job manager: " + leadingJobManager);
@@ -311,12 +317,12 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 				UUID leaderId = leaderListener.getLeaderSessionID();
 
 				// The client
-				AkkaActorGateway client = new AkkaActorGateway(clientRef, leaderId);
+				AkkaActorGateway client = new AkkaActorGateway(clientRef, leaderId, testSystem.dispatcher());
 
 				// Get the leader ref
 				ActorRef leaderRef = AkkaUtils.getActorRef(
 						leaderAddress, testSystem, deadline.timeLeft());
-				ActorGateway leader = new AkkaActorGateway(leaderRef, leaderId);
+				ActorGateway leader = new AkkaActorGateway(leaderRef, leaderId, testSystem.dispatcher());
 
 				int numSlots = 0;
 				while (numSlots == 0) {
@@ -355,7 +361,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 
 				ActorRef leaderRef = AkkaUtils.getActorRef(
 						leaderAddress, testSystem, deadline.timeLeft());
-				ActorGateway leader = new AkkaActorGateway(leaderRef, leaderId);
+				ActorGateway leader = new AkkaActorGateway(leaderRef, leaderId, testSystem.dispatcher());
 
 				JobManagerActorTestUtils.waitForJobStatus(
 						jobGraph.getJobID(), JobStatus.RUNNING, leader, deadline.timeLeft());

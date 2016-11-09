@@ -181,6 +181,8 @@ class JobManager(
 
   val taskManagerMap = mutable.Map[ActorRef, InstanceID]()
 
+  private val executionContext = ExecutionContext.fromExecutorService(executorService)
+
   /**
    * Run when the job manager is started. Simply logs an informational message.
    * The method also starts the leader election service.
@@ -414,7 +416,10 @@ class JobManager(
             libraryCacheManager.getBlobServerPort))
       } else {
         try {
-          val actorGateway = new AkkaActorGateway(taskManager, leaderSessionID.orNull)
+          val actorGateway = new AkkaActorGateway(
+            taskManager,
+            leaderSessionID.orNull,
+            context.dispatcher)
           val taskManagerGateway = new ActorTaskManagerGateway(actorGateway)
 
           val instanceID = instanceManager.registerTaskManager(
@@ -483,7 +488,10 @@ class JobManager(
         case Some((executionGraph, jobInfo)) =>
           log.info(s"Registering client for job $jobID")
           jobInfo.clients += ((client, listeningBehaviour))
-          val listener = new StatusListenerMessenger(client, leaderSessionID.orNull)
+          val listener = new StatusListenerMessenger(
+            client,
+            leaderSessionID.orNull,
+            context.dispatcher)
           executionGraph.registerJobStatusListener(listener)
           if (listeningBehaviour == ListeningBehaviour.EXECUTION_RESULT_AND_STATE_CHANGES) {
             executionGraph.registerExecutionListener(listener)
@@ -1050,7 +1058,10 @@ class JobManager(
       val stackTraceFuture = taskManagerGateway
         .requestStackTrace(Time.milliseconds(timeout.toMillis))
 
-      val originalSender = new AkkaActorGateway(sender(), leaderSessionID.orNull)
+      val originalSender = new AkkaActorGateway(
+        sender(),
+        leaderSessionID.orNull,
+        context.dispatcher)
 
       stackTraceFuture.thenAccept(new AcceptFunction[StackTrace] {
         override def accept(value: StackTrace): Unit = {
@@ -1264,12 +1275,18 @@ class JobManager(
 
         // get notified about job status changes
         executionGraph.registerJobStatusListener(
-          new StatusListenerMessenger(self, leaderSessionID.orNull))
+          new StatusListenerMessenger(
+            self,
+            leaderSessionID.orNull,
+            context.dispatcher))
 
         jobInfo.clients foreach {
           // the sender wants to be notified about state changes
           case (client, ListeningBehaviour.EXECUTION_RESULT_AND_STATE_CHANGES) =>
-            val listener  = new StatusListenerMessenger(client, leaderSessionID.orNull)
+            val listener  = new StatusListenerMessenger(
+              client,
+              leaderSessionID.orNull,
+              context.dispatcher)
             executionGraph.registerExecutionListener(listener)
             executionGraph.registerJobStatusListener(listener)
           case _ => // do nothing

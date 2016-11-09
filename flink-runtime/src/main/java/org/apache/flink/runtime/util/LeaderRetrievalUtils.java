@@ -34,9 +34,11 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.net.ConnectionUtils;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.Promise;
 import scala.concurrent.duration.FiniteDuration;
@@ -106,6 +108,7 @@ public class LeaderRetrievalUtils {
 	 *
 	 * @param leaderRetrievalService {@link LeaderRetrievalService} which is used for the leader retrieval
 	 * @param actorSystem ActorSystem which is used for the {@link LeaderRetrievalListener} implementation
+	 * @param executionContext to use to execute future callbacks
 	 * @param timeout Timeout value for the retrieval call
 	 * @return The current leader gateway
 	 * @throws LeaderRetrievalException If the actor gateway could not be retrieved or the timeout has been exceeded
@@ -113,9 +116,10 @@ public class LeaderRetrievalUtils {
 	public static ActorGateway retrieveLeaderGateway(
 			LeaderRetrievalService leaderRetrievalService,
 			ActorSystem actorSystem,
+			ExecutionContext executionContext,
 			FiniteDuration timeout)
 		throws LeaderRetrievalException {
-		LeaderGatewayListener listener = new LeaderGatewayListener(actorSystem, timeout);
+		LeaderGatewayListener listener = new LeaderGatewayListener(actorSystem, executionContext, timeout);
 
 		try {
 			leaderRetrievalService.start(listener);
@@ -203,13 +207,18 @@ public class LeaderRetrievalUtils {
 	public static class LeaderGatewayListener implements LeaderRetrievalListener {
 
 		private final ActorSystem actorSystem;
+		private final ExecutionContext executionContext;
 		private final FiniteDuration timeout;
 		private final Object lock = new Object();
 
 		private final Promise<ActorGateway> futureActorGateway = new scala.concurrent.impl.Promise.DefaultPromise<ActorGateway>();
 
-		public LeaderGatewayListener(ActorSystem actorSystem, FiniteDuration timeout) {
-			this.actorSystem = actorSystem;
+		public LeaderGatewayListener(
+				ActorSystem actorSystem,
+				ExecutionContext executionContext,
+				FiniteDuration timeout) {
+			this.actorSystem = Preconditions.checkNotNull(actorSystem);
+			this.executionContext = Preconditions.checkNotNull(executionContext);
 			this.timeout = timeout;
 		}
 
@@ -227,7 +236,7 @@ public class LeaderRetrievalUtils {
 				AkkaUtils.getActorRefFuture(leaderAddress, actorSystem, timeout)
 					.map(new Mapper<ActorRef, ActorGateway>() {
 						public ActorGateway apply(ActorRef ref) {
-							return new AkkaActorGateway(ref, leaderSessionID);
+							return new AkkaActorGateway(ref, leaderSessionID, executionContext);
 						}
 					}, actorSystem.dispatcher())
 					.onComplete(new OnComplete<ActorGateway>() {

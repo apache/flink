@@ -138,8 +138,8 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 						protected void run() {
 							try {
 								LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config);
-								ActorGateway gateway = LeaderRetrievalUtils.retrieveLeaderGateway(lrs, actorSystem, timeout);
-								ActorGateway selfGateway = new AkkaActorGateway(getRef(), gateway.leaderSessionID());
+								ActorGateway gateway = LeaderRetrievalUtils.retrieveLeaderGateway(lrs, actorSystem, actorSystem.dispatcher(), timeout);
+								ActorGateway selfGateway = new AkkaActorGateway(getRef(), gateway.leaderSessionID(), actorSystem.dispatcher());
 
 								gateway.tell(new TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered(1), selfGateway);
 
@@ -158,8 +158,8 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 					protected void run() {
 						try {
 							LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config);
-							ActorGateway gateway2 = LeaderRetrievalUtils.retrieveLeaderGateway(lrs, actorSystem, timeout);
-							ActorGateway selfGateway = new AkkaActorGateway(getRef(), gateway2.leaderSessionID());
+							ActorGateway gateway2 = LeaderRetrievalUtils.retrieveLeaderGateway(lrs, actorSystem, actorSystem.dispatcher(), timeout);
+							ActorGateway selfGateway = new AkkaActorGateway(getRef(), gateway2.leaderSessionID(), actorSystem.dispatcher());
 							gateway2.tell(new TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered(1), selfGateway);
 
 							expectMsgEquals(Acknowledge.get());

@@ -18,22 +18,23 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import akka.actor.{PoisonPill, ActorSystem}
+import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.ListeningBehaviour
-import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, DistributionPattern, JobVertex}
+import org.apache.flink.runtime.instance.AkkaActorGateway
+import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph, JobStatus, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingOnceReceiver, FailingOnceReceiver}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
-import org.apache.flink.runtime.messages.JobManagerMessages.{JobSubmitSuccess, JobResultSuccess, SubmitJob}
+import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, JobSubmitSuccess, SubmitJob}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
-import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingCluster, TestingUtils}
+import org.apache.flink.runtime.testingUtils.{TestingCluster, TestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.scalatest.junit.JUnitRunner
-import scala.concurrent.duration._
 
+import scala.concurrent.duration._
 import language.postfixOps
 
 @RunWith(classOf[JUnitRunner])
@@ -42,8 +43,7 @@ class RecoveryITCase(_system: ActorSystem)
   with ImplicitSender
   with WordSpecLike
   with Matchers
-  with BeforeAndAfterAll
-  with ScalaTestingUtils {
+  with BeforeAndAfterAll {
 
   def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
 
@@ -95,8 +95,13 @@ class RecoveryITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION){
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
 
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
@@ -143,8 +148,13 @@ class RecoveryITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION){
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
 
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
@@ -191,18 +201,23 @@ class RecoveryITCase(_system: ActorSystem)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
+        val selfGateway = new AkkaActorGateway(
+          self,
+          jmGateway.leaderSessionID(),
+          _system.dispatcher)
+
         within(TestingUtils.TESTING_DURATION){
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), selfGateway)
 
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
-          jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobGraph.getJobID), self)
+          jmGateway.tell(WaitForAllVerticesToBeRunningOrFinished(jobGraph.getJobID), selfGateway)
 
           expectMsg(AllVerticesRunning(jobGraph.getJobID))
 
           BlockingOnceReceiver.blocking = false
-          jmGateway.tell(NotifyWhenJobStatus(jobGraph.getJobID, JobStatus.RESTARTING), self)
-          jmGateway.tell(RequestWorkingTaskManager(jobGraph.getJobID), self)
+          jmGateway.tell(NotifyWhenJobStatus(jobGraph.getJobID, JobStatus.RESTARTING), selfGateway)
+          jmGateway.tell(RequestWorkingTaskManager(jobGraph.getJobID), selfGateway)
 
           val WorkingTaskManager(gatewayOption) = expectMsgType[WorkingTaskManager]
 

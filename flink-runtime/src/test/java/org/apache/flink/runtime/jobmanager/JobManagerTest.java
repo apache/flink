@@ -183,7 +183,7 @@ public class JobManagerTest {
 							TestingUtils.TESTING_DURATION());
 
 						// we can set the leader session ID to None because we don't use this gateway to send messages
-						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null);
+						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null, system.dispatcher());
 
 						// Submit the job and wait for all vertices to be running
 						jobManagerGateway.tell(
@@ -300,7 +300,7 @@ public class JobManagerTest {
 						final ActorGateway jobManagerGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
 
 						// we can set the leader session ID to None because we don't use this gateway to send messages
-						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null);
+						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null, system.dispatcher());
 
 						// Submit the job and wait for all vertices to be running
 						jobManagerGateway.tell(
@@ -352,7 +352,7 @@ public class JobManagerTest {
 						final ActorGateway jobManagerGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
 
 						// we can set the leader session ID to None because we don't use this gateway to send messages
-						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null);
+						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null, system.dispatcher());
 
 						// Submit the job and wait for all vertices to be running
 						jobManagerGateway.tell(
@@ -396,14 +396,15 @@ public class JobManagerTest {
 
 		UUID leaderSessionId = null;
 		ActorGateway jobManager = new AkkaActorGateway(
-				JobManager.startJobManagerActors(
+			JobManager.startJobManagerActors(
 					config,
 					system,
 					system.dispatcher(),
 					system.dispatcher(),
 					TestingJobManager.class,
 					MemoryArchivist.class)._1(),
-				leaderSessionId);
+			leaderSessionId,
+			system.dispatcher());
 
 		LeaderRetrievalService leaderRetrievalService = new StandaloneLeaderRetrievalService(
 				AkkaUtils.getAkkaURL(system, jobManager.actor()));
@@ -614,8 +615,8 @@ public class JobManagerTest {
 				TestingJobManager.class,
 				TestingMemoryArchivist.class);
 
-			jobManager = new AkkaActorGateway(master._1(), null);
-			archiver = new AkkaActorGateway(master._2(), null);
+			jobManager = new AkkaActorGateway(master._1(), null, system.dispatcher());
+			archiver = new AkkaActorGateway(master._2(), null, system.dispatcher());
 
 			ActorRef taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
 					config,
@@ -627,7 +628,7 @@ public class JobManagerTest {
 					true,
 					TestingTaskManager.class);
 
-			taskManager = new AkkaActorGateway(taskManagerRef, null);
+			taskManager = new AkkaActorGateway(taskManagerRef, null, system.dispatcher());
 
 			// Wait until connected
 			Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());
@@ -742,8 +743,8 @@ public class JobManagerTest {
 				TestingJobManager.class,
 				TestingMemoryArchivist.class);
 
-			jobManager = new AkkaActorGateway(master._1(), null);
-			archiver = new AkkaActorGateway(master._2(), null);
+			jobManager = new AkkaActorGateway(master._1(), null, system.dispatcher());
+			archiver = new AkkaActorGateway(master._2(), null, system.dispatcher());
 
 			ActorRef taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
 					config,
@@ -755,7 +756,7 @@ public class JobManagerTest {
 					true,
 					TestingTaskManager.class);
 
-			taskManager = new AkkaActorGateway(taskManagerRef, null);
+			taskManager = new AkkaActorGateway(taskManagerRef, null, system.dispatcher());
 
 			// Wait until connected
 			Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());
@@ -840,8 +841,8 @@ public class JobManagerTest {
 				TestingJobManager.class,
 				TestingMemoryArchivist.class);
 
-			jobManager = new AkkaActorGateway(master._1(), null);
-			archiver = new AkkaActorGateway(master._2(), null);
+			jobManager = new AkkaActorGateway(master._1(), null, system.dispatcher());
+			archiver = new AkkaActorGateway(master._2(), null, system.dispatcher());
 
 			Configuration tmConfig = new Configuration();
 			tmConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
@@ -856,7 +857,7 @@ public class JobManagerTest {
 					true,
 					TestingTaskManager.class);
 
-			taskManager = new AkkaActorGateway(taskManagerRef, null);
+			taskManager = new AkkaActorGateway(taskManagerRef, null, system.dispatcher());
 
 			// Wait until connected
 			Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());

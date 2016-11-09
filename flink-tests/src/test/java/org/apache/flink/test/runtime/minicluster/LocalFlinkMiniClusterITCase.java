@@ -75,7 +75,7 @@ public class LocalFlinkMiniClusterITCase {
 			final ActorGateway jmGateway = miniCluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
 
 			new JavaTestKit(system) {{
-				final ActorGateway selfGateway = new AkkaActorGateway(getRef(), null);
+				final ActorGateway selfGateway = new AkkaActorGateway(getRef(), null, system.dispatcher());
 
 				new Within(TestingUtils.TESTING_DURATION()) {
 

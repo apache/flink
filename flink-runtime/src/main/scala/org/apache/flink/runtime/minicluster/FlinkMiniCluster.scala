@@ -619,7 +619,7 @@ abstract class FlinkMiniCluster(
 
         selectedLeader match {
           case Some((leader, index)) =>
-            leaderGateway.success(new AkkaActorGateway(leader, leaderSessionID))
+            leaderGateway.success(new AkkaActorGateway(leader, leaderSessionID, executionContext))
             leaderIndex.success(index)
           case None =>
             leaderGateway.failure(

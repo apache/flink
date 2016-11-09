@@ -79,7 +79,7 @@ public class CliFrontendStopTest extends TestLogger {
 			final UUID leaderSessionID = UUID.randomUUID();
 			final ActorRef jm = actorSystem.actorOf(Props.create(CliJobManager.class, jid, leaderSessionID));
 
-			final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
+			final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID, actorSystem.dispatcher());
 
 			String[] parameters = { jidString };
 			StopTestCliFrontend testFrontend = new StopTestCliFrontend(gateway);
@@ -96,7 +96,7 @@ public class CliFrontendStopTest extends TestLogger {
 			final UUID leaderSessionID = UUID.randomUUID();
 			final ActorRef jm = actorSystem.actorOf(Props.create(CliJobManager.class, jid1, leaderSessionID));
 
-			final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
+			final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID, actorSystem.dispatcher());
 
 			String[] parameters = { jid2.toString() };
 			StopTestCliFrontend testFrontend = new StopTestCliFrontend(gateway);

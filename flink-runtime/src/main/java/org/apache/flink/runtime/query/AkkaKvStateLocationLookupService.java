@@ -181,7 +181,10 @@ class AkkaKvStateLocationLookupService implements KvStateLocationLookupService, 
 					.map(new Mapper<ActorRef, ActorGateway>() {
 						@Override
 						public ActorGateway apply(ActorRef actorRef) {
-							return new AkkaActorGateway(actorRef, leaderSessionID);
+							return new AkkaActorGateway(
+								actorRef,
+								leaderSessionID,
+								actorSystem.dispatcher());
 						}
 					}, actorSystem.dispatcher());
 		}

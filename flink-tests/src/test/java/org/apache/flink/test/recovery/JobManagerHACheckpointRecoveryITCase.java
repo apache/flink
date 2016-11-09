@@ -206,7 +206,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 				// Get the leader ref
 				ActorRef leaderRef = AkkaUtils.getActorRef(
 						leaderAddress, testSystem, deadline.timeLeft());
-				ActorGateway leader = new AkkaActorGateway(leaderRef, leaderId);
+				ActorGateway leader = new AkkaActorGateway(leaderRef, leaderId, testSystem.dispatcher());
 
 				// Submit the job in detached mode
 				leader.tell(new SubmitJob(jobGraph, ListeningBehaviour.DETACHED));
@@ -238,7 +238,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 
 				ActorRef leaderRef = AkkaUtils.getActorRef(
 						leaderAddress, testSystem, deadline.timeLeft());
-				ActorGateway leader = new AkkaActorGateway(leaderRef, leaderId);
+				ActorGateway leader = new AkkaActorGateway(leaderRef, leaderId, testSystem.dispatcher());
 
 				JobManagerActorTestUtils.waitForJobStatus(jobGraph.getJobID(), JobStatus.RUNNING,
 						leader, deadline.timeLeft());
@@ -356,7 +356,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 			// Get the leader ref
 			ActorRef leaderRef = AkkaUtils.getActorRef(
 					leaderAddress, testActorSystem, testDeadline.timeLeft());
-			ActorGateway leader = new AkkaActorGateway(leaderRef, leaderId);
+			ActorGateway leader = new AkkaActorGateway(leaderRef, leaderId, testActorSystem.dispatcher());
 
 			// Who's the boss?
 			JobManagerProcess leadingJobManagerProcess;

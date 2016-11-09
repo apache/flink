@@ -289,7 +289,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 
 			// Get the leader ref
 			ActorRef leaderRef = AkkaUtils.getActorRef(leaderAddress, testActorSystem, deadline.timeLeft());
-			ActorGateway leaderGateway = new AkkaActorGateway(leaderRef, leaderId);
+			ActorGateway leaderGateway = new AkkaActorGateway(leaderRef, leaderId, testActorSystem.dispatcher());
 
 			// Wait for all task managers to connect to the leading job manager
 			JobManagerActorTestUtils.waitForTaskManagers(numberOfTaskManagers, leaderGateway,
