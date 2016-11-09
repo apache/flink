@@ -41,6 +41,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorTest;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
@@ -309,6 +310,74 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		initializeCalled = true;
 	}
 
+	/**
+	 * Takes the different {@link OperatorStateHandles} created by calling {@link #snapshot(long, long)}
+	 * on different instances of {@link AbstractStreamOperatorTestHarness} (each one representing one subtask)
+	 * and repacks them into a single {@link OperatorStateHandles} so that the parallelism of the test
+	 * can change arbitrarily (i.e. be able to scale both up and down).
+	 *
+	 * <p>
+	 * After repacking the partial states, use {@link #initializeState(OperatorStateHandles)} to initialize
+	 * a new instance with the resulting state. Bear in mind that for parallelism greater than one, you
+	 * have to use the constructor {@link #AbstractStreamOperatorTestHarness(StreamOperator, int, int, int)}.
+	 *
+	 * <p>
+	 * <b>NOTE: </b> each of the {@code handles} in the argument list is assumed to be from a single task of a single
+	 * operator (i.e. chain length of one).
+	 *
+	 * <p>
+	 * For an example of how to use it, have a look at
+	 * {@link AbstractStreamOperatorTest#testStateAndTimerStateShufflingScalingDown()}.
+	 *
+	 * @param handles the different states to be merged.
+	 * @return the resulting state, or {@code null} if no partial states are specified.
+	 */
+	public static OperatorStateHandles repackageState(OperatorStateHandles... handles) throws Exception {
+
+		if (handles.length < 1) {
+			return null;
+		} else if (handles.length == 1) {
+			return handles[0];
+		}
+
+		List<OperatorStateHandle> mergedManagedOperatorState = new ArrayList<>(handles.length);
+		List<OperatorStateHandle> mergedRawOperatorState = new ArrayList<>(handles.length);
+
+		List<KeyGroupsStateHandle> mergedManagedKeyedState = new ArrayList<>(handles.length);
+		List<KeyGroupsStateHandle> mergedRawKeyedState = new ArrayList<>(handles.length);
+
+		for (OperatorStateHandles handle: handles) {
+
+			Collection<OperatorStateHandle> managedOperatorState = handle.getManagedOperatorState();
+			Collection<OperatorStateHandle> rawOperatorState = handle.getRawOperatorState();
+			Collection<KeyGroupsStateHandle> managedKeyedState = handle.getManagedKeyedState();
+			Collection<KeyGroupsStateHandle> rawKeyedState = handle.getRawKeyedState();
+
+			if (managedOperatorState != null) {
+				mergedManagedOperatorState.addAll(managedOperatorState);
+			}
+
+			if (rawOperatorState != null) {
+				mergedRawOperatorState.addAll(rawOperatorState);
+			}
+
+			if (managedKeyedState != null) {
+				mergedManagedKeyedState.addAll(managedKeyedState);
+			}
+
+			if (rawKeyedState != null) {
+				mergedRawKeyedState.addAll(rawKeyedState);
+			}
+		}
+
+		return new OperatorStateHandles(
+			0,
+			null,
+			mergedManagedKeyedState,
+			mergedRawKeyedState,
+			mergedManagedOperatorState,
+			mergedRawOperatorState);
+	}
 
 	/**
 	 * Calls {@link StreamOperator#open()}. This also

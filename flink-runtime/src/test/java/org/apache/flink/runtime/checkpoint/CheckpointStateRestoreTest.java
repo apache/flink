@@ -59,6 +59,9 @@ import static org.mockito.Mockito.when;
  */
 public class CheckpointStateRestoreTest {
 
+	/**
+	 * Tests that on restore the task state is reset for each stateful task.
+	 */
 	@Test
 	public void testSetState() {
 		try {
@@ -92,7 +95,6 @@ public class CheckpointStateRestoreTest {
 			Map<JobVertexID, ExecutionJobVertex> map = new HashMap<JobVertexID, ExecutionJobVertex>();
 			map.put(statefulId, stateful);
 			map.put(statelessId, stateless);
-
 
 			CheckpointCoordinator coord = new CheckpointCoordinator(
 					jid,
@@ -167,92 +169,6 @@ public class CheckpointStateRestoreTest {
 	}
 
 	@Test
-	public void testStateOnlyPartiallyAvailable() {
-		try {
-			final ChainedStateHandle<StreamStateHandle> serializedState = CheckpointCoordinatorTest.generateChainedStateHandle(new SerializableObject());
-			KeyGroupRange keyGroupRange = KeyGroupRange.of(0,0);
-			List<SerializableObject> testStates = Collections.singletonList(new SerializableObject());
-			final KeyGroupsStateHandle serializedKeyGroupStates = CheckpointCoordinatorTest.generateKeyGroupState(keyGroupRange, testStates);
-
-			final JobID jid = new JobID();
-			final JobVertexID statefulId = new JobVertexID();
-			final JobVertexID statelessId = new JobVertexID();
-
-			Execution statefulExec1 = mockExecution();
-			Execution statefulExec2 = mockExecution();
-			Execution statefulExec3 = mockExecution();
-			Execution statelessExec1 = mockExecution();
-			Execution statelessExec2 = mockExecution();
-
-			ExecutionVertex stateful1 = mockExecutionVertex(statefulExec1, statefulId, 0, 3);
-			ExecutionVertex stateful2 = mockExecutionVertex(statefulExec2, statefulId, 1, 3);
-			ExecutionVertex stateful3 = mockExecutionVertex(statefulExec3, statefulId, 2, 3);
-			ExecutionVertex stateless1 = mockExecutionVertex(statelessExec1, statelessId, 0, 2);
-			ExecutionVertex stateless2 = mockExecutionVertex(statelessExec2, statelessId, 1, 2);
-
-			ExecutionJobVertex stateful = mockExecutionJobVertex(statefulId,
-					new ExecutionVertex[] { stateful1, stateful2, stateful3 });
-			ExecutionJobVertex stateless = mockExecutionJobVertex(statelessId,
-					new ExecutionVertex[] { stateless1, stateless2 });
-
-			Map<JobVertexID, ExecutionJobVertex> map = new HashMap<JobVertexID, ExecutionJobVertex>();
-			map.put(statefulId, stateful);
-			map.put(statelessId, stateless);
-
-
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-					jid,
-					200000L,
-					200000L,
-					0,
-					Integer.MAX_VALUE,
-					ExternalizedCheckpointSettings.none(),
-					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
-					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
-					new ExecutionVertex[0],
-					new StandaloneCheckpointIDCounter(),
-					new StandaloneCompletedCheckpointStore(1),
-					null,
-					new DisabledCheckpointStatsTracker());
-
-			// create ourselves a checkpoint with state
-			final long timestamp = 34623786L;
-			coord.triggerCheckpoint(timestamp, false);
-
-			PendingCheckpoint pending = coord.getPendingCheckpoints().values().iterator().next();
-			final long checkpointId = pending.getCheckpointId();
-
-			// the difference to the test "testSetState" is that one stateful subtask does not report state
-			SubtaskState checkpointStateHandles =
-					new SubtaskState(serializedState, null, null, serializedKeyGroupStates, null, 0L);
-
-			CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, 0L);
-
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointMetaData, checkpointStateHandles));
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec2.getAttemptId(), checkpointMetaData));
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec3.getAttemptId(), checkpointMetaData, checkpointStateHandles));
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec1.getAttemptId(), checkpointMetaData));
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec2.getAttemptId(), checkpointMetaData));
-
-			assertEquals(1, coord.getNumberOfRetainedSuccessfulCheckpoints());
-			assertEquals(0, coord.getNumberOfPendingCheckpoints());
-
-			// let the coordinator inject the state
-			try {
-				coord.restoreLatestCheckpointedState(map, true, true);
-				fail("this should fail with an exception");
-			}
-			catch (IllegalStateException e) {
-				// swish!
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
 	public void testNoCheckpointAvailable() {
 		try {
 			CheckpointCoordinator coord = new CheckpointCoordinator(
@@ -281,6 +197,93 @@ public class CheckpointStateRestoreTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+
+	/**
+	 * Tests that the allow non restored state flag is correctly handled.
+	 *
+	 * The flag only applies for state that is part of the checkpoint.
+	 */
+	@Test
+	public void testNonRestoredState() throws Exception {
+		// --- (1) Create tasks to restore checkpoint with ---
+		JobVertexID jobVertexId1 = new JobVertexID();
+		JobVertexID jobVertexId2 = new JobVertexID();
+
+		// 1st JobVertex
+		ExecutionVertex vertex11 = mockExecutionVertex(mockExecution(), jobVertexId1, 0, 3);
+		ExecutionVertex vertex12 = mockExecutionVertex(mockExecution(), jobVertexId1, 1, 3);
+		ExecutionVertex vertex13 = mockExecutionVertex(mockExecution(), jobVertexId1, 2, 3);
+		// 2nd JobVertex
+		ExecutionVertex vertex21 = mockExecutionVertex(mockExecution(), jobVertexId2, 0, 2);
+		ExecutionVertex vertex22 = mockExecutionVertex(mockExecution(), jobVertexId2, 1, 2);
+
+		ExecutionJobVertex jobVertex1 = mockExecutionJobVertex(jobVertexId1, new ExecutionVertex[] { vertex11, vertex12, vertex13 });
+		ExecutionJobVertex jobVertex2 = mockExecutionJobVertex(jobVertexId2, new ExecutionVertex[] { vertex21, vertex22 });
+
+		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
+		tasks.put(jobVertexId1, jobVertex1);
+		tasks.put(jobVertexId2, jobVertex2);
+
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+				new JobID(),
+				Integer.MAX_VALUE,
+				Integer.MAX_VALUE,
+				0,
+				Integer.MAX_VALUE,
+				ExternalizedCheckpointSettings.none(),
+				new ExecutionVertex[] {},
+				new ExecutionVertex[] {},
+				new ExecutionVertex[] {},
+				new StandaloneCheckpointIDCounter(),
+				new StandaloneCompletedCheckpointStore(1),
+				null,
+				new DisabledCheckpointStatsTracker());
+
+		ChainedStateHandle<StreamStateHandle> serializedState = CheckpointCoordinatorTest
+				.generateChainedStateHandle(new SerializableObject());
+
+		// --- (2) Checkpoint misses state for a jobVertex (should work) ---
+		Map<JobVertexID, TaskState> checkpointTaskStates = new HashMap<>();
+		{
+			TaskState taskState = new TaskState(jobVertexId1, 3, 3, 1);
+			taskState.putState(0, new SubtaskState(serializedState, null, null, null, null));
+			taskState.putState(1, new SubtaskState(serializedState, null, null, null, null));
+			taskState.putState(2, new SubtaskState(serializedState, null, null, null, null));
+
+			checkpointTaskStates.put(jobVertexId1, taskState);
+		}
+		CompletedCheckpoint checkpoint = new CompletedCheckpoint(new JobID(), 0, 1, 2, new HashMap<>(checkpointTaskStates));
+
+		coord.getCheckpointStore().addCheckpoint(checkpoint);
+
+		coord.restoreLatestCheckpointedState(tasks, true, false);
+		coord.restoreLatestCheckpointedState(tasks, true, true);
+
+		// --- (3) JobVertex missing for task state that is part of the checkpoint ---
+		JobVertexID newJobVertexID = new JobVertexID();
+
+		// There is no task for this
+		{
+			TaskState taskState = new TaskState(jobVertexId1, 1, 1, 1);
+			taskState.putState(0, new SubtaskState(serializedState, null, null, null, null));
+
+			checkpointTaskStates.put(newJobVertexID, taskState);
+		}
+
+		checkpoint = new CompletedCheckpoint(new JobID(), 1, 2, 3, new HashMap<>(checkpointTaskStates));
+
+		coord.getCheckpointStore().addCheckpoint(checkpoint);
+
+		// (i) Allow non restored state (should succeed)
+		coord.restoreLatestCheckpointedState(tasks, true, true);
+
+		// (ii) Don't allow non restored state (should fail)
+		try {
+			coord.restoreLatestCheckpointedState(tasks, true, false);
+			fail("Did not throw the expected Exception.");
+		} catch (IllegalStateException ignored) {
 		}
 	}
 

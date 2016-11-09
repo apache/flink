@@ -60,6 +60,10 @@ parallelism.default: 1
 #==============================================================================
 # Web Frontend
 #==============================================================================
+ 
+# The address under which the web-based runtime monitor listens.
+#
+#jobmanager.web.address: 0.0.0.0
 
 # The port under which the web-based runtime monitor listens.
 # A value of -1 deactivates the web server.

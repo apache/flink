@@ -21,6 +21,7 @@ package org.apache.flink.runtime.webmonitor;
 import akka.actor.ActorSystem;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -31,6 +32,7 @@ import io.netty.handler.codec.http.router.Router;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -158,7 +160,9 @@ public class WebRuntimeMonitor implements WebMonitor {
 		this.retriever = new JobManagerRetriever(this, actorSystem, AkkaUtils.getTimeout(config), timeout);
 		
 		final WebMonitorConfig cfg = new WebMonitorConfig(config);
-		
+
+		final String configuredAddress = cfg.getWebFrontendAddress();
+
 		final int configuredPort = cfg.getWebFrontendPort();
 		if (configuredPort < 0) {
 			throw new IllegalArgumentException("Web frontend port is invalid: " + configuredPort);
@@ -191,7 +195,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		// - Back pressure stats ----------------------------------------------
 
-		stackTraceSamples = new StackTraceSampleCoordinator(actorSystem, 60000);
+		stackTraceSamples = new StackTraceSampleCoordinator(actorSystem.dispatcher(), 60000);
 
 		// Back pressure stats tracker config
 		int cleanUpInterval = config.getInteger(
@@ -210,7 +214,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 				ConfigConstants.JOB_MANAGER_WEB_BACK_PRESSURE_DELAY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_DELAY);
 
-		FiniteDuration delayBetweenSamples = new FiniteDuration(delay, TimeUnit.MILLISECONDS);
+		Time delayBetweenSamples = Time.milliseconds(delay);
 
 		backPressureStatsTracker = new BackPressureStatsTracker(
 				stackTraceSamples, cleanUpInterval, numSamples, delayBetweenSamples);
@@ -399,10 +403,15 @@ public class WebRuntimeMonitor implements WebMonitor {
 				.channel(NioServerSocketChannel.class)
 				.childHandler(initializer);
 
-		Channel ch = this.bootstrap.bind(configuredPort).sync().channel();
-		this.serverChannel = ch;
+		ChannelFuture ch;
+		if (configuredAddress == null) {
+			ch = this.bootstrap.bind(configuredPort);
+		} else {
+			ch = this.bootstrap.bind(configuredAddress, configuredPort);
+		}
+		this.serverChannel = ch.sync().channel();
 
-		InetSocketAddress bindAddress = (InetSocketAddress) ch.localAddress();
+		InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
 		String address = bindAddress.getAddress().getHostAddress();
 		int port = bindAddress.getPort();
 

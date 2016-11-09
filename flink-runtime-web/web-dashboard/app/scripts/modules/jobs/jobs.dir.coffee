@@ -252,7 +252,7 @@ angular.module('flinkApp')
         'node-iteration'
 
       else
-          'node-normal'
+        'node-normal'
       
     # creates the label of a node, in info is stored, whether it is a special node (like a mirror in an iteration)
     createLabelNode = (el, info, maxW, maxH) ->
@@ -352,18 +352,10 @@ angular.module('flinkApp')
           class: getNodeType(el, "")
 
     createEdge = (g, data, el, existingNodes, pred) ->
-      unless existingNodes.indexOf(pred.id) is -1
-        g.setEdge pred.id, el.id,
-          label: createLabelEdge(pred)
-          labelType: 'html'
-          arrowhead: 'normal'
-
-      else
-        missingNode = searchForNode(data, pred.id)
-        unless !missingNode
-          g.setEdge missingNode.id, el.id,
-            label: createLabelEdge(missingNode)
-            labelType: 'html'
+      g.setEdge pred.id, el.id,
+        label: createLabelEdge(pred)
+        labelType: 'html'
+        arrowhead: 'normal'
 
     loadJsonToDagre = (g, data) ->
       existingNodes = []

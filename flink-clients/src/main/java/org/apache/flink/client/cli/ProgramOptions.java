@@ -19,6 +19,7 @@ package org.apache.flink.client.cli;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -33,6 +34,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.LOGGING_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_ALLOW_NON_RESTORED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_PATH_OPTION;
 
 /**
@@ -54,7 +56,7 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	private final boolean detachedMode;
 
-	private final String savepointPath;
+	private final SavepointRestoreSettings savepointSettings;
 
 	protected ProgramOptions(CommandLine line) throws CliArgsException {
 		super(line);
@@ -111,9 +113,11 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		detachedMode = line.hasOption(DETACHED_OPTION.getOpt());
 
 		if (line.hasOption(SAVEPOINT_PATH_OPTION.getOpt())) {
-			savepointPath = line.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
+			String savepointPath = line.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
+			boolean allowNonRestoredState = line.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt());
+			this.savepointSettings = SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState);
 		} else {
-			savepointPath = null;
+			this.savepointSettings = SavepointRestoreSettings.none();
 		}
 	}
 
@@ -145,7 +149,7 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		return detachedMode;
 	}
 
-	public String getSavepointPath() {
-		return savepointPath;
+	public SavepointRestoreSettings getSavepointRestoreSettings() {
+		return savepointSettings;
 	}
 }

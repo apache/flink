@@ -21,13 +21,18 @@ package org.apache.flink.runtime.concurrent.impl;
 import akka.dispatch.ExecutionContexts$;
 import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
+import akka.dispatch.OnComplete;
 import akka.dispatch.Recover;
+import akka.japi.Procedure;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.ApplyFunction;
+import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Option;
 import scala.Tuple2;
 import scala.concurrent.Await;
@@ -41,6 +46,7 @@ import scala.util.Try;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -50,6 +56,8 @@ import java.util.concurrent.TimeoutException;
  * @param <T> type of the future's value
  */
 public class FlinkFuture<T> implements Future<T> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkFuture.class);
 
 	protected scala.concurrent.Future<T> scalaFuture;
 
@@ -243,29 +251,18 @@ public class FlinkFuture<T> implements Future<T> {
 
 		final ExecutionContext executionContext = createExecutionContext(executor);
 
-		scala.concurrent.Future<R> mappedFuture = scalaFuture.map(new Mapper<T, R>() {
+		final CompletableFuture<R> resultFuture = new FlinkCompletableFuture<>();
+
+		scalaFuture.onComplete(new OnComplete<T>() {
 			@Override
-			public R checkedApply(T value) throws Exception {
-				try {
-					return biFunction.apply(value, null);
-				} catch (Throwable t) {
-					throw new FlinkFuture.WrapperException(t);
-				}
+			public void onComplete(Throwable failure, T success) throws Throwable {
+				final R result = biFunction.apply(success, failure);
+
+				resultFuture.complete(result);
 			}
 		}, executionContext);
 
-		scala.concurrent.Future<R> recoveredFuture = mappedFuture.recover(new Recover<R>() {
-			@Override
-			public R recover(Throwable failure) throws Throwable {
-				if (failure instanceof FlinkFuture.WrapperException) {
-					throw failure.getCause();
-				} else {
-					return biFunction.apply(null, failure);
-				}
-			}
-		}, executionContext);
-
-		return new FlinkFuture<>(recoveredFuture);
+		return resultFuture;
 	}
 
 	@Override
@@ -344,17 +341,25 @@ public class FlinkFuture<T> implements Future<T> {
 	// Helper functions and types
 	//-----------------------------------------------------------------------------------
 
-	private static ExecutionContext createExecutionContext(Executor executor) {
-		return ExecutionContexts$.MODULE$.fromExecutor(executor);
-	}
+	private static ExecutionContext createExecutionContext(final Executor executor) {
+		return ExecutionContexts$.MODULE$.fromExecutor(executor, new Procedure<Throwable>() {
+			@Override
+			public void apply(Throwable throwable) throws Exception {
+				if (executor instanceof ExecutorService) {
+					ExecutorService executorService = (ExecutorService) executor;
+					// only log the exception if the executor service is still running
+					if (!executorService.isShutdown()) {
+						logThrowable(throwable);
+					}
+				} else {
+					logThrowable(throwable);
+				}
+			}
 
-	private static class WrapperException extends Exception {
-
-		private static final long serialVersionUID = 6533166370660884091L;
-
-		WrapperException(Throwable cause) {
-			super(cause);
-		}
+			private void logThrowable(Throwable throwable) {
+				LOG.warn("Uncaught exception in execution context.", throwable);
+			}
+		});
 	}
 
 	/**

@@ -61,6 +61,18 @@ public interface StatefulTask {
 	void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData) throws Exception;
 
 	/**
+	 * Aborts a checkpoint as the result of receiving possibly some checkpoint barriers,
+	 * but at least one {@link org.apache.flink.runtime.io.network.api.CancelCheckpointMarker}.
+	 * 
+	 * <p>This requires implementing tasks to forward a
+	 * {@link org.apache.flink.runtime.io.network.api.CancelCheckpointMarker} to their outputs.
+	 * 
+	 * @param checkpointId The ID of the checkpoint to be aborted.
+	 * @param cause The reason why the checkpoint was aborted during alignment   
+	 */
+	void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception;
+
+	/**
 	 * Invoked when a checkpoint has been completed, i.e., when the checkpoint coordinator has received
 	 * the notification from all participating tasks.
 	 *

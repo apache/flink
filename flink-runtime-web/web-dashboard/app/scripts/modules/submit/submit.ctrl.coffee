@@ -32,6 +32,8 @@ angular.module('flinkApp')
     $scope.state = {
       selected: null,
       parallelism: "",
+      savepointPath: "",
+      allowNonRestoredState: false
       'entry-class': "",
       'program-args': "",
       'plan-button': "Show Plan",
@@ -100,7 +102,9 @@ angular.module('flinkApp')
         $scope.state.selected, {
           'entry-class': $scope.state['entry-class'],
           parallelism: $scope.state.parallelism,
-          'program-args': $scope.state['program-args']
+          'program-args': $scope.state['program-args'],
+          savepointPath: $scope.state['savepointPath'],
+          allowNonRestoredState: $scope.state['allowNonRestoredState']
         }
       ).then (data) ->
         if action == $scope.state['action-time']

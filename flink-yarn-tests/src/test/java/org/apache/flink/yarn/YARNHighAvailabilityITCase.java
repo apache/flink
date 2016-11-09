@@ -31,7 +31,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.messages.Messages;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
@@ -143,7 +143,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 
 								gateway.tell(new TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered(1), selfGateway);
 
-								expectMsgEquals(Messages.getAcknowledge());
+								expectMsgEquals(Acknowledge.get());
 
 								gateway.tell(PoisonPill.getInstance());
 							} catch (Exception e) {
@@ -162,7 +162,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 							ActorGateway selfGateway = new AkkaActorGateway(getRef(), gateway2.leaderSessionID());
 							gateway2.tell(new TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered(1), selfGateway);
 
-							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Acknowledge.get());
 						} catch (Exception e) {
 							throw new AssertionError("Could not complete test.", e);
 						}

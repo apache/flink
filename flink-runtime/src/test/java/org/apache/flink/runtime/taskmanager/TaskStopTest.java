@@ -94,7 +94,7 @@ public class TaskStopTest {
 		f2.set(task, ExecutionState.RUNNING);
 	}
 
-	@Test(timeout = 10000)
+	@Test(timeout = 20000)
 	public void testStopExecution() throws Exception {
 		StoppableTestTask taskMock = new StoppableTestTask();
 		doMocking(taskMock);

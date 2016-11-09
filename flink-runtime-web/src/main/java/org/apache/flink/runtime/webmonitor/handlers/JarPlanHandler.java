@@ -39,7 +39,8 @@ public class JarPlanHandler extends JarActionHandler {
 	@Override
 	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {
-			JobGraph graph = getJobGraphAndClassLoader(pathParams, queryParams).f0;
+			JarActionHandlerConfig config = JarActionHandlerConfig.fromParams(pathParams, queryParams);
+			JobGraph graph = getJobGraphAndClassLoader(config).f0;
 			StringWriter writer = new StringWriter();
 			JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 			gen.writeStartObject();

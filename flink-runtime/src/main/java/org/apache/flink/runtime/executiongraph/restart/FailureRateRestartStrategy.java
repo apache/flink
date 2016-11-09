@@ -21,14 +21,13 @@ package org.apache.flink.runtime.executiongraph.restart;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.util.Preconditions;
 import scala.concurrent.duration.Duration;
 
 import java.util.ArrayDeque;
 import java.util.concurrent.TimeUnit;
-
-import static akka.dispatch.Futures.future;
 
 /**
  * Restart strategy which tries to restart the given {@link ExecutionGraph} when failure rate exceeded
@@ -71,7 +70,7 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 			restartTimestampsDeque.remove();
 		}
 		restartTimestampsDeque.add(System.currentTimeMillis());
-		future(ExecutionGraphRestarter.restartWithDelay(executionGraph, delayInterval.toMilliseconds()), executionGraph.getExecutionContext());
+		FlinkFuture.supplyAsync(ExecutionGraphRestarter.restartWithDelay(executionGraph, delayInterval.toMilliseconds()), executionGraph.getExecutor());
 	}
 
 	private boolean isRestartTimestampsQueueFull() {

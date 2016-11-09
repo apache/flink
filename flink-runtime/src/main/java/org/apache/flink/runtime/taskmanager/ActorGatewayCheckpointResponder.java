@@ -54,17 +54,17 @@ public class ActorGatewayCheckpointResponder implements CheckpointResponder {
 
 	@Override
 	public void declineCheckpoint(
-		JobID jobID,
-		ExecutionAttemptID executionAttemptID,
-		CheckpointMetaData checkpointMetaData) {
+			JobID jobID,
+			ExecutionAttemptID executionAttemptID,
+			long checkpointId,
+			Throwable reason) {
 
 		DeclineCheckpoint decline = new DeclineCheckpoint(
 			jobID,
 			executionAttemptID,
-			checkpointMetaData.getCheckpointId(),
-			checkpointMetaData.getTimestamp());
+			checkpointId,
+			reason);
 
 		actorGateway.tell(decline);
-
 	}
 }

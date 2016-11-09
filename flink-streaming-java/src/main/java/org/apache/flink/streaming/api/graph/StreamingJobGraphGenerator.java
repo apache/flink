@@ -29,6 +29,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputFormatVertex;
+import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -386,25 +387,28 @@ public class StreamingJobGraphGenerator {
 		downStreamConfig.setNumberOfInputs(downStreamConfig.getNumberOfInputs() + 1);
 
 		StreamPartitioner<?> partitioner = edge.getPartitioner();
+		JobEdge jobEdge = null;
 		if (partitioner instanceof ForwardPartitioner) {
-			downStreamVertex.connectNewDataSetAsInput(
+			jobEdge = downStreamVertex.connectNewDataSetAsInput(
 				headVertex,
 				DistributionPattern.POINTWISE,
 				ResultPartitionType.PIPELINED,
 				true);
 		} else if (partitioner instanceof RescalePartitioner){
-			downStreamVertex.connectNewDataSetAsInput(
+			jobEdge = downStreamVertex.connectNewDataSetAsInput(
 				headVertex,
 				DistributionPattern.POINTWISE,
 				ResultPartitionType.PIPELINED,
 				true);
 		} else {
-			downStreamVertex.connectNewDataSetAsInput(
+			jobEdge = downStreamVertex.connectNewDataSetAsInput(
 					headVertex,
 					DistributionPattern.ALL_TO_ALL,
 					ResultPartitionType.PIPELINED,
 					true);
 		}
+		// set strategy name so that web interface can show it.
+		jobEdge.setShipStrategyName(partitioner.toString());
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("CONNECTED: {} - {} -> {}", partitioner.getClass().getSimpleName(),

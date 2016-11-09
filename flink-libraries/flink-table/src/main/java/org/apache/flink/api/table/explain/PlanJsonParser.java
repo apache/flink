@@ -62,7 +62,7 @@ public class PlanJsonParser {
 			if (dele > -1) {
 				content = tempNode.getContents().substring(0, dele);
 			}
-			
+
 			//replace with certain content if node is dataSource to pass
 			//unit tests, because java and scala use different api to
 			//get input element
@@ -76,8 +76,11 @@ public class PlanJsonParser {
 				printTab(tabCount + 1, pw);
 				pw.print("ship_strategy : " + predecessors.get(0).getShip_strategy() + "\n");
 
-				printTab(tabCount + 1, pw);
-				pw.print("exchange_mode : " + predecessors.get(0).getExchange_mode() + "\n");
+				String mode = predecessors.get(0).getExchange_mode();
+				if (mode != null) {
+					printTab(tabCount + 1, pw);
+					pw.print("exchange_mode : " + mode + "\n");
+				}
 			}
 
 			if (tempNode.getDriver_strategy() != null) {
@@ -85,9 +88,11 @@ public class PlanJsonParser {
 				pw.print("driver_strategy : " + tempNode.getDriver_strategy() + "\n");
 			}
 
-			printTab(tabCount + 1, pw);
-			pw.print(tempNode.getGlobal_properties().get(0).getName() + " : "
+			if (tempNode.getGlobal_properties() != null) {
+				printTab(tabCount + 1, pw);
+				pw.print(tempNode.getGlobal_properties().get(0).getName() + " : "
 					+ tempNode.getGlobal_properties().get(0).getValue() + "\n");
+			}
 
 			if (extended) {
 				List<Global_properties> globalProperties = tempNode.getGlobal_properties();

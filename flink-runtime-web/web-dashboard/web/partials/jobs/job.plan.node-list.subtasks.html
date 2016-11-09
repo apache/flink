@@ -28,6 +28,7 @@ limitations under the License.
       <th>Records received</th>
       <th>Bytes sent</th>
       <th>Records sent</th>
+      <th>Parallelism</th>
       <th>Tasks</th>
       <th>Status</th>
     </tr>
@@ -42,6 +43,7 @@ limitations under the License.
       <td>{{ v.metrics['read-records'] | number }}</td>
       <td title="{{v.metrics['write-bytes']}} bytes">{{ v.metrics['write-bytes'] | humanizeBytes }}</td>
       <td>{{ v.metrics['write-records'] | number }}</td>
+      <td>{{ v.parallelism }}</td>
       <td>
         <div class="label-group">
           <bs-label status="{{status}}" ng-repeat="(index, status) in stateList">{{v.tasks[status]}}</bs-label>
@@ -52,7 +54,7 @@ limitations under the License.
       </td>
     </tr>
     <tr ng-if="nodeid &amp;&amp; v.id == nodeid">
-      <td colspan="10">
+      <td colspan="11">
         <div ng-include=" 'partials/jobs/job.plan.node.subtasks.html' "></div>
       </td>
     </tr>

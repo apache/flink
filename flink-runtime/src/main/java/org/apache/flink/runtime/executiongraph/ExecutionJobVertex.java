@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
@@ -45,7 +46,6 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 
 import scala.Option;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -90,7 +90,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		ExecutionGraph graph,
 		JobVertex jobVertex,
 		int defaultParallelism,
-		FiniteDuration timeout) throws JobException {
+		Time timeout) throws JobException {
 
 		this(graph, jobVertex, defaultParallelism, timeout, System.currentTimeMillis());
 	}
@@ -99,7 +99,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		ExecutionGraph graph,
 		JobVertex jobVertex,
 		int defaultParallelism,
-		FiniteDuration timeout,
+		Time timeout,
 		long createTimestamp) throws JobException {
 
 		if (graph == null || jobVertex == null) {

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.api.common.JobID;
 
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.junit.Test;
 
@@ -149,8 +150,13 @@ public class SimpleSlotTest {
 		InetAddress address = InetAddress.getByName("127.0.0.1");
 		TaskManagerLocation connection = new TaskManagerLocation(resourceID, address, 10001);
 
-		Instance instance = new Instance(DummyActorGateway.INSTANCE, connection,
-				new InstanceID(), hardwareDescription, 1);
+		Instance instance = new Instance(
+			new ActorTaskManagerGateway(DummyActorGateway.INSTANCE),
+			connection,
+			new InstanceID(),
+			hardwareDescription,
+			1);
+
 		return instance.allocateSimpleSlot(new JobID());
 	}
 }

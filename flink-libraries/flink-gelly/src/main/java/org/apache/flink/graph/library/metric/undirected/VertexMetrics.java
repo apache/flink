@@ -20,20 +20,17 @@ package org.apache.flink.graph.library.metric.undirected;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.accumulators.LongMaximum;
-import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
 import org.apache.flink.graph.library.metric.undirected.VertexMetrics.Result;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
-import org.apache.flink.util.AbstractID;
 
 import java.io.IOException;
 import java.text.NumberFormat;
@@ -44,6 +41,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * Compute the following vertex metrics in an undirected graph:
  *  - number of vertices
  *  - number of edges
+ *  - average degree
  *  - number of triplets
  *  - maximum degree
  *  - maximum number of triplets
@@ -55,7 +53,17 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 public class VertexMetrics<K extends Comparable<K> & CopyableValue<K>, VV, EV>
 extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
-	private String id = new AbstractID().toString();
+	private static final String VERTEX_COUNT = "vertexCount";
+
+	private static final String EDGE_COUNT = "edgeCount";
+
+	private static final String TRIPLET_COUNT = "tripletCount";
+
+	private static final String MAXIMUM_DEGREE = "maximumDegree";
+
+	private static final String MAXIMUM_TRIPLETS = "maximumTriplets";
+
+	private VertexMetricsHelper<K> vertexMetricsHelper;
 
 	// Optional configuration
 	private boolean includeZeroDegreeVertices = false;
@@ -117,8 +125,10 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 				.setReduceOnTargetId(reduceOnTargetId)
 				.setParallelism(parallelism));
 
+		vertexMetricsHelper = new VertexMetricsHelper<>();
+
 		vertexDegree
-			.output(new VertexMetricsHelper<K>(id))
+			.output(vertexMetricsHelper)
 				.name("Vertex metrics");
 
 		return this;
@@ -126,14 +136,13 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 	@Override
 	public Result getResult() {
-		JobExecutionResult res = env.getLastJobExecutionResult();
+		long vertexCount = vertexMetricsHelper.getAccumulator(env, VERTEX_COUNT);
+		long edgeCount = vertexMetricsHelper.getAccumulator(env, EDGE_COUNT);
+		long tripletCount = vertexMetricsHelper.getAccumulator(env, TRIPLET_COUNT);
+		long maximumDegree = vertexMetricsHelper.getAccumulator(env, MAXIMUM_DEGREE);
+		long maximumTriplets = vertexMetricsHelper.getAccumulator(env, MAXIMUM_TRIPLETS);
 
-		long vertexCount = res.getAccumulatorResult(id + "-0");
-		long edgeCount = res.getAccumulatorResult(id + "-1");
-		long tripletCount = res.getAccumulatorResult(id + "-2");
-		long maximumDegree = res.getAccumulatorResult(id + "-3");
-		long maximumTriplets = res.getAccumulatorResult(id + "-4");
-
+		// each edge is counted twice, once from each vertex, so must be halved
 		return new Result(vertexCount, edgeCount / 2, tripletCount, maximumDegree, maximumTriplets);
 	}
 
@@ -143,33 +152,12 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 * @param <T> ID type
 	 */
 	private static class VertexMetricsHelper<T>
-	extends RichOutputFormat<Vertex<T, LongValue>> {
-		private final String id;
-
+	extends AnalyticHelper<Vertex<T, LongValue>> {
 		private long vertexCount;
 		private long edgeCount;
 		private long tripletCount;
 		private long maximumDegree;
 		private long maximumTriplets;
-
-		/**
-		 * This helper class collects vertex metrics by scanning over and
-		 * discarding elements from the given DataSet.
-		 *
-		 * The unique id is required because Flink's accumulator namespace is
-		 * shared among all operators.
-		 *
-		 * @param id unique string used for accumulator names
-		 */
-		public VertexMetricsHelper(String id) {
-			this.id = id;
-		}
-
-		@Override
-		public void configure(Configuration parameters) {}
-
-		@Override
-		public void open(int taskNumber, int numTasks) throws IOException {}
 
 		@Override
 		public void writeRecord(Vertex<T, LongValue> record) throws IOException {
@@ -185,11 +173,11 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public void close() throws IOException {
-			getRuntimeContext().addAccumulator(id + "-0", new LongCounter(vertexCount));
-			getRuntimeContext().addAccumulator(id + "-1", new LongCounter(edgeCount));
-			getRuntimeContext().addAccumulator(id + "-2", new LongCounter(tripletCount));
-			getRuntimeContext().addAccumulator(id + "-3", new LongMaximum(maximumDegree));
-			getRuntimeContext().addAccumulator(id + "-4", new LongMaximum(maximumTriplets));
+			addAccumulator(VERTEX_COUNT, new LongCounter(vertexCount));
+			addAccumulator(EDGE_COUNT, new LongCounter(edgeCount));
+			addAccumulator(TRIPLET_COUNT, new LongCounter(tripletCount));
+			addAccumulator(MAXIMUM_DEGREE, new LongMaximum(maximumDegree));
+			addAccumulator(MAXIMUM_TRIPLETS, new LongMaximum(maximumTriplets));
 		}
 	}
 

@@ -32,6 +32,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -192,7 +193,7 @@ public class RescalingITCase extends TestLogger {
 
 			JobGraph scaledJobGraph = createJobGraphWithKeyedState(parallelism2, maxParallelism, numberKeys, numberElements2, true, 100);
 
-			scaledJobGraph.setSavepointPath(savepointPath);
+			scaledJobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
 			jobID = scaledJobGraph.getJobID();
 
@@ -284,7 +285,7 @@ public class RescalingITCase extends TestLogger {
 
 			JobGraph scaledJobGraph = createJobGraphWithOperatorState(parallelism2, maxParallelism, OperatorCheckpointMethod.NON_PARTITIONED);
 
-			scaledJobGraph.setSavepointPath(savepointPath);
+			scaledJobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
 			jobID = scaledJobGraph.getJobID();
 
@@ -397,7 +398,7 @@ public class RescalingITCase extends TestLogger {
 				true,
 				100);
 
-			scaledJobGraph.setSavepointPath(savepointPath);
+			scaledJobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
 			jobID = scaledJobGraph.getJobID();
 
@@ -523,7 +524,7 @@ public class RescalingITCase extends TestLogger {
 
 			JobGraph scaledJobGraph = createJobGraphWithOperatorState(parallelism2, maxParallelism, checkpointMethod);
 
-			scaledJobGraph.setSavepointPath(savepointPath);
+			scaledJobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
 			jobID = scaledJobGraph.getJobID();
 

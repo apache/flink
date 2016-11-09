@@ -21,13 +21,14 @@ import java.math.{BigDecimal => JBigDecimal}
 
 import org.apache.calcite.linq4j.tree.Types
 import org.apache.calcite.runtime.SqlFunctions
+import org.apache.flink.api.table.functions.utils.MathFunctions
 
 object BuiltInMethods {
   val LOG10 = Types.lookupMethod(classOf[Math], "log10", classOf[Double])
   val EXP = Types.lookupMethod(classOf[Math], "exp", classOf[Double])
   val POWER = Types.lookupMethod(classOf[Math], "pow", classOf[Double], classOf[Double])
   val POWER_DEC = Types.lookupMethod(
-    classOf[SqlFunctions], "power", classOf[Long], classOf[JBigDecimal])
+    classOf[MathFunctions], "power", classOf[Double], classOf[JBigDecimal])
   val LN = Types.lookupMethod(classOf[Math], "log", classOf[Double])
   val ABS = Types.lookupMethod(classOf[SqlFunctions], "abs", classOf[Double])
   val ABS_DEC = Types.lookupMethod(classOf[SqlFunctions], "abs", classOf[JBigDecimal])

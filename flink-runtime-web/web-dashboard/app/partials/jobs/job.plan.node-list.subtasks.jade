@@ -26,6 +26,7 @@ table.table.table-body-hover.table-clickable.table-activable
       th Records received
       th Bytes sent
       th Records sent
+      th Parallelism
       th Tasks
       th Status
 
@@ -43,6 +44,7 @@ table.table.table-body-hover.table-clickable.table-activable
       td {{ v.metrics['read-records'] | number }}
       td(title="{{v.metrics['write-bytes']}} bytes") {{ v.metrics['write-bytes'] | humanizeBytes }}
       td {{ v.metrics['write-records'] | number }}
+      td {{ v.parallelism }}
       td
         .label-group
           bs-label(status="{{status}}" ng-repeat="(index, status) in stateList") {{v.tasks[status]}}
@@ -50,5 +52,5 @@ table.table.table-body-hover.table-clickable.table-activable
       td 
         bs-label(status="{{v.status}}") {{v.status}}
     tr(ng-if="nodeid && v.id == nodeid")
-      td(colspan="10")
+      td(colspan="11")
         div(ng-include=" 'partials/jobs/job.plan.node.subtasks.html' ")

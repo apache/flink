@@ -23,6 +23,7 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.security.SecurityContext;
@@ -298,6 +299,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 		if(this.flinkConfiguration == null) {
 			throw new YarnDeploymentException("Flink configuration object has not been set");
+		}
+
+		int numYarnVcores = conf.getInt(YarnConfiguration.NM_VCORES, YarnConfiguration.DEFAULT_NM_VCORES);
+		// don't configure more than the maximum configured number of vcores
+		if (slots > numYarnVcores) {
+			throw new IllegalConfigurationException(
+				String.format("The number of task slots per node was configured with %d" +
+					" but Yarn only has %d virtual cores available.", slots, numYarnVcores));
 		}
 
 		// check if required Hadoop environment variables are set. If not, warn user

@@ -205,9 +205,7 @@ public class TaskAsyncCallTest {
 		}
 
 		@Override
-		public void setInitialState(TaskStateHandles taskStateHandles) throws Exception {
-
-		}
+		public void setInitialState(TaskStateHandles taskStateHandles) throws Exception {}
 
 		@Override
 		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData) {
@@ -228,6 +226,11 @@ public class TaskAsyncCallTest {
 
 		@Override
 		public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData) throws Exception {
+			throw new UnsupportedOperationException("Should not be called");
+		}
+
+		@Override
+		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
 			throw new UnsupportedOperationException("Should not be called");
 		}
 

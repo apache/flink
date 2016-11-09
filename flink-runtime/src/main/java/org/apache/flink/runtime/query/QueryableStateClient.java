@@ -27,6 +27,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.query.AkkaKvStateLocationLookupService.FixedDelayLookupRetryStrategyFactory;
@@ -123,13 +124,8 @@ public class QueryableStateClient {
 
 		FiniteDuration askTimeout = (FiniteDuration) timeout;
 
-		int lookupRetries = config.getInteger(
-				ConfigConstants.QUERYABLE_STATE_CLIENT_LOOKUP_RETRIES,
-				ConfigConstants.DEFAULT_QUERYABLE_STATE_CLIENT_LOOKUP_RETRIES);
-
-		int lookupRetryDelayMillis = config.getInteger(
-				ConfigConstants.QUERYABLE_STATE_CLIENT_LOOKUP_RETRY_DELAY,
-				ConfigConstants.DEFAULT_QUERYABLE_STATE_CLIENT_LOOKUP_RETRY_DELAY);
+		int lookupRetries = config.getInteger(QueryableStateOptions.CLIENT_LOOKUP_RETRIES);
+		int lookupRetryDelayMillis = config.getInteger(QueryableStateOptions.CLIENT_LOOKUP_RETRY_DELAY);
 
 		// Retries if no JobManager is around
 		LookupRetryStrategyFactory retryStrategy = new FixedDelayLookupRetryStrategyFactory(
@@ -147,9 +143,7 @@ public class QueryableStateClient {
 				askTimeout,
 				retryStrategy);
 
-		int numEventLoopThreads = config.getInteger(
-				ConfigConstants.QUERYABLE_STATE_CLIENT_NETWORK_THREADS,
-				ConfigConstants.DEFAULT_QUERYABLE_STATE_CLIENT_NETWORK_THREADS);
+		int numEventLoopThreads = config.getInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS);
 
 		if (numEventLoopThreads == 0) {
 			numEventLoopThreads = Runtime.getRuntime().availableProcessors();

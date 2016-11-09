@@ -322,6 +322,9 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
+	public void declineCheckpoint(long checkpointId, Throwable cause) {}
+
+	@Override
 	public void failExternally(Throwable cause) {
 		this.wasFailedExternally = true;
 	}

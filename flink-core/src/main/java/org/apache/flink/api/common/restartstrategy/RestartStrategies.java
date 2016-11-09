@@ -42,6 +42,10 @@ public class RestartStrategies {
 		return new NoRestartStrategyConfiguration();
 	}
 
+	public static RestartStrategyConfiguration fallBackRestart() {
+		return new FallbackRestartStrategyConfiguration();
+	}
+
 	/**
 	 * Generates a FixedDelayRestartStrategyConfiguration.
 	 *
@@ -171,6 +175,20 @@ public class RestartStrategies {
 		public String getDescription() {
 			return "Failure rate restart with maximum of " + maxFailureRate + " failures within interval " + failureInterval.toString()
 					+ " and fixed delay " + delayBetweenAttemptsInterval.toString();
+		}
+	}
+
+	/**
+	 * Restart strategy configuration that could be used by jobs to use cluster level restart
+	 * strategy. Useful especially when one has a custom implementation of restart strategy set via
+	 * flink-conf.yaml.
+	 */
+	final public static class FallbackRestartStrategyConfiguration extends RestartStrategyConfiguration{
+		private static final long serialVersionUID = -4441787204284085544L;
+
+		@Override
+		public String getDescription() {
+			return "Cluster level default restart strategy";
 		}
 	}
 }

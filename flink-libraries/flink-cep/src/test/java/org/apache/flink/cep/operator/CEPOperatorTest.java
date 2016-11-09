@@ -301,9 +301,7 @@ public class CEPOperatorTest extends TestLogger {
 	public void testKeyedCEPOperatorCheckpointingWithRocksDB() throws Exception {
 
 		String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
-		String rocksDbBackups = tempFolder.newFolder().toURI().toString();
-		RocksDBStateBackend rocksDBStateBackend =
-				new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend());
+		RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
 		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
@@ -350,8 +348,7 @@ public class CEPOperatorTest extends TestLogger {
 				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO);
 
-		rocksDBStateBackend =
-				new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend());
+		rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
 		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 		harness.setStateBackend(rocksDBStateBackend);
 
@@ -381,8 +378,7 @@ public class CEPOperatorTest extends TestLogger {
 				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO);
 
-		rocksDBStateBackend =
-				new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend());
+		rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
 		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 		harness.setStateBackend(rocksDBStateBackend);
 		harness.setup();
