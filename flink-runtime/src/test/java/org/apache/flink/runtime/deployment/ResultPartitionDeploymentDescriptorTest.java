@@ -45,8 +45,7 @@ public class ResultPartitionDeploymentDescriptorTest {
 						resultId,
 						partitionId,
 						partitionType,
-						numberOfSubpartitions,
-						eagerlyDeployConsumers);
+						numberOfSubpartitions);
 
 		ResultPartitionDeploymentDescriptor copy =
 				CommonTestUtils.createCopySerializable(orig);
@@ -55,6 +54,5 @@ public class ResultPartitionDeploymentDescriptorTest {
 		assertEquals(partitionId, copy.getPartitionId());
 		assertEquals(partitionType, copy.getPartitionType());
 		assertEquals(numberOfSubpartitions, copy.getNumberOfSubpartitions());
-		assertEquals(eagerlyDeployConsumers, copy.getEagerlyDeployConsumers());
 	}
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
@@ -28,7 +29,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.slf4j.Logger;
@@ -89,14 +89,6 @@ public class ResultPartition implements BufferPoolOwner {
 	/** Type of this partition. Defines the concrete subpartition implementation to use. */
 	private final ResultPartitionType partitionType;
 
-	/**
-	 * Flag indicating whether to eagerly deploy consumers.
-	 *
-	 * <p>If <code>true</code>, the consumers are deployed as soon as the
-	 * runtime result is registered at the result manager of the task manager.
-	 */
-	private final boolean doEagerDeployment;
-
 	/** The subpartitions of this partition. At least one. */
 	private final ResultSubpartition[] subpartitions;
 
@@ -137,7 +129,6 @@ public class ResultPartition implements BufferPoolOwner {
 		JobID jobId,
 		ResultPartitionID partitionId,
 		ResultPartitionType partitionType,
-		boolean doEagerDeployment,
 		int numberOfSubpartitions,
 		ResultPartitionManager partitionManager,
 		ResultPartitionConsumableNotifier partitionConsumableNotifier,
@@ -149,7 +140,6 @@ public class ResultPartition implements BufferPoolOwner {
 		this.jobId = checkNotNull(jobId);
 		this.partitionId = checkNotNull(partitionId);
 		this.partitionType = checkNotNull(partitionType);
-		this.doEagerDeployment = doEagerDeployment;
 		this.subpartitions = new ResultSubpartition[numberOfSubpartitions];
 		this.partitionManager = checkNotNull(partitionManager);
 		this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
@@ -363,15 +353,6 @@ public class ResultPartition implements BufferPoolOwner {
 
 	public Throwable getFailureCause() {
 		return cause;
-	}
-
-	/**
-	 * Deploys consumers if eager deployment is activated
-	 */
-	public void deployConsumers() {
-		if (doEagerDeployment) {
-			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionId, taskActions);
-		}
 	}
 
 	/**

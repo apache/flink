@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.Archiveable;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
@@ -30,13 +32,11 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.runtime.instance.SlotProvider;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -45,7 +45,6 @@ import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
-
 import scala.Option;
 
 import java.io.IOException;
@@ -161,8 +160,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 					result.getId(),
 					this,
 					numTaskVertices,
-					result.getResultType(),
-					result.getEagerlyDeployConsumers());
+					result.getResultType());
 		}
 
 		// create all task vertices
