@@ -22,6 +22,7 @@ import java.util.Arrays;
 
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Assert;
 import org.junit.Test;
@@ -37,7 +38,12 @@ public class AllVerticesIteratorTest {
 			JobVertex v2 = new JobVertex("v2");
 			JobVertex v3 = new JobVertex("v3");
 			JobVertex v4 = new JobVertex("v4");
-			
+
+			v1.setInvokableClass(AbstractInvokable.class);
+			v2.setInvokableClass(AbstractInvokable.class);
+			v3.setInvokableClass(AbstractInvokable.class);
+			v4.setInvokableClass(AbstractInvokable.class);
+
 			v1.setParallelism(1);
 			v2.setParallelism(7);
 			v3.setParallelism(3);

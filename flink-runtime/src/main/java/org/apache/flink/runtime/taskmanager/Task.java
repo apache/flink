@@ -33,12 +33,13 @@ import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotCheck
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotReadyException;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -70,6 +71,7 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +84,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -143,10 +146,10 @@ public class Task implements Runnable {
 	private final Configuration taskConfiguration;
 
 	/** The jar files used by this task */
-	private final List<BlobKey> requiredJarFiles;
+	private final Collection<BlobKey> requiredJarFiles;
 
 	/** The classpaths used by this task */
-	private final List<URL> requiredClasspaths;
+	private final Collection<URL> requiredClasspaths;
 
 	/** The name of the class that holds the invokable code */
 	private final String nameOfInvokableClass;
@@ -239,38 +242,56 @@ public class Task implements Runnable {
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to
 	 * be undone in the case of a failing task deployment.</p>
 	 */
-	public Task(TaskDeploymentDescriptor tdd,
-				MemoryManager memManager,
-				IOManager ioManager,
-				NetworkEnvironment networkEnvironment,
-				BroadcastVariableManager bcVarManager,
-				ActorGateway taskManagerActor,
-				ActorGateway jobManagerActor,
-				FiniteDuration actorAskTimeout,
-				LibraryCacheManager libraryCache,
-				FileCache fileCache,
-				TaskManagerRuntimeInfo taskManagerConfig,
-				TaskMetricGroup metricGroup)
-	{
-		this.taskInfo = checkNotNull(tdd.getTaskInfo());
-		this.jobId = checkNotNull(tdd.getJobID());
-		this.vertexId = checkNotNull(tdd.getVertexID());
-		this.executionId  = checkNotNull(tdd.getExecutionId());
-		this.taskNameWithSubtask = taskInfo.getTaskNameWithSubtasks();
-		this.jobConfiguration = checkNotNull(tdd.getJobConfiguration());
-		this.taskConfiguration = checkNotNull(tdd.getTaskConfiguration());
-		this.requiredJarFiles = checkNotNull(tdd.getRequiredJarFiles());
-		this.requiredClasspaths = checkNotNull(tdd.getRequiredClasspaths());
-		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
-		this.operatorState = tdd.getOperatorState();
-		this.serializedExecutionConfig = checkNotNull(tdd.getSerializedExecutionConfig());
+	public Task(
+			JobInformation jobInformation,
+			TaskInformation taskInformation,
+			ExecutionAttemptID executionAttemptID,
+			int subtaskIndex,
+			int attemptNumber,
+			Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
+			Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
+			int targetSlotNumber,
+			SerializedValue<StateHandle<?>> operatorState,
+			MemoryManager memManager,
+			IOManager ioManager,
+			NetworkEnvironment networkEnvironment,
+			BroadcastVariableManager bcVarManager,
+			ActorGateway taskManagerActor,
+			ActorGateway jobManagerActor,
+			FiniteDuration actorAskTimeout,
+			LibraryCacheManager libraryCache,
+			FileCache fileCache,
+			TaskManagerRuntimeInfo taskManagerConfig,
+			TaskMetricGroup metricGroup) {
+		checkNotNull(jobInformation);
+		checkNotNull(taskInformation);
 
-		Configuration taskConfig = tdd.getTaskConfiguration();
-		this.taskCancellationInterval = taskConfig.getLong(
+		checkArgument(0 <= subtaskIndex, "The subtask index must be positive.");
+		checkArgument(0 <= attemptNumber, "The attempt number must be positive.");
+		checkArgument(0 <= targetSlotNumber, "The target slot number must be positive.");
+
+		this.taskInfo = new TaskInfo(
+			taskInformation.getTaskName(),
+			subtaskIndex,
+			taskInformation.getParallelism(),
+			attemptNumber);
+
+		this.jobId = jobInformation.getJobId();
+		this.vertexId = taskInformation.getJobVertexId();
+		this.executionId  = checkNotNull(executionAttemptID);
+		this.taskNameWithSubtask = taskInfo.getTaskNameWithSubtasks();
+		this.jobConfiguration = jobInformation.getJobConfiguration();
+		this.taskConfiguration = taskInformation.getTaskConfiguration();
+		this.requiredJarFiles = jobInformation.getRequiredJarFileBlobKeys();
+		this.requiredClasspaths = jobInformation.getRequiredClasspathURLs();
+		this.nameOfInvokableClass = taskInformation.getInvokableClassName();
+		this.operatorState = operatorState;
+
+		this.taskCancellationInterval = taskConfiguration.getLong(
 				ConfigConstants.TASK_CANCELLATION_INTERVAL_MILLIS,
 				ConfigConstants.DEFAULT_TASK_CANCELLATION_INTERVAL_MILLIS);
 
-		this.taskCancellationTimeout = taskConfig.getLong(
+		this.taskCancellationTimeout = taskConfiguration.getLong(
 				ConfigConstants.TASK_CANCELLATION_TIMEOUT_MILLIS,
 				ConfigConstants.DEFAULT_TASK_CANCELLATION_TIMEOUT_MILLIS);
 
@@ -278,6 +299,8 @@ public class Task implements Runnable {
 		this.ioManager = checkNotNull(ioManager);
 		this.broadcastVariableManager = checkNotNull(bcVarManager);
 		this.accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
+
+		this.serializedExecutionConfig = jobInformation.getSerializedExecutionConfig();
 
 		this.jobManager = checkNotNull(jobManagerActor);
 		this.taskManager = checkNotNull(taskManagerActor);
@@ -295,18 +318,16 @@ public class Task implements Runnable {
 
 		final String taskNameWithSubtaskAndId = taskNameWithSubtask + " (" + executionId + ')';
 
-		List<ResultPartitionDeploymentDescriptor> partitions = tdd.getProducedPartitions();
-		List<InputGateDeploymentDescriptor> consumedPartitions = tdd.getInputGates();
-
 		// Produced intermediate result partitions
-		this.producedPartitions = new ResultPartition[partitions.size()];
-		this.writers = new ResultPartitionWriter[partitions.size()];
+		this.producedPartitions = new ResultPartition[resultPartitionDeploymentDescriptors.size()];
+		this.writers = new ResultPartitionWriter[resultPartitionDeploymentDescriptors.size()];
 
-		for (int i = 0; i < this.producedPartitions.length; i++) {
-			ResultPartitionDeploymentDescriptor desc = partitions.get(i);
+		int counter = 0;
+
+		for (ResultPartitionDeploymentDescriptor desc: resultPartitionDeploymentDescriptors) {
 			ResultPartitionID partitionId = new ResultPartitionID(desc.getPartitionId(), executionId);
 
-			this.producedPartitions[i] = new ResultPartition(
+			this.producedPartitions[counter] = new ResultPartition(
 					taskNameWithSubtaskAndId,
 					jobId,
 					partitionId,
@@ -318,20 +339,26 @@ public class Task implements Runnable {
 					ioManager,
 					networkEnvironment.getDefaultIOMode());
 
-			this.writers[i] = new ResultPartitionWriter(this.producedPartitions[i]);
+			writers[counter] = new ResultPartitionWriter(producedPartitions[counter]);
+
+			++counter;
 		}
 
 		// Consumed intermediate result partitions
-		this.inputGates = new SingleInputGate[consumedPartitions.size()];
+		this.inputGates = new SingleInputGate[inputGateDeploymentDescriptors.size()];
 		this.inputGatesById = new HashMap<IntermediateDataSetID, SingleInputGate>();
 
-		for (int i = 0; i < this.inputGates.length; i++) {
+		counter = 0;
+
+		for (InputGateDeploymentDescriptor inputGateDeploymentDescriptor: inputGateDeploymentDescriptors) {
 			SingleInputGate gate = SingleInputGate.create(
-					taskNameWithSubtaskAndId, jobId, executionId, consumedPartitions.get(i), networkEnvironment, 
+					taskNameWithSubtaskAndId, jobId, executionId, inputGateDeploymentDescriptor, networkEnvironment,
 					metricGroup.getIOMetricGroup());
 
-			this.inputGates[i] = gate;
+			inputGates[counter] = gate;
 			inputGatesById.put(gate.getConsumedResultId(), gate);
+
+			++counter;
 		}
 
 		invokableHasBeenCanceled = new AtomicBoolean(false);

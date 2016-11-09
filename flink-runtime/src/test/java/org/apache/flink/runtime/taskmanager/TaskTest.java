@@ -27,11 +27,12 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -707,29 +708,29 @@ public class TaskTest extends TestLogger {
 		}
 	}
 
-	private Task createTask(Class<? extends AbstractInvokable> invokable) {
+	private Task createTask(Class<? extends AbstractInvokable> invokable) throws IOException {
 		return createTask(invokable, new Configuration(), new ExecutionConfig());
 	}
 
-	private Task createTask(Class<? extends AbstractInvokable> invokable, Configuration config) {
+	private Task createTask(Class<? extends AbstractInvokable> invokable, Configuration config) throws IOException {
 		return createTask(invokable, config, new ExecutionConfig());
 	}
 
-	private Task createTask(Class<? extends AbstractInvokable> invokable, Configuration config, ExecutionConfig execConfig) {
+	private Task createTask(Class<? extends AbstractInvokable> invokable, Configuration config, ExecutionConfig execConfig) throws IOException {
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
 		return createTask(invokable, libCache, config, execConfig);
 	}
 
 	private Task createTask(Class<? extends AbstractInvokable> invokable,
-							LibraryCacheManager libCache) {
+			LibraryCacheManager libCache) throws IOException {
 		return createTask(invokable, libCache, new Configuration(), new ExecutionConfig());
 	}
 
 	private Task createTask(Class<? extends AbstractInvokable> invokable,
 							LibraryCacheManager libCache,
 							Configuration config,
-							ExecutionConfig execConfig) {
+			ExecutionConfig execConfig) throws IOException {
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
@@ -743,7 +744,7 @@ public class TaskTest extends TestLogger {
 	
 	private Task createTask(Class<? extends AbstractInvokable> invokable,
 							LibraryCacheManager libCache,
-							NetworkEnvironment networkEnvironment) {
+							NetworkEnvironment networkEnvironment) throws IOException {
 
 		return createTask(invokable, libCache, networkEnvironment, new Configuration(), new ExecutionConfig());
 	}
@@ -751,13 +752,40 @@ public class TaskTest extends TestLogger {
 	private Task createTask(Class<? extends AbstractInvokable> invokable,
 							LibraryCacheManager libCache,
 							NetworkEnvironment networkEnvironment,
-							Configuration config,
-							ExecutionConfig execConfig) {
+		Configuration taskConfig,
+		ExecutionConfig execConfig) throws IOException {
 		
-		TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(invokable, config, execConfig);
+		JobID jobId = new JobID();
+		JobVertexID jobVertexId = new JobVertexID();
+		ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+		
+		SerializedValue<ExecutionConfig> serializedExecutionConfig = new SerializedValue<>(execConfig);
+
+		JobInformation jobInformation = new JobInformation(
+			jobId,
+			"Test Job",
+			serializedExecutionConfig,
+			new Configuration(),
+			Collections.<BlobKey>emptyList(),
+			Collections.<URL>emptyList());
+
+		TaskInformation taskInformation = new TaskInformation(
+			jobVertexId,
+			"Test Task",
+			1,
+			invokable.getName(),
+			taskConfig);
 		
 		return new Task(
-				tdd,
+			jobInformation,
+			taskInformation,
+			executionAttemptId,
+			0,
+			0,
+			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+			Collections.<InputGateDeploymentDescriptor>emptyList(),
+			0,
+			null,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				networkEnvironment,
@@ -771,34 +799,7 @@ public class TaskTest extends TestLogger {
 				mock(TaskMetricGroup.class));
 	}
 
-	private TaskDeploymentDescriptor createTaskDeploymentDescriptor(Class<? extends AbstractInvokable> invokable) {
-		return createTaskDeploymentDescriptor(invokable, new Configuration(), new ExecutionConfig());
-	}
 
-	private TaskDeploymentDescriptor createTaskDeploymentDescriptor(
-			Class<? extends AbstractInvokable> invokable,
-			Configuration taskConfig,
-			ExecutionConfig execConfig) {
-
-		SerializedValue<ExecutionConfig> serializedExecConfig;
-		try {
-			serializedExecConfig = new SerializedValue<>(execConfig);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-		
-		return new TaskDeploymentDescriptor(
-				new JobID(), "Test Job", new JobVertexID(), new ExecutionAttemptID(),
-				serializedExecConfig,
-				"Test Task", 0, 1, 0,
-				new Configuration(), taskConfig,
-				invokable.getName(),
-				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-				Collections.<InputGateDeploymentDescriptor>emptyList(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				0);
-	}
 
 	// ------------------------------------------------------------------------
 	// Validation Methods

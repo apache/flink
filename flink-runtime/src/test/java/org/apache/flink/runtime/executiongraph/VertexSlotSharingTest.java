@@ -31,6 +31,7 @@ import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
@@ -58,7 +59,13 @@ public class VertexSlotSharingTest {
 			v3.setParallelism(7);
 			v4.setParallelism(1);
 			v5.setParallelism(11);
-			
+
+			v1.setInvokableClass(AbstractInvokable.class);
+			v2.setInvokableClass(AbstractInvokable.class);
+			v3.setInvokableClass(AbstractInvokable.class);
+			v4.setInvokableClass(AbstractInvokable.class);
+			v5.setInvokableClass(AbstractInvokable.class);
+
 			v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
 			v5.connectNewDataSetAsInput(v4, DistributionPattern.POINTWISE);
 			
