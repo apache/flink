@@ -84,4 +84,8 @@ public class SerializedStateHandle<T extends Serializable> extends AbstractClose
 	public long getStateSize() {
 		return serializedData.length;
 	}
+
+	public byte[] getSerializedData() {
+		return serializedData;
+	}
 }

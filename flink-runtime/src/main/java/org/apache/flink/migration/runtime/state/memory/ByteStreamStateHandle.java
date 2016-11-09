@@ -80,4 +80,8 @@ public final class ByteStreamStateHandle extends AbstractCloseableHandle impleme
 
 		return serializableHandle;
 	}
+
+	public byte[] getData() {
+		return data;
+	}
 }

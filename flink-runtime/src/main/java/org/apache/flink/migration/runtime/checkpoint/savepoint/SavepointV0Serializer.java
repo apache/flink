@@ -26,6 +26,7 @@ import org.apache.flink.migration.runtime.checkpoint.TaskState;
 import org.apache.flink.migration.runtime.state.KvStateSnapshot;
 import org.apache.flink.migration.runtime.state.StateHandle;
 import org.apache.flink.migration.runtime.state.filesystem.AbstractFileStateHandle;
+import org.apache.flink.migration.runtime.state.memory.SerializedStateHandle;
 import org.apache.flink.migration.state.MigrationKeyGroupStateHandle;
 import org.apache.flink.migration.state.MigrationStreamStateHandle;
 import org.apache.flink.migration.streaming.runtime.tasks.StreamTaskState;
@@ -38,9 +39,11 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.MultiStreamStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -63,8 +66,10 @@ import java.util.List;
 public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 
 	public static final SavepointV0Serializer INSTANCE = new SavepointV0Serializer();
+	public static final StreamStateHandle SIGNAL_0 = new ByteStreamStateHandle("SIGNAL_0", new byte[]{0});
+	public static final StreamStateHandle SIGNAL_1 = new ByteStreamStateHandle("SIGNAL_1", new byte[]{1});
 
-	private static final int MAX_SIZE = 16 * 1024 * 1024;
+	private static final int MAX_SIZE = 4 * 1024 * 1024;
 
 	private ClassLoader userClassLoader;
 	private JobID jobID;
@@ -235,42 +240,26 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 
 	private StreamStateHandle convertOperatorAndFunctionState(StreamTaskState streamTaskState) throws Exception {
 
+		List<StreamStateHandle> mergeStateHandles = new ArrayList<>(4);
+
 		StateHandle<Serializable> functionState = streamTaskState.getFunctionState();
 		StateHandle<?> operatorState = streamTaskState.getOperatorState();
 
-		Path path = null;
-		if (functionState instanceof AbstractFileStateHandle) {
-			path = ((AbstractFileStateHandle) functionState).getFilePath();
-		} else if (operatorState instanceof AbstractFileStateHandle) {
-			path = ((AbstractFileStateHandle) operatorState).getFilePath();
-		}
-
-		CheckpointStreamFactory checkpointStreamFactory;
-
-		if (path != null) {
-			checkpointStreamFactory = new FsCheckpointStreamFactory(path.getParent(), jobID, 1024 * 1024);
-		} else {
-			checkpointStreamFactory = new MemCheckpointStreamFactory(MAX_SIZE);
-		}
-
-		CheckpointStreamFactory.CheckpointStateOutputStream opStateOut =
-				checkpointStreamFactory.createCheckpointStateOutputStream(checkpointID, 0L);
-
 		if (null != functionState) {
-			opStateOut.write(1);
-			InstantiationUtil.serializeObject(opStateOut, functionState.getState(userClassLoader));
+			mergeStateHandles.add(SIGNAL_1);
+			mergeStateHandles.add(convertStateHandle(functionState));
 		} else {
-			opStateOut.write(0);
+			mergeStateHandles.add(SIGNAL_0);
 		}
 
 		if (null != operatorState) {
-			opStateOut.write(1);
-			InstantiationUtil.serializeObject(opStateOut, operatorState.getState(userClassLoader));
+			mergeStateHandles.add(SIGNAL_1);
+			mergeStateHandles.add(convertStateHandle(operatorState));
 		} else {
-			opStateOut.write(0);
+			mergeStateHandles.add(SIGNAL_0);
 		}
 
-		return opStateOut != null ? new MigrationStreamStateHandle(opStateOut.closeAndGetHandle()) : null;
+		return new MigrationStreamStateHandle(new MultiStreamStateHandle(mergeStateHandles));
 	}
 
 	private KeyGroupsStateHandle convertKeyedBackendState(
@@ -316,7 +305,20 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 
 			return streamTaskStates.length;
 		}
-
 		return 0;
+	}
+
+	private static StreamStateHandle convertStateHandle(StateHandle<?> oldStateHandle) throws Exception {
+		if (oldStateHandle instanceof AbstractFileStateHandle) {
+			Path path = ((AbstractFileStateHandle) oldStateHandle).getFilePath();
+			return new FileStateHandle(path, oldStateHandle.getStateSize());
+		} else if (oldStateHandle instanceof SerializedStateHandle) {
+			byte[] data = ((SerializedStateHandle<?>) oldStateHandle).getSerializedData();
+			return new ByteStreamStateHandle(String.valueOf(System.identityHashCode(data)), data);
+		} else if (oldStateHandle instanceof org.apache.flink.migration.runtime.state.memory.ByteStreamStateHandle) {
+			byte[] data = ((org.apache.flink.migration.runtime.state.memory.ByteStreamStateHandle) oldStateHandle).getData();
+			return new ByteStreamStateHandle(String.valueOf(System.identityHashCode(data)), data);
+		}
+		throw new IllegalArgumentException("Unknown state handle type: " + oldStateHandle);
 	}
 }
