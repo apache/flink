@@ -77,8 +77,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </ul>
  */
 public abstract class ResourceManager<WorkerType extends Serializable>
-	extends RpcEndpoint<ResourceManagerGateway>
-	implements LeaderContender {
+		extends RpcEndpoint<ResourceManagerGateway>
+		implements LeaderContender {
 
 	/** Configuration of the resource manager */
 	private final ResourceManagerConfiguration resourceManagerConfiguration;
@@ -120,13 +120,13 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	private ConcurrentMap<String, InfoMessageListenerRpcGateway> infoMessageListeners;
 
 	public ResourceManager(
-		RpcService rpcService,
-		ResourceManagerConfiguration resourceManagerConfiguration,
-		HighAvailabilityServices highAvailabilityServices,
-		SlotManagerFactory slotManagerFactory,
-		MetricRegistry metricRegistry,
-		JobLeaderIdService jobLeaderIdService,
-		FatalErrorHandler fatalErrorHandler) {
+			RpcService rpcService,
+			ResourceManagerConfiguration resourceManagerConfiguration,
+			HighAvailabilityServices highAvailabilityServices,
+			SlotManagerFactory slotManagerFactory,
+			MetricRegistry metricRegistry,
+			JobLeaderIdService jobLeaderIdService,
+			FatalErrorHandler fatalErrorHandler) {
 
 		super(rpcService);
 
@@ -212,10 +212,10 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 	@RpcMethod
 	public Future<RegistrationResponse> registerJobManager(
-		final UUID resourceManagerLeaderId,
-		final UUID jobManagerLeaderId,
-		final String jobManagerAddress,
-		final JobID jobId) {
+			final UUID resourceManagerLeaderId,
+			final UUID jobManagerLeaderId,
+			final String jobManagerAddress,
+			final JobID jobId) {
 
 		checkNotNull(resourceManagerLeaderId);
 		checkNotNull(jobManagerLeaderId);
@@ -396,9 +396,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 */
 	@RpcMethod
 	public RMSlotRequestReply requestSlot(
-		UUID jobMasterLeaderID,
-		UUID resourceManagerLeaderID,
-		SlotRequest slotRequest) {
+			UUID jobMasterLeaderID,
+			UUID resourceManagerLeaderID,
+			SlotRequest slotRequest) {
 
 		log.info("Request slot with profile {} for job {} with allocation id {}.",
 			slotRequest.getResourceProfile(),
@@ -409,8 +409,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
 
 		if (jobManagerRegistration != null
-			&& jobMasterLeaderID.equals(jobManagerRegistration.getLeaderID())
-			&& resourceManagerLeaderID.equals(leaderSessionId)) {
+				&& jobMasterLeaderID.equals(jobManagerRegistration.getLeaderID())
+				&& resourceManagerLeaderID.equals(leaderSessionId)) {
 			return slotManager.requestSlot(slotRequest);
 		} else {
 			log.info("Ignoring slot request for unknown JobMaster with JobID {}", jobId);
@@ -427,9 +427,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 */
 	@RpcMethod
 	public void notifySlotAvailable(
-		final UUID resourceManagerLeaderId,
-		final InstanceID instanceID,
-		final SlotID slotId) {
+			final UUID resourceManagerLeaderId,
+			final InstanceID instanceID,
+			final SlotID slotId) {
 
 		if (resourceManagerLeaderId.equals(leaderSessionId)) {
 			final ResourceID resourceId = slotId.getResourceID();
@@ -450,7 +450,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			}
 		} else {
 			log.debug("Discarding notify slot available message for slot {}, because the " +
-					"leader id {} did not match the expected leader id {}.", slotId,
+				"leader id {} did not match the expected leader id {}.", slotId,
 				resourceManagerLeaderId, leaderSessionId);
 		}
 	}

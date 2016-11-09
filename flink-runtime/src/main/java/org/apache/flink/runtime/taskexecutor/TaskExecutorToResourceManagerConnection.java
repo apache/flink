@@ -133,7 +133,7 @@ public class TaskExecutorToResourceManagerConnection
 	// ------------------------------------------------------------------------
 
 	private static class ResourceManagerRegistration
-		extends RetryingRegistration<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
+			extends RetryingRegistration<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
 
 		private final String taskExecutorAddress;
 
