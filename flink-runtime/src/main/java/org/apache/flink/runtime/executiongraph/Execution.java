@@ -388,7 +388,9 @@ public class Execution implements Serializable {
 				public void onComplete(Throwable failure, Object success) throws Throwable {
 					if (failure != null) {
 						if (failure instanceof TimeoutException) {
-							String taskname = deployment.getTaskInfo().getTaskNameWithSubtasks() + " (" + attemptId + ')';
+						String taskname = vertex.getTaskName() + '(' +
+							(vertex.getParallelSubtaskIndex() + 1) + '/' +
+							vertex.getTotalNumberOfParallelSubtasks() + ") (" + attemptId + ')';
 
 							markFailed(new Exception(
 									"Cannot deploy task " + taskname + " - TaskManager (" + instance

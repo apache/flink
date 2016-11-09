@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
@@ -50,7 +48,6 @@ import org.slf4j.Logger;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -666,29 +663,19 @@ public class ExecutionVertex implements Serializable {
 			consumedPartitions.add(new InputGateDeploymentDescriptor(resultId, queueToRequest, partitions));
 		}
 
-		SerializedValue<ExecutionConfig> serializedConfig = getExecutionGraph().getSerializedExecutionConfig();
-		List<BlobKey> jarFiles = getExecutionGraph().getRequiredJarFiles();
-		List<URL> classpaths = getExecutionGraph().getRequiredClasspaths();
+		SerializedValue<JobInformation> serializedJobInformation = getExecutionGraph().getSerializedJobInformation();
+		SerializedValue<TaskInformation> serializedJobVertexInformation = jobVertex.getSerializedTaskInformation();
 
 		return new TaskDeploymentDescriptor(
-			getJobId(),
-			getExecutionGraph().getJobName(),
-			getJobvertexId(),
+			serializedJobInformation,
+			serializedJobVertexInformation,
 			executionId,
-			serializedConfig,
-			getTaskName(),
 			subTaskIndex,
-			getTotalNumberOfParallelSubtasks(),
 			attemptNumber,
-			getExecutionGraph().getJobConfiguration(),
-			jobVertex.getJobVertex().getConfiguration(),
-			jobVertex.getJobVertex().getInvokableClassName(),
-			producedPartitions,
-			consumedPartitions,
-			jarFiles,
-			classpaths,
 			targetSlot.getRoot().getSlotNumber(),
-			operatorState);
+			operatorState,
+			producedPartitions,
+			consumedPartitions);
 	}
 
 	// --------------------------------------------------------------------------------------------

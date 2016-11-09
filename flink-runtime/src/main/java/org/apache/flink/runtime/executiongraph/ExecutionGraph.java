@@ -130,14 +130,13 @@ public class ExecutionGraph implements Serializable {
 	 * within the job. */
 	private final SerializableObject progressLock = new SerializableObject();
 
-	/** The ID of the job this graph has been built for. */
-	private final JobID jobID;
+	/** Job specific information like the job id, job name, job configuration, etc. */
+	private final JobInformation jobInformation;
 
-	/** The name of the original job graph. */
-	private final String jobName;
-
-	/** The job configuration that was originally attached to the JobGraph. */
-	private final Configuration jobConfiguration;
+	/** Serialized version of the job specific information. This is done to avoid multiple
+	 * serializations of the same data when creating a TaskDeploymentDescriptor.
+	 */
+	private final SerializedValue<JobInformation> serializedJobInformation;
 
 	/** {@code true} if all source tasks are stoppable. */
 	private boolean isStoppable = true;
@@ -153,14 +152,6 @@ public class ExecutionGraph implements Serializable {
 
 	/** The currently executed tasks, for callbacks */
 	private final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
-
-	/** A list of all libraries required during the job execution. Libraries have to be stored
-	 * inside the BlobService and are referenced via the BLOB keys. */
-	private final List<BlobKey> requiredJarFiles;
-
-	/** A list of all classpaths required during the job execution. Classpaths have to be
-	 * accessible on all nodes in the cluster. */
-	private final List<URL> requiredClasspaths;
 
 	/** Listeners that receive messages when the entire job switches it status (such as from
 	 * RUNNING to FINISHED) */
@@ -179,9 +170,6 @@ public class ExecutionGraph implements Serializable {
 	private final FiniteDuration timeout;
 
 	// ------ Configuration of the Execution -------
-
-	/** The execution configuration (see {@link ExecutionConfig}) related to this specific job. */
-	private SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
 	/** Flag to indicate whether the scheduler may queue tasks for execution, or needs to be able
 	 * to deploy them immediately. */
@@ -256,7 +244,7 @@ public class ExecutionGraph implements Serializable {
 			Configuration jobConfig,
 			SerializedValue<ExecutionConfig> serializedConfig,
 			FiniteDuration timeout,
-			RestartStrategy restartStrategy) {
+			RestartStrategy restartStrategy) throws IOException {
 		this(
 			executionContext,
 			jobId,
@@ -283,19 +271,25 @@ public class ExecutionGraph implements Serializable {
 			List<BlobKey> requiredJarFiles,
 			List<URL> requiredClasspaths,
 			ClassLoader userClassLoader,
-			MetricGroup metricGroup) {
+			MetricGroup metricGroup) throws IOException {
 
-		checkNotNull(executionContext);
 		checkNotNull(jobId);
 		checkNotNull(jobName);
 		checkNotNull(jobConfig);
 		checkNotNull(userClassLoader);
 
-		this.executionContext = executionContext;
+		this.jobInformation = new JobInformation(
+			jobId,
+			jobName,
+			serializedConfig,
+			jobConfig,
+			requiredJarFiles,
+			requiredClasspaths);
 
-		this.jobID = jobId;
-		this.jobName = jobName;
-		this.jobConfiguration = jobConfig;
+		// serialize the job information to do the serialisation work only once
+		this.serializedJobInformation = new SerializedValue<>(jobInformation);
+
+
 		this.userClassLoader = userClassLoader;
 
 		this.tasks = new ConcurrentHashMap<JobVertexID, ExecutionJobVertex>();
@@ -309,16 +303,13 @@ public class ExecutionGraph implements Serializable {
 		this.stateTimestamps = new long[JobStatus.values().length];
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
 
-		this.requiredJarFiles = requiredJarFiles;
-		this.requiredClasspaths = requiredClasspaths;
-
-		this.serializedExecutionConfig = checkNotNull(serializedConfig);
-
 		this.timeout = timeout;
 
 		this.restartStrategy = restartStrategy;
 
 		metricGroup.gauge(RESTARTING_TIME_METRIC_NAME, new RestartTimeGauge());
+
+		this.executionContext = checkNotNull(executionContext);
 
 		// create a summary of all relevant data accessed in the web interface's JobConfigHandler
 		try {
@@ -327,7 +318,7 @@ public class ExecutionGraph implements Serializable {
 				this.executionConfigSummary = new ExecutionConfigSummary(executionConfig);
 			}
 		} catch (IOException | ClassNotFoundException e) {
-			LOG.error("Couldn't create ExecutionConfigSummary for job {} ", jobID, e);
+			LOG.error("Couldn't create ExecutionConfigSummary for job {} ", getJobID(), e);
 		}
 	}
 
@@ -402,20 +393,20 @@ public class ExecutionGraph implements Serializable {
 		if (interval != Long.MAX_VALUE) {
 			// create the coordinator that triggers and commits checkpoints and holds the state
 			checkpointCoordinator = new CheckpointCoordinator(
-					jobID,
-					interval,
-					checkpointTimeout,
-					minPauseBetweenCheckpoints,
-					maxConcurrentCheckpoints,
-					numberKeyGroups,
-					tasksToTrigger,
-					tasksToWaitFor,
-					tasksToCommitTo,
-					userClassLoader,
-					checkpointIDCounter,
-					checkpointStore,
-					recoveryMode,
-					checkpointStatsTracker);
+				jobInformation.getJobId(),
+				interval,
+				checkpointTimeout,
+				minPauseBetweenCheckpoints,
+				maxConcurrentCheckpoints,
+				numberKeyGroups,
+				tasksToTrigger,
+				tasksToWaitFor,
+				tasksToCommitTo,
+				userClassLoader,
+				checkpointIDCounter,
+				checkpointStore,
+				recoveryMode,
+				checkpointStatsTracker);
 
 			// the periodic checkpoint scheduler is activated and deactivated as a result of
 			// job status changes (running -> on, all other states -> off)
@@ -425,22 +416,22 @@ public class ExecutionGraph implements Serializable {
 
 		// Savepoint Coordinator
 		savepointCoordinator = new SavepointCoordinator(
-				jobID,
-				interval,
-				checkpointTimeout,
-				numberKeyGroups,
-				tasksToTrigger,
-				tasksToWaitFor,
-				tasksToCommitTo,
-				userClassLoader,
-				// Important: this counter needs to be shared with the periodic
-				// checkpoint coordinator.
-				checkpointIDCounter,
-				savepointStore,
-				checkpointStatsTracker);
+			jobInformation.getJobId(),
+			interval,
+			checkpointTimeout,
+			numberKeyGroups,
+			tasksToTrigger,
+			tasksToWaitFor,
+			tasksToCommitTo,
+			userClassLoader,
+			// Important: this counter needs to be shared with the periodic
+			// checkpoint coordinator.
+			checkpointIDCounter,
+			savepointStore,
+			checkpointStatsTracker);
 
 		registerJobStatusListener(savepointCoordinator
-				.createActivatorDeactivator(actorSystem, leaderSessionID));
+			.createActivatorDeactivator(actorSystem, leaderSessionID));
 	}
 
 	/**
@@ -510,16 +501,16 @@ public class ExecutionGraph implements Serializable {
 	 * Returns a list of BLOB keys referring to the JAR files required to run this job
 	 * @return list of BLOB keys referring to the JAR files required to run this job
 	 */
-	public List<BlobKey> getRequiredJarFiles() {
-		return this.requiredJarFiles;
+	public Collection<BlobKey> getRequiredJarFiles() {
+		return jobInformation.getRequiredJarFileBlobKeys();
 	}
 
 	/**
 	 * Returns a list of classpaths referring to the directories/JAR files required to run this job
 	 * @return list of classpaths referring to the directories/JAR files required to run this job
 	 */
-	public List<URL> getRequiredClasspaths() {
-		return this.requiredClasspaths;
+	public Collection<URL> getRequiredClasspaths() {
+		return jobInformation.getRequiredClasspathURLs();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -536,12 +527,16 @@ public class ExecutionGraph implements Serializable {
 		return scheduler;
 	}
 
+	public SerializedValue<JobInformation> getSerializedJobInformation() {
+		return serializedJobInformation;
+	}
+
 	public JobID getJobID() {
-		return jobID;
+		return jobInformation.getJobId();
 	}
 
 	public String getJobName() {
-		return jobName;
+		return jobInformation.getJobName();
 	}
 
 	public boolean isStoppable() {
@@ -549,7 +544,7 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	public Configuration getJobConfiguration() {
-		return jobConfiguration;
+		return jobInformation.getJobConfiguration();
 	}
 
 	public ClassLoader getUserClassLoader() {
@@ -711,7 +706,12 @@ public class ExecutionGraph implements Serializable {
 			}
 
 			// create the execution job vertex and attach it to the graph
-			ExecutionJobVertex ejv = new ExecutionJobVertex(this, jobVertex, 1, timeout, createTimestamp);
+			ExecutionJobVertex ejv = null;
+			try {
+				ejv = new ExecutionJobVertex(this, jobVertex, 1, timeout, createTimestamp);
+			} catch (IOException e) {
+				throw new JobException("Could not create a execution job vertex for " + jobVertex.getID() + '.', e);
+			}
 			ejv.connectToPredecessors(this.intermediateResults);
 
 			ExecutionJobVertex previousTask = this.tasks.putIfAbsent(jobVertex.getID(), ejv);
@@ -1028,7 +1028,7 @@ public class ExecutionGraph implements Serializable {
 
 		intermediateResults.clear();
 		currentExecutions.clear();
-		requiredJarFiles.clear();
+		jobInformation.getRequiredJarFileBlobKeys().clear();
 		jobStatusListenerActors.clear();
 		executionListenerActors.clear();
 
@@ -1038,7 +1038,7 @@ public class ExecutionGraph implements Serializable {
 				// otherwise we have to wait until garbage collection
 				((FlinkUserCodeClassLoader) userClassLoader).close();
 			} catch (IOException e) {
-				LOG.warn("Failed to close the user classloader for job {}", jobID, e);
+				LOG.warn("Failed to close the user classloader for job {}", getJobID(), e);
 			}
 		}
 		userClassLoader = null;
@@ -1052,15 +1052,6 @@ public class ExecutionGraph implements Serializable {
 	 */
 	public ExecutionConfigSummary getExecutionConfigSummary() {
 		return executionConfigSummary;
-	}
-
-	/**
-	 * Returns the serialized {@link ExecutionConfig}.
-	 *
-	 * @return ExecutionConfig
-	 */
-	public SerializedValue<ExecutionConfig> getSerializedExecutionConfig() {
-		return serializedExecutionConfig;
 	}
 
 	/**
@@ -1081,7 +1072,7 @@ public class ExecutionGraph implements Serializable {
 
 	private boolean transitionState(JobStatus current, JobStatus newState, Throwable error) {
 		if (STATE_UPDATER.compareAndSet(this, current, newState)) {
-			LOG.info("Job {} ({}) switched from state {} to {}.", jobName, jobID, current, newState, error);
+			LOG.info("Job {} ({}) switched from state {} to {}.", getJobName(), getJobID(), current, newState, error);
 
 			stateTimestamps[newState.ordinal()] = System.currentTimeMillis();
 			notifyJobStatusChange(newState, error);
@@ -1160,20 +1151,20 @@ public class ExecutionGraph implements Serializable {
 		if (currentState == JobStatus.FAILING || currentState == JobStatus.RESTARTING) {
 			synchronized (progressLock) {
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Try to restart or fail the job {} ({}) if no longer possible.", jobName, jobID, failureCause);
+					LOG.debug("Try to restart or fail the job {} ({}) if no longer possible.", getJobName(), getJobID(), failureCause);
 				} else {
-					LOG.info("Try to restart or fail the job {} ({}) if no longer possible.", jobName, jobID);
+					LOG.info("Try to restart or fail the job {} ({}) if no longer possible.", getJobName(), getJobID());
 				}
 
 				boolean isRestartable = !(failureCause instanceof SuppressRestartsException) && restartStrategy.canRestart();
 
 				if (isRestartable && transitionState(currentState, JobStatus.RESTARTING)) {
-					LOG.info("Restarting the job {} ({}).", jobName, jobID);
+					LOG.info("Restarting the job {} ({}).", getJobName(), getJobID());
 					restartStrategy.restart(this);
 
 					return true;
 				} else if (!isRestartable && transitionState(currentState, JobStatus.FAILED, failureCause)) {
-					LOG.info("Could not restart the job {} ({}).", jobName, jobID, failureCause);
+					LOG.info("Could not restart the job {} ({}).", getJobName(), getJobID(), failureCause);
 					postRunCleanup();
 
 					return true;
@@ -1333,7 +1324,7 @@ public class ExecutionGraph implements Serializable {
 				LOG.debug("Received accumulator result for unknown execution {}.", execID);
 			}
 		} catch (Exception e) {
-			LOG.error("Cannot update accumulators for job {}.", jobID, e);
+			LOG.error("Cannot update accumulators for job {}.", getJobID(), e);
 		}
 	}
 
@@ -1356,7 +1347,7 @@ public class ExecutionGraph implements Serializable {
 	private void notifyJobStatusChange(JobStatus newState, Throwable error) {
 		if (jobStatusListenerActors.size() > 0) {
 			ExecutionGraphMessages.JobStatusChanged message =
-					new ExecutionGraphMessages.JobStatusChanged(jobID, newState, System.currentTimeMillis(),
+					new ExecutionGraphMessages.JobStatusChanged(getJobID(), newState, System.currentTimeMillis(),
 							error == null ? null : new SerializedThrowable(error));
 
 			for (ActorGateway listener: jobStatusListenerActors) {
@@ -1373,7 +1364,7 @@ public class ExecutionGraph implements Serializable {
 		if (executionListenerActors.size() > 0) {
 			String message = error == null ? null : ExceptionUtils.stringifyException(error);
 			ExecutionGraphMessages.ExecutionStateChanged actorMessage =
-					new ExecutionGraphMessages.ExecutionStateChanged(jobID, vertexId,  vertex.getJobVertex().getName(),
+					new ExecutionGraphMessages.ExecutionStateChanged(getJobID(), vertexId,  vertex.getJobVertex().getName(),
 																	vertex.getParallelism(), subtask,
 																	executionID, newExecutionState,
 																	System.currentTimeMillis(), message);

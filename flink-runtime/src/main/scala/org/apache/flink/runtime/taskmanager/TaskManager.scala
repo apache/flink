@@ -80,7 +80,7 @@ import scala.concurrent._
 import scala.concurrent.duration._
 import scala.concurrent.forkjoin.ForkJoinPool
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 /**
  * The TaskManager is responsible for executing the individual tasks of a Flink job. It is
@@ -1105,17 +1105,39 @@ class TaskManager(
       val jobManagerGateway = new AkkaActorGateway(jobManagerActor, leaderSessionID.orNull)
       val selfGateway = new AkkaActorGateway(self, leaderSessionID.orNull)
 
-      var jobName = tdd.getJobName
-      if (tdd.getJobName.length == 0) {
-        jobName = tdd.getJobID.toString()
-      } else {
-        jobName = tdd.getJobName
+      val jobInformation = try {
+        tdd.getSerializedJobInformation.deserializeValue(getClass.getClassLoader)
+      } catch {
+        case e @ (_: IOException | _: ClassNotFoundException) =>
+          throw new IOException("Could not deserialize the job information.", e)
       }
-      
-      val taskMetricGroup = taskManagerMetricGroup.addTaskForJob(tdd)
+
+      val taskInformation = try {
+        tdd.getSerializedTaskInformation.deserializeValue(getClass.getClassLoader)
+      } catch {
+        case e@(_: IOException | _: ClassNotFoundException) =>
+          throw new IOException("Could not deserialize the job vertex information.", e)
+      }
+
+      val taskMetricGroup = taskManagerMetricGroup.addTaskForJob(
+        jobInformation.getJobId,
+        jobInformation.getJobName,
+        taskInformation.getJobVertexId,
+        tdd.getExecutionAttemptId,
+        taskInformation.getTaskName,
+        tdd.getSubtaskIndex,
+        tdd.getAttemptNumber)
 
       val task = new Task(
-        tdd,
+        jobInformation,
+        taskInformation,
+        tdd.getExecutionAttemptId,
+        tdd.getSubtaskIndex,
+        tdd.getAttemptNumber,
+        tdd.getProducedPartitions,
+        tdd.getInputGates,
+        tdd.getTargetSlotNumber,
+        tdd.getOperatorState,
         memoryManager,
         ioManager,
         network,
@@ -1130,7 +1152,7 @@ class TaskManager(
 
       log.info(s"Received task ${task.getTaskInfo.getTaskNameWithSubtasks()}")
 
-      val execId = tdd.getExecutionId
+      val execId = tdd.getExecutionAttemptId
       // add the task to the map
       val prevTask = runningTasks.put(execId, task)
       if (prevTask != null) {
@@ -1138,11 +1160,12 @@ class TaskManager(
         runningTasks.put(execId, prevTask)
         throw new IllegalStateException("TaskManager already contains a task for id " + execId)
       }
-      
+
       // all good, we kick off the task, which performs its own initialization
       task.startTaskThread()
 
       sender ! decorateMessage(Acknowledge)
+
     }
     catch {
       case t: Throwable =>
