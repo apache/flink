@@ -357,8 +357,15 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	public final void cancel() throws Exception {
 		isRunning = false;
 		canceled = true;
-		cancelTask();
-		closeAllClosables();
+
+		// the "cancel task" call must come first, but the cancelables must be
+		// closed no matter what
+		try {
+			cancelTask();
+		}
+		finally {
+			closeAllClosables();
+		}
 	}
 
 	public final boolean isRunning() {
@@ -519,6 +526,12 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	public RecordWriterOutput<?>[] getStreamOutputs() {
 		return operatorChain.getStreamOutputs();
 	}
+	
+	// visible for testing!
+	Set<Closeable> getCancelables() {
+		return cancelables;
+	}
+
 
 	// ------------------------------------------------------------------------
 	//  Checkpoint and Restore
