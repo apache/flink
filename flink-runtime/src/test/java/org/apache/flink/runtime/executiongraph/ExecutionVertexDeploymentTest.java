@@ -18,19 +18,36 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.*;
-
-import static org.junit.Assert.*;
-
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.instance.Slot;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-
 import org.junit.Test;
+
+import java.util.Collection;
+
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ERROR_MESSAGE;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleFailingActorGateway;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getInstance;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class ExecutionVertexDeploymentTest {
 
@@ -48,7 +65,7 @@ public class ExecutionVertexDeploymentTest {
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			vertex.deployToSlot(slot);
@@ -58,8 +75,7 @@ public class ExecutionVertexDeploymentTest {
 			try {
 				vertex.deployToSlot(slot);
 				fail("Scheduled from wrong state");
-			}
-			catch (IllegalStateException e) {
+			} catch (IllegalStateException e) {
 				// as expected
 			}
 
@@ -67,8 +83,7 @@ public class ExecutionVertexDeploymentTest {
 
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -82,12 +97,12 @@ public class ExecutionVertexDeploymentTest {
 			final ExecutionJobVertex ejv = getExecutionVertex(jid, TestingUtils.directExecutionContext());
 
 			final Instance instance = getInstance(
-					new ActorTaskManagerGateway(
-						new SimpleActorGateway(TestingUtils.directExecutionContext())));
+				new ActorTaskManagerGateway(
+					new SimpleActorGateway(TestingUtils.directExecutionContext())));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -99,8 +114,7 @@ public class ExecutionVertexDeploymentTest {
 			try {
 				vertex.deployToSlot(slot);
 				fail("Scheduled from wrong state");
-			}
-			catch (IllegalStateException e) {
+			} catch (IllegalStateException e) {
 				// as expected
 			}
 
@@ -109,8 +123,7 @@ public class ExecutionVertexDeploymentTest {
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.RUNNING) == 0);
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -123,7 +136,7 @@ public class ExecutionVertexDeploymentTest {
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout());
 
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
@@ -138,8 +151,7 @@ public class ExecutionVertexDeploymentTest {
 			try {
 				vertex.deployToSlot(slot);
 				fail("Scheduled from wrong state");
-			}
-			catch (IllegalStateException e) {
+			} catch (IllegalStateException e) {
 				// as expected
 			}
 
@@ -149,16 +161,14 @@ public class ExecutionVertexDeploymentTest {
 			try {
 				vertex.deployToSlot(slot);
 				fail("Scheduled from wrong state");
-			}
-			catch (IllegalStateException e) {
+			} catch (IllegalStateException e) {
 				// as expected
 			}
 
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.RUNNING) == 0);
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -171,7 +181,7 @@ public class ExecutionVertexDeploymentTest {
 			final ExecutionJobVertex ejv = getExecutionVertex(jid, TestingUtils.directExecutionContext());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout());
 
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
@@ -189,8 +199,7 @@ public class ExecutionVertexDeploymentTest {
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -202,7 +211,7 @@ public class ExecutionVertexDeploymentTest {
 			final JobVertexID jid = new JobVertexID();
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout());
 
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
@@ -229,8 +238,7 @@ public class ExecutionVertexDeploymentTest {
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -247,7 +255,7 @@ public class ExecutionVertexDeploymentTest {
 			final ExecutionJobVertex ejv = getExecutionVertex(jid, ec);
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout());
 
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
@@ -270,8 +278,7 @@ public class ExecutionVertexDeploymentTest {
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -288,7 +295,7 @@ public class ExecutionVertexDeploymentTest {
 
 			final ExecutionJobVertex ejv = getExecutionVertex(jid, context);
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout());
 
 			final ExecutionAttemptID eid = vertex.getCurrentExecutionAttempt().getAttemptId();
 
@@ -334,10 +341,37 @@ public class ExecutionVertexDeploymentTest {
 			assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
 
 			assertTrue(queue.isEmpty());
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+
+	/**
+	 * Tests that the lazy scheduling flag is correctly forwarded to the produced partition descriptors.
+	 */
+	@Test
+	public void testTddProducedPartitionsLazyScheduling() throws Exception {
+		TestingUtils.QueuedActionExecutionContext context = TestingUtils.queuedActionExecutionContext();
+		ExecutionJobVertex jobVertex = getExecutionVertex(new JobVertexID(), context);
+		IntermediateResult result = new IntermediateResult(new IntermediateDataSetID(), jobVertex, 4, ResultPartitionType.PIPELINED);
+		ExecutionVertex vertex = new ExecutionVertex(jobVertex, 0, new IntermediateResult[]{result}, Time.minutes(1));
+
+		Slot root = mock(Slot.class);
+		when(root.getSlotNumber()).thenReturn(1);
+		SimpleSlot slot = mock(SimpleSlot.class);
+		when(slot.getRoot()).thenReturn(root);
+
+		for (ScheduleMode mode : ScheduleMode.values()) {
+			vertex.getExecutionGraph().setScheduleMode(mode);
+
+			TaskDeploymentDescriptor tdd = vertex.createDeploymentDescriptor(new ExecutionAttemptID(), slot, null, 1);
+
+			Collection<ResultPartitionDeploymentDescriptor> producedPartitions = tdd.getProducedPartitions();
+
+			assertEquals(1, producedPartitions.size());
+			ResultPartitionDeploymentDescriptor desc = producedPartitions.iterator().next();
+			assertEquals(mode.allowLazyDeployment(), desc.sendScheduleOrUpdateConsumersMessage());
 		}
 	}
 }

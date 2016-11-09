@@ -18,22 +18,19 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-/**
- * The ScheduleMode decides how tasks of an execution graph are started.  
- */
-public enum ScheduleMode {
+import org.junit.Test;
 
-	/** Schedule tasks lazily from the sources. Downstream tasks are started once their input data are ready */
-	LAZY_FROM_SOURCES,
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
-	/** Schedules all tasks immediately. */
-	EAGER;
-	
+public class ScheduleModeTest {
+
 	/**
-	 * Returns whether we are allowed to deploy consumers lazily.
+	 * Test that schedule modes set the lazy deployment flag correctly.
 	 */
-	public boolean allowLazyDeployment() {
-		return this == LAZY_FROM_SOURCES;
+	@Test
+	public void testAllowLazyDeployment() throws Exception {
+		assertTrue(ScheduleMode.LAZY_FROM_SOURCES.allowLazyDeployment());
+		assertFalse(ScheduleMode.EAGER.allowLazyDeployment());
 	}
-	
 }

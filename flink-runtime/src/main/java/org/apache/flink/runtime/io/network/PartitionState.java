@@ -23,18 +23,25 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+import java.io.Serializable;
+
 /**
  * Contains information about the state of a result partition.
  */
-public class PartitionState {
+public class PartitionState implements Serializable {
+
+	private static final long serialVersionUID = -4693651272083825031L;
+
 	private final IntermediateDataSetID intermediateDataSetID;
 	private final IntermediateResultPartitionID intermediateResultPartitionID;
 	private final ExecutionState executionState;
 
 	public PartitionState(
-			IntermediateDataSetID intermediateDataSetID,
-			IntermediateResultPartitionID intermediateResultPartitionID,
-			ExecutionState executionState) {
+		IntermediateDataSetID intermediateDataSetID,
+		IntermediateResultPartitionID intermediateResultPartitionID,
+		@Nullable ExecutionState executionState) {
+
 		this.intermediateDataSetID = Preconditions.checkNotNull(intermediateDataSetID);
 		this.intermediateResultPartitionID = Preconditions.checkNotNull(intermediateResultPartitionID);
 		this.executionState = executionState;
@@ -48,6 +55,9 @@ public class PartitionState {
 		return intermediateResultPartitionID;
 	}
 
+	/**
+	 * Returns the execution state of the partition producer or <code>null</code> if it is not available.
+	 */
 	public ExecutionState getExecutionState() {
 		return executionState;
 	}

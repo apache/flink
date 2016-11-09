@@ -345,7 +345,8 @@ public class Task implements Runnable, TaskActions {
 				networkEnvironment.getResultPartitionManager(),
 				resultPartitionConsumableNotifier,
 				ioManager,
-				networkEnvironment.getDefaultIOMode());
+				networkEnvironment.getDefaultIOMode(),
+				desc.allowLazyScheduling());
 
 			writers[counter] = new ResultPartitionWriter(producedPartitions[counter]);
 
@@ -568,6 +569,7 @@ public class Task implements Runnable, TaskActions {
 			// ----------------------------------------------------------------
 
 			LOG.info("Registering task at network: " + this);
+
 			network.registerTask(this);
 
 			// next, kick off the background copying of files for the distributed cache
@@ -1135,7 +1137,11 @@ public class Task implements Runnable, TaskActions {
 			final SingleInputGate inputGate = inputGatesById.get(resultId);
 
 			if (inputGate != null) {
-				if (partitionState == ExecutionState.RUNNING) {
+				if (partitionState == ExecutionState.RUNNING ||
+					partitionState == ExecutionState.FINISHED ||
+					partitionState == ExecutionState.SCHEDULED ||
+					partitionState == ExecutionState.DEPLOYING) {
+
 					// Retrigger the partition request
 					inputGate.retriggerPartitionRequest(partitionId);
 				}
