@@ -18,16 +18,9 @@
 
 package org.apache.flink.migration.runtime.state.memory;
 
-import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.migration.runtime.state.KvState;
-import org.apache.flink.migration.runtime.state.KvStateSnapshot;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Heap-backed partitioned {@link FoldingState} that is
@@ -38,64 +31,7 @@ import java.util.Map;
  * @param <T> The type of the values that can be folded into the state.
  * @param <ACC> The type of the value in the folding state.
  */
-public class MemFoldingState<K, N, T, ACC>
-	extends AbstractMemState<K, N, ACC, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>>
-	implements FoldingState<T, ACC> {
-
-	private final FoldFunction<T, ACC> foldFunction;
-
-	public MemFoldingState(TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		FoldingStateDescriptor<T, ACC> stateDesc) {
-		super(keySerializer, namespaceSerializer, stateDesc.getSerializer(), stateDesc);
-		this.foldFunction = stateDesc.getFoldFunction();
-	}
-
-	public MemFoldingState(TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		FoldingStateDescriptor<T, ACC> stateDesc,
-		HashMap<N, Map<K, ACC>> state) {
-		super(keySerializer, namespaceSerializer, stateDesc.getSerializer(), stateDesc, state);
-		this.foldFunction = stateDesc.getFoldFunction();
-	}
-
-	@Override
-	public ACC get() {
-		if (currentNSState == null) {
-			currentNSState = state.get(currentNamespace);
-		}
-		return currentNSState != null ?
-			currentNSState.get(currentKey) : null;
-	}
-
-	@Override
-	public void add(T value) throws IOException {
-		if (currentKey == null) {
-			throw new RuntimeException("No key available.");
-		}
-
-		if (currentNSState == null) {
-			currentNSState = new HashMap<>();
-			state.put(currentNamespace, currentNSState);
-		}
-
-		ACC currentValue = currentNSState.get(currentKey);
-		try {
-			if (currentValue == null) {
-				currentNSState.put(currentKey, foldFunction.fold(stateDesc.getDefaultValue(), value));
-			} else {
-					currentNSState.put(currentKey, foldFunction.fold(currentValue, value));
-
-			}
-		} catch (Exception e) {
-			throw new RuntimeException("Could not add value to folding state.", e);
-		}
-	}
-
-	@Override
-	public KvStateSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, MemoryStateBackend> createHeapSnapshot(byte[] bytes) {
-		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), stateSerializer, stateDesc, bytes);
-	}
+public class MemFoldingState<K, N, T, ACC> {
 
 	public static class Snapshot<K, N, T, ACC> extends AbstractMemStateSnapshot<K, N, ACC, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>> {
 		private static final long serialVersionUID = 1L;
@@ -105,11 +41,6 @@ public class MemFoldingState<K, N, T, ACC>
 			TypeSerializer<ACC> stateSerializer,
 			FoldingStateDescriptor<T, ACC> stateDescs, byte[] data) {
 			super(keySerializer, namespaceSerializer, stateSerializer, stateDescs, data);
-		}
-
-		@Override
-		public KvState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, MemoryStateBackend> createMemState(HashMap<N, Map<K, ACC>> stateMap) {
-			return new MemFoldingState<>(keySerializer, namespaceSerializer, stateDesc, stateMap);
 		}
 	}
 }

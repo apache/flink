@@ -23,8 +23,6 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.migration.runtime.state.AbstractHeapState;
-import org.apache.flink.migration.runtime.state.KvStateSnapshot;
-import org.apache.flink.runtime.util.DataOutputSerializer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -57,26 +55,4 @@ public abstract class AbstractMemState<K, N, SV, S extends State, SD extends Sta
 		super(keySerializer, namespaceSerializer, stateSerializer, stateDesc, state);
 	}
 
-	public abstract KvStateSnapshot<K, N, S, SD, MemoryStateBackend> createHeapSnapshot(byte[] bytes);
-
-	@Override
-	public KvStateSnapshot<K, N, S, SD, MemoryStateBackend> snapshot(long checkpointId, long timestamp) throws Exception {
-
-		DataOutputSerializer out = new DataOutputSerializer(Math.max(size() * 16, 16));
-
-		out.writeInt(state.size());
-		for (Map.Entry<N, Map<K, SV>> namespaceState: state.entrySet()) {
-			N namespace = namespaceState.getKey();
-			namespaceSerializer.serialize(namespace, out);
-			out.writeInt(namespaceState.getValue().size());
-			for (Map.Entry<K, SV> entry: namespaceState.getValue().entrySet()) {
-				keySerializer.serialize(entry.getKey(), out);
-				stateSerializer.serialize(entry.getValue(), out);
-			}
-		}
-
-		byte[] bytes = out.getCopyOfBuffer();
-
-		return createHeapSnapshot(bytes);
-	}
 }

@@ -21,7 +21,6 @@ package org.apache.flink.migration.runtime.state.memory;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.migration.runtime.state.KvState;
 import org.apache.flink.migration.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.util.DataInputDeserializer;
 
@@ -78,52 +77,6 @@ public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD ext
 		this.stateSerializer = stateSerializer;
 		this.stateDesc = stateDesc;
 		this.data = data;
-	}
-
-	public abstract KvState<K, N, S, SD, MemoryStateBackend> createMemState(HashMap<N, Map<K, SV>> stateMap);
-
-	@Override
-	public KvState<K, N, S, SD, MemoryStateBackend> restoreState(
-		MemoryStateBackend stateBackend,
-		final TypeSerializer<K> keySerializer,
-		ClassLoader classLoader) throws Exception {
-
-		// validity checks
-		if (!this.keySerializer.equals(keySerializer)) {
-			throw new IllegalArgumentException(
-				"Cannot restore the state from the snapshot with the given serializers. " +
-					"State (K/V) was serialized with " +
-					"(" + this.keySerializer + ") " +
-					"now is (" + keySerializer + ")");
-		}
-
-		if (closed) {
-			throw new IOException("snapshot has been closed");
-		}
-
-		// restore state
-		DataInputDeserializer inView = new DataInputDeserializer(data, 0, data.length);
-
-		final int numKeys = inView.readInt();
-		HashMap<N, Map<K, SV>> stateMap = new HashMap<>(numKeys);
-
-		for (int i = 0; i < numKeys && !closed; i++) {
-			N namespace = namespaceSerializer.deserialize(inView);
-			final int numValues = inView.readInt();
-			Map<K, SV> namespaceMap = new HashMap<>(numValues);
-			stateMap.put(namespace, namespaceMap);
-			for (int j = 0; j < numValues; j++) {
-				K key = keySerializer.deserialize(inView);
-				SV value = stateSerializer.deserialize(inView);
-				namespaceMap.put(key, value);
-			}
-		}
-
-		if (closed) {
-			throw new IOException("snapshot has been closed");
-		}
-
-		return createMemState(stateMap);
 	}
 
 	public HashMap<N, Map<K, SV>> deserialize() throws IOException {

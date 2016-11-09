@@ -21,11 +21,6 @@ package org.apache.flink.migration.runtime.state.memory;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.migration.runtime.state.KvState;
-import org.apache.flink.migration.runtime.state.KvStateSnapshot;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Heap-backed key/value state that is snapshotted into a serialized memory copy.
@@ -34,58 +29,7 @@ import java.util.Map;
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-public class MemValueState<K, N, V>
-	extends AbstractMemState<K, N, V, ValueState<V>, ValueStateDescriptor<V>>
-	implements ValueState<V> {
-	
-	public MemValueState(TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		ValueStateDescriptor<V> stateDesc) {
-		super(keySerializer, namespaceSerializer, stateDesc.getSerializer(), stateDesc);
-	}
-
-	public MemValueState(TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		ValueStateDescriptor<V> stateDesc,
-		HashMap<N, Map<K, V>> state) {
-		super(keySerializer, namespaceSerializer, stateDesc.getSerializer(), stateDesc, state);
-	}
-
-	@Override
-	public V value() {
-		if (currentNSState == null) {
-			currentNSState = state.get(currentNamespace);
-		}
-		if (currentNSState != null) {
-			V value = currentNSState.get(currentKey);
-			return value != null ? value : stateDesc.getDefaultValue();
-		}
-		return stateDesc.getDefaultValue();
-	}
-
-	@Override
-	public void update(V value) {
-		if (currentKey == null) {
-			throw new RuntimeException("No key available.");
-		}
-
-		if (value == null) {
-			clear();
-			return;
-		}
-
-		if (currentNSState == null) {
-			currentNSState = new HashMap<>();
-			state.put(currentNamespace, currentNSState);
-		}
-
-		currentNSState.put(currentKey, value);
-	}
-
-	@Override
-	public KvStateSnapshot<K, N, ValueState<V>, ValueStateDescriptor<V>, MemoryStateBackend> createHeapSnapshot(byte[] bytes) {
-		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), stateSerializer, stateDesc, bytes);
-	}
+public class MemValueState<K, N, V> {
 
 	public static class Snapshot<K, N, V> extends AbstractMemStateSnapshot<K, N, V, ValueState<V>, ValueStateDescriptor<V>> {
 		private static final long serialVersionUID = 1L;
@@ -95,11 +39,6 @@ public class MemValueState<K, N, V>
 			TypeSerializer<V> stateSerializer,
 			ValueStateDescriptor<V> stateDescs, byte[] data) {
 			super(keySerializer, namespaceSerializer, stateSerializer, stateDescs, data);
-		}
-
-		@Override
-		public KvState<K, N, ValueState<V>, ValueStateDescriptor<V>, MemoryStateBackend> createMemState(HashMap<N, Map<K, V>> stateMap) {
-			return new MemValueState<>(keySerializer, namespaceSerializer, stateDesc, stateMap);
 		}
 	}
 }

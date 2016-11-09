@@ -17,71 +17,20 @@
 
 package org.apache.flink.migration.contrib.streaming.state;
 
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.migration.runtime.state.AbstractStateBackend;
-import org.apache.flink.migration.runtime.state.KvState;
 import org.apache.flink.migration.runtime.state.KvStateSnapshot;
 import org.apache.flink.migration.runtime.state.StateHandle;
 
 import java.io.IOException;
-import java.io.Serializable;
 
 import static java.util.Objects.requireNonNull;
 
-/**
- *
- */
+@Deprecated
 public class RocksDBStateBackend extends AbstractStateBackend {
 	private static final long serialVersionUID = 1L;
-
-	@Override
-	public void disposeAllStateForCurrentJob() throws Exception {
-
-	}
-
-	@Override
-	public void close() throws Exception {
-
-	}
-
-	@Override
-	protected <N, T> ValueState<T> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<T> stateDesc) throws Exception {
-		return null;
-	}
-
-	@Override
-	protected <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer, ListStateDescriptor<T> stateDesc) throws Exception {
-		return null;
-	}
-
-	@Override
-	protected <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception {
-		return null;
-	}
-
-	@Override
-	protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer, FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
-		return null;
-	}
-
-	@Override
-	public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws Exception {
-		return null;
-	}
-
-	@Override
-	public <S extends Serializable> StateHandle<S> checkpointStateSerializable(S state, long checkpointID, long timestamp) throws Exception {
-		return null;
-	}
 
 	/**
 	 * Dummy {@link KvStateSnapshot} that holds the state of our one RocksDB data base.
@@ -98,14 +47,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		private FinalFullyAsyncSnapshot(StateHandle<DataInputView> stateHandle, long checkpointId) {
 			this.stateHandle = requireNonNull(stateHandle);
 			this.checkpointId = checkpointId;
-		}
-
-		@Override
-		public final KvState<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> restoreState(
-				RocksDBStateBackend stateBackend,
-				TypeSerializer<Object> keySerializer,
-				ClassLoader classLoader) throws Exception {
-			throw new RuntimeException("Should never happen.");
 		}
 
 		@Override

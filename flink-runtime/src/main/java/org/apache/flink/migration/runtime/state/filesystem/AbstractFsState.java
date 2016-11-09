@@ -23,11 +23,9 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.migration.runtime.state.AbstractHeapState;
 import org.apache.flink.migration.runtime.state.KvStateSnapshot;
 
-import java.io.DataOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -67,29 +65,4 @@ public abstract class AbstractFsState<K, N, SV, S extends State, SD extends Stat
 	}
 
 	public abstract KvStateSnapshot<K, N, S, SD, FsStateBackend> createHeapSnapshot(Path filePath);
-
-	@Override
-	public KvStateSnapshot<K, N, S, SD, FsStateBackend> snapshot(long checkpointId, long timestamp) throws Exception {
-
-		try (FsStateBackend.FsCheckpointStateOutputStream out = backend.createCheckpointStateOutputStream(checkpointId, timestamp)) {
-
-			// serialize the state to the output stream
-			DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(new DataOutputStream(out));
-			outView.writeInt(state.size());
-			for (Map.Entry<N, Map<K, SV>> namespaceState: state.entrySet()) {
-				N namespace = namespaceState.getKey();
-				namespaceSerializer.serialize(namespace, outView);
-				outView.writeInt(namespaceState.getValue().size());
-				for (Map.Entry<K, SV> entry: namespaceState.getValue().entrySet()) {
-					keySerializer.serialize(entry.getKey(), outView);
-					stateSerializer.serialize(entry.getValue(), outView);
-				}
-			}
-			outView.flush();
-
-			// create a handle to the state
-//			return new FsHeapValueStateSnapshot<>(getKeySerializer(), getNamespaceSerializer(), stateDesc, out.closeAndGetPath());
-			return createHeapSnapshot(out.closeAndGetPath());
-		}
-	}
 }

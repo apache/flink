@@ -39,8 +39,7 @@ import static java.util.Objects.requireNonNull;
  * @param <SD> The type of StateDescriptor for the State S
  * @param <Backend> The type of the backend that snapshots this key/value state.
  */
-public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>, Backend extends AbstractStateBackend>
-		implements KvState<K, N, S, SD, Backend>, State {
+public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>, Backend extends AbstractStateBackend> implements State {
 
 	/** Map containing the actual key/value pairs */
 	protected final HashMap<N, Map<K, SV>> state;
@@ -114,20 +113,6 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 		}
 	}
 
-	@Override
-	public final void setCurrentKey(K currentKey) {
-		this.currentKey = currentKey;
-	}
-
-	@Override
-	public final void setCurrentNamespace(N namespace) {
-		if (namespace != null && namespace.equals(this.currentNamespace)) {
-			return;
-		}
-		this.currentNamespace = namespace;
-		this.currentNSState = state.get(currentNamespace);
-	}
-
 	/**
 	 * Returns the number of all state pairs in this state, across namespaces.
 	 */
@@ -137,11 +122,6 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 			size += namespace.size();
 		}
 		return size;
-	}
-
-	@Override
-	public void dispose() {
-		state.clear();
 	}
 
 	/**

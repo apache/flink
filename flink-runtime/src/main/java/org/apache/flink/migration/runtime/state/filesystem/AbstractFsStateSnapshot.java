@@ -21,15 +21,10 @@ package org.apache.flink.migration.runtime.state.filesystem;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.migration.runtime.state.KvState;
 import org.apache.flink.migration.runtime.state.KvStateSnapshot;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * A snapshot of a heap key/value state stored in a file.
@@ -75,54 +70,6 @@ public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD exte
 		this.stateSerializer = stateSerializer;
 		this.namespaceSerializer = namespaceSerializer;
 
-	}
-
-	public abstract KvState<K, N, S, SD, FsStateBackend> createFsState(FsStateBackend backend, HashMap<N, Map<K, SV>> stateMap);
-
-	@Override
-	public KvState<K, N, S, SD, FsStateBackend> restoreState(
-		FsStateBackend stateBackend,
-		final TypeSerializer<K> keySerializer,
-		ClassLoader classLoader) throws Exception {
-
-		// validity checks
-		if (!this.keySerializer.equals(keySerializer)) {
-			throw new IllegalArgumentException(
-				"Cannot restore the state from the snapshot with the given serializers. " +
-					"State (K/V) was serialized with " +
-					"(" + this.keySerializer + ") " +
-					"now is (" + keySerializer + ")");
-		}
-
-		// state restore
-		ensureNotClosed();
-
-		try (FSDataInputStream inStream = stateBackend.getFileSystem().open(getFilePath())) {
-			// make sure the in-progress restore from the handle can be closed 
-			registerCloseable(inStream);
-
-			DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(inStream);
-
-			final int numKeys = inView.readInt();
-			HashMap<N, Map<K, SV>> stateMap = new HashMap<>(numKeys);
-
-			for (int i = 0; i < numKeys; i++) {
-				N namespace = namespaceSerializer.deserialize(inView);
-				final int numValues = inView.readInt();
-				Map<K, SV> namespaceMap = new HashMap<>(numValues);
-				stateMap.put(namespace, namespaceMap);
-				for (int j = 0; j < numValues; j++) {
-					K key = keySerializer.deserialize(inView);
-					SV value = stateSerializer.deserialize(inView);
-					namespaceMap.put(key, value);
-				}
-			}
-
-			return createFsState(stateBackend, stateMap);
-		}
-		catch (Exception e) {
-			throw new Exception("Failed to restore state from file system", e);
-		}
 	}
 
 	/**

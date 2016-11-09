@@ -22,11 +22,6 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.migration.runtime.state.KvState;
-import org.apache.flink.migration.runtime.state.KvStateSnapshot;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Heap-backed partitioned {@link ValueState} that is snapshotted
@@ -36,81 +31,7 @@ import java.util.Map;
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-public class FsValueState<K, N, V>
-	extends AbstractFsState<K, N, V, ValueState<V>, ValueStateDescriptor<V>>
-	implements ValueState<V> {
-
-	/**
-	 * Creates a new and empty key/value state.
-	 * 
-	 * @param keySerializer The serializer for the key.
-     * @param namespaceSerializer The serializer for the namespace.
-	 * @param stateDesc The state identifier for the state. This contains name
-	 * and can create a default state value.
-	 * @param backend The file system state backend backing snapshots of this state
-	 */
-	public FsValueState(FsStateBackend backend,
-		TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		ValueStateDescriptor<V> stateDesc) {
-		super(backend, keySerializer, namespaceSerializer, stateDesc.getSerializer(), stateDesc);
-	}
-
-	/**
-	 * Creates a new key/value state with the given state contents.
-	 * This method is used to re-create key/value state with existing data, for example from
-	 * a snapshot.
-	 * 
-	 * @param keySerializer The serializer for the key.
-	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                           and can create a default state value.
-	 * @param state The map of key/value pairs to initialize the state with.
-	 * @param backend The file system state backend backing snapshots of this state
-	 */
-	public FsValueState(FsStateBackend backend,
-		TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		ValueStateDescriptor<V> stateDesc,
-		HashMap<N, Map<K, V>> state) {
-		super(backend, keySerializer, namespaceSerializer, stateDesc.getSerializer(), stateDesc, state);
-	}
-
-	@Override
-	public V value() {
-		if (currentNSState == null) {
-			currentNSState = state.get(currentNamespace);
-		}
-		if (currentNSState != null) {
-			V value = currentNSState.get(currentKey);
-			return value != null ? value : stateDesc.getDefaultValue();
-		}
-		return stateDesc.getDefaultValue();
-	}
-
-	@Override
-	public void update(V value) {
-		if (currentKey == null) {
-			throw new RuntimeException("No key available.");
-		}
-
-		if (value == null) {
-			clear();
-			return;
-		}
-
-		if (currentNSState == null) {
-			currentNSState = new HashMap<>();
-			state.put(currentNamespace, currentNSState);
-		}
-
-		currentNSState.put(currentKey, value);
-	}
-
-	@Override
-	public KvStateSnapshot<K, N, ValueState<V>, ValueStateDescriptor<V>, FsStateBackend> createHeapSnapshot(Path filePath) {
-		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), stateSerializer, stateDesc, filePath);
-	}
+public class FsValueState<K, N, V> {
 
 	public static class Snapshot<K, N, V> extends AbstractFsStateSnapshot<K, N, V, ValueState<V>, ValueStateDescriptor<V>> {
 		private static final long serialVersionUID = 1L;
@@ -121,11 +42,6 @@ public class FsValueState<K, N, V>
 			ValueStateDescriptor<V> stateDescs,
 			Path filePath) {
 			super(keySerializer, namespaceSerializer, stateSerializer, stateDescs, filePath);
-		}
-
-		@Override
-		public KvState<K, N, ValueState<V>, ValueStateDescriptor<V>, FsStateBackend> createFsState(FsStateBackend backend, HashMap<N, Map<K, V>> stateMap) {
-			return new FsValueState<>(backend, keySerializer, namespaceSerializer, stateDesc, stateMap);
 		}
 	}
 }
