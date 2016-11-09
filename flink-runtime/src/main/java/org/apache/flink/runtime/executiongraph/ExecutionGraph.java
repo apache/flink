@@ -1081,9 +1081,7 @@ public class ExecutionGraph implements Serializable {
 
 	private boolean transitionState(JobStatus current, JobStatus newState, Throwable error) {
 		if (STATE_UPDATER.compareAndSet(this, current, newState)) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("{} switched from {} to {}.", this.getJobName(), current, newState);
-			}
+			LOG.info("Job {} ({}) switched from state {} to {}.", jobName, jobID, current, newState, error);
 
 			stateTimestamps[newState.ordinal()] = System.currentTimeMillis();
 			notifyJobStatusChange(newState, error);
@@ -1162,20 +1160,20 @@ public class ExecutionGraph implements Serializable {
 		if (currentState == JobStatus.FAILING || currentState == JobStatus.RESTARTING) {
 			synchronized (progressLock) {
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Try to restart the job or fail it if no longer possible.", failureCause);
+					LOG.debug("Try to restart or fail the job {} ({}) if no longer possible.", jobName, jobID, failureCause);
 				} else {
-					LOG.info("Try to restart the job or fail it if no longer possible.");
+					LOG.info("Try to restart or fail the job {} ({}) if no longer possible.", jobName, jobID);
 				}
 
 				boolean isRestartable = !(failureCause instanceof SuppressRestartsException) && restartStrategy.canRestart();
 
 				if (isRestartable && transitionState(currentState, JobStatus.RESTARTING)) {
-					LOG.info("Restarting the job...");
+					LOG.info("Restarting the job {} ({}).", jobName, jobID);
 					restartStrategy.restart(this);
 
 					return true;
 				} else if (!isRestartable && transitionState(currentState, JobStatus.FAILED, failureCause)) {
-					LOG.info("Could not restart the job.", failureCause);
+					LOG.info("Could not restart the job {} ({}).", jobName, jobID, failureCause);
 					postRunCleanup();
 
 					return true;
@@ -1332,7 +1330,7 @@ public class ExecutionGraph implements Serializable {
 			if (execution != null) {
 				execution.setAccumulators(flinkAccumulators, userAccumulators);
 			} else {
-				LOG.warn("Received accumulator result for unknown execution {}.", execID);
+				LOG.debug("Received accumulator result for unknown execution {}.", execID);
 			}
 		} catch (Exception e) {
 			LOG.error("Cannot update accumulators for job {}.", jobID, e);
