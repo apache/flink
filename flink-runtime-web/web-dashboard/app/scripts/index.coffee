@@ -35,7 +35,7 @@ angular.module('flinkApp', ['ui.router', 'angularMoment', 'dndLists'])
 }
 
 .factory 'utils', (flinkConfig) ->
-  @.jobServerUrl = (path) -> flinkConfig.jobServer + path
+  @jobServerUrl = (path) -> flinkConfig.jobServer + path
 
   @
 

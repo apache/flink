@@ -41,7 +41,7 @@ angular.module('flinkApp')
   @getPlan = (id, args) ->
     deferred = $q.defer()
 
-    $http.get(utils.jbobServerUrl("jars/" + encodeURIComponent(id) + "/plan", {params: args}))
+    $http.get(utils.jobServerUrl("jars/" + encodeURIComponent(id) + "/plan", {params: args}))
     .success (data, status, headers, config) ->
       deferred.resolve(data)
 
@@ -50,7 +50,7 @@ angular.module('flinkApp')
   @runJob = (id, args) ->
     deferred = $q.defer()
 
-    $http.post(utils.jbobServerUrl("jars/" + encodeURIComponent(id) + "/run"), {}, {params: args})
+    $http.post(utils.jobServerUrl("jars/" + encodeURIComponent(id) + "/run"), {}, {params: args})
     .success (data, status, headers, config) ->
       deferred.resolve(data)
 
