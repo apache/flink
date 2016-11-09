@@ -27,10 +27,11 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.FallbackLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
@@ -96,8 +97,7 @@ public class InterruptSensitiveRestoreTest {
 
 		StreamStateHandle lockingHandle = new InterruptLockingStateHandle();
 
-		TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(taskConfig, lockingHandle);
-		Task task = createTask(tdd);
+		Task task = createTask(taskConfig, lockingHandle);
 
 		// start the task and wait until it is in "restore"
 		task.startTaskThread();
@@ -120,9 +120,13 @@ public class InterruptSensitiveRestoreTest {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(
+	private static Task createTask(
 			Configuration taskConfig,
 			StreamStateHandle state) throws IOException {
+
+		NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
+		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
+				.thenReturn(mock(TaskKvStateRegistry.class));
 
 		ChainedStateHandle<StreamStateHandle> operatorState = new ChainedStateHandle<>(Collections.singletonList(state));
 		List<KeyGroupsStateHandle> keyGroupStateFromBackend = Collections.emptyList();
@@ -131,53 +135,53 @@ public class InterruptSensitiveRestoreTest {
 		List<Collection<OperatorStateHandle>> operatorStateStream = Collections.emptyList();
 
 		TaskStateHandles taskStateHandles = new TaskStateHandles(
-				operatorState,
-				operatorStateBackend,
-				operatorStateStream,
-				keyGroupStateFromBackend,
-				keyGroupStateFromStream);
+			operatorState,
+			operatorStateBackend,
+			operatorStateStream,
+			keyGroupStateFromBackend,
+			keyGroupStateFromStream);
 
-		return new TaskDeploymentDescriptor(
-				new JobID(),
-				"test job name",
-				new JobVertexID(),
-				new ExecutionAttemptID(),
-				new SerializedValue<>(new ExecutionConfig()),
-				"test task name",
-				1, 0, 1, 0,
-				new Configuration(),
-				taskConfig,
-				SourceStreamTask.class.getName(),
-				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-				Collections.<InputGateDeploymentDescriptor>emptyList(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				0,
-				taskStateHandles);
-	}
+		JobInformation jobInformation = new JobInformation(
+			new JobID(),
+			"test job name",
+			new SerializedValue<>(new ExecutionConfig()),
+			new Configuration(),
+			Collections.<BlobKey>emptyList(),
+			Collections.<URL>emptyList());
 
-	private static Task createTask(TaskDeploymentDescriptor tdd) throws IOException {
-		NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
-		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
-				.thenReturn(mock(TaskKvStateRegistry.class));
+		TaskInformation taskInformation = new TaskInformation(
+			new JobVertexID(),
+			"test task name",
+			1,
+			1,
+			SourceStreamTask.class.getName(),
+			taskConfig);
 
 		return new Task(
-				tdd,
-				mock(MemoryManager.class),
-				mock(IOManager.class),
-				networkEnvironment,
-				mock(BroadcastVariableManager.class),
-				mock(TaskManagerConnection.class),
-				mock(InputSplitProvider.class),
-				mock(CheckpointResponder.class),
-				new FallbackLibraryCacheManager(),
-				new FileCache(new Configuration()),
-				new TaskManagerRuntimeInfo(
-						"localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
-				new UnregisteredTaskMetricsGroup(),
-				mock(ResultPartitionConsumableNotifier.class),
-				mock(PartitionStateChecker.class),
-				mock(Executor.class));
+			jobInformation,
+			taskInformation,
+			new ExecutionAttemptID(),
+			0,
+			0,
+			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+			Collections.<InputGateDeploymentDescriptor>emptyList(),
+			0,
+			taskStateHandles,
+			mock(MemoryManager.class),
+			mock(IOManager.class),
+			networkEnvironment,
+			mock(BroadcastVariableManager.class),
+			mock(TaskManagerConnection.class),
+			mock(InputSplitProvider.class),
+			mock(CheckpointResponder.class),
+			new FallbackLibraryCacheManager(),
+			new FileCache(new Configuration()),
+			new TaskManagerRuntimeInfo(
+					"localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
+			new UnregisteredTaskMetricsGroup(),
+			mock(ResultPartitionConsumableNotifier.class),
+			mock(PartitionStateChecker.class),
+			mock(Executor.class));
 
 	}
 

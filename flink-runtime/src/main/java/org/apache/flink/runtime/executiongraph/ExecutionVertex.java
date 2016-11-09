@@ -19,11 +19,9 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.Archiveable;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
@@ -47,7 +45,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -599,30 +596,19 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			consumedPartitions.add(new InputGateDeploymentDescriptor(resultId, queueToRequest, partitions));
 		}
 
-		SerializedValue<ExecutionConfig> serializedConfig = getExecutionGraph().getSerializedExecutionConfig();
-		List<BlobKey> jarFiles = getExecutionGraph().getRequiredJarFiles();
-		List<URL> classpaths = getExecutionGraph().getRequiredClasspaths();
+		SerializedValue<JobInformation> serializedJobInformation = getExecutionGraph().getSerializedJobInformation();
+		SerializedValue<TaskInformation> serializedJobVertexInformation = jobVertex.getSerializedTaskInformation();
 
 		return new TaskDeploymentDescriptor(
-			getJobId(),
-			getExecutionGraph().getJobName(),
-			getJobvertexId(),
+			serializedJobInformation,
+			serializedJobVertexInformation,
 			executionId,
-			serializedConfig,
-			getTaskName(),
-			getMaxParallelism(),
 			subTaskIndex,
-			getTotalNumberOfParallelSubtasks(),
 			attemptNumber,
-			getExecutionGraph().getJobConfiguration(),
-			jobVertex.getJobVertex().getConfiguration(),
-			jobVertex.getJobVertex().getInvokableClassName(),
-			producedPartitions,
-			consumedPartitions,
-			jarFiles,
-			classpaths,
 			targetSlot.getRoot().getSlotNumber(),
-			taskStateHandles);
+			taskStateHandles,
+			producedPartitions,
+			consumedPartitions);
 	}
 
 	// --------------------------------------------------------------------------------------------

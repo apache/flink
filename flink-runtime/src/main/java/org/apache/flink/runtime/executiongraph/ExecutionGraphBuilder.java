@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -77,19 +78,25 @@ public class ExecutionGraphBuilder {
 		final JobID jobId = jobGraph.getJobID();
 
 		// create a new execution graph, if none exists so far
-		final ExecutionGraph executionGraph = (prior != null) ? prior :
-				new ExecutionGraph(
-						executor,
-						jobId,
-						jobName,
-						jobGraph.getJobConfiguration(),
-						jobGraph.getSerializedExecutionConfig(),
-						timeout,
-						restartStrategy,
-						jobGraph.getUserJarBlobKeys(),
-						jobGraph.getClasspaths(),
-						classLoader,
-						metrics);
+		final ExecutionGraph executionGraph;
+
+		try {
+			executionGraph = (prior != null) ? prior :
+					new ExecutionGraph(
+							executor,
+							jobId,
+							jobName,
+							jobGraph.getJobConfiguration(),
+							jobGraph.getSerializedExecutionConfig(),
+							timeout,
+							restartStrategy,
+							jobGraph.getUserJarBlobKeys(),
+							jobGraph.getClasspaths(),
+							classLoader,
+							metrics);
+		} catch (IOException e) {
+			throw new JobException("Could not create the execution graph.", e);
+		}
 
 		// set the basic properties
 

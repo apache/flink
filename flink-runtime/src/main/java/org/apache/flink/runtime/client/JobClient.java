@@ -55,7 +55,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
-import java.util.List;
+import java.util.Collection;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -211,8 +211,8 @@ public class JobClient {
 			InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, props.blobManagerPort());
 			final BlobCache blobClient = new BlobCache(serverAddress, config);
 
-			final List<BlobKey> requiredJarFiles = props.requiredJarFiles();
-			final List<URL> requiredClasspaths = props.requiredClasspaths();
+			final Collection<BlobKey> requiredJarFiles = props.requiredJarFiles();
+			final Collection<URL> requiredClasspaths = props.requiredClasspaths();
 
 			final URL[] allURLs = new URL[requiredJarFiles.size() + requiredClasspaths.size()];
 
