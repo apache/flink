@@ -27,11 +27,14 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.AbstractID;
 
 import org.apache.flink.util.SerializedValue;
@@ -41,6 +44,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 
 import static org.junit.Assert.*;
 
@@ -74,7 +78,7 @@ public class TaskManagerGroupTest extends TestLogger {
 		final ExecutionAttemptID execution13 = new ExecutionAttemptID();
 		final ExecutionAttemptID execution21 = new ExecutionAttemptID();
 
-		TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(
+		TaskDeploymentDescriptor tdd1 = createTaskDeploymentDescriptor(
 			jid1, 
 			jobName1, 
 			vertex11, 
@@ -89,7 +93,7 @@ public class TaskManagerGroupTest extends TestLogger {
 			new ArrayList<BlobKey>(), 
 			new ArrayList<URL>(), 0);
 
-		TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(
+		TaskDeploymentDescriptor tdd2 = createTaskDeploymentDescriptor(
 			jid1,
 			jobName1,
 			vertex12,
@@ -104,7 +108,7 @@ public class TaskManagerGroupTest extends TestLogger {
 			new ArrayList<BlobKey>(),
 			new ArrayList<URL>(), 0);
 
-		TaskDeploymentDescriptor tdd3 = new TaskDeploymentDescriptor(
+		TaskDeploymentDescriptor tdd3 = createTaskDeploymentDescriptor(
 			jid2,
 			jobName2,
 			vertex21,
@@ -119,7 +123,7 @@ public class TaskManagerGroupTest extends TestLogger {
 			new ArrayList<BlobKey>(),
 			new ArrayList<URL>(), 0);
 
-		TaskDeploymentDescriptor tdd4 = new TaskDeploymentDescriptor(
+		TaskDeploymentDescriptor tdd4 = createTaskDeploymentDescriptor(
 			jid1,
 			jobName1,
 			vertex13,
@@ -134,9 +138,12 @@ public class TaskManagerGroupTest extends TestLogger {
 			new ArrayList<BlobKey>(),
 			new ArrayList<URL>(), 0);
 		
-		TaskMetricGroup tmGroup11 = group.addTaskForJob(tdd1);
-		TaskMetricGroup tmGroup12 = group.addTaskForJob(tdd2);
-		TaskMetricGroup tmGroup21 = group.addTaskForJob(tdd3);
+		TaskMetricGroup tmGroup11 = group.addTaskForJob(
+			jid1, jobName1, vertex11, execution11, "test", 17, 0);
+		TaskMetricGroup tmGroup12 = group.addTaskForJob(
+			jid1, jobName1, vertex12, execution12, "test", 13, 1);
+		TaskMetricGroup tmGroup21 = group.addTaskForJob(
+			jid2, jobName2, vertex21, execution21, "test", 7, 2);
 		
 		assertEquals(2, group.numRegisteredJobMetricGroups());
 		assertFalse(tmGroup11.parent().isClosed());
@@ -156,7 +163,8 @@ public class TaskManagerGroupTest extends TestLogger {
 		assertEquals(1, group.numRegisteredJobMetricGroups());
 		
 		// add one more to job one
-		TaskMetricGroup tmGroup13 = group.addTaskForJob(tdd4);
+		TaskMetricGroup tmGroup13 = group.addTaskForJob(
+			jid1, jobName1, vertex13, execution13, "test", 0, 0);
 		tmGroup12.close();
 		tmGroup13.close();
 
@@ -190,7 +198,7 @@ public class TaskManagerGroupTest extends TestLogger {
 		final ExecutionAttemptID execution12 = new ExecutionAttemptID();
 		final ExecutionAttemptID execution21 = new ExecutionAttemptID();
 
-		TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(
+		TaskDeploymentDescriptor tdd1 = createTaskDeploymentDescriptor(
 			jid1,
 			jobName1,
 			vertex11,
@@ -205,7 +213,7 @@ public class TaskManagerGroupTest extends TestLogger {
 			new ArrayList<BlobKey>(),
 			new ArrayList<URL>(), 0);
 
-		TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(
+		TaskDeploymentDescriptor tdd2 = createTaskDeploymentDescriptor(
 			jid1,
 			jobName1,
 			vertex12,
@@ -220,7 +228,7 @@ public class TaskManagerGroupTest extends TestLogger {
 			new ArrayList<BlobKey>(),
 			new ArrayList<URL>(), 0);
 
-		TaskDeploymentDescriptor tdd3 = new TaskDeploymentDescriptor(
+		TaskDeploymentDescriptor tdd3 = createTaskDeploymentDescriptor(
 			jid2,
 			jobName2,
 			vertex21,
@@ -235,9 +243,12 @@ public class TaskManagerGroupTest extends TestLogger {
 			new ArrayList<BlobKey>(),
 			new ArrayList<URL>(), 0);
 
-		TaskMetricGroup tmGroup11 = group.addTaskForJob(tdd1);
-		TaskMetricGroup tmGroup12 = group.addTaskForJob(tdd2);
-		TaskMetricGroup tmGroup21 = group.addTaskForJob(tdd3);
+		TaskMetricGroup tmGroup11 = group.addTaskForJob(
+			jid1, jobName1, vertex11, execution11, "test", 17, 0);
+		TaskMetricGroup tmGroup12 = group.addTaskForJob(
+			jid1, jobName1, vertex12, execution12, "test", 13, 1);
+		TaskMetricGroup tmGroup21 = group.addTaskForJob(
+			jid2, jobName2, vertex21, execution21, "test", 7, 1);
 		
 		group.close();
 		
@@ -282,5 +293,57 @@ public class TaskManagerGroupTest extends TestLogger {
 		QueryScopeInfo.TaskManagerQueryScopeInfo info = tm.createQueryServiceMetricInfo(new DummyCharacterFilter());
 		assertEquals("", info.scope);
 		assertEquals("id", info.taskManagerID);
+	}
+
+	private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(
+		JobID jobId,
+		String jobName,
+		JobVertexID jobVertexId,
+		ExecutionAttemptID executionAttemptId,
+		SerializedValue<ExecutionConfig> serializedExecutionConfig,
+		String taskName,
+		int numberOfKeyGroups,
+		int subtaskIndex,
+		int parallelism,
+		int attemptNumber,
+		Configuration jobConfiguration,
+		Configuration taskConfiguration,
+		String invokableClassName,
+		Collection<ResultPartitionDeploymentDescriptor> producedPartitions,
+		Collection<InputGateDeploymentDescriptor> inputGates,
+		Collection<BlobKey> requiredJarFiles,
+		Collection<URL> requiredClasspaths,
+		int targetSlotNumber) throws IOException {
+
+		JobInformation jobInformation = new JobInformation(
+			jobId,
+			jobName,
+			serializedExecutionConfig,
+			jobConfiguration,
+			requiredJarFiles,
+			requiredClasspaths);
+
+		TaskInformation taskInformation = new TaskInformation(
+			jobVertexId,
+			taskName,
+			parallelism,
+			numberOfKeyGroups,
+			invokableClassName,
+			taskConfiguration);
+
+		SerializedValue<JobInformation> serializedJobInformation = new SerializedValue<>(jobInformation);
+		SerializedValue<TaskInformation> serializedJobVertexInformation = new SerializedValue<>(taskInformation);
+
+		return new TaskDeploymentDescriptor(
+			serializedJobInformation,
+			serializedJobVertexInformation,
+			executionAttemptId,
+			subtaskIndex,
+			attemptNumber,
+			targetSlotNumber,
+			new TaskStateHandles(),
+			producedPartitions,
+			inputGates);
+
 	}
 }

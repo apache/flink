@@ -43,10 +43,12 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 
 import scala.Option;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -84,13 +86,20 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	
 	private final InputSplit[] inputSplits;
 
+	/**
+	 * Serialized task information which is for all sub tasks the same. Thus, it avoids to
+	 * serialize the same information multiple times in order to create the
+	 * TaskDeploymentDescriptors.
+	 */
+	private final SerializedValue<TaskInformation> serializedTaskInformation;
+
 	private InputSplitAssigner splitAssigner;
 	
 	public ExecutionJobVertex(
 		ExecutionGraph graph,
 		JobVertex jobVertex,
 		int defaultParallelism,
-		Time timeout) throws JobException {
+		Time timeout) throws JobException, IOException {
 
 		this(graph, jobVertex, defaultParallelism, timeout, System.currentTimeMillis());
 	}
@@ -100,7 +109,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		JobVertex jobVertex,
 		int defaultParallelism,
 		Time timeout,
-		long createTimestamp) throws JobException {
+		long createTimestamp) throws JobException, IOException {
 
 		if (graph == null || jobVertex == null) {
 			throw new NullPointerException();
@@ -108,18 +117,26 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		
 		this.graph = graph;
 		this.jobVertex = jobVertex;
-		
+
 		int vertexParallelism = jobVertex.getParallelism();
 		int numTaskVertices = vertexParallelism > 0 ? vertexParallelism : defaultParallelism;
-		
+
 		this.parallelism = numTaskVertices;
 
-		int maxParallelism = jobVertex.getMaxParallelism();
+		int maxP = jobVertex.getMaxParallelism();
 
-		Preconditions.checkArgument(maxParallelism >= parallelism, "The maximum parallelism (" +
-			maxParallelism + ") must be greater or equal than the parallelism (" + parallelism +
+		Preconditions.checkArgument(maxP >= parallelism, "The maximum parallelism (" +
+			maxP + ") must be greater or equal than the parallelism (" + parallelism +
 			").");
-		this.maxParallelism = maxParallelism;
+		this.maxParallelism = maxP;
+
+		this.serializedTaskInformation = new SerializedValue<>(new TaskInformation(
+			jobVertex.getID(),
+			jobVertex.getName(),
+			parallelism,
+			maxParallelism,
+			jobVertex.getInvokableClassName(),
+			jobVertex.getConfiguration()));
 
 		this.taskVertices = new ExecutionVertex[numTaskVertices];
 		
@@ -246,6 +263,10 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	
 	public List<IntermediateResult> getInputs() {
 		return inputs;
+	}
+
+	public SerializedValue<TaskInformation> getSerializedTaskInformation() {
+		return serializedTaskInformation;
 	}
 	
 	public boolean isInFinalState() {

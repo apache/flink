@@ -237,8 +237,8 @@ object JobManagerMessages {
     * @param requiredClasspaths The urls of the required classpaths
     */
   case class ClassloadingProps(blobManagerPort: Integer,
-                               requiredJarFiles: java.util.List[BlobKey],
-                               requiredClasspaths: java.util.List[URL])
+                               requiredJarFiles: java.util.Collection[BlobKey],
+                               requiredClasspaths: java.util.Collection[URL])
 
   /**
    * Requests the port of the blob manager from the job manager. The result is sent back to the

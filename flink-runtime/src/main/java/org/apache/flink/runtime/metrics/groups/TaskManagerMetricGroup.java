@@ -21,10 +21,12 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.CharacterFilter;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -68,11 +70,19 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetr
 	//  job groups
 	// ------------------------------------------------------------------------
 
-	public TaskMetricGroup addTaskForJob(TaskDeploymentDescriptor tdd) {
-		JobID jobId = tdd.getJobID();
-		String jobName = tdd.getJobName().length() == 0 
-			? tdd.getJobID().toString()
-			: tdd.getJobName();
+	public TaskMetricGroup addTaskForJob(
+			final JobID jobId,
+			final String jobName,
+			final JobVertexID jobVertexId,
+			final ExecutionAttemptID executionAttemptId,
+			final String taskName,
+			final int subtaskIndex,
+			final int attemptNumber) {
+		Preconditions.checkNotNull(jobId);
+
+		String resolvedJobName = jobName == null || jobName.isEmpty()
+			? jobId.toString()
+			: jobName;
 
 		// we cannot strictly lock both our map modification and the job group modification
 		// because it might lead to a deadlock
@@ -83,14 +93,19 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetr
 				currentJobGroup = jobs.get(jobId);
 
 				if (currentJobGroup == null || currentJobGroup.isClosed()) {
-					currentJobGroup = new TaskManagerJobMetricGroup(registry, this, jobId, jobName);
+					currentJobGroup = new TaskManagerJobMetricGroup(registry, this, jobId, resolvedJobName);
 					jobs.put(jobId, currentJobGroup);
 				}
 			}
 
 			// try to add another task. this may fail if we found a pre-existing job metrics
 			// group and it is closed concurrently
-			TaskMetricGroup taskGroup = currentJobGroup.addTask(tdd);
+			TaskMetricGroup taskGroup = currentJobGroup.addTask(
+				jobVertexId,
+				executionAttemptId,
+				taskName,
+				subtaskIndex,
+				attemptNumber);
 
 			if (taskGroup != null) {
 				// successfully added the next task
