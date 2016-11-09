@@ -201,7 +201,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 					.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SLIDE)).setParallelism(1);
 
 
-			tryExecute(env, "Tumbling Window Test");
+			tryExecute(env, "Sliding Window Test");
 		}
 		catch (Exception e) {
 			e.printStackTrace();

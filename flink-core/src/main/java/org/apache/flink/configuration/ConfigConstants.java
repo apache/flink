@@ -21,6 +21,8 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 
+import static org.apache.flink.configuration.ConfigOptions.key;
+
 /**
  * This class contains all constants for the configuration. That includes the configuration keys and
  * the default values.
@@ -273,9 +275,10 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "taskmanager.refused-registration-pause";
 
 	/**
-	 * Time interval between two successive task cancellation attempts in milliseconds.
+	 * Deprecated. Please use {@link TaskManagerOptions#TASK_CANCELLATION_INTERVAL}.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public static final String TASK_CANCELLATION_INTERVAL_MILLIS = "task.cancellation-interval";
 
 	// --------------------------- Runtime Algorithms -------------------------------
@@ -341,7 +344,7 @@ public final class ConfigConstants {
 	// ------------------------ YARN Configuration ------------------------
 
 	/**
-	 * The vcores exposed by YYARN.
+	 * The vcores exposed by YARN.
 	 */
 	public static final String YARN_VCORES = "yarn.containers.vcores";
 
@@ -545,7 +548,7 @@ public final class ConfigConstants {
 	
 	
 	// ------------------------- JobManager Web Frontend ----------------------
-	
+
 	/**
 	 * The port for the runtime monitor web-frontend server.
 	 */
@@ -948,7 +951,6 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String SAVEPOINT_FS_DIRECTORY_KEY = "savepoints.state.backend.fs.dir";
 
-
 	// ------------------------------------------------------------------------
 	//                            Default Values
 	// ------------------------------------------------------------------------
@@ -1086,8 +1088,9 @@ public final class ConfigConstants {
 	public static final boolean DEFAULT_TASK_MANAGER_MEMORY_PRE_ALLOCATE = false;
 
 	/**
-	 * The default interval (in milliseconds) to wait between consecutive task cancellation attempts (= 30000 msec).
-	 * */
+	 * Deprecated. Please use {@link TaskManagerOptions#TASK_CANCELLATION_INTERVAL}.
+	 */
+	@Deprecated
 	public static final long DEFAULT_TASK_CANCELLATION_INTERVAL_MILLIS = 30000;
 
 	// ------------------------ Runtime Algorithms ------------------------
@@ -1193,7 +1196,12 @@ public final class ConfigConstants {
 	
 	
 	// ------------------------- JobManager Web Frontend ----------------------
-	
+
+	/** The config key for the address of the JobManager web frontend. */
+	public static final ConfigOption<String> DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS =
+		key("jobmanager.web.address")
+			.noDefaultValue();
+
 	/** The config key for the port of the JobManager web frontend.
 	 * Setting this value to {@code -1} disables the web frontend. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;
@@ -1351,50 +1359,10 @@ public final class ConfigConstants {
 	/** ACL options supported "creator" or "open" */
 	public static final String DEFAULT_HA_ZOOKEEPER_CLIENT_ACL = "open";
 
-
-	// ------------------------- Queryable state ------------------------------
-
-	/** Port to bind KvState server to. */
-	public static final String QUERYABLE_STATE_SERVER_PORT = "query.server.port";
-
-	/** Number of network (event loop) threads for the KvState server. */
-	public static final String QUERYABLE_STATE_SERVER_NETWORK_THREADS = "query.server.network-threads";
-
-	/** Number of query threads for the KvState server. */
-	public static final String QUERYABLE_STATE_SERVER_QUERY_THREADS = "query.server.query-threads";
-
-	/** Default port to bind KvState server to (0 => pick random free port). */
-	public static final int DEFAULT_QUERYABLE_STATE_SERVER_PORT = 0;
-
-	/** Default Number of network (event loop) threads for the KvState server (0 => #slots). */
-	public static final int DEFAULT_QUERYABLE_STATE_SERVER_NETWORK_THREADS = 0;
-
-	/** Default number of query threads for the KvState server (0 => #slots). */
-	public static final int DEFAULT_QUERYABLE_STATE_SERVER_QUERY_THREADS = 0;
-
-	/** Number of network (event loop) threads for the KvState client. */
-	public static final String QUERYABLE_STATE_CLIENT_NETWORK_THREADS = "query.client.network-threads";
-
-	/** Number of retries on location lookup failures. */
-	public static final String QUERYABLE_STATE_CLIENT_LOOKUP_RETRIES = "query.client.lookup.num-retries";
-
-	/** Retry delay on location lookup failures (millis). */
-	public static final String QUERYABLE_STATE_CLIENT_LOOKUP_RETRY_DELAY = "query.client.lookup.retry-delay";
-
-	/** Default number of query threads for the KvState client (0 => #cores) */
-	public static final int DEFAULT_QUERYABLE_STATE_CLIENT_NETWORK_THREADS = 0;
-
-	/** Default number of retries on location lookup failures. */
-	public static final int DEFAULT_QUERYABLE_STATE_CLIENT_LOOKUP_RETRIES = 3;
-
-	/** Default retry delay on location lookup failures. */
-	public static final int DEFAULT_QUERYABLE_STATE_CLIENT_LOOKUP_RETRY_DELAY = 1000;
-
 	// ----------------------------- Metrics ----------------------------
 
 	/** The default number of measured latencies to maintain at each operator */
 	public static final int DEFAULT_METRICS_LATENCY_HISTORY_SIZE = 128;
-
 
 	// ----------------------------- Environment Variables ----------------------------
 

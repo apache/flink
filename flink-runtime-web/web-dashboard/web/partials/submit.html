@@ -75,6 +75,16 @@ limitations under the License.
         </td>
         <td><span id="job-submit" ng-click="runJob()" class="btn btn-success btn-sm">{{state['submit-button']}}</span>&nbsp;<i ng-if="state['submit-button'] == 'Submitting'" class="fa fa-spin fa-spinner"></i></td>
       </tr>
+      <tr>
+        <td>
+          <input type="text" placeholder="Savepoint Path" title="Savepoint Path" ng-model="state['savepointPath']" class="form-control"/>
+        </td>
+        <td>
+          <label class="checkbox-inline">
+            <input type="checkbox" ng-model="state['allowNonRestoredState']" class="checkbox-inline"/>Allow Non Restored State
+          </label>
+        </td>
+      </tr>
     </tbody>
   </table>
   <table ng-if="jid" class="table table-no-border">

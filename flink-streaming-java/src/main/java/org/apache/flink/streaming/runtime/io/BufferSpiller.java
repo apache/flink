@@ -132,9 +132,8 @@ public class BufferSpiller {
 			}
 			else {
 				contents = EventSerializer.toSerializedEvent(boe.getEvent());
-				
 			}
-			
+
 			headBuffer.clear();
 			headBuffer.putInt(boe.getChannelIndex());
 			headBuffer.putInt(contents.remaining());
@@ -278,6 +277,9 @@ public class BufferSpiller {
 		/** The byte buffer for bulk reading */
 		private final ByteBuffer buffer;
 
+		/** We store this size as a constant because it is crucial it never changes */
+		private final long size;
+
 		/** The page size to instantiate properly sized memory segments */
 		private final int pageSize;
 
@@ -292,11 +294,13 @@ public class BufferSpiller {
 		 * @param buffer The buffer used for bulk reading.
 		 * @param pageSize The page size to use for the created memory segments.
 		 */
-		SpilledBufferOrEventSequence(File file, FileChannel fileChannel, ByteBuffer buffer, int pageSize) {
+		SpilledBufferOrEventSequence(File file, FileChannel fileChannel, ByteBuffer buffer, int pageSize)
+				throws IOException {
 			this.file = file;
 			this.fileChannel = fileChannel;
 			this.buffer = buffer;
 			this.pageSize = pageSize;
+			this.size = fileChannel.size();
 		}
 
 		/**
@@ -417,6 +421,13 @@ public class BufferSpiller {
 			if (!file.delete()) {
 				throw new IOException("Cannot remove temp file for stream alignment writer");
 			}
+		}
+
+		/**
+		 * Gets the size of this spilled sequence.
+		 */
+		public long size() throws IOException {
+			return size;
 		}
 	}
 }

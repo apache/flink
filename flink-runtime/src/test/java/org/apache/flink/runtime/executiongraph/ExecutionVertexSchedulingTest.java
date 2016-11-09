@@ -27,6 +27,7 @@ import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.junit.Test;
@@ -51,7 +52,7 @@ public class ExecutionVertexSchedulingTest {
 					AkkaUtils.getDefaultTimeout());
 
 			// a slot than cannot be deployed to
-			final Instance instance = getInstance(DummyActorGateway.INSTANCE);
+			final Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 			
 			slot.releaseSlot();
@@ -83,7 +84,7 @@ public class ExecutionVertexSchedulingTest {
 					AkkaUtils.getDefaultTimeout());
 
 			// a slot than cannot be deployed to
-			final Instance instance = getInstance(DummyActorGateway.INSTANCE);
+			final Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			slot.releaseSlot();
@@ -122,7 +123,8 @@ public class ExecutionVertexSchedulingTest {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
-			final Instance instance = getInstance(new ExecutionGraphTestUtils.SimpleActorGateway(TestingUtils.defaultExecutionContext()));
+			final Instance instance = getInstance(new ActorTaskManagerGateway(
+				new ExecutionGraphTestUtils.SimpleActorGateway(TestingUtils.defaultExecutionContext())));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			Scheduler scheduler = mock(Scheduler.class);

@@ -168,6 +168,14 @@ The job will only be cancelled if the savepoint succeeds.
 
 The run command has a savepoint flag to submit a job, which restores its state from a savepoint. The savepoint path is returned by the savepoint trigger command.
 
+By default, we try to match all savepoint state to the job being submitted. If you want to allow to skip savepoint state that cannot be restored with the new job you can set the `allowNonRestoredState` flag. You need to allow this if you removed an operator from your program that was part of the program when the savepoint was triggered and you still want to use the savepoint.
+
+{% highlight bash %}
+./bin/flink run -s <savepointPath> -n ...
+{% endhighlight %}
+
+This is useful if your program dropped an operator that was part of the savepoint.
+
 #### Dispose a savepoint
 
 {% highlight bash %}
@@ -224,6 +232,9 @@ Action "run" compiles and runs a program.
                                                     JobManager than the one
                                                     specified in the
                                                     configuration.
+     -n,--allowNonRestoredState                     Allow non restored savepoint
+                                                    state in case an operator has
+                                                    been removed from the job.
      -p,--parallelism <parallelism>                 The parallelism with which
                                                     to run the program. Optional
                                                     flag to override the default
@@ -231,13 +242,15 @@ Action "run" compiles and runs a program.
                                                     configuration.
      -q,--sysoutLogging                             If present, suppress logging
                                                     output to standard out.
-     -s,--fromSavepoint <savepointPath>             Path to a savepoint to reset
-                                                    the job back to (for example
-                                                    file:///flink/savepoint-1537
+     -s,--fromSavepoint <savepointPath>             Path to a savepoint to
+                                                    restore the job from (for
+                                                    example
+                                                    hdfs:///flink/savepoint-1537
                                                     ).
      -z,--zookeeperNamespace <zookeeperNamespace>   Namespace to create the
                                                     Zookeeper sub-paths for high
                                                     availability mode
+
   Options for yarn-cluster mode:
      -yD <arg>                            Dynamic properties
      -yd,--yarndetached                   Start detached

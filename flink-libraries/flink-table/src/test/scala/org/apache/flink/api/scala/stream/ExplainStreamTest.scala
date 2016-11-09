@@ -40,10 +40,12 @@ class ExplainStreamTest
       .toTable(tEnv, 'a, 'b)
       .filter("a % 2 = 0")
 
-    val result = tEnv.explain(table).replaceAll("\\r\\n", "\n")
+    val result = replaceString(tEnv.explain(table))
+
     val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testFilterStream0.out").mkString.replaceAll("\\r\\n", "\n")
-    assertEquals(result, source)
+      "../../src/test/scala/resources/testFilterStream0.out").mkString
+    val expect = replaceString(source)
+    assertEquals(result, expect)
   }
 
   @Test
@@ -55,10 +57,18 @@ class ExplainStreamTest
     val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
     val table = table1.unionAll(table2)
 
-    val result = tEnv.explain(table).replaceAll("\\r\\n", "\n")
+    val result = replaceString(tEnv.explain(table))
+
     val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testUnionStream0.out").mkString.replaceAll("\\r\\n", "\n")
-    assertEquals(result, source)
+      "../../src/test/scala/resources/testUnionStream0.out").mkString
+    val expect = replaceString(source)
+    assertEquals(result, expect)
   }
 
+  def replaceString(s: String): String = {
+    /* Stage {id} is ignored, because id keeps incrementing in test class
+     * while StreamExecutionEnvironment is up
+     */
+    s.replaceAll("\\r\\n", "\n").replaceAll("Stage \\d+", "")
+  }
 }

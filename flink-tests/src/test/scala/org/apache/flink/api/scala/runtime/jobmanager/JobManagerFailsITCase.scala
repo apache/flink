@@ -24,8 +24,8 @@ import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingNoOpInvokable, NoOpInvokable}
+import org.apache.flink.runtime.messages.Acknowledge
 import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.messages.Messages.Acknowledge
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated, NotifyWhenJobManagerTerminated}
@@ -66,7 +66,7 @@ class JobManagerFailsITCase(_system: ActorSystem)
           jmGateway.tell(RequestNumberRegisteredTaskManager, self)
           expectMsg(1)
 
-          tm ! NotifyWhenJobManagerTerminated(jmGateway.actor)
+          tm ! NotifyWhenJobManagerTerminated(jmGateway.leaderSessionID())
 
           jmGateway.tell(PoisonPill, self)
 
@@ -109,7 +109,7 @@ class JobManagerFailsITCase(_system: ActorSystem)
           jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), self)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
-          tm.tell(NotifyWhenJobManagerTerminated(jmGateway.actor()), self)
+          tm.tell(NotifyWhenJobManagerTerminated(jmGateway.leaderSessionID()), self)
 
           jmGateway.tell(PoisonPill, self)
 
@@ -122,7 +122,7 @@ class JobManagerFailsITCase(_system: ActorSystem)
           // Ask the job manager for the TMs. Don't ask the TMs, because they
           // can still have state associated with the old job manager.
           jmGateway.tell(NotifyWhenAtLeastNumTaskManagerAreRegistered(2), self)
-          expectMsg(Acknowledge)
+          expectMsg(Acknowledge.get())
 
           jmGateway.tell(SubmitJob(jobGraph2, ListeningBehaviour.EXECUTION_RESULT), self)
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
@@ -34,8 +35,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
-import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -279,10 +279,10 @@ public class CheckpointCoordinator {
 
 		if (result.isSuccess()) {
 			return result.getPendingCheckpoint().getCompletionFuture();
-		} else {
+		}
+		else {
 			Throwable cause = new Exception("Failed to trigger savepoint: " + result.getFailureReason().message());
-			Future<CompletedCheckpoint> failed = FlinkCompletableFuture.completedExceptionally(cause);
-			return failed;
+			return FlinkCompletableFuture.completedExceptionally(cause);
 		}
 	}
 
@@ -300,6 +300,7 @@ public class CheckpointCoordinator {
 		return triggerCheckpoint(timestamp, checkpointProperties, checkpointDirectory, isPeriodic).isSuccess();
 	}
 
+	@VisibleForTesting
 	CheckpointTriggerResult triggerCheckpoint(
 			long timestamp,
 			CheckpointProperties props,
@@ -367,11 +368,11 @@ public class CheckpointCoordinator {
 
 		// check if all tasks that we need to trigger are running.
 		// if not, abort the checkpoint
-		ExecutionAttemptID[] triggerIDs = new ExecutionAttemptID[tasksToTrigger.length];
+		Execution[] executions = new Execution[tasksToTrigger.length];
 		for (int i = 0; i < tasksToTrigger.length; i++) {
 			Execution ee = tasksToTrigger[i].getCurrentExecutionAttempt();
 			if (ee != null && ee.getState() == ExecutionState.RUNNING) {
-				triggerIDs[i] = ee.getAttemptId();
+				executions[i] = ee;
 			} else {
 				LOG.info("Checkpoint triggering task {} is not being executed at the moment. Aborting checkpoint.",
 						tasksToTrigger[i].getSimpleName());
@@ -398,7 +399,7 @@ public class CheckpointCoordinator {
 
 		// we lock with a special lock to make sure that trigger requests do not overtake each other.
 		// this is not done with the coordinator-wide lock, because the 'checkpointIdCounter'
-		// may issue blocking operations. Using a different lock than teh coordinator-wide lock,
+		// may issue blocking operations. Using a different lock than the coordinator-wide lock,
 		// we avoid blocking the processing of 'acknowledge/decline' messages during that time.
 		synchronized (triggerLock) {
 			final long checkpointID;
@@ -500,10 +501,8 @@ public class CheckpointCoordinator {
 				// end of lock scope
 
 				// send the messages to the tasks that trigger their checkpoint
-				for (int i = 0; i < tasksToTrigger.length; i++) {
-					ExecutionAttemptID id = triggerIDs[i];
-					TriggerCheckpoint message = new TriggerCheckpoint(job, id, checkpointID, timestamp);
-					tasksToTrigger[i].sendMessageToCurrentExecution(message, id);
+				for (Execution execution: executions) {
+					execution.triggerCheckpoint(checkpointID, timestamp);
 				}
 
 				numUnsuccessfulCheckpointsTriggers.set(0);
@@ -528,81 +527,74 @@ public class CheckpointCoordinator {
 	}
 
 	/**
-	 * Receives a {@link DeclineCheckpoint} message and returns whether the
-	 * message was associated with a pending checkpoint.
+	 * Receives a {@link DeclineCheckpoint} message for a pending checkpoint.
 	 *
 	 * @param message Checkpoint decline from the task manager
-	 *
-	 * @return Flag indicating whether the declined checkpoint was associated
-	 * with a pending checkpoint.
 	 */
-	public boolean receiveDeclineMessage(DeclineCheckpoint message) throws Exception {
+	public void receiveDeclineMessage(DeclineCheckpoint message) throws Exception {
 		if (shutdown || message == null) {
-			return false;
+			return;
 		}
 		if (!job.equals(message.getJob())) {
-			LOG.error("Received DeclineCheckpoint message for wrong job: {}", message);
-			return false;
+			throw new IllegalArgumentException("Received DeclineCheckpoint message for job " +
+				message.getJob() + " while this coordinator handles job " + job);
 		}
 
 		final long checkpointId = message.getCheckpointId();
+		final String reason = (message.getReason() != null ? message.getReason().getMessage() : "");
 
 		PendingCheckpoint checkpoint;
-
-		// Flag indicating whether the ack message was for a known pending
-		// checkpoint.
-		boolean isPendingCheckpoint;
 
 		synchronized (lock) {
 			// we need to check inside the lock for being shutdown as well, otherwise we
 			// get races and invalid error log messages
 			if (shutdown) {
-				return false;
+				return;
 			}
 
 			checkpoint = pendingCheckpoints.get(checkpointId);
 
 			if (checkpoint != null && !checkpoint.isDiscarded()) {
-				isPendingCheckpoint = true;
-
-				LOG.info("Discarding checkpoint " + checkpointId
-						+ " because of checkpoint decline from task " + message.getTaskExecutionId());
+				LOG.info("Discarding checkpoint {} because of checkpoint decline from task {} : {}",
+						checkpointId, message.getTaskExecutionId(), reason);
 
 				pendingCheckpoints.remove(checkpointId);
 				checkpoint.abortDeclined();
 				rememberRecentCheckpointId(checkpointId);
 
-				boolean haveMoreRecentPending = false;
+				// we don't have to schedule another "dissolving" checkpoint any more because the
+				// cancellation barriers take care of breaking downstream alignments
+				// we only need to make sure that suspended queued requests are resumed
 
+				boolean haveMoreRecentPending = false;
 				for (PendingCheckpoint p : pendingCheckpoints.values()) {
-					if (!p.isDiscarded() && p.getCheckpointTimestamp() >= checkpoint.getCheckpointTimestamp()) {
+					if (!p.isDiscarded() && p.getCheckpointId() >= checkpoint.getCheckpointId()) {
 						haveMoreRecentPending = true;
 						break;
 					}
 				}
-				if (!haveMoreRecentPending && !triggerRequestQueued) {
-					LOG.info("Triggering new checkpoint because of discarded checkpoint " + checkpointId);
-					triggerCheckpoint(System.currentTimeMillis(), checkpoint.getProps(), checkpoint.getTargetDirectory(), checkpoint.isPeriodic());
-				} else if (!haveMoreRecentPending) {
-					LOG.info("Promoting queued checkpoint request because of discarded checkpoint " + checkpointId);
+
+				if (!haveMoreRecentPending) {
 					triggerQueuedRequests();
 				}
-			} else if (checkpoint != null) {
+			}
+			else if (checkpoint != null) {
 				// this should not happen
 				throw new IllegalStateException(
 						"Received message for discarded but non-removed checkpoint " + checkpointId);
-			} else {
-				// message is for an unknown checkpoint, or comes too late (checkpoint disposed)
+			}
+			else if (LOG.isDebugEnabled()) {
 				if (recentPendingCheckpoints.contains(checkpointId)) {
-					isPendingCheckpoint = true;
-					LOG.info("Received another decline checkpoint message for now expired checkpoint attempt " + checkpointId);
+					// message is for an unknown checkpoint, or comes too late (checkpoint disposed)
+					LOG.debug("Received another decline message for now expired checkpoint attempt {} : {}",
+							checkpointId, reason);
 				} else {
-					isPendingCheckpoint = false;
+					// message is for an unknown checkpoint. might be so old that we don't even remember it any more
+					LOG.debug("Received decline message for unknown (too old?) checkpoint attempt {} : {}",
+							checkpointId, reason);
 				}
 			}
 		}
-
-		return isPendingCheckpoint;
 	}
 
 	/**
@@ -646,9 +638,7 @@ public class CheckpointCoordinator {
 			if (checkpoint != null && !checkpoint.isDiscarded()) {
 				isPendingCheckpoint = true;
 
-				if (checkpoint.acknowledgeTask(
-						message.getTaskExecutionId(),
-						message.getSubtaskState())) {
+				if (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getSubtaskState())) {
 					if (checkpoint.isFullyAcknowledged()) {
 						completed = checkpoint.finalizeCheckpoint();
 
@@ -675,8 +665,8 @@ public class CheckpointCoordinator {
 					}
 				} else {
 					// checkpoint did not accept message
-					LOG.error("Received duplicate or invalid acknowledge message for checkpoint " + checkpointId
-							+ " , task " + message.getTaskExecutionId());
+					LOG.error("Received duplicate or invalid acknowledge message for checkpoint {} , task {}",
+							checkpointId, message.getTaskExecutionId());
 				}
 			}
 			else if (checkpoint != null) {
@@ -704,9 +694,7 @@ public class CheckpointCoordinator {
 			for (ExecutionVertex ev : tasksToCommitTo) {
 				Execution ee = ev.getCurrentExecutionAttempt();
 				if (ee != null) {
-					ExecutionAttemptID attemptId = ee.getAttemptId();
-					NotifyCheckpointComplete notifyMessage = new NotifyCheckpointComplete(job, attemptId, checkpointId, timestamp);
-					ev.sendMessageToCurrentExecution(notifyMessage, ee.getAttemptId());
+					ee.notifyCheckpointComplete(checkpointId, timestamp);
 				}
 			}
 
@@ -766,10 +754,32 @@ public class CheckpointCoordinator {
 	//  Checkpoint State Restoring
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Restores the latest checkpointed state.
+	 *
+	 * @param tasks Map of job vertices to restore. State for these vertices is
+	 * restored via {@link Execution#setInitialState(TaskStateHandles)}.
+	 * @param errorIfNoCheckpoint Fail if no completed checkpoint is available to
+	 * restore from.
+	 * @param allowNonRestoredState Allow checkpoint state that cannot be mapped
+	 * to any job vertex in tasks.
+	 * @return <code>true</code> if state was restored, <code>false</code> otherwise.
+	 * @throws IllegalStateException If the CheckpointCoordinator is shut down.
+	 * @throws IllegalStateException If no completed checkpoint is available and
+	 *                               the <code>failIfNoCheckpoint</code> flag has been set.
+	 * @throws IllegalStateException If the checkpoint contains state that cannot be
+	 *                               mapped to any job vertex in <code>tasks</code> and the
+	 *                               <code>allowNonRestoredState</code> flag has not been set.
+	 * @throws IllegalStateException If the max parallelism changed for an operator
+	 *                               that restores state from this checkpoint.
+	 * @throws IllegalStateException If the parallelism changed for an operator
+	 *                               that restores <i>non-partitioned</i> state from this
+	 *                               checkpoint.
+	 */
 	public boolean restoreLatestCheckpointedState(
 			Map<JobVertexID, ExecutionJobVertex> tasks,
 			boolean errorIfNoCheckpoint,
-			boolean allOrNothingState) throws Exception {
+			boolean allowNonRestoredState) throws Exception {
 
 		synchronized (lock) {
 			if (shutdown) {
@@ -793,7 +803,7 @@ public class CheckpointCoordinator {
 			LOG.info("Restoring from latest valid checkpoint: {}.", latest);
 
 			StateAssignmentOperation stateAssignmentOperation =
-					new StateAssignmentOperation(tasks, latest, allOrNothingState);
+					new StateAssignmentOperation(LOG, tasks, latest, allowNonRestoredState);
 
 			stateAssignmentOperation.assignStates();
 
@@ -833,6 +843,10 @@ public class CheckpointCoordinator {
 
 	public CheckpointIDCounter getCheckpointIdCounter() {
 		return checkpointIdCounter;
+	}
+
+	public long getCheckpointTimeout() {
+		return checkpointTimeout;
 	}
 
 	// --------------------------------------------------------------------------------------------

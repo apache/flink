@@ -20,16 +20,16 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.LongCounter;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
+import org.apache.flink.runtime.webmonitor.metrics.MetricStore;
 
 import java.io.StringWriter;
 import java.util.Map;
@@ -45,9 +45,12 @@ import java.util.Map;
  * </ul>
  */
 public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
-	
-	public JobDetailsHandler(ExecutionGraphHolder executionGraphHolder) {
+
+	private final MetricFetcher fetcher;
+
+	public JobDetailsHandler(ExecutionGraphHolder executionGraphHolder, MetricFetcher fetcher) {
 		super(executionGraphHolder);
+		this.fetcher = fetcher;
 	}
 
 	@Override
@@ -124,13 +127,6 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 			ExecutionState jobVertexState = 
 					ExecutionJobVertex.getAggregateJobVertexState(tasksPerState, ejv.getParallelism());
 			jobVerticesPerState[jobVertexState.ordinal()]++;
-			
-			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> metrics = ejv.getAggregatedMetricAccumulators();
-
-			LongCounter readBytes = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_IN);
-			LongCounter writeBytes = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_OUT);
-			LongCounter readRecords = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_IN);
-			LongCounter writeRecords = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_OUT);
 
 			gen.writeStartObject();
 			gen.writeStringField("id", ejv.getJobVertexId().toString());
@@ -148,11 +144,36 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 			}
 			gen.writeEndObject();
 			
+			long numBytesIn = 0;
+			long numBytesOut = 0;
+			long numRecordsIn = 0;
+			long numRecordsOut = 0;
+
+			for (AccessExecutionVertex vertex : ejv.getTaskVertices()) {
+				IOMetrics ioMetrics = vertex.getCurrentExecutionAttempt().getIOMetrics();
+
+				if (ioMetrics != null) { // execAttempt is already finished, use final metrics stored in ExecutionGraph
+					numBytesIn += ioMetrics.getNumBytesInLocal() + ioMetrics.getNumBytesInRemote();
+					numBytesOut += ioMetrics.getNumBytesOut();
+					numRecordsIn += ioMetrics.getNumRecordsIn();
+					numRecordsOut += ioMetrics.getNumRecordsOut();
+				} else { // execAttempt is still running, use MetricQueryService instead
+					fetcher.update();
+					MetricStore.SubtaskMetricStore metrics = fetcher.getMetricStore().getSubtaskMetricStore(graph.getJobID().toString(), ejv.getJobVertexId().toString(), vertex.getParallelSubtaskIndex());
+					if (metrics != null) {
+						numBytesIn += Long.valueOf(metrics.getMetric("numBytesInLocal", "0")) + Long.valueOf(metrics.getMetric("numBytesInRemote", "0"));
+						numBytesOut += Long.valueOf(metrics.getMetric("numBytesOut", "0"));
+						numRecordsIn += Long.valueOf(metrics.getMetric("numRecordsIn", "0"));
+						numRecordsOut += Long.valueOf(metrics.getMetric("numRecordsOut", "0"));
+					}
+				}
+			}
+
 			gen.writeObjectFieldStart("metrics");
-			gen.writeNumberField("read-bytes", readBytes != null ? readBytes.getLocalValuePrimitive() : -1L);
-			gen.writeNumberField("write-bytes", writeBytes != null ? writeBytes.getLocalValuePrimitive() : -1L);
-			gen.writeNumberField("read-records", readRecords != null ? readRecords.getLocalValuePrimitive() : -1L);
-			gen.writeNumberField("write-records",writeRecords != null ? writeRecords.getLocalValuePrimitive() : -1L);
+			gen.writeNumberField("read-bytes", numBytesIn);
+			gen.writeNumberField("write-bytes", numBytesOut);
+			gen.writeNumberField("read-records", numRecordsIn);
+			gen.writeNumberField("write-records", numRecordsOut);
 			gen.writeEndObject();
 			
 			gen.writeEndObject();

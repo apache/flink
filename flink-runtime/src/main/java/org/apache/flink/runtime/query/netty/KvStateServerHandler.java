@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This handler dispatches asynchronous tasks, which query {@link KvState}
@@ -286,7 +287,8 @@ class KvStateServerHandler extends ChannelInboundHandlerAdapter {
 
 			@Override
 			public void operationComplete(ChannelFuture future) throws Exception {
-				long durationMillis = (System.nanoTime() - creationNanos) / 1_000_000;
+				long durationNanos = System.nanoTime() - creationNanos;
+				long durationMillis = TimeUnit.MILLISECONDS.convert(durationNanos, TimeUnit.NANOSECONDS);
 
 				if (future.isSuccess()) {
 					stats.reportSuccessfulRequest(durationMillis);

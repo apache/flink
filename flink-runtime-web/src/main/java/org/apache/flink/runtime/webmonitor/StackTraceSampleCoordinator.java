@@ -18,24 +18,20 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import akka.actor.ActorSystem;
-import akka.actor.Props;
 import com.google.common.collect.Maps;
-import org.apache.flink.runtime.akka.FlinkUntypedActor;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.BiFunction;
+import org.apache.flink.runtime.concurrent.CompletableFuture;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.AkkaActorGateway;
-import org.apache.flink.runtime.messages.StackTraceSampleMessages.ResponseStackTraceSampleFailure;
-import org.apache.flink.runtime.messages.StackTraceSampleMessages.ResponseStackTraceSampleSuccess;
-import org.apache.flink.runtime.messages.StackTraceSampleMessages.TriggerStackTraceSample;
+import org.apache.flink.runtime.messages.StackTraceSampleResponse;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.Future;
-import scala.concurrent.Promise;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -45,9 +41,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.UUID;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -63,11 +57,11 @@ public class StackTraceSampleCoordinator {
 
 	private final Object lock = new Object();
 
-	/** Actor for responses. */
-	private final ActorGateway responseActor;
+	/** Executor used to run the futures */
+	private final Executor executor;
 
 	/** Time out after the expected sampling duration. */
-	private final int sampleTimeout;
+	private final long sampleTimeout;
 
 	/** In progress samples (guarded by lock). */
 	private final Map<Integer, PendingStackTraceSample> pendingSamples = new HashMap<>();
@@ -79,12 +73,6 @@ public class StackTraceSampleCoordinator {
 	private int sampleIdCounter;
 
 	/**
-	 * Timer to discard expired in progress samples. Lazily initiated as the
-	 * sample coordinator will not be used very often (guarded by lock).
-	 */
-	private Timer timer;
-
-	/**
 	 * Flag indicating whether the coordinator is still running (guarded by
 	 * lock).
 	 */
@@ -93,16 +81,15 @@ public class StackTraceSampleCoordinator {
 	/**
 	 * Creates a new coordinator for the job.
 	 *
+	 * @param executor to use to execute the futures
 	 * @param sampleTimeout Time out after the expected sampling duration.
 	 *                      This is added to the expected duration of a
 	 *                      sample, which is determined by the number of
 	 *                      samples and the delay between each sample.
 	 */
-	public StackTraceSampleCoordinator(ActorSystem actorSystem, int sampleTimeout) {
-		Props props = Props.create(StackTraceSampleCoordinatorActor.class, this);
-		this.responseActor = new AkkaActorGateway(actorSystem.actorOf(props), null);
-
-		checkArgument(sampleTimeout >= 0);
+	public StackTraceSampleCoordinator(Executor executor, long sampleTimeout) {
+		checkArgument(sampleTimeout >= 0L);
+		this.executor = Preconditions.checkNotNull(executor);
 		this.sampleTimeout = sampleTimeout;
 	}
 
@@ -120,7 +107,7 @@ public class StackTraceSampleCoordinator {
 	public Future<StackTraceSample> triggerStackTraceSample(
 			ExecutionVertex[] tasksToSample,
 			int numSamples,
-			FiniteDuration delayBetweenSamples,
+			Time delayBetweenSamples,
 			int maxStackTraceDepth) {
 
 		checkNotNull(tasksToSample, "Tasks to sample");
@@ -130,33 +117,28 @@ public class StackTraceSampleCoordinator {
 
 		// Execution IDs of running tasks
 		ExecutionAttemptID[] triggerIds = new ExecutionAttemptID[tasksToSample.length];
+		Execution[] executions = new Execution[tasksToSample.length];
 
 		// Check that all tasks are RUNNING before triggering anything. The
 		// triggering can still fail.
 		for (int i = 0; i < triggerIds.length; i++) {
 			Execution execution = tasksToSample[i].getCurrentExecutionAttempt();
 			if (execution != null && execution.getState() == ExecutionState.RUNNING) {
+				executions[i] = execution;
 				triggerIds[i] = execution.getAttemptId();
 			} else {
-				Promise failedPromise = new scala.concurrent.impl.Promise.DefaultPromise<>()
-						.failure(new IllegalStateException("Task " + tasksToSample[i]
-								.getTaskNameWithSubtaskIndex() + " is not running."));
-				return failedPromise.future();
+				return FlinkCompletableFuture.completedExceptionally(
+					new IllegalStateException("Task " + tasksToSample[i]
+					.getTaskNameWithSubtaskIndex() + " is not running."));
 			}
 		}
 
 		synchronized (lock) {
 			if (isShutDown) {
-				Promise failedPromise = new scala.concurrent.impl.Promise.DefaultPromise<>()
-						.failure(new IllegalStateException("Shut down"));
-				return failedPromise.future();
+				return FlinkCompletableFuture.completedExceptionally(new IllegalStateException("Shut down"));
 			}
 
-			if (timer == null) {
-				timer = new Timer("Stack trace sample coordinator timer");
-			}
-
-			int sampleId = sampleIdCounter++;
+			final int sampleId = sampleIdCounter++;
 
 			LOG.debug("Triggering stack trace sample {}", sampleId);
 
@@ -166,65 +148,40 @@ public class StackTraceSampleCoordinator {
 			// Discard the sample if it takes too long. We don't send cancel
 			// messages to the task managers, but only wait for the responses
 			// and then ignore them.
-			long expectedDuration = numSamples * delayBetweenSamples.toMillis();
-			long discardDelay = expectedDuration + sampleTimeout;
-
-			TimerTask discardTask = new TimerTask() {
-				@Override
-				public void run() {
-					try {
-						synchronized (lock) {
-							if (!pending.isDiscarded()) {
-								LOG.info("Sample {} expired before completing",
-										pending.getSampleId());
-
-								pending.discard(new RuntimeException("Time out"));
-								if (pendingSamples.remove(pending.getSampleId()) != null) {
-									rememberRecentSampleId(pending.getSampleId());
-								}
-							}
-						}
-					} catch (Throwable t) {
-						LOG.error("Exception while handling sample timeout", t);
-					}
-				}
-			};
+			long expectedDuration = numSamples * delayBetweenSamples.toMilliseconds();
+			Time timeout = Time.milliseconds(expectedDuration + sampleTimeout);
 
 			// Add the pending sample before scheduling the discard task to
 			// prevent races with removing it again.
 			pendingSamples.put(sampleId, pending);
 
-			timer.schedule(discardTask, discardDelay);
+			// Trigger all samples
+			for (Execution execution: executions) {
+				final Future<StackTraceSampleResponse> stackTraceSampleFuture = execution.requestStackTraceSample(
+					sampleId,
+					numSamples,
+					delayBetweenSamples,
+					maxStackTraceDepth,
+					timeout);
 
-			boolean success = true;
-			try {
-				// Trigger all samples
-				for (int i = 0; i < tasksToSample.length; i++) {
-					TriggerStackTraceSample msg = new TriggerStackTraceSample(
-							sampleId,
-							triggerIds[i],
-							numSamples,
-							delayBetweenSamples,
-							maxStackTraceDepth);
+				stackTraceSampleFuture.handleAsync(new BiFunction<StackTraceSampleResponse, Throwable, Void>() {
+					@Override
+					public Void apply(StackTraceSampleResponse stackTraceSampleResponse, Throwable throwable) {
+						if (stackTraceSampleResponse != null) {
+							collectStackTraces(
+								stackTraceSampleResponse.getSampleId(),
+								stackTraceSampleResponse.getExecutionAttemptID(),
+								stackTraceSampleResponse.getSamples());
+						} else {
+							cancelStackTraceSample(sampleId, throwable);
+						}
 
-					if (!tasksToSample[i].sendMessageToCurrentExecution(
-							msg,
-							triggerIds[i],
-							responseActor)) {
-						success = false;
-						break;
+						return null;
 					}
-				}
-
-				return pending.getStackTraceSampleFuture();
-			} finally {
-				if (!success) {
-					pending.discard(new RuntimeException("Failed to trigger sample, " +
-							"because task has been reset."));
-					pendingSamples.remove(sampleId);
-					rememberRecentSampleId(sampleId);
-				}
+				}, executor);
 			}
+
+			return pending.getStackTraceSampleFuture();
 		}
 	}
 
@@ -234,7 +191,7 @@ public class StackTraceSampleCoordinator {
 	 * @param sampleId ID of the sample to cancel.
 	 * @param cause Cause of the cancelling (can be <code>null</code>).
 	 */
-	public void cancelStackTraceSample(int sampleId, Exception cause) {
+	public void cancelStackTraceSample(int sampleId, Throwable cause) {
 		synchronized (lock) {
 			if (isShutDown) {
 				return;
@@ -269,10 +226,6 @@ public class StackTraceSampleCoordinator {
 				}
 
 				pendingSamples.clear();
-
-				if (timer != null) {
-					timer.cancel();
-				}
 
 				isShutDown = true;
 			}
@@ -355,7 +308,7 @@ public class StackTraceSampleCoordinator {
 		private final long startTime;
 		private final Set<ExecutionAttemptID> pendingTasks;
 		private final Map<ExecutionAttemptID, List<StackTraceElement[]>> stackTracesByTask;
-		private final Promise<StackTraceSample> stackTracePromise;
+		private final CompletableFuture<StackTraceSample> stackTraceFuture;
 
 		private boolean isDiscarded;
 
@@ -367,7 +320,7 @@ public class StackTraceSampleCoordinator {
 			this.startTime = System.currentTimeMillis();
 			this.pendingTasks = new HashSet<>(Arrays.asList(tasksToCollect));
 			this.stackTracesByTask = Maps.newHashMapWithExpectedSize(tasksToCollect.length);
-			this.stackTracePromise = new scala.concurrent.impl.Promise.DefaultPromise<>();
+			this.stackTraceFuture = new FlinkCompletableFuture<>();
 		}
 
 		int getSampleId() {
@@ -395,7 +348,7 @@ public class StackTraceSampleCoordinator {
 				pendingTasks.clear();
 				stackTracesByTask.clear();
 
-				stackTracePromise.failure(new RuntimeException("Discarded", cause));
+				stackTraceFuture.completeExceptionally(new RuntimeException("Discarded", cause));
 
 				isDiscarded = true;
 			}
@@ -427,7 +380,7 @@ public class StackTraceSampleCoordinator {
 						endTime,
 						stackTracesByTask);
 
-				stackTracePromise.success(stackTraceSample);
+				stackTraceFuture.complete(stackTraceSample);
 			} else {
 				throw new IllegalStateException("Not completed yet");
 			}
@@ -435,47 +388,7 @@ public class StackTraceSampleCoordinator {
 
 		@SuppressWarnings("unchecked")
 		Future<StackTraceSample> getStackTraceSampleFuture() {
-			return stackTracePromise.future();
+			return stackTraceFuture;
 		}
 	}
-
-	/**
-	 * Actor for stack trace sample responses.
-	 */
-	private static class StackTraceSampleCoordinatorActor extends FlinkUntypedActor {
-
-		StackTraceSampleCoordinator coordinator;
-
-		public StackTraceSampleCoordinatorActor(StackTraceSampleCoordinator coordinator) {
-			this.coordinator = checkNotNull(coordinator, "Stack trace sample coordinator");
-		}
-
-		@Override
-		protected void handleMessage(Object msg) throws Exception {
-			try {
-				if (msg instanceof ResponseStackTraceSampleSuccess) {
-					ResponseStackTraceSampleSuccess success = (ResponseStackTraceSampleSuccess) msg;
-
-					coordinator.collectStackTraces(
-							success.sampleId(),
-							success.executionId(),
-							success.samples());
-				} else if (msg instanceof ResponseStackTraceSampleFailure) {
-					ResponseStackTraceSampleFailure failure = (ResponseStackTraceSampleFailure) msg;
-
-					coordinator.cancelStackTraceSample(failure.sampleId(), failure.cause());
-				} else {
-					throw new IllegalArgumentException("Unexpected task sample message");
-				}
-			} catch (Throwable t) {
-				LOG.error("Error responding to message '" + msg + "': " + t.getMessage() + ".", t);
-			}
-		}
-
-		@Override
-		protected UUID getLeaderSessionID() {
-			return null;
-		}
-	}
-
 }

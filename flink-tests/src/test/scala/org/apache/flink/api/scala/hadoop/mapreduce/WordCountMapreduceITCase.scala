@@ -19,6 +19,7 @@
 package org.apache.flink.api.scala.hadoop.mapreduce
 
 import org.apache.flink.api.scala._
+import org.apache.flink.hadoopcompatibility.scala.HadoopInputs
 import org.apache.flink.test.testdata.WordCountData
 import org.apache.flink.test.util.{TestBaseUtils, JavaProgramTestBase}
 import org.apache.hadoop.fs.Path
@@ -42,21 +43,34 @@ class WordCountMapreduceITCase extends JavaProgramTestBase {
   }
 
   protected def testProgram() {
+    internalRun(testDeprecatedAPI = true)
+    postSubmit()
+    resultPath = getTempDirPath("result2")
+    internalRun(testDeprecatedAPI = false)
+  }
+
+  private def internalRun (testDeprecatedAPI: Boolean): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val input =
-      env.readHadoopFile(new TextInputFormat, classOf[LongWritable], classOf[Text], textPath)
+      if (testDeprecatedAPI) {
+        env.readHadoopFile(new TextInputFormat, classOf[LongWritable], classOf[Text], textPath)
+      } else {
+        env.createInput(HadoopInputs.readHadoopFile(new TextInputFormat, classOf[LongWritable],
+          classOf[Text], textPath))
+      }
 
-    val text = input map { _._2.toString }
-    val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
-      .map { (_, 1) }
+    val counts = input
+      .map(_._2.toString)
+      .flatMap(_.toLowerCase.split("\\W+").filter(_.nonEmpty).map( (_, 1)))
       .groupBy(0)
       .sum(1)
 
-    val words = counts map { t => (new Text(t._1), new LongWritable(t._2)) }
+    val words = counts
+      .map( t => (new Text(t._1), new LongWritable(t._2)) )
 
     val job = Job.getInstance()
-    val hadoopOutputFormat = new HadoopOutputFormat[Text,LongWritable](
+    val hadoopOutputFormat = new HadoopOutputFormat[Text, LongWritable](
       new TextOutputFormat[Text, LongWritable],
       job)
     hadoopOutputFormat.getConfiguration.set("mapred.textoutputformat.separator", " ")

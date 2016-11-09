@@ -32,6 +32,7 @@ import java.io.StringWriter;
 
 @Internal
 public final class ExceptionUtils {
+	public static final String STRINGIFIED_NULL_EXCEPTION = "(null)";
 
 	/**
 	 * Makes a string representation of the exception's stack trace, or "(null)", if the
@@ -44,7 +45,7 @@ public final class ExceptionUtils {
 	 */
 	public static String stringifyException(final Throwable e) {
 		if (e == null) {
-			return "(null)";
+			return STRINGIFIED_NULL_EXCEPTION;
 		}
 		
 		try {

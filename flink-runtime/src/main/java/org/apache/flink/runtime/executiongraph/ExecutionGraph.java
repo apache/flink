@@ -23,13 +23,13 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.StoppingException;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -62,8 +62,6 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.duration.FiniteDuration;
 import scala.Option;
 
 import java.io.IOException;
@@ -81,6 +79,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -169,7 +168,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	private final long[] stateTimestamps;
 
 	/** The timeout for all messages that require a response/acknowledgement */
-	private final FiniteDuration timeout;
+	private final Time timeout;
 
 	// ------ Configuration of the Execution -------
 
@@ -215,8 +214,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * available after archiving. */
 	private CheckpointStatsTracker checkpointStatsTracker;
 
-	/** The execution context which is used to execute futures. */
-	private ExecutionContext executionContext;
+	/** The executor which is used to execute futures. */
+	private Executor executor;
 
 	/** Registered KvState instances reported by the TaskManagers. */
 	private KvStateLocationRegistry kvStateLocationRegistry;
@@ -232,15 +231,15 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * This constructor is for tests only, because it does not include class loading information.
 	 */
 	ExecutionGraph(
-			ExecutionContext executionContext,
+			Executor executor,
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
 			SerializedValue<ExecutionConfig> serializedConfig,
-			FiniteDuration timeout,
+			Time timeout,
 			RestartStrategy restartStrategy) {
 		this(
-			executionContext,
+			executor,
 			jobId,
 			jobName,
 			jobConfig,
@@ -255,25 +254,25 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	}
 
 	public ExecutionGraph(
-			ExecutionContext executionContext,
+			Executor executor,
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
 			SerializedValue<ExecutionConfig> serializedConfig,
-			FiniteDuration timeout,
+			Time timeout,
 			RestartStrategy restartStrategy,
 			List<BlobKey> requiredJarFiles,
 			List<URL> requiredClasspaths,
 			ClassLoader userClassLoader,
 			MetricGroup metricGroup) {
 
-		checkNotNull(executionContext);
+		checkNotNull(executor);
 		checkNotNull(jobId);
 		checkNotNull(jobName);
 		checkNotNull(jobConfig);
 		checkNotNull(userClassLoader);
 
-		this.executionContext = executionContext;
+		this.executor = executor;
 
 		this.jobID = jobId;
 		this.jobName = jobName;
@@ -416,6 +415,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 	}
 
+	@Override
 	public CheckpointCoordinator getCheckpointCoordinator() {
 		return checkpointCoordinator;
 	}
@@ -594,25 +594,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 *
 	 * @return ExecutionContext associated with this ExecutionGraph
 	 */
-	public ExecutionContext getExecutionContext() {
-		return executionContext;
-	}
-
-	/**
-	 * Gets the internal flink accumulator map of maps which contains some metrics.
-	 * @return A map of accumulators for every executed task.
-	 */
-	@Override
-	public Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?,?>>> getFlinkAccumulators() {
-		Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators =
-				new HashMap<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>>();
-
-		for (ExecutionVertex vertex : getAllExecutionVertices()) {
-			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> taskAccs = vertex.getCurrentExecutionAttempt().getFlinkAccumulators();
-			flinkAccumulators.put(vertex.getCurrentExecutionAttempt().getAttemptId(), taskAccs);
-		}
-
-		return flinkAccumulators;
+	public Executor getExecutor() {
+		return executor;
 	}
 
 	/**
@@ -835,14 +818,13 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				current == JobStatus.SUSPENDED ||
 				current.isGloballyTerminalState()) {
 				return;
-			} else if (current == JobStatus.RESTARTING && transitionState(current, JobStatus.FAILED, t)) {
-				synchronized (progressLock) {
-					postRunCleanup();
-					progressLock.notifyAll();
+			} else if (current == JobStatus.RESTARTING) {
+				this.failureCause = t;
 
-					LOG.info("Job {} failed during restart.", getJobID());
+				if (tryRestartOrFail()) {
 					return;
 				}
+				// concurrent job status change, let's check again
 			} else if (transitionState(current, JobStatus.FAILING, t)) {
 				this.failureCause = t;
 
@@ -919,6 +901,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			scheduleForExecution(slotProvider);
 		}
 		catch (Throwable t) {
+			LOG.warn("Failed to restart the job.", t);
 			fail(t);
 		}
 	}
@@ -928,12 +911,16 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 *
 	 * <p>The recovery of checkpoints might block. Make sure that calls to this method don't
 	 * block the job manager actor and run asynchronously.
-	 * 
+	 *
+	 * @param errorIfNoCheckpoint Fail if there is no checkpoint available
+	 * @param allowNonRestoredState Allow to skip checkpoint state that cannot be mapped
+	 * to the the ExecutionGraph vertices (if the checkpoint contains state for a
+	 * job vertex that is not part of this ExecutionGraph).
 	 */
-	public void restoreLatestCheckpointedState() throws Exception {
+	public void restoreLatestCheckpointedState(boolean errorIfNoCheckpoint, boolean allowNonRestoredState) throws Exception {
 		synchronized (progressLock) {
 			if (checkpointCoordinator != null) {
-				checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), false, false);
+				checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), errorIfNoCheckpoint, allowNonRestoredState);
 			}
 		}
 	}
@@ -1024,15 +1011,10 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 						}
 					}
 					else if (current == JobStatus.FAILING) {
-						boolean allowRestart = !(failureCause instanceof SuppressRestartsException);
-
-						if (allowRestart && restartStrategy.canRestart() && transitionState(current, JobStatus.RESTARTING)) {
-							restartStrategy.restart(this);
-							break;
-						} else if ((!allowRestart || !restartStrategy.canRestart()) && transitionState(current, JobStatus.FAILED, failureCause)) {
-							postRunCleanup();
+						if (tryRestartOrFail()) {
 							break;
 						}
+						// concurrent job status change, let's check again
 					}
 					else if (current == JobStatus.SUSPENDED) {
 						// we've already cleaned up when entering the SUSPENDED state
@@ -1056,6 +1038,47 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 	}
 
+	/**
+	 * Try to restart the job. If we cannot restart the job (e.g. no more restarts allowed), then
+	 * try to fail the job. This operation is only permitted if the current state is FAILING or
+	 * RESTARTING.
+	 *
+	 * @return true if the operation could be executed; false if a concurrent job status change occurred
+	 */
+	private boolean tryRestartOrFail() {
+		JobStatus currentState = state;
+
+		if (currentState == JobStatus.FAILING || currentState == JobStatus.RESTARTING) {
+			synchronized (progressLock) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Try to restart the job or fail it if no longer possible.", failureCause);
+				} else {
+					LOG.info("Try to restart the job or fail it if no longer possible.");
+				}
+
+				boolean isRestartable = !(failureCause instanceof SuppressRestartsException) && restartStrategy.canRestart();
+
+				if (isRestartable && transitionState(currentState, JobStatus.RESTARTING)) {
+					LOG.info("Restarting the job...");
+					restartStrategy.restart(this);
+
+					return true;
+				} else if (!isRestartable && transitionState(currentState, JobStatus.FAILED, failureCause)) {
+					LOG.info("Could not restart the job.", failureCause);
+					postRunCleanup();
+
+					return true;
+				} else {
+					// we must have changed the state concurrently, thus we cannot complete this operation
+					return false;
+				}
+			}
+		} else {
+			// this operation is only allowed in the state FAILING or RESTARTING
+			return false;
+		}
+	}
+
 	private void postRunCleanup() {
 		try {
 			CheckpointCoordinator coord = this.checkpointCoordinator;
@@ -1074,7 +1097,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	/**
 	 * Updates the state of one of the ExecutionVertex's Execution attempts.
-	 * If the new status if "FINISHED", this also updates the
+	 * If the new status if "FINISHED", this also updates the accumulators.
 	 * 
 	 * @param state The state update.
 	 * @return True, if the task update was properly applied, false, if the execution attempt was not found.
@@ -1089,11 +1112,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				case FINISHED:
 					try {
 						AccumulatorSnapshot accumulators = state.getAccumulators();
-						Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators =
-							accumulators.deserializeFlinkAccumulators();
 						Map<String, Accumulator<?, ?>> userAccumulators =
 							accumulators.deserializeUserAccumulators(userClassLoader);
-						attempt.markFinished(flinkAccumulators, userAccumulators);
+						attempt.markFinished(userAccumulators, state.getIOMetrics());
 					}
 					catch (Exception e) {
 						LOG.error("Failed to deserialize final accumulator results.", e);
@@ -1118,17 +1139,23 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 	}
 
-	public void scheduleOrUpdateConsumers(ResultPartitionID partitionId) {
+	/**
+	 * Schedule or updates consumers of the given result partition.
+	 *
+	 * @param partitionId specifying the result partition whose consumer shall be scheduled or updated
+	 * @throws ExecutionGraphException if the schedule or update consumers operation could not be executed
+	 */
+	public void scheduleOrUpdateConsumers(ResultPartitionID partitionId) throws ExecutionGraphException {
 
 		final Execution execution = currentExecutions.get(partitionId.getProducerId());
 
 		if (execution == null) {
-			fail(new IllegalStateException("Cannot find execution for execution ID " +
-					partitionId.getPartitionId()));
+			throw new ExecutionGraphException("Cannot find execution for execution Id " +
+				partitionId.getPartitionId() + '.');
 		}
 		else if (execution.getVertex() == null){
-			fail(new IllegalStateException("Execution with execution ID " +
-					partitionId.getPartitionId() + " has no vertex assigned."));
+			throw new ExecutionGraphException("Execution with execution Id " +
+				partitionId.getPartitionId() + " has no vertex assigned.");
 		} else {
 			execution.getVertex().scheduleOrUpdateConsumers(partitionId);
 		}
@@ -1159,16 +1186,14 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * @param accumulatorSnapshot The serialized flink and user-defined accumulators
 	 */
 	public void updateAccumulators(AccumulatorSnapshot accumulatorSnapshot) {
-		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
 		Map<String, Accumulator<?, ?>> userAccumulators;
 		try {
-			flinkAccumulators = accumulatorSnapshot.deserializeFlinkAccumulators();
 			userAccumulators = accumulatorSnapshot.deserializeUserAccumulators(userClassLoader);
 
 			ExecutionAttemptID execID = accumulatorSnapshot.getExecutionAttemptID();
 			Execution execution = currentExecutions.get(execID);
 			if (execution != null) {
-				execution.setAccumulators(flinkAccumulators, userAccumulators);
+				execution.setAccumulators(userAccumulators);
 			} else {
 				LOG.warn("Received accumulator result for unknown execution {}.", execID);
 			}

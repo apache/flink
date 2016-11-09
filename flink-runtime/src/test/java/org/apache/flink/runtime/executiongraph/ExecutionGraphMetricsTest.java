@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
@@ -30,10 +31,13 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.SimpleSlot;
@@ -44,7 +48,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -53,10 +56,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 import org.mockito.Matchers;
-
-import scala.concurrent.ExecutionContext$;
-import scala.concurrent.Future$;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.net.URL;
@@ -67,7 +66,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -98,7 +96,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 	
 			Configuration jobConfig = new Configuration();
 	
-			FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
+			Time timeout = Time.seconds(10L);
 	
 			MetricRegistry metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 	
@@ -120,12 +118,12 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			when(taskManagerLocation.getResourceID()).thenReturn(taskManagerId);
 			when(taskManagerLocation.getHostname()).thenReturn("localhost");
 
-			ActorGateway actorGateway = mock(ActorGateway.class);
+			TaskManagerGateway taskManagerGateway = mock(TaskManagerGateway.class);
 
 			Instance instance = mock(Instance.class);
 			when(instance.getTaskManagerLocation()).thenReturn(taskManagerLocation);
 			when(instance.getTaskManagerID()).thenReturn(taskManagerId);
-			when(instance.getActorGateway()).thenReturn(actorGateway);
+			when(instance.getTaskManagerGateway()).thenReturn(taskManagerGateway);
 
 			Slot rootSlot = mock(Slot.class);
 
@@ -133,7 +131,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			when(simpleSlot.isAlive()).thenReturn(true);
 			when(simpleSlot.getTaskManagerLocation()).thenReturn(taskManagerLocation);
 			when(simpleSlot.getTaskManagerID()).thenReturn(taskManagerId);
-			when(simpleSlot.getTaskManagerActorGateway()).thenReturn(actorGateway);
+			when(simpleSlot.getTaskManagerGateway()).thenReturn(taskManagerGateway);
 			when(simpleSlot.setExecutedVertex(Matchers.any(Execution.class))).thenReturn(true);
 			when(simpleSlot.getRoot()).thenReturn(rootSlot);
 
@@ -143,12 +141,12 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 			when(rootSlot.getSlotNumber()).thenReturn(0);
 
-			when(actorGateway.ask(Matchers.any(Object.class), Matchers.any(FiniteDuration.class))).thenReturn(Future$.MODULE$.<Object>successful(Messages.getAcknowledge()));
+			when(taskManagerGateway.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class))).thenReturn(FlinkCompletableFuture.completed(Acknowledge.get()));
 
 			TestingRestartStrategy testingRestartStrategy = new TestingRestartStrategy();
 
 			ExecutionGraph executionGraph = new ExecutionGraph(
-				ExecutionContext$.MODULE$.fromExecutor(executor),
+				executor,
 				jobGraph.getJobID(),
 				jobGraph.getName(),
 				jobConfig,
@@ -272,7 +270,8 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			assertTrue(previousRestartingTime > 0);
 	
 			// now lets fail the job while it is in restarting and see whether the restarting time then stops to increase
-			executionGraph.fail(new Exception());
+			// for this to work, we have to use a SuppressRestartException
+			executionGraph.fail(new SuppressRestartsException(new Exception()));
 	
 			assertEquals(JobStatus.FAILED, executionGraph.getState());
 	

@@ -25,6 +25,7 @@ import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.BufferedInputStream;
@@ -86,7 +87,7 @@ public class PackagedProgram {
 	
 	private Plan plan;
 
-	private String savepointPath;
+	private SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.none();
 
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
@@ -257,12 +258,12 @@ public class PackagedProgram {
 		}
 	}
 
-	public void setSavepointPath(String savepointPath) {
-		this.savepointPath = savepointPath;
+	public void setSavepointRestoreSettings(SavepointRestoreSettings savepointSettings) {
+		this.savepointSettings = savepointSettings;
 	}
 
-	public String getSavepointPath() {
-		return savepointPath;
+	public SavepointRestoreSettings getSavepointSettings() {
+		return savepointSettings;
 	}
 
 	public String[] getArguments() {
@@ -282,23 +283,38 @@ public class PackagedProgram {
 	}
 
 	/**
+	 * Returns the plan without the required jars when the files are already provided by the cluster.
+	 *
+	 * @return The plan without attached jar files.
+	 * @throws ProgramInvocationException
+	 */
+	public JobWithJars getPlanWithoutJars() throws ProgramInvocationException {
+		if (isUsingProgramEntryPoint()) {
+			return new JobWithJars(getPlan(), Collections.<URL>emptyList(), classpaths, userCodeClassLoader);
+		} else {
+			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() +
+				" for a program that is using the interactive mode.");
+		}
+	}
+
+	/**
 	 * Returns the plan with all required jars.
-	 * 
+	 *
 	 * @return The plan with attached jar files.
-	 * @throws ProgramInvocationException 
+	 * @throws ProgramInvocationException
 	 */
 	public JobWithJars getPlanWithJars() throws ProgramInvocationException {
 		if (isUsingProgramEntryPoint()) {
 			return new JobWithJars(getPlan(), getAllLibraries(), classpaths, userCodeClassLoader);
 		} else {
-			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() + 
+			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() +
 					" for a program that is using the interactive mode.");
 		}
 	}
 
 	/**
 	 * Returns the analyzed plan without any optimizations.
-	 * 
+	 *
 	 * @return
 	 *         the analyzed plan without any optimizations.
 	 * @throws ProgramInvocationException Thrown if an error occurred in the
@@ -308,7 +324,7 @@ public class PackagedProgram {
 	public String getPreviewPlan() throws ProgramInvocationException {
 		Thread.currentThread().setContextClassLoader(this.getUserCodeClassLoader());
 		List<DataSinkNode> previewPlan;
-		
+
 		if (isUsingProgramEntryPoint()) {
 			previewPlan = Optimizer.createPreOptimizedPlan(getPlan());
 		}
@@ -335,7 +351,7 @@ public class PackagedProgram {
 			finally {
 				env.unsetAsContext();
 			}
-			
+
 			if (env.previewPlan != null) {
 				previewPlan =  env.previewPlan;
 			} else {
@@ -359,7 +375,7 @@ public class PackagedProgram {
 	/**
 	 * Returns the description provided by the Program class. This
 	 * may contain a description of the plan itself and its arguments.
-	 * 
+	 *
 	 * @return The description of the PactProgram's input parameters.
 	 * @throws ProgramInvocationException
 	 *         This invocation is thrown if the Program can't be properly loaded. Causes
@@ -367,7 +383,7 @@ public class PackagedProgram {
 	 */
 	public String getDescription() throws ProgramInvocationException {
 		if (ProgramDescription.class.isAssignableFrom(this.mainClass)) {
-			
+
 			ProgramDescription descr;
 			if (this.program != null) {
 				descr = (ProgramDescription) this.program;
@@ -379,22 +395,22 @@ public class PackagedProgram {
 					return null;
 				}
 			}
-			
+
 			try {
 				return descr.getDescription();
 			}
 			catch (Throwable t) {
-				throw new ProgramInvocationException("Error while getting the program description" + 
+				throw new ProgramInvocationException("Error while getting the program description" +
 						(t.getMessage() == null ? "." : ": " + t.getMessage()), t);
 			}
-			
+
 		} else {
 			return null;
 		}
 	}
-	
+
 	/**
-	 * 
+	 *
 	 * This method assumes that the context environment is prepared, or the execution
 	 * will be a local execution by default.
 	 */
@@ -417,13 +433,16 @@ public class PackagedProgram {
 
 	/**
 	 * Gets the {@link java.lang.ClassLoader} that must be used to load user code classes.
-	 * 
+	 *
 	 * @return The user code ClassLoader.
 	 */
 	public ClassLoader getUserCodeClassLoader() {
 		return this.userCodeClassLoader;
 	}
 
+	/**
+	 * Returns all provided libraries needed to run the program.
+	 */
 	public List<URL> getAllLibraries() {
 		List<URL> libs = new ArrayList<URL>(this.extractedTempLibraries.size() + 1);
 

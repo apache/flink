@@ -22,6 +22,7 @@ import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -94,17 +95,17 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			CheckpointIDCounter counter,
 			CompletedCheckpointStore store) throws Exception {
 		ExecutionGraph executionGraph = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				new JobID(),
-				"test",
-				new Configuration(),
-				new SerializedValue<>(new ExecutionConfig()),
-				new FiniteDuration(1, TimeUnit.DAYS),
-				new NoRestartStrategy(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				ClassLoader.getSystemClassLoader(),
-				new UnregisteredMetricsGroup());
+			TestingUtils.defaultExecutionContext(),
+			new JobID(),
+			"test",
+			new Configuration(),
+			new SerializedValue<>(new ExecutionConfig()),
+			Time.days(1L),
+			new NoRestartStrategy(),
+			Collections.<BlobKey>emptyList(),
+			Collections.<URL>emptyList(),
+			ClassLoader.getSystemClassLoader(),
+			new UnregisteredMetricsGroup());
 
 		executionGraph.enableSnapshotCheckpointing(
 				100,

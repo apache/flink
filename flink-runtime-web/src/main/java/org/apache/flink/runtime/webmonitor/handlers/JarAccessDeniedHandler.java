@@ -22,13 +22,13 @@ import org.apache.flink.runtime.instance.ActorGateway;
 
 import java.util.Map;
 
-public class JarAccessDeniedHandler implements RequestHandler {
+public class JarAccessDeniedHandler extends AbstractJsonRequestHandler {
 
 	private static final String ERROR_MESSAGE = "{\"error\": \"Web submission interface is not " +
 			"available for this cluster. To enable it, set the configuration key ' jobmanager.web.submit.enable.'\"}";
 
 	@Override
-	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		return ERROR_MESSAGE;
 	}
 }

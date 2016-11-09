@@ -19,16 +19,20 @@
 
 package org.apache.flink.client;
 
-import static org.apache.flink.client.CliFrontendTestUtils.*;
-import static org.junit.Assert.*;
-
 import org.apache.flink.client.cli.CliFrontendParser;
-import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import static org.apache.flink.client.CliFrontendTestUtils.getTestJarPath;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 
 public class CliFrontendRunTest {
@@ -91,11 +95,24 @@ public class CliFrontendRunTest {
 				assertNotEquals(0, testFrontend.run(parameters));
 			}
 
-			// test configure savepoint path
+			// test configure savepoint path (no ignore flag)
 			{
 				String[] parameters = {"-s", "expectedSavepointPath", getTestJarPath()};
 				RunOptions options = CliFrontendParser.parseRunCommand(parameters);
-				assertEquals("expectedSavepointPath", options.getSavepointPath());
+				SavepointRestoreSettings savepointSettings = options.getSavepointRestoreSettings();
+				assertTrue(savepointSettings.restoreSavepoint());
+				assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
+				assertFalse(savepointSettings.allowNonRestoredState());
+			}
+
+			// test configure savepoint path (with ignore flag)
+			{
+				String[] parameters = {"-s", "expectedSavepointPath", "-n", getTestJarPath()};
+				RunOptions options = CliFrontendParser.parseRunCommand(parameters);
+				SavepointRestoreSettings savepointSettings = options.getSavepointRestoreSettings();
+				assertTrue(savepointSettings.restoreSavepoint());
+				assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
+				assertTrue(savepointSettings.allowNonRestoredState());
 			}
 
 			// test jar arguments

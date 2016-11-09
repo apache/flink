@@ -91,4 +91,14 @@ public class AtomicKvStateRequestStats implements KvStateRequestStats {
 	public long getNumFailed() {
 		return numFailed.get();
 	}
+
+	@Override
+	public String toString() {
+		return "AtomicKvStateRequestStats{" +
+				"numConnections=" + numConnections +
+				", numRequests=" + numRequests +
+				", numSuccessful=" + numSuccessful +
+				", numFailed=" + numFailed +
+				'}';
+	}
 }

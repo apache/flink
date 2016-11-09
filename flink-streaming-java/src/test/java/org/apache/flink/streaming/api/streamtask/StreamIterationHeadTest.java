@@ -18,21 +18,14 @@
 package org.apache.flink.streaming.api.streamtask;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTestHarness;
+
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import static org.junit.Assert.*;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ ResultPartitionWriter.class })
-@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
 public class StreamIterationHeadTest {
 
 	@Test
@@ -49,5 +42,4 @@ public class StreamIterationHeadTest {
 		assertEquals(1, harness.getOutput().size());
 		assertEquals(new Watermark(Long.MAX_VALUE), harness.getOutput().peek());
 	}
-
 }

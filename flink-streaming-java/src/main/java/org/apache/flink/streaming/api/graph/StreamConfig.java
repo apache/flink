@@ -69,6 +69,7 @@ public class StreamConfig implements Serializable {
 	private static final String OUT_STREAM_EDGES = "outStreamEdges";
 	private static final String IN_STREAM_EDGES = "inStreamEdges";
 	private static final String OPERATOR_NAME = "operatorName";
+	private static final String CHAIN_END = "chainEnd";
 
 	private static final String CHECKPOINTING_ENABLED = "checkpointing";
 	private static final String CHECKPOINT_MODE = "checkpointMode";
@@ -476,6 +477,14 @@ public class StreamConfig implements Serializable {
 
 	public boolean isChainStart() {
 		return config.getBoolean(IS_CHAINED_VERTEX, false);
+	}
+
+	public void setChainEnd() {
+		config.setBoolean(CHAIN_END, true);
+	}
+
+	public boolean isChainEnd() {
+		return config.getBoolean(CHAIN_END, false);
 	}
 
 	@Override

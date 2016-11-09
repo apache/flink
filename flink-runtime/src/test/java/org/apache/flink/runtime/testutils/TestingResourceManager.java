@@ -25,13 +25,12 @@ import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManage
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.messages.Messages;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testingUtils.TestingMessages;
 
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-
 
 /**
  * A testing resource manager which may alter the default standalone resource master's behavior.
@@ -66,7 +65,7 @@ public class TestingResourceManager extends StandaloneResourceManager {
 		} else if (message instanceof NotifyWhenResourceManagerConnected) {
 			if (isConnected) {
 				sender().tell(
-					Messages.getAcknowledge(),
+					Acknowledge.get(),
 					self());
 			} else {
 				waitForResourceManagerConnected.add(sender());
@@ -78,7 +77,7 @@ public class TestingResourceManager extends StandaloneResourceManager {
 
 			for (ActorRef ref : waitForResourceManagerConnected) {
 				ref.tell(
-					Messages.getAcknowledge(),
+					Acknowledge.get(),
 					self());
 			}
 			waitForResourceManagerConnected.clear();
@@ -86,7 +85,7 @@ public class TestingResourceManager extends StandaloneResourceManager {
 		} else if (message instanceof TestingMessages.NotifyOfComponentShutdown$) {
 			waitForShutdown.add(sender());
 		} else if (message instanceof TestingMessages.Alive$) {
-			sender().tell(Messages.getAcknowledge(), self());
+			sender().tell(Acknowledge.get(), self());
 		} else {
 			super.handleMessage(message);
 		}

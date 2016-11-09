@@ -26,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.apache.flink.util.SerializedValue
 import org.junit.runner.RunWith
@@ -39,9 +40,11 @@ class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
     "fail the assigned tasks" in {
       try {
         val instance1 = ExecutionGraphTestUtils.getInstance(
-          new SimpleActorGateway(TestingUtils.defaultExecutionContext), 10)
+          new ActorTaskManagerGateway(new SimpleActorGateway(TestingUtils.defaultExecutionContext)),
+          10)
         val instance2 = ExecutionGraphTestUtils.getInstance(
-          new SimpleActorGateway(TestingUtils.defaultExecutionContext), 10)
+          new ActorTaskManagerGateway(new SimpleActorGateway(TestingUtils.defaultExecutionContext)),
+          10)
 
         val scheduler = new Scheduler(TestingUtils.defaultExecutionContext)
         scheduler.newInstanceAvailable(instance1)

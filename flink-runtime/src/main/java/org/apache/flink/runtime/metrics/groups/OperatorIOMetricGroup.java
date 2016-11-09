@@ -18,6 +18,8 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.MeterView;
 
 /**
  * Metric group that contains shareable pre-defined IO-related metrics. The metrics registration is
@@ -28,10 +30,15 @@ public class OperatorIOMetricGroup extends ProxyMetricGroup<OperatorMetricGroup>
 	private final Counter numRecordsIn;
 	private final Counter numRecordsOut;
 
+	private final Meter numRecordsInRate;
+	private final Meter numRecordsOutRate;
+
 	public OperatorIOMetricGroup(OperatorMetricGroup parentMetricGroup) {
 		super(parentMetricGroup);
 		numRecordsIn = parentMetricGroup.counter("numRecordsIn");
 		numRecordsOut = parentMetricGroup.counter("numRecordsOut");
+		numRecordsInRate = parentMetricGroup.meter("numRecordsInPerSecond", new MeterView(numRecordsIn, 60));
+		numRecordsOutRate = parentMetricGroup.meter("numRecordsOutPerSecond", new MeterView(numRecordsOut, 60));
 	}
 
 	public Counter getNumRecordsInCounter() {
@@ -40,5 +47,30 @@ public class OperatorIOMetricGroup extends ProxyMetricGroup<OperatorMetricGroup>
 
 	public Counter getNumRecordsOutCounter() {
 		return numRecordsOut;
+	}
+
+	public Meter getNumRecordsInRateMeter() {
+		return numRecordsInRate;
+	}
+
+	public Meter getNumRecordsOutRate() {
+		return numRecordsOutRate;
+	}
+
+	/**
+	 * Causes the containing task to use this operators input record counter.
+	 */
+	public void reuseInputMetricsForTask() {
+		TaskIOMetricGroup taskIO = parentMetricGroup.parent().getIOMetricGroup();
+		taskIO.reuseRecordsInputCounter(this.numRecordsIn);
+		
+	}
+
+	/**
+	 * Causes the containing task to use this operators output record counter.
+	 */
+	public void reuseOutputMetricsForTask() {
+		TaskIOMetricGroup taskIO = parentMetricGroup.parent().getIOMetricGroup();
+		taskIO.reuseRecordsOutputCounter(this.numRecordsOut);
 	}
 }

@@ -20,13 +20,12 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
@@ -47,7 +46,6 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 
 import scala.Option;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -92,7 +90,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		ExecutionGraph graph,
 		JobVertex jobVertex,
 		int defaultParallelism,
-		FiniteDuration timeout) throws JobException {
+		Time timeout) throws JobException {
 
 		this(graph, jobVertex, defaultParallelism, timeout, System.currentTimeMillis());
 	}
@@ -101,7 +99,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		ExecutionGraph graph,
 		JobVertex jobVertex,
 		int defaultParallelism,
-		FiniteDuration timeout,
+		Time timeout,
 		long createTimestamp) throws JobException {
 
 		if (graph == null || jobVertex == null) {
@@ -443,37 +441,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	// --------------------------------------------------------------------------------------------
 	//  Accumulators / Metrics
 	// --------------------------------------------------------------------------------------------
-	
-	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getAggregatedMetricAccumulators() {
-		// some specialized code to speed things up
-		long bytesRead = 0;
-		long bytesWritten = 0;
-		long recordsRead = 0;
-		long recordsWritten = 0;
-		
-		for (ExecutionVertex v : getTaskVertices()) {
-			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> metrics = v.getCurrentExecutionAttempt().getFlinkAccumulators();
-			
-			if (metrics != null) {
-				LongCounter br = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_IN);
-				LongCounter bw = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_OUT);
-				LongCounter rr = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_IN);
-				LongCounter rw = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_OUT);
-				
-				bytesRead += br != null ? br.getLocalValuePrimitive() : 0;
-				bytesWritten += bw != null ? bw.getLocalValuePrimitive() : 0;
-				recordsRead += rr != null ? rr.getLocalValuePrimitive() : 0;
-				recordsWritten += rw != null ? rw.getLocalValuePrimitive() : 0;
-			}
-		}
-
-		HashMap<AccumulatorRegistry.Metric, Accumulator<?, ?>> agg = new HashMap<>();
-		agg.put(AccumulatorRegistry.Metric.NUM_BYTES_IN, new LongCounter(bytesRead));
-		agg.put(AccumulatorRegistry.Metric.NUM_BYTES_OUT, new LongCounter(bytesWritten));
-		agg.put(AccumulatorRegistry.Metric.NUM_RECORDS_IN, new LongCounter(recordsRead));
-		agg.put(AccumulatorRegistry.Metric.NUM_RECORDS_OUT, new LongCounter(recordsWritten));
-		return agg;
-	}
 
 	public StringifiedAccumulatorResult[] getAggregatedUserAccumulatorsStringified() {
 		Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<String, Accumulator<?, ?>>();

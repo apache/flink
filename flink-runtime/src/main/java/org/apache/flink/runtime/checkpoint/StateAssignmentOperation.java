@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,19 +43,22 @@ import java.util.Map;
  */
 public class StateAssignmentOperation {
 
-	public StateAssignmentOperation(
-			Map<JobVertexID, ExecutionJobVertex> tasks,
-			CompletedCheckpoint latest,
-			boolean allOrNothingState) {
-
-		this.tasks = tasks;
-		this.latest = latest;
-		this.allOrNothingState = allOrNothingState;
-	}
-
+	private final Logger logger;
 	private final Map<JobVertexID, ExecutionJobVertex> tasks;
 	private final CompletedCheckpoint latest;
-	private final boolean allOrNothingState;
+	private final boolean allowNonRestoredState;
+
+	public StateAssignmentOperation(
+			Logger logger,
+			Map<JobVertexID, ExecutionJobVertex> tasks,
+			CompletedCheckpoint latest,
+			boolean allowNonRestoredState) {
+
+		this.logger = logger;
+		this.tasks = tasks;
+		this.latest = latest;
+		this.allowNonRestoredState = allowNonRestoredState;
+	}
 
 	public boolean assignStates() throws Exception {
 
@@ -101,15 +105,10 @@ public class StateAssignmentOperation {
 				List<KeyGroupsStateHandle> parallelKeyedStatesBackend = new ArrayList<>(oldParallelism);
 				List<KeyGroupsStateHandle> parallelKeyedStateStream = new ArrayList<>(oldParallelism);
 
-				int counter = 0;
 				for (int p = 0; p < oldParallelism; ++p) {
-
 					SubtaskState subtaskState = taskState.getState(p);
 
 					if (null != subtaskState) {
-
-						++counter;
-
 						collectParallelStatesByChainOperator(
 								parallelOpStatesBackend, subtaskState.getManagedOperatorState());
 
@@ -126,11 +125,6 @@ public class StateAssignmentOperation {
 							parallelKeyedStateStream.add(keyedStateStream);
 						}
 					}
-				}
-
-				if (allOrNothingState && counter > 0 && counter < oldParallelism) {
-					throw new IllegalStateException("The checkpoint contained state only for " +
-							"a subset of tasks for vertex " + executionJobVertex);
 				}
 
 				// operator chain index -> lists with collected states (one collection for each parallel subtasks)
@@ -222,7 +216,8 @@ public class StateAssignmentOperation {
 
 					currentExecutionAttempt.setInitialState(taskStateHandles);
 				}
-
+			} else if (allowNonRestoredState) {
+				logger.info("Skipped checkpoint state for operator {}.", taskState.getJobVertexID());
 			} else {
 				throw new IllegalStateException("There is no execution job vertex for the job" +
 						" vertex ID " + taskGroupStateEntry.getKey());
@@ -230,7 +225,6 @@ public class StateAssignmentOperation {
 		}
 
 		return true;
-
 	}
 
 	/**

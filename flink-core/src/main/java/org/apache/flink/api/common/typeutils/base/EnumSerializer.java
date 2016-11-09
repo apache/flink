@@ -20,13 +20,13 @@ package org.apache.flink.api.common.typeutils.base;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.lang.reflect.Method;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @Internal
@@ -34,13 +34,16 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	private transient T[] values;
-
 	private final Class<T> enumClass;
+
+	private transient T[] values;
 
 	public EnumSerializer(Class<T> enumClass) {
 		this.enumClass = checkNotNull(enumClass);
-		this.values = createValues(enumClass);
+		checkArgument(Enum.class.isAssignableFrom(enumClass), "not an enum");
+
+		this.values = enumClass.getEnumConstants();
+		checkArgument(this.values.length > 0, "cannot use an empty enum");
 	}
 
 	@Override
@@ -118,18 +121,6 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
-		this.values = createValues(this.enumClass);
-	}
-
-	@SuppressWarnings("unchecked")
-	private static <T> T[] createValues(Class<T> enumClass) {
-		try {
-			Method valuesMethod = enumClass.getMethod("values");
-			return (T[]) valuesMethod.invoke(null);
-
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Cannot access the constants of the enum " + enumClass.getName());
-		}
+		this.values = enumClass.getEnumConstants();
 	}
 }

@@ -100,8 +100,8 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 		}
 	}
 
-	public void broadcastEvent(AbstractEvent barrier) throws IOException, InterruptedException {
-		recordWriter.broadcastEvent(barrier);
+	public void broadcastEvent(AbstractEvent event) throws IOException, InterruptedException {
+		recordWriter.broadcastEvent(event);
 	}
 	
 	

@@ -30,7 +30,7 @@ import org.apache.flink.util.Collector;
  * Implements a streaming windowed version of the "WordCount" program.
  *
  * This program connects to a server socket and reads strings from the socket.
- * The easiest way to try this out is to open a text sever (at port 12345) 
+ * The easiest way to try this out is to open a text server (at port 12345)
  * using the <i>netcat</i> tool via
  * <pre>
  * nc -l 12345
@@ -39,7 +39,7 @@ import org.apache.flink.util.Collector;
  */
 @SuppressWarnings("serial")
 public class SocketWindowWordCount {
-	
+
 	public static void main(String[] args) throws Exception {
 
 		// the port to connect to
@@ -53,17 +53,17 @@ public class SocketWindowWordCount {
 			System.err.println("To start a simple text server, run 'netcat -l <port>' and type the input text " +
 					"into the command line");
 			return;
-		} 
-		
+		}
+
 		// get the execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		// get input data by connecting to the socket
 		DataStream<String> text = env.socketTextStream("localhost", port, "\n");
 
-		// parse the data, group it, window it, and aggregate the counts 
+		// parse the data, group it, window it, and aggregate the counts
 		DataStream<WordWithCount> windowCounts = text
-				
+
 				.flatMap(new FlatMapFunction<String, WordWithCount>() {
 					@Override
 					public void flatMap(String value, Collector<WordWithCount> out) {
@@ -72,10 +72,10 @@ public class SocketWindowWordCount {
 						}
 					}
 				})
-				
+
 				.keyBy("word")
 				.timeWindow(Time.seconds(5), Time.seconds(1))
-				
+
 				.reduce(new ReduceFunction<WordWithCount>() {
 					@Override
 					public WordWithCount reduce(WordWithCount a, WordWithCount b) {
@@ -88,17 +88,17 @@ public class SocketWindowWordCount {
 
 		env.execute("Socket Window WordCount");
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Data type for words with count
 	 */
 	public static class WordWithCount {
-		
+
 		public String word;
 		public long count;
-		
+
 		public WordWithCount() {}
 
 		public WordWithCount(String word, long count) {

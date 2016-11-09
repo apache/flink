@@ -184,6 +184,7 @@ under the License.
 									<exclude>org.apache.flink:flink-python</exclude>
 									<exclude>org.apache.flink:flink-metrics-core</exclude>
 									<exclude>org.apache.flink:flink-metrics-jmx</exclude>
+									<exclude>org.apache.flink:flink-statebackend-rocksdb_2.10</exclude>
 
 									<!-- Also exclude very big transitive dependencies of Flink
 

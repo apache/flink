@@ -78,7 +78,7 @@ public class SavepointLoaderTest {
 		tasks.put(vertexId, vertex);
 
 		// 1) Load and validate: everything correct
-		CompletedCheckpoint loaded = SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path);
+		CompletedCheckpoint loaded = SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, false);
 
 		assertEquals(jobId, loaded.getJobId());
 		assertEquals(checkpointId, loaded.getCheckpointID());
@@ -87,20 +87,23 @@ public class SavepointLoaderTest {
 		when(vertex.getMaxParallelism()).thenReturn(222);
 
 		try {
-			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path);
+			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, false);
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("Max parallelism mismatch"));
 		}
 
-		// 3) Load and validate: missing vertex (this should be relaxed)
+		// 3) Load and validate: missing vertex
 		assertNotNull(tasks.remove(vertexId));
 
 		try {
-			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path);
+			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, false);
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
-			assertTrue(expected.getMessage().contains("Cannot map old state"));
+			assertTrue(expected.getMessage().contains("allowNonRestoredState"));
 		}
+
+		// 4) Load and validate: ignore missing vertex
+		SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, true);
 	}
 }

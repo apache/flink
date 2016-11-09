@@ -34,6 +34,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
@@ -67,8 +68,9 @@ public class ExecutionStateProgressTest {
 			// mock resources and mock taskmanager
 			for (ExecutionVertex ee : ejv.getTaskVertices()) {
 				SimpleSlot slot = getInstance(
+					new ActorTaskManagerGateway(
 						new SimpleActorGateway(
-								TestingUtils.defaultExecutionContext())
+							TestingUtils.defaultExecutionContext()))
 				).allocateSimpleSlot(jid);
 				ee.deployToSlot(slot);
 			}

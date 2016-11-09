@@ -1504,13 +1504,13 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			// connect to JMX
 			MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 			// wait until we've found all 5 offset metrics
-			Set<ObjectName> offsetMetrics = mBeanServer.queryNames(new ObjectName("*:key7=current-offsets,*"), null);
+			Set<ObjectName> offsetMetrics = mBeanServer.queryNames(new ObjectName("*current-offsets*:*"), null);
 			while (offsetMetrics.size() < 5) { // test will time out if metrics are not properly working
 				if (error.f0 != null) {
 					// fail test early
 					throw error.f0;
 				}
-				offsetMetrics = mBeanServer.queryNames(new ObjectName("*:key7=current-offsets,*"), null);
+				offsetMetrics = mBeanServer.queryNames(new ObjectName("*current-offsets*:*"), null);
 				Thread.sleep(50);
 			}
 			Assert.assertEquals(5, offsetMetrics.size());
@@ -1534,7 +1534,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			}
 
 			// check if producer metrics are also available.
-			Set<ObjectName> producerMetrics = mBeanServer.queryNames(new ObjectName("*:key6=KafkaProducer,*"), null);
+			Set<ObjectName> producerMetrics = mBeanServer.queryNames(new ObjectName("*KafkaProducer*:*"), null);
 			Assert.assertTrue("No producer metrics found", producerMetrics.size() > 30);
 
 

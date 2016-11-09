@@ -28,10 +28,10 @@ import java.util.Map;
 /**
  * Request handler for the CANCEL request.
  */
-public class JobCancellationHandler implements RequestHandler {
+public class JobCancellationHandler extends AbstractJsonRequestHandler {
 
 	@Override
-	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {
 			JobID jobid = new JobID(StringUtils.hexStringToByte(pathParams.get("jobid")));
 			if (jobManager != null) {

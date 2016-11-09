@@ -168,6 +168,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 				}
 			}
 
+			mergingWindows.persist();
 		} else {
 			for (W window : elementWindows) {
 
@@ -308,6 +309,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 		windowState.clear();
 		if (mergingWindows != null) {
 			mergingWindows.retireWindow(window);
+			mergingWindows.persist();
 		}
 		context.clear();
 	}

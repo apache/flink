@@ -212,6 +212,10 @@ public class SingleInputGate implements InputGate {
 		return bufferPool;
 	}
 
+	public BufferPool getBufferPool() {
+		return bufferPool;
+	}
+
 	@Override
 	public int getPageSize() {
 		if (bufferPool != null) {
@@ -220,6 +224,26 @@ public class SingleInputGate implements InputGate {
 		else {
 			throw new IllegalStateException("Input gate has not been initialized with buffers.");
 		}
+	}
+
+	public int getNumberOfQueuedBuffers() {
+		// re-try 3 times, if fails, return 0 for "unknown"
+		for (int retry = 0; retry < 3; retry++) {
+			try {
+				int totalBuffers = 0;
+
+				for (InputChannel channel : inputChannels.values()) {
+					if (channel instanceof RemoteInputChannel) {
+						totalBuffers += ((RemoteInputChannel) channel).getNumberOfQueuedBuffers();
+					}
+				}
+
+				return  totalBuffers;
+			}
+			catch (Exception ignored) {}
+		}
+
+		return 0;
 	}
 
 	// ------------------------------------------------------------------------

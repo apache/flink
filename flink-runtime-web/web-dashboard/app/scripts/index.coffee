@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-angular.module('flinkApp', ['ui.router', 'angularMoment'])
+angular.module('flinkApp', ['ui.router', 'angularMoment', 'dndLists'])
 
 # --------------------------------------
 
@@ -30,7 +30,7 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
 
 .value 'flinkConfig', {
   jobServer: ''
-# jobServer: 'http://localhost:8081/'
+#  jobServer: 'http://localhost:8081/'
   "refresh-interval": 10000
 }
 
@@ -107,6 +107,13 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
         templateUrl: "partials/jobs/job.plan.node-list.subtasks.html"
         controller: 'JobPlanSubtasksController'
 
+  .state "single-job.plan.metrics",
+    url: "/metrics"
+    views:
+      'node-details':
+        templateUrl: "partials/jobs/job.plan.node-list.metrics.html"
+        controller: 'JobPlanMetricsController'
+
   .state "single-job.plan.taskmanagers",
     url: "/taskmanagers"
     views:
@@ -154,13 +161,6 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
       details:
         templateUrl: "partials/jobs/job.exceptions.html"
         controller: 'JobExceptionsController'
-
-  .state "single-job.properties",
-    url: "/properties"
-    views:
-      details:
-        templateUrl: "partials/jobs/job.properties.html"
-        controller: 'JobPropertiesController'
 
   .state "single-job.config",
     url: "/config"

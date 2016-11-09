@@ -26,7 +26,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.messages.StopClusterSuccessful;
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.messages.Messages;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testingUtils.TestingMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.TestingResourceManager;
@@ -137,8 +137,7 @@ public class ClusterShutdownITCase extends TestLogger {
 			resourceManager.tell(new TestingResourceManager.NotifyWhenResourceManagerConnected(), me);
 
 			// Wait for resource manager
-			expectMsgEquals(Messages.getAcknowledge());
-
+			expectMsgEquals(Acknowledge.get());
 
 			// Shutdown cluster with resource manager connected
 			jobManager.tell(new StopCluster(ApplicationStatus.SUCCEEDED, "Shutting down."), me);

@@ -22,15 +22,19 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Kill;
 import akka.actor.Props;
+import akka.actor.Status;
 import akka.japi.Creator;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.concurrent.CompletableFuture;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -43,6 +47,7 @@ import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.PartitionState;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -51,22 +56,21 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.Tasks;
-import org.apache.flink.runtime.messages.Messages;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.RegistrationMessages;
-import org.apache.flink.runtime.messages.StackTraceSampleMessages.ResponseStackTraceSampleFailure;
-import org.apache.flink.runtime.messages.StackTraceSampleMessages.ResponseStackTraceSampleSuccess;
 import org.apache.flink.runtime.messages.StackTraceSampleMessages.TriggerStackTraceSample;
+import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
 import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.messages.TaskMessages.StopTask;
 import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
-import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.StoppableInvokable;
+import org.apache.flink.types.IntValue;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -79,7 +83,9 @@ import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
+import scala.util.Failure;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
@@ -107,6 +113,7 @@ public class TaskManagerTest extends TestLogger {
 	private static final FiniteDuration timeout = new FiniteDuration(1, TimeUnit.MINUTES);
 
 	private static final FiniteDuration d = new FiniteDuration(60, TimeUnit.SECONDS);
+	private static final Time timeD = Time.seconds(60L);
 
 	private static ActorSystem system;
 
@@ -123,7 +130,7 @@ public class TaskManagerTest extends TestLogger {
 	}
 
 	@Test
-	public void testSubmitAndExecuteTask() {
+	public void testSubmitAndExecuteTask() throws IOException {
 		new JavaTestKit(system){{
 
 			ActorGateway taskManager = null;
@@ -182,7 +189,7 @@ public class TaskManagerTest extends TestLogger {
 						long deadline = System.currentTimeMillis() + 10000;
 						do {
 							Object message = receiveOne(d);
-							if (message == Messages.getAcknowledge()) {
+							if (message.equals(Acknowledge.get())) {
 								break;
 							}
 						} while (System.currentTimeMillis() < deadline);
@@ -220,10 +227,6 @@ public class TaskManagerTest extends TestLogger {
 
 					}
 				};
-			}
-			catch (Exception e) {
-				e.printStackTrace();
-				fail(e.getMessage());
 			}
 			finally {
 				// shut down the actors
@@ -299,8 +302,8 @@ public class TaskManagerTest extends TestLogger {
 							tm.tell(new SubmitTask(tdd1), testActorGateway);
 							tm.tell(new SubmitTask(tdd2), testActorGateway);
 
-							expectMsgEquals(Messages.getAcknowledge());
-							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Acknowledge.get());
+							expectMsgEquals(Acknowledge.get());
 
 							Await.ready(t1Running, d);
 							Await.ready(t2Running, d);
@@ -321,7 +324,7 @@ public class TaskManagerTest extends TestLogger {
 
 							tm.tell(new CancelTask(eid1), testActorGateway);
 
-							expectMsgEquals(new TaskOperationResult(eid1, true));
+							expectMsgEquals(Acknowledge.get());
 
 							Future<Object> response = tm.ask(new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
 									timeout);
@@ -336,11 +339,10 @@ public class TaskManagerTest extends TestLogger {
 							assertEquals(1, runningTasks.size());
 
 							tm.tell(new CancelTask(eid1), testActorGateway);
-							expectMsgEquals(new TaskOperationResult(eid1, false, "No task with that execution ID was " +
-									"found."));
+							expectMsgEquals(Acknowledge.get());
 
 							tm.tell(new CancelTask(eid2), testActorGateway);
-							expectMsgEquals(new TaskOperationResult(eid2, true));
+							expectMsgEquals(Acknowledge.get());
 
 							response = tm.ask(new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid2),
 									timeout);
@@ -433,8 +435,8 @@ public class TaskManagerTest extends TestLogger {
 							tm.tell(new SubmitTask(tdd1), testActorGateway);
 							tm.tell(new SubmitTask(tdd2), testActorGateway);
 
-							expectMsgEquals(Messages.getAcknowledge());
-							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Acknowledge.get());
+							expectMsgEquals(Acknowledge.get());
 
 							Await.ready(t1Running, d);
 							Await.ready(t2Running, d);
@@ -455,7 +457,7 @@ public class TaskManagerTest extends TestLogger {
 
 							tm.tell(new StopTask(eid1), testActorGateway);
 
-							expectMsgEquals(new TaskOperationResult(eid1, true));
+							expectMsgEquals(Acknowledge.get());
 
 							Future<Object> response = tm.ask(
 									new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
@@ -471,11 +473,10 @@ public class TaskManagerTest extends TestLogger {
 							assertEquals(1, runningTasks.size());
 
 							tm.tell(new StopTask(eid1), testActorGateway);
-							expectMsgEquals(new TaskOperationResult(eid1, false, "No task with that execution ID was " +
-									"found."));
+							expectMsgEquals(Acknowledge.get());
 
 							tm.tell(new StopTask(eid2), testActorGateway);
-							expectMsgEquals(new TaskOperationResult(eid2, false, "UnsupportedOperationException: Stopping not supported by this task."));
+							expectMsgClass(Failure.class);
 
 							assertEquals(ExecutionState.RUNNING, t2.getExecutionState());
 
@@ -556,8 +557,8 @@ public class TaskManagerTest extends TestLogger {
 							tm.tell(new SubmitTask(tdd1), testActorGateway);
 							tm.tell(new SubmitTask(tdd2), testActorGateway);
 
-							expectMsgEquals(Messages.getAcknowledge());
-							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Acknowledge.get());
+							expectMsgEquals(Acknowledge.get());
 
 							tm.tell(new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
 									testActorGateway);
@@ -667,14 +668,14 @@ public class TaskManagerTest extends TestLogger {
 
 							// submit the sender task
 							tm.tell(new SubmitTask(tdd1), testActorGateway);
-							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Acknowledge.get());
 
 							// wait until the sender task is running
 							Await.ready(t1Running, d);
 
 							// only now (after the sender is running), submit the receiver task
 							tm.tell(new SubmitTask(tdd2), testActorGateway);
-							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Acknowledge.get());
 
 							// wait until the receiver task is running
 							Await.ready(t2Running, d);
@@ -813,8 +814,8 @@ public class TaskManagerTest extends TestLogger {
 							tm.tell(new SubmitTask(tdd2), testActorGateway);
 							tm.tell(new SubmitTask(tdd1), testActorGateway);
 
-							expectMsgEquals(Messages.getAcknowledge());
-							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Acknowledge.get());
+							expectMsgEquals(Acknowledge.get());
 
 							Await.ready(t1Running, d);
 							Await.ready(t2Running, d);
@@ -827,7 +828,7 @@ public class TaskManagerTest extends TestLogger {
 							Task t2 = tasks.get(eid2);
 
 							tm.tell(new CancelTask(eid2), testActorGateway);
-							expectMsgEquals(new TaskOperationResult(eid2, true));
+							expectMsgEquals(Acknowledge.get());
 
 							if (t2 != null) {
 								Future<Object> response = tm.ask(new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid2),
@@ -838,7 +839,7 @@ public class TaskManagerTest extends TestLogger {
 							if (t1 != null) {
 								if (t1.getExecutionState() == ExecutionState.RUNNING) {
 									tm.tell(new CancelTask(eid1), testActorGateway);
-									expectMsgEquals(new TaskOperationResult(eid1, true));
+									expectMsgEquals(Acknowledge.get());
 								}
 								Future<Object> response = tm.ask(
 										new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
@@ -944,7 +945,7 @@ public class TaskManagerTest extends TestLogger {
 					protected void run() {
 						// Submit the task
 						tm.tell(new SubmitTask(tdd), testActorGateway);
-						expectMsgClass(Messages.getAcknowledge().getClass());
+						expectMsgClass(Acknowledge.get().getClass());
 
 						// Wait to be notified about the final execution state by the mock JM
 						TaskExecutionState msg = expectMsgClass(TaskExecutionState.class);
@@ -1037,7 +1038,7 @@ public class TaskManagerTest extends TestLogger {
 					protected void run() {
 						// Submit the task
 						tm.tell(new SubmitTask(tdd), testActorGateway);
-						expectMsgClass(Messages.getAcknowledge().getClass());
+						expectMsgClass(Acknowledge.get().getClass());
 
 						// Wait to be notified about the final execution state by the mock JM
 						TaskExecutionState msg = expectMsgClass(TaskExecutionState.class);
@@ -1154,21 +1155,19 @@ public class TaskManagerTest extends TestLogger {
 											112223,
 											taskId,
 											100,
-											d,
+											timeD,
 											0),
 									testActorGateway);
 
 							// Receive the expected message (heartbeat races possible)
 							Object[] msg = receiveN(1);
-							while (!(msg[0] instanceof ResponseStackTraceSampleFailure)) {
+							while (!(msg[0] instanceof Failure)) {
 								msg = receiveN(1);
 							}
 
-							ResponseStackTraceSampleFailure response = (ResponseStackTraceSampleFailure) msg[0];
+							Failure response = (Failure) msg[0];
 
-							assertEquals(112223, response.sampleId());
-							assertEquals(taskId, response.executionId());
-							assertEquals(IllegalStateException.class, response.cause().getClass());
+							assertEquals(IllegalStateException.class, response.exception().getClass());
 						} catch (Exception e) {
 							e.printStackTrace();
 							fail(e.getMessage());
@@ -1193,23 +1192,23 @@ public class TaskManagerTest extends TestLogger {
 												19230,
 												tdd.getExecutionId(),
 												numSamples,
-												new FiniteDuration(100, TimeUnit.MILLISECONDS),
+												Time.milliseconds(100L),
 												0),
 										testActorGateway);
 
 								// Receive the expected message (heartbeat races possible)
 								Object[] msg = receiveN(1);
-								while (!(msg[0] instanceof ResponseStackTraceSampleSuccess)) {
+								while (!(msg[0] instanceof StackTraceSampleResponse)) {
 									msg = receiveN(1);
 								}
 
-								ResponseStackTraceSampleSuccess response = (ResponseStackTraceSampleSuccess) msg[0];
+								StackTraceSampleResponse response = (StackTraceSampleResponse) msg[0];
 
 								// ---- Verify response ----
-								assertEquals(19230, response.sampleId());
-								assertEquals(tdd.getExecutionId(), response.executionId());
+								assertEquals(19230, response.getSampleId());
+								assertEquals(tdd.getExecutionId(), response.getExecutionAttemptID());
 
-								List<StackTraceElement[]> traces = response.samples();
+								List<StackTraceElement[]> traces = response.getSamples();
 
 								assertEquals("Number of samples", numSamples, traces.size());
 
@@ -1265,23 +1264,23 @@ public class TaskManagerTest extends TestLogger {
 											1337,
 											tdd.getExecutionId(),
 											numSamples,
-											new FiniteDuration(100, TimeUnit.MILLISECONDS),
+											Time.milliseconds(100L),
 											maxDepth),
 									testActorGateway);
 
 							// Receive the expected message (heartbeat races possible)
 							Object[] msg = receiveN(1);
-							while (!(msg[0] instanceof ResponseStackTraceSampleSuccess)) {
+							while (!(msg[0] instanceof StackTraceSampleResponse)) {
 								msg = receiveN(1);
 							}
 
-							ResponseStackTraceSampleSuccess response = (ResponseStackTraceSampleSuccess) msg[0];
+							StackTraceSampleResponse response = (StackTraceSampleResponse) msg[0];
 
 							// ---- Verify response ----
-							assertEquals(1337, response.sampleId());
-							assertEquals(tdd.getExecutionId(), response.executionId());
+							assertEquals(1337, response.getSampleId());
+							assertEquals(tdd.getExecutionId(), response.getExecutionAttemptID());
 
-							List<StackTraceElement[]> traces = response.samples();
+							List<StackTraceElement[]> traces = response.getSamples();
 
 							assertEquals("Number of samples", numSamples, traces.size());
 
@@ -1307,13 +1306,14 @@ public class TaskManagerTest extends TestLogger {
 							for (int i = 0; i < maxAttempts; i++, sleepTime *= 2) {
 								// Trigger many samples in order to cancel the task
 								// during a sample
-								taskManager.tell(new TriggerStackTraceSample(
-												44,
-												tdd.getExecutionId(),
-												Integer.MAX_VALUE,
-												new FiniteDuration(10, TimeUnit.MILLISECONDS),
-												0),
-										testActorGateway);
+								taskManager.tell(
+									new TriggerStackTraceSample(
+										44,
+										tdd.getExecutionId(),
+										Integer.MAX_VALUE,
+										Time.milliseconds(10L),
+										0),
+									testActorGateway);
 
 								Thread.sleep(sleepTime);
 
@@ -1327,15 +1327,15 @@ public class TaskManagerTest extends TestLogger {
 								// Receive the expected message (heartbeat races possible)
 								while (true) {
 									Object[] msg = receiveN(1);
-									if (msg[0] instanceof ResponseStackTraceSampleSuccess) {
-										ResponseStackTraceSampleSuccess response = (ResponseStackTraceSampleSuccess) msg[0];
+									if (msg[0] instanceof StackTraceSampleResponse) {
+										StackTraceSampleResponse response = (StackTraceSampleResponse) msg[0];
 
-										assertEquals(tdd.getExecutionId(), response.executionId());
-										assertEquals(44, response.sampleId());
+										assertEquals(tdd.getExecutionId(), response.getExecutionAttemptID());
+										assertEquals(44, response.getSampleId());
 
 										// Done
 										return;
-									} else if (msg[0] instanceof ResponseStackTraceSampleFailure) {
+									} else if (msg[0] instanceof Failure) {
 										// Wait for removal before resubmitting
 										Await.ready(removeFuture, remaining());
 
@@ -1390,6 +1390,75 @@ public class TaskManagerTest extends TestLogger {
 			}
 		}};
 	}
+
+	/**
+	 * Test that a failing schedule or update consumers call leads to the failing of the respective
+	 * task.
+	 *
+	 * IMPORTANT: We have to make sure that the invokable's cancel method is called, because only
+	 * then the future is completed. We do this by not eagerly deploy consumer tasks and requiring
+	 * the invokable to fill one memory segment. The completed memory segment will trigger the
+	 * scheduling of the downstream operator since it is in pipeline mode. After we've filled the
+	 * memory segment, we'll block the invokable and wait for the task failure due to the failed
+	 * schedule or update consumers call.
+	 */
+	@Test(timeout = 10000L)
+	public void testFailingScheduleOrUpdateConsumersMessage() throws Exception {
+		new JavaTestKit(system) {{
+			final Configuration configuration = new Configuration();
+
+			// set the memory segment to the smallest size possible, because we have to fill one
+			// memory buffer to trigger the schedule or update consumers message to the downstream
+			// operators
+			configuration.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY, 4096);
+
+			final JobID jid = new JobID();
+			final JobVertexID vid = new JobVertexID();
+			final ExecutionAttemptID eid = new ExecutionAttemptID();
+			final SerializedValue<ExecutionConfig> executionConfig = new SerializedValue<>(new ExecutionConfig());
+
+			final ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor = new ResultPartitionDeploymentDescriptor(
+				new IntermediateDataSetID(),
+				new IntermediateResultPartitionID(),
+				ResultPartitionType.PIPELINED,
+				1,
+				false // don't deploy eagerly but with the first completed memory buffer
+			);
+
+			final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, "TestJob", vid, eid, executionConfig,
+				"TestTask", 1, 0, 1, 0, new Configuration(), new Configuration(),
+				TestInvokableRecordCancel.class.getName(),
+				Collections.singletonList(resultPartitionDeploymentDescriptor),
+				Collections.<InputGateDeploymentDescriptor>emptyList(),
+				new ArrayList<BlobKey>(), Collections.<URL>emptyList(), 0);
+
+
+			ActorRef jmActorRef = system.actorOf(Props.create(FailingScheduleOrUpdateConsumersJobManager.class, leaderSessionID), "jobmanager");
+			ActorGateway jobManager = new AkkaActorGateway(jmActorRef, leaderSessionID);
+
+			final ActorGateway taskManager = TestingUtils.createTaskManager(
+				system,
+				jobManager,
+				configuration,
+				true,
+				true);
+
+			try {
+				TestInvokableRecordCancel.resetGotCanceledFuture();
+
+				Future<Object> result = taskManager.ask(new SubmitTask(tdd), timeout);
+
+				Await.result(result, timeout);
+
+				org.apache.flink.runtime.concurrent.Future<Boolean> cancelFuture = TestInvokableRecordCancel.gotCanceled();
+
+				assertEquals(true, cancelFuture.get());
+			} finally {
+				TestingUtils.stopActor(taskManager);
+				TestingUtils.stopActor(jobManager);
+			}
+		}};
+	}
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -1425,6 +1494,25 @@ public class TaskManagerTest extends TestLogger {
 		}
 	}
 
+	public static class FailingScheduleOrUpdateConsumersJobManager extends SimpleJobManager {
+
+		public FailingScheduleOrUpdateConsumersJobManager(UUID leaderSessionId) {
+			super(leaderSessionId);
+		}
+
+		@Override
+		public void handleMessage(Object message) throws Exception {
+			if (message instanceof ScheduleOrUpdateConsumers) {
+				getSender().tell(
+					decorateMessage(
+						new Status.Failure(new Exception("Could not schedule or update consumers."))),
+					getSelf());
+			} else {
+				super.handleMessage(message);
+			}
+		}
+	}
+
 	public static class SimpleLookupJobManager extends SimpleJobManager {
 
 		public SimpleLookupJobManager(UUID leaderSessionID) {
@@ -1435,7 +1523,7 @@ public class TaskManagerTest extends TestLogger {
 		public void handleMessage(Object message) throws Exception {
 			if (message instanceof ScheduleOrUpdateConsumers) {
 				getSender().tell(
-						decorateMessage(Messages.getAcknowledge()),
+						decorateMessage(Acknowledge.get()),
 						getSelf()
 						);
 			} else {
@@ -1450,7 +1538,7 @@ public class TaskManagerTest extends TestLogger {
 
 		public SimpleLookupFailingUpdateJobManager(UUID leaderSessionID, Set<ExecutionAttemptID> ids) {
 			super(leaderSessionID);
-			this.validIDs = new HashSet<ExecutionAttemptID>(ids);
+			this.validIDs = new HashSet<>(ids);
 		}
 
 		@Override
@@ -1566,7 +1654,7 @@ public class TaskManagerTest extends TestLogger {
 		public void invoke() {}
 	}
 	
-	public static final class TestInvokableBlockingCancelable extends AbstractInvokable {
+	public static class TestInvokableBlockingCancelable extends AbstractInvokable {
 
 		@Override
 		public void invoke() throws Exception {
@@ -1577,6 +1665,49 @@ public class TaskManagerTest extends TestLogger {
 				while (true) {
 					o.wait();
 				}
+			}
+		}
+	}
+
+	public static final class TestInvokableRecordCancel extends AbstractInvokable {
+
+		private static final Object lock = new Object();
+		private static CompletableFuture<Boolean> gotCanceledFuture = new FlinkCompletableFuture<>();
+
+		@Override
+		public void invoke() throws Exception {
+			final Object o = new Object();
+			RecordWriter<IntValue> recordWriter = new RecordWriter<>(getEnvironment().getWriter(0));
+
+			for (int i = 0; i < 1024; i++) {
+				recordWriter.emit(new IntValue(42));
+			}
+
+			synchronized (o) {
+				//noinspection InfiniteLoopStatement
+				while (true) {
+					o.wait();
+				}
+			}
+
+		}
+
+		@Override
+		public void cancel() {
+			synchronized (lock) {
+				gotCanceledFuture.complete(true);
+			}
+		}
+
+		public static void resetGotCanceledFuture() {
+			synchronized (lock) {
+				gotCanceledFuture = new FlinkCompletableFuture<>();
+			}
+		}
+
+		public static org.apache.flink.runtime.concurrent.Future<Boolean> gotCanceled() {
+			synchronized (lock) {
+				return gotCanceledFuture;
 			}
 		}
 	}
