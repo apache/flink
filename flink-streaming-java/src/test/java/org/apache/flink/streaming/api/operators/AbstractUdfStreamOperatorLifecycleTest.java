@@ -231,19 +231,15 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 				testCheckpointer = new Thread() {
 					@Override
 					public void run() {
-						long id = 0;
-						while (true) {
-							try {
-								Thread.sleep(50);
-								if (getContainingTask().isCanceled() || getContainingTask().triggerCheckpoint(
-										new CheckpointMetaData(id++, System.currentTimeMillis()))) {
-									LifecycleTrackingStreamSource.runFinish.trigger();
-									break;
-								}
-							} catch (Exception e) {
-								e.printStackTrace();
-								Assert.fail();
+						try {
+							runStarted.await();
+							if (getContainingTask().isCanceled() || getContainingTask().triggerCheckpoint(
+									new CheckpointMetaData(0, System.currentTimeMillis()))) {
+								LifecycleTrackingStreamSource.runFinish.trigger();
 							}
+						} catch (Exception e) {
+							e.printStackTrace();
+							Assert.fail();
 						}
 					}
 				};
