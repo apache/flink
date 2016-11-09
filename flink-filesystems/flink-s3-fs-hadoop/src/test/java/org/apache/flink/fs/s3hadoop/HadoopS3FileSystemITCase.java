@@ -25,11 +25,15 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.yarn.YarnFileStageTest;
 
 import org.junit.Assume;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -56,6 +60,9 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 
 	private static final String ACCESS_KEY = System.getenv("ARTIFACTS_AWS_ACCESS_KEY");
 	private static final String SECRET_KEY = System.getenv("ARTIFACTS_AWS_SECRET_KEY");
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@BeforeClass
 	public static void checkIfCredentialsArePresent() {
@@ -197,6 +204,28 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 			// clean up
 			fs.delete(directory, true);
 		}
+
+		// now directory must be gone
+		assertFalse(fs.exists(directory));
+	}
+
+	/**
+	 * Verifies that nested directories are properly copied with a <tt>s3a://</tt> file
+	 * systems during resource uploads for YARN.
+	 */
+	@Test
+	public void testRecursiveUploadForYarn() throws Exception {
+		final Configuration conf = new Configuration();
+		conf.setString("s3.access.key", ACCESS_KEY);
+		conf.setString("s3.secret.key", SECRET_KEY);
+
+		FileSystem.initialize(conf);
+
+		final Path directory = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR + "/testYarn/");
+		final HadoopFileSystem fs = (HadoopFileSystem) directory.getFileSystem();
+
+		YarnFileStageTest.testCopyFromLocalRecursive(fs.getHadoopFileSystem(),
+			new org.apache.hadoop.fs.Path(directory.toUri()), tempFolder, true);
 
 		// now directory must be gone
 		assertFalse(fs.exists(directory));

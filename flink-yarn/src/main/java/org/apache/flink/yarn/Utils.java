@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -117,27 +118,50 @@ public final class Utils {
 	}
 
 	/**
+	 * Copy a local file to a remote file system.
+	 *
+	 * @param fs
+	 * 		remote filesystem
+	 * @param appId
+	 * 		application ID
+	 * @param localRsrcPath
+	 * 		path to the local file
+	 * @param homedir
+	 * 		remote home directory base (will be extended)
+	 * @param relativeTargetPath
+	 * 		relative target path of the file (will be prefixed be the full home directory we set up)
+	 *
 	 * @return Path to remote file (usually hdfs)
-	 * @throws IOException
 	 */
-	public static Path setupLocalResource(
-			FileSystem fs,
-			String appId, Path localRsrcPath,
-			LocalResource appMasterJar,
-			Path homedir) throws IOException {
+	static Tuple2<Path, LocalResource> setupLocalResource(
+		FileSystem fs,
+		String appId,
+		Path localRsrcPath,
+		Path homedir,
+		String relativeTargetPath) throws IOException {
+
+		if (new File(localRsrcPath.toUri().getPath()).isDirectory()) {
+			throw new IllegalArgumentException("File to copy must not be a directory: " +
+				localRsrcPath);
+		}
 
 		// copy resource to HDFS
-		String suffix = ".flink/" + appId + "/" + localRsrcPath.getName();
+		String suffix = ".flink/" + appId + "/" + relativeTargetPath + "/" + localRsrcPath.getName();
 
 		Path dst = new Path(homedir, suffix);
 
 		LOG.info("Copying from " + localRsrcPath + " to " + dst);
-		fs.copyFromLocalFile(localRsrcPath, dst);
-		registerLocalResource(fs, dst, appMasterJar);
-		return dst;
+
+		fs.copyFromLocalFile(false, true, localRsrcPath, dst);
+
+		// now create the resource instance
+		LocalResource resource = Records.newRecord(LocalResource.class);
+		registerLocalResource(fs, dst, resource);
+		return Tuple2.of(dst, resource);
 	}
 
-	public static void registerLocalResource(FileSystem fs, Path remoteRsrcPath, LocalResource localResource) throws IOException {
+	private static void registerLocalResource(
+		FileSystem fs, Path remoteRsrcPath, LocalResource localResource) throws IOException {
 		FileStatus jarStat = fs.getFileStatus(remoteRsrcPath);
 		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
 		localResource.setSize(jarStat.getLen());
@@ -367,7 +391,7 @@ public final class Utils {
 		}
 
 		// register Flink Jar with remote HDFS
-		LocalResource flinkJar = Records.newRecord(LocalResource.class);
+		final LocalResource flinkJar = Records.newRecord(LocalResource.class);
 		{
 			Path remoteJarPath = new Path(remoteFlinkJarPath);
 			FileSystem fs = remoteJarPath.getFileSystem(yarnConfig);
@@ -375,7 +399,7 @@ public final class Utils {
 		}
 
 		// register conf with local fs
-		LocalResource flinkConf = Records.newRecord(LocalResource.class);
+		final LocalResource flinkConf;
 		{
 			// write the TaskManager configuration to a local file
 			final File taskManagerConfigFile =
@@ -385,8 +409,13 @@ public final class Utils {
 
 			Path homeDirPath = new Path(clientHomeDir);
 			FileSystem fs = homeDirPath.getFileSystem(yarnConfig);
-			setupLocalResource(fs, appId,
-					new Path(taskManagerConfigFile.toURI()), flinkConf, new Path(clientHomeDir));
+
+			flinkConf = setupLocalResource(
+				fs,
+				appId,
+				new Path(taskManagerConfigFile.toURI()),
+				homeDirPath,
+				"").f1;
 
 			log.info("Prepared local resource for modified yaml: {}", flinkConf);
 		}
@@ -408,10 +437,12 @@ public final class Utils {
 		// prepare additional files to be shipped
 		for (String pathStr : shipListString.split(",")) {
 			if (!pathStr.isEmpty()) {
+				String[] pathWithKey = pathStr.split("=");
+				require(pathWithKey.length == 2, "Invalid entry in ship file list: %s", pathStr);
 				LocalResource resource = Records.newRecord(LocalResource.class);
-				Path path = new Path(pathStr);
+				Path path = new Path(pathWithKey[1]);
 				registerLocalResource(path.getFileSystem(yarnConfig), path, resource);
-				taskManagerLocalResources.put(path.getName(), resource);
+				taskManagerLocalResources.put(pathWithKey[0], resource);
 			}
 		}
 
@@ -488,4 +519,5 @@ public final class Utils {
 			throw new RuntimeException(String.format(message, values));
 		}
 	}
+
 }
