@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *	 http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,6 +26,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.slf4j.Logger;
@@ -53,8 +55,6 @@ import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
-import static org.apache.flink.runtime.fs.util.FileSystemCopyUtils.copyFromLocalFile;
-
 /**
  * Utility class that provides helper methods to work with Apache Hadoop YARN.
  */
@@ -62,6 +62,14 @@ public final class Utils {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
 
+	/** Keytab file name populated in YARN container */
+	public static final String KEYTAB_FILE_NAME = "krb5.keytab";
+
+	/** KRB5 file name populated in YARN container for secure IT run */
+	public static final String KRB5_FILE_NAME = "krb5.conf";
+
+	/** Yarn site xml file name populated in YARN container for secure IT run */
+	public static final String YARN_SITE_FILE_NAME = "yarn-site.xml";
 
 	/**
 	 * See documentation
@@ -126,9 +134,9 @@ public final class Utils {
 		String suffix = ".flink/" + appId + "/" + localRsrcPath.getName();
 
 		Path dst = new Path(homedir, suffix);
-
+		localRsrcPath = checkScheme(localRsrcPath);
 		LOG.info("Copying from " + localRsrcPath + " to " + dst);
-		copyFromLocalFile(fs,true,localRsrcPath, dst);
+		copyFromLocalFile(fs,localRsrcPath, dst);
 		registerLocalResource(fs, dst, appMasterJar);
 		return dst;
 	}
@@ -257,5 +265,35 @@ public final class Utils {
 			}
 		}
 		return result;
+	}
+
+	/**
+	 * Recursive copy to work around FileSystem implementations that do not implement it.
+	 * @param fs
+	 * @param localPath
+	 * @param remotePath
+	 * @throws IOException
+	 */
+	public static void copyFromLocalFile(FileSystem fs, Path localPath, Path remotePath) throws IOException {
+		File localFile = new File(localPath.toUri());
+		if (localFile.isDirectory()) {
+			for (File file : localFile.listFiles()) {
+				copyFromLocalFile(fs, new Path("file://" + file.getAbsolutePath()), new Path(remotePath,file.getName()));
+			}
+		} else {
+			fs.copyFromLocalFile(false, true, localPath,remotePath);
+		}
+	}
+
+
+	private static Path checkScheme(Path localRsrcPath) throws IOException {
+		if (localRsrcPath.isAbsoluteAndSchemeAuthorityNull()) {
+			try {
+				return new Path(new URI("file://" + localRsrcPath.toString()));
+			} catch (URISyntaxException e) {
+				throw new IOException(e);
+			}
+		}
+		return localRsrcPath;
 	}
 }
