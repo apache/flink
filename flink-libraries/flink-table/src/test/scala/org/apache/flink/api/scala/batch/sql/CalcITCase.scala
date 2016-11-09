@@ -32,6 +32,7 @@ import org.apache.flink.api.table.functions.ScalarFunction
 import org.apache.flink.api.table.{Row, TableEnvironment, ValidationException}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
+import org.junit.Assert._
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -267,6 +268,24 @@ class CalcITCase(
       "19,6,Comment#13\n" + "21,6,Comment#15\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testNotInWithNestedSelect(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    tEnv.getConfig.setNullCheck(true)
+
+    val ds = CollectionDataSets.getSmall3TupleDataSet(env)
+    val table = ds.toTable(tEnv).as('a1, 'a2, 'a3)
+    tEnv.registerTable("A", table)
+    val excludedVal = 1
+    val sqlQuery = s"SELECT a1 FROM A WHERE a1 NOT IN (SELECT a1 FROM A WHERE a1 = $excludedVal)"
+
+    val expectedCnt = ds.collect.count(_._1 != excludedVal)
+    val rowsCnt = tEnv.sql(sqlQuery).count
+
+    assertEquals(expectedCnt, rowsCnt)
   }
 
   @Test

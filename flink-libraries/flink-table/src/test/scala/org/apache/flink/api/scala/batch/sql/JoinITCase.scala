@@ -23,9 +23,10 @@ import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.{ValidationException, Row, TableEnvironment, TableException}
+import org.apache.flink.api.table.{Row, TableEnvironment, TableException, ValidationException}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
+import org.junit.Assert._
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -313,5 +314,19 @@ class JoinITCase(
       "null,IJK\n" + "null,JKL\n" + "null,KLM"
     val results = tEnv.sql(sqlQuery).toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testCrossJoin(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a1, 'a2, 'a3)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('b1, 'b2, 'b3)
+    tEnv.registerTable("A", ds1)
+    tEnv.registerTable("B", ds2)
+
+    val sqlQuery = "SELECT a1, b1 FROM A CROSS JOIN B"
+    tEnv.sql(sqlQuery).count
   }
 }
