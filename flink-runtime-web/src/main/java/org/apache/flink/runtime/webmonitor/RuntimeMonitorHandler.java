@@ -100,7 +100,7 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 					: Unpooled.wrappedBuffer(e.getMessage().getBytes(ENCODING));
 			response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND, message);
 			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
-			LOG.warn("Error while handling request", e);
+			LOG.debug("Error while handling request", e);
 		}
 		catch (Exception e) {
 			byte[] bytes = ExceptionUtils.stringifyException(e).getBytes(ENCODING);
