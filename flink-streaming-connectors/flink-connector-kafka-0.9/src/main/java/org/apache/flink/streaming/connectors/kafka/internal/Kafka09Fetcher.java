@@ -201,7 +201,6 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 		try {
 			assignPartitionsToConsumer(consumer, convertKafkaPartitions(subscribedPartitions()));
 
-
 			if (useMetrics) {
 				final MetricGroup kafkaMetricGroup = metricGroup.addGroup("KafkaConsumer");
 				addOffsetStateGauge(kafkaMetricGroup);
@@ -306,14 +305,22 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 		}
 	}
 
-	// Kafka09Fetcher ignores the timestamp, Kafka010Fetcher is extracting the timestamp and passing it to the emitRecord() method.
-	protected void emitRecord(T record, KafkaTopicPartitionState<TopicPartition> partition, long offset, ConsumerRecord consumerRecord) throws Exception {
-		emitRecord(record, partition, offset, Long.MIN_VALUE);
+	// ------------------------------------------------------------------------
+	//  The below methods are overridden in the 0.10 fetcher, which otherwise
+	//   reuses most of the 0.9 fetcher behavior
+	// ------------------------------------------------------------------------
+
+	protected void emitRecord(
+			T record,
+			KafkaTopicPartitionState<TopicPartition> partition,
+			long offset,
+			@SuppressWarnings("UnusedParameters") ConsumerRecord<?, ?> consumerRecord) throws Exception {
+
+		// the 0.9 Fetcher does not try to extract a timestamp
+		emitRecord(record, partition, offset);
 	}
-	/**
-	 * Protected method to make the partition assignment pluggable, for different Kafka versions.
-	 */
-	protected void assignPartitionsToConsumer(KafkaConsumer<byte[], byte[]> consumer, List<TopicPartition> topicPartitions) {
+
+	protected void assignPartitionsToConsumer(KafkaConsumer<?, ?> consumer, List<TopicPartition> topicPartitions) {
 		consumer.assign(topicPartitions);
 	}
 
@@ -322,7 +329,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 	}
 
 	// ------------------------------------------------------------------------
-	//  Kafka 0.9 specific fetcher behavior
+	//  Implement Methods of the AbstractFetcher
 	// ------------------------------------------------------------------------
 
 	@Override
