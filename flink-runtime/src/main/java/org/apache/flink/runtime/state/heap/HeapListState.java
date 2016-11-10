@@ -48,13 +48,11 @@ public class HeapListState<K, N, V>
 	 * @param stateDesc The state identifier for the state. This contains name and can create a default state value.
 	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
 	 */
-	public HeapListState(
-		KeyedStateBackend<K> backend,
-		ListStateDescriptor<V> stateDesc,
-		StateTable<K, N, ArrayList<V>> stateTable,
-		TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer
-	) {
+	public HeapListState(KeyedStateBackend<K> backend,
+			ListStateDescriptor<V> stateDesc,
+			StateTable<K, N, ArrayList<V>> stateTable,
+			TypeSerializer<K> keySerializer,
+			TypeSerializer<N> namespaceSerializer) {
 		super(backend, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 

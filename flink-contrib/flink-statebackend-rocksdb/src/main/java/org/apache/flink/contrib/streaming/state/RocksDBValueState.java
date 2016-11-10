@@ -41,13 +41,10 @@ public class RocksDBValueState<K, N, V> extends RocksDBSimpleState<K, N, V> impl
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param stateDesc The state identifier for the state. This contains name and can create a default state value.
 	 */
-	public RocksDBValueState(
-		ColumnFamilyHandle columnFamily,
-		TypeSerializer<N> namespaceSerializer,
-		ValueStateDescriptor<V> stateDesc,
-		RocksDBKeyedStateBackend<K> backend
-	) {
-
+	public RocksDBValueState(ColumnFamilyHandle columnFamily,
+			TypeSerializer<N> namespaceSerializer,
+			ValueStateDescriptor<V> stateDesc,
+			RocksDBKeyedStateBackend<K> backend) {
 		super(columnFamily, namespaceSerializer, stateDesc, backend);
 	}
 

@@ -72,11 +72,10 @@ public abstract class AbstractRocksDBState<K, N> implements KvState<N> {
 	 * Creates a new RocksDB backed state.
 	 *  @param namespaceSerializer The serializer for the namespace.
 	 */
-	protected AbstractRocksDBState(
-			ColumnFamilyHandle columnFamily,
+	protected AbstractRocksDBState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			RocksDBKeyedStateBackend<K> backend
-	) {
+			RocksDBKeyedStateBackend<K> backend) {
+
 		this.namespaceSerializer = namespaceSerializer;
 		this.backend = backend;
 

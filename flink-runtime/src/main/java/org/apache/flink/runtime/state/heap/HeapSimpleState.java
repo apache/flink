@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.SimpleStateDescriptor;
 import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.UpdatableState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -36,7 +37,7 @@ import java.util.Map;
  */
 public class HeapSimpleState<K, N, V>
 	extends AbstractHeapState<K, N, V, SimpleStateDescriptor<V, ? extends State<V>>>
-	implements State<V> {
+	implements UpdatableState<V> {
 
 	/**
 	 * Creates a new simple state for the given hash map of key/value pairs.
@@ -45,12 +46,12 @@ public class HeapSimpleState<K, N, V>
 	 * @param stateDesc The state identifier for the state. This contains name and can create a default state value.
 	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
 	 */
-	public HeapSimpleState(
-		KeyedStateBackend<K> backend,
+	public HeapSimpleState(KeyedStateBackend<K> backend,
 		SimpleStateDescriptor<V, ? extends State<V>> stateDesc,
 		StateTable<K, N, V> stateTable,
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<N> namespaceSerializer) {
+
 		super(backend, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 

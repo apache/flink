@@ -52,9 +52,7 @@ public class RocksDBFoldingState<K, N, T, ACC> extends RocksDBSimpleState<K, N, 
 			TypeSerializer<N> namespaceSerializer,
 			FoldingStateDescriptor<T, ACC> stateDesc,
 			RocksDBKeyedStateBackend<K> backend) {
-
 		super(columnFamily, namespaceSerializer, stateDesc, backend);
-
 		this.foldFunction = stateDesc.getFoldFunction();
 	}
 

@@ -47,12 +47,10 @@ public class RocksDBReducingState<K, N, V> extends RocksDBSimpleState<K, N, V> i
 	 * @param stateDesc The state identifier for the state. This contains name
 	 *                     and can create a default state value.
 	 */
-	public RocksDBReducingState(
-		ColumnFamilyHandle columnFamily,
-		TypeSerializer<N> namespaceSerializer,
-		ReducingStateDescriptor<V> stateDesc,
-		RocksDBKeyedStateBackend<K> backend
-	) {
+	public RocksDBReducingState(ColumnFamilyHandle columnFamily,
+			TypeSerializer<N> namespaceSerializer,
+			ReducingStateDescriptor<V> stateDesc,
+			RocksDBKeyedStateBackend<K> backend) {
 
 		super(columnFamily, namespaceSerializer, stateDesc, backend);
 

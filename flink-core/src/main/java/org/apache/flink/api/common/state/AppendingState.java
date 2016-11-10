@@ -38,7 +38,7 @@ import java.io.IOException;
  * @param <OUT> Type of the value that can be retrieved from the state.
  */
 @PublicEvolving
-public interface AppendingState<IN, OUT> extends State<OUT> {
+public interface AppendingState<IN, OUT> extends UpdatableState<OUT> {
 	/**
 	 * Updates the operator state accessible by {@link #get()} by adding the given value
 	 * to the list of values. The next time {@link #get()} is called (for the same state

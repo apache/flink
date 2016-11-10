@@ -48,13 +48,11 @@ public class HeapReducingState<K, N, V> extends HeapSimpleState<K, N, V> impleme
 	 *                           and can create a default state value.
 	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
 	 */
-	public HeapReducingState(
-		KeyedStateBackend<K> backend,
-		ReducingStateDescriptor<V> stateDesc,
-		StateTable<K, N, V> stateTable,
-		TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer
-	) {
+	public HeapReducingState(KeyedStateBackend<K> backend,
+			ReducingStateDescriptor<V> stateDesc,
+			StateTable<K, N, V> stateTable,
+			TypeSerializer<K> keySerializer,
+			TypeSerializer<N> namespaceSerializer) {
 		super(backend, stateDesc, stateTable, keySerializer, namespaceSerializer);
 		this.reduceFunction = stateDesc.getReduceFunction();
 	}

@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 /**
@@ -158,18 +157,12 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>> {
 	// ------------------------------------------------------------------------
 	//  Serialization
 	// ------------------------------------------------------------------------
-
 	private void writeObject(final ObjectOutputStream out) throws IOException {
 		// make sure we have a serializer before the type information gets lost
 		initializeSerializerUnlessSet(new ExecutionConfig());
 
 		// write all the non-transient fields
 		out.defaultWriteObject();
-	}
-
-	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
-		// read the non-transient fields
-		in.defaultReadObject();
 	}
 
 	@Override

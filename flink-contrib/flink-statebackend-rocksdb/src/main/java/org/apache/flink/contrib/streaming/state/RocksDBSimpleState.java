@@ -20,6 +20,7 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.SimpleStateDescriptor;
 import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.UpdatableState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.util.Preconditions;
@@ -37,7 +38,7 @@ import java.io.IOException;
  * @param <N> The type of the namespace.
  * @param <V> The type of value that the state state stores.
  */
-public class RocksDBSimpleState<K, N, V> extends AbstractRocksDBState<K, N> implements State<V> {
+public class RocksDBSimpleState<K, N, V> extends AbstractRocksDBState<K, N> implements UpdatableState<V> {
 
 	/** State descriptor from which to create this state instance */
 	protected final SimpleStateDescriptor<V, ? extends State<V>> stateDesc;
@@ -58,10 +59,10 @@ public class RocksDBSimpleState<K, N, V> extends AbstractRocksDBState<K, N> impl
 	 * @param stateDesc The state identifier for the state. This contains name and can create a default state value.
 	 */
 	public RocksDBSimpleState(ColumnFamilyHandle columnFamily,
-		TypeSerializer<N> namespaceSerializer,
-		SimpleStateDescriptor<V, ? extends State<V>> stateDesc,
-		RocksDBKeyedStateBackend<K> backend
-	) {
+			TypeSerializer<N> namespaceSerializer,
+			SimpleStateDescriptor<V, ? extends State<V>> stateDesc,
+			RocksDBKeyedStateBackend<K> backend) {
+
 		super(columnFamily, namespaceSerializer, backend);
 
 		this.stateDesc = Preconditions.checkNotNull(stateDesc, "State Descriptor");

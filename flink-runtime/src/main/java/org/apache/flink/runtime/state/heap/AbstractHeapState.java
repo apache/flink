@@ -67,13 +67,11 @@ public abstract class AbstractHeapState<K, N, SV, SD extends StateDescriptor<?>>
 	 *                           and can create a default state value.
 	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
 	 */
-	protected AbstractHeapState(
-			KeyedStateBackend<K> backend,
+	protected AbstractHeapState(KeyedStateBackend<K> backend,
 			SD stateDesc,
 			StateTable<K, N, SV> stateTable,
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
-
 		Preconditions.checkNotNull(stateTable, "State table must not be null.");
 
 		this.backend = backend;

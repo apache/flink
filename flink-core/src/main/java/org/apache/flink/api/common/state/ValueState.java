@@ -37,7 +37,7 @@ import java.io.IOException;
  * @param <T> Type of the value in the state.
  */
 @PublicEvolving
-public interface ValueState<T> extends State<T> {
+public interface ValueState<T> extends UpdatableState<T> {
 	/**
 	 * Returns the current value for the state. The method performs the same
 	 * functionality as {@link State#get()}.

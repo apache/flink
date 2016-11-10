@@ -44,13 +44,11 @@ public class HeapValueState<K, N, V> extends HeapSimpleState<K, N, V> implements
 	 * @param stateDesc The state identifier for the state. This contains name and can create a default state value.
 	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
 	 */
-	public HeapValueState(
-		KeyedStateBackend<K> backend,
-		ValueStateDescriptor<V> stateDesc,
-		StateTable<K, N, V> stateTable,
-		TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer
-	) {
+	public HeapValueState(KeyedStateBackend<K> backend,
+			ValueStateDescriptor<V> stateDesc,
+			StateTable<K, N, V> stateTable,
+			TypeSerializer<K> keySerializer,
+			TypeSerializer<N> namespaceSerializer) {
 		super(backend, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 

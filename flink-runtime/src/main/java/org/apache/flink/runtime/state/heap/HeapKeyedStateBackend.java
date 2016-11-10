@@ -88,13 +88,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 */
 	private final Map<String, StateTable<K, ?, ?>> stateTables = new HashMap<>();
 
-	public HeapKeyedStateBackend(
-			TaskKvStateRegistry kvStateRegistry,
+	public HeapKeyedStateBackend(TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
 			ClassLoader userCodeClassLoader,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange) {
-
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange);
 
 		LOG.info("Initializing heap keyed state backend with stream factory.");
