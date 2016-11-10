@@ -29,7 +29,6 @@ import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 
 import java.util.List;
@@ -91,11 +90,11 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 
 	/**
 	 * This method needs to be overridden because Kafka broke binary compatibility between 0.9 and 0.10,
-	 * changing the List in the signature to a Collection.
+	 * changing binary signatures
 	 */
 	@Override
-	protected void assignPartitionsToConsumer(KafkaConsumer<?, ?> consumer, List<TopicPartition> topicPartitions) {
-		consumer.assign(topicPartitions);
+	protected KafkaConsumerCallBridge010 createCallBridge() {
+		return new KafkaConsumerCallBridge010();
 	}
 
 	@Override
