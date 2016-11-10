@@ -16,28 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.netty;
+package org.apache.flink.runtime.net.http;
 
 import io.netty.channel.ChannelHandler;
 
 /**
- * An abstract Netty protocol.
+ * An abstract REST request handler.
+ *
+ * @param <T> the response content type.
  */
-public interface NettyProtocol {
-
-	/**
-	 * Get the server-side channel handler or initializer.
-	 *
-	 * The handler must be sharable.
-	 * @return a handler.
-	*/
-	ChannelHandler getServerChannelHandler();
-
-	/**
-	 * Get the client-side channel handler or initializer.
-	 *
-	 * The handler, if provided here, must be sharable.
-	 * @return a handler, or null if the handler is provided later (at connection time).
-	 */
-	ChannelHandler getClientChannelHandler();
+public interface RestResponseHandler<T> extends ChannelHandler {
+	Class<T> getContentType();
 }

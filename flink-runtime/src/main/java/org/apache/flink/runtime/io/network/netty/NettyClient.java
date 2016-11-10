@@ -19,28 +19,28 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.ssl.SslHandler;
+import io.netty.util.concurrent.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLParameters;
 import java.io.IOException;
-import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
-class NettyClient {
+/**
+ * Low-level Netty client.
+ */
+public class NettyClient {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NettyClient.class);
 
@@ -50,13 +50,23 @@ class NettyClient {
 
 	private Bootstrap bootstrap;
 
-	private SSLContext clientSSLContext = null;
-
-	NettyClient(NettyConfig config) {
+	public NettyClient(NettyConfig config) {
 		this.config = config;
 	}
 
-	void init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
+	/**
+	 * Initialize the client without a protocol.
+	 *
+	 * In lieu of a protocol, provide a channel handler at connect time.
+	*/
+	public void init(ByteBufAllocator nettyBufferPool) throws IOException {
+		init(null, nettyBufferPool);
+	}
+
+	/**
+	 * Initialize the client.
+	 */
+	public void init(final NettyProtocol protocol, ByteBufAllocator nettyBufferPool) throws IOException {
 		checkState(bootstrap == null, "Netty client has already been initialized.");
 
 		this.protocol = protocol;
@@ -109,17 +119,19 @@ class NettyClient {
 			bootstrap.option(ChannelOption.SO_RCVBUF, receiveAndSendBufferSize);
 		}
 
-		try {
-			clientSSLContext = config.createClientSSLContext();
-		} catch (Exception e) {
-			throw new IOException("Failed to initialize SSL Context for the Netty client", e);
+        // --------------------------------------------------------------------
+		// Child channel pipeline for accepted connections
+		// --------------------------------------------------------------------
+		ChannelHandler handler;
+		if(protocol != null && (handler = protocol.getClientChannelHandler()) != null) {
+			bootstrap.handler(handler);
 		}
 
 		long end = System.currentTimeMillis();
 		LOG.info("Successful initialization (took {} ms).", (end - start));
 	}
 
-	NettyConfig getConfig() {
+	public NettyConfig getConfig() {
 		return config;
 	}
 
@@ -127,7 +139,10 @@ class NettyClient {
 		return bootstrap;
 	}
 
-	void shutdown() {
+	/**
+	 * Shutdown the Netty client.
+	 */
+	public void shutdown() {
 		long start = System.currentTimeMillis();
 
 		if (bootstrap != null) {
@@ -142,19 +157,13 @@ class NettyClient {
 	}
 
 	private void initNioBootstrap() {
-		// Add the server port number to the name in order to distinguish
-		// multiple clients running on the same host.
-		String name = NettyConfig.CLIENT_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
-
+		String name = config.getClientThreadGroupName();
 		NioEventLoopGroup nioGroup = new NioEventLoopGroup(config.getClientNumThreads(), NettyServer.getNamedThreadFactory(name));
 		bootstrap.group(nioGroup).channel(NioSocketChannel.class);
 	}
 
 	private void initEpollBootstrap() {
-		// Add the server port number to the name in order to distinguish
-		// multiple clients running on the same host.
-		String name = NettyConfig.CLIENT_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
-
+		String name = config.getClientThreadGroupName();
 		EpollEventLoopGroup epollGroup = new EpollEventLoopGroup(config.getClientNumThreads(), NettyServer.getNamedThreadFactory(name));
 		bootstrap.group(epollGroup).channel(EpollSocketChannel.class);
 	}
@@ -163,39 +172,37 @@ class NettyClient {
 	// Client connections
 	// ------------------------------------------------------------------------
 
-	ChannelFuture connect(final InetSocketAddress serverSocketAddress) {
+	/**
+	 * Return a new promise using the event loop group associated with the client.
+	 */
+	public <T> Promise<T> newPromise() {
+		return bootstrap.group().next().<T>newPromise();
+	}
+
+	/**
+	 * Connect to the given server address.
+     */
+	public ChannelFuture connect(SocketAddress serverSocketAddress) {
+		return connect(serverSocketAddress, null);
+	}
+
+	/**
+	 * Connect to the given server address.
+	 * @param handler the channel handler to use (overrides any protocol set during initialization).
+	 */
+	public ChannelFuture connect(SocketAddress serverSocketAddress, ChannelHandler handler) {
 		checkState(bootstrap != null, "Client has not been initialized yet.");
 
 		// --------------------------------------------------------------------
 		// Child channel pipeline for accepted connections
 		// --------------------------------------------------------------------
-
-		bootstrap.handler(new ChannelInitializer<SocketChannel>() {
-			@Override
-			public void initChannel(SocketChannel channel) throws Exception {
-
-				// SSL handler should be added first in the pipeline
-				if (clientSSLContext != null) {
-					SSLEngine sslEngine = clientSSLContext.createSSLEngine(
-						serverSocketAddress.getAddress().getHostAddress(),
-						serverSocketAddress.getPort());
-					sslEngine.setUseClientMode(true);
-
-					// Enable hostname verification for remote SSL connections
-					if (!serverSocketAddress.getAddress().isLoopbackAddress()) {
-						SSLParameters newSSLParameters = sslEngine.getSSLParameters();
-						config.setSSLVerifyHostname(newSSLParameters);
-						sslEngine.setSSLParameters(newSSLParameters);
-					}
-
-					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
-				}
-				channel.pipeline().addLast(protocol.getClientChannelHandlers());
-			}
-		});
-
 		try {
-			return bootstrap.connect(serverSocketAddress);
+			if(handler != null) {
+				return bootstrap.clone().handler(handler).connect(serverSocketAddress);
+			}
+			else {
+				return bootstrap.connect(serverSocketAddress);
+			}
 		}
 		catch (io.netty.channel.ChannelException e) {
 			if ( (e.getCause() instanceof java.net.SocketException &&

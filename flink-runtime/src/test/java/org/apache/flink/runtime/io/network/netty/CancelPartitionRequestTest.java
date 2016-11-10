@@ -39,9 +39,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.CancelPartitionRequest;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
-import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.connect;
-import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
-import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
+import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.*;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -62,6 +60,8 @@ public class CancelPartitionRequestTest {
 	@Test
 	public void testCancelPartitionRequest() throws Exception {
 
+		final PartitionRequestNettyConfig config = createConfig();
+
 		NettyServerAndClient serverAndClient = null;
 
 		try {
@@ -80,9 +80,9 @@ public class CancelPartitionRequestTest {
 					.thenReturn(view);
 
 			PartitionRequestProtocol protocol = new PartitionRequestProtocol(
-					partitions, mock(TaskEventDispatcher.class), mock(NetworkBufferPool.class));
+				config, partitions, mock(TaskEventDispatcher.class), mock(NetworkBufferPool.class));
 
-			serverAndClient = initServerAndClient(protocol);
+			serverAndClient = initServerAndClient(protocol, config);
 
 			Channel ch = connect(serverAndClient);
 
@@ -106,6 +106,8 @@ public class CancelPartitionRequestTest {
 	@Test
 	public void testDuplicateCancel() throws Exception {
 
+		final PartitionRequestNettyConfig config = createConfig();
+
 		NettyServerAndClient serverAndClient = null;
 
 		try {
@@ -124,9 +126,9 @@ public class CancelPartitionRequestTest {
 					.thenReturn(view);
 
 			PartitionRequestProtocol protocol = new PartitionRequestProtocol(
-					partitions, mock(TaskEventDispatcher.class), mock(NetworkBufferPool.class));
+				config, partitions, mock(TaskEventDispatcher.class), mock(NetworkBufferPool.class));
 
-			serverAndClient = initServerAndClient(protocol);
+			serverAndClient = initServerAndClient(protocol, config);
 
 			Channel ch = connect(serverAndClient);
 

@@ -28,6 +28,8 @@ import java.io.IOException;
 
 public class NettyConnectionManager implements ConnectionManager {
 
+	private final PartitionRequestNettyConfig nettyConfig;
+
 	private final NettyServer server;
 
 	private final NettyClient client;
@@ -36,7 +38,8 @@ public class NettyConnectionManager implements ConnectionManager {
 
 	private final PartitionRequestClientFactory partitionRequestClientFactory;
 
-	public NettyConnectionManager(NettyConfig nettyConfig) {
+	public NettyConnectionManager(PartitionRequestNettyConfig nettyConfig) {
+		this.nettyConfig = nettyConfig;
 		this.server = new NettyServer(nettyConfig);
 		this.client = new NettyClient(nettyConfig);
 		this.bufferPool = new NettyBufferPool(nettyConfig.getNumberOfArenas());
@@ -48,7 +51,7 @@ public class NettyConnectionManager implements ConnectionManager {
 	public void start(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher, NetworkBufferPool networkbufferPool)
 			throws IOException {
 		PartitionRequestProtocol partitionRequestProtocol =
-				new PartitionRequestProtocol(partitionProvider, taskEventDispatcher, networkbufferPool);
+				new PartitionRequestProtocol(nettyConfig, partitionProvider, taskEventDispatcher, networkbufferPool);
 
 		client.init(partitionRequestProtocol, bufferPool);
 		server.init(partitionRequestProtocol, bufferPool);

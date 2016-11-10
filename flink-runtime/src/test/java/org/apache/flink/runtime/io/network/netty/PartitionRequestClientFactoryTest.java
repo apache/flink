@@ -55,7 +55,7 @@ public class PartitionRequestClientFactoryTest {
 		final CountDownLatch syncOnConnect = new CountDownLatch(1);
 
 		final Tuple2<NettyServer, NettyClient> netty = createNettyServerAndClient(
-				new NettyProtocol() {
+				new SimpleNettyProtocol() {
 					@Override
 					public ChannelHandler[] getServerChannelHandlers() {
 						return new ChannelHandler[0];
@@ -158,7 +158,7 @@ public class PartitionRequestClientFactoryTest {
 	// ------------------------------------------------------------------------
 
 	private static Tuple2<NettyServer, NettyClient> createNettyServerAndClient(NettyProtocol protocol) throws IOException {
-		final NettyConfig config = new NettyConfig(InetAddress.getLocalHost(), SERVER_PORT, 32 * 1024, 1, new Configuration());
+		final NettyConfig config = new PartitionRequestNettyConfig(InetAddress.getLocalHost(), SERVER_PORT, 32 * 1024, 1, new Configuration());
 
 		final NettyServer server = new NettyServer(config);
 		final NettyClient client = new NettyClient(config);

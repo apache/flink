@@ -20,13 +20,13 @@ package org.apache.flink.runtime.taskmanager
 
 import org.apache.flink.core.memory.MemoryType
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
-import org.apache.flink.runtime.io.network.netty.NettyConfig
+import org.apache.flink.runtime.io.network.netty.PartitionRequestNettyConfig
 
 case class NetworkEnvironmentConfiguration(
   numNetworkBuffers: Int,
   networkBufferSize: Int,
   memoryType: MemoryType,
   ioMode: IOMode,
-  nettyConfig: Option[NettyConfig] = None,
+  partitionRequestConfig: Option[PartitionRequestNettyConfig] = None,
   partitionRequestInitialBackoff: Int = 500,
   partitinRequestMaxBackoff: Int = 3000)

@@ -55,7 +55,7 @@ public class NettyServerLowAndHighWatermarkTest {
 	@Test
 	public void testLowAndHighWatermarks() throws Throwable {
 		final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
-		final NettyProtocol protocol = new NettyProtocol() {
+		final NettyProtocol protocol = new SimpleNettyProtocol() {
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				// The channel handler implements the test

@@ -20,21 +20,18 @@ package org.apache.flink.runtime.io.network.netty;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.ssl.SslHandler;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadFactory;
@@ -42,7 +39,10 @@ import java.util.concurrent.ThreadFactory;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-class NettyServer {
+/**
+ * Low-level Netty server.
+ */
+public class NettyServer {
 
 	private static final ThreadFactoryBuilder THREAD_FACTORY_BUILDER = new ThreadFactoryBuilder().setDaemon(true);
 
@@ -54,17 +54,16 @@ class NettyServer {
 
 	private ChannelFuture bindFuture;
 
-	private SSLContext serverSSLContext = null;
-
 	private InetSocketAddress localAddress;
 
-	NettyServer(NettyConfig config) {
+	public NettyServer(NettyConfig config) {
 		this.config = checkNotNull(config);
 		localAddress = null;
 	}
 
-	void init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
+	public void init(final NettyProtocol protocol, ByteBufAllocator nettyBufferPool) throws IOException {
 		checkState(bootstrap == null, "Netty server has already been initialized.");
+		checkNotNull(protocol, "protocol");
 
 		long start = System.currentTimeMillis();
 
@@ -117,32 +116,16 @@ class NettyServer {
 		}
 
 		// Low and high water marks for flow control
-		bootstrap.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, config.getMemorySegmentSize() + 1);
-		bootstrap.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, 2 * config.getMemorySegmentSize());
-
-		// SSL related configuration
-		try {
-			serverSSLContext = config.createServerSSLContext();
-		} catch (Exception e) {
-			throw new IOException("Failed to initialize SSL Context for the Netty Server", e);
+		Tuple2<Integer, Integer> watermark = config.getServerWriteBufferWatermark();
+		if(watermark != null) {
+			bootstrap.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, watermark.f0);
+			bootstrap.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, watermark.f1);
 		}
 
 		// --------------------------------------------------------------------
 		// Child channel pipeline for accepted connections
 		// --------------------------------------------------------------------
-
-		bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
-			@Override
-			public void initChannel(SocketChannel channel) throws Exception {
-				if (serverSSLContext != null) {
-					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
-					sslEngine.setUseClientMode(false);
-					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
-				}
-
-				channel.pipeline().addLast(protocol.getServerChannelHandlers());
-			}
-		});
+		bootstrap.childHandler(protocol.getServerChannelHandler());
 
 		// --------------------------------------------------------------------
 		// Start Server
@@ -168,7 +151,7 @@ class NettyServer {
 		return localAddress;
 	}
 
-	void shutdown() {
+	public void shutdown() {
 		long start = System.currentTimeMillis();
 		if (bindFuture != null) {
 			bindFuture.channel().close().awaitUninterruptibly();
@@ -186,19 +169,13 @@ class NettyServer {
 	}
 
 	private void initNioBootstrap() {
-		// Add the server port number to the name in order to distinguish
-		// multiple servers running on the same host.
-		String name = NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
-
+		String name = config.getServerThreadGroupName();
 		NioEventLoopGroup nioGroup = new NioEventLoopGroup(config.getServerNumThreads(), getNamedThreadFactory(name));
 		bootstrap.group(nioGroup).channel(NioServerSocketChannel.class);
 	}
 
 	private void initEpollBootstrap() {
-		// Add the server port number to the name in order to distinguish
-		// multiple servers running on the same host.
-		String name = NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
-
+		String name = config.getServerThreadGroupName();
 		EpollEventLoopGroup epollGroup = new EpollEventLoopGroup(config.getServerNumThreads(), getNamedThreadFactory(name));
 		bootstrap.group(epollGroup).channel(EpollServerSocketChannel.class);
 	}

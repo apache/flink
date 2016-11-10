@@ -48,7 +48,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
 import org.apache.flink.runtime.io.disk.iomanager.{IOManager, IOManagerAsync}
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool
 import org.apache.flink.runtime.io.network.{LocalConnectionManager, NetworkEnvironment, TaskEventDispatcher}
-import org.apache.flink.runtime.io.network.netty.{NettyConfig, NettyConnectionManager, PartitionStateChecker}
+import org.apache.flink.runtime.io.network.netty.{NettyConfig, NettyConnectionManager, PartitionRequestNettyConfig, PartitionStateChecker}
 import org.apache.flink.runtime.io.network.partition.{ResultPartitionConsumableNotifier, ResultPartitionManager}
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.memory.MemoryManager
@@ -1936,7 +1936,7 @@ object TaskManager {
       netConfig.networkBufferSize,
       netConfig.memoryType)
 
-    val connectionManager = netConfig.nettyConfig match {
+    val connectionManager = netConfig.partitionRequestConfig match {
       case Some(nettyConfig) => new NettyConnectionManager(nettyConfig)
       case None => new LocalConnectionManager()
     }
@@ -2242,7 +2242,7 @@ object TaskManager {
       None
     } else {
       Some(
-        new NettyConfig(
+        new PartitionRequestNettyConfig(
           taskManagerInetSocketAddress.getAddress(),
           taskManagerInetSocketAddress.getPort(),
           pageSize,
