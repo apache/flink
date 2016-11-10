@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import com.google.common.collect.Maps;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.taskmanager.TaskActions;
@@ -520,6 +521,13 @@ public class SingleInputGate implements InputGate {
 
 	// ------------------------------------------------------------------------
 
+	@VisibleForTesting
+	Map<IntermediateResultPartitionID, InputChannel> getInputChannels() {
+		return inputChannels;
+	}
+
+	// ------------------------------------------------------------------------
+
 	/**
 	 * Creates an input gate and all of its input channels.
 	 */
@@ -565,7 +573,7 @@ public class SingleInputGate implements InputGate {
 					partitionLocation.getConnectionId(),
 					networkEnvironment.getConnectionManager(),
 					networkEnvironment.getPartitionRequestInitialBackoff(),
-					networkEnvironment.getPartitionRequestInitialBackoff(),
+					networkEnvironment.getPartitionRequestMaxBackoff(),
 					metrics
 				);
 			}

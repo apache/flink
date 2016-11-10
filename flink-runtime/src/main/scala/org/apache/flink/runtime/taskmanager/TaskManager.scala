@@ -1982,7 +1982,7 @@ object TaskManager {
       kvStateServer,
       netConfig.ioMode,
       netConfig.partitionRequestInitialBackoff,
-      netConfig.partitinRequestMaxBackoff)
+      netConfig.partitionRequestMaxBackoff)
 
     network.start()
 
@@ -2258,11 +2258,18 @@ object TaskManager {
 
     val ioMode : IOMode = if (syncOrAsync == "async") IOMode.ASYNC else IOMode.SYNC
 
+    val initialRequestBackoff = configuration.getInteger(
+      TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL)
+    val maxRequestBackoff = configuration.getInteger(
+      TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX)
+
     val networkConfig = NetworkEnvironmentConfiguration(
       numNetworkBuffers,
       pageSize,
       memType,
       ioMode,
+      initialRequestBackoff,
+      maxRequestBackoff,
       nettyConfig)
 
     // ----> timeouts, library caching, profiling
