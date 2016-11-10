@@ -23,7 +23,6 @@ import org.apache.flink.streaming.runtime.operators.TestProcessingTimeServiceTes
 
 import org.junit.Test;
 
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -241,72 +240,5 @@ public class SystemProcessingTimeServiceTest {
 
 		latch.await();
 		assertTrue(exceptionWasThrown.get());
-	}
-
-	@Test
-	public void testTimerSorting() throws Exception {
-		final Object lock = new Object();
-		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
-
-		final SystemProcessingTimeService timer = new SystemProcessingTimeService(
-				new ReferenceSettingExceptionHandler(errorRef), lock);
-
-		try {
-			final OneShotLatch sync = new OneShotLatch();
-
-			// we block the timer execution to make sure we have all the time
-			// to register some additional timers out of order
-			timer.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
-				@Override
-				public void onProcessingTime(long timestamp) throws Exception {
-					sync.await();
-				}
-			});
-			
-			// schedule two timers out of order something
-			final long now = System.currentTimeMillis();
-			final long time1 = now + 6;
-			final long time2 = now + 5;
-			final long time3 = now + 8;
-			final long time4 = now - 2;
-
-			final ArrayBlockingQueue<Long> timestamps = new ArrayBlockingQueue<>(4);
-			ProcessingTimeCallback trigger = new ProcessingTimeCallback() {
-				@Override
-				public void onProcessingTime(long timestamp) {
-					timestamps.add(timestamp);
-				}
-			};
-
-			// schedule
-			ScheduledFuture<?> future1 = timer.registerTimer(time1, trigger);
-			ScheduledFuture<?> future2 = timer.registerTimer(time2, trigger);
-			ScheduledFuture<?> future3 = timer.registerTimer(time3, trigger);
-			ScheduledFuture<?> future4 = timer.registerTimer(time4, trigger);
-
-			// now that everything is scheduled, unblock the timer service
-			sync.trigger();
-
-			// wait until both are complete
-			future1.get();
-			future2.get();
-			future3.get();
-			future4.get();
-
-			// verify that the order is 4 - 2 - 1 - 3
-			assertEquals(4, timestamps.size());
-			assertEquals(time4, timestamps.take().longValue());
-			assertEquals(time2, timestamps.take().longValue());
-			assertEquals(time1, timestamps.take().longValue());
-			assertEquals(time3, timestamps.take().longValue());
-
-			// check that no asynchronous error was reported
-			if (errorRef.get() != null) {
-				throw new Exception(errorRef.get());
-			}
-		}
-		finally {
-			timer.shutdownService();
-		}
 	}
 }

@@ -90,6 +90,14 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		return System.currentTimeMillis();
 	}
 
+	/**
+	 * Registers a task to be executed no sooner than time {@code timestamp}, but without strong guarantees of order
+	 *
+	 * @param timestamp Time when the task is to be enabled (in processing time)
+	 * @param target    The task to be executed
+	 * @return The future that represents the scheduled task. This always returns some future,
+	 *         even if the timer was shut down
+	 */
 	@Override
 	public ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target) {
 		long delay = Math.max(timestamp - getCurrentProcessingTime(), 0);
