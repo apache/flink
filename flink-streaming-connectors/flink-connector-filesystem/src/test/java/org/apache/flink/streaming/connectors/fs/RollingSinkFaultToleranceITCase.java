@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,6 +42,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -71,7 +72,8 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 
 	private static String outPath;
 
-
+	private static final String PENDING_SUFFIX = ".pending";
+	private static final String IN_PROGRESS_SUFFIX = ".in-progress";
 
 	@BeforeClass
 	public static void createHDFS() throws IOException {
@@ -97,14 +99,13 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 		}
 	}
 
-
 	@Override
 	public void testProgram(StreamExecutionEnvironment env) {
 		assertTrue("Broken test setup", NUM_STRINGS % 40 == 0);
 
 		int PARALLELISM = 12;
 
-		env.enableCheckpointing(200);
+		env.enableCheckpointing(20);
 		env.setParallelism(PARALLELISM);
 		env.disableOperatorChaining();
 
@@ -117,7 +118,9 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 				.setBucketer(new NonRollingBucketer())
 				.setBatchSize(10000)
 				.setValidLengthPrefix("")
-				.setPendingPrefix("");
+				.setPendingPrefix("")
+				.setPendingSuffix(PENDING_SUFFIX)
+				.setInProgressSuffix(IN_PROGRESS_SUFFIX);
 
 		mapped.addSink(sink);
 
@@ -135,7 +138,9 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 		// the NUM_STRINGS. If numRead is bigger than the size of the set we have seen some
 		// elements twice.
 		Set<Integer> readNumbers = Sets.newHashSet();
-		int numRead = 0;
+
+		HashSet<String> uniqMessagesRead = new HashSet<>();
+		HashSet<String> messagesInCommittedFiles = new HashSet<>();
 
 		RemoteIterator<LocatedFileStatus> files = dfs.listFiles(new Path(
 				outPath), true);
@@ -165,7 +170,15 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 				while (line != null) {
 					Matcher matcher = messageRegex.matcher(line);
 					if (matcher.matches()) {
-						numRead++;
+						uniqMessagesRead.add(line);
+
+						// check that in the committed files there are no duplicates
+						if (!file.getPath().toString().endsWith(IN_PROGRESS_SUFFIX) && !file.getPath().toString().endsWith(PENDING_SUFFIX)) {
+							if (!messagesInCommittedFiles.add(line)) {
+								Assert.fail("Duplicate entry in committed bucket.");
+							}
+						}
+
 						int messageId = Integer.parseInt(matcher.group(1));
 						readNumbers.add(messageId);
 					} else {
@@ -183,7 +196,7 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 		Assert.assertEquals(NUM_STRINGS, readNumbers.size());
 
 		// Verify that we don't have duplicates (boom!, exactly-once)
-		Assert.assertEquals(NUM_STRINGS, numRead);
+		Assert.assertEquals(NUM_STRINGS, uniqMessagesRead.size());
 	}
 
 	private static class OnceFailingIdentityMapper extends RichMapFunction<String, String> {

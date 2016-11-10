@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,19 +19,22 @@ package org.apache.flink.streaming.connectors.fs;
 
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
+import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,7 +45,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,7 +53,7 @@ import java.util.UUID;
 
 /**
  * Sink that emits its input elements to rolling {@link org.apache.hadoop.fs.FileSystem} files. This
- * is itegrated with the checkpointing mechanism to provide exactly once semantics.
+ * is integrated with the checkpointing mechanism to provide exactly once semantics.
  *
  * <p>
  * When creating the sink a {@code basePath} must be specified. The base directory contains
@@ -124,7 +127,9 @@ import java.util.UUID;
  * @deprecated use {@link BucketingSink} instead.
  */
 @Deprecated
-public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConfigurable, Checkpointed<RollingSink.BucketState>, CheckpointListener {
+public class RollingSink<T> extends RichSinkFunction<T>
+		implements InputTypeConfigurable, CheckpointedFunction, CheckpointListener {
+
 	private static final long serialVersionUID = 1L;
 
 	private static Logger LOG = LoggerFactory.getLogger(RollingSink.class);
@@ -136,9 +141,7 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 	// These are initialized with some defaults but are meant to be changeable by the user
 
 	/**
-	 * The default maximum size of part files.
-	 *
-	 * 6 times the default block size
+	 * The default maximum size of part files (currently {@code 384 MB}).
 	 */
 	private final long DEFAULT_BATCH_SIZE = 1024L * 1024L * 384L;
 
@@ -189,7 +192,7 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 
 
 	/**
-	 * The base {@code Path} that stored all rolling bucket directories.
+	 * The base {@code Path} that stores all bucket directories.
 	 */
 	private final String basePath;
 
@@ -214,15 +217,6 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 	 * bucket directory.
 	 */
 	private long batchSize;
-
-	/**
-	 * If this is true we remove any leftover in-progress/pending files when the sink is opened.
-	 *
-	 * <p>
-	 * This should only be set to false if using the sink without checkpoints, to not remove
-	 * the files already in the directory.
-	 */
-	private boolean cleanupOnOpen = true;
 
 	// These are the actually configured prefixes/suffixes
 	private String inProgressSuffix = DEFAULT_IN_PROGRESS_SUFFIX;
@@ -258,11 +252,6 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 	private transient Path currentBucketDirectory;
 
 	/**
-	 * Our subtask index, retrieved from the {@code RuntimeContext} in {@link #open}.
-	 */
-	private transient int subtaskIndex;
-
-	/**
 	 * For counting the part files inside a bucket directory. Part files follow the patter
 	 * {@code "{part-prefix}-{subtask}-{count}"}. When creating new part files we increase the counter.
 	 */
@@ -271,7 +260,7 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 	/**
 	 * Tracks if the writer is currently opened or closed.
 	 */
-	private transient boolean isWriterOpen = false;
+	private transient boolean isWriterOpen;
 
 	/**
 	 * We use reflection to get the .truncate() method, this is only available starting with
@@ -285,10 +274,12 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 	 */
 	private transient BucketState bucketState;
 
+	private transient ListState<BucketState> restoredBucketStates;
+
 	/**
 	 * User-defined FileSystem parameters.
      */
-	private Configuration fsConfig = null;
+	private Configuration fsConfig;
 
 	/**
 	 * The FileSystem reference.
@@ -328,7 +319,7 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 		this.fsConfig = new Configuration();
 		for(Map.Entry<String, String> entry : config) {
 			fsConfig.setString(entry.getKey(), entry.getValue());
-		};
+		}
 		return this;
 	}
 
@@ -341,63 +332,57 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 	}
 
 	@Override
+	public void initializeState(FunctionInitializationContext context) throws Exception {
+		Preconditions.checkArgument(this.restoredBucketStates == null,
+			"The " + getClass().getSimpleName() + " has already been initialized.");
+
+		initFileSystem();
+
+		if (this.refTruncate == null) {
+			this.refTruncate = reflectTruncate(fs);
+		}
+
+		OperatorStateStore stateStore = context.getOperatorStateStore();
+		restoredBucketStates = stateStore.getSerializableListState("rolling-states");
+
+		int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+		if (context.isRestored()) {
+			LOG.info("Restoring state for the {} (taskIdx={}).", getClass().getSimpleName(), subtaskIndex);
+
+			for (BucketState bucketState : restoredBucketStates.get()) {
+				handleRestoredBucketState(bucketState);
+			}
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("{} (taskIdx= {}) restored {}", getClass().getSimpleName(), subtaskIndex, bucketState);
+			}
+		} else {
+			LOG.info("No state to restore for the {} (taskIdx= {}).", getClass().getSimpleName(), subtaskIndex);
+		}
+	}
+
+	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
-		subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 		partCounter = 0;
 
 		this.writer = writerTemplate.duplicate();
 
-		if (bucketState == null) {
-			bucketState = new BucketState();
-		}
-
-		initFileSystem();
-		refTruncate = reflectTruncate(fs);
-
-		// delete pending/in-progress files that might be left if we fail while
-		// no checkpoint has yet been done
-		try {
-			if (fs.exists(new Path(basePath)) && cleanupOnOpen) {
-				RemoteIterator<LocatedFileStatus> bucketFiles = fs.listFiles(new Path(basePath), true);
-
-				while (bucketFiles.hasNext()) {
-					LocatedFileStatus file = bucketFiles.next();
-					if (file.getPath().toString().endsWith(pendingSuffix)) {
-						// only delete files that contain our subtask index
-						if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex + "-")) {
-							LOG.debug("(OPEN) Deleting leftover pending file {}", file.getPath().toString());
-							fs.delete(file.getPath(), true);
-						}
-					}
-					if (file.getPath().toString().endsWith(inProgressSuffix)) {
-						// only delete files that contain our subtask index
-						if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex + "-")) {
-							LOG.debug("(OPEN) Deleting leftover in-progress file {}", file.getPath().toString());
-							fs.delete(file.getPath(), true);
-						}
-					}
-				}
-			}
-		} catch (IOException e) {
-			LOG.error("Error while deleting leftover pending/in-progress files: {}", e);
-			throw new RuntimeException("Error while deleting leftover pending/in-progress files.", e);
-		}
+		bucketState = new BucketState();
 	}
 
 	/**
-	 * create a file system with the user defined hdfs config
+	 * Create a file system with the user-defined hdfs config
 	 * @throws IOException
 	 */
 	private void initFileSystem() throws IOException {
-		if(fs != null) {
+		if (fs != null) {
 			return;
 		}
 		org.apache.hadoop.conf.Configuration hadoopConf = HadoopFileSystem.getHadoopConfiguration();
-		if(fsConfig != null) {
-			String disableCacheName
-				= String.format("fs.%s.impl.disable.cache", new Object[]{new Path(basePath).toUri().getScheme()});
+		if (fsConfig != null) {
+			String disableCacheName = String.format("fs.%s.impl.disable.cache", new Path(basePath).toUri().getScheme());
 			hadoopConf.setBoolean(disableCacheName, true);
 			for (String key : fsConfig.keySet()) {
 				hadoopConf.set(key, fsConfig.getString(key, null));
@@ -409,21 +394,14 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 
 	@Override
 	public void close() throws Exception {
-//		boolean interrupted = Thread.interrupted();
 		closeCurrentPartFile();
-
-//		if (interrupted) {
-//			Thread.currentThread().interrupt();
-//		}
 	}
 
 	@Override
 	public void invoke(T value) throws Exception {
-
 		if (shouldRoll()) {
 			openNewPartFile();
 		}
-
 		writer.write(value);
 	}
 
@@ -436,6 +414,7 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 	 */
 	private boolean shouldRoll() throws IOException {
 		boolean shouldRoll = false;
+		int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 		if (!isWriterOpen) {
 			shouldRoll = true;
 			LOG.debug("RollingSink {} starting new initial bucket. ", subtaskIndex);
@@ -482,12 +461,14 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 			}
 		}
 
-
+		int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 		currentPartPath = new Path(currentBucketDirectory, partPrefix + "-" + subtaskIndex + "-" + partCounter);
 
 		// This should work since there is only one parallel subtask that tries names with
 		// our subtask id. Otherwise we would run into concurrency issues here.
-		while (fs.exists(currentPartPath) || fs.exists(new Path(currentPartPath.getParent(), pendingPrefix + currentPartPath.getName()).suffix(pendingSuffix))) {
+		while (fs.exists(currentPartPath) ||
+				fs.exists(getPendingPathFor(currentPartPath)) ||
+				fs.exists(getInProgressPathFor(currentPartPath))) {
 			partCounter++;
 			currentPartPath = new Path(currentBucketDirectory, partPrefix + "-" + subtaskIndex + "-" + partCounter);
 		}
@@ -497,9 +478,21 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 
 		LOG.debug("Next part path is {}", currentPartPath.toString());
 
-		Path inProgressPath = new Path(currentPartPath.getParent(), inProgressPrefix + currentPartPath.getName()).suffix(inProgressSuffix);
+		Path inProgressPath = getInProgressPathFor(currentPartPath);
 		writer.open(fs, inProgressPath);
 		isWriterOpen = true;
+	}
+
+	private Path getPendingPathFor(Path path) {
+		return new Path(path.getParent(), pendingPrefix + path.getName()).suffix(pendingSuffix);
+	}
+
+	private Path getInProgressPathFor(Path path) {
+		return new Path(path.getParent(), inProgressPrefix + path.getName()).suffix(inProgressSuffix);
+	}
+
+	private Path getValidLengthPathFor(Path path) {
+		return new Path(path.getParent(), validLengthPrefix + path.getName()).suffix(validLengthSuffix);
 	}
 
 	/**
@@ -516,25 +509,22 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 		}
 
 		if (currentPartPath != null) {
-			Path inProgressPath = new Path(currentPartPath.getParent(), inProgressPrefix + currentPartPath.getName()).suffix(inProgressSuffix);
-			Path pendingPath = new Path(currentPartPath.getParent(), pendingPrefix + currentPartPath.getName()).suffix(pendingSuffix);
+			Path inProgressPath = getInProgressPathFor(currentPartPath);
+			Path pendingPath = getPendingPathFor(currentPartPath);
 			fs.rename(inProgressPath, pendingPath);
-			LOG.debug("Moving in-progress bucket {} to pending file {}",
-					inProgressPath,
-					pendingPath);
+			LOG.debug("Moving in-progress bucket {} to pending file {}", inProgressPath, pendingPath);
 			this.bucketState.pendingFiles.add(currentPartPath.toString());
 		}
 	}
 
 	/**
 	 * Gets the truncate() call using reflection.
-	 *
 	 * <p>
-	 * Note: This code comes from Flume
+	 * <b>NOTE: </b>This code comes from Flume
 	 */
 	private Method reflectTruncate(FileSystem fs) {
 		Method m = null;
-		if(fs != null) {
+		if (fs != null) {
 			Class<?> fsClass = fs.getClass();
 			try {
 				m = fsClass.getMethod("truncate", Path.class, long.class);
@@ -543,7 +533,6 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 						" and prefix '{}' to specify how many bytes in a bucket are valid.", validLengthSuffix, validLengthPrefix);
 				return null;
 			}
-
 
 			// verify that truncate actually works
 			FSDataOutputStream outputStream;
@@ -556,7 +545,6 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 				LOG.error("Could not create file for checking if truncate works.", e);
 				throw new RuntimeException("Could not create file for checking if truncate works.", e);
 			}
-
 
 			try {
 				m.invoke(fs, testPath, 2);
@@ -575,75 +563,75 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 		return m;
 	}
 
-
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		synchronized (bucketState.pendingFilesPerCheckpoint) {
-			Set<Long> pastCheckpointIds = bucketState.pendingFilesPerCheckpoint.keySet();
-			Set<Long> checkpointsToRemove = new HashSet<>();
-			for (Long pastCheckpointId : pastCheckpointIds) {
+			Iterator<Map.Entry<Long, List<String>>> pendingCheckpointsIt =
+				bucketState.pendingFilesPerCheckpoint.entrySet().iterator();
+
+			while (pendingCheckpointsIt.hasNext()) {
+				Map.Entry<Long, List<String>> entry = pendingCheckpointsIt.next();
+				Long pastCheckpointId = entry.getKey();
+
 				if (pastCheckpointId <= checkpointId) {
 					LOG.debug("Moving pending files to final location for checkpoint {}", pastCheckpointId);
 					// All the pending files are buckets that have been completed but are waiting to be renamed
 					// to their final name
-					for (String filename : bucketState.pendingFilesPerCheckpoint.get(
-							pastCheckpointId)) {
+					for (String filename : entry.getValue()) {
 						Path finalPath = new Path(filename);
-						Path pendingPath = new Path(finalPath.getParent(),
-								pendingPrefix + finalPath.getName()).suffix(pendingSuffix);
+						Path pendingPath = getPendingPathFor(finalPath);
 
 						fs.rename(pendingPath, finalPath);
-						LOG.debug(
-								"Moving pending file {} to final location after complete checkpoint {}.",
-								pendingPath,
-								pastCheckpointId);
+						LOG.debug("Moving pending file {} to final location after complete checkpoint {}.",
+								pendingPath, pastCheckpointId);
 					}
-					checkpointsToRemove.add(pastCheckpointId);
+					pendingCheckpointsIt.remove();
 				}
 			}
-			for (Long toRemove: checkpointsToRemove) {
-				bucketState.pendingFilesPerCheckpoint.remove(toRemove);
-			}
 		}
 	}
 
 	@Override
-	public BucketState snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
+		Preconditions.checkNotNull(restoredBucketStates,
+			"The " + getClass().getSimpleName() + " has not been properly initialized.");
+
+		int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+		
 		if (isWriterOpen) {
-			long pos = writer.flush();
 			bucketState.currentFile = currentPartPath.toString();
-			bucketState.currentFileValidLength = pos;
+			bucketState.currentFileValidLength = writer.flush();
 		}
+
 		synchronized (bucketState.pendingFilesPerCheckpoint) {
-			bucketState.pendingFilesPerCheckpoint.put(checkpointId, bucketState.pendingFiles);
+			bucketState.pendingFilesPerCheckpoint.put(context.getCheckpointId(), bucketState.pendingFiles);
 		}
 		bucketState.pendingFiles = new ArrayList<>();
-		return bucketState;
+
+		restoredBucketStates.clear();
+		restoredBucketStates.add(bucketState);
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("{} (taskIdx={}) checkpointed {}.", getClass().getSimpleName(), subtaskIdx, bucketState);
+		}
 	}
 
-	@Override
-	public void restoreState(BucketState state) {
-		bucketState = state;
-		// we can clean all the pending files since they where renamed to final files
-		// after this checkpoint was successfull
+	private void handleRestoredBucketState(BucketState bucketState) {
+		// we can clean all the pending files since they were renamed to
+		// final files after this checkpoint was successful
+		// (we re-start from the last **successful** checkpoint)
 		bucketState.pendingFiles.clear();
-		try {
-			initFileSystem();
-		} catch (IOException e) {
-			LOG.error("Error while creating FileSystem in checkpoint restore.", e);
-			throw new RuntimeException("Error while creating FileSystem in checkpoint restore.", e);
-		}
+
 		if (bucketState.currentFile != null) {
-			// We were writing to a file when the last checkpoint occured. This file can either
+			// We were writing to a file when the last checkpoint occurred. This file can either
 			// be still in-progress or became a pending file at some point after the checkpoint.
-			// Either way, we have to truncate it back to a valid state (or write a .valid-length)
-			// file that specifies up to which length it is valid and rename it to the final name
+			// Either way, we have to truncate it back to a valid state (or write a .valid-length
+			// file that specifies up to which length it is valid) and rename it to the final name
 			// before starting a new bucket file.
 			Path partPath = new Path(bucketState.currentFile);
 			try {
-				Path partPendingPath = new Path(partPath.getParent(), pendingPrefix + partPath.getName()).suffix(
-						pendingSuffix);
-				Path partInProgressPath = new Path(partPath.getParent(), inProgressPrefix + partPath.getName()).suffix(inProgressSuffix);
+				Path partPendingPath = getPendingPathFor(partPath);
+				Path partInProgressPath = getInProgressPathFor(partPath);
 
 				if (fs.exists(partPendingPath)) {
 					LOG.debug("In-progress file {} has been moved to pending after checkpoint, moving to final location.", partPath);
@@ -660,7 +648,10 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 							"it was moved to final location by a previous snapshot restore", bucketState.currentFile);
 				}
 
-				refTruncate = reflectTruncate(fs);
+				if (this.refTruncate == null) {
+					this.refTruncate = reflectTruncate(fs);
+				}
+
 				// truncate it or write a ".valid-length" file to specify up to which point it is valid
 				if (refTruncate != null) {
 					LOG.debug("Truncating {} to valid length {}", partPath, bucketState.currentFileValidLength);
@@ -711,7 +702,7 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 
 				} else {
 					LOG.debug("Writing valid-length file for {} to specify valid length {}", partPath, bucketState.currentFileValidLength);
-					Path validLengthFilePath = new Path(partPath.getParent(), validLengthPrefix + partPath.getName()).suffix(validLengthSuffix);
+					Path validLengthFilePath = getValidLengthPathFor(partPath);
 					if (!fs.exists(validLengthFilePath)) {
 						FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath);
 						lengthFileOut.writeUTF(Long.toString(bucketState.currentFileValidLength));
@@ -722,16 +713,15 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 				// invalidate in the state object
 				bucketState.currentFile = null;
 				bucketState.currentFileValidLength = -1;
+				isWriterOpen = false;
 			} catch (IOException e) {
 				LOG.error("Error while restoring RollingSink state.", e);
 				throw new RuntimeException("Error while restoring RollingSink state.", e);
 			} catch (InvocationTargetException | IllegalAccessException e) {
-				LOG.error("Cound not invoke truncate.", e);
+				LOG.error("Could not invoke truncate.", e);
 				throw new RuntimeException("Could not invoke truncate.", e);
 			}
 		}
-
-		LOG.debug("Clearing pending/in-progress files.");
 
 		// Move files that are confirmed by a checkpoint but did not get moved to final location
 		// because the checkpoint notification did not happen before a failure
@@ -743,7 +733,7 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 			// to their final name
 			for (String filename : bucketState.pendingFilesPerCheckpoint.get(pastCheckpointId)) {
 				Path finalPath = new Path(filename);
-				Path pendingPath = new Path(finalPath.getParent(), pendingPrefix + finalPath.getName()).suffix(pendingSuffix);
+				Path pendingPath = getPendingPathFor(finalPath);
 
 				try {
 					if (fs.exists(pendingPath)) {
@@ -756,38 +746,9 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 				}
 			}
 		}
-		bucketState.pendingFiles.clear();
+
 		synchronized (bucketState.pendingFilesPerCheckpoint) {
 			bucketState.pendingFilesPerCheckpoint.clear();
-		}
-
-		// we need to get this here since open() has not yet been called
-		int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-		// delete pending files
-		try {
-
-			RemoteIterator<LocatedFileStatus> bucketFiles = fs.listFiles(new Path(basePath), true);
-
-			while (bucketFiles.hasNext()) {
-				LocatedFileStatus file = bucketFiles.next();
-				if (file.getPath().toString().endsWith(pendingSuffix)) {
-					// only delete files that contain our subtask index
-					if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex + "-")) {
-						LOG.debug("(RESTORE) Deleting pending file {}", file.getPath().toString());
-						fs.delete(file.getPath(), true);
-					}
-				}
-				if (file.getPath().toString().endsWith(inProgressSuffix)) {
-					// only delete files that contain our subtask index
-					if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex + "-")) {
-						LOG.debug("(RESTORE) Deleting in-progress file {}", file.getPath().toString());
-						fs.delete(file.getPath(), true);
-					}
-				}
-			}
-		} catch (IOException e) {
-			LOG.error("Error while deleting old pending files: {}", e);
-			throw new RuntimeException("Error while deleting old pending files.", e);
 		}
 	}
 
@@ -891,9 +852,12 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 	 * <p>
 	 * This should only be disabled if using the sink without checkpoints, to not remove
 	 * the files already in the directory.
+	 *
+	 * @deprecated This option is deprecated and remains only for backwards compatibility.
+	 * We do not clean up lingering files anymore.
 	 */
+	@Deprecated
 	public RollingSink<T> disableCleanupOnOpen() {
-		this.cleanupOnOpen = false;
 		return this;
 	}
 
@@ -919,9 +883,9 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 		private static final long serialVersionUID = 1L;
 
 		/**
-		 * The file that was in-progress when the last checkpoint occured.
+		 * The file that was in-progress when the last checkpoint occurred.
 		 */
-		String currentFile = null;
+		String currentFile;
 
 		/**
 		 * The valid length of the in-progress file at the time of the last checkpoint.
@@ -939,5 +903,14 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 		 * pending files of completed checkpoints to their final location.
 		 */
 		final Map<Long, List<String>> pendingFilesPerCheckpoint = new HashMap<>();
+
+		@Override
+		public String toString() {
+			return
+				"In-progress=" + currentFile +
+				" validLength=" + currentFileValidLength +
+				" pendingForNextCheckpoint=" + pendingFiles +
+				" pendingForPrevCheckpoints=" + pendingFilesPerCheckpoint;
+		}
 	}
 }
