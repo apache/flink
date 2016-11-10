@@ -265,10 +265,10 @@ public class SystemProcessingTimeServiceTest {
 			
 			// schedule two timers out of order something
 			final long now = System.currentTimeMillis();
-			final long time1 = now + 6;
-			final long time2 = now + 5;
-			final long time3 = now + 8;
-			final long time4 = now - 2;
+			final long time1 = now + 60;
+			final long time2 = now + 50;
+			final long time3 = now + 80;
+			final long time4 = now - 20;
 
 			final ArrayBlockingQueue<Long> timestamps = new ArrayBlockingQueue<>(4);
 			ProcessingTimeCallback trigger = new ProcessingTimeCallback() {
