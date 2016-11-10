@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager
 
 import org.apache.flink.core.memory.MemoryType
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
+
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 
 case class NetworkEnvironmentConfiguration(
