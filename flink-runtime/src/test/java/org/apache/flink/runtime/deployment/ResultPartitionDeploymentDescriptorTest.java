@@ -38,15 +38,14 @@ public class ResultPartitionDeploymentDescriptorTest {
 		IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 		ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
 		int numberOfSubpartitions = 24;
-		boolean eagerlyDeployConsumers = true;
 
 		ResultPartitionDeploymentDescriptor orig =
 				new ResultPartitionDeploymentDescriptor(
 						resultId,
 						partitionId,
 						partitionType,
-						numberOfSubpartitions,
-						eagerlyDeployConsumers);
+						numberOfSubpartitions
+				);
 
 		ResultPartitionDeploymentDescriptor copy =
 				CommonTestUtils.createCopySerializable(orig);
@@ -55,6 +54,5 @@ public class ResultPartitionDeploymentDescriptorTest {
 		assertEquals(partitionId, copy.getPartitionId());
 		assertEquals(partitionType, copy.getPartitionType());
 		assertEquals(numberOfSubpartitions, copy.getNumberOfSubpartitions());
-		assertEquals(eagerlyDeployConsumers, copy.getEagerlyDeployConsumers());
 	}
 }
