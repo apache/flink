@@ -141,7 +141,9 @@ class ALS extends Predictor[ALS] {
   // Stores the matrix factorization after the fitting phase
   var factorsOption: Option[(DataSet[Factors], DataSet[Factors])] = None
 
-  /** Sets the number of latent factors/row dimension of the latent model
+  /** Sets the number of latent factors/row dimension of the latent model.
+    * We recommend working with highest number of factors feasible within
+    * computational limitations.
     *
     * @param numFactors
     * @return
@@ -171,7 +173,8 @@ class ALS extends Predictor[ALS] {
     this
   }
 
-  /** Sets the input observations to be implicit, thus using the iALS algorithm for learning.
+  /** When set to true, we assume implicit observations, thus we will use the iALS algorithm
+    * for learning.
     *
     * @param implicitPrefs
     * @return
@@ -297,7 +300,7 @@ object ALS {
   // ========================================= Parameters ==========================================
 
   case object NumFactors extends Parameter[Int] {
-    val defaultValue: Option[Int] = Some(10)
+    val defaultValue: Option[Int] = Some(50)
   }
 
   case object Lambda extends Parameter[Double] {
