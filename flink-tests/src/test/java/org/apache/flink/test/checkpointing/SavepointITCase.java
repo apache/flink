@@ -37,6 +37,7 @@ import org.apache.flink.runtime.checkpoint.savepoint.SavepointStoreFactory;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV0;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -304,7 +305,11 @@ public class SavepointITCase extends TestLogger {
 
 								LOG.info("Received: " + tdd.toString() + ".");
 
-								tdds.put(tdd.getVertexID(), tdd);
+								TaskInformation taskInformation = tdd
+									.getSerializedTaskInformation()
+									.deserializeValue(getClass().getClassLoader());
+
+								tdds.put(taskInformation.getJobVertexId(), tdd);
 							}
 						}
 						catch (Throwable t) {
@@ -331,7 +336,7 @@ public class SavepointITCase extends TestLogger {
 				assertEquals(taskState.getNumberCollectedStates(), taskTdds.size());
 
 				for (TaskDeploymentDescriptor tdd : taskTdds) {
-					SubtaskState subtaskState = taskState.getState(tdd.getIndexInSubtaskGroup());
+					SubtaskState subtaskState = taskState.getState(tdd.getSubtaskIndex());
 
 					assertNotNull(subtaskState);
 					errMsg = "Initial operator state mismatch.";

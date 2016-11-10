@@ -27,10 +27,11 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.DummyActorGateway;
@@ -150,31 +151,44 @@ public class TaskAsyncCallTest {
 		when(networkEnvironment.getPartitionConsumableNotifier()).thenReturn(consumableNotifier);
 		when(networkEnvironment.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 
-		TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
-				new JobID(), "Job Name", new JobVertexID(), new ExecutionAttemptID(),
-				new SerializedValue<>(new ExecutionConfig()),
-				"Test Task", 0, 1, 0,
-				new Configuration(), new Configuration(),
-				CheckpointsInOrderInvokable.class.getName(),
-				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-				Collections.<InputGateDeploymentDescriptor>emptyList(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				0);
+		JobInformation jobInformation = new JobInformation(
+			new JobID(),
+			"Job Name",
+			new SerializedValue<>(new ExecutionConfig()),
+			new Configuration(),
+			Collections.<BlobKey>emptyList(),
+			Collections.<URL>emptyList());
+
+		TaskInformation taskInformation = new TaskInformation(
+			new JobVertexID(),
+			"Test Task",
+			1,
+			CheckpointsInOrderInvokable.class.getName(),
+			new Configuration());
 
 		ActorGateway taskManagerGateway = DummyActorGateway.INSTANCE;
-		return new Task(tdd,
-				mock(MemoryManager.class),
-				mock(IOManager.class),
-				networkEnvironment,
-				mock(BroadcastVariableManager.class),
-				taskManagerGateway,
-				DummyActorGateway.INSTANCE,
-				new FiniteDuration(60, TimeUnit.SECONDS),
-				libCache,
-				mock(FileCache.class),
-				new TaskManagerRuntimeInfo("localhost", new Configuration(), System.getProperty("java.io.tmpdir")),
-				mock(TaskMetricGroup.class));
+
+		return new Task(
+			jobInformation,
+			taskInformation,
+			new ExecutionAttemptID(),
+			0,
+			0,
+			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+			Collections.<InputGateDeploymentDescriptor>emptyList(),
+			0,
+			null,
+			mock(MemoryManager.class),
+			mock(IOManager.class),
+			networkEnvironment,
+			mock(BroadcastVariableManager.class),
+			taskManagerGateway,
+			DummyActorGateway.INSTANCE,
+			new FiniteDuration(60, TimeUnit.SECONDS),
+			libCache,
+			mock(FileCache.class),
+			new TaskManagerRuntimeInfo("localhost", new Configuration(), System.getProperty("java.io.tmpdir")),
+			mock(TaskMetricGroup.class));
 	}
 	
 	public static class CheckpointsInOrderInvokable extends AbstractInvokable implements StatefulTask<StateHandle<Serializable>> {

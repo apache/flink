@@ -26,10 +26,11 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.FallbackLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -86,8 +87,7 @@ public class InterruptSensitiveRestoreTest {
 		opState.setFunctionState(lockingHandle);
 		StreamTaskStateList taskState = new StreamTaskStateList(new StreamTaskState[] { opState });
 
-		TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(taskConfig, taskState);
-		Task task = createTask(tdd);
+		Task task = createTask(taskConfig, taskState);
 
 		// start the task and wait until it is in "restore"
 		task.startTaskThread();
@@ -110,43 +110,45 @@ public class InterruptSensitiveRestoreTest {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(
+	private static Task createTask(
 			Configuration taskConfig,
 			StateHandle<?> state) throws IOException {
 
-		return new TaskDeploymentDescriptor(
-				new JobID(),
-				"test job name",
-				new JobVertexID(),
-				new ExecutionAttemptID(),
-				new SerializedValue<>(new ExecutionConfig()),
-				"test task name",
-				0, 1, 0,
-				new Configuration(),
-				taskConfig,
-				SourceStreamTask.class.getName(),
-				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-				Collections.<InputGateDeploymentDescriptor>emptyList(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				0,
-				new SerializedValue<StateHandle<?>>(state));
-	}
+		JobInformation jobInformation = new JobInformation(
+			new JobID(),
+			"test job name",
+			new SerializedValue<>(new ExecutionConfig()),
+			new Configuration(),
+			Collections.<BlobKey>emptyList(),
+			Collections.<URL>emptyList());
 	
-	private static Task createTask(TaskDeploymentDescriptor tdd) throws IOException {
+		TaskInformation taskInformation = new TaskInformation(
+			new JobVertexID(),
+			"test task name",
+			1,
+			SourceStreamTask.class.getName(),
+			taskConfig);
 		return new Task(
-				tdd,
-				mock(MemoryManager.class),
-				mock(IOManager.class),
+			jobInformation,
+			taskInformation,
+			new ExecutionAttemptID(),
+			0,
+			0,
+			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+			Collections.<InputGateDeploymentDescriptor>emptyList(),
+			0,
+			new SerializedValue<StateHandle<?>>(state),
+			mock(MemoryManager.class),
+			mock(IOManager.class),
 				mock(NetworkEnvironment.class),
-				mock(BroadcastVariableManager.class),
+			mock(BroadcastVariableManager.class),
 				mock(ActorGateway.class),
 				mock(ActorGateway.class),
 				new FiniteDuration(10, TimeUnit.SECONDS),
-				new FallbackLibraryCacheManager(),
-				new FileCache(new Configuration()),
-				new TaskManagerRuntimeInfo(
-						"localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
+			new FallbackLibraryCacheManager(),
+			new FileCache(new Configuration()),
+			new TaskManagerRuntimeInfo(
+					"localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
 				new UnregisteredTaskMetricsGroup());
 		
 	}
