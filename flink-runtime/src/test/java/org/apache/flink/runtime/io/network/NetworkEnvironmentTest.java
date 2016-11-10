@@ -189,8 +189,8 @@ public class NetworkEnvironmentTest {
 		JobID jobId = new JobID();
 
 		ResultPartition[] partitions = new ResultPartition[2];
-		partitions[0] = createPartition("p1", jobId, true, env);
-		partitions[1] = createPartition("p2", jobId, false, env);
+		partitions[0] = createPartition("p1", jobId, env);
+		partitions[1] = createPartition("p2", jobId, env);
 
 		ResultPartitionWriter[] writers = new ResultPartitionWriter[2];
 		writers[0] = new ResultPartitionWriter(partitions[0]);
@@ -215,17 +215,15 @@ public class NetworkEnvironmentTest {
 	 * Helper to create a mock result partition.
 	 */
 	private static ResultPartition createPartition(
-			String name,
-			JobID jobId,
-			boolean eagerlyDeployConsumers,
-			NetworkEnvironment env) {
+		String name,
+		JobID jobId,
+		NetworkEnvironment env) {
 
 		return new ResultPartition(
 				name,
 				jobId,
 				new ResultPartitionID(),
 				ResultPartitionType.PIPELINED,
-				eagerlyDeployConsumers,
 				1,
 				env.getPartitionManager(),
 				env.getPartitionConsumableNotifier(),

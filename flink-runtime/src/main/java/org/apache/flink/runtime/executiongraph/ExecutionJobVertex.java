@@ -130,8 +130,7 @@ public class ExecutionJobVertex implements Serializable {
 					result.getId(),
 					this,
 					numTaskVertices,
-					result.getResultType(),
-					result.getEagerlyDeployConsumers());
+					result.getResultType());
 		}
 
 		// create all task vertices

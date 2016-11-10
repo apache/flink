@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import java.io.IOException;
-
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.InitializeOnMaster;
@@ -29,11 +27,16 @@ import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import java.io.IOException;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class JobTaskVertexTest {
@@ -128,35 +131,6 @@ public class JobTaskVertexTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-	}
-
-	/**
-	 * Verifies correct setting of eager deploy settings.
-	 */
-	@Test
-	public void testEagerlyDeployConsumers() throws Exception {
-		JobVertex producer = new JobVertex("producer");
-
-		{
-			JobVertex consumer = new JobVertex("consumer");
-			JobEdge edge = consumer.connectNewDataSetAsInput(
-					producer, DistributionPattern.ALL_TO_ALL);
-			assertFalse(edge.getSource().getEagerlyDeployConsumers());
-		}
-
-		{
-			JobVertex consumer = new JobVertex("consumer");
-			JobEdge edge = consumer.connectNewDataSetAsInput(
-					producer, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-			assertFalse(edge.getSource().getEagerlyDeployConsumers());
-		}
-
-		{
-			JobVertex consumer = new JobVertex("consumer");
-			JobEdge edge = consumer.connectNewDataSetAsInput(
-					producer, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED, true);
-			assertTrue(edge.getSource().getEagerlyDeployConsumers());
 		}
 	}
 

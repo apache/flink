@@ -88,29 +88,6 @@ public class IntermediateDataSet implements java.io.Serializable {
 		return resultType;
 	}
 
-	/**
-	 * Sets the flag indicating whether to eagerly deploy consumers (default:
-	 * <code>false</code>).
-	 *
-	 * @param eagerlyDeployConsumers If <code>true</code>, the consumers are
-	 *                               deployed as soon as the runtime result is
-	 *                               registered at the result manager of the
-	 *                               task manager. Default is <code>false</code>.
-	 */
-	public void setEagerlyDeployConsumers(boolean eagerlyDeployConsumers) {
-		this.eagerlyDeployConsumers = eagerlyDeployConsumers;
-	}
-
-	/**
-	 * Returns whether consumers should be deployed eagerly (as soon as they
-	 * are registered at the result manager of the task manager).
-	 *
-	 * @return Whether consumers should be deployed eagerly
-	 */
-	public boolean getEagerlyDeployConsumers() {
-		return eagerlyDeployConsumers;
-	}
-	
 	// --------------------------------------------------------------------------------------------
 	
 	public void addConsumer(JobEdge edge) {
