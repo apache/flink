@@ -324,7 +324,7 @@ object ALS {
   }
 
   case object Seed extends Parameter[Long] {
-    val defaultValue: Option[Long] = Some(0L)
+    val defaultValue: Option[Long] = None
   }
 
   case object TemporaryPath extends Parameter[String] {
@@ -487,7 +487,7 @@ object ALS {
       val userBlocks = resultParameters.get(Blocks).getOrElse(input.count.toInt)
       val itemBlocks = userBlocks
       val persistencePath = resultParameters.get(TemporaryPath)
-      val seed = resultParameters(Seed)
+      val seed = resultParameters.get(Seed)
       val factors = resultParameters(NumFactors)
       val iterations = resultParameters(Iterations)
       val lambda = resultParameters(Lambda)
@@ -537,7 +537,7 @@ object ALS {
 
           (blockID, infos.elementIDs.map{
             id =>
-              val random = new Random(id ^ seed)
+              val random = seed.map(s => new Random(id ^ s)).getOrElse(Random)
               randomFactors(factors, random)
           })
       }.withForwardedFields("0")
@@ -1137,15 +1137,6 @@ object ALS {
 
       pos += 1
       row += 1
-    }
-  }
-
-  def generateRandomMatrix(users: DataSet[Int], factors: Int, seed: Long): DataSet[Factors] = {
-    users map {
-      id =>{
-        val random = new Random(id ^ seed)
-        Factors(id, randomFactors(factors, random))
-      }
     }
   }
 

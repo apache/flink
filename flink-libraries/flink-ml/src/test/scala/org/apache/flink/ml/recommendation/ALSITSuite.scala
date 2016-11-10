@@ -44,6 +44,7 @@ class ALSITSuite
       .setLambda(lambda)
       .setBlocks(4)
       .setNumFactors(numFactors)
+      .setSeed(seed)
 
     val inputDS = env.fromCollection(data)
 

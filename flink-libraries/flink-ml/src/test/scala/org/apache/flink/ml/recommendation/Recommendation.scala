@@ -22,6 +22,7 @@ object Recommendation {
   val iterations = 9
   val lambda = 1.0
   val numFactors = 5
+  val seed = 0L
 
   val data: Seq[(Int, Int, Double)] = {
     Seq(
