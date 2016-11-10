@@ -34,7 +34,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.util.List;
+import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ERROR_MESSAGE;
@@ -370,13 +370,12 @@ public class ExecutionVertexDeploymentTest {
 
 			TaskDeploymentDescriptor tdd = vertex.createDeploymentDescriptor(new ExecutionAttemptID(), slot, null, null, 1);
 
-			List<ResultPartitionDeploymentDescriptor> producedPartitions = tdd.getProducedPartitions();
+			Collection<ResultPartitionDeploymentDescriptor> producedPartitions = tdd.getProducedPartitions();
 
 			assertEquals(1, producedPartitions.size());
-			ResultPartitionDeploymentDescriptor desc = producedPartitions.get(0);
+			ResultPartitionDeploymentDescriptor desc = producedPartitions.iterator().next();
 			assertEquals(mode.allowLazyDeployment(), desc.sendScheduleOrUpdateConsumersMessage());
 		}
 	}
-
 
 }
