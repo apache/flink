@@ -216,6 +216,11 @@ public final class ConfigConstants {
 	 */
 	public static final String TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY = "taskmanager.network.numberOfBuffers";
 
+	/** Minimum backoff for partition requests of input channels. */
+	public static final String NETWORK_REQUEST_BACKOFF_INITIAL_KEY = "taskmanager.net.request-backoff.initial";
+
+	public static final String NETWORK_REQUEST_BACKOFF_MAX_KEY = "taskmanager.net.request-backoff.max";
+
 	/**
 	 * Config parameter defining the size of memory buffers used by the network stack and the memory manager.
 	 */
@@ -822,6 +827,12 @@ public final class ConfigConstants {
 	 * Default number of buffers used in the network stack.
 	 */
 	public static final int DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS = 2048;
+
+	/** Initial backoff for partition requests of input channels. */
+	public static final int DEFAULT_NETWORK_REQUEST_BACKOFF_INITIAL = 100;
+
+	/** Maximum backoff for partition requests of input channels. */
+	public static final int DEFAULT_NETWORK_REQUEST_BACKOFF_MAX = 10000;
 
 	/**
 	 * Default size of memory segments in the network stack and the memory manager.

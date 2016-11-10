@@ -2114,11 +2114,19 @@ object TaskManager {
 
     val ioMode : IOMode = if (syncOrAsync == "async") IOMode.ASYNC else IOMode.SYNC
 
+    val initialRequestBackoff = configuration.getInteger(
+      ConfigConstants.NETWORK_REQUEST_BACKOFF_INITIAL_KEY,
+      ConfigConstants.DEFAULT_NETWORK_REQUEST_BACKOFF_INITIAL)
+    val maxRequestBackoff = configuration.getInteger(
+      ConfigConstants.NETWORK_REQUEST_BACKOFF_MAX_KEY,
+      ConfigConstants.DEFAULT_NETWORK_REQUEST_BACKOFF_MAX)
+
     val networkConfig = NetworkEnvironmentConfiguration(
       numNetworkBuffers,
       pageSize,
       memType,
       ioMode,
+      (initialRequestBackoff, maxRequestBackoff),
       nettyConfig)
 
     // ----> timeouts, library caching, profiling

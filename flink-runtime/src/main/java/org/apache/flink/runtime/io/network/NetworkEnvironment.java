@@ -148,7 +148,7 @@ public class NetworkEnvironment {
 	}
 
 	public Tuple2<Integer, Integer> getPartitionRequestInitialAndMaxBackoff() {
-		return configuration.partitionRequestInitialAndMaxBackoff();
+		return configuration.partitionRequestInitialMaxBackoff();
 	}
 
 	// --------------------------------------------------------------------------------------------

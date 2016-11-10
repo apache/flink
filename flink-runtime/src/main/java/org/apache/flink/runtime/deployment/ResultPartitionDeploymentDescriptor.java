@@ -49,14 +49,14 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 	private final int numberOfSubpartitions;
 	
 	/** Flag whether the result partition should send scheduleOrUpdateConsumer messages. */
-	private final boolean lazyScheduling;
+	private final boolean sendScheduleOrUpdateConsumersMessage;
 
 	public ResultPartitionDeploymentDescriptor(
 			IntermediateDataSetID resultId,
 			IntermediateResultPartitionID partitionId,
 			ResultPartitionType partitionType,
 			int numberOfSubpartitions,
-			boolean lazyScheduling) {
+			boolean sendScheduleOrUpdateConsumersMessage) {
 
 		this.resultId = checkNotNull(resultId);
 		this.partitionId = checkNotNull(partitionId);
@@ -64,7 +64,7 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 
 		checkArgument(numberOfSubpartitions >= 1);
 		this.numberOfSubpartitions = numberOfSubpartitions;
-		this.lazyScheduling = lazyScheduling;
+		this.sendScheduleOrUpdateConsumersMessage = sendScheduleOrUpdateConsumersMessage;
 	}
 
 	public IntermediateDataSetID getResultId() {
@@ -83,8 +83,8 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 		return numberOfSubpartitions;
 	}
 
-	public boolean allowLazyScheduling() {
-		return lazyScheduling;
+	public boolean sendScheduleOrUpdateConsumersMessage() {
+		return sendScheduleOrUpdateConsumersMessage;
 	}
 
 	@Override
