@@ -17,8 +17,6 @@
 # limitations under the License.
 ################################################################################
 
-
-
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
@@ -35,14 +33,15 @@ JVM_ARGS="$JVM_ARGS -Xmx512m"
 # Flink CLI client
 constructCLIClientClassPath() {
 
-	for jarfile in $FLINK_LIB_DIR/*.jar ; do
-		if [[ $CC_CLASSPATH = "" ]]; then
-			CC_CLASSPATH=$jarfile;
-		else
-			CC_CLASSPATH=$CC_CLASSPATH:$jarfile
-		fi
-	done
-	echo $CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS
+    while read -d '' -r jarfile ; do
+        if [[ $CC_CLASSPATH = "" ]]; then
+            CC_CLASSPATH="$jarfile";
+        else
+            CC_CLASSPATH="$CC_CLASSPATH":"$jarfile"
+        fi
+    done < <(find "$FLINK_LIB_DIR" ! -type d -name '*.jar' -print0)
+
+    echo $CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS
 }
 
 CC_CLASSPATH=`manglePathList $(constructCLIClientClassPath)`
