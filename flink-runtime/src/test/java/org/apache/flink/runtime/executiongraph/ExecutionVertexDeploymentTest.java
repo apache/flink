@@ -374,7 +374,7 @@ public class ExecutionVertexDeploymentTest {
 
 			assertEquals(1, producedPartitions.size());
 			ResultPartitionDeploymentDescriptor desc = producedPartitions.get(0);
-			assertEquals(mode.allowLazyDeployment(), desc.allowLazyScheduling());
+			assertEquals(mode.allowLazyDeployment(), desc.sendScheduleOrUpdateConsumersMessage());
 		}
 	}
 
