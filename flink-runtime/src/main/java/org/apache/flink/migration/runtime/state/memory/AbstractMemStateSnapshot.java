@@ -127,6 +127,10 @@ public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD ext
 		return stateSerializer;
 	}
 
+	public byte[] getData() {
+		return data;
+	}
+
 	@Override
 	public String toString() {
 		return "AbstractMemStateSnapshot{" +

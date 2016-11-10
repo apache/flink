@@ -18,7 +18,7 @@
 
 package org.apache.flink.migration.runtime.checkpoint.savepoint;
 
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.migration.runtime.checkpoint.KeyGroupState;
 import org.apache.flink.migration.runtime.checkpoint.SubtaskState;
@@ -66,17 +66,17 @@ import java.util.List;
 public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 
 	public static final SavepointV0Serializer INSTANCE = new SavepointV0Serializer();
-	public static final StreamStateHandle SIGNAL_0 = new ByteStreamStateHandle("SIGNAL_0", new byte[]{0});
-	public static final StreamStateHandle SIGNAL_1 = new ByteStreamStateHandle("SIGNAL_1", new byte[]{1});
+	private static final StreamStateHandle SIGNAL_0 = new ByteStreamStateHandle("SIGNAL_0", new byte[]{0});
+	private static final StreamStateHandle SIGNAL_1 = new ByteStreamStateHandle("SIGNAL_1", new byte[]{1});
 
 	private static final int MAX_SIZE = 4 * 1024 * 1024;
 
 	private ClassLoader userClassLoader;
-	private JobID jobID;
 	private long checkpointID;
 
 	private SavepointV0Serializer() {
 	}
+
 
 	@Override
 	public void serialize(SavepointV1 savepoint, DataOutputStream dos) throws IOException {
@@ -163,9 +163,7 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 		}
 	}
 
-	public SavepointV1 convertSavepoint(List<TaskState> taskStates) throws Exception {
-
-		jobID = new JobID();
+	private SavepointV1 convertSavepoint(List<TaskState> taskStates) throws Exception {
 
 		List<org.apache.flink.runtime.checkpoint.TaskState> newTaskStates = new ArrayList<>(taskStates.size());
 
@@ -173,11 +171,10 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 			newTaskStates.add(convertTaskState(taskState));
 		}
 
-		SavepointV1 savepointV1 = new SavepointV1(checkpointID, newTaskStates);
-		return savepointV1;
+		return new SavepointV1(checkpointID, newTaskStates);
 	}
 
-	public org.apache.flink.runtime.checkpoint.TaskState convertTaskState(TaskState taskState) throws Exception {
+	private org.apache.flink.runtime.checkpoint.TaskState convertTaskState(TaskState taskState) throws Exception {
 
 		JobVertexID jobVertexID = taskState.getJobVertexID();
 		int parallelism = taskState.getParallelism();
@@ -223,7 +220,9 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 			}
 
 			newChainStateList.set(chainIdx, convertOperatorAndFunctionState(streamTaskState));
-			newKeyedState = convertKeyedBackendState(streamTaskState, parallelInstanceIdx);
+			if (0 == chainIdx) {
+				newKeyedState = convertKeyedBackendState(streamTaskState, parallelInstanceIdx);
+			}
 		}
 
 		ChainedStateHandle<StreamStateHandle> newChainedState = new ChainedStateHandle<>(newChainStateList);
@@ -316,9 +315,74 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 			byte[] data = ((SerializedStateHandle<?>) oldStateHandle).getSerializedData();
 			return new ByteStreamStateHandle(String.valueOf(System.identityHashCode(data)), data);
 		} else if (oldStateHandle instanceof org.apache.flink.migration.runtime.state.memory.ByteStreamStateHandle) {
-			byte[] data = ((org.apache.flink.migration.runtime.state.memory.ByteStreamStateHandle) oldStateHandle).getData();
+			byte[] data =
+					((org.apache.flink.migration.runtime.state.memory.ByteStreamStateHandle) oldStateHandle).getData();
 			return new ByteStreamStateHandle(String.valueOf(System.identityHashCode(data)), data);
 		}
 		throw new IllegalArgumentException("Unknown state handle type: " + oldStateHandle);
+	}
+
+	@VisibleForTesting
+	public void serializeOld(SavepointV0 savepoint, DataOutputStream dos) throws IOException {
+		dos.writeLong(savepoint.getCheckpointId());
+
+		Collection<org.apache.flink.migration.runtime.checkpoint.TaskState> taskStates = savepoint.getOldTaskStates();
+		dos.writeInt(taskStates.size());
+
+		for (org.apache.flink.migration.runtime.checkpoint.TaskState taskState : savepoint.getOldTaskStates()) {
+			// Vertex ID
+			dos.writeLong(taskState.getJobVertexID().getLowerPart());
+			dos.writeLong(taskState.getJobVertexID().getUpperPart());
+
+			// Parallelism
+			int parallelism = taskState.getParallelism();
+			dos.writeInt(parallelism);
+
+			// Sub task states
+			dos.writeInt(taskState.getNumberCollectedStates());
+
+			for (int i = 0; i < parallelism; i++) {
+				SubtaskState subtaskState = taskState.getState(i);
+
+				if (subtaskState != null) {
+					dos.writeInt(i);
+
+					SerializedValue<?> serializedValue = subtaskState.getState();
+					if (serializedValue == null) {
+						dos.writeInt(-1); // null
+					} else {
+						byte[] serialized = serializedValue.getByteArray();
+						dos.writeInt(serialized.length);
+						dos.write(serialized, 0, serialized.length);
+					}
+
+					dos.writeLong(subtaskState.getStateSize());
+					dos.writeLong(subtaskState.getDuration());
+				}
+			}
+
+			// Key group states
+			dos.writeInt(taskState.getNumberCollectedKvStates());
+
+			for (int i = 0; i < parallelism; i++) {
+				KeyGroupState keyGroupState = taskState.getKvState(i);
+
+				if (keyGroupState != null) {
+					dos.write(i);
+
+					SerializedValue<?> serializedValue = keyGroupState.getKeyGroupState();
+					if (serializedValue == null) {
+						dos.writeInt(-1); // null
+					} else {
+						byte[] serialized = serializedValue.getByteArray();
+						dos.writeInt(serialized.length);
+						dos.write(serialized, 0, serialized.length);
+					}
+
+					dos.writeLong(keyGroupState.getStateSize());
+					dos.writeLong(keyGroupState.getDuration());
+				}
+			}
+		}
 	}
 }

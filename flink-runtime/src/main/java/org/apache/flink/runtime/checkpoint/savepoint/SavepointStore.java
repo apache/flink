@@ -50,7 +50,7 @@ public class SavepointStore {
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointStore.class);
 
 	/** Magic number for sanity checks against stored savepoints. */
-	private static final int MAGIC_NUMBER = 0x4960672d;
+	public static final int MAGIC_NUMBER = 0x4960672d;
 
 	/** Prefix for savepoint files. */
 	private static final String prefix = "savepoint-";
