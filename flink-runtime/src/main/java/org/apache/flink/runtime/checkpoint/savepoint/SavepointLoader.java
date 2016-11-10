@@ -57,7 +57,7 @@ public class SavepointLoader {
 			JobID jobId,
 			Map<JobVertexID, ExecutionJobVertex> tasks,
 			String savepointPath,
-			ClassLoader userClassLoader
+			ClassLoader userClassLoader,
 			boolean allowNonRestoredState) throws IOException {
 
 		// (1) load the savepoint

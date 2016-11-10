@@ -220,9 +220,11 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 			}
 
 			newChainStateList.set(chainIdx, convertOperatorAndFunctionState(streamTaskState));
-			if (0 == chainIdx) {
+
+			if (null == newKeyedState) {
 				newKeyedState = convertKeyedBackendState(streamTaskState, parallelInstanceIdx);
 			}
+
 		}
 
 		ChainedStateHandle<StreamStateHandle> newChainedState = new ChainedStateHandle<>(newChainStateList);

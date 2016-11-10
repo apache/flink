@@ -106,6 +106,6 @@ public class SavepointLoaderTest {
 		}
 
 		// 4) Load and validate: ignore missing vertex
-		SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, true);
+		SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, ucl, true);
 	}
 }

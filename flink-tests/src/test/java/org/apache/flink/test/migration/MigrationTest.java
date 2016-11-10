@@ -22,6 +22,7 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
 import java.io.File;
@@ -53,7 +54,8 @@ public class MigrationTest {
 //		String savepointFilename = "file:///Users/stefan/Downloads/ssm-1.1-savepoint/savepoint-7c7d2a2d1c42";
 		String savepointFilename = "file:///Users/stefan/Downloads/savepoint-8cb7ea19a289";
 //		String savepointFilename = "file:///Users/stefan/Downloads/rocksdb-savepoint-fully-async/savepoint-86bda15a2073";
-		program.setSavepointPath(savepointFilename);
+
+		program.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointFilename, false));
 
 		new StandaloneClusterClient(cluster.configuration()).run(program, 1);
 

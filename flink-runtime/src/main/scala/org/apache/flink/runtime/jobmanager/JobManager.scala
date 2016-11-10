@@ -1322,7 +1322,11 @@ class JobManager(
 
                   // load the savepoint as a checkpoint into the system
                   val savepoint: CompletedCheckpoint = SavepointLoader.loadAndValidateSavepoint(
-                    jobId, executionGraph.getAllVertices, savepointPath, userCodeLoader, allowNonRestored)
+                    jobId,
+                    executionGraph.getAllVertices,
+                    savepointPath,
+                    userCodeLoader,
+                    allowNonRestored)
 
                 executionGraph.getCheckpointCoordinator.getCheckpointStore
                   .addCheckpoint(savepoint)
