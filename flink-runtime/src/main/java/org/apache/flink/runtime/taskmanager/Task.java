@@ -346,7 +346,7 @@ public class Task implements Runnable, TaskActions {
 				resultPartitionConsumableNotifier,
 				ioManager,
 				networkEnvironment.getDefaultIOMode(),
-				desc.allowLazyScheduling());
+				desc.sendScheduleOrUpdateConsumersMessage());
 
 			writers[counter] = new ResultPartitionWriter(producedPartitions[counter]);
 

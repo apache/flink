@@ -55,6 +55,6 @@ public class ResultPartitionDeploymentDescriptorTest {
 		assertEquals(partitionId, copy.getPartitionId());
 		assertEquals(partitionType, copy.getPartitionType());
 		assertEquals(numberOfSubpartitions, copy.getNumberOfSubpartitions());
-		assertTrue(copy.allowLazyScheduling());
+		assertTrue(copy.sendScheduleOrUpdateConsumersMessage());
 	}
 }
