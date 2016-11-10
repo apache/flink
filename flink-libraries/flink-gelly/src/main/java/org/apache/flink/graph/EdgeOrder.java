@@ -24,8 +24,9 @@ package org.apache.flink.graph;
  */
 public enum EdgeOrder {
 
-	FORWARD(0b01),
-	REVERSE(0b10),
+	// bitmasks from triadic census
+	FORWARD(0b10),
+	REVERSE(0b01),
 	MUTUAL(0b11);
 
 	private final byte bitmask;
