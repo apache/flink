@@ -542,6 +542,9 @@ public class TaskTest extends TestLogger {
 		}
 
 		expected.put(ExecutionState.RUNNING, ExecutionState.RUNNING);
+		expected.put(ExecutionState.SCHEDULED, ExecutionState.RUNNING);
+		expected.put(ExecutionState.DEPLOYING, ExecutionState.RUNNING);
+		expected.put(ExecutionState.FINISHED, ExecutionState.RUNNING);
 
 		expected.put(ExecutionState.CANCELED, ExecutionState.CANCELING);
 		expected.put(ExecutionState.CANCELING, ExecutionState.CANCELING);
@@ -557,7 +560,7 @@ public class TaskTest extends TestLogger {
 			assertEquals(expected.get(state), newTaskState);
 		}
 
-		verify(inputGate, times(1)).retriggerPartitionRequest(eq(partitionId.getPartitionId()));
+		verify(inputGate, times(4)).retriggerPartitionRequest(eq(partitionId.getPartitionId()));
 	}
 
 	/**

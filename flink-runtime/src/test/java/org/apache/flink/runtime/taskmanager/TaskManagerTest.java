@@ -630,7 +630,7 @@ public class TaskManagerTest extends TestLogger {
 				IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 
 				List<ResultPartitionDeploymentDescriptor> irpdd = new ArrayList<ResultPartitionDeploymentDescriptor>();
-				irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1, false));
+				irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1, true));
 
 				InputGateDeploymentDescriptor ircdd =
 						new InputGateDeploymentDescriptor(
@@ -775,7 +775,7 @@ public class TaskManagerTest extends TestLogger {
 				IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 
 				List<ResultPartitionDeploymentDescriptor> irpdd = new ArrayList<ResultPartitionDeploymentDescriptor>();
-				irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1, false));
+				irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1, true));
 
 				InputGateDeploymentDescriptor ircdd =
 						new InputGateDeploymentDescriptor(
@@ -903,6 +903,8 @@ public class TaskManagerTest extends TestLogger {
 				final int dataPort = NetUtils.getAvailablePort();
 				Configuration config = new Configuration();
 				config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort);
+				config.setInteger(ConfigConstants.NETWORK_REQUEST_BACKOFF_INITIAL_KEY, 100);
+				config.setInteger(ConfigConstants.NETWORK_REQUEST_BACKOFF_MAX_KEY, 200);
 
 				taskManager = TestingUtils.createTaskManager(
 						system,
@@ -999,6 +1001,8 @@ public class TaskManagerTest extends TestLogger {
 
 				final int dataPort = NetUtils.getAvailablePort();
 				final Configuration config = new Configuration();
+				config.setInteger(ConfigConstants.NETWORK_REQUEST_BACKOFF_INITIAL_KEY, 100);
+				config.setInteger(ConfigConstants.NETWORK_REQUEST_BACKOFF_MAX_KEY, 200);
 
 				config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort);
 
@@ -1431,8 +1435,7 @@ public class TaskManagerTest extends TestLogger {
 				new IntermediateResultPartitionID(),
 				ResultPartitionType.PIPELINED,
 				1,
-				false // don't deploy eagerly but with the first completed memory buffer
-			);
+				true);
 
 			final TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(jid, "TestJob", vid, eid, executionConfig,
 				"TestTask", 0, 1, 0, new Configuration(), new Configuration(),

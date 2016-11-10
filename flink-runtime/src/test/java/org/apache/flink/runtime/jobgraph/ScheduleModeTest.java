@@ -18,26 +18,20 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-public enum ScheduleMode {
+import org.junit.Test;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+public class ScheduleModeTest {
 
 	/**
-	 * Schedule tasks from sources to sinks with lazy deployment of receiving tasks.
+	 * Test that schedule modes set the lazy deployment flag correctly.
 	 */
-	FROM_SOURCES,
-
-	BACKTRACKING,
-
-	/**
-	 * Schedule tasks all at once instead of lazy deployment of receiving tasks.
-	 */
-	ALL;
-
-	/**
-	 * Returns whether we are allowed to deploy consumers lazily.
-	 */
-	public boolean allowLazyDeployment() {
-		return this != ALL;
+	@Test
+	public void testAllowLazyDeployment() throws Exception {
+		assertTrue(ScheduleMode.FROM_SOURCES.allowLazyDeployment());
+		assertTrue(ScheduleMode.BACKTRACKING.allowLazyDeployment());
+		assertFalse(ScheduleMode.ALL.allowLazyDeployment());
 	}
-
 }
-

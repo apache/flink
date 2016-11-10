@@ -85,7 +85,7 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 	 * Creates an input channel deployment descriptor for each partition.
 	 */
 	public static InputChannelDeploymentDescriptor[] fromEdges(
-			ExecutionEdge[] edges, SimpleSlot consumerSlot) {
+			ExecutionEdge[] edges, SimpleSlot consumerSlot, boolean allowLazyDeployment) {
 
 		final InputChannelDeploymentDescriptor[] icdd = new InputChannelDeploymentDescriptor[edges.length];
 
@@ -101,8 +101,10 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 
 			// The producing task needs to be RUNNING or already FINISHED
 			if (consumedPartition.isConsumable() && producerSlot != null &&
-					(producerState == ExecutionState.RUNNING
-							|| producerState == ExecutionState.FINISHED)) {
+					(producerState == ExecutionState.RUNNING ||
+						producerState == ExecutionState.FINISHED ||
+						producerState == ExecutionState.SCHEDULED ||
+						producerState == ExecutionState.DEPLOYING)) {
 
 				final Instance partitionInstance = producerSlot.getInstance();
 
@@ -119,9 +121,11 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 					partitionLocation = ResultPartitionLocation.createRemote(connectionId);
 				}
 			}
-			else {
+			else if (allowLazyDeployment) {
 				// The producing task might not have registered the partition yet
 				partitionLocation = ResultPartitionLocation.createUnknown();
+			} else {
+				throw new IllegalStateException("Trying to eagerly schedule a task whose inputs are not ready.");
 			}
 
 			final ResultPartitionID consumedPartitionId = new ResultPartitionID(

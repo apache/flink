@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
@@ -492,6 +493,13 @@ public class SingleInputGate implements InputGate {
 				executionId,
 				consumedResultId,
 				partitionId);
+	}
+
+	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	Map<IntermediateResultPartitionID, InputChannel> getInputChannels() {
+		return inputChannels;
 	}
 
 	// ------------------------------------------------------------------------
