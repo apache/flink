@@ -28,16 +28,9 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * A snapshot of a {@link MemValueState} for a checkpoint. The data is stored in a heap byte
- * array, in serialized form.
- * 
- * @param <K> The type of the key in the snapshot state.
- * @param <N> The type of the namespace in the snapshot state.
- * @param <SV> The type of the value in the snapshot state.
- */
+@Deprecated
 public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> 
-		implements KvStateSnapshot<K, N, S, SD, MemoryStateBackend> {
+		implements KvStateSnapshot<K, N, S, SD> {
 
 	private static final long serialVersionUID = 1L;
 

@@ -33,6 +33,7 @@ package org.apache.flink.migration.runtime.state;
  *         canceled during recovery.</li>
  * </ul>
  */
+@Deprecated
 public interface StateObject extends java.io.Closeable, java.io.Serializable {
 
 	/**

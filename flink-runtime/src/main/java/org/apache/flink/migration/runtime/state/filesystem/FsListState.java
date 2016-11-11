@@ -25,14 +25,7 @@ import org.apache.flink.core.fs.Path;
 
 import java.util.ArrayList;
 
-/**
- * Heap-backed partitioned {@link ListState} that is snapshotted
- * into files.
- * 
- * @param <K> The type of the key.
- * @param <N> The type of the namespace.
- * @param <V> The type of the value.
- */
+@Deprecated
 public class FsListState<K, N, V> {
 
 	public static class Snapshot<K, N, V> extends AbstractFsStateSnapshot<K, N, ArrayList<V>, ListState<V>, ListStateDescriptor<V>> {

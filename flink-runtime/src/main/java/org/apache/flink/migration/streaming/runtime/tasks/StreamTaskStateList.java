@@ -26,9 +26,7 @@ import org.apache.flink.util.ExceptionUtils;
 import java.io.IOException;
 import java.util.HashMap;
 
-/**
- * List of task states for a chain of streaming tasks.
- */
+@Deprecated
 @Internal
 public class StreamTaskStateList implements StateHandle<StreamTaskState[]> {
 
@@ -73,7 +71,7 @@ public class StreamTaskStateList implements StateHandle<StreamTaskState[]> {
 				if (state != null) {
 					StateHandle<?> operatorState = state.getOperatorState();
 					StateHandle<?> functionState = state.getFunctionState();
-					HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates = state.getKvStates();
+					HashMap<String, KvStateSnapshot<?, ?, ?, ?>> kvStates = state.getKvStates();
 
 					if (operatorState != null) {
 						sumStateSize += operatorState.getStateSize();
@@ -84,7 +82,7 @@ public class StreamTaskStateList implements StateHandle<StreamTaskState[]> {
 					}
 
 					if (kvStates != null) {
-						for (KvStateSnapshot<?, ?, ?, ?, ?> kvState : kvStates.values()) {
+						for (KvStateSnapshot<?, ?, ?, ?> kvState : kvStates.values()) {
 							if (kvState != null) {
 								sumStateSize += kvState.getStateSize();
 							}

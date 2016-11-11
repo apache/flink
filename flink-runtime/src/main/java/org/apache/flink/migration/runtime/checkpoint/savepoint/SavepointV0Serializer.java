@@ -266,7 +266,7 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 	private KeyGroupsStateHandle convertKeyedBackendState(
 			StreamTaskState streamTaskState, int parallelInstanceIdx) throws Exception {
 
-		HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> oldKeyedState = streamTaskState.getKvStates();
+		HashMap<String, KvStateSnapshot<?, ?, ?, ?>> oldKeyedState = streamTaskState.getKvStates();
 
 		if (null != oldKeyedState) {
 

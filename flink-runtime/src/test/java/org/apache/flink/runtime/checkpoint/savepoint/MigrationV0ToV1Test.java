@@ -166,11 +166,11 @@ public class MigrationV0ToV1Test {
 
 						ByteStreamStateHandle stateHandle =
 								(ByteStreamStateHandle) keyGroupsStateHandle.getDelegateStateHandle();
-						HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> testKeyedState =
+						HashMap<String, KvStateSnapshot<?, ?, ?, ?>> testKeyedState =
 								MigrationInstantiationUtil.deserializeObject(stateHandle.getData(), cl);
 
 						assertEquals(2, testKeyedState.size());
-						for (KvStateSnapshot<?, ?, ?, ?, ?> snapshot : testKeyedState.values()) {
+						for (KvStateSnapshot<?, ?, ?, ?> snapshot : testKeyedState.values()) {
 							MemValueState.Snapshot<?, ?, ?> castedSnapshot = (MemValueState.Snapshot<?, ?, ?>) snapshot;
 							byte[] data = castedSnapshot.getData();
 							assertEquals(t, data[0]);
@@ -217,10 +217,10 @@ public class MigrationV0ToV1Test {
 					}
 
 					if ((0 == k) && (i % 3 != 0)) {
-						HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> testKeyedState = new HashMap<>(2);
+						HashMap<String, KvStateSnapshot<?, ?, ?, ?>> testKeyedState = new HashMap<>(2);
 						for (int l = 0; l < 2; ++l) {
 							String name = "keyed-" + l;
-							KvStateSnapshot<?, ?, ?, ?, ?> testKeyedSnapshot =
+							KvStateSnapshot<?, ?, ?, ?> testKeyedSnapshot =
 									new MemValueState.Snapshot<>(
 											IntSerializer.INSTANCE,
 											VoidNamespaceSerializer.INSTANCE,

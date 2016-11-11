@@ -22,7 +22,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 
 @Deprecated
-public interface KvStateSnapshot<K, N, S extends State, SD extends StateDescriptor<S, ?>, Backend extends AbstractStateBackend> 
+public interface KvStateSnapshot<K, N, S extends State, SD extends StateDescriptor<S, ?>>
 		extends StateObject {
 
 }

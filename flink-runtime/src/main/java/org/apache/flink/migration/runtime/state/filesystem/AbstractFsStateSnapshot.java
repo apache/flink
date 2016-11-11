@@ -33,8 +33,9 @@ import java.io.IOException;
  * @param <N> The type of the namespace in the snapshot state.
  * @param <SV> The type of the state value.
  */
+@Deprecated
 public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> 
-		extends AbstractFileStateHandle implements KvStateSnapshot<K, N, S, SD, FsStateBackend> {
+		extends AbstractFileStateHandle implements KvStateSnapshot<K, N, S, SD> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -50,15 +51,6 @@ public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD exte
 	/** StateDescriptor, for sanity checks */
 	protected final SD stateDesc;
 
-	/**
-	 * Creates a new state snapshot with data in the file system.
-	 *
-	 * @param keySerializer The serializer for the keys.
-	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param stateSerializer The serializer for the elements in the state HashMap
-	 * @param stateDesc The state identifier
-	 * @param filePath The path where the snapshot data is stored.
-	 */
 	public AbstractFsStateSnapshot(TypeSerializer<K> keySerializer,
 		TypeSerializer<N> namespaceSerializer,
 		TypeSerializer<SV> stateSerializer,
@@ -72,12 +64,6 @@ public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD exte
 
 	}
 
-	/**
-	 * Returns the file size in bytes.
-	 *
-	 * @return The file size in bytes.
-	 * @throws IOException Thrown if the file system cannot be accessed.
-	 */
 	@Override
 	public long getStateSize() throws IOException {
 		return getFileSize();

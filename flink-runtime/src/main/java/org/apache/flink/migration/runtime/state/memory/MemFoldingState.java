@@ -22,15 +22,7 @@ import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-/**
- * Heap-backed partitioned {@link FoldingState} that is
- * snapshotted into a serialized memory copy.
- *
- * @param <K> The type of the key.
- * @param <N> The type of the namespace.
- * @param <T> The type of the values that can be folded into the state.
- * @param <ACC> The type of the value in the folding state.
- */
+@Deprecated
 public class MemFoldingState<K, N, T, ACC> {
 
 	public static class Snapshot<K, N, T, ACC> extends AbstractMemStateSnapshot<K, N, ACC, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>> {

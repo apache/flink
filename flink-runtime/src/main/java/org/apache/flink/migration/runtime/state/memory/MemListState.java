@@ -24,14 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.ArrayList;
 
-/**
- * Heap-backed partitioned {@link ListState} that is snapshotted
- * into a serialized memory copy.
- *
- * @param <K> The type of the key.
- * @param <N> The type of the namespace.
- * @param <V> The type of the values in the list state.
- */
+@Deprecated
 public class MemListState<K, N, V> {
 
 	public static class Snapshot<K, N, V> extends AbstractMemStateSnapshot<K, N, ArrayList<V>, ListState<V>, ListStateDescriptor<V>> {

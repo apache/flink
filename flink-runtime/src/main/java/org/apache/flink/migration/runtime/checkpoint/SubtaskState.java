@@ -27,15 +27,7 @@ import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Simple bean to describe the state belonging to a parallel operator. It is part of the
- * {@link TaskState}.
- * 
- * The state itself is kept in serialized form, since the checkpoint coordinator itself
- * is never looking at it anyways and only sends it back out in case of a recovery.
- * Furthermore, the state may involve user-defined classes that are not accessible without
- * the respective classloader.
- */
+@Deprecated
 public class SubtaskState implements Serializable {
 
 	private static final long serialVersionUID = -2394696997971923995L;

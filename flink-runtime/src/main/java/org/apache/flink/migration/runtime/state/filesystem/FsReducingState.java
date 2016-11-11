@@ -23,14 +23,7 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
 
-/**
- * Heap-backed partitioned {@link ReducingState} that is
- * snapshotted into files.
- * 
- * @param <K> The type of the key.
- * @param <N> The type of the namespace.
- * @param <V> The type of the value.
- */
+@Deprecated
 public class FsReducingState<K, N, V> {
 
 	public static class Snapshot<K, N, V> extends AbstractFsStateSnapshot<K, N, V, ReducingState<V>, ReducingStateDescriptor<V>> {

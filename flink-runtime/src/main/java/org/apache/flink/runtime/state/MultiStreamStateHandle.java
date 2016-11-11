@@ -27,6 +27,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Wrapper class that takes multiple {@link StreamStateHandle} and makes them look like a single one. This is done by
+ * providing a contiguous view on all the streams of the inner handles through a wrapper stream and by summing up all
+ * all the meta data.
+ */
 public class MultiStreamStateHandle implements StreamStateHandle {
 
 	private static final long serialVersionUID = -4588701089489569707L;
@@ -78,11 +83,11 @@ public class MultiStreamStateHandle implements StreamStateHandle {
 		}
 
 		@Override
-		protected FSDataInputStream getSeekedStreamForOffset(long offset) throws IOException {
-			Map.Entry<Long, StreamStateHandle> handleEntry = stateHandleMap.floorEntry(offset);
+		protected FSDataInputStream getSeekedStreamForOffset(long globalStreamOffset) throws IOException {
+			Map.Entry<Long, StreamStateHandle> handleEntry = stateHandleMap.floorEntry(globalStreamOffset);
 			if (handleEntry != null) {
 				FSDataInputStream stream = handleEntry.getValue().openInputStream();
-				stream.seek(offset - handleEntry.getKey());
+				stream.seek(globalStreamOffset - handleEntry.getKey());
 				return stream;
 			}
 			return null;

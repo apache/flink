@@ -23,6 +23,7 @@ package org.apache.flink.migration.runtime.state;
  * A StateHandle implementation can for example include the state itself in cases where the state 
  * is lightweight or fetching it lazily from some external storage when the state is too large.
  */
+@Deprecated
 public interface StateHandle<T> extends StateObject {
 
 	/**

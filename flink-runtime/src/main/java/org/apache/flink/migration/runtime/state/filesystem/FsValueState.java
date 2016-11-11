@@ -23,14 +23,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
 
-/**
- * Heap-backed partitioned {@link ValueState} that is snapshotted
- * into files.
- * 
- * @param <K> The type of the key.
- * @param <N> The type of the namespace.
- * @param <V> The type of the value.
- */
+@Deprecated
 public class FsValueState<K, N, V> {
 
 	public static class Snapshot<K, N, V> extends AbstractFsStateSnapshot<K, N, V, ValueState<V>, ValueStateDescriptor<V>> {

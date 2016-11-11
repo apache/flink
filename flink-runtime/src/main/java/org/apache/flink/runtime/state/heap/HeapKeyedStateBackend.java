@@ -376,12 +376,12 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			return;
 		}
 
-		HashMap<String, KvStateSnapshot<K, ?, ?, ?, ?>> namedStates =
+		HashMap<String, KvStateSnapshot<K, ?, ?, ?>> namedStates =
 				InstantiationUtil.deserializeObject(stateHandles.iterator().next().openInputStream(), userCodeClassLoader);
 
-		for (Map.Entry<String, KvStateSnapshot<K, ?, ?, ?, ?>> nameToState : namedStates.entrySet()) {
+		for (Map.Entry<String, KvStateSnapshot<K, ?, ?, ?>> nameToState : namedStates.entrySet()) {
 
-			KvStateSnapshot<K, ?, ?, ?, ?> genericSnapshot = nameToState.getValue();
+			KvStateSnapshot<K, ?, ?, ?> genericSnapshot = nameToState.getValue();
 
 			final RestoredState restoredState;
 

@@ -35,7 +35,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	/**
 	 * Dummy {@link KvStateSnapshot} that holds the state of our one RocksDB data base.
 	 */
-	public static class FinalFullyAsyncSnapshot implements KvStateSnapshot<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> {
+	public static class FinalFullyAsyncSnapshot implements KvStateSnapshot<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>> {
 		private static final long serialVersionUID = 1L;
 
 		public final StateHandle<DataInputView> stateHandle;

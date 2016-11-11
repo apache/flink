@@ -29,12 +29,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-/**
- * Simple container class which contains the task state and key-value state handles for the sub
- * tasks of a {@link org.apache.flink.runtime.jobgraph.JobVertex}.
- *
- * This class basically groups all tasks and key groups belonging to the same job vertex together.
- */
+@Deprecated
 public class TaskState implements Serializable {
 
 	private static final long serialVersionUID = -4845578005863201810L;

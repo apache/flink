@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
  * Offers to register a stream (or other closable object) that close calls are delegated to if
  * the handle is closed or was already closed.
  */
+@Deprecated
 public abstract class AbstractCloseableHandle implements Closeable, Serializable {
 
 	/** Serial Version UID must be constant to maintain format compatibility */

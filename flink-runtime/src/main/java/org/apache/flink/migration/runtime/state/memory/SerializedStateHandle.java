@@ -21,6 +21,7 @@ package org.apache.flink.migration.runtime.state.memory;
 import org.apache.flink.migration.runtime.state.AbstractCloseableHandle;
 import org.apache.flink.migration.runtime.state.StateHandle;
 import org.apache.flink.migration.util.MigrationInstantiationUtil;
+import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -44,7 +45,7 @@ public class SerializedStateHandle<T extends Serializable> extends AbstractClose
 	 * @throws IOException Thrown, if the serialization fails.
 	 */
 	public SerializedStateHandle(T value) throws IOException {
-		this.serializedData = value == null ? null : MigrationInstantiationUtil.serializeObject(value);
+		this.serializedData = value == null ? null : InstantiationUtil.serializeObject(value);
 	}
 
 	/**

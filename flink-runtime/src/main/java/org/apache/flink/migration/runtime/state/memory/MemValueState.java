@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
+@Deprecated
 public class MemValueState<K, N, V> {
 
 	public static class Snapshot<K, N, V> extends AbstractMemStateSnapshot<K, N, V, ValueState<V>, ValueStateDescriptor<V>> {

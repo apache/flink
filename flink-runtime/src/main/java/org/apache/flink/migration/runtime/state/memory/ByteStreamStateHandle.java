@@ -27,9 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 
-/**
- * A state handle that contains stream state in a byte array.
- */
+@Deprecated
 public final class ByteStreamStateHandle extends AbstractCloseableHandle implements StreamStateHandle {
 
 	private static final long serialVersionUID = -5280226231200217594L;

@@ -24,10 +24,19 @@ import org.apache.flink.util.Preconditions;
 import java.io.EOFException;
 import java.io.IOException;
 
+/**
+ * Abstract base class for wrappers over multiple {@link FSDataInputStream}, which gives a contiguous view on all inner
+ * streams and makes them look like a single stream, in which we can read, seek, etc.
+ */
 public abstract class AbstractMultiFSDataInputStream extends FSDataInputStream {
 
+	/** Inner stream for the currently accessed segment of the virtual global stream */
 	protected FSDataInputStream delegate;
+
+	/** Position in the virtual global stream */
 	protected long totalPos;
+
+	/** Total available bytes in the virtual global stream */
 	protected long totalAvailable;
 
 	public AbstractMultiFSDataInputStream() {
@@ -92,5 +101,13 @@ public abstract class AbstractMultiFSDataInputStream extends FSDataInputStream {
 		return n;
 	}
 
-	protected abstract FSDataInputStream getSeekedStreamForOffset(long offset) throws IOException;
+	/**
+	 * Delivers a the right stream for the given global stream offset. The returned stream is already seeked to the
+	 * right local offset that correctly reflects the global offset.
+	 *
+	 * @param globalStreamOffset the global offset to which we seek
+	 * @return a sub-stream, seeked to the correct local offset w.r.t. the global offset.
+	 * @throws IOException
+	 */
+	protected abstract FSDataInputStream getSeekedStreamForOffset(long globalStreamOffset) throws IOException;
 }

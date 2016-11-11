@@ -30,15 +30,7 @@ import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Iterator;
 
-/**
- * The state checkpointed by a {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator}.
- * This state consists of any combination of those three:
- * <ul>
- *     <li>The state of the stream operator, if it implements the Checkpointed interface.</li>
- *     <li>The state of the user function, if it implements the Checkpointed interface.</li>
- *     <li>The key/value state of the operator, if it executes on a KeyedDataStream.</li>
- * </ul>
- */
+@Deprecated
 @Internal
 public class StreamTaskState implements Serializable, Closeable {
 
@@ -48,7 +40,7 @@ public class StreamTaskState implements Serializable, Closeable {
 
 	private StateHandle<Serializable> functionState;
 
-	private HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates;
+	private HashMap<String, KvStateSnapshot<?, ?, ?, ?>> kvStates;
 
 	// ------------------------------------------------------------------------
 
@@ -68,11 +60,11 @@ public class StreamTaskState implements Serializable, Closeable {
 		this.functionState = functionState;
 	}
 
-	public HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> getKvStates() {
+	public HashMap<String, KvStateSnapshot<?, ?, ?, ?>> getKvStates() {
 		return kvStates;
 	}
 
-	public void setKvStates(HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates) {
+	public void setKvStates(HashMap<String, KvStateSnapshot<?, ?, ?, ?>> kvStates) {
 		this.kvStates = kvStates;
 	}
 
@@ -97,7 +89,7 @@ public class StreamTaskState implements Serializable, Closeable {
 	public void discardState() throws Exception {
 		StateHandle<?> operatorState = this.operatorState;
 		StateHandle<?> functionState = this.functionState;
-		HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates = this.kvStates;
+		HashMap<String, KvStateSnapshot<?, ?, ?, ?>> kvStates = this.kvStates;
 
 		this.operatorState = null;
 		this.functionState = null;
@@ -112,9 +104,9 @@ public class StreamTaskState implements Serializable, Closeable {
 		if (kvStates != null) {
 			while (kvStates.size() > 0) {
 				try {
-					Iterator<KvStateSnapshot<?, ?, ?, ?, ?>> values = kvStates.values().iterator();
+					Iterator<KvStateSnapshot<?, ?, ?, ?>> values = kvStates.values().iterator();
 					while (values.hasNext()) {
-						KvStateSnapshot<?, ?, ?, ?, ?> s = values.next();
+						KvStateSnapshot<?, ?, ?, ?> s = values.next();
 						s.discardState();
 						values.remove();
 					}
@@ -130,7 +122,7 @@ public class StreamTaskState implements Serializable, Closeable {
 	public void close() throws IOException {
 		StateHandle<?> operatorState = this.operatorState;
 		StateHandle<?> functionState = this.functionState;
-		HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates = this.kvStates;
+		HashMap<String, KvStateSnapshot<?, ?, ?, ?>> kvStates = this.kvStates;
 
 		this.operatorState = null;
 		this.functionState = null;
@@ -159,9 +151,9 @@ public class StreamTaskState implements Serializable, Closeable {
 		if (kvStates != null) {
 			while (kvStates.size() > 0) {
 				try {
-					Iterator<KvStateSnapshot<?, ?, ?, ?, ?>> values = kvStates.values().iterator();
+					Iterator<KvStateSnapshot<?, ?, ?, ?>> values = kvStates.values().iterator();
 					while (values.hasNext()) {
-						KvStateSnapshot<?, ?, ?, ?, ?> s = values.next();
+						KvStateSnapshot<?, ?, ?, ?> s = values.next();
 						try {
 							s.close();
 						} catch (Throwable t) {

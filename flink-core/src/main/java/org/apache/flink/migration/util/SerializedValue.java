@@ -18,6 +18,8 @@
 
 package org.apache.flink.migration.util;
 
+import org.apache.flink.util.InstantiationUtil;
+
 import java.io.IOException;
 import java.util.Arrays;
 
@@ -33,6 +35,7 @@ import java.util.Arrays;
  *
  * @param <T> The type of the value held.
  */
+@Deprecated
 public class SerializedValue<T> implements java.io.Serializable {
 
 	private static final long serialVersionUID = -3564011643393683761L;
@@ -45,7 +48,7 @@ public class SerializedValue<T> implements java.io.Serializable {
 	}
 
 	public SerializedValue(T value) throws IOException {
-		this.serializedData = value == null ? null : MigrationInstantiationUtil.serializeObject(value);
+		this.serializedData = value == null ? null : InstantiationUtil.serializeObject(value);
 	}
 
 	@SuppressWarnings("unchecked")
