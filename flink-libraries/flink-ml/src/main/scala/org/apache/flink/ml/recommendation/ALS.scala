@@ -18,7 +18,6 @@
 
 package org.apache.flink.ml.recommendation
 
-import java.lang.Iterable
 import java.{util, lang}
 
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
@@ -30,7 +29,7 @@ import org.apache.flink.ml.pipeline.{FitOperation, PredictDataSetOperation, Pred
 import org.apache.flink.types.Value
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.{CoGroupFunction, GroupReduceFunction,
-  MapPartitionFunction, RichCoGroupFunction, Partitioner => FlinkPartitioner}
+  RichCoGroupFunction, Partitioner => FlinkPartitioner}
 
 import com.github.fommil.netlib.BLAS.{ getInstance => blas }
 import com.github.fommil.netlib.LAPACK.{ getInstance => lapack }
