@@ -208,7 +208,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 	private class SplitReader<OT> extends Thread {
 
-		private volatile boolean isClosed;
+		private volatile boolean shouldClose;
 
 		private volatile boolean isRunning;
 
@@ -235,7 +235,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 			this.readerContext = checkNotNull(readerContext, "Unspecified Reader Context.");
 			this.checkpointLock = checkNotNull(checkpointLock, "Unspecified checkpoint lock.");
 
-			this.isClosed = false;
+			this.shouldClose = false;
 			this.isRunning = true;
 
 			this.pendingSplits = new PriorityQueue<>();
@@ -276,10 +276,10 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 							//   2) if not wait 50 ms and try again to fetch a new split to read
 
 							if (currentSplit == null) {
-								if (!this.isClosed) {
-									checkpointLock.wait(50);
-								} else {
+								if (this.shouldClose) {
 									isRunning = false;
+								} else {
+									checkpointLock.wait(50);
 								}
 								continue;
 							}
@@ -301,7 +301,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 						this.isSplitOpen = true;
 					}
 
-					LOG.info("Reading split: " + currentSplit);
+					LOG.debug("Reading split: " + currentSplit);
 
 					try {
 						OT nextElement = serializer.createInstance();
@@ -333,7 +333,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 			} finally {
 				synchronized (checkpointLock) {
-					LOG.info("Reader terminated, and exiting...");
+					LOG.debug("Reader terminated, and exiting...");
 
 					try {
 						this.format.closeInputFormat();
@@ -369,7 +369,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 		}
 
 		public void close() {
-			this.isClosed = true;
+			this.shouldClose = true;
 		}
 	}
 
@@ -383,7 +383,6 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 			"The operator state has not been properly initialized.");
 
 		int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
-		LOG.info("Checkpointing state for the ContinuousFileReaderOperator (taskIdx={}).", subtaskIdx);
 
 		this.checkpointedState.clear();
 		List<TimestampedFileInputSplit> readerState = this.reader.getReaderState();
