@@ -23,8 +23,8 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.TimeDomain;
-import org.apache.flink.streaming.api.functions.co.RichTimelyCoFlatMapFunction;
-import org.apache.flink.streaming.api.functions.co.TimelyCoFlatMapFunction;
+import org.apache.flink.streaming.api.functions.co.RichCoProcessFunction;
+import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
@@ -40,15 +40,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests {@link CoStreamTimelyFlatMap}.
+ * Tests {@link CoProcessOperator}.
  */
-public class TimelyCoFlatMapTest extends TestLogger {
+public class CoProcessOperatorTest extends TestLogger {
 
 	@Test
 	public void testTimestampAndWatermarkQuerying() throws Exception {
 
-		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
-				new CoStreamTimelyFlatMap<>(new WatermarkQueryingFlatMapFunction());
+		CoProcessOperator<String, Integer, String, String> operator =
+				new CoProcessOperator<>(new WatermarkQueryingProcessFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -83,8 +83,8 @@ public class TimelyCoFlatMapTest extends TestLogger {
 	@Test
 	public void testTimestampAndProcessingTimeQuerying() throws Exception {
 
-		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
-				new CoStreamTimelyFlatMap<>(new ProcessingTimeQueryingFlatMapFunction());
+		CoProcessOperator<String, Integer, String, String> operator =
+				new CoProcessOperator<>(new ProcessingTimeQueryingProcessFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -115,8 +115,8 @@ public class TimelyCoFlatMapTest extends TestLogger {
 	@Test
 	public void testEventTimeTimers() throws Exception {
 
-		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
-				new CoStreamTimelyFlatMap<>(new EventTimeTriggeringFlatMapFunction());
+		CoProcessOperator<String, Integer, String, String> operator =
+				new CoProcessOperator<>(new EventTimeTriggeringProcessFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -154,8 +154,8 @@ public class TimelyCoFlatMapTest extends TestLogger {
 	@Test
 	public void testProcessingTimeTimers() throws Exception {
 
-		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
-				new CoStreamTimelyFlatMap<>(new ProcessingTimeTriggeringFlatMapFunction());
+		CoProcessOperator<String, Integer, String, String> operator =
+				new CoProcessOperator<>(new ProcessingTimeTriggeringProcessFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -191,8 +191,8 @@ public class TimelyCoFlatMapTest extends TestLogger {
 	@Test
 	public void testEventTimeTimerWithState() throws Exception {
 
-		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
-				new CoStreamTimelyFlatMap<>(new EventTimeTriggeringStatefulFlatMapFunction());
+		CoProcessOperator<String, Integer, String, String> operator =
+				new CoProcessOperator<>(new EventTimeTriggeringStatefulProcessFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -240,8 +240,8 @@ public class TimelyCoFlatMapTest extends TestLogger {
 	@Test
 	public void testProcessingTimeTimerWithState() throws Exception {
 
-		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
-				new CoStreamTimelyFlatMap<>(new ProcessingTimeTriggeringStatefulFlatMapFunction());
+		CoProcessOperator<String, Integer, String, String> operator =
+				new CoProcessOperator<>(new ProcessingTimeTriggeringStatefulProcessFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -277,8 +277,8 @@ public class TimelyCoFlatMapTest extends TestLogger {
 	@Test
 	public void testSnapshotAndRestore() throws Exception {
 
-		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
-				new CoStreamTimelyFlatMap<>(new BothTriggeringFlatMapFunction());
+		CoProcessOperator<String, Integer, String, String> operator =
+				new CoProcessOperator<>(new BothTriggeringProcessFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -298,7 +298,7 @@ public class TimelyCoFlatMapTest extends TestLogger {
 
 		testHarness.close();
 
-		operator = new CoStreamTimelyFlatMap<>(new BothTriggeringFlatMapFunction());
+		operator = new CoProcessOperator<>(new BothTriggeringProcessFunction());
 
 		testHarness = new KeyedTwoInputStreamOperatorTestHarness<>(
 				operator,
@@ -344,17 +344,17 @@ public class TimelyCoFlatMapTest extends TestLogger {
 		}
 	}
 
-	private static class WatermarkQueryingFlatMapFunction implements TimelyCoFlatMapFunction<Integer, String, String> {
+	private static class WatermarkQueryingProcessFunction implements CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap1(Integer value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect(value + "WM:" + ctx.timerService().currentWatermark() + " TS:" + ctx.timestamp());
 		}
 
 		@Override
-		public void flatMap2(String value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement2(String value, Context ctx, Collector<String> out) throws Exception {
 			out.collect(value + "WM:" + ctx.timerService().currentWatermark() + " TS:" + ctx.timestamp());
 		}
 
@@ -366,18 +366,18 @@ public class TimelyCoFlatMapTest extends TestLogger {
 		}
 	}
 
-	private static class EventTimeTriggeringFlatMapFunction implements TimelyCoFlatMapFunction<Integer, String, String> {
+	private static class EventTimeTriggeringProcessFunction implements CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap1(Integer value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT1:" + value);
 			ctx.timerService().registerEventTimeTimer(5);
 		}
 
 		@Override
-		public void flatMap2(String value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement2(String value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT2:" + value);
 			ctx.timerService().registerEventTimeTimer(6);
 		}
@@ -393,7 +393,7 @@ public class TimelyCoFlatMapTest extends TestLogger {
 		}
 	}
 
-	private static class EventTimeTriggeringStatefulFlatMapFunction extends RichTimelyCoFlatMapFunction<Integer, String, String> {
+	private static class EventTimeTriggeringStatefulProcessFunction extends RichCoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -401,14 +401,14 @@ public class TimelyCoFlatMapTest extends TestLogger {
 				new ValueStateDescriptor<>("seen-element", StringSerializer.INSTANCE, null);
 
 		@Override
-		public void flatMap1(Integer value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT1:" + value);
 			getRuntimeContext().getState(state).update("" + value);
 			ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
 		}
 
 		@Override
-		public void flatMap2(String value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement2(String value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT2:" + value);
 			getRuntimeContext().getState(state).update(value);
 			ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
@@ -425,18 +425,18 @@ public class TimelyCoFlatMapTest extends TestLogger {
 		}
 	}
 
-	private static class ProcessingTimeTriggeringFlatMapFunction implements TimelyCoFlatMapFunction<Integer, String, String> {
+	private static class ProcessingTimeTriggeringProcessFunction implements CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap1(Integer value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT1:" + value);
 			ctx.timerService().registerProcessingTimeTimer(5);
 		}
 
 		@Override
-		public void flatMap2(String value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement2(String value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT2:" + value);
 			ctx.timerService().registerProcessingTimeTimer(6);
 		}
@@ -452,17 +452,17 @@ public class TimelyCoFlatMapTest extends TestLogger {
 		}
 	}
 
-	private static class ProcessingTimeQueryingFlatMapFunction implements TimelyCoFlatMapFunction<Integer, String, String> {
+	private static class ProcessingTimeQueryingProcessFunction implements CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap1(Integer value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect(value + "PT:" + ctx.timerService().currentProcessingTime() + " TS:" + ctx.timestamp());
 		}
 
 		@Override
-		public void flatMap2(String value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement2(String value, Context ctx, Collector<String> out) throws Exception {
 			out.collect(value + "PT:" + ctx.timerService().currentProcessingTime() + " TS:" + ctx.timestamp());
 		}
 
@@ -474,7 +474,7 @@ public class TimelyCoFlatMapTest extends TestLogger {
 		}
 	}
 
-	private static class ProcessingTimeTriggeringStatefulFlatMapFunction extends RichTimelyCoFlatMapFunction<Integer, String, String> {
+	private static class ProcessingTimeTriggeringStatefulProcessFunction extends RichCoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -482,14 +482,14 @@ public class TimelyCoFlatMapTest extends TestLogger {
 				new ValueStateDescriptor<>("seen-element", StringSerializer.INSTANCE, null);
 
 		@Override
-		public void flatMap1(Integer value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT1:" + value);
 			getRuntimeContext().getState(state).update("" + value);
 			ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5);
 		}
 
 		@Override
-		public void flatMap2(String value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement2(String value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT2:" + value);
 			getRuntimeContext().getState(state).update(value);
 			ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5);
@@ -506,17 +506,17 @@ public class TimelyCoFlatMapTest extends TestLogger {
 		}
 	}
 
-	private static class BothTriggeringFlatMapFunction implements TimelyCoFlatMapFunction<Integer, String, String> {
+	private static class BothTriggeringProcessFunction implements CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap1(Integer value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			ctx.timerService().registerEventTimeTimer(6);
 		}
 
 		@Override
-		public void flatMap2(String value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement2(String value, Context ctx, Collector<String> out) throws Exception {
 			ctx.timerService().registerProcessingTimeTimer(5);
 		}
 

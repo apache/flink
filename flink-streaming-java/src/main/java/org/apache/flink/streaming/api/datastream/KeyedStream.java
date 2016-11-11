@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -32,7 +33,8 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.RichProcessFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
@@ -42,7 +44,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
-import org.apache.flink.streaming.api.operators.StreamTimelyFlatMap;
+import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
@@ -173,67 +175,70 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	/**
-	 * Applies the given {@link TimelyFlatMapFunction} on the input stream, thereby
+	 * Applies the given {@link ProcessFunction} on the input stream, thereby
 	 * creating a transformed output stream.
 	 *
-	 * <p>The function will be called for every element in the stream and can produce
-	 * zero or more output. The function can also query the time and set timers. When
-	 * reacting to the firing of set timers the function can emit yet more elements.
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
+	 * function, this function can also query the time and set timers. When reacting to the firing
+	 * of set timers the function can directly emit elements and/or register yet more timers.
 	 *
-	 * <p>A {@link org.apache.flink.streaming.api.functions.RichTimelyFlatMapFunction}
+	 * <p>A {@link RichProcessFunction}
 	 * can be used to gain access to features provided by the
 	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 *
-	 * @param flatMapper The {@link TimelyFlatMapFunction} that is called for each element
+	 * @param processFunction The {@link ProcessFunction} that is called for each element
 	 *                      in the stream.
 	 *
-	 * @param <R> The of elements emitted by the {@code TimelyFlatMapFunction}.
+	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
 	 *
 	 * @return The transformed {@link DataStream}.
 	 */
-	public <R> SingleOutputStreamOperator<R> flatMap(TimelyFlatMapFunction<T, R> flatMapper) {
+	@PublicEvolving
+	public <R> SingleOutputStreamOperator<R> process(ProcessFunction<T, R> processFunction) {
 
 		TypeInformation<R> outType = TypeExtractor.getUnaryOperatorReturnType(
-				flatMapper,
-				TimelyFlatMapFunction.class,
+				processFunction,
+				ProcessFunction.class,
 				false,
 				true,
 				getType(),
 				Utils.getCallLocationName(),
 				true);
 
-		return flatMap(flatMapper, outType);
+		return process(processFunction, outType);
 	}
 
 	/**
-	 * Applies the given {@link TimelyFlatMapFunction} on the input stream, thereby
+	 * Applies the given {@link ProcessFunction} on the input stream, thereby
 	 * creating a transformed output stream.
 	 *
-	 * <p>The function will be called for every element in the stream and can produce
-	 * zero or more output. The function can also query the time and set timers. When
-	 * reacting to the firing of set timers the function can emit yet more elements.
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
+	 * function, this function can also query the time and set timers. When reacting to the firing
+	 * of set timers the function can directly emit elements and/or register yet more timers.
 	 *
-	 * <p>A {@link org.apache.flink.streaming.api.functions.RichTimelyFlatMapFunction}
+	 * <p>A {@link RichProcessFunction}
 	 * can be used to gain access to features provided by the
 	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 *
-	 * @param flatMapper The {@link TimelyFlatMapFunction} that is called for each element
+	 * @param processFunction The {@link ProcessFunction} that is called for each element
 	 *                      in the stream.
 	 * @param outputType {@link TypeInformation} for the result type of the function.
 	 *
-	 * @param <R> The of elements emitted by the {@code TimelyFlatMapFunction}.
+	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
 	 *
 	 * @return The transformed {@link DataStream}.
 	 */
 	@Internal
-	public <R> SingleOutputStreamOperator<R> flatMap(
-			TimelyFlatMapFunction<T, R> flatMapper,
+	public <R> SingleOutputStreamOperator<R> process(
+			ProcessFunction<T, R> processFunction,
 			TypeInformation<R> outputType) {
 
-		StreamTimelyFlatMap<KEY, T, R> operator =
-				new StreamTimelyFlatMap<>(clean(flatMapper));
+		ProcessOperator<KEY, T, R> operator =
+				new ProcessOperator<>(clean(processFunction));
 
-		return transform("Flat Map", outputType, operator);
+		return transform("Process", outputType, operator);
 	}
 
 
