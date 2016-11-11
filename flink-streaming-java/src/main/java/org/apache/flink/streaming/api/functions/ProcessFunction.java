@@ -24,32 +24,24 @@ import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.util.Collector;
 
-import java.io.Serializable;
-
 /**
- * Base interface for timely flatMap functions. FlatMap functions take elements and transform them,
- * into zero, one, or more elements. Typical applications can be splitting elements, or unnesting lists
- * and arrays.
+ * A function that processes elements of a stream.
  *
- * <p>A {@code TimelyFlatMapFunction} can, in addition to the functionality of a normal
- * {@link org.apache.flink.api.common.functions.FlatMapFunction}, also set timers and react
- * to them firing.
- *
- * <pre>{@code
- * DataStream<X> input = ...;
- *
- * DataStream<Y> result = input.flatMap(new MyTimelyFlatMapFunction());
- * }</pre>
+ * <p>The function will be called for every element in the input stream and can produce
+ * zero or more output. The function can also query the time and set timers. When
+ * reacting to the firing of set timers the function can emit yet more elements.
  *
  * @param <I> Type of the input elements.
- * @param <O> Type of the returned elements.
+ * @param <O> Type of the output elements.
  */
 @PublicEvolving
-public interface TimelyFlatMapFunction<I, O> extends Function, Serializable {
+public interface ProcessFunction<I, O> extends Function {
 
 	/**
-	 * The core method of the {@code TimelyFlatMapFunction}. Takes an element from the input data set and transforms
-	 * it into zero, one, or more elements.
+	 * Process one element from the input stream.
+	 *
+	 * <p>This function can output zero or more elements using the {@link Collector} parameter
+	 * and also update internal state or set timers using the {@link Context} parameter.
 	 *
 	 * @param value The input value.
 	 * @param ctx A {@link Context} that allows querying the timestamp of the element and getting
@@ -60,7 +52,7 @@ public interface TimelyFlatMapFunction<I, O> extends Function, Serializable {
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
 	 *                   to fail and may trigger recovery.
 	 */
-	void flatMap(I value, Context ctx, Collector<O> out) throws Exception;
+	void processElement(I value, Context ctx, Collector<O> out) throws Exception;
 
 	/**
 	 * Called when a timer set using {@link TimerService} fires.
@@ -78,7 +70,7 @@ public interface TimelyFlatMapFunction<I, O> extends Function, Serializable {
 	void onTimer(long timestamp, OnTimerContext ctx, Collector<O> out) throws Exception ;
 
 	/**
-	 * Information available in an invocation of {@link #flatMap(Object, Context, Collector)}
+	 * Information available in an invocation of {@link #processElement(Object, Context, Collector)}
 	 * or {@link #onTimer(long, OnTimerContext, Collector)}.
 	 */
 	interface Context {

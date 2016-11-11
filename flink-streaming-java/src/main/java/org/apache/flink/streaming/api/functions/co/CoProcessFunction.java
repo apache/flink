@@ -22,21 +22,17 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
-import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
 /**
- * A {@code TimelyCoFlatMapFunction} implements a flat-map transformation over two
- * connected streams.
- * 
- * <p>The same instance of the transformation function is used to transform
- * both of the connected streams. That way, the stream transformations can
- * share state.
+ * A function that processes elements of two streams.
  *
- * <p>A {@code TimelyCoFlatMapFunction} can, in addition to the functionality of a normal
- * {@link CoFlatMapFunction}, also set timers and react to them firing.
+ * <p>The function will be called for every element in the input streams and can produce
+ * zero or more output. The function can also query the time and set timers. When
+ * reacting to the firing of set timers the function can emit yet more elements.
  * 
  * <p>An example for the use of connected streams would be to apply rules that change over time
  * onto elements of a stream. One of the connected streams has the rules, the other stream the
@@ -50,7 +46,7 @@ import java.io.Serializable;
  * @param <OUT> Output type.
  */
 @PublicEvolving
-public interface TimelyCoFlatMapFunction<IN1, IN2, OUT> extends Function, Serializable {
+public interface CoProcessFunction<IN1, IN2, OUT> extends Function, Serializable {
 
 	/**
 	 * This method is called for each element in the first of the connected streams.
@@ -64,7 +60,7 @@ public interface TimelyCoFlatMapFunction<IN1, IN2, OUT> extends Function, Serial
 	 * @throws Exception The function may throw exceptions which cause the streaming program
 	 *                   to fail and go into recovery.
 	 */
-	void flatMap1(IN1 value, Context ctx, Collector<OUT> out) throws Exception;
+	void processElement1(IN1 value, Context ctx, Collector<OUT> out) throws Exception;
 
 	/**
 	 * This method is called for each element in the second of the connected streams.
@@ -78,7 +74,7 @@ public interface TimelyCoFlatMapFunction<IN1, IN2, OUT> extends Function, Serial
 	 * @throws Exception The function may throw exceptions which cause the streaming program
 	 *                   to fail and go into recovery.
 	 */
-	void flatMap2(IN2 value, Context ctx, Collector<OUT> out) throws Exception;
+	void processElement2(IN2 value, Context ctx, Collector<OUT> out) throws Exception;
 
 	/**
 	 * Called when a timer set using {@link TimerService} fires.
@@ -96,8 +92,8 @@ public interface TimelyCoFlatMapFunction<IN1, IN2, OUT> extends Function, Serial
 	void onTimer(long timestamp, OnTimerContext ctx, Collector<OUT> out) throws Exception ;
 
 	/**
-	 * Information available in an invocation of {@link #flatMap1(Object, Context, Collector)}/
-	 * {@link #flatMap2(Object, Context, Collector)}
+	 * Information available in an invocation of {@link #processElement1(Object, Context, Collector)}/
+	 * {@link #processElement2(Object, Context, Collector)}
 	 * or {@link #onTimer(long, OnTimerContext, Collector)}.
 	 */
 	interface Context {
@@ -119,7 +115,7 @@ public interface TimelyCoFlatMapFunction<IN1, IN2, OUT> extends Function, Serial
 	/**
 	 * Information available in an invocation of {@link #onTimer(long, OnTimerContext, Collector)}.
 	 */
-	interface OnTimerContext extends TimelyFlatMapFunction.Context {
+	interface OnTimerContext extends ProcessFunction.Context {
 		/**
 		 * The {@link TimeDomain} of the firing timer.
 		 */

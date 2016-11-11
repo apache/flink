@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators.co;
+package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -23,22 +23,16 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.SimpleTimerService;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
-import org.apache.flink.streaming.api.functions.co.TimelyCoFlatMapFunction;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.InternalTimer;
-import org.apache.flink.streaming.api.operators.InternalTimerService;
-import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 @Internal
-public class CoStreamTimelyFlatMap<K, IN1, IN2, OUT>
-		extends AbstractUdfStreamOperator<OUT, TimelyCoFlatMapFunction<IN1, IN2, OUT>>
-		implements TwoInputStreamOperator<IN1, IN2, OUT>, Triggerable<K, VoidNamespace> {
+public class ProcessOperator<K, IN, OUT>
+		extends AbstractUdfStreamOperator<OUT, ProcessFunction<IN, OUT>>
+		implements OneInputStreamOperator<IN, OUT>, Triggerable<K, VoidNamespace> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -46,12 +40,14 @@ public class CoStreamTimelyFlatMap<K, IN1, IN2, OUT>
 
 	private transient TimerService timerService;
 
-	private transient ContextImpl context;
+	private transient ContextImpl<IN> context;
 
 	private transient OnTimerContextImpl onTimerContext;
 
-	public CoStreamTimelyFlatMap(TimelyCoFlatMapFunction<IN1, IN2, OUT> flatMapper) {
+	public ProcessOperator(ProcessFunction<IN, OUT> flatMapper) {
 		super(flatMapper);
+
+		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
 	@Override
@@ -64,24 +60,8 @@ public class CoStreamTimelyFlatMap<K, IN1, IN2, OUT>
 
 		this.timerService = new SimpleTimerService(internalTimerService);
 
-		context = new ContextImpl(timerService);
+		context = new ContextImpl<>(timerService);
 		onTimerContext = new OnTimerContextImpl(timerService);
-	}
-
-	@Override
-	public void processElement1(StreamRecord<IN1> element) throws Exception {
-		collector.setTimestamp(element);
-		context.element = element;
-		userFunction.flatMap1(element.getValue(), context, collector);
-		context.element = null;
-	}
-
-	@Override
-	public void processElement2(StreamRecord<IN2> element) throws Exception {
-		collector.setTimestamp(element);
-		context.element = element;
-		userFunction.flatMap2(element.getValue(), context, collector);
-		context.element = null;
 	}
 
 	@Override
@@ -104,15 +84,19 @@ public class CoStreamTimelyFlatMap<K, IN1, IN2, OUT>
 		onTimerContext.timer = null;
 	}
 
-	protected TimestampedCollector<OUT> getCollector() {
-		return collector;
+	@Override
+	public void processElement(StreamRecord<IN> element) throws Exception {
+		collector.setTimestamp(element);
+		context.element = element;
+		userFunction.processElement(element.getValue(), context, collector);
+		context.element = null;
 	}
 
-	private static class ContextImpl implements TimelyCoFlatMapFunction.Context {
+	private static class ContextImpl<T> implements ProcessFunction.Context {
 
 		private final TimerService timerService;
 
-		private StreamRecord<?> element;
+		private StreamRecord<T> element;
 
 		ContextImpl(TimerService timerService) {
 			this.timerService = checkNotNull(timerService);
@@ -135,7 +119,7 @@ public class CoStreamTimelyFlatMap<K, IN1, IN2, OUT>
 		}
 	}
 
-	private static class OnTimerContextImpl implements TimelyCoFlatMapFunction.OnTimerContext {
+	private static class OnTimerContextImpl implements ProcessFunction.OnTimerContext{
 
 		private final TimerService timerService;
 

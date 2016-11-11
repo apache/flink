@@ -16,26 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.co;
+package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.RichFunction;
 
 /**
- * Rich variant of the {@link TimelyCoFlatMapFunction}. As a {@link RichFunction}, it gives
- * access to the {@link org.apache.flink.api.common.functions.RuntimeContext} and provides
- * setup and teardown methods: {@link RichFunction#open(org.apache.flink.configuration.Configuration)}
- * and {@link RichFunction#close()}.
+ * Rich variant of the {@link ProcessFunction}. As a
+ * {@link org.apache.flink.api.common.functions.RichFunction}, it gives access to the
+ * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
+ * {@link org.apache.flink.api.common.functions.RichFunction#open(org.apache.flink.configuration.Configuration)}
+ * and {@link org.apache.flink.api.common.functions.RichFunction#close()}.
  *
- * @param <IN1> Type of the first input.
- * @param <IN2> Type of the second input.
- * @param <OUT> Type of the returned elements.
+ * @param <I> Type of the input elements.
+ * @param <O> Type of the returned elements.
  */
 @PublicEvolving
-public abstract class RichTimelyCoFlatMapFunction<IN1, IN2, OUT>
+public abstract class RichProcessFunction<I, O>
 		extends AbstractRichFunction
-		implements TimelyCoFlatMapFunction<IN1, IN2, OUT> {
+		implements ProcessFunction<I, O> {
 
 	private static final long serialVersionUID = 1L;
 }
