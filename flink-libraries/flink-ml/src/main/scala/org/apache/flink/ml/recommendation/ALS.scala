@@ -784,36 +784,20 @@ object ALS {
     val triangleSize = factors * (factors - 1) / 2 + factors
 
     type MtxBlock = (Int, Array[Array[Double]])
+
     // construct XtX for all blocks
     val xtx = x
-      .mapPartition(new MapPartitionFunction[MtxBlock, Array[Double]]() {
-        var xtxForBlock: Array[Double] = null
+      .mapPartition(blocks => {
+        val xtxForBlock = Array.fill(triangleSize)(0.0)
 
-        override def mapPartition(blocks: Iterable[(Int, Array[Array[Double]])],
-                                  out: Collector[Array[Double]]): Unit = {
-
-          if (xtxForBlock == null) {
-            // creating the matrix if not yet created
-            xtxForBlock = Array.fill(triangleSize)(0.0)
-          } else {
-            // erasing the matrix
-            var i = 0
-            while (i < xtxForBlock.length) {
-              xtxForBlock(i) = 0
-              i = i + 1
-            }
-          }
-
-          val it = blocks.iterator()
-          while (it.hasNext) {
-            val xBlock = it.next()._2
-            xBlock.foreach(row => {
-              blas.dspr("U", row.length, 1, row, 1, xtxForBlock)
-            })
-          }
-
-          out.collect(xtxForBlock)
+        while (blocks.hasNext) {
+          val xBlock = blocks.next()._2
+          xBlock.foreach(row => {
+            blas.dspr("U", row.length, 1, row, 1, xtxForBlock)
+          })
         }
+
+        Some(xtxForBlock)
       })
       .reduce((bxtx1: Array[Double], bxtx2: Array[Double]) => {
         // aggregating the XtXs computed for blocks
