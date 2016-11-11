@@ -95,12 +95,15 @@ public class AsyncCollectorBufferTest {
 
 	@Test
 	public void testAdd() throws Exception {
+		buffer =
+				new AsyncCollectorBuffer<>(3, AsyncDataStream.OutputMode.UNORDERED, output, collector, lock, operator);
+
 		buffer.addWatermark(new Watermark(0l));
 		buffer.addLatencyMarker(new LatencyMarker(111L, 1, 1));
 		Assert.assertEquals(buffer.getQueue().size(), 2);
 
 		Iterator<Map.Entry<AsyncCollector<Integer, Integer>, StreamElement>> iterator =
-			buffer.getQueue().entrySet().iterator();
+				buffer.getQueue().entrySet().iterator();
 		Watermark watermark = iterator.next().getValue().asWatermark();
 		Assert.assertEquals(watermark.getTimestamp(), 0l);
 
@@ -122,8 +125,9 @@ public class AsyncCollectorBufferTest {
 		@Override
 		public void collect(StreamRecord<Integer> record) {
 			outputs.add(record.getValue().longValue());
-			if (record.hasTimestamp())
-				sb.append(record.getTimestamp()+",");
+			if (record.hasTimestamp()) {
+				sb.append(record.getTimestamp() + ",");
+			}
 		}
 
 		@Override
@@ -142,8 +146,9 @@ public class AsyncCollectorBufferTest {
 
 		public String getResult() {
 			StringBuilder sb = new StringBuilder();
-			for (Long i : outputs)
+			for (Long i : outputs) {
 				sb.append(i).append(",");
+			}
 			return sb.toString();
 		}
 
@@ -159,13 +164,12 @@ public class AsyncCollectorBufferTest {
 	private void work(final boolean throwExcept) throws Exception {
 		final int ASYNC_COLLECTOR_NUM = 7;
 
-		int[] orderedSeq = new int[] {0, 1, 2, 3, 4, 5, 6};
-		int[] sleepTimeArr = new int[] {5, 7, 3, 0, 1, 9, 9};
+		final int[] orderedSeq = new int[] {0, 1, 2, 3, 4, 5, 6};
+		final int[] sleepTimeArr = new int[] {5, 7, 3, 0, 1, 9, 9};
 
 		ExecutorService service = Executors.newFixedThreadPool(10);
 
 		for (int idx = 0; idx < ASYNC_COLLECTOR_NUM; ++idx) {
-			System.out.println(idx);
 			int i = orderedSeq[idx];
 			final int sleepTS = sleepTimeArr[idx]*100;
 
@@ -222,9 +226,13 @@ public class AsyncCollectorBufferTest {
 	@Test
 	public void testOrderedBuffer() throws Exception {
 		buffer =
-			new AsyncCollectorBuffer<>(3, AsyncDataStream.OutputMode.ORDERED, output, collector, lock, operator);
+				new AsyncCollectorBuffer<>(3, AsyncDataStream.OutputMode.ORDERED, output, collector, lock, operator);
+		buffer.startEmitterThread();
 
 		work(false);
+
+		buffer.waitEmpty();
+		buffer.stopEmitterThread();
 
 		Assert.assertEquals(((FakedOutput)output).getResult(), "0,1,2,333,4,5,111,");
 		Assert.assertEquals(((FakedOutput)output).getTimestamp(), "0,1,4,16,25,");
@@ -233,8 +241,9 @@ public class AsyncCollectorBufferTest {
 	private String sort(String s) {
 		String[] arr = s.split(",");
 		int[] ints = new int[arr.length];
-		for (int i = 0; i < arr.length; ++i)
+		for (int i = 0; i < arr.length; ++i) {
 			ints[i] = Integer.valueOf(arr[i]);
+		}
 		Arrays.sort(ints);
 		return Arrays.toString(ints);
 	}
@@ -242,9 +251,13 @@ public class AsyncCollectorBufferTest {
 	@Test
 	public void testUnorderedBuffer() throws Exception {
 		buffer =
-			new AsyncCollectorBuffer<>(3, AsyncDataStream.OutputMode.UNORDERED, output, collector, lock, operator);
+				new AsyncCollectorBuffer<>(3, AsyncDataStream.OutputMode.UNORDERED, output, collector, lock, operator);
+		buffer.startEmitterThread();
 
 		work(false);
+
+		buffer.waitEmpty();
+		buffer.stopEmitterThread();
 
 		Assert.assertEquals(((FakedOutput)output).getOutputs().toArray()[3], 333L);
 		Assert.assertEquals(sort(((FakedOutput)output).getResult()), "[0, 1, 2, 4, 5, 111, 333]");
@@ -254,8 +267,11 @@ public class AsyncCollectorBufferTest {
 	@Test(expected = IOException.class)
 	public void testBufferWithException() throws Exception {
 		buffer =
-			new AsyncCollectorBuffer<>(3, AsyncDataStream.OutputMode.UNORDERED, output, collector, lock, operator);
+				new AsyncCollectorBuffer<>(3, AsyncDataStream.OutputMode.UNORDERED, output, collector, lock, operator);
+		buffer.startEmitterThread();
 
 		work(true);
+
+		buffer.waitEmpty();
 	}
 }

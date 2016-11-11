@@ -19,13 +19,12 @@
 package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -42,10 +41,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 
 @Internal
 public class AsyncWaitOperator<IN, OUT>
@@ -56,6 +52,8 @@ public class AsyncWaitOperator<IN, OUT>
 
 	private static final long serialVersionUID = 1L;
 
+	private final static String STATE_NAME = "_async_wait_operator_state_";
+
 	/**
 	 * {@link TypeSerializer} for inputs while making snapshots.
 	 */
@@ -64,7 +62,7 @@ public class AsyncWaitOperator<IN, OUT>
 	/**
 	 * input stream elements from the state
 	 */
-	private transient Collection<StreamElement> recoveredStreamElements;
+	private transient ListState<StreamElement> recoveredStreamElements;
 
 	private transient TimestampedCollector<OUT> collector;
 
@@ -77,6 +75,18 @@ public class AsyncWaitOperator<IN, OUT>
 
 	private int bufferSize = DEFAULT_BUFFER_SIZE;
 	private AsyncDataStream.OutputMode mode;
+
+	/**
+	 * For test only. Normally this flag is true, indicating that the Emitter Thread
+	 * in the buffer will work.
+	 */
+	private boolean emitFlag = true;
+
+	/**
+	 * Test serializer used in unit test
+	 */
+	private StreamElementSerializer<IN> inStreamElementSerializerForTest;
+
 
 	public AsyncWaitOperator(AsyncFunction<IN, OUT> asyncFunction) {
 		super(asyncFunction);
@@ -92,17 +102,33 @@ public class AsyncWaitOperator<IN, OUT>
 		this.mode = mode;
 	}
 
+	@VisibleForTesting
+	public void setEmitFlag(boolean emitFlag) {
+		this.emitFlag = emitFlag;
+	}
+
+	@VisibleForTesting
+	public void setInStreamElementSerializerForTest(StreamElementSerializer<IN> serializer) {
+		this.inStreamElementSerializerForTest = serializer;
+	}
+
 	@Override
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		super.setup(containingTask, config, output);
 
-		this.inStreamElementSerializer = new StreamElementSerializer(this.getOperatorConfig().getTypeSerializerIn1(getUserCodeClassloader()));
+		if (this.inStreamElementSerializerForTest != null) {
+			this.inStreamElementSerializer = this.inStreamElementSerializerForTest;
+		}
+		else {
+			this.inStreamElementSerializer = new StreamElementSerializer(this.getOperatorConfig().getTypeSerializerIn1(getUserCodeClassloader()));
+		}
 
 		this.collector = new TimestampedCollector<>(output);
 
 		this.checkpointLock = containingTask.getCheckpointLock();
 
 		this.buffer = new AsyncCollectorBuffer<>(bufferSize, mode, output, collector, this.checkpointLock, this);
+
 	}
 
 	@Override
@@ -111,7 +137,7 @@ public class AsyncWaitOperator<IN, OUT>
 
 		// process stream elements from state
 		if (this.recoveredStreamElements != null) {
-			for (StreamElement element : this.recoveredStreamElements) {
+			for (StreamElement element : this.recoveredStreamElements.get()) {
 				if (element.isRecord()) {
 					processElement(element.<IN>asRecord());
 				}
@@ -127,11 +153,17 @@ public class AsyncWaitOperator<IN, OUT>
 			}
 			this.recoveredStreamElements = null;
 		}
+
+
+		if (emitFlag) {
+			buffer.startEmitterThread();
+		}
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		AsyncCollector<IN, OUT> collector = buffer.addStreamRecord(element);
+
 		userFunction.asyncInvoke(element.getValue(), collector);
 	}
 
@@ -146,55 +178,47 @@ public class AsyncWaitOperator<IN, OUT>
 	}
 
 	@Override
-	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
-		Collection<StreamElement> elements = buffer.getStreamElementsInBuffer();
+	public void snapshotState(StateSnapshotContext context) throws Exception {
+		super.snapshotState(context);
 
-		serializeStreamElements(elements, out);
+		ListState<StreamElement> partitionableState =
+				getOperatorStateBackend().getOperatorState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
+		partitionableState.clear();
+
+		Collection<StreamElement> elements = buffer.getStreamElementsInBuffer();
+		for (StreamElement element : elements) {
+			partitionableState.add(element);
+		}
 	}
 
 	@Override
-	public void restoreState(FSDataInputStream in) throws Exception {
-		this.recoveredStreamElements = deserializeStreamElements(in);
+	public void initializeState(StateInitializationContext context) throws Exception {
+		recoveredStreamElements =
+				context.getManagedOperatorStateStore().getOperatorState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
+
 	}
 
 	@Override
 	public void close() throws Exception {
-		super.close();
+		// for test only, we do not have to wait until buffer is empty.
+		if (!emitFlag) {
+			return;
+		}
 
 		buffer.waitEmpty();
+		buffer.stopEmitterThread();
+
+		super.close();
 	}
 
 	@Override
 	public void dispose() throws Exception {
 		super.dispose();
+
+		buffer.stopEmitterThread();
 	}
 
 	public void sendLatencyMarker(LatencyMarker marker) throws Exception {
 		super.processLatencyMarker(marker);
-	}
-
-	private void serializeStreamElements(
-			Collection<StreamElement> input,
-			FSDataOutputStream stream) throws IOException {
-		DataOutputView outputView = new DataOutputViewStreamWrapper(stream);
-
-		outputView.writeInt(input.size());
-
-		for (StreamElement element : input) {
-			inStreamElementSerializer.serialize(element, outputView);
-		}
-	}
-
-	private List<StreamElement> deserializeStreamElements(FSDataInputStream stream) throws IOException {
-		DataInputView inputView = new DataInputViewStreamWrapper(stream);
-
-		int size = inputView.readInt();
-
-		List<StreamElement> ret = new ArrayList<>(size);
-		for (int i = 0; i < size; ++i) {
-			inStreamElementSerializer.deserialize(inputView);
-		}
-
-		return ret;
 	}
 }

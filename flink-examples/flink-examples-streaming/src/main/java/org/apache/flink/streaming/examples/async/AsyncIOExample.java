@@ -102,6 +102,8 @@ public class AsyncIOExample {
 		// obtain execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
+		printUsage();
+
 		// parse parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
 
@@ -124,8 +126,6 @@ public class AsyncIOExample {
 			+"\tWaiting mode="+mode+"\n"
 			+"\tParallelism for async wait operator="+taskNum+"\n"
 			+"\tEvent type="+timeType);
-
-		printUsage();
 
 		// setup state and checkpoint mode
 		env.setStateBackend(new FsStateBackend(statePath));

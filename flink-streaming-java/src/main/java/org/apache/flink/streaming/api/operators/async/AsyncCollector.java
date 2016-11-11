@@ -65,22 +65,23 @@ public class AsyncCollector<IN, OUT> {
 	 */
 	public void collect(List<OUT> result) {
 		this.result = result;
-		isDone = true;
+
 		buffer.markCollectorCompleted(this);
 	}
 
 	/**
 	 * Set error
+	 *
 	 * @param error A Throwable object.
 	 */
 	public void collect(Throwable error) {
 		this.error = error;
-		isDone = true;
+
 		buffer.markCollectorCompleted(this);
 	}
 
 	/**
-	 * Get result. Throw RuntimeException while encountering an error.
+	 * Get result. Throw IOException while encountering an error.
 	 *
 	 * @return A List of result.
 	 * @throws IOException IOException wrapping errors from user codes.
@@ -90,6 +91,10 @@ public class AsyncCollector<IN, OUT> {
 			throw new IOException(error);
 		}
 		return result;
+	}
+
+	protected void markDone() {
+		isDone = true;
 	}
 
 	public boolean isDone() {
