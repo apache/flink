@@ -126,7 +126,7 @@ object Recommendation {
     (2, 3, 0.9176106683061931)
   )
 
-  val Y = Array(
+  val X = Array(
     Array(1.0, 3.0, 1.0),
     Array(-3.0, 4.0, 1.0),
     Array(1.0, 2.0, -1.0),
@@ -138,7 +138,7 @@ object Recommendation {
   /**
     * Upper triangle representation by columns.
     */
-  val expectedUpperTriangleYtY = Array(
+  val expectedUpperTriangleXtX = Array(
     37.0,
     -10.0, 35.0,
     20.0, 5.0, 32.0

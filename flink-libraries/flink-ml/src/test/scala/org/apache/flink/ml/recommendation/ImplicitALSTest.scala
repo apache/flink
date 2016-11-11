@@ -34,13 +34,13 @@ class ImplicitALSTest
   behavior of "The modification of the alternating least squares (ALS) implementation" +
     "for implicit feedback datasets."
 
-  it should "properly compute Y^T * Y" in {
+  it should "properly compute X^T * X" in {
     import Recommendation._
 
     val rand = scala.util.Random
     val numBlocks = 3
     // randomly split matrix to blocks
-    val blocksY = Y
+    val blocksX = X
       // add a random block id to every row
       .map { row =>
         (rand.nextInt(numBlocks), row)
@@ -51,21 +51,21 @@ class ImplicitALSTest
       .map(b => (-1, b.map(_._2)))
       .toSeq
 
-    // use Flink to compute YtY
+    // use Flink to compute XtX
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val distribBlocksY = env.fromCollection(blocksY)
+    val distribBlocksX = env.fromCollection(blocksX)
 
-    val YtY = ALS
-      .computeXtX(distribBlocksY, implicitFactors)
+    val XtX = ALS
+      .computeXtX(distribBlocksX, implicitFactors)
       .collect().head
 
-    // check YtY size
-    YtY.length should be (implicitFactors * (implicitFactors - 1) / 2 + implicitFactors)
+    // check XtX size
+    XtX.length should be (implicitFactors * (implicitFactors - 1) / 2 + implicitFactors)
 
     // check result is as expected
-    expectedUpperTriangleYtY
-      .zip(YtY)
+    expectedUpperTriangleXtX
+      .zip(XtX)
       .foreach { case (expected, result) =>
         result should be (expected +- 0.1)
       }
