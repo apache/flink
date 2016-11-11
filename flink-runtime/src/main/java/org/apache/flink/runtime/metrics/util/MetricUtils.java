@@ -24,6 +24,9 @@ import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ClassLoadingMXBean;
 import java.lang.management.GarbageCollectorMXBean;
@@ -38,6 +41,8 @@ import java.util.List;
 public class MetricUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricUtils.class);
 	private static final String METRIC_GROUP_STATUS_NAME = "Status";
+	private static final String VM_SIZE = "VmSize";
+	private static final String VM_RSS = "VmRSS";
 
 	private MetricUtils() {
 	}
@@ -181,6 +186,19 @@ public class MetricUtils {
 				}
 			});
 		}
+
+		metrics.gauge(VM_SIZE, new Gauge<Long>() {
+			@Override
+			public Long getValue() {
+				return getProcessVmStat(VM_SIZE);
+			}
+		});
+		metrics.gauge(VM_RSS, new Gauge<Long>() {
+			@Override
+			public Long getValue() {
+				return getProcessVmStat(VM_RSS);
+			}
+		});
 	}
 
 	private static void instantiateThreadMetrics(MetricGroup metrics) {
@@ -245,5 +263,33 @@ public class MetricUtils {
 				}
 			});
 		}
+	}
+
+	private static long getProcessVmStat(String vmProperty) {
+		BufferedReader br = null;
+		String line;
+
+		try {
+			br = new BufferedReader(new FileReader("/proc/self/status"));
+			//read process status
+			while ((line = br.readLine()) != null) {
+				if (line.startsWith(vmProperty)) {
+					int beginIndex = line.indexOf(":") + 1;
+					int endIndex = line.indexOf("kB") - 1;
+					String value = line.substring(beginIndex, endIndex).trim();
+					return Long.parseLong(value);
+				}
+			}
+		} catch (IOException ignore) {
+		} finally {
+			try {
+				if (br != null) {
+					br.close();
+				}
+			} catch (IOException ignore) {
+			}
+		}
+
+		return -1L;
 	}
 }
