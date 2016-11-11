@@ -24,7 +24,7 @@ import org.apache.flink.api.common.state.{FoldingStateDescriptor, ListStateDescr
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.streaming.api.datastream.{QueryableStateStream, SingleOutputStreamOperator, DataStream => JavaStream, KeyedStream => KeyedJavaStream, WindowedStream => WindowedJavaStream}
-import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction
+import org.apache.flink.streaming.api.functions.{ProcessFunction, RichProcessFunction}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
 import org.apache.flink.streaming.api.functions.query.{QueryableAppendingStateOperator, QueryableValueStateOperator}
@@ -54,28 +54,34 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   // ------------------------------------------------------------------------
 
   /**
-    * Applies the given [[TimelyFlatMapFunction]] on the input stream, thereby
+    * Applies the given [[ProcessFunction]] on the input stream, thereby
     * creating a transformed output stream.
     *
     * The function will be called for every element in the stream and can produce
     * zero or more output. The function can also query the time and set timers. When
     * reacting to the firing of set timers the function can emit yet more elements.
     *
-    * A [[org.apache.flink.streaming.api.functions.RichTimelyFlatMapFunction]]
+    * The function will be called for every element in the input streams and can produce zero
+    * or more output elements. Contrary to the [[DataStream#flatMap(FlatMapFunction)]]
+    * function, this function can also query the time and set timers. When reacting to the firing
+    * of set timers the function can directly emit elements and/or register yet more timers.
+    *
+    * A [[RichProcessFunction]]
     * can be used to gain access to features provided by the
     * [[org.apache.flink.api.common.functions.RichFunction]]
     *
-    * @param flatMapper The [[TimelyFlatMapFunction]] that is called for each element
+    * @param processFunction The [[ProcessFunction]] that is called for each element
     *                   in the stream.
     */
-  def flatMap[R: TypeInformation](
-      flatMapper: TimelyFlatMapFunction[T, R]): DataStream[R] = {
+  @PublicEvolving
+  def process[R: TypeInformation](
+    processFunction: ProcessFunction[T, R]): DataStream[R] = {
 
-    if (flatMapper == null) {
-      throw new NullPointerException("TimelyFlatMapFunction must not be null.")
+    if (processFunction == null) {
+      throw new NullPointerException("ProcessFunction must not be null.")
     }
 
-    asScalaStream(javaStream.flatMap(flatMapper, implicitly[TypeInformation[R]]))
+    asScalaStream(javaStream.process(processFunction, implicitly[TypeInformation[R]]))
   }
   
   // ------------------------------------------------------------------------

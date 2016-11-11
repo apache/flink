@@ -23,8 +23,8 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.TimeDomain;
-import org.apache.flink.streaming.api.functions.RichTimelyFlatMapFunction;
-import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction;
+import org.apache.flink.streaming.api.functions.RichProcessFunction;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
@@ -40,15 +40,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests {@link StreamTimelyFlatMap}.
+ * Tests {@link ProcessOperator}.
  */
-public class TimelyFlatMapTest extends TestLogger {
+public class ProcessOperatorTest extends TestLogger {
 
 	@Test
 	public void testTimestampAndWatermarkQuerying() throws Exception {
 
-		StreamTimelyFlatMap<Integer, Integer, String> operator =
-				new StreamTimelyFlatMap<>(new QueryingFlatMapFunction(TimeDomain.EVENT_TIME));
+		ProcessOperator<Integer, Integer, String> operator =
+				new ProcessOperator<>(new QueryingFlatMapFunction(TimeDomain.EVENT_TIME));
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -77,8 +77,8 @@ public class TimelyFlatMapTest extends TestLogger {
 	@Test
 	public void testTimestampAndProcessingTimeQuerying() throws Exception {
 
-		StreamTimelyFlatMap<Integer, Integer, String> operator =
-				new StreamTimelyFlatMap<>(new QueryingFlatMapFunction(TimeDomain.PROCESSING_TIME));
+		ProcessOperator<Integer, Integer, String> operator =
+				new ProcessOperator<>(new QueryingFlatMapFunction(TimeDomain.PROCESSING_TIME));
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -105,8 +105,8 @@ public class TimelyFlatMapTest extends TestLogger {
 	@Test
 	public void testEventTimeTimers() throws Exception {
 
-		StreamTimelyFlatMap<Integer, Integer, Integer> operator =
-				new StreamTimelyFlatMap<>(new TriggeringFlatMapFunction(TimeDomain.EVENT_TIME));
+		ProcessOperator<Integer, Integer, Integer> operator =
+				new ProcessOperator<>(new TriggeringFlatMapFunction(TimeDomain.EVENT_TIME));
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -135,8 +135,8 @@ public class TimelyFlatMapTest extends TestLogger {
 	@Test
 	public void testProcessingTimeTimers() throws Exception {
 
-		StreamTimelyFlatMap<Integer, Integer, Integer> operator =
-				new StreamTimelyFlatMap<>(new TriggeringFlatMapFunction(TimeDomain.PROCESSING_TIME));
+		ProcessOperator<Integer, Integer, Integer> operator =
+				new ProcessOperator<>(new TriggeringFlatMapFunction(TimeDomain.PROCESSING_TIME));
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -164,8 +164,8 @@ public class TimelyFlatMapTest extends TestLogger {
 	@Test
 	public void testEventTimeTimerWithState() throws Exception {
 
-		StreamTimelyFlatMap<Integer, Integer, String> operator =
-				new StreamTimelyFlatMap<>(new TriggeringStatefulFlatMapFunction(TimeDomain.EVENT_TIME));
+		ProcessOperator<Integer, Integer, String> operator =
+				new ProcessOperator<>(new TriggeringStatefulFlatMapFunction(TimeDomain.EVENT_TIME));
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -204,8 +204,8 @@ public class TimelyFlatMapTest extends TestLogger {
 	@Test
 	public void testProcessingTimeTimerWithState() throws Exception {
 
-		StreamTimelyFlatMap<Integer, Integer, String> operator =
-				new StreamTimelyFlatMap<>(new TriggeringStatefulFlatMapFunction(TimeDomain.PROCESSING_TIME));
+		ProcessOperator<Integer, Integer, String> operator =
+				new ProcessOperator<>(new TriggeringStatefulFlatMapFunction(TimeDomain.PROCESSING_TIME));
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -237,8 +237,8 @@ public class TimelyFlatMapTest extends TestLogger {
 	@Test
 	public void testSnapshotAndRestore() throws Exception {
 
-		StreamTimelyFlatMap<Integer, Integer, String> operator =
-				new StreamTimelyFlatMap<>(new BothTriggeringFlatMapFunction());
+		ProcessOperator<Integer, Integer, String> operator =
+				new ProcessOperator<>(new BothTriggeringFlatMapFunction());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -253,7 +253,7 @@ public class TimelyFlatMapTest extends TestLogger {
 
 		testHarness.close();
 
-		operator = new StreamTimelyFlatMap<>(new BothTriggeringFlatMapFunction());
+		operator = new ProcessOperator<>(new BothTriggeringFlatMapFunction());
 
 		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
 
@@ -286,7 +286,7 @@ public class TimelyFlatMapTest extends TestLogger {
 		}
 	}
 
-	private static class QueryingFlatMapFunction implements TimelyFlatMapFunction<Integer, String> {
+	private static class QueryingFlatMapFunction implements ProcessFunction<Integer, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -297,7 +297,7 @@ public class TimelyFlatMapTest extends TestLogger {
 		}
 
 		@Override
-		public void flatMap(Integer value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 			if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
 				out.collect(value + "TIME:" + ctx.timerService().currentWatermark() + " TS:" + ctx.timestamp());
 			} else {
@@ -313,7 +313,7 @@ public class TimelyFlatMapTest extends TestLogger {
 		}
 	}
 
-	private static class TriggeringFlatMapFunction implements TimelyFlatMapFunction<Integer, Integer> {
+	private static class TriggeringFlatMapFunction implements ProcessFunction<Integer, Integer> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -324,7 +324,7 @@ public class TimelyFlatMapTest extends TestLogger {
 		}
 
 		@Override
-		public void flatMap(Integer value, Context ctx, Collector<Integer> out) throws Exception {
+		public void processElement(Integer value, Context ctx, Collector<Integer> out) throws Exception {
 			out.collect(value);
 			if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
 				ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
@@ -344,7 +344,7 @@ public class TimelyFlatMapTest extends TestLogger {
 		}
 	}
 
-	private static class TriggeringStatefulFlatMapFunction extends RichTimelyFlatMapFunction<Integer, String> {
+	private static class TriggeringStatefulFlatMapFunction extends RichProcessFunction<Integer, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -358,7 +358,7 @@ public class TimelyFlatMapTest extends TestLogger {
 		}
 
 		@Override
-		public void flatMap(Integer value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT:" + value);
 			getRuntimeContext().getState(state).update(value);
 			if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
@@ -378,12 +378,12 @@ public class TimelyFlatMapTest extends TestLogger {
 		}
 	}
 
-	private static class BothTriggeringFlatMapFunction implements TimelyFlatMapFunction<Integer, String> {
+	private static class BothTriggeringFlatMapFunction implements ProcessFunction<Integer, String> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(Integer value, Context ctx, Collector<String> out) throws Exception {
+		public void processElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 			ctx.timerService().registerProcessingTimeTimer(5);
 			ctx.timerService().registerEventTimeTimer(6);
 		}
