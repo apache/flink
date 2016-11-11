@@ -28,7 +28,6 @@ import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
@@ -95,10 +94,6 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 			MergingWindowSet<W> mergingWindows = getMergingWindowSet();
 
 			for (W window : elementWindows) {
-				// If there is a merge, it can only result in a window that contains our new
-				// element because we always eagerly merge
-				final Tuple1<TriggerResult> mergeTriggerResult = new Tuple1<>(TriggerResult.CONTINUE);
-
 
 				// adding the new window might result in a merge, in that case the actualWindow
 				// is the merged window and we work with that. If we don't merge then
@@ -112,8 +107,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 								context.key = key;
 								context.window = mergeResult;
 
-								// store for later use
-								mergeTriggerResult.f0 = context.onMerge(mergedWindows);
+								context.onMerge(mergedWindows);
 
 								for (W m : mergedWindows) {
 									context.window = m;
@@ -147,25 +141,21 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 				context.key = key;
 				context.window = actualWindow;
 
-				// we might have already fired because of a merge but still call onElement
-				// on the (possibly merged) window
 				TriggerResult triggerResult = context.onElement(element);
-				TriggerResult combinedTriggerResult = TriggerResult.merge(triggerResult, mergeTriggerResult.f0);
 
-				if (combinedTriggerResult.isFire()) {
+				if (triggerResult.isFire()) {
 					Iterable<StreamRecord<IN>> contents = windowState.get();
 					if (contents == null) {
 						// if we have no state, there is nothing to do
 						continue;
 					}
-					fire(actualWindow, contents);
+					emitWindowContents(actualWindow, contents);
 				}
 
-				if (combinedTriggerResult.isPurge()) {
-					cleanup(actualWindow, windowState, mergingWindows);
-				} else {
-					registerCleanupTimer(actualWindow);
+				if (triggerResult.isPurge()) {
+					windowState.clear();
 				}
+				registerCleanupTimer(actualWindow);
 			}
 
 			mergingWindows.persist();
@@ -192,14 +182,13 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 						// if we have no state, there is nothing to do
 						continue;
 					}
-					fire(window, contents);
+					emitWindowContents(window, contents);
 				}
 
 				if (triggerResult.isPurge()) {
-					cleanup(window, windowState, null);
-				} else {
-					registerCleanupTimer(window);
+					windowState.clear();
 				}
+				registerCleanupTimer(window);
 			}
 		}
 	}
@@ -217,12 +206,14 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 			mergingWindows = getMergingWindowSet();
 			W stateWindow = mergingWindows.getStateWindow(context.window);
 			if (stateWindow == null) {
-				// then the window is already purged and this is a cleanup
-				// timer set due to allowed lateness that has nothing to clean,
-				// so it is safe to just ignore
-				return;
+				// timer firing for non-existent window, ignore
+				windowState = null;
+			} else {
+				windowState = getPartitionedState(
+						stateWindow,
+						windowSerializer,
+						windowStateDescriptor);
 			}
-			windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
 		} else {
 			windowState = getPartitionedState(
 					context.window,
@@ -230,19 +221,28 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 					windowStateDescriptor);
 		}
 
-		Iterable<StreamRecord<IN>> contents = windowState.get();
-		if (contents == null) {
-			// if we have no state, there is nothing to do
-			return;
+		Iterable<StreamRecord<IN>> contents = null;
+		if (windowState != null) {
+			contents = windowState.get();
 		}
 
-		TriggerResult triggerResult = context.onEventTime(timer.getTimestamp());
-		if (triggerResult.isFire()) {
-			fire(context.window, contents);
+		if (contents != null) {
+			TriggerResult triggerResult = context.onEventTime(timer.getTimestamp());
+			if (triggerResult.isFire()) {
+				emitWindowContents(context.window, contents);
+			}
+			if (triggerResult.isPurge()) {
+				windowState.clear();
+			}
 		}
 
-		if (triggerResult.isPurge() || (windowAssigner.isEventTime() && isCleanupTime(context.window, timer.getTimestamp()))) {
-			cleanup(context.window, windowState, mergingWindows);
+		if (windowAssigner.isEventTime() && isCleanupTime(context.window, timer.getTimestamp())) {
+			clearAllState(context.window, windowState, mergingWindows);
+		}
+
+		if (mergingWindows != null) {
+			// need to make sure to update the merging state in state
+			mergingWindows.persist();
 		}
 	}
 
@@ -258,33 +258,44 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 			mergingWindows = getMergingWindowSet();
 			W stateWindow = mergingWindows.getStateWindow(context.window);
 			if (stateWindow == null) {
-				// then the window is already purged and this is a cleanup
-				// timer set due to allowed lateness that has nothing to clean,
-				// so it is safe to just ignore
-				return;
+				// timer firing for non-existent window, ignore
+				windowState = null;
+			} else {
+				windowState = getPartitionedState(
+						stateWindow,
+						windowSerializer,
+						windowStateDescriptor);
 			}
-			windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
 		} else {
 			windowState = getPartitionedState(context.window, windowSerializer, windowStateDescriptor);
 		}
 
-		Iterable<StreamRecord<IN>> contents = windowState.get();
-		if (contents == null) {
-			// if we have no state, there is nothing to do
-			return;
+		Iterable<StreamRecord<IN>> contents = null;
+		if (windowState != null) {
+			contents = windowState.get();
 		}
 
-		TriggerResult triggerResult = context.onProcessingTime(timer.getTimestamp());
-		if (triggerResult.isFire()) {
-			fire(context.window, contents);
+		if (contents != null) {
+			TriggerResult triggerResult = context.onProcessingTime(timer.getTimestamp());
+			if (triggerResult.isFire()) {
+				emitWindowContents(context.window, contents);
+			}
+			if (triggerResult.isPurge()) {
+				windowState.clear();
+			}
 		}
 
-		if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(context.window, timer.getTimestamp()))) {
-			cleanup(context.window, windowState, mergingWindows);
+		if (!windowAssigner.isEventTime() && isCleanupTime(context.window, timer.getTimestamp())) {
+			clearAllState(context.window, windowState, mergingWindows);
+		}
+
+		if (mergingWindows != null) {
+			// need to make sure to update the merging state in state
+			mergingWindows.persist();
 		}
 	}
 
-	private void fire(W window, Iterable<StreamRecord<IN>> contents) throws Exception {
+	private void emitWindowContents(W window, Iterable<StreamRecord<IN>> contents) throws Exception {
 		timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
 
 		// Work around type system restrictions...
@@ -302,16 +313,17 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 		userFunction.apply(context.key, context.window, projectedContents, timestampedCollector);
 	}
 
-	private void cleanup(W window,
-						ListState<StreamRecord<IN>> windowState,
-						MergingWindowSet<W> mergingWindows) throws Exception {
+	private void clearAllState(
+			W window,
+			ListState<StreamRecord<IN>> windowState,
+			MergingWindowSet<W> mergingWindows) throws Exception {
 
 		windowState.clear();
+		context.clear();
 		if (mergingWindows != null) {
 			mergingWindows.retireWindow(window);
 			mergingWindows.persist();
 		}
-		context.clear();
 	}
 
 	// ------------------------------------------------------------------------
