@@ -299,8 +299,9 @@ public class Task implements Runnable, TaskActions {
 		this.serializedExecutionConfig = jobInformation.getSerializedExecutionConfig();
 		this.taskStateHandles = taskStateHandles;
 
-		this.taskCancellationInterval = taskConfiguration.getLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL);
-		this.taskCancellationTimeout = taskConfiguration.getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT);
+		Configuration tmConfig = taskManagerConfig.getConfiguration();
+		this.taskCancellationInterval = tmConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL);
+		this.taskCancellationTimeout = tmConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT);
 
 		this.memoryManager = Preconditions.checkNotNull(memManager);
 		this.ioManager = Preconditions.checkNotNull(ioManager);
