@@ -136,7 +136,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	) throws Exception {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange);
-
 		this.operatorIdentifier = operatorIdentifier;
 		this.jobId = jobId;
 		this.columnOptions = columnFamilyOptions;
@@ -297,11 +296,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						synchronized (dbDisposeLock) {
 							try {
 								// hold the db lock while operation on the db to guard us against async db disposal
-								if (db != null) {
-									snapshotOperation.writeDBSnapshot();
-								} else {
+								if (db == null) {
 									throw new IOException("RocksDB closed.");
 								}
+
+								snapshotOperation.writeDBSnapshot();
 							} finally {
 								snapshotOperation.closeCheckpointStream();
 							}
@@ -313,7 +312,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						return snapshotOperation.getSnapshotResultStateHandle();
 					}
 
-					private void releaseDBSnapshot(boolean canceled) {
+					private void releaseSnapshotOperationResources(boolean canceled) {
 						// hold the db lock while operation on the db to guard us against async db disposal
 						synchronized (dbDisposeLock) {
 							if (db != null) {
@@ -324,20 +323,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 					@Override
 					public void done(boolean canceled) {
-						releaseDBSnapshot(canceled);
-					}
-
-					@Override
-					public void stop() {
-
-						try {
-							// propagate stop by closing output stream
-							super.stop();
-
-						} finally {
-							//cleanup time
-							releaseDBSnapshot(true);
-						}
+						releaseSnapshotOperationResources(canceled);
 					}
 				};
 
@@ -363,6 +349,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private long checkpointTimeStamp;
 
 		private Snapshot snapshot;
+		private ReadOptions readOptions;
 		private CheckpointStreamFactory.CheckpointStateOutputStream outStream;
 		private DataOutputView outputView;
 		private List<Tuple2<RocksIterator, Integer>> kvStateIterators;
@@ -437,15 +424,23 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 *
 		 */
 		public void releaseSnapshotResources(boolean canceled) {
-			if (null != snapshot) {
-				stateBackend.db.releaseSnapshot(snapshot);
-				snapshot = null;
-			}
+
 			if (null != kvStateIterators) {
 				for (Tuple2<RocksIterator, Integer> kvStateIterator : kvStateIterators) {
 					kvStateIterator.f0.dispose();
 				}
 				kvStateIterators = null;
+			}
+
+			if (null != snapshot) {
+				stateBackend.db.releaseSnapshot(snapshot);
+				snapshot.dispose();
+				snapshot = null;
+			}
+
+			if (null != readOptions) {
+				readOptions.dispose();
+				readOptions = null;
 			}
 
 			if (canceled) {
@@ -501,7 +496,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				InstantiationUtil.serializeObject(outStream, column.getValue().f1);
 
 				//retrieve iterator for this k/v states
-				ReadOptions readOptions = new ReadOptions();
+				readOptions = new ReadOptions();
 				readOptions.setSnapshot(snapshot);
 				RocksIterator iterator = stateBackend.db.newIterator(column.getValue().f0, readOptions);
 				kvStateIterators.add(new Tuple2<>(iterator, kvStateId));
