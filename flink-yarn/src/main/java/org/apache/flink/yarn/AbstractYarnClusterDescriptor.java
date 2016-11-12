@@ -61,8 +61,6 @@ import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.security.PrivilegedExceptionAction;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -131,10 +129,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	private String customName;
 
 	private String zookeeperNamespace;
-
-	/** Optional Jar file to include in the system class loader of all application nodes
-	 * (for per-job submission) */
-	private Set<File> userJarFiles;
 
 	public AbstractYarnClusterDescriptor() {
 		// for unit tests only
@@ -244,41 +238,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	public void setDynamicPropertiesEncoded(String dynamicPropertiesEncoded) {
 		this.dynamicPropertiesEncoded = dynamicPropertiesEncoded;
-	}
-
-	/**
-	 * Returns true if the descriptor has the job jars to include in the classpath.
-	 */
-	public boolean hasUserJarFiles(List<URL> requiredJarFiles) {
-		if (userJarFiles == null || userJarFiles.size() != requiredJarFiles.size()) {
-			return false;
-		}
-		try {
-			for(URL jarFile : requiredJarFiles) {
-				if (!userJarFiles.contains(new File(jarFile.toURI()))) {
-					return false;
-				}
-			}
-		} catch (URISyntaxException e) {
-			return false;
-		}
-		return true;
-	}
-
-	/**
-	 * Sets the user jar which is included in the system classloader of all nodes.
-	 */
-	public void setProvidedUserJarFiles(List<URL> userJarFiles) {
-		Set<File> localUserJarFiles = new HashSet<>(userJarFiles.size());
-		for (URL jarFile : userJarFiles) {
-			try {
-				localUserJarFiles.add(new File(jarFile.toURI()));
-			} catch (URISyntaxException e) {
-				throw new IllegalArgumentException("Couldn't add local user jar: " + jarFile
-					+ " Currently only file:/// URLs are supported.");
-			}
-		}
-		this.userJarFiles = localUserJarFiles;
 	}
 
 	public String getDynamicPropertiesEncoded() {
@@ -596,11 +555,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		final ContainerLaunchContext amContainer = setupApplicationMasterContainer(hasLogback, hasLog4j);
 
-		// add the user jar to the classpath of the to-be-created cluster
-		if (userJarFiles != null) {
-			effectiveShipFiles.addAll(userJarFiles);
-		}
-
 		// Set-up ApplicationSubmissionContext for the application
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
 
@@ -755,7 +709,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			try {
 				report = yarnClient.getApplicationReport(appId);
 			} catch (IOException e) {
-				throw new YarnDeploymentException("Failed to deploy the cluster.", e);
+				throw new YarnDeploymentException("Failed to deploy the cluster: " + e.getMessage());
 			}
 			YarnApplicationState appState = report.getYarnApplicationState();
 			switch(appState) {

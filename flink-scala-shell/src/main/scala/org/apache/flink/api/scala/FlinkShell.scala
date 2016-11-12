@@ -19,7 +19,6 @@
 package org.apache.flink.api.scala
 
 import java.io._
-import java.util.Collections
 
 import org.apache.commons.cli.CommandLine
 import org.apache.flink.client.cli.CliFrontendParser
@@ -253,11 +252,7 @@ object FlinkShell {
     val config = frontend.getConfiguration
     val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
 
-    val cluster = customCLI.createCluster(
-      "Flink Scala Shell",
-      options.getCommandLine,
-      config,
-      Collections.emptyList())
+    val cluster = customCLI.createCluster("Flink Scala Shell", options.getCommandLine, config)
 
     val address = cluster.getJobManagerAddress.getAddress.getHostAddress
     val port = cluster.getJobManagerAddress.getPort

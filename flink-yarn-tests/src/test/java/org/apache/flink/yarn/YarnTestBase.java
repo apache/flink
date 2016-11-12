@@ -23,7 +23,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
@@ -668,9 +667,9 @@ public abstract class YarnTestBase extends TestLogger {
 		public TestingCLI() throws Exception {}
 
 		@Override
-		protected ClusterClient createClient(CommandLineOptions options, PackagedProgram program) throws Exception {
+		protected ClusterClient createClient(CommandLineOptions options, String programName) throws Exception {
 			// mock the returned ClusterClient to disable shutdown and verify shutdown behavior later on
-			originalClusterClient = super.createClient(options, program);
+			originalClusterClient = super.createClient(options, programName);
 			spiedClusterClient = Mockito.spy(originalClusterClient);
 			Mockito.doNothing().when(spiedClusterClient).shutdown();
 			return spiedClusterClient;

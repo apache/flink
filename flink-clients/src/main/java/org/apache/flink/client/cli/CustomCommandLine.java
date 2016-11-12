@@ -22,9 +22,6 @@ import org.apache.commons.cli.Options;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 
-import java.net.URL;
-import java.util.List;
-
 
 /**
  * Custom command-line interface to load hooks for the command-line interface.
@@ -64,22 +61,15 @@ public interface CustomCommandLine<ClusterType extends ClusterClient> {
 	 * @return Client if a cluster could be retrieved
 	 * @throws UnsupportedOperationException if the operation is not supported
 	 */
-	ClusterType retrieveCluster(
-			CommandLine commandLine,
-			Configuration config) throws UnsupportedOperationException;
+	ClusterType retrieveCluster(CommandLine commandLine, Configuration config) throws UnsupportedOperationException;
 
 	/**
 	 * Creates the client for the cluster
 	 * @param applicationName The application name to use
 	 * @param commandLine The command-line options parsed by the CliFrontend
 	 * @param config The Flink config to use
-	 * @param userJarFiles User jar files to include in the classpath of the cluster.
 	 * @return The client to communicate with the cluster which the CustomCommandLine brought up.
 	 * @throws UnsupportedOperationException if the operation is not supported
 	 */
-	ClusterType createCluster(
-			String applicationName,
-			CommandLine commandLine,
-			Configuration config,
-			List<URL> userJarFiles) throws UnsupportedOperationException;
+	ClusterType createCluster(String applicationName, CommandLine commandLine, Configuration config) throws UnsupportedOperationException;
 }
