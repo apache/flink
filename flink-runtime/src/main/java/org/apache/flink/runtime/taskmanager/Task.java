@@ -287,11 +287,12 @@ public class Task implements Runnable {
 		this.nameOfInvokableClass = taskInformation.getInvokableClassName();
 		this.operatorState = operatorState;
 
-		this.taskCancellationInterval = taskConfiguration.getLong(
+		Configuration tmConfig = taskManagerConfig.getConfiguration();
+		this.taskCancellationInterval = tmConfig.getLong(
 				ConfigConstants.TASK_CANCELLATION_INTERVAL_MILLIS,
 				ConfigConstants.DEFAULT_TASK_CANCELLATION_INTERVAL_MILLIS);
 
-		this.taskCancellationTimeout = taskConfiguration.getLong(
+		this.taskCancellationTimeout = tmConfig.getLong(
 				ConfigConstants.TASK_CANCELLATION_TIMEOUT_MILLIS,
 				ConfigConstants.DEFAULT_TASK_CANCELLATION_TIMEOUT_MILLIS);
 
