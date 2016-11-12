@@ -40,6 +40,8 @@ public class HeartbeatService {
 
 	private final HeartbeatManagerSenderImpl<Void, Void> taskExecutorHeartbeatManager;
 
+	private HeartbeatListener<Void, Void> taskExecutorHeartbeatListener;
+
 	/** Resource ID of the ResourceManager */
 	private final ResourceID resourceManagerIdentify;
 
@@ -55,10 +57,10 @@ public class HeartbeatService {
 	/**
 	 * Starts the service with the given heartbeat listener
 	 *
-	 * @param heartbeatListener heartbeat listener to listener for heartbeat actions with TaskExecutor
+	 * @param taskExecutorHeartbeatListener heartbeat listener to listener for heartbeat actions with TaskExecutor
 	 */
-	public void start(HeartbeatListener<Void, Void> heartbeatListener) {
-		this.taskExecutorHeartbeatManager.start(heartbeatListener);
+	public void start(HeartbeatListener<Void, Void> taskExecutorHeartbeatListener) {
+		this.taskExecutorHeartbeatManager.start(taskExecutorHeartbeatListener);
 	}
 
 	/**
@@ -106,7 +108,7 @@ public class HeartbeatService {
 	 *
 	 * @param resourceID ResourceId of the taskExecutor to unmonitor
 	 */
-	public void unmonitor(ResourceID resourceID) {
+	public void unmonitorTaskExecutor(ResourceID resourceID) {
 		this.taskExecutorHeartbeatManager.unmonitorTarget(resourceID);
 	}
 
@@ -115,7 +117,7 @@ public class HeartbeatService {
 	 *
 	 * @param resourceID ResourceId of the taskExecutor which send the heartbeat response
 	 */
-	public void heartbeatResponseFromTaskExecutor(ResourceID resourceID) {
+	public void sendHeartbeatFromTaskManager(ResourceID resourceID) {
 		this.taskExecutorHeartbeatManager.sendHeartbeat(resourceID, null);
 	}
 

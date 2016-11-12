@@ -535,7 +535,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 */
 	@RpcMethod
 	public void sendHeartbeatFromTaskManager(final ResourceID resourceID) {
-		heartbeatService.heartbeatResponseFromTaskExecutor(resourceID);
+		heartbeatService.sendHeartbeatFromTaskManager(resourceID);
 	}
 
 	// ------------------------------------------------------------------------
@@ -760,7 +760,6 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 					log.info("Task manager {} failed because {}.", resourceID, message);
 					// TODO :: suggest failed task executor to stop itself
 					slotManager.notifyTaskManagerFailure(resourceID);
-					heartbeatService.unmonitor(resourceID);
 				} else {
 					log.debug("Could not find a registered task manager with the process id {}.", resourceID);
 				}
@@ -861,9 +860,15 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	private class HeartbeatListenerWithTaskExecutor implements HeartbeatListener<Void, Void> {
 
 		@Override
-		public void notifyHeartbeatTimeout(ResourceID resourceID) {
+		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
 			log.warn("Lost heartbeat with taskExecutor {}, mark the taskExecutor as failed ", resourceID);
-			notifyWorkerFailed(resourceID, "Heartbeat timeout");
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					heartbeatService.unmonitorTaskExecutor(resourceID);
+				}
+			});
+			notifyWorkerFailed(resourceID, "Lost heartbeat with taskExecutor " + resourceID);
 		}
 
 		@Override
