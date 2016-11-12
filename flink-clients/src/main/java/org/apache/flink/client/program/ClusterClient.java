@@ -307,27 +307,11 @@ public abstract class ClusterClient {
 	{
 		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 		if (prog.isUsingProgramEntryPoint()) {
-
-			final JobWithJars jobWithJars;
-			if (hasUserJarsInClassPath(prog.getAllLibraries())) {
-				jobWithJars = prog.getPlanWithoutJars();
-			} else {
-				jobWithJars = prog.getPlanWithJars();
-			}
-
-			return run(jobWithJars, parallelism, prog.getSavepointSettings());
+			return run(prog.getPlanWithJars(), parallelism, prog.getSavepointSettings());
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			LOG.info("Starting program in interactive mode");
-
-			final List<URL> libraries;
-			if (hasUserJarsInClassPath(prog.getAllLibraries())) {
-				libraries = Collections.emptyList();
-			} else {
-				libraries = prog.getAllLibraries();
-			}
-
-			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(this, libraries,
+			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(this, prog.getAllLibraries(),
 					prog.getClasspaths(), prog.getUserCodeClassLoader(), parallelism, isDetached(),
 					prog.getSavepointSettings());
 			ContextEnvironment.setAsContext(factory);
@@ -365,7 +349,7 @@ public abstract class ClusterClient {
 	 * Runs a program on the Flink cluster to which this client is connected. The call blocks until the
 	 * execution is complete, and returns afterwards.
 	 *
-	 * @param jobWithJars The program to be executed.
+	 * @param program The program to be executed.
 	 * @param parallelism The default parallelism to use when running the program. The default parallelism is used
 	 *                    when the program does not set a parallelism by itself.
 	 *
@@ -375,15 +359,15 @@ public abstract class ClusterClient {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the
 	 *                                    parallel execution failed.
 	 */
-	public JobSubmissionResult run(JobWithJars jobWithJars, int parallelism, SavepointRestoreSettings savepointSettings)
+	public JobSubmissionResult run(JobWithJars program, int parallelism, SavepointRestoreSettings savepointSettings)
 			throws CompilerException, ProgramInvocationException {
-		ClassLoader classLoader = jobWithJars.getUserCodeClassLoader();
+		ClassLoader classLoader = program.getUserCodeClassLoader();
 		if (classLoader == null) {
 			throw new IllegalArgumentException("The given JobWithJars does not provide a usercode class loader.");
 		}
 
-		OptimizedPlan optPlan = getOptimizedPlan(compiler, jobWithJars, parallelism);
-		return run(optPlan, jobWithJars.getJarFiles(), jobWithJars.getClasspaths(), classLoader, savepointSettings);
+		OptimizedPlan optPlan = getOptimizedPlan(compiler, program, parallelism);
+		return run(optPlan, program.getJarFiles(), program.getClasspaths(), classLoader, savepointSettings);
 	}
 
 	public JobSubmissionResult run(
@@ -614,6 +598,10 @@ public abstract class ClusterClient {
 		return getOptimizedPlan(compiler, prog.getPlan(), parallelism);
 	}
 
+	public JobGraph getJobGraph(PackagedProgram prog, FlinkPlan optPlan) throws ProgramInvocationException {
+		return getJobGraph(optPlan, prog.getAllLibraries(), prog.getClasspaths(), null);
+	}
+
 	public JobGraph getJobGraph(PackagedProgram prog, FlinkPlan optPlan, SavepointRestoreSettings savepointSettings) throws ProgramInvocationException {
 		return getJobGraph(optPlan, prog.getAllLibraries(), prog.getClasspaths(), savepointSettings);
 	}
@@ -738,12 +726,6 @@ public abstract class ClusterClient {
 	 * @return -1 if unknown
 	 */
 	public abstract int getMaxSlots();
-
-	/**
-	 * Returns true if the client already has the user jar and providing it again would
-	 * result in duplicate uploading of the jar.
-	 */
-	public abstract boolean hasUserJarsInClassPath(List<URL> userJarFiles);
 
 	/**
 	 * Calls the subclasses' submitJob method. It may decide to simply call one of the run methods or it may perform
