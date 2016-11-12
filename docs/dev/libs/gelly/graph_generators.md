@@ -652,3 +652,82 @@ val graph = new StarGraph(env.getJavaEnv, vertexCount).generate()
 </svg>
 
 {% top %}
+
+# Bipartite Graph
+
+Gelly also supports generations of bipartite graphs. Similarly to `CompleteBipartiteGraph` for regular graphs Gelly provides `BipartiteGraphGenerator`. Just its counterpart it has `setParallelism` method for specifying parallelism and `generate` for generating a bipartite graph.
+
+## Complete Bipartite Graph
+
+Generates a number of top and bottom vertices and connects every pair of vertices from opposite sets:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+long topVertexCount = 6;
+long bottomVertexCount = 6;
+
+BipartiteGraph<LongValue, LongValue, NullValue, NullValue, NullValue> graph = new CompleteBipartiteGraph(env, vertexCount)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// TODO: Add Scala samples
+{% endhighlight %}
+</div>
+</div>
+
+<svg class="graph" width="540" height="200"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+
+    <line x1="30" y1="40" x2="30" y2="160"/>
+    <line x1="30" y1="40" x2="190" y2="160"/>
+    <line x1="30" y1="40" x2="350" y2="160"/>
+    <line x1="30" y1="40" x2="510" y2="160"/>
+
+    <line x1="190" y1="40" x2="30" y2="160"/>
+    <line x1="190" y1="40" x2="190" y2="160"/>
+    <line x1="190" y1="40" x2="350" y2="160"/>
+    <line x1="190" y1="40" x2="510" y2="160"/>
+
+    <line x1="350" y1="40" x2="30" y2="160"/>
+    <line x1="350" y1="40" x2="190" y2="160"/>
+    <line x1="350" y1="40" x2="350" y2="160"/>
+    <line x1="350" y1="40" x2="510" y2="160"/>
+
+    <line x1="350" y1="40" x2="30" y2="160"/>
+    <line x1="350" y1="40" x2="190" y2="160"/>
+    <line x1="350" y1="40" x2="350" y2="160"/>
+    <line x1="350" y1="40" x2="510" y2="160"/>
+
+    <circle cx="30" cy="40" r="20" />
+    <text x="30" y="40">0</text>
+
+    <circle cx="190" cy="40" r="20" />
+    <text x="190" y="40">1</text>
+
+    <circle cx="350" cy="40" r="20" />
+    <text x="350" y="40">2</text>
+
+    <circle cx="510" cy="40" r="20" />
+    <text x="510" y="40">3</text>
+
+    <circle cx="30" cy="160" r="20" />
+    <text x="30" y="160">0</text>
+
+    <circle cx="190" cy="160" r="20" />
+    <text x="190" y="160">1</text>
+
+    <circle cx="350" cy="160" r="20" />
+    <text x="350" y="160">2</text>
+
+    <circle cx="510" cy="160" r="20" />
+    <text x="510" y="160">3</text>
+</svg>
+
+{% top %}

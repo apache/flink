@@ -34,7 +34,7 @@ extends AbstractGraphTest {
 	@Test
 	public void testGraph()
 			throws Exception {
-		Graph<LongValue,NullValue,NullValue> graph = new EmptyGraph(env, 10)
+		Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, 10)
 			.generate();
 
 		String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
@@ -48,7 +48,7 @@ extends AbstractGraphTest {
 			throws Exception {
 		int vertexCount = 100;
 
-		Graph<LongValue,NullValue,NullValue> graph = new EmptyGraph(env, vertexCount)
+		Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, vertexCount)
 			.generate();
 
 		assertEquals(vertexCount, graph.numberOfVertices());
@@ -66,7 +66,7 @@ extends AbstractGraphTest {
 			throws Exception {
 		int parallelism = 2;
 
-		Graph<LongValue,NullValue,NullValue> graph = new EmptyGraph(env, 100)
+		Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, 100)
 			.setParallelism(parallelism)
 			.generate();
 

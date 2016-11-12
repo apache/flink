@@ -32,7 +32,10 @@ import org.apache.flink.types.NullValue;
 
 import java.util.Collections;
 
-/*
+/**
+ *
+ * Generate a graph that has a defined number of vertices and no edges connecting them.
+ *
  * @see <a href="http://mathworld.wolfram.com/EmptyGraph.html">Empty Graph at Wolfram MathWorld</a>
  */
 public class EmptyGraph

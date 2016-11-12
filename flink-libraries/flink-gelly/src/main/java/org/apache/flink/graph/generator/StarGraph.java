@@ -83,18 +83,18 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 		private LongValue center = new LongValue(0);
 
-		private Edge<LongValue,NullValue> center_to_leaf = new Edge<>(center, null, NullValue.getInstance());
+		private Edge<LongValue,NullValue> centerToLeaf = new Edge<>(center, null, NullValue.getInstance());
 
-		private Edge<LongValue,NullValue> leaf_to_center = new Edge<>(null, center, NullValue.getInstance());
+		private Edge<LongValue,NullValue> leafToCenter = new Edge<>(null, center, NullValue.getInstance());
 
 		@Override
 		public void flatMap(LongValue leaf, Collector<Edge<LongValue,NullValue>> out)
 				throws Exception {
-			center_to_leaf.f1 = leaf;
-			out.collect(center_to_leaf);
+			centerToLeaf.f1 = leaf;
+			out.collect(centerToLeaf);
 
-			leaf_to_center.f0 = leaf;
-			out.collect(leaf_to_center);
+			leafToCenter.f0 = leaf;
+			out.collect(leafToCenter);
 		}
 	}
 }
