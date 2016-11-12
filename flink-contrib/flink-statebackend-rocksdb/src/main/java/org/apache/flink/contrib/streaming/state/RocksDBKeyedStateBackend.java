@@ -252,10 +252,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * is also stopped when the backend is closed through {@link #dispose()}. For each backend, this method must always
 	 * be called by the same thread.
 	 *
-	 * @param checkpointId The Id of the checkpoint.
-	 * @param timestamp The timestamp of the checkpoint.
+	 * @param checkpointId  The Id of the checkpoint.
+	 * @param timestamp     The timestamp of the checkpoint.
 	 * @param streamFactory The factory that we can use for writing our state to streams.
-	 *
 	 * @return Future to the state handle of the snapshot data.
 	 * @throws Exception
 	 */
@@ -295,18 +294,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					@Override
 					public KeyGroupsStateHandle performOperation() throws Exception {
 						long startTime = System.currentTimeMillis();
-						try {
-							// hold the db lock while operation on the db to guard us against async db disposal
-							synchronized (dbDisposeLock) {
+						synchronized (dbDisposeLock) {
+							try {
+								// hold the db lock while operation on the db to guard us against async db disposal
 								if (db != null) {
 									snapshotOperation.writeDBSnapshot();
 								} else {
 									throw new IOException("RocksDB closed.");
 								}
+							} finally {
+								snapshotOperation.closeCheckpointStream();
 							}
-
-						} finally {
-							snapshotOperation.closeCheckpointStream();
 						}
 
 						LOG.info("Asynchronous RocksDB snapshot (" + streamFactory + ", asynchronous part) in thread " +
@@ -315,13 +313,30 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						return snapshotOperation.getSnapshotResultStateHandle();
 					}
 
-					@Override
-					public void done() {
+					private void releaseDBSnapshot(boolean canceled) {
 						// hold the db lock while operation on the db to guard us against async db disposal
 						synchronized (dbDisposeLock) {
 							if (db != null) {
-								snapshotOperation.releaseDBSnapshot();
+								snapshotOperation.releaseSnapshotResources(canceled);
 							}
+						}
+					}
+
+					@Override
+					public void done(boolean canceled) {
+						releaseDBSnapshot(canceled);
+					}
+
+					@Override
+					public void stop() {
+
+						try {
+							// propagate stop by closing output stream
+							super.stop();
+
+						} finally {
+							//cleanup time
+							releaseDBSnapshot(true);
 						}
 					}
 				};
@@ -353,9 +368,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private List<Tuple2<RocksIterator, Integer>> kvStateIterators;
 		private KeyGroupsStateHandle snapshotResultStateHandle;
 
-
-
-		public RocksDBSnapshotOperation(
+		RocksDBSnapshotOperation(
 				RocksDBKeyedStateBackend<?> stateBackend,
 				CheckpointStreamFactory checkpointStreamFactory) {
 
@@ -397,7 +410,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 * @throws IOException
 		 */
 		public void writeDBSnapshot() throws IOException, InterruptedException {
-			Preconditions.checkNotNull(snapshot, "No ongoing snapshot to write.");
+
+			if (null == snapshot) {
+				throw new IOException("No snapshot available. Might be released due to cancellation.");
+			}
+
 			Preconditions.checkNotNull(outStream, "No output stream to write snapshot.");
 			writeKVStateMetaData();
 			writeKVStateData();
@@ -419,13 +436,21 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 * 5) Release the snapshot object for RocksDB and clean up.
 		 *
 		 */
-		public void releaseDBSnapshot() {
-			Preconditions.checkNotNull(snapshot, "No ongoing snapshot to release.");
-			stateBackend.db.releaseSnapshot(snapshot);
-			snapshot = null;
-			outStream = null;
-			outputView = null;
-			kvStateIterators = null;
+		public void releaseSnapshotResources(boolean canceled) {
+			if (null != snapshot) {
+				stateBackend.db.releaseSnapshot(snapshot);
+				snapshot = null;
+			}
+			if (null != kvStateIterators) {
+				for (Tuple2<RocksIterator, Integer> kvStateIterator : kvStateIterators) {
+					kvStateIterator.f0.dispose();
+				}
+				kvStateIterators = null;
+			}
+
+			if (canceled) {
+				deleteOutputsOnCancel();
+			}
 		}
 
 		/**
@@ -445,6 +470,20 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 */
 		public KeyGroupsStateHandle getSnapshotResultStateHandle() {
 			return snapshotResultStateHandle;
+		}
+
+		private void  deleteOutputsOnCancel() {
+
+			try {
+				closeCheckpointStream();
+				KeyGroupsStateHandle dispose = getSnapshotResultStateHandle();
+				if (null != dispose) {
+					dispose.discardState();
+				}
+			} catch (Exception ignored) {
+				LOG.info("Exception occurred during snapshot state handle cleanup: " + ignored);
+			}
+
 		}
 
 		private void writeKVStateMetaData() throws IOException, InterruptedException {
@@ -472,59 +511,63 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private void writeKVStateData() throws IOException, InterruptedException {
 
-			RocksDBMergeIterator iterator = new RocksDBMergeIterator(kvStateIterators, stateBackend.keyGroupPrefixBytes);
+			RocksDBMergeIterator mergeIterator =
+					new RocksDBMergeIterator(kvStateIterators, stateBackend.keyGroupPrefixBytes);
 
 			byte[] previousKey = null;
 			byte[] previousValue = null;
 
-			//preamble: setup with first key-group as our lookahead
-			if (iterator.isValid()) {
-				//begin first key-group by recording the offset
-				keyGroupRangeOffsets.setKeyGroupOffset(iterator.keyGroup(), outStream.getPos());
-				//write the k/v-state id as metadata
-				//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-				outputView.writeShort(iterator.kvStateId());
-				previousKey = iterator.key();
-				previousValue = iterator.value();
-				iterator.next();
-			}
-
-			//main loop: write k/v pairs ordered by (key-group, kv-state), thereby tracking key-group offsets.
-			while (iterator.isValid()) {
-
-				assert (!hasMetaDataFollowsFlag(previousKey));
-
-				//set signal in first key byte that meta data will follow in the stream after this k/v pair
-				if (iterator.isNewKeyGroup() || iterator.isNewKeyValueState()) {
-
-					//be cooperative and check for interruption from time to time in the hot loop
-					checkInterrupted();
-
-					setMetaDataFollowsFlagInKey(previousKey);
+			try {
+				//preamble: setup with first key-group as our lookahead
+				if (mergeIterator.isValid()) {
+					//begin first key-group by recording the offset
+					keyGroupRangeOffsets.setKeyGroupOffset(mergeIterator.keyGroup(), outStream.getPos());
+					//write the k/v-state id as metadata
+					//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+					outputView.writeShort(mergeIterator.kvStateId());
+					previousKey = mergeIterator.key();
+					previousValue = mergeIterator.value();
+					mergeIterator.next();
 				}
 
-				writeKeyValuePair(previousKey, previousValue);
+				//main loop: write k/v pairs ordered by (key-group, kv-state), thereby tracking key-group offsets.
+				while (mergeIterator.isValid()) {
 
-				//write meta data if we have to
-				if (iterator.isNewKeyGroup()) {
-					//
-					//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-					outputView.writeShort(END_OF_KEY_GROUP_MARK);
-					//begin new key-group
-					keyGroupRangeOffsets.setKeyGroupOffset(iterator.keyGroup(), outStream.getPos());
-					//write the kev-state
-					//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-					outputView.writeShort(iterator.kvStateId());
-				} else if (iterator.isNewKeyValueState()) {
-					//write the k/v-state
-					//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-					outputView.writeShort(iterator.kvStateId());
+					assert (!hasMetaDataFollowsFlag(previousKey));
+
+					//set signal in first key byte that meta data will follow in the stream after this k/v pair
+					if (mergeIterator.isNewKeyGroup() || mergeIterator.isNewKeyValueState()) {
+
+						//be cooperative and check for interruption from time to time in the hot loop
+						checkInterrupted();
+
+						setMetaDataFollowsFlagInKey(previousKey);
+					}
+
+					writeKeyValuePair(previousKey, previousValue);
+
+					//write meta data if we have to
+					if (mergeIterator.isNewKeyGroup()) {
+						//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+						outputView.writeShort(END_OF_KEY_GROUP_MARK);
+						//begin new key-group
+						keyGroupRangeOffsets.setKeyGroupOffset(mergeIterator.keyGroup(), outStream.getPos());
+						//write the kev-state
+						//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+						outputView.writeShort(mergeIterator.kvStateId());
+					} else if (mergeIterator.isNewKeyValueState()) {
+						//write the k/v-state
+						//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+						outputView.writeShort(mergeIterator.kvStateId());
+					}
+
+					//request next k/v pair
+					previousKey = mergeIterator.key();
+					previousValue = mergeIterator.value();
+					mergeIterator.next();
 				}
-
-				//request next k/v pair
-				previousKey = iterator.key();
-				previousValue = iterator.value();
-				iterator.next();
+			} finally {
+				mergeIterator.dispose();
 			}
 
 			//epilogue: write last key-group
@@ -540,11 +583,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private KeyGroupsStateHandle closeSnapshotStreamAndGetHandle() throws IOException {
 			StreamStateHandle stateHandle = outStream.closeAndGetHandle();
 			outStream = null;
-			if (stateHandle != null) {
-				return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
-			} else {
-				throw new IOException("Output stream returned null on close.");
-			}
+			return stateHandle != null ? new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle) : null;
 		}
 
 		private void writeKeyValuePair(byte[] key, byte[] value) throws IOException {
@@ -566,7 +605,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private static void checkInterrupted() throws InterruptedException {
 			if(Thread.currentThread().isInterrupted()) {
-				throw new InterruptedException("Snapshot canceled.");
+				throw new InterruptedException("RocksDB snapshot interrupted.");
 			}
 		}
 	}
@@ -829,6 +868,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		public int getKvStateId() {
 			return kvStateId;
 		}
+
+		public void dispose() {
+			this.iterator.dispose();
+		}
 	}
 
 	/**
@@ -845,10 +888,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private MergeIterator currentSubIterator;
 
-		RocksDBMergeIterator(List<Tuple2<RocksIterator, Integer>> kvStateIterators, final int keyGroupPrefixByteCount) throws IOException {
+		RocksDBMergeIterator(List<Tuple2<RocksIterator, Integer>> kvStateIterators, final int keyGroupPrefixByteCount) {
 			Preconditions.checkNotNull(kvStateIterators);
 			this.keyGroupPrefixByteCount = keyGroupPrefixByteCount;
 
+			//TODO make 2 static final variants
 			Comparator<MergeIterator> iteratorComparator = new Comparator<MergeIterator>() {
 				@Override
 				public int compare(MergeIterator o1, MergeIterator o2) {
@@ -866,8 +910,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					rocksIterator.seekToFirst();
 					if (rocksIterator.isValid()) {
 						heap.offer(new MergeIterator(rocksIterator, rocksIteratorWithKVStateId.f1));
+					} else {
+						rocksIterator.dispose();
 					}
 				}
+
+				kvStateIterators.clear();
+
 				this.valid = !heap.isEmpty();
 				this.currentSubIterator = heap.poll();
 			} else {
@@ -901,14 +950,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					newKVState = currentSubIterator.getIterator() != rocksIterator;
 					detectNewKeyGroup(oldKey);
 				}
-			} else if (heap.isEmpty()) {
-				valid = false;
 			} else {
-				currentSubIterator = heap.poll();
-				newKVState = true;
-				detectNewKeyGroup(oldKey);
+				currentSubIterator.dispose();
+				if (heap.isEmpty()) {
+					currentSubIterator = null;
+					valid = false;
+				} else {
+					currentSubIterator = heap.poll();
+					newKVState = true;
+					detectNewKeyGroup(oldKey);
+				}
 			}
-
 		}
 
 		private boolean isDifferentKeyGroup(byte[] a, byte[] b) {
@@ -985,6 +1037,19 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				}
 			}
 			return 0;
+		}
+
+		public void dispose() {
+
+			if (null != currentSubIterator) {
+				currentSubIterator.dispose();
+				currentSubIterator = null;
+			}
+
+			for (MergeIterator iterator : heap) {
+				iterator.dispose();
+			}
+			heap.clear();
 		}
 	}
 
