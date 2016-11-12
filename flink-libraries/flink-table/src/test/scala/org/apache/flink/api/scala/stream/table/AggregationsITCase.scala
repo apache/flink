@@ -179,7 +179,7 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
   }
 
   @Test
-  def testAllProcessingTimeTumblingGroupWindowOverCountWithAVG(): Unit = {
+  def testProcessingTimeSlidingGroupWindowOverCountWithAVG(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -189,14 +189,15 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
     val windowedTable = table
-      .window(Tumble over 3.rows)
-      .select('int.avg)
+      .groupBy('string)
+      .window(Slide over 4.rows every 2.rows)
+      .select('string, 'int.avg)
 
     val results = windowedTable.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
-    val expected = Seq("2")
+    val expected = Seq("Hello world,3","Hello,2")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
