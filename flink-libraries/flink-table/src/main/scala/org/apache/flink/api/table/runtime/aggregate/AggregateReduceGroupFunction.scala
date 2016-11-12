@@ -44,7 +44,8 @@ class AggregateReduceGroupFunction(
     private val finalRowArity: Int)
     extends RichGroupReduceFunction[Row, Row] {
 
-  private var aggregateBuffer: Row = _
+
+  protected var aggregateBuffer: Row = _
   private var output: Row = _
 
   override def open(config: Configuration) {

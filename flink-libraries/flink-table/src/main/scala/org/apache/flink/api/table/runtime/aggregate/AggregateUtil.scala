@@ -25,7 +25,7 @@ import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{SqlTypeFactoryImpl, SqlTypeName}
 import org.apache.calcite.sql.fun._
-import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction}
+import org.apache.flink.api.common.functions.{MapFunction, ReduceFunction, RichGroupReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.table.{FlinkTypeFactory, Row, TableException}
@@ -61,25 +61,108 @@ object AggregateUtil {
    * }}}
    *
    */
-  def createOperatorFunctionsForAggregates(
+    def createOperatorFunctionsForAggregates(
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
       outputType: RelDataType,
       groupings: Array[Int])
     : (MapFunction[Any, Row], RichGroupReduceFunction[Row, Row]) = {
 
-    val aggregateFunctionsAndFieldIndexes =
-      transformToAggregateFunctions(namedAggregates.map(_.getKey), inputType, groupings.length)
-    // store the aggregate fields of each aggregate function, by the same order of aggregates.
-    val aggFieldIndexes = aggregateFunctionsAndFieldIndexes._1
-    val aggregates = aggregateFunctionsAndFieldIndexes._2
+       val (aggFieldIndexes, aggregates)  =
+           transformToAggregateFunctions(namedAggregates.map(_.getKey),
+             inputType, groupings.length)
 
-    val mapReturnType: RowTypeInfo =
-      createAggregateBufferDataType(groupings, aggregates, inputType)
+        createOperatorFunctionsForAggregates(namedAggregates,
+          inputType,
+          outputType,
+          groupings,
+          aggregates,aggFieldIndexes)
+    }
 
-    val mapFunction = new AggregateMapFunction[Row, Row](
-        aggregates, aggFieldIndexes, groupings,
-        mapReturnType.asInstanceOf[RowTypeInfo]).asInstanceOf[MapFunction[Any, Row]]
+    def createOperatorFunctionsForAggregates(
+        namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+        inputType: RelDataType,
+        outputType: RelDataType,
+        groupings: Array[Int],
+        aggregates:Array[Aggregate[_ <: Any]],
+        aggFieldIndexes:Array[Int])
+    : (MapFunction[Any, Row], RichGroupReduceFunction[Row, Row])= {
+
+      val mapFunction = createAggregateMapFunction(aggregates,
+                        aggFieldIndexes, groupings, inputType)
+
+      // the mapping relation between field index of intermediate aggregate Row and output Row.
+      val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
+
+      // the mapping relation between aggregate function index in list and its corresponding
+      // field index in output Row.
+      val aggOffsetMapping = getAggregateMapping(namedAggregates, outputType)
+
+      if (groupingOffsetMapping.length != groupings.length ||
+        aggOffsetMapping.length != namedAggregates.length) {
+        throw new TableException("Could not find output field in input data type " +
+          "or aggregate functions.")
+      }
+
+      val allPartialAggregate = aggregates.map(_.supportPartial).forall(x => x)
+
+      val intermediateRowArity = groupings.length +
+                        aggregates.map(_.intermediateDataType.length).sum
+
+      val reduceGroupFunction =
+        if (allPartialAggregate) {
+          new AggregateReduceCombineFunction(
+            aggregates,
+            groupingOffsetMapping,
+            aggOffsetMapping,
+            intermediateRowArity,
+            outputType.getFieldCount)
+        }
+        else {
+          new AggregateReduceGroupFunction(
+            aggregates,
+            groupingOffsetMapping,
+            aggOffsetMapping,
+            intermediateRowArity,
+            outputType.getFieldCount)
+        }
+
+      (mapFunction, reduceGroupFunction)
+  }
+
+  /**
+    * Create Flink operator functions for Incremental aggregates.
+    * It includes 2 implementations of Flink operator functions:
+    * [[org.apache.flink.api.common.functions.MapFunction]] and
+    * [[org.apache.flink.api.common.functions.ReduceFunction]]
+    * The output of [[org.apache.flink.api.common.functions.MapFunction]] contains the
+    * intermediate aggregate values of all aggregate function, it's stored in Row by the following
+    * format:
+    *
+    * {{{
+    *                   avg(x) aggOffsetInRow = 2          count(z) aggOffsetInRow = 5
+    *                             |                          |
+    *                             v                          v
+    *        +---------+---------+--------+--------+--------+--------+
+    *        |groupKey1|groupKey2|  sum1  | count1 |  sum2  | count2 |
+    *        +---------+---------+--------+--------+--------+--------+
+    *                                              ^
+    *                                              |
+    *                               sum(y) aggOffsetInRow = 4
+    * }}}
+    *
+    */
+  def createOperatorFunctionsForIncrementalAggregates(
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupings: Array[Int],
+      aggregates:Array[Aggregate[_ <: Any]],
+      aggFieldIndexes:Array[Int])
+  : (MapFunction[Any, Row], ReduceFunction[Row],
+              Array[(Int, Int)],Array[(Int, Int)],Int) = {
+
+    val mapFunction = createAggregateMapFunction(aggregates, aggFieldIndexes, groupings, inputType)
 
     // the mapping relation between field index of intermediate aggregate Row and output Row.
     val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
@@ -89,37 +172,32 @@ object AggregateUtil {
     val aggOffsetMapping = getAggregateMapping(namedAggregates, outputType)
 
     if (groupingOffsetMapping.length != groupings.length ||
-        aggOffsetMapping.length != namedAggregates.length) {
+      aggOffsetMapping.length != namedAggregates.length) {
       throw new TableException("Could not find output field in input data type " +
-          "or aggregate functions.")
+        "or aggregate functions.")
     }
-
-    val allPartialAggregate = aggregates.map(_.supportPartial).forall(x => x)
-
     val intermediateRowArity = groupings.length + aggregates.map(_.intermediateDataType.length).sum
+    val reduceFunction = new IncrementalAggregateReduceFunction(aggregates,
+      groupingOffsetMapping, intermediateRowArity)
+    (mapFunction, reduceFunction, groupingOffsetMapping, aggOffsetMapping, intermediateRowArity)
 
-    val reduceGroupFunction =
-      if (allPartialAggregate) {
-        new AggregateReduceCombineFunction(
-          aggregates,
-          groupingOffsetMapping,
-          aggOffsetMapping,
-          intermediateRowArity,
-          outputType.getFieldCount)
-      }
-      else {
-        new AggregateReduceGroupFunction(
-          aggregates,
-          groupingOffsetMapping,
-          aggOffsetMapping,
-          intermediateRowArity,
-          outputType.getFieldCount)
-      }
-
-    (mapFunction, reduceGroupFunction)
   }
 
-  private def transformToAggregateFunctions(
+  private def createAggregateMapFunction(aggregates:Array[Aggregate[_ <: Any]],
+         aggFieldIndexes:Array[Int],
+         groupings: Array[Int],
+         inputType: RelDataType): MapFunction[Any, Row] ={
+
+    val mapReturnType: RowTypeInfo =
+      createAggregateBufferDataType(groupings, aggregates, inputType)
+    val mapFunction = new AggregateMapFunction[Row, Row](
+      aggregates, aggFieldIndexes, groupings,
+      mapReturnType.asInstanceOf[RowTypeInfo]).asInstanceOf[MapFunction[Any, Row]]
+
+    mapFunction
+  }
+
+  private[flink] def transformToAggregateFunctions(
       aggregateCalls: Seq[AggregateCall],
       inputType: RelDataType,
       groupKeysCount: Int): (Array[Int], Array[Aggregate[_ <: Any]]) = {
