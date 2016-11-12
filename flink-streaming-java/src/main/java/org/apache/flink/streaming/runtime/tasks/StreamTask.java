@@ -942,9 +942,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		@Override
 		public void close() {
-			//TODO Handle other state futures in case we actually run them. Currently they are just DoneFutures.
-			if (futureKeyedBackendStateHandles != null) {
-				futureKeyedBackendStateHandles.cancel(true);
+			// cleanup/release ongoing snapshot operations
+			for (OperatorSnapshotResult snapshotResult : snapshotInProgressList) {
+				snapshotResult.cancel();
 			}
 		}
 	}
@@ -985,35 +985,55 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			startSyncPartNano = System.nanoTime();
 
-			for (StreamOperator<?> op : allOperators) {
+			boolean failed = true;
+			try {
 
-				createStreamFactory(op);
-				snapshotNonPartitionableState(op);
+				for (StreamOperator<?> op : allOperators) {
 
-				OperatorSnapshotResult snapshotInProgress =
-						op.snapshotState(checkpointMetaData.getCheckpointId(), checkpointMetaData.getTimestamp(), streamFactory);
+					createStreamFactory(op);
+					snapshotNonPartitionableState(op);
 
-				snapshotInProgressList.add(snapshotInProgress);
+					OperatorSnapshotResult snapshotInProgress =
+							op.snapshotState(checkpointMetaData.getCheckpointId(), checkpointMetaData.getTimestamp(), streamFactory);
+
+					snapshotInProgressList.add(snapshotInProgress);
+				}
+
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Finished synchronous checkpoints for checkpoint {} on task {}",
+							checkpointMetaData.getCheckpointId(), owner.getName());
+				}
+
+				startAsyncPartNano = System.nanoTime();
+
+				checkpointMetaData.setSyncDurationMillis((startAsyncPartNano - startSyncPartNano) / 1_000_000);
+
+				// at this point we are transferring ownership over snapshotInProgressList for cleanup to the thread
+				runAsyncCheckpointingAndAcknowledge();
+				failed = false;
+
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("{} - finished synchronous part of checkpoint {}." +
+									"Alignment duration: {} ms, snapshot duration {} ms",
+							owner.getName(), checkpointMetaData.getCheckpointId(),
+							checkpointMetaData.getAlignmentDurationNanos() / 1_000_000,
+							checkpointMetaData.getSyncDurationMillis());
+				}
+			} finally {
+				if (failed) {
+					// Cleanup to release resources
+					for (OperatorSnapshotResult operatorSnapshotResult : snapshotInProgressList) {
+						operatorSnapshotResult.cancel();
+					}
+
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("{} - did NOT finish synchronous part of checkpoint {}." +
+										"Alignment duration: {} ms, snapshot duration {} ms",
+								owner.getName(), checkpointMetaData.getCheckpointId());
+					}
+				}
 			}
 
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Finished synchronous checkpoints for checkpoint {} on task {}",
-						checkpointMetaData.getCheckpointId(), owner.getName());
-			}
-
-			startAsyncPartNano= System.nanoTime();
-
-			checkpointMetaData.setSyncDurationMillis((startAsyncPartNano - startSyncPartNano) / 1_000_000);
-
-			runAsyncCheckpointingAndAcknowledge();
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("{} - finished synchronous part of checkpoint {}." +
-								"Alignment duration: {} ms, snapshot duration {} ms",
-						owner.getName(), checkpointMetaData.getCheckpointId(),
-						checkpointMetaData.getAlignmentDurationNanos() / 1_000_000,
-						checkpointMetaData.getSyncDurationMillis());
-			}
 		}
 
 		private void createStreamFactory(StreamOperator<?> operator) throws IOException {
@@ -1051,6 +1071,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 
 		public void runAsyncCheckpointingAndAcknowledge() throws IOException {
+
 			AsyncCheckpointRunnable asyncCheckpointRunnable = new AsyncCheckpointRunnable(
 					owner,
 					nonPartitionedStates,
