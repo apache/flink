@@ -15,23 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.table.runtime.aggregate
 
 import java.lang.Iterable
 
-import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.api.table.Row
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction
-import org.apache.flink.streaming.api.windowing.windows.TimeWindow
+import org.apache.flink.streaming.api.windowing.windows.{TimeWindow, Window}
 import org.apache.flink.util.Collector
-
-class AggregateAllTimeWindowFunction(
-    groupReduceFunction: RichGroupReduceFunction[Row, Row],
-    windowStartPos: Option[Int],
-    windowEndPos: Option[Int])
-  extends AggregateAllWindowFunction[TimeWindow](groupReduceFunction) {
+/**
+  *
+  * Computes the final aggregate value from incrementally computed aggreagtes.
+  *
+  * @param aggregates   The aggregate functions.
+  * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row
+  *                         and output Row.
+  * @param aggregateMapping The index mapping between aggregate function list and aggregated value
+  *                         index in output Row.
+  * @param finalRowArity  The arity of the final output row.
+  */
+class IncrementalAggregateAllTimeWindowFunction(
+    private val aggregates: Array[Aggregate[_ <: Any]],
+    private val groupKeysMapping: Array[(Int, Int)],
+    private val aggregateMapping: Array[(Int, Int)],
+    private val finalRowArity: Int,
+    private val windowStartPos: Option[Int],
+    private val windowEndPos: Option[Int])
+  extends IncrementalAggregateAllWindowFunction[TimeWindow](
+    aggregates,
+    groupKeysMapping,
+    aggregateMapping,
+    finalRowArity) {
 
   private var collector: TimeWindowPropertyCollector = _
 
@@ -40,13 +54,15 @@ class AggregateAllTimeWindowFunction(
     super.open(parameters)
   }
 
-  override def apply(window: TimeWindow, input: Iterable[Row], out: Collector[Row]): Unit = {
+  override def apply(
+    window: TimeWindow,
+    records: Iterable[Row],
+    out: Collector[Row]): Unit = {
 
     // set collector and window
     collector.wrappedCollector = out
     collector.timeWindow = window
 
-    // call wrapped reduce function with property collector
-    super.apply(window, input, collector)
+    super.apply(window, records, collector)
   }
 }
