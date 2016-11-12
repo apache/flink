@@ -19,18 +19,31 @@
 package org.apache.flink.graph.bipartite;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.utils.Tuple2ToTuple3Map;
+import org.apache.flink.graph.utils.Tuple2ToVertexMap;
+import org.apache.flink.graph.utils.Tuple3ToBipartiteEdgeMap;
+import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
+import static org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+
+import java.util.Collection;
 
 /**
  * The vertices of a bipartite graph are divided into two disjoint sets, referenced by the names "top" and "bottom".
@@ -58,6 +71,14 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	private final DataSet<Vertex<KB, VVB>> bottomVertices;
 	private final DataSet<BipartiteEdge<KT, KB, EV>> edges;
 
+	/**
+	 * Creates a bipartite graph from three DataSets: top vertices, bottom vertices, and edges
+	 *
+	 * @param topVertices a DataSet of top vertices.
+	 * @param bottomVertices a DataSet of bottom vertices.
+	 * @param edges a DataSet of edges.
+	 * @param context the Flink execution environment.
+	 */
 	private BipartiteGraph(
 			DataSet<Vertex<KT, VVT>> topVertices,
 			DataSet<Vertex<KB, VVB>> bottomVertices,
@@ -70,20 +91,355 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	}
 
 	/**
+	 * Creates a graph from two Collection of top and bottom vertices and a Collection of edges.
+	 *
+	 * @param topVertices a Collection of top vertices.
+	 * @param bottomVertices a Collection of bottom vertices.
+	 * @param edges a Collection of edges.
+	 * @param context the Flink execution environment.
+	 * @return the newly created bipartite graph.
+	 */
+	public static <KT, KB, VVT, VVB, EV> BipartiteGraph<KT, KB, VVT, VVB, EV> fromCollection(
+															Collection<Vertex<KT, VVT>> topVertices,
+															Collection<Vertex<KB, VVB>> bottomVertices,
+															Collection<BipartiteEdge<KT, KB, EV>> edges,
+															ExecutionEnvironment context) {
+
+		return fromDataSet(
+			context.fromCollection(topVertices),
+			context.fromCollection(bottomVertices),
+			context.fromCollection(edges), context);
+	}
+
+	/**
+	 * Creates a graph from a Collection of edges.
+	 * Vertices are created automatically and their values are set to
+	 * NullValue.
+	 *
+	 * @param edges a Collection of edges.
+	 * @param context the Flink execution environment.
+	 * @return the newly created bipartite graph.
+	 */
+	public static <KT, KB, EV> BipartiteGraph<KT, KB, NullValue, NullValue, EV> fromCollection(
+																Collection<BipartiteEdge<KT, KB, EV>> edges,
+																ExecutionEnvironment context) {
+
+		return fromDataSet(context.fromCollection(edges), context);
+	}
+
+	/**
+	 * Creates a graph from a Collection of edges.
+	 * Vertices are created automatically and their values are set
+	 * by applying the provided map function to the vertex IDs.
+	 *
+	 * @param edges a Collection of edges.
+	 * @param topVertexValueInitializer a map function that initializes the top vertex values.
+	 * It allows to apply a map transformation on the vertex ID to produce an initial vertex value.
+	 * @param bottomVertexValueInitializer a map function that initializes the top vertex values.
+	 * It allows to apply a map transformation on the vertex ID to produce an initial vertex value.
+	 * @param context the Flink execution environment.
+	 * @return the newly created bipartite graph.
+	 */
+	public static <KT, KB, VVT, VVB, EV> BipartiteGraph<KT, KB, VVT, VVB, EV> fromCollection(
+															Collection<BipartiteEdge<KT, KB, EV>> edges,
+															final MapFunction<KT, VVT> topVertexValueInitializer,
+															final MapFunction<KB, VVB> bottomVertexValueInitializer,
+															ExecutionEnvironment context) {
+
+		return fromDataSet(
+			context.fromCollection(edges),
+			topVertexValueInitializer,
+			bottomVertexValueInitializer,
+			context);
+	}
+
+	/**
+	 * Creates a graph from a DataSet of Tuple3 objects for edges.
+	 * <p>
+	 * Each Tuple3 will become one Edge, where the source ID will be the first field of the Tuple2,
+	 * the target ID will be the second field of the Tuple2
+	 * and the Edge value will be the third field of the Tuple3.
+	 * <p>
+	 * Vertices are created automatically and their values are initialized
+	 * by applying provided topVertexValueInitializer and bottomVertexValueInitializer map functions to the vertex IDs.
+	 *
+	 * @param edges a DataSet of Tuple3.
+	 * @param topVertexValueInitializer the mapper function that initializes the top vertex values.
+	 * @param bottomVertexValueInitializer the mapper function that initializes the bottom vertex values.
+	 * @param context the Flink execution environment.
+	 * @param <KT> the key type of the top vertices
+	 * @param <KB> the key type of the bottom vertices
+	 * @param <VVT> the top vertices value type
+	 * @param <VVB> the bottom vertices value type
+	 * @param <EV> the edge value type
+	 * @return the newly created bipartite graph.
+	 */
+	public static <KT, KB, VVT, VVB, EV> BipartiteGraph<KT, KB, VVT, VVB, EV> fromTupleDataSet(
+		DataSet<Tuple3<KT, KB, EV>> edges, MapFunction<KT, VVT> topVertexValueInitializer,
+		MapFunction<KB, VVB> bottomVertexValueInitializer, ExecutionEnvironment context) {
+		return BipartiteGraph.fromDataSet(
+			edges.map(new Tuple3ToBipartiteEdgeMap<KT, KB, EV>()),
+			topVertexValueInitializer,
+			bottomVertexValueInitializer,
+			context
+		);
+	}
+
+	/**
+	 * Creates a graph from a DataSet of Tuple2 objects for edges.
+	 * <p>
+	 * The first field of the Tuple2 object will become the source ID,
+	 * and the second field will become the target ID
+	 * <p>
+	 * Vertices are created automatically and their values are set to NullValue.
+	 *
+	 * @param edges a DataSet of Tuple2 representing the edges.
+	 * @param context the Flink execution environment.
+	 * @param <KT> the key type of the top vertices
+	 * @param <KB> the key type of the bottom vertices
+	 * @return the newly created graph.
+	 */
+	public static <KT, KB> BipartiteGraph<KT, KB, NullValue, NullValue, NullValue> fromTuple2DataSet(
+		DataSet<Tuple2<KT, KB>> edges, ExecutionEnvironment context) {
+
+		return BipartiteGraph.fromTupleDataSet(
+			edges.map(new Tuple2ToTuple3Map<KT, KB>()),
+			context
+		);
+	}
+
+	/**
+	 * Creates a graph from a DataSet of Tuple3 objects for edges.
+	 * <p>
+	 * The first field of the Tuple3 object will become the top vertex ID,
+	 * the second field will become the bottom vertex ID, and the third field will become
+	 * the edge value.
+	 * <p>
+	 * Vertices are created automatically and their values are set to NullValue.
+	 *
+	 * @param edges a DataSet of Tuple3 representing the edges.
+	 * @param context the Flink execution environment.
+	 * @param <KT> the key type of the top vertices
+	 * @param <KB> the key type of the bottom vertices
+	 * @param <EV> the edge value type
+	 * @return the newly created graph.
+	 */
+	public static <KT, KB, EV> BipartiteGraph<KT, KB, NullValue, NullValue, EV> fromTupleDataSet(
+		DataSet<Tuple3<KT, KB, EV>> edges, ExecutionEnvironment context) {
+
+		return BipartiteGraph.fromDataSet(
+			edges.map(new Tuple3ToBipartiteEdgeMap<KT, KB, EV>()),
+			context
+		);
+	}
+
+	/**
+	 * Creates a graph from a DataSet of edges.
+	 * Vertices are created automatically and their values are set to
+	 * NullValue.
+	 *
+	 * @param edges a DataSet of edges.
+	 * @param context the Flink execution environment.
+	 * @param <KT> the key type of the top vertices
+	 * @param <KB> the key type of the bottom vertices
+	 * @param <EV> the edge value type
+	 * @return the newly created graph.
+	 */
+	public static <KT, KB, EV> BipartiteGraph<KT, KB, NullValue, NullValue, EV> fromDataSet(
+		DataSet<BipartiteEdge<KT, KB, EV>> edges, ExecutionEnvironment context) {
+
+		DataSet<Vertex<KT, NullValue>> topVertices = edges.map(new EmitTopIds<KT, KB, EV>()).distinct();
+		DataSet<Vertex<KB, NullValue>> bottomVertices = edges.map(new EmitBottomIds<KT, KB, EV>()).distinct();
+
+		return new BipartiteGraph<>(topVertices, bottomVertices, edges, context);
+	}
+
+	@ForwardedFields("f0")
+	private static class EmitTopIds<KT, KB, EV> implements MapFunction<BipartiteEdge<KT, KB, EV>, Vertex<KT, NullValue>> {
+
+		private Vertex<KT, NullValue> result = new Vertex<>();
+
+		@Override
+		public Vertex<KT, NullValue> map(BipartiteEdge<KT, KB, EV> value) throws Exception {
+			result.setId(value.getTopId());
+			return result;
+		}
+	}
+
+	@ForwardedFields("f1->f0")
+	private static class EmitBottomIds<KT, KB, EV> implements MapFunction<BipartiteEdge<KT, KB, EV>, Vertex<KB, NullValue>> {
+
+		private Vertex<KB, NullValue> result = new Vertex<>();
+
+		@Override
+		public Vertex<KB, NullValue> map(BipartiteEdge<KT, KB, EV> value) throws Exception {
+			result.setId(value.getBottomId());
+			return result;
+		}
+	}
+
+	/**
+	 * Creates a graph from a DataSet of edges.
+	 * Vertices are created automatically and their values are set
+	 * by applying the provided map functions to the vertex IDs.
+	 *
+	 * @param edges a DataSet of edges.
+	 * @param topVertexValueInitializer the mapper function that initializes the top vertex values.
+	 * @param bottomVertexValueInitializer the mapper function that initializes the bottom vertex values.
+	 * @param context the Flink execution environment.
+	 * @param <KT> the key type of the top vertices
+	 * @param <KB> the key type of the bottom vertices
+	 * @param <VVT> the top vertices value type
+	 * @param <VVB> the bottom vertices value type
+	 * @param <EV> the edge value type
+	 * @return the newly created bipartite graph.
+	 */
+	public static <KT, KB, VVT, VVB, EV> BipartiteGraph<KT, KB, VVT, VVB, EV> fromDataSet(
+		DataSet<BipartiteEdge<KT, KB, EV>> edges,
+		final MapFunction<KT, VVT> topVertexValueInitializer,
+		final MapFunction<KB, VVB> bottomVertexValueInitializer,
+		ExecutionEnvironment context) {
+
+		TypeInformation<KT> topKeyType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(0);
+		TypeInformation<KB> bootomKeyType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(1);
+
+		TypeInformation<VVT> topValueType = TypeExtractor.createTypeInfo(
+			MapFunction.class, topVertexValueInitializer.getClass(), 1, null, null);
+		TypeInformation<VVB> bottomValueType = TypeExtractor.createTypeInfo(
+			MapFunction.class, bottomVertexValueInitializer.getClass(), 1, null, null);
+
+		@SuppressWarnings({ "unchecked", "rawtypes" })
+		TypeInformation<Vertex<KT, VVT>> topReturnType = (TypeInformation<Vertex<KT, VVT>>) new TupleTypeInfo(
+			Vertex.class, topKeyType, topValueType);
+
+		@SuppressWarnings({ "unchecked", "rawtypes" })
+		TypeInformation<Vertex<KB, VVB>> bottomReturnType = (TypeInformation<Vertex<KB, VVB>>) new TupleTypeInfo(
+			Vertex.class, bootomKeyType, bottomValueType);
+
+		DataSet<Vertex<KT, VVT>> topVerties = edges
+			.map(new EmitTopAsTuple1<KT, KB, EV>()).distinct()
+			.map(new MapFunction<Tuple1<KT>, Vertex<KT, VVT>>() {
+				public Vertex<KT, VVT> map(Tuple1<KT> value) throws Exception {
+					return new Vertex<>(value.f0, topVertexValueInitializer.map(value.f0));
+				}
+			}).returns(topReturnType).withForwardedFields("f0");
+
+		DataSet<Vertex<KB, VVB>> bottomVerties = edges
+			.map(new EmitBottomAsTuple1<KT, KB, EV>()).distinct()
+			.map(new MapFunction<Tuple1<KB>, Vertex<KB, VVB>>() {
+				public Vertex<KB, VVB> map(Tuple1<KB> value) throws Exception {
+					return new Vertex<>(value.f0, bottomVertexValueInitializer.map(value.f0));
+				}
+			}).returns(bottomReturnType).withForwardedFields("f0");
+
+		return BipartiteGraph.fromDataSet(topVerties, bottomVerties, edges, context);
+	}
+
+	@ForwardedFields("f0")
+	private static final class EmitTopAsTuple1<KT, KB, EV> implements MapFunction<BipartiteEdge<KT, KB, EV>, Tuple1<KT>> {
+
+		private Tuple1<KT> result  = new Tuple1<>();
+
+		@Override
+		public Tuple1<KT> map(BipartiteEdge<KT, KB, EV> value) throws Exception {
+			result.f0 = value.getTopId();
+			return result;
+		}
+	}
+
+	@ForwardedFields("f1->f0")
+	private static final class EmitBottomAsTuple1<KT, KB, EV> implements MapFunction<BipartiteEdge<KT, KB, EV>, Tuple1<KB>> {
+
+		private Tuple1<KB> result  = new Tuple1<>();
+
+		@Override
+		public Tuple1<KB> map(BipartiteEdge<KT, KB, EV> value) throws Exception {
+			result.f0 = value.getBottomId();
+			return result;
+		}
+	}
+
+	/**
 	 * Create bipartite graph from datasets.
 	 *
-	 * @param topVertices dataset of top vertices in the graph
+	 * @param topVertices  dataset of top vertices in the graph
 	 * @param bottomVertices dataset of bottom vertices in the graph
 	 * @param edges dataset of edges between vertices
 	 * @param context Flink execution context
+	 * @param <KT> the key type of the top vertices
+	 * @param <KB> the key type of the bottom vertices
+	 * @param <VVT> the top vertices value type
+	 * @param <VVB> the bottom vertices value type
+	 * @param <EV> the edge value type
 	 * @return new bipartite graph created from provided datasets
 	 */
 	public static <KT, KB, VVT, VVB, EV> BipartiteGraph<KT, KB, VVT, VVB, EV> fromDataSet(
-			DataSet<Vertex<KT, VVT>> topVertices,
-			DataSet<Vertex<KB, VVB>> bottomVertices,
-			DataSet<BipartiteEdge<KT, KB, EV>> edges,
-			ExecutionEnvironment context) {
+		DataSet<Vertex<KT, VVT>> topVertices,
+		DataSet<Vertex<KB, VVB>> bottomVertices,
+		DataSet<BipartiteEdge<KT, KB, EV>> edges,
+		ExecutionEnvironment context) {
 		return new BipartiteGraph<>(topVertices, bottomVertices, edges, context);
+	}
+
+	/**
+	 * Creates a BipartiteGraph from CSV files of vertices and a CSV file of edges.
+	 *
+	 * @param topVerticesPath path to a CSV file with the top Vertex data.
+	 * @param bottomVerticesPath path to a CSV file with the bottom Vertex data.
+	 * @param edgesPath path to a CSV file with the Edge data
+	 * @param context the Flink execution environment.
+	 * @return An instance of {@link org.apache.flink.graph.bipartite.BipartiteGraphCsvReader},
+	 * on which calling methods to specify types of the Vertex ID, Vertex value and Edge value returns a Graph.
+	 *
+	 * @see org.apache.flink.graph.bipartite.BipartiteGraphCsvReader#types(Class, Class, Class, Class, Class)
+	 * @see org.apache.flink.graph.bipartite.BipartiteGraphCsvReader#vertexTypes(Class, Class, Class, Class)
+	 * @see org.apache.flink.graph.bipartite.BipartiteGraphCsvReader#edgeTypes(Class, Class, Class)
+	 * @see org.apache.flink.graph.bipartite.BipartiteGraphCsvReader#keyType(Class, Class)
+	 */
+	public static BipartiteGraphCsvReader fromCsvReader(String topVerticesPath, String bottomVerticesPath, String edgesPath, ExecutionEnvironment context) {
+		return new BipartiteGraphCsvReader(topVerticesPath, bottomVerticesPath, edgesPath, context);
+	}
+
+	/**
+	 * Creates a graph from a CSV file of edges. Vertices will be created automatically.
+	 *
+	 * @param edgesPath a path to a CSV file with the Edges data
+	 * @param context the execution environment.
+	 * @return An instance of {@link org.apache.flink.graph.bipartite.BipartiteGraphCsvReader},
+	 * on which calling methods to specify types of the Vertex ID, Vertex value and Edge value returns a Graph.
+	 *
+	 * @see org.apache.flink.graph.bipartite.BipartiteGraphCsvReader#types(Class, Class, Class, Class, Class)
+	 * @see org.apache.flink.graph.bipartite.BipartiteGraphCsvReader#vertexTypes(Class, Class, Class, Class)
+	 * @see org.apache.flink.graph.bipartite.BipartiteGraphCsvReader#edgeTypes(Class, Class, Class)
+	 * @see org.apache.flink.graph.bipartite.BipartiteGraphCsvReader#keyType(Class, Class)
+	 */
+	public static BipartiteGraphCsvReader fromCsvReader(String edgesPath, ExecutionEnvironment context) {
+		return new BipartiteGraphCsvReader(edgesPath, context);
+	}
+
+	/**
+	 * Creates a graph from a CSV file of edges. Vertices will be created automatically and
+	 * Vertex values can be initialized using a user-defined mapper.
+	 *
+	 * @param edgesPath a path to a CSV file with the Edge data
+	 * @param topVertexValueInitializer the mapper function that initializes the top vertex values.
+	 * It allows to apply a map transformation on the vertex ID to produce an initial vertex value.
+	 * @param bottomVertexValueInitializer the mapper function that initializes the bottom vertex values.
+	 * It allows to apply a map transformation on the vertex ID to produce an initial vertex value.
+	 * @param context the execution environment.
+	 * @return An instance of {@link org.apache.flink.graph.bipartite.BipartiteGraphCsvReader},
+	 * on which calling methods to specify types of the Vertex ID, Vertex Value and Edge value returns a Graph.
+	 *
+	 * @see org.apache.flink.graph.bipartite.BipartiteGraphCsvReader#types(Class, Class, Class, Class, Class)
+	 * @see org.apache.flink.graph.bipartite.BipartiteGraphCsvReader#vertexTypes(Class, Class, Class, Class)
+	 * @see org.apache.flink.graph.bipartite.BipartiteGraphCsvReader#edgeTypes(Class, Class, Class)
+	 * @see org.apache.flink.graph.bipartite.BipartiteGraphCsvReader#keyType(Class, Class)
+	 */
+	public static <KT, KB, VVT, VVB> BipartiteGraphCsvReader fromCsvReader(String edgesPath,
+													final MapFunction<KT, VVT> topVertexValueInitializer,
+													final MapFunction<KB, VVB> bottomVertexValueInitializer,
+													ExecutionEnvironment context) {
+		return new BipartiteGraphCsvReader(edgesPath, topVertexValueInitializer, bottomVertexValueInitializer, context);
 	}
 
 	/**
@@ -315,5 +671,40 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 				out.collect(edge);
 			}
 		}
+	}
+
+	/**
+	 * Creates a graph from a DataSet of Tuple2 objects for top vertices,
+	 * a DataSet of Tuple2 objects for bottom vertices, and DataSet
+	 * Tuple3 objects for edges.
+	 * <p>
+	 * The first field of the Tuple2 vertex object will become the vertex ID
+	 * and the second field will become the vertex value.
+	 * The first field of the Tuple3 object for edges will become the top vertex ID,
+	 * the second field will become the bottom vertex ID, and the third field will become
+	 * the edge value.
+	 *
+	 * @param <KT> the key type of top vertices
+	 * @param <KB> the key type of bottom vertices
+	 * @param <VVT> the vertex value type of top vertices
+	 * @param <VVB> the vertex value type of bottom vertices
+	 * @param <EV> the edge value type
+	 *
+	 * @param topVertices a DataSet of Tuple2 representing the top vertices.
+	 * @param bottomVertices a DataSet of Tuple2 representing the bottom vertices.
+	 * @param edges a DataSet of Tuple3 representing the edges.
+	 * @param executionContext the Flink execution environment.
+	 * @return the newly created bipartite graph.
+	 */
+	public static <KT, KB, VVT, VVB, EV> BipartiteGraph<KT, KB, VVT, VVB, EV> fromTupleDataSet(
+		DataSet<Tuple2<KT, VVT>> topVertices, DataSet<Tuple2<KB, VVB>> bottomVertices,
+		DataSet<Tuple3<KT, KB, EV>> edges, ExecutionEnvironment executionContext) {
+
+		return BipartiteGraph.fromDataSet(
+			topVertices.map(new Tuple2ToVertexMap<KT, VVT>()),
+			bottomVertices.map(new Tuple2ToVertexMap<KB, VVB>()),
+			edges.map(new Tuple3ToBipartiteEdgeMap<KT, KB, EV>()),
+			executionContext
+		);
 	}
 }

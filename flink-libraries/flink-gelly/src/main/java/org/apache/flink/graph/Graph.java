@@ -95,7 +95,7 @@ public class Graph<K, VV, EV> {
 	 * 
 	 * @param vertices a DataSet of vertices.
 	 * @param edges a DataSet of edges.
-	 * @param context the flink execution environment.
+	 * @param context the Flink execution environment.
 	 */
 	private Graph(DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges, ExecutionEnvironment context) {
 		this.vertices = vertices;
@@ -108,7 +108,7 @@ public class Graph<K, VV, EV> {
 	 * 
 	 * @param vertices a Collection of vertices.
 	 * @param edges a Collection of edges.
-	 * @param context the flink execution environment.
+	 * @param context the Flink execution environment.
 	 * @return the newly created graph.
 	 */
 	public static <K, VV, EV> Graph<K, VV, EV> fromCollection(Collection<Vertex<K, VV>> vertices,
@@ -124,7 +124,7 @@ public class Graph<K, VV, EV> {
 	 * NullValue.
 	 * 
 	 * @param edges a Collection of edges.
-	 * @param context the flink execution environment.
+	 * @param context the Flink execution environment.
 	 * @return the newly created graph.
 	 */
 	public static <K, EV> Graph<K, NullValue, EV> fromCollection(Collection<Edge<K, EV>> edges,
@@ -141,7 +141,7 @@ public class Graph<K, VV, EV> {
 	 * @param edges a Collection of edges.
 	 * @param vertexValueInitializer a map function that initializes the vertex values.
 	 * It allows to apply a map transformation on the vertex ID to produce an initial vertex value. 
-	 * @param context the flink execution environment.
+	 * @param context the Flink execution environment.
 	 * @return the newly created graph.
 	 */
 	public static <K, VV, EV> Graph<K, VV, EV> fromCollection(Collection<Edge<K, EV>> edges,
@@ -155,7 +155,7 @@ public class Graph<K, VV, EV> {
 	 * 
 	 * @param vertices a DataSet of vertices.
 	 * @param edges a DataSet of edges.
-	 * @param context the flink execution environment.
+	 * @param context the Flink execution environment.
 	 * @return the newly created graph.
 	 */
 	public static <K, VV, EV> Graph<K, VV, EV> fromDataSet(DataSet<Vertex<K, VV>> vertices,
@@ -170,7 +170,7 @@ public class Graph<K, VV, EV> {
 	 * NullValue.
 	 * 
 	 * @param edges a DataSet of edges.
-	 * @param context the flink execution environment.
+	 * @param context the Flink execution environment.
 	 * @return the newly created graph.
 	 */
 	public static <K, EV> Graph<K, NullValue, EV> fromDataSet(
@@ -205,7 +205,7 @@ public class Graph<K, VV, EV> {
 	 * @param edges a DataSet of edges.
 	 * @param vertexValueInitializer the mapper function that initializes the vertex values.
 	 * It allows to apply a map transformation on the vertex ID to produce an initial vertex value.
-	 * @param context the flink execution environment.
+	 * @param context the Flink execution environment.
 	 * @return the newly created graph.
 	 */
 	public static <K, VV, EV> Graph<K, VV, EV> fromDataSet(DataSet<Edge<K, EV>> edges,
@@ -262,7 +262,7 @@ public class Graph<K, VV, EV> {
 	 * 
 	 * @param vertices a DataSet of Tuple2 representing the vertices.
 	 * @param edges a DataSet of Tuple3 representing the edges.
-	 * @param context the flink execution environment.
+	 * @param context the Flink execution environment.
 	 * @return the newly created graph.
 	 */
 	public static <K, VV, EV> Graph<K, VV, EV> fromTupleDataSet(DataSet<Tuple2<K, VV>> vertices,
@@ -289,7 +289,7 @@ public class Graph<K, VV, EV> {
 	 * Vertices are created automatically and their values are set to NullValue.
 	 * 
 	 * @param edges a DataSet of Tuple3 representing the edges.
-	 * @param context the flink execution environment.
+	 * @param context the Flink execution environment.
 	 * @return the newly created graph.
 	 */
 	public static <K, EV> Graph<K, NullValue, EV> fromTupleDataSet(DataSet<Tuple3<K, K, EV>> edges,
@@ -315,7 +315,7 @@ public class Graph<K, VV, EV> {
 	 * @param edges a DataSet of Tuple3.
 	 * @param vertexValueInitializer the mapper function that initializes the vertex values.
 	 * It allows to apply a map transformation on the vertex ID to produce an initial vertex value.
-	 * @param context the flink execution environment.
+	 * @param context the Flink execution environment.
 	 * @return the newly created graph.
 	 */
 	public static <K, VV, EV> Graph<K, VV, EV> fromTupleDataSet(DataSet<Tuple3<K, K, EV>> edges,
@@ -336,7 +336,7 @@ public class Graph<K, VV, EV> {
 	 * Edge value types and Vertex values types will be set to NullValue.
 	 * 
 	 * @param edges a DataSet of Tuple2.
-	 * @param context the flink execution environment.
+	 * @param context the Flink execution environment.
 	 * @return the newly created graph.
 	 */
 	public static <K> Graph<K, NullValue, NullValue> fromTuple2DataSet(DataSet<Tuple2<K, K>> edges,
@@ -361,7 +361,7 @@ public class Graph<K, VV, EV> {
 	 * and the second field corresponds to the target ID.
 	 * @param vertexValueInitializer the mapper function that initializes the vertex values.
 	 * It allows to apply a map transformation on the vertex ID to produce an initial vertex value.
-	 * @param context the flink execution environment.
+	 * @param context the Flink execution environment.
 	 * @return the newly created graph.
 	 */
 	public static <K, VV> Graph<K, VV, NullValue> fromTuple2DataSet(DataSet<Tuple2<K, K>> edges,
@@ -431,7 +431,7 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * @return the flink execution environment.
+	 * @return the Flink execution environment.
 	 */
 	public ExecutionEnvironment getContext() {
 		return this.context;

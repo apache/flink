@@ -37,7 +37,6 @@ import org.apache.flink.util.Preconditions;
  * such as whether to skip the initial line as the header.
  * The configuration is done using the functions provided in the {@link org.apache.flink.api.java.io.CsvReader} class.
  */
-
 public class GraphCsvReader {
 
 	@SuppressWarnings("unused")
@@ -280,8 +279,8 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader parseQuotedStringsVertices(char quoteCharacter) {
-		if(this.vertexReader != null) {
-			this.vertexReader.parseQuotedStrings(quoteCharacter);
+		if (vertexReader != null) {
+			vertexReader.parseQuotedStrings(quoteCharacter);
 		}
 		return this;
 	}
@@ -295,8 +294,8 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader ignoreCommentsVertices(String commentPrefix) {
-		if(this.vertexReader != null) {
-			this.vertexReader.ignoreComments(commentPrefix);
+		if (vertexReader != null) {
+			vertexReader.ignoreComments(commentPrefix);
 		}
 		return this;
 	}
@@ -327,8 +326,8 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader includeFieldsVertices(boolean ... vertexFields) {
-		if(this.vertexReader != null) {
-			this.vertexReader.includeFields(vertexFields);
+		if (vertexReader != null) {
+			vertexReader.includeFields(vertexFields);
 		}
 		return this;
 	}
@@ -364,8 +363,8 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader includeFieldsVertices(String mask) {
-		if(this.vertexReader != null) {
-			this.vertexReader.includeFields(mask);
+		if (vertexReader != null) {
+			vertexReader.includeFields(mask);
 		}
 		return this;
 	}
@@ -408,8 +407,8 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader includeFieldsVertices(long mask) {
-		if(this.vertexReader != null) {
-			this.vertexReader.includeFields(mask);
+		if (vertexReader != null) {
+			vertexReader.includeFields(mask);
 		}
 		return this;
 	}
@@ -454,8 +453,8 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader ignoreFirstLineVertices() {
-		if(this.vertexReader != null) {
-			this.vertexReader.ignoreFirstLine();
+		if (vertexReader != null) {
+			vertexReader.ignoreFirstLine();
 		}
 		return this;
 	}
@@ -478,9 +477,10 @@ public class GraphCsvReader {
 	 * @return The GraphCSVReader instance itself, to allow for fluent function chaining.
 	 */
 	public GraphCsvReader ignoreInvalidLinesVertices() {
-		if(this.vertexReader != null) {
-			this.vertexReader.ignoreInvalidLines();
+		if (vertexReader != null) {
+			vertexReader.ignoreInvalidLines();
 		}
 		return this;
 	}
+
 }

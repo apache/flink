@@ -86,7 +86,7 @@ DataSet<Vertex<String, Long>> topVertices = ...
 
 DataSet<Vertex<String, Long>> bottomVertices = ...
 
-DataSet<Edge<String, String, Double>> edges = ...
+DataSet<BipartiteEdge<String, String, Double>> edges = ...
 
 Graph<String, String, Long, Long, Double> graph = BipartiteGraph.fromDataSet(topVertices, bottomVertices, edges, env);
 {% endhighlight %}
@@ -99,6 +99,139 @@ Graph<String, String, Long, Long, Double> graph = BipartiteGraph.fromDataSet(top
 </div>
 </div>
 
+
+* from a `DataSet` of `Tuple2` representing the edges. Gelly will convert each `Tuple2` to a `BipartiteEdge`, where the first field will be the top vertex ID, and the second field will be the bottom vertex ID. Both vertex values and edges values will be set to `NullValue`.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+DataSet<Tuple2<String, String>> edges = ...
+
+BipartiteGraph<String, String, NullValue, NullValue, NullValue> graph = BipartiteGraph.fromTuple2DataSet(edges, env);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// TODO: Should be added when Scala interface is implemented
+{% endhighlight %}
+</div>
+</div>
+
+* from a `DataSet` of `Tuple3` and an optional `DataSet`s of `Tuple2`. In this case, Gelly will convert each `Tuple3` to a `BipartiteEdge`, where the first field will be the top vertex ID, the second field will be the bottom vertex ID and the third field will be the edge value. Equivalently, each `Tuple2` will be converted to a `Vertex`, where the first field will be the vertex ID and the second field will be the vertex value:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+DataSet<Tuple2<Long, String>> topVertexTuples = env.readCsvFile("path/to/top/vertex/input").types(Long.class, String.class);
+DataSet<Tuple2<Long, String>> bottomVertexTuples = env.readCsvFile("path/to/bottom/vertex/input").types(Long.class, String.class);
+
+DataSet<Tuple3<Long, Long, Double>> edgeTuples = env.readCsvFile("path/to/edge/input").types(String.class, String.class, Double.class);
+
+Graph<Long, Long, String, String, Double> graph = BipartiteGraph.fromTupleDataSet(topVertexTuples, bottomVertexTuples, edgeTuples, env);
+{% endhighlight %}
+
+* from a CSV file of Edge data and an optional CSV file of Vertex data. In this case, Gelly will convert each row from the Edge CSV file to a `BipartiteEdge`, where the first field will be the top vertex ID, the second field will be the bottom vertex ID and the third field (if present) will be the edge value. Equivalently, each row from the optional Vertex CSV files will be converted to a `Vertex`, where the first field will be the vertex ID and the second field (if present) will be the vertex value. In order to get a `BipartieGraph` from a `BipartiteGraphCsvReader` one has to specify the types, using one of the following methods:
+
+- `types(Class<KT> topVertexKey, Class<KB> bottomVertexKey, Class<VVT> topVertexValue, Class<VVB> bottomVertexValue, Class<EV> edgeValue)`: both vertex and edge values are present.
+- `edgeTypes(Class<KT> topVertexKey, Class<KB> bottomVertexKey, Class<EV> edgeValue)`: the Graph has edge values, but no vertex values.
+- `vertexTypes(Class<KT> topVertexKey, Class<KB> bottomVertexKey, Class<VVT> topVertexValue, Class<VVB> bottomVertexValue)`: the Graph has vertex values, but no edge values.
+- `keyType(Class<KT> topVertexKey, Class<KB> bottomVertexKey)`: the Graph has no vertex values and no edge values.
+
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+// create a BipartiteGraph with Long Vertex IDs, String Vertex values and Double Edge values
+BipartiteGraph<String, String, Long, Long, Double> graph = BipartiteGraph.fromCsvReader("path/to/top/vertex/input", "path/to/bottom/vertex/input", "path/to/edge/input", env)
+					.types(Long.class, Long.class, String.class, String.class Double.class);
+
+
+// create a BipartiteGraph with neither Vertex nor Edge values
+BipartiteGraph<Long, String.class, NullValue, NullValue, NullValue> simpleGraph
+		= BipartiteGraph.fromCsvReader("path/to/edge/input", env).keyType(Long.class, String.class);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// TODO: Add Scala examples
+{% endhighlight %}
+</div>
+</div>
+
+* from a CSV file of Edge data and an optional CSV file of Vertex data.
+In this case, Gelly will convert each row from the Edge CSV file to an `BipartiteEdge`.
+The first field of the each row will be the top vertex ID, the second field will be the bottom vertex ID and the third field (if present) will be the edge value.
+If the edges have no associated value, set the edge value type parameter (3rd type argument) to `NullValue`.
+You can also specify that the vertices are initialized with a vertex value.
+If you provide a path to a CSV file via `pathVertices`, each row of this file will be converted to a `Vertex`.
+The first field of each row will be the vertex ID and the second field will be the vertex value.
+If you provide a vertex value initializer two `MapFunction`s via the `topVertexValueInitializer` and `bottomVertexValueInitializer` parameters, then these function are used to generate the vertex values.
+The set of vertices will be created automatically from the edges input.
+If the vertices have no associated value, set the vertex value type parameter (2nd type argument) to `NullValue`.
+The vertices will then be automatically created from the edges input with vertex value of type `NullValue`.
+
+{% highlight scala %}
+// Scala API is not yet supported
+{% endhighlight %}
+</div>
+</div>
+
+
+* from a `Collection` of edges and an optional `Collection`s of top and bottom vertices:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+List<Vertex<Long, String>> topVertexList = new ArrayList...
+List<Vertex<Long, String>> bottomVertexList = new ArrayList...
+
+List<BipartiteEdge<Long, Long, String>> edgeList = new ArrayList...
+
+Graph<Long, Long, String> graph = BipartiteGraph.fromCollection(topVertexList, bottomVertexList, edgeList, env);
+{% endhighlight %}
+
+If no vertex input is provided during BipartiteGraph creation, Gelly will automatically produce the `Vertex` `DataSet` from the edge input. In this case, the created vertices will have no values. Alternatively, you can provide two `MapFunction`s as arguments to the creation method, in order to initialize the top and bottom `Vertex` values:
+
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+// initialize the vertex value to be equal to the vertex ID
+Graph<Long, Long, Long, Long, String> graph = BipartiteGraph.fromCollection(edgeList,
+				new MapFunction<Long, Long>() {
+					public Long map(Long value) {
+						return value;
+					}
+				},
+				new MapFunction<Long, Long>() {
+					public Long map(Long value) {
+						return value;
+					}
+				},
+				env);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// TODO: Add Scala support
+{% endhighlight %}
+
+If no vertex input is provided during Graph creation, Gelly will automatically produce the `Vertex` `DataSet` from the edge input. In this case, the created vertices will have no values. Alternatively, you can provide a `MapFunction` as an argument to the creation method, in order to initialize the `Vertex` values:
+
+{% highlight java %}
+// TODO: Add Scala support
+{% endhighlight %}
+</div>
+</div>
+
+{% top %}
 
 Graph Transformations
 ---------------------
@@ -126,7 +259,7 @@ DataSet<Vertex<Long, String>> bottomVertices = ...
 
 // Edge that connect vertex 2 to vertex 1 and vertex 4 to vertex 1:
 // (1, 2, "1-2-edge"); (1, 4, "1-4-edge")
-DataSet<Edge<Long, Long, String>> edges = ...
+DataSet<BipartiteEdge<Long, Long, String>> edges = ...
 
 BipartiteGraph<Long, Long, String, String, String> graph = BipartiteGraph.fromDataSet(topVertices, bottomVertices, edges, env);
 
