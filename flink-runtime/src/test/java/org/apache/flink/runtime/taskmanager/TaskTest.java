@@ -781,7 +781,7 @@ public class TaskTest extends TestLogger {
 		ResultPartitionConsumableNotifier consumableNotifier,
 		PartitionStateChecker partitionStateChecker,
 		Executor executor,
-		Configuration taskConfig,
+		Configuration taskManagerConfig,
 		ExecutionConfig execConfig) throws IOException {
 		
 		JobID jobId = new JobID();
@@ -813,7 +813,7 @@ public class TaskTest extends TestLogger {
 			1,
 			1,
 			invokable.getName(),
-			taskConfig);
+			new Configuration());
 		
 		return new Task(
 			jobInformation,
@@ -834,7 +834,7 @@ public class TaskTest extends TestLogger {
 			checkpointResponder,
 			libCache,
 			mock(FileCache.class),
-			new TaskManagerRuntimeInfo("localhost", new Configuration(), System.getProperty("java.io.tmpdir")),
+			new TaskManagerRuntimeInfo("localhost", taskManagerConfig, System.getProperty("java.io.tmpdir")),
 			mock(TaskMetricGroup.class),
 			consumableNotifier,
 			partitionStateChecker,
