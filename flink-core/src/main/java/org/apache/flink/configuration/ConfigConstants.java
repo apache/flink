@@ -490,7 +490,7 @@ public final class ConfigConstants {
 	public static final String MESOS_RESOURCEMANAGER_TASKS_CPUS = "mesos.resourcemanager.tasks.cpus";
 
 	/**
-	 * The base container image to use for task managers (started via the unified containerizer).
+	 * The container image to use for task managers.
 	 */
 	public static final String MESOS_RESOURCEMANAGER_TASKS_CONTAINER_IMAGE_NAME =
 		"mesos.resourcemanager.tasks.container.image.name";

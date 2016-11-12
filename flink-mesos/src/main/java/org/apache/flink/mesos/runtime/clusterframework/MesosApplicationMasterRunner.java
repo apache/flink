@@ -601,11 +601,11 @@ public class MesosApplicationMasterRunner {
 
 		info.setCommand(cmd);
 
-		// Set base container for task manager if specified in configs.
-		String taskManagerContainerName = flinkConfig.getString(
+		// Set container for task manager if specified in configs.
+		String tmImageName = flinkConfig.getString(
 			ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_IMAGE_NAME, "");
 
-		if (taskManagerContainerName.length() > 0) {
+		if (tmImageName.length() > 0) {
 			String taskManagerContainerType = flinkConfig.getString(
 				ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE,
 				ConfigConstants.DEFAULT_MESOS_RESOURCEMANAGER_TASKS_CONTAINER_IMAGE_TYPE);
@@ -620,15 +620,14 @@ public class MesosApplicationMasterRunner {
 							.setImage(Protos.Image.newBuilder()
 								.setType(Protos.Image.Type.DOCKER)
 								.setDocker(Protos.Image.Docker.newBuilder()
-									.setName(taskManagerContainerName))));
+									.setName(tmImageName))));
 					break;
 				case ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_DOCKER:
 					containerInfo = Protos.ContainerInfo.newBuilder()
 						.setType(Protos.ContainerInfo.Type.DOCKER)
 						.setDocker(Protos.ContainerInfo.DockerInfo.newBuilder()
 							.setNetwork(Protos.ContainerInfo.DockerInfo.Network.HOST)
-							.setForcePullImage(true)
-							.setImage(taskManagerContainerName));
+							.setImage(tmImageName));
 					break;
 				default:
 					LOG.warn(
