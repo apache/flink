@@ -197,6 +197,7 @@ public class ResourceManagerJobMasterTest {
 		SlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		MetricRegistry metricRegistry = mock(MetricRegistry.class);
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(highAvailabilityServices);
+		HeartbeatService heartbeatService = new HeartbeatService(resourceManagerConfiguration, rpcService.getExecutor());
 
 		ResourceManager resourceManager = new StandaloneResourceManager(
 			rpcService,
@@ -205,6 +206,7 @@ public class ResourceManagerJobMasterTest {
 			slotManagerFactory,
 			metricRegistry,
 			jobLeaderIdService,
+			heartbeatService,
 			fatalErrorHandler);
 		resourceManager.start();
 		return resourceManager;

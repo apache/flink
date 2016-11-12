@@ -149,7 +149,7 @@ public class ResourceManagerTaskExecutorTest {
 		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(Time.seconds(5L), Time.seconds(5L));
 		MetricRegistry metricRegistry = mock(MetricRegistry.class);
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(highAvailabilityServices);
-
+		HeartbeatService heartbeatService = new HeartbeatService(resourceManagerConfiguration, rpcService.getExecutor());
 
 		StandaloneResourceManager resourceManager =
 			new StandaloneResourceManager(
@@ -159,6 +159,7 @@ public class ResourceManagerTaskExecutorTest {
 				slotManagerFactory,
 				metricRegistry,
 				jobLeaderIdService,
+				heartbeatService,
 				fatalErrorHandler);
 		resourceManager.start();
 		return resourceManager;

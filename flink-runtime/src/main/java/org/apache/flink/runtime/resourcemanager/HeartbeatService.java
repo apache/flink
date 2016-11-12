@@ -19,8 +19,6 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManagerSenderImpl;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
@@ -28,7 +26,6 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -41,21 +38,16 @@ public class HeartbeatService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HeartbeatService.class);
 
-	private final HeartbeatManagerSenderImpl<Void, UUID> taskExecutorHeartbeatManager;
+	private final HeartbeatManagerSenderImpl<Void, Void> taskExecutorHeartbeatManager;
 
 	/** Resource ID of the ResourceManager */
 	private final ResourceID resourceManagerIdentify;
 
 	private final ScheduledExecutorService scheduledExecutorService;
 
-	private final Executor executor;
-
-	private HeartbeatListener<Void, UUID> heartbeatListener;
-
 	public HeartbeatService(ResourceManagerConfiguration resourceManagerConfiguration, Executor executor) {
 		this.resourceManagerIdentify = ResourceID.generate();
 		this.scheduledExecutorService = Executors.newScheduledThreadPool(16);
-		this.executor = executor;
 		this.taskExecutorHeartbeatManager = new HeartbeatManagerSenderImpl<>(resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds(),
 			resourceManagerConfiguration.getTimeout().toMilliseconds(), resourceManagerIdentify, executor, scheduledExecutorService, LOG);
 	}
@@ -65,8 +57,7 @@ public class HeartbeatService {
 	 *
 	 * @param heartbeatListener heartbeat listener to listener for heartbeat actions with TaskExecutor
 	 */
-	public void start(HeartbeatListener<Void, UUID> heartbeatListener) {
-		this.heartbeatListener = heartbeatListener;
+	public void start(HeartbeatListener<Void, Void> heartbeatListener) {
 		this.taskExecutorHeartbeatManager.start(heartbeatListener);
 	}
 
@@ -94,23 +85,16 @@ public class HeartbeatService {
 	 */
 	public void monitorTaskExecutor(ResourceID resourceID, final TaskExecutorGateway taskExecutorGateway) {
 
-		this.taskExecutorHeartbeatManager.monitorTarget(resourceID, new HeartbeatTarget<UUID>() {
+		this.taskExecutorHeartbeatManager.monitorTarget(resourceID, new HeartbeatTarget<Void>() {
 
 				@Override
-				public void sendHeartbeat(ResourceID resourceID, UUID payload) {
-					throw new UnsupportedOperationException("the method is not supported now!");
+				public void sendHeartbeat(ResourceID resourceID, Void payload) {
+					throw new UnsupportedOperationException("the sendHeartbeat is not supported here!");
 				}
 
 				@Override
-				public void requestHeartbeat(ResourceID resourceID, UUID payload) {
-					Future<UUID> futurePayload = heartbeatListener.retrievePayload();
-
-					futurePayload.thenAcceptAsync(new AcceptFunction<UUID>() {
-						@Override
-						public void accept(UUID retrievedPayload) {
-							taskExecutorGateway.requestHeartbeatResponseToResourceManager(resourceManagerIdentify, retrievedPayload);
-						}
-					}, executor);
+				public void requestHeartbeat(ResourceID resourceID, Void payload) {
+					taskExecutorGateway.requestHeartbeatFromResourceManager(resourceManagerIdentify);
 				}
 			}
 
@@ -135,4 +119,11 @@ public class HeartbeatService {
 		this.taskExecutorHeartbeatManager.sendHeartbeat(resourceID, null);
 	}
 
+	/**
+	 * Get the resource manager identify
+	 * @return
+	 */
+	public ResourceID getResourceManagerIdentify() {
+		return resourceManagerIdentify;
+	}
 }

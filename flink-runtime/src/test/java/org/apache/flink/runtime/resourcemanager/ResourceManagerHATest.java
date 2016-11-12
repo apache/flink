@@ -50,6 +50,7 @@ public class ResourceManagerHATest {
 		SlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		MetricRegistry metricRegistry = mock(MetricRegistry.class);
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(highAvailabilityServices);
+		HeartbeatService heartbeatService = new HeartbeatService(resourceManagerConfiguration, rpcService.getExecutor());
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		final ResourceManager resourceManager =
@@ -60,6 +61,7 @@ public class ResourceManagerHATest {
 				slotManagerFactory,
 				metricRegistry,
 				jobLeaderIdService,
+				heartbeatService,
 				testingFatalErrorHandler);
 		resourceManager.start();
 		// before grant leadership, resourceManager's leaderId is null

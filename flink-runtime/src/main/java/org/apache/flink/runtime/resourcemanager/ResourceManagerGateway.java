@@ -43,7 +43,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * Register a {@link JobMaster} at the resource manager.
 	 *
 	 * @param resourceManagerLeaderId The fencing token for the ResourceManager leader
-	 * @param jobMasterLeaderId The fencing token for the JobMaster leader
+	 * @param jobMasterLeaderId       The fencing token for the JobMaster leader
 	 * @param jobMasterAddress        The address of the JobMaster that registers
 	 * @param jobID                   The Job ID of the JobMaster that registers
 	 * @param timeout                 Timeout for the future to complete
@@ -61,8 +61,8 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * Requests a slot from the resource manager.
 	 *
 	 * @param resourceManagerLeaderID leader if of the ResourceMaster
-	 * @param jobMasterLeaderID leader if of the JobMaster
-	 * @param slotRequest The slot to request
+	 * @param jobMasterLeaderID       leader if of the JobMaster
+	 * @param slotRequest             The slot to request
 	 * @return The confirmation that the slot gets allocated
 	 */
 	Future<RMSlotRequestReply> requestSlot(
@@ -74,12 +74,11 @@ public interface ResourceManagerGateway extends RpcGateway {
 	/**
 	 * Register a {@link org.apache.flink.runtime.taskexecutor.TaskExecutor} at the resource manager.
 	 *
-	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader
+	 * @param resourceManagerLeaderId The fencing token for the ResourceManager leader
 	 * @param taskExecutorAddress     The address of the TaskExecutor that registers
 	 * @param resourceID              The resource ID of the TaskExecutor that registers
 	 * @param slotReport              The slot report containing free and allocated task slots
 	 * @param timeout                 The timeout for the response.
-	 *
 	 * @return The future to the response by the ResourceManager.
 	 */
 	Future<RegistrationResponse> registerTaskExecutor(
@@ -93,8 +92,8 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * Sent by the TaskExecutor to notify the ResourceManager that a slot has become available.
 	 *
 	 * @param resourceManagerLeaderId The ResourceManager leader id
-	 * @param instanceId TaskExecutor's instance id
-	 * @param slotID The SlotID of the freed slot
+	 * @param instanceId              TaskExecutor's instance id
+	 * @param slotID                  The SlotID of the freed slot
 	 */
 	void notifySlotAvailable(
 		UUID resourceManagerLeaderId,
@@ -112,12 +111,12 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * Unregisters an infoMessage listener
 	 *
 	 * @param infoMessageListenerAddress address of infoMessage listener to unregister from this resource manager
-	 *
 	 */
 	void unRegisterInfoMessageListener(String infoMessageListenerAddress);
 
 	/**
 	 * shutdown cluster
+	 *
 	 * @param finalStatus
 	 * @param optionalDiagnostics
 	 */
@@ -125,15 +124,16 @@ public interface ResourceManagerGateway extends RpcGateway {
 
 	/**
 	 * Gets the currently registered number of TaskManagers.
-	 * 
+	 *
 	 * @param leaderSessionId The leader session ID with which to address the ResourceManager.
 	 * @return The future to the number of registered TaskManagers.
 	 */
 	Future<Integer> getNumberOfRegisteredTaskManagers(UUID leaderSessionId);
 
-	/* Receives heartbeat response from taskExecutor
+	/*
+	 * Sends the heartbeat to resource manager from task manager
 	 *
-	 * @param resourceID the resource id of the TaskExecutor
+	 * @param resourceID unique id of the task manager
 	 */
-	void heartbeatResponseFromTaskExecutor(ResourceID resourceID);
+	void sendHeartbeatFromTaskManager(final ResourceID resourceID);
 }

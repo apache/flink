@@ -43,6 +43,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 			SlotManagerFactory slotManagerFactory,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
+			HeartbeatService heartbeatService,
 			FatalErrorHandler fatalErrorHandler) {
 		super(
 			rpcService,
@@ -51,6 +52,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 			slotManagerFactory,
 			metricRegistry,
 			jobLeaderIdService,
+			heartbeatService,
 			fatalErrorHandler);
 	}
 

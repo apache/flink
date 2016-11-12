@@ -132,10 +132,9 @@ public interface TaskExecutorGateway extends RpcGateway {
 	Future<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, @RpcTimeout Time timeout);
 
 	/**
-	 *  Request a heartbeat response from TaskExecutor to ResourceManager
+	 *  request heartbeat from the resource manager
 	 *
-	 * @param resourceManagerId Resource ID of the ResourceManager
-	 * @param resourceManagerLeaderId current leader id of the ResourceManager
+	 * @param resourceID unique id of the resource manager
 	 */
-	void requestHeartbeatResponseToResourceManager(ResourceID resourceManagerId, UUID resourceManagerLeaderId);
+	void requestHeartbeatFromResourceManager(ResourceID resourceID);
 }

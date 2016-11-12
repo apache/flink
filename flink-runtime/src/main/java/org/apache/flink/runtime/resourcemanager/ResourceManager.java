@@ -34,10 +34,13 @@ import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.LeaderIdMismatchException;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestRejected;
 import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestReply;
@@ -49,10 +52,6 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.jobmaster.JobMaster;
-import org.apache.flink.runtime.jobmaster.JobMasterGateway;
-import org.apache.flink.runtime.registration.RegistrationResponse;
-
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
@@ -127,6 +126,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			SlotManagerFactory slotManagerFactory,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
+			HeartbeatService heartbeatService,
 			FatalErrorHandler fatalErrorHandler) {
 
 		super(rpcService);
@@ -136,14 +136,13 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		this.slotManagerFactory = checkNotNull(slotManagerFactory);
 		this.metricRegistry = checkNotNull(metricRegistry);
 		this.jobLeaderIdService = checkNotNull(jobLeaderIdService);
+		this.heartbeatService = checkNotNull(heartbeatService);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
 		this.jobManagerRegistrations = new HashMap<>(4);
 		this.taskExecutors = new HashMap<>(8);
 		this.leaderSessionId = null;
 		infoMessageListeners = new ConcurrentHashMap<>(8);
-
-		heartbeatService = new HeartbeatService(resourceManagerConfiguration, rpcService.getExecutor());
 	}
 
 	// ------------------------------------------------------------------------
@@ -383,7 +382,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 						slotManager.registerTaskExecutor(resourceID, registration, slotReport);
 						heartbeatService.monitorTaskExecutor(resourceID, taskExecutorGateway);
 						return new TaskExecutorRegistrationSuccess(
-							registration.getInstanceID(),
+							registration.getInstanceID(), heartbeatService.getResourceManagerIdentify(),
 							resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds());
 					}
 				}
@@ -530,12 +529,12 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	/**
-	 * Receive heartbeat response from taskExecutor
+	 * Send the heartbeat to this resource manager from task manager
 	 *
 	 * @param resourceID
 	 */
 	@RpcMethod
-	public void heartbeatResponseFromTaskExecutor(ResourceID resourceID) {
+	public void sendHeartbeatFromTaskManager(final ResourceID resourceID) {
 		heartbeatService.heartbeatResponseFromTaskExecutor(resourceID);
 	}
 
@@ -859,7 +858,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		}
 	}
 
-	private class HeartbeatListenerWithTaskExecutor implements HeartbeatListener<Void, UUID> {
+	private class HeartbeatListenerWithTaskExecutor implements HeartbeatListener<Void, Void> {
 
 		@Override
 		public void notifyHeartbeatTimeout(ResourceID resourceID) {
@@ -869,12 +868,12 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 		@Override
 		public void reportPayload(ResourceID resourceID, Void payload) {
-			// do nothing
+			// ignore payload
 		}
 
 		@Override
-		public Future<UUID> retrievePayload() {
-			return FlinkCompletableFuture.completed(ResourceManager.this.leaderSessionId);
+		public Future<Void> retrievePayload() {
+			return null;
 		}
 	}
 }
