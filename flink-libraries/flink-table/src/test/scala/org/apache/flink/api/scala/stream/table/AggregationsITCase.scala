@@ -57,9 +57,9 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
     val windowedTable = table
-                        .groupBy('string)
-                        .window(Slide over 2.rows every 1.rows)
-                        .select('string, 'int.count, 'int.avg)
+      .groupBy('string)
+      .window(Slide over 2.rows every 1.rows)
+      .select('string, 'int.count, 'int.avg)
 
     val results = windowedTable.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
@@ -77,14 +77,14 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env
-                 .fromCollection(data)
-                 .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
     val windowedTable = table
-                        .groupBy('string)
-                        .window(Session withGap 7.milli on 'rowtime)
-                        .select('string, 'int.count)
+      .groupBy('string)
+      .window(Session withGap 7.milli on 'rowtime)
+      .select('string, 'int.count)
 
     val results = windowedTable.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
@@ -105,8 +105,8 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
     val windowedTable = table
-                        .window(Tumble over 2.rows)
-                        .select('int.count)
+      .window(Tumble over 2.rows)
+      .select('int.count)
 
     val results = windowedTable.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
@@ -124,14 +124,14 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env
-                 .fromCollection(data)
-                 .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
     val windowedTable = table
-                        .groupBy('string)
-                        .window(Tumble over 5.milli on 'rowtime as 'w)
-                        .select('string, 'int.count,'int.avg, 'w.start, 'w.end)
+      .groupBy('string)
+      .window(Tumble over 5.milli on 'rowtime as 'w)
+      .select('string, 'int.count, 'int.avg, 'w.start, 'w.end)
 
     val results = windowedTable.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
@@ -153,14 +153,14 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env
-                 .fromCollection(data)
-                 .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
     val windowedTable = table
-                        .groupBy('string)
-                        .window(Slide over 10.milli every 5.milli on 'rowtime as 'w)
-                        .select('string, 'int.count, 'w.start, 'w.end, 'w.start)
+      .groupBy('string)
+      .window(Slide over 10.milli every 5.milli on 'rowtime as 'w)
+      .select('string, 'int.count, 'w.start, 'w.end, 'w.start)
 
     val results = windowedTable.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
@@ -178,6 +178,7 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }
+
 object GroupWindowITCase {
   class TimestampWithEqualWatermark extends AssignerWithPunctuatedWatermarks[(Long, Int, String)] {
 
