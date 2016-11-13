@@ -231,9 +231,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		// Dispose decoupled db
 		if (cleanupRockDBReference != null) {
 			for (Tuple2<ColumnFamilyHandle, StateDescriptor<?, ?>> column : kvStateInformation.values()) {
-				column.f0.dispose();
+				column.f0.close();
 			}
-			cleanupRockDBReference.dispose();
+			cleanupRockDBReference.close();
 		}
 
 		try {
