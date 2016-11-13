@@ -63,67 +63,76 @@ import java.util.Iterator;
  *
  * <p>
  * When creating the sink a {@code basePath} must be specified. The base directory contains
- * one directory for every bucket. The bucket directories themselves contain several part files.
- * These contain the actual written data.
+ * one directory for every bucket. The bucket directories themselves contain several part files,
+ * one for each parallel subtask of the sink. These part files contain the actual output data.
  *
  * <p>
- * The sink uses a {@link Bucketer} to determine the bucket directories that elements should
- * be written to inside the
- * base directory. The {@code Bucketer} can, for example, use time or a property of the element
- * to determine the bucket directory. The default bucketer is a {@link DateTimeBucketer}
- * with date format string {@code ""yyyy-MM-dd--HH"}. You can specify a custom {@code Bucketer}
- * using {@link #setBucketer(Bucketer)}. For example, use
- * {@link BasePathBucketer} if you don't want to have buckets but still write part files in a
- * fault-tolerant way.
+ * The sink uses a {@link Bucketer} to determine in which bucket directory each element should
+ * be written to inside the base directory. The {@code Bucketer} can, for example, use time or
+ * a property of the element to determine the bucket directory. The default {@code Bucketer} is a
+ * {@link DateTimeBucketer} which will create one new bucket every hour. You can specify
+ * a custom {@code Bucketer} using {@link #setBucketer(Bucketer)}. For example, use the
+ * {@link BasePathBucketer} if you don't want to have buckets but still want to write part-files
+ * in a fault-tolerant way.
  *
  * <p>
  * The filenames of the part files contain the part prefix, the parallel subtask index of the sink
- * and a rolling counter, for example {@code "part-1-17"}. Per default the part prefix is
- * {@code "part"} but this can be configured using {@link #setPartPrefix(String)}. When a part file
- * becomes bigger than the batch size the current part file is closed, the part counter is increased and
- * a new part file is created. The batch size defaults to {@code 384MB}, this can be configured
- * using {@link #setBatchSize(long)}.
+ * and a rolling counter. For example the file {@code "part-1-17"} contains the data from
+ * {@code subtask 1} of the sink and is the {@code 17th} bucket created by that subtask. Per default
+ * the part prefix is {@code "part"} but this can be configured using {@link #setPartPrefix(String)}.
+ * When a part file becomes bigger than the user-specified batch size the current part file is closed,
+ * the part counter is increased and a new part file is created. The batch size defaults to {@code 384MB},
+ * this can be configured using {@link #setBatchSize(long)}.
  *
  * <p>
- * In some scenarios, the buckets being written to change over time. In these cases, the sink needs to
- * determine when a bucket has become inactive, in order to flush and close the part file. A bucket is
- * regarded inactive if it hasn't been written to recently. To support this there are two configurable
- * settings: the frequency to check for inactivity, configured by
- * {@link #setInactiveBucketCheckInterval(long)} and the minimum amount of time a bucket must not be
- * written to before it should be regarded inactive, configured by
- * {@link #setInactiveBucketThreshold(long)}. Both of these parameters default to {@code 60,000 ms}.
+ * In some scenarios, the open buckets are required to change based on time. In these cases, the sink
+ * needs to determine when a bucket has become inactive, in order to flush and close the part file.
+ * To support this there are two configurable settings:
+ * <ol>
+ *     <li>the frequency to check for inactive buckets, configured by {@link #setInactiveBucketCheckInterval(long)},
+ *     and</li>
+ *     <li>the minimum amount of time a bucket has to not receive any data before it is considered inactive,
+ *     configured by {@link #setInactiveBucketThreshold(long)}</li>
+ * </ol>
+ * Both of these parameters default to {@code 60,000 ms}, or {@code 1 min}.
  *
  * <p>
- * Part files can be in one of three states: in-progress, pending or finished. The reason for this
- * is how the sink works together with the checkpointing mechanism to provide exactly-once semantics
- * and fault-tolerance. The part file that is currently being written to is in-progress. Once
- * a part file is closed for writing it becomes pending. When a checkpoint is successful the
- * currently pending files will be moved to finished. If a failure occurs the pending files
- * will be deleted to reset state to the last checkpoint. The data in in-progress files will
- * also have to be rolled back. If the {@code FileSystem} supports the {@code truncate} call
- * this will be used to reset the file back to a previous state. If not, a special file
- * with the same name as the part file and the suffix {@code ".valid-length"} will be written
- * that contains the length up to which the file contains valid data. When reading the file
- * it must be ensured that it is only read up to that point. The prefixes and suffixes for
- * the different file states and valid-length files can be configured, for example with
- * {@link #setPendingSuffix(String)}.
+ * Part files can be in one of three states: {@code in-progress}, {@code pending} or {@code finished}.
+ * The reason for this is how the sink works together with the checkpointing mechanism to provide exactly-once
+ * semantics and fault-tolerance. The part file that is currently being written to is {@code in-progress}. Once
+ * a part file is closed for writing it becomes {@code pending}. When a checkpoint is successful the currently
+ * pending files will be moved to {@code finished}.
  *
  * <p>
- * Note: If checkpointing is not enabled the pending files will never be moved to the finished state.
- * In that case, the pending suffix/prefix can be set to {@code ""} to make the sink work
- * in a non-fault-tolerant way but still provide output without prefixes and suffixes.
+ * If case of a failure, and in order to guarantee exactly-once semantics, the sink should roll back to the state it
+ * had when that last successful checkpoint occurred. To this end, when restoring, the restored files in {@code pending}
+ * state are transferred into the {@code finished} state while any {@code in-progress} files are rolled back, so that
+ * they do not contain data that arrived after the checkpoint from which we restore. If the {@code FileSystem} supports
+ * the {@code truncate()} method this will be used to reset the file back to its previous state. If not, a special
+ * file with the same name as the part file and the suffix {@code ".valid-length"} will be created that contains the
+ * length up to which the file contains valid data. When reading the file, it must be ensured that it is only read up
+ * to that point. The prefixes and suffixes for the different file states and valid-length files can be configured
+ * using the adequate setter method, e.g. {@link #setPendingSuffix(String)}.
  *
  * <p>
- * The part files are written using an instance of {@link Writer}. By default
- * {@link org.apache.flink.streaming.connectors.fs.StringWriter} is used, which writes the result
- * of {@code toString()} for every element. Separated by newlines. You can configure the writer
- * using {@link #setWriter(Writer)}. For example,
- * {@link org.apache.flink.streaming.connectors.fs.SequenceFileWriter} can be used to write
- * Hadoop {@code SequenceFiles}.
+ * <b>NOTE:</b>
+ * <ol>
+ *     <li>
+ *         If checkpointing is not enabled the pending files will never be moved to the finished state. In that case,
+ *         the pending suffix/prefix can be set to {@code ""} to make the sink work in a non-fault-tolerant way but
+ *         still provide output without prefixes and suffixes.
+ *     </li>
+ *     <li>
+ *         The part files are written using an instance of {@link Writer}. By default, a
+ *         {@link org.apache.flink.streaming.connectors.fs.StringWriter} is used, which writes the result
+ *         of {@code toString()} for every element, separated by newlines. You can configure the writer using  the
+ *         {@link #setWriter(Writer)}. For example, {@link org.apache.flink.streaming.connectors.fs.SequenceFileWriter}
+ *         can be used to write Hadoop {@code SequenceFiles}.
+ *     </li>
+ * </ol>
  *
  * <p>
  * Example:
- *
  * <pre>{@code
  *     new BucketingSink<Tuple2<IntWritable, Text>>(outPath)
  *         .setWriter(new SequenceFileWriter<IntWritable, Text>())
@@ -153,53 +162,59 @@ public class BucketingSink<T>
 
 	/**
 	 * The default maximum size of part files.
-	 *
-	 * 6 times the default block size
+	 * <p>
+	 * By default, {@code 6 X} the default block size.
 	 */
 	private final long DEFAULT_BATCH_SIZE = 1024L * 1024L * 384L;
 
 	/**
-	 * The default time between checks for inactive buckets.
+	 * The default time between checks for inactive buckets. By default, {60 sec}.
 	 */
 	private final long DEFAULT_INACTIVE_BUCKET_CHECK_INTERVAL_MS = 60 * 1000L;
 
 	/**
-	 * The default threshold for marking a bucket as inactive and closing its part files.
-	 * Buckets which haven't been written to for at least this period of time become inactive.
+	 * The default threshold (in {@code ms}) for marking a bucket as inactive and
+	 * closing its part files. By default, {60 sec}.
 	 */
 	private final long DEFAULT_INACTIVE_BUCKET_THRESHOLD_MS = 60 * 1000L;
 
 	/**
-	 * This is used for part files that we are writing to but which where not yet confirmed
-	 * by a checkpoint.
+	 * The suffix for {@code in-progress} part files. These are files we are
+	 * currently writing to, but which were not yet confirmed by a checkpoint.
 	 */
 	private final String DEFAULT_IN_PROGRESS_SUFFIX = ".in-progress";
 
 	/**
-	 * See above, but for prefix
+	 * The prefix for {@code in-progress} part files. These are files we are
+	 * currently writing to, but which were not yet confirmed by a checkpoint.
 	 */
 	private final String DEFAULT_IN_PROGRESS_PREFIX = "_";
 
 	/**
-	 * This is used for part files that we are not writing to but which are not yet confirmed by
-	 * checkpoint.
+	 * The suffix for {@code pending} part files. These are closed files that we are
+	 * not currently writing to (inactive or reached {@link #batchSize}), but which
+	 * were not yet confirmed by a checkpoint.
 	 */
 	private final String DEFAULT_PENDING_SUFFIX = ".pending";
 
 	/**
-	 * See above, but for prefix.
+	 * The prefix for {@code pending} part files. These are closed files that we are
+	 * not currently writing to (inactive or reached {@link #batchSize}), but which
+	 * were not yet confirmed by a checkpoint.
 	 */
 	private final String DEFAULT_PENDING_PREFIX = "_";
 
 	/**
-	 * When truncate() is not supported on the used FileSystem we instead write a
-	 * file along the part file with this ending that contains the length up to which
+	 * When {@code truncate()} is not supported by the used {@link FileSystem}, we create
+	 * a file along the part file with this suffix that contains the length up to which
 	 * the part file is valid.
 	 */
 	private final String DEFAULT_VALID_SUFFIX = ".valid-length";
 
 	/**
-	 * See above, but for prefix.
+	 * When {@code truncate()} is not supported by the used {@link FileSystem}, we create
+	 * a file along the part file with this preffix that contains the length up to which
+	 * the part file is valid.
 	 */
 	private final String DEFAULT_VALID_PREFIX = "_";
 
@@ -209,8 +224,7 @@ public class BucketingSink<T>
 	private final String DEFAULT_PART_REFIX = "part";
 
 	/**
-	 * The default timeout for asynchronous operations such as recoverLease and truncate. In
-	 * milliseconds.
+	 * The default timeout for asynchronous operations such as recoverLease and truncate (in {@code ms}).
 	 */
 	private final long DEFAULT_ASYNC_TIMEOUT_MS = 60 * 1000;
 
@@ -259,8 +273,7 @@ public class BucketingSink<T>
 	private String partPrefix = DEFAULT_PART_REFIX;
 
 	/**
-	 * The timeout for asynchronous operations such as recoverLease and truncate. In
-	 * milliseconds.
+	 * The timeout for asynchronous operations such as recoverLease and truncate (in {@code ms}).
 	 */
 	private long asyncTimeout = DEFAULT_ASYNC_TIMEOUT_MS;
 
@@ -269,15 +282,14 @@ public class BucketingSink<T>
 	// -------------------------------------------§-------------------------------------------------
 
 	/**
-	 * We use reflection to get the .truncate() method, this is only available starting with
-	 * Hadoop 2.7
+	 * We use reflection to get the .truncate() method, this is only available starting with Hadoop 2.7
 	 */
 	private transient Method refTruncate;
 
 	/**
-	 * The state object that is handled by flink from snapshot/restore. In there we store state for
-	 * every open bucket: the current part file path, the valid length of the in-progress files and
-	 * pending part files.
+	 * The state object that is handled by Flink from snapshot/restore. This contains state for
+	 * every open bucket: the current {@code in-progress} part file path, its valid length and
+	 * the {@code pending} part files.
 	 */
 	private transient State<T> state;
 
@@ -424,52 +436,6 @@ public class BucketingSink<T>
 		}
 	}
 
-	// TODO: 11/10/16 this should be the close() after
-	// introducing the dispose() method in the RichFunction.
-	// ATTENTION: it is not thoroughly tested yet.
-	public void closeAfterDisposeIsIntroduced() throws Exception {
-		// transitions all the "pending" and "in-progress" buckets to the "committed" state
-
-		for (Map.Entry<String, BucketState<T>> entry : state.bucketStates.entrySet()) {
-			BucketState<T> bucketState = entry.getValue();
-
-			if (bucketState.isWriterOpen) {
-				bucketState.writer.close();
-				bucketState.isWriterOpen = false;
-			}
-
-			// commit the list of pending buckets
-			for (String pending: bucketState.pendingFiles) {
-				Path finalPath = new Path(pending);
-				Path pendingPath = getPendingPathFor(finalPath);
-				fs.rename(pendingPath, finalPath);
-			}
-
-			// commit the list of pending buckets for this and previous non-verified checkpoints
-			for (List<String> pendingCheckpoints: bucketState.pendingFilesPerCheckpoint.values()) {
-				for (String file: pendingCheckpoints) {
-					Path finalPath = new Path(file);
-					Path pendingPath = getPendingPathFor(finalPath);
-					fs.rename(pendingPath, finalPath);
-				}
-			}
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Moved pending buckets for this and previous checkpoints to their final location {} and {}",
-					bucketState.pendingFiles, bucketState.pendingFilesPerCheckpoint);
-			}
-
-			// finally commit the in-progress bucket
-			if (bucketState.currentFile != null) {
-				Path finalPath = new Path(bucketState.currentFile);
-				Path inProgressPath = getInProgressPathFor(finalPath);
-
-				fs.rename(inProgressPath, finalPath);
-				LOG.debug("Moved in-progress bucket {} to final file {}", inProgressPath, finalPath);
-			}
-		}
-	}
-
 	@Override
 	public void invoke(T value) throws Exception {
 		Path bucketPath = bucketer.getBucketPath(clock, new Path(basePath), value);
@@ -530,7 +496,7 @@ public class BucketingSink<T>
 	/**
 	 * Checks for inactive buckets, and closes them. Inactive are buckets that have not been written to
 	 * for a period greater than {@code inactiveBucketThreshold} ms. This enables in-progress files to be
-	 * moved to the pending state and finalised on the next checkpoint.
+	 * moved to the pending state and be finalised on the next checkpoint.
 	 */
 	private void checkForInactiveBuckets(long currentProcessingTime) throws Exception {
 
@@ -546,8 +512,9 @@ public class BucketingSink<T>
 	}
 
 	/**
-	 * Closes the current part file and opens a new one with a new
-	 * bucket path, as returned from the {@link Bucketer}.
+	 * Closes the current part file and opens a new one with a new bucket path, as returned by the
+	 * {@link Bucketer}. If the bucket is not new, then this will create a new file with the same path
+	 * as its predecessor, but with an increased rolling counter (see {@link BucketingSink}.
 	 */
 	private void openNewPartFile(Path bucketPath, BucketState<T> bucketState) throws Exception {
 		closeCurrentPartFile(bucketState);
