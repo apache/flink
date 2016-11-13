@@ -322,9 +322,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					private void releaseSnapshotOperationResources(boolean canceled) {
 						// hold the db lock while operation on the db to guard us against async db disposal
 						synchronized (asyncSnapshotLock) {
-							//if (db != null) {
-								snapshotOperation.releaseSnapshotResources(canceled);
-							//}
+							snapshotOperation.releaseSnapshotResources(canceled);
 						}
 					}
 
