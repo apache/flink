@@ -30,9 +30,9 @@ class AggregateMapFunction[IN, OUT](
     private val groupingKeys: Array[Int],
     @transient private val returnType: TypeInformation[OUT])
     extends RichMapFunction[IN, OUT] with ResultTypeQueryable[OUT] {
-  
+
   private var output: Row = _
-  
+
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(aggFields)
@@ -43,7 +43,7 @@ class AggregateMapFunction[IN, OUT](
   }
 
   override def map(value: IN): OUT = {
-    
+
     val input = value.asInstanceOf[Row]
     for (i <- 0 until aggregates.length) {
       val fieldValue = input.productElement(aggFields(i))

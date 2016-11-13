@@ -35,10 +35,10 @@ import org.apache.flink.util.{Collector, Preconditions}
   *                         index in output Row.
   */
 class IncrementalAggregateAllWindowFunction[W <: Window](
-      private val aggregates: Array[Aggregate[_ <: Any]],
-      private val groupKeysMapping: Array[(Int, Int)],
-      private val aggregateMapping: Array[(Int, Int)],
-      private val finalRowArity: Int) extends RichAllWindowFunction[Row, Row, W] {
+    private val aggregates: Array[Aggregate[_ <: Any]],
+    private val groupKeysMapping: Array[(Int, Int)],
+    private val aggregateMapping: Array[(Int, Int)],
+    private val finalRowArity: Int) extends RichAllWindowFunction[Row, Row, W] {
 
   private var output: Row = _
 
@@ -53,8 +53,8 @@ class IncrementalAggregateAllWindowFunction[W <: Window](
     * Row based on the mapping relation between intermediate aggregate data and output data.
     */
   override def apply(window: W,
-                     records: Iterable[Row],
-                     out: Collector[Row]): Unit = {
+      records: Iterable[Row],
+      out: Collector[Row]): Unit = {
 
     val iterator = records.iterator
 

@@ -29,9 +29,9 @@ import org.apache.flink.util.Preconditions
   *                         and output Row.
   */
 class IncrementalAggregateReduceFunction(
-      private val aggregates: Array[Aggregate[_]],
-      private val groupKeysMapping: Array[(Int, Int)],
-      private val intermediateRowArity: Int)extends ReduceFunction[Row] {
+    private val aggregates: Array[Aggregate[_]],
+    private val groupKeysMapping: Array[(Int, Int)],
+    private val intermediateRowArity: Int)extends ReduceFunction[Row] {
 
   Preconditions.checkNotNull(aggregates)
   Preconditions.checkNotNull(groupKeysMapping)

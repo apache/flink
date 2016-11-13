@@ -35,15 +35,15 @@ import org.apache.flink.util.Collector
   *                         index in output Row.
   */
 class IncrementalAggregateTimeWindowFunction(
-     private val aggregates: Array[Aggregate[_ <: Any]],
-     private val groupKeysMapping: Array[(Int, Int)],
-     private val aggregateMapping: Array[(Int, Int)],
-     private val finalRowArity: Int,
-     private val windowStartPos: Option[Int],
-     private val windowEndPos: Option[Int])
+    private val aggregates: Array[Aggregate[_ <: Any]],
+    private val groupKeysMapping: Array[(Int, Int)],
+    private val aggregateMapping: Array[(Int, Int)],
+    private val finalRowArity: Int,
+    private val windowStartPos: Option[Int],
+    private val windowEndPos: Option[Int])
   extends IncrementalAggregateWindowFunction[TimeWindow](aggregates,
-    groupKeysMapping,
-    aggregateMapping,finalRowArity) {
+     groupKeysMapping,
+     aggregateMapping,finalRowArity) {
 
   private var collector: TimeWindowPropertyCollector = _
 
@@ -53,9 +53,9 @@ class IncrementalAggregateTimeWindowFunction(
   }
 
   override def apply(key: Tuple,
-                     window: TimeWindow,
-                     records: Iterable[Row],
-                     out: Collector[Row]): Unit = {
+      window: TimeWindow,
+      records: Iterable[Row],
+      out: Collector[Row]): Unit = {
 
     // set collector and window
     collector.wrappedCollector = out

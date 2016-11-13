@@ -61,73 +61,77 @@ object AggregateUtil {
    * }}}
    *
    */
-    def createOperatorFunctionsForAggregates(
+  def createOperatorFunctionsForAggregates(
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
       outputType: RelDataType,
       groupings: Array[Int])
     : (MapFunction[Any, Row], RichGroupReduceFunction[Row, Row]) = {
 
-       val (aggFieldIndexes, aggregates)  =
-           transformToAggregateFunctions(namedAggregates.map(_.getKey),
-             inputType, groupings.length)
+    val (aggFieldIndexes, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType, groupings.length)
 
-        createOperatorFunctionsForAggregates(namedAggregates,
-          inputType,
-          outputType,
-          groupings,
-          aggregates,aggFieldIndexes)
+    createOperatorFunctionsForAggregates(
+      namedAggregates,
+      inputType,
+      outputType,
+      groupings,
+      aggregates, aggFieldIndexes)
+  }
+
+  def createOperatorFunctionsForAggregates(
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupings: Array[Int],
+      aggregates: Array[Aggregate[_ <: Any]],
+      aggFieldIndexes: Array[Int])
+    : (MapFunction[Any, Row], RichGroupReduceFunction[Row, Row]) = {
+
+    val mapFunction = createAggregateMapFunction(
+      aggregates,
+      aggFieldIndexes, groupings, inputType)
+
+    // the mapping relation between field index of intermediate aggregate Row and output Row.
+    val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
+
+    // the mapping relation between aggregate function index in list and its corresponding
+    // field index in output Row.
+    val aggOffsetMapping = getAggregateMapping(namedAggregates, outputType)
+
+    if (groupingOffsetMapping.length != groupings.length ||
+      aggOffsetMapping.length != namedAggregates.length) {
+      throw new TableException(
+        "Could not find output field in input data type " +
+          "or aggregate functions.")
     }
 
-    def createOperatorFunctionsForAggregates(
-        namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-        inputType: RelDataType,
-        outputType: RelDataType,
-        groupings: Array[Int],
-        aggregates:Array[Aggregate[_ <: Any]],
-        aggFieldIndexes:Array[Int])
-    : (MapFunction[Any, Row], RichGroupReduceFunction[Row, Row])= {
+    val allPartialAggregate = aggregates.forall(_.supportPartial)
 
-      val mapFunction = createAggregateMapFunction(aggregates,
-                        aggFieldIndexes, groupings, inputType)
+    val intermediateRowArity = groupings.length +
+      aggregates.map(_.intermediateDataType.length).sum
 
-      // the mapping relation between field index of intermediate aggregate Row and output Row.
-      val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
-
-      // the mapping relation between aggregate function index in list and its corresponding
-      // field index in output Row.
-      val aggOffsetMapping = getAggregateMapping(namedAggregates, outputType)
-
-      if (groupingOffsetMapping.length != groupings.length ||
-        aggOffsetMapping.length != namedAggregates.length) {
-        throw new TableException("Could not find output field in input data type " +
-          "or aggregate functions.")
+    val reduceGroupFunction =
+      if (allPartialAggregate) {
+        new AggregateReduceCombineFunction(
+          aggregates,
+          groupingOffsetMapping,
+          aggOffsetMapping,
+          intermediateRowArity,
+          outputType.getFieldCount)
+      }
+      else {
+        new AggregateReduceGroupFunction(
+          aggregates,
+          groupingOffsetMapping,
+          aggOffsetMapping,
+          intermediateRowArity,
+          outputType.getFieldCount)
       }
 
-      val allPartialAggregate = aggregates.map(_.supportPartial).forall(x => x)
-
-      val intermediateRowArity = groupings.length +
-                        aggregates.map(_.intermediateDataType.length).sum
-
-      val reduceGroupFunction =
-        if (allPartialAggregate) {
-          new AggregateReduceCombineFunction(
-            aggregates,
-            groupingOffsetMapping,
-            aggOffsetMapping,
-            intermediateRowArity,
-            outputType.getFieldCount)
-        }
-        else {
-          new AggregateReduceGroupFunction(
-            aggregates,
-            groupingOffsetMapping,
-            aggOffsetMapping,
-            intermediateRowArity,
-            outputType.getFieldCount)
-        }
-
-      (mapFunction, reduceGroupFunction)
+    (mapFunction, reduceGroupFunction)
   }
 
   /**
@@ -151,6 +155,9 @@ object AggregateUtil {
     *                               sum(y) aggOffsetInRow = 4
     * }}}
     *
+    * @return (mapFunction, reduceFunction,
+    *         groupingOffsetMapping, aggOffsetMapping,
+    *         intermediateRowArity)
     */
   def createOperatorFunctionsForIncrementalAggregates(
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
@@ -159,7 +166,7 @@ object AggregateUtil {
       groupings: Array[Int],
       aggregates:Array[Aggregate[_ <: Any]],
       aggFieldIndexes:Array[Int])
-  : (MapFunction[Any, Row], ReduceFunction[Row],
+    : (MapFunction[Any, Row], ReduceFunction[Row],
               Array[(Int, Int)],Array[(Int, Int)],Int) = {
 
     val mapFunction = createAggregateMapFunction(aggregates, aggFieldIndexes, groupings, inputType)
@@ -183,10 +190,11 @@ object AggregateUtil {
 
   }
 
-  private def createAggregateMapFunction(aggregates:Array[Aggregate[_ <: Any]],
-         aggFieldIndexes:Array[Int],
-         groupings: Array[Int],
-         inputType: RelDataType): MapFunction[Any, Row] ={
+  private def createAggregateMapFunction(
+      aggregates: Array[Aggregate[_ <: Any]],
+      aggFieldIndexes: Array[Int],
+      groupings: Array[Int],
+      inputType: RelDataType): MapFunction[Any, Row] = {
 
     val mapReturnType: RowTypeInfo =
       createAggregateBufferDataType(groupings, aggregates, inputType)
