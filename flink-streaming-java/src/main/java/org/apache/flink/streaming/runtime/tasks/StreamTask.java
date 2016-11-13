@@ -217,7 +217,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			configuration = new StreamConfig(getTaskConfiguration());
 
-			stateBackend = createStateBackend();
+			stateBackend = createStateBackend(); //TODO close/cleanup!
 
 			accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 

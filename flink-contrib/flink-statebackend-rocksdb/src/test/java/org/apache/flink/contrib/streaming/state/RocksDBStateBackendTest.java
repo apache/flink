@@ -42,25 +42,27 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
+import org.rocksdb.RocksObject;
+import org.rocksdb.Snapshot;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.RunnableFuture;
 
+import static junit.framework.TestCase.assertNotNull;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
-import static org.powermock.api.mockito.PowerMockito.doAnswer;
+import static org.mockito.internal.verification.VerificationModeFactory.times;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
@@ -69,11 +71,19 @@ import static org.powermock.api.mockito.PowerMockito.spy;
  */
 public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBackend> {
 
+	private OneShotLatch blocker;
+	private OneShotLatch waiter;
+	private BlockerCheckpointStreamFactory testStreamFactory;
+	private RocksDBKeyedStateBackend<Integer> keyedStateBackend;
+	private List<RocksObject> allCreatedCloseables;
+	private ValueState<Integer> testState1;
+	private ValueState<String> testState2;
+
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Before
-	public void checkOperatingSystem() {
+	public void checkOS() throws Exception {
 		Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows());
 	}
 
@@ -86,11 +96,11 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		return backend;
 	}
 
-	@Test
-	public void testSnap() throws Exception {
-		OneShotLatch blocker = new OneShotLatch();
-		OneShotLatch waiter = new OneShotLatch();
-		BlockerCheckpointStreamFactory testStreamFactory = new BlockerCheckpointStreamFactory(1024 * 1024);
+	public void setupRocksKeyedStateBackend() throws Exception {
+
+		blocker = new OneShotLatch();
+		waiter = new OneShotLatch();
+		testStreamFactory = new BlockerCheckpointStreamFactory(1024 * 1024);
 		testStreamFactory.setBlockerLatch(blocker);
 		testStreamFactory.setWaiterLatch(waiter);
 		testStreamFactory.setAfterNumberInvocations(100);
@@ -98,7 +108,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		RocksDBStateBackend backend = getStateBackend();
 		Environment env = new DummyEnvironment("TestTask", 1, 0);
 
-		final RocksDBKeyedStateBackend<Integer> keyedStateBackend = (RocksDBKeyedStateBackend<Integer>) backend.createKeyedStateBackend(
+		keyedStateBackend = (RocksDBKeyedStateBackend<Integer>) backend.createKeyedStateBackend(
 				env,
 				new JobID(),
 				"Test",
@@ -107,36 +117,177 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				new KeyGroupRange(0, 1),
 				mock(TaskKvStateRegistry.class));
 
-		ValueState<Integer> testState1 = keyedStateBackend.getPartitionedState(
+		testState1 = keyedStateBackend.getPartitionedState(
 				VoidNamespace.INSTANCE,
 				VoidNamespaceSerializer.INSTANCE,
 				new ValueStateDescriptor<>("TestState-1", Integer.class, 0));
 
-		ValueState<String> testState2 = keyedStateBackend.getPartitionedState(
+		testState2 = keyedStateBackend.getPartitionedState(
 				VoidNamespace.INSTANCE,
 				VoidNamespaceSerializer.INSTANCE,
 				new ValueStateDescriptor<>("TestState-2", String.class, ""));
 
-		final List<RocksIterator> allCreatedIterators = new ArrayList<>();
-		final RocksDB realDB = keyedStateBackend.db;
-		keyedStateBackend.db = spy(realDB);
+		allCreatedCloseables = new ArrayList<>();
+
+		keyedStateBackend.db = spy(keyedStateBackend.db);
+
 		doAnswer(new Answer<Object>() {
 
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				Object[] args = invocationOnMock.getArguments();
-				RocksIterator rocksIterator = spy((RocksIterator) invocationOnMock.getMethod().invoke(realDB, args));
-				allCreatedIterators.add(rocksIterator);
+				RocksIterator rocksIterator = spy((RocksIterator) invocationOnMock.callRealMethod());
+				allCreatedCloseables.add(rocksIterator);
 				return rocksIterator;
 			}
 		}).when(keyedStateBackend.db).newIterator(any(ColumnFamilyHandle.class), any(ReadOptions.class));
+
+		doAnswer(new Answer<Object>() {
+
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				Snapshot snapshot = spy((Snapshot) invocationOnMock.callRealMethod());
+				allCreatedCloseables.add(snapshot);
+				return snapshot;
+			}
+		}).when(keyedStateBackend.db).getSnapshot();
+
+		doAnswer(new Answer<Object>() {
+
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				ColumnFamilyHandle snapshot = spy((ColumnFamilyHandle) invocationOnMock.callRealMethod());
+				allCreatedCloseables.add(snapshot);
+				return snapshot;
+			}
+		}).when(keyedStateBackend.db).createColumnFamily(any(ColumnFamilyDescriptor.class));
 
 		for (int i = 0; i < 100; ++i) {
 			keyedStateBackend.setCurrentKey(i);
 			testState1.update(4200 + i);
 			testState2.update("S-" + (4200 + i));
 		}
+	}
 
+	@Test
+	public void testRunningSnapshotAfterBackendClosed() throws Exception {
+		setupRocksKeyedStateBackend();
+		RunnableFuture<KeyGroupsStateHandle> snapshot = keyedStateBackend.snapshot(0L, 0L, testStreamFactory);
+
+		RocksDB spyDB = keyedStateBackend.db;
+
+		verify(spyDB, times(1)).getSnapshot();
+		verify(spyDB, times(0)).releaseSnapshot(any(Snapshot.class));
+
+		this.keyedStateBackend.dispose();
+		verify(spyDB, times(1)).close();
+		assertEquals(null, keyedStateBackend.db);
+
+		//Ensure every RocksObjects not closed yet
+		for (RocksObject rocksCloseable : allCreatedCloseables) {
+			verify(rocksCloseable, times(0)).close();
+		}
+
+		Thread asyncSnapshotThread = new Thread(snapshot);
+		asyncSnapshotThread.start();
+		try {
+			snapshot.get();
+			fail();
+		} catch (Exception ignored) {
+
+		}
+
+		asyncSnapshotThread.join();
+
+		//Ensure every RocksObject was closed exactly once
+		for (RocksObject rocksCloseable : allCreatedCloseables) {
+			verify(rocksCloseable, times(1)).close();
+		}
+
+	}
+
+	@Test
+	public void testReleasingSnapshotAfterBackendClosed() throws Exception {
+		setupRocksKeyedStateBackend();
+		RunnableFuture<KeyGroupsStateHandle> snapshot = keyedStateBackend.snapshot(0L, 0L, testStreamFactory);
+
+		RocksDB spyDB = keyedStateBackend.db;
+
+		verify(spyDB, times(1)).getSnapshot();
+		verify(spyDB, times(0)).releaseSnapshot(any(Snapshot.class));
+
+		this.keyedStateBackend.dispose();
+		verify(spyDB, times(1)).close();
+		assertEquals(null, keyedStateBackend.db);
+
+		//Ensure every RocksObjects not closed yet
+		for (RocksObject rocksCloseable : allCreatedCloseables) {
+			verify(rocksCloseable, times(0)).close();
+		}
+
+		snapshot.cancel(true);
+
+		//Ensure every RocksObjects was closed exactly once
+		for (RocksObject rocksCloseable : allCreatedCloseables) {
+			verify(rocksCloseable, times(1)).close();
+		}
+
+	}
+
+	@Test
+	public void testDismissingSnapshot() throws Exception {
+		setupRocksKeyedStateBackend();
+		RunnableFuture<KeyGroupsStateHandle> snapshot = keyedStateBackend.snapshot(0L, 0L, testStreamFactory);
+		snapshot.cancel(true);
+		verifyRocksObjectsReleased();
+	}
+
+	@Test
+	public void testDismissingSnapshotNotRunnable() throws Exception {
+		setupRocksKeyedStateBackend();
+		RunnableFuture<KeyGroupsStateHandle> snapshot = keyedStateBackend.snapshot(0L, 0L, testStreamFactory);
+		snapshot.cancel(true);
+		Thread asyncSnapshotThread = new Thread(snapshot);
+		asyncSnapshotThread.start();
+		try {
+			snapshot.get();
+			fail();
+		} catch (Exception ignored) {
+
+		}
+		asyncSnapshotThread.join();
+		verifyRocksObjectsReleased();
+	}
+
+	@Test
+	public void testCompletingSnapshot() throws Exception {
+		setupRocksKeyedStateBackend();
+		RunnableFuture<KeyGroupsStateHandle> snapshot = keyedStateBackend.snapshot(0L, 0L, testStreamFactory);
+		Thread asyncSnapshotThread = new Thread(snapshot);
+		asyncSnapshotThread.start();
+		//TODO replace with reset-latch wait!!!!
+		Thread.sleep(100);
+		for (int i = 50; i < 150; ++i) {
+			if (i % 10 == 0) {
+				Thread.sleep(1);
+			}
+			keyedStateBackend.setCurrentKey(i);
+			testState1.update(4200 + i);
+			testState2.update("S-" + (4200 + i));
+		}
+		blocker.trigger();
+		waiter.await();
+		KeyGroupsStateHandle keyGroupsStateHandle = snapshot.get();
+		assertNotNull(keyGroupsStateHandle);
+		assertTrue(keyGroupsStateHandle.getStateSize() > 0);
+		assertEquals(2, keyGroupsStateHandle.getNumberOfKeyGroups());
+		assertTrue(testStreamFactory.getLastCreatedStream().isClosed());
+		asyncSnapshotThread.join();
+		verifyRocksObjectsReleased();
+	}
+
+	@Test
+	public void testCancelRunningSnapshot() throws Exception {
+		setupRocksKeyedStateBackend();
 		RunnableFuture<KeyGroupsStateHandle> snapshot = keyedStateBackend.snapshot(0L, 0L, testStreamFactory);
 		Thread asyncSnapshotThread = new Thread(snapshot);
 		asyncSnapshotThread.start();
@@ -154,28 +305,31 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		snapshot.cancel(true);
 		assertTrue(testStreamFactory.getLastCreatedStream().isClosed());
 		waiter.await();
-		KeyGroupsStateHandle keyGroupsStateHandle = null;
 		try {
-			keyGroupsStateHandle = snapshot.get();
+			snapshot.get();
 			fail();
-		} catch (Exception expected) {
-			//expected.printStackTrace();
-			//assertTrue(expected.getCause() instanceof IOException);
+		} catch (Exception ignored) {
 		}
-		for (RocksIterator iterator : allCreatedIterators) {
-			verify(iterator, times(1)).dispose();
+
+		verifyRocksObjectsReleased();
+		asyncSnapshotThread.join();
+	}
+
+	private void verifyRocksObjectsReleased() {
+		//Ensure every RocksObject was closed exactly once
+		for (RocksObject rocksCloseable : allCreatedCloseables) {
+			verify(rocksCloseable, times(1)).close();
 		}
 
 		assertNotNull(null, keyedStateBackend.db);
 		RocksDB spyDB = keyedStateBackend.db;
+
+		verify(spyDB, times(1)).getSnapshot();
+		verify(spyDB, times(1)).releaseSnapshot(any(Snapshot.class));
+
 		keyedStateBackend.dispose();
-
-		verify(spyDB, atLeastOnce()).dispose();
+		verify(spyDB, times(1)).close();
 		assertEquals(null, keyedStateBackend.db);
-
-		//System.out.println(keyGroupsStateHandle.getStateSize());
-		//System.out.println(keyGroupsStateHandle.getGroupRangeOffsets());
-		asyncSnapshotThread.join();
 	}
 
 	static class BlockerCheckpointStreamFactory implements CheckpointStreamFactory {

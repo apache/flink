@@ -61,7 +61,7 @@ import org.rocksdb.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.concurrent.GuardedBy;
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -103,14 +103,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * asynchronous checkpoints and when disposing the DB. Otherwise, the asynchronous snapshot might try
 	 * iterating over a disposed DB. After aquriring the lock, always first check if (db == null).
 	 */
-	private final SerializableObject dbDisposeLock = new SerializableObject();
+	private final SerializableObject asyncSnapshotLock = new SerializableObject();
 
 	/**
 	 * Our RocksDB data base, this is used by the actual subclasses of {@link AbstractRocksDBState}
 	 * to store state. The different k/v states that we have don't each have their own RocksDB
 	 * instance. They all write to this instance but to their own column family.
 	 */
-	@GuardedBy("dbDisposeLock")
 	protected RocksDB db;
 
 	/**
@@ -205,8 +204,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			LOG.debug("Restoring snapshot from state handles: {}.", restoreState);
 		}
 
-		RocksDBRestoreOperation restoreOperation = new RocksDBRestoreOperation(this);
-		restoreOperation.doRestore(restoreState);
+		try {
+			RocksDBRestoreOperation restoreOperation = new RocksDBRestoreOperation(this);
+			restoreOperation.doRestore(restoreState);
+		} catch (Exception ex) {
+			dispose();
+			throw ex;
+		}
 	}
 
 	/**
@@ -216,23 +220,22 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	public void dispose() {
 		super.dispose();
 
-		final RocksDB cleanupRockDBReference;
-
-		// Acquire the log on dbDisposeLock, so that no ongoing snapshots access the db during cleanup
-		synchronized (dbDisposeLock) {
+		// Acquire the lock, so that no ongoing snapshots access the db during cleanup
+		synchronized (asyncSnapshotLock) {
 			// IMPORTANT: null reference to signal potential async checkpoint workers that the db was disposed, as
 			// working on the disposed object results in SEGFAULTS. Other code has to check field #db for null
 			// and access it in a synchronized block that locks on #dbDisposeLock.
-			cleanupRockDBReference = db;
-			db = null;
-		}
+			if (db != null) {
 
-		// Dispose decoupled db
-		if (cleanupRockDBReference != null) {
-			for (Tuple2<ColumnFamilyHandle, StateDescriptor<?, ?>> column : kvStateInformation.values()) {
-				column.f0.close();
+				for (Tuple2<ColumnFamilyHandle, StateDescriptor<?, ?>> column : kvStateInformation.values()) {
+					column.f0.close();
+				}
+
+				kvStateInformation.clear();
+
+				db.close();
+				db = null;
 			}
-			cleanupRockDBReference.close();
 		}
 
 		try {
@@ -265,14 +268,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		long startTime = System.currentTimeMillis();
 
-		if (kvStateInformation.isEmpty()) {
-			LOG.info("Asynchronous RocksDB snapshot performed on empty keyed state at " + timestamp + " . Returning null.");
-			return new DoneFuture<>(null);
-		}
-
 		final RocksDBSnapshotOperation snapshotOperation = new RocksDBSnapshotOperation(this, streamFactory);
 		// hold the db lock while operation on the db to guard us against async db disposal
-		synchronized (dbDisposeLock) {
+		synchronized (asyncSnapshotLock) {
+
+			if (kvStateInformation.isEmpty()) {
+				LOG.info("Asynchronous RocksDB snapshot performed on empty keyed state at " + timestamp +
+						" . Returning null.");
+
+				return new DoneFuture<>(null);
+			}
+
 			if (db != null) {
 				snapshotOperation.takeDBSnapShot(checkpointId, timestamp);
 			} else {
@@ -293,7 +299,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					@Override
 					public KeyGroupsStateHandle performOperation() throws Exception {
 						long startTime = System.currentTimeMillis();
-						synchronized (dbDisposeLock) {
+						synchronized (asyncSnapshotLock) {
 							try {
 								// hold the db lock while operation on the db to guard us against async db disposal
 								if (db == null) {
@@ -301,6 +307,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 								}
 
 								snapshotOperation.writeDBSnapshot();
+
 							} finally {
 								snapshotOperation.closeCheckpointStream();
 							}
@@ -314,10 +321,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 					private void releaseSnapshotOperationResources(boolean canceled) {
 						// hold the db lock while operation on the db to guard us against async db disposal
-						synchronized (dbDisposeLock) {
-							if (db != null) {
+						synchronized (asyncSnapshotLock) {
+							//if (db != null) {
 								snapshotOperation.releaseSnapshotResources(canceled);
-							}
+							//}
 						}
 					}
 
@@ -416,6 +423,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			if (outStream != null) {
 				stateBackend.cancelStreamRegistry.unregisterClosable(outStream);
 				snapshotResultStateHandle = closeSnapshotStreamAndGetHandle();
+			} else {
+				snapshotResultStateHandle = null;
 			}
 		}
 
@@ -424,7 +433,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 *
 		 */
 		public void releaseSnapshotResources(boolean canceled) {
-
 			if (null != kvStateIterators) {
 				for (Tuple2<RocksIterator, Integer> kvStateIterator : kvStateIterators) {
 					kvStateIterator.f0.close();
@@ -433,7 +441,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 
 			if (null != snapshot) {
-				stateBackend.db.releaseSnapshot(snapshot);
+				if(null != stateBackend.db) {
+					stateBackend.db.releaseSnapshot(snapshot);
+				}
 				snapshot.close();
 				snapshot = null;
 			}
@@ -444,7 +454,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 
 			if (canceled) {
-				deleteOutputsOnCancel();
+				try {
+					if (null != snapshotResultStateHandle) {
+						snapshotResultStateHandle.discardState();
+					}
+				} catch (Exception ignored) {
+					LOG.info("Exception occurred during snapshot state handle cleanup: " + ignored);
+				}
 			}
 		}
 
@@ -465,20 +481,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 */
 		public KeyGroupsStateHandle getSnapshotResultStateHandle() {
 			return snapshotResultStateHandle;
-		}
-
-		private void  deleteOutputsOnCancel() {
-
-			try {
-				closeCheckpointStream();
-				KeyGroupsStateHandle dispose = getSnapshotResultStateHandle();
-				if (null != dispose) {
-					dispose.discardState();
-				}
-			} catch (Exception ignored) {
-				LOG.info("Exception occurred during snapshot state handle cleanup: " + ignored);
-			}
-
 		}
 
 		private void writeKVStateMetaData() throws IOException, InterruptedException {
@@ -506,13 +508,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private void writeKVStateData() throws IOException, InterruptedException {
 
-			RocksDBMergeIterator mergeIterator =
-					new RocksDBMergeIterator(kvStateIterators, stateBackend.keyGroupPrefixBytes);
-
 			byte[] previousKey = null;
 			byte[] previousValue = null;
 
-			try {
+			List<Tuple2<RocksIterator, Integer>> kvStateIteratorsHandover = this.kvStateIterators;
+			this.kvStateIterators = null;
+
+			// Here we transfer ownership of RocksIterators to the RocksDBMergeIterator
+			try (RocksDBMergeIterator mergeIterator = new RocksDBMergeIterator(
+					kvStateIteratorsHandover, stateBackend.keyGroupPrefixBytes)) {
+
 				//preamble: setup with first key-group as our lookahead
 				if (mergeIterator.isValid()) {
 					//begin first key-group by recording the offset
@@ -561,8 +566,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					previousValue = mergeIterator.value();
 					mergeIterator.next();
 				}
-			} finally {
-				mergeIterator.close();
 			}
 
 			//epilogue: write last key-group
@@ -689,7 +692,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			//restore the empty columns for the k/v states through the metadata
 			for (int i = 0; i < numColumns; i++) {
 
-				StateDescriptor<?, ?> stateDescriptor = (StateDescriptor<?, ?>) InstantiationUtil.deserializeObject(
+				StateDescriptor<?, ?> stateDescriptor = InstantiationUtil.deserializeObject(
 						currentStateHandleInStream,
 						rocksDBKeyedStateBackend.userCodeClassLoader);
 
@@ -873,7 +876,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * Iterator that merges multiple RocksDB iterators to partition all states into contiguous key-groups.
 	 * The resulting iteration sequence is ordered by (key-group, kv-state).
 	 */
-	static final class RocksDBMergeIterator {
+	static final class RocksDBMergeIterator implements Closeable {
 
 		private final PriorityQueue<MergeIterator> heap;
 		private final int keyGroupPrefixByteCount;
@@ -946,7 +949,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					detectNewKeyGroup(oldKey);
 				}
 			} else {
-				currentSubIterator.close();
+				rocksIterator.close();
+
 				if (heap.isEmpty()) {
 					currentSubIterator = null;
 					valid = false;
@@ -1034,6 +1038,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			return 0;
 		}
 
+		@Override
 		public void close() {
 
 			if (null != currentSubIterator) {
@@ -1044,6 +1049,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			for (MergeIterator iterator : heap) {
 				iterator.close();
 			}
+
 			heap.clear();
 		}
 	}
