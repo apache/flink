@@ -35,7 +35,7 @@ public class CollectionExecutionAccumulatorsTest {
 	@Test
 	public void testAccumulator() {
 		try {
-			final int NUM_ELEMENTS = 100;
+			final Integer NUM_ELEMENTS = 100;
 			
 			ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 			

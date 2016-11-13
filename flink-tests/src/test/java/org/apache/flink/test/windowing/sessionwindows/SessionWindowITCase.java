@@ -122,11 +122,11 @@ public class SessionWindowITCase extends StreamingMultipleProgramsTestBase {
 
 		// check that overall event counts match with our expectations. remember that late events within lateness will
 		// each trigger a window!
-		Assert.assertEquals(
-				(LATE_EVENTS_PER_SESSION + 1) * NUMBER_OF_SESSIONS * EVENTS_PER_SESSION,
+		Assert.assertEquals(Long.valueOf(
+				(LATE_EVENTS_PER_SESSION + 1) * NUMBER_OF_SESSIONS * EVENTS_PER_SESSION),
 				result.getAccumulatorResult(SESSION_COUNTER_ON_TIME_KEY));
-		Assert.assertEquals(
-				NUMBER_OF_SESSIONS * (LATE_EVENTS_PER_SESSION * (LATE_EVENTS_PER_SESSION + 1) / 2),
+		Assert.assertEquals(Long.valueOf(
+				NUMBER_OF_SESSIONS * (LATE_EVENTS_PER_SESSION * (LATE_EVENTS_PER_SESSION + 1) / 2)),
 				result.getAccumulatorResult(SESSION_COUNTER_LATE_KEY));
 	}
 

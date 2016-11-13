@@ -20,6 +20,12 @@ matrix:
     - jdk: "oraclejdk8"
       env: PROFILE="-Dhadoop.version=2.7.2 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-b,include-kinesis -Dmaven.javadoc.skip=true"
 
+    # Let's assume that people who want to run Java 8 also have recent version of Hadoop and will use Scala 2.11
+    - jdk: "oraclejdk8"
+      env: PROFILE="-Dhadoop.version=2.7.3 -Djava.minor.version=1.8 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-a,include-kinesis -Dmaven.javadoc.skip=true"
+    - jdk: "oraclejdk8"
+      env: PROFILE="-Dhadoop.version=2.7.3 -Djava.minor.version=1.8 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-b,include-kinesis -Dmaven.javadoc.skip=true"
+
     - jdk: "oraclejdk8"
       env: PROFILE="-Dhadoop.version=2.6.3 -Pinclude-yarn-tests,flink-fast-tests-a,include-kinesis -Dmaven.javadoc.skip=true"
     - jdk: "oraclejdk8"

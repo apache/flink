@@ -96,7 +96,7 @@ under the License.
 		<slf4j.version>1.7.7</slf4j.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3.7</akka.version>
-		<java.version>1.7</java.version>
+		<java.minor.version>1.7</java.minor.version>
 		<scala.macros.version>2.0.1</scala.macros.version>
 		<!-- Default scala versions, may be overwritten by build profiles -->
 		<scala.version>2.10.4</scala.version>
@@ -938,8 +938,8 @@ under the License.
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.1</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
-					<source>${java.version}</source>
-					<target>${java.version}</target>
+					<source>${java.minor.version}</source>
+					<target>${java.minor.version}</target>
 					<!-- The output of Xlint is not shown by default, but we activate it for the QA bot
 					to be able to get more warnings -->
 					<compilerArgument>-Xlint:all</compilerArgument>
@@ -1022,7 +1022,7 @@ under the License.
 									<version>[3.0.3,)</version>
 								</requireMavenVersion>
 								<requireJavaVersion>
-									<version>${java.version}</version>
+									<version>${java.minor.version}</version>
 								</requireJavaVersion>
 							</rules>
 						</configuration>
