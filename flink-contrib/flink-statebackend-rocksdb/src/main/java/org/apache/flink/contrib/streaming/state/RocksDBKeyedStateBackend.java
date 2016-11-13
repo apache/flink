@@ -230,9 +230,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		// Dispose decoupled db
 		if (cleanupRockDBReference != null) {
 			for (Tuple2<ColumnFamilyHandle, StateDescriptor<?, ?>> column : kvStateInformation.values()) {
-				column.f0.dispose();
+				column.f0.close();
 			}
-			cleanupRockDBReference.dispose();
+			cleanupRockDBReference.close();
 		}
 
 		try {
@@ -427,19 +427,19 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			if (null != kvStateIterators) {
 				for (Tuple2<RocksIterator, Integer> kvStateIterator : kvStateIterators) {
-					kvStateIterator.f0.dispose();
+					kvStateIterator.f0.close();
 				}
 				kvStateIterators = null;
 			}
 
 			if (null != snapshot) {
 				stateBackend.db.releaseSnapshot(snapshot);
-				snapshot.dispose();
+				snapshot.close();
 				snapshot = null;
 			}
 
 			if (null != readOptions) {
-				readOptions.dispose();
+				readOptions.close();
 				readOptions = null;
 			}
 
@@ -562,7 +562,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					mergeIterator.next();
 				}
 			} finally {
-				mergeIterator.dispose();
+				mergeIterator.close();
 			}
 
 			//epilogue: write last key-group
@@ -864,8 +864,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			return kvStateId;
 		}
 
-		public void dispose() {
-			this.iterator.dispose();
+		public void close() {
+			this.iterator.close();
 		}
 	}
 
@@ -906,7 +906,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					if (rocksIterator.isValid()) {
 						heap.offer(new MergeIterator(rocksIterator, rocksIteratorWithKVStateId.f1));
 					} else {
-						rocksIterator.dispose();
+						rocksIterator.close();
 					}
 				}
 
@@ -946,7 +946,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					detectNewKeyGroup(oldKey);
 				}
 			} else {
-				currentSubIterator.dispose();
+				currentSubIterator.close();
 				if (heap.isEmpty()) {
 					currentSubIterator = null;
 					valid = false;
@@ -1034,15 +1034,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			return 0;
 		}
 
-		public void dispose() {
+		public void close() {
 
 			if (null != currentSubIterator) {
-				currentSubIterator.dispose();
+				currentSubIterator.close();
 				currentSubIterator = null;
 			}
 
 			for (MergeIterator iterator : heap) {
-				iterator.dispose();
+				iterator.close();
 			}
 			heap.clear();
 		}
