@@ -303,7 +303,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 			.transform(new Function<StreamRecord<IN>, TimestampedValue<IN>>() {
 				@Override
 				public TimestampedValue<IN> apply(StreamRecord<IN> input) {
-					return new TimestampedValue<>(input.getValue(), input.getTimestamp());
+					return TimestampedValue.from(input);
 				}
 			});
 		evictorContext.evictBefore(recordsWithTimestamp, Iterables.size(recordsWithTimestamp));

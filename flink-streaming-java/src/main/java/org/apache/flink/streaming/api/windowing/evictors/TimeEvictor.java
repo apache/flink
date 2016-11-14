@@ -65,12 +65,11 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 	}
 
 	private void evict(Iterable<TimestampedValue<Object>> elements, int size, EvictorContext ctx) {
-		long currentTime = getMaxTimestamp(elements);
-
-		if (currentTime < 0) {
-			//we don't evict any element if timestamp is not set in the record
+		if (!hasTimestamp(elements)) {
 			return;
 		}
+
+		long currentTime = getMaxTimestamp(elements);
 		long evictCutoff = currentTime - windowSize;
 
 		for (Iterator<TimestampedValue<Object>> iterator = elements.iterator(); iterator.hasNext(); ) {
@@ -79,6 +78,17 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 				iterator.remove();
 			}
 		}
+	}
+
+	/**
+	 * Returns true if the first element in the Iterable of {@link TimestampedValue} has a timestamp.
+     */
+	private boolean hasTimestamp(Iterable<TimestampedValue<Object>> elements) {
+		Iterator<TimestampedValue<Object>> it = elements.iterator();
+		if (it.hasNext()) {
+			return it.next().hasTimestamp();
+		}
+		return false;
 	}
 
 	/**

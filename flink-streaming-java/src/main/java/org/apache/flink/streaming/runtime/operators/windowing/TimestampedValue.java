@@ -22,7 +22,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * Stores the value and the timestamp of the record.
- * 
+ *
  * @param <T> The type encapsulated value
  */
 @PublicEvolving
@@ -68,7 +68,13 @@ public class TimestampedValue<T> {
 	 * @return The timestamp associated with this stream value in milliseconds.
      */
 	public long getTimestamp() {
-		return timestamp;
+		if (hasTimestamp) {
+			return timestamp;
+		} else {
+			throw new IllegalStateException(
+					"Record has no timestamp. Is the time characteristic set to 'ProcessingTime', or " +
+							"did you forget to call 'DataStream.assignTimestampsAndWatermarks(...)'?");
+		}
 	}
 
 	/**
@@ -91,4 +97,16 @@ public class TimestampedValue<T> {
 		return streamRecord;
 	}
 
+	/**
+	 * Creates a TimestampedValue from given {@link StreamRecord}.
+	 *
+	 * @param streamRecord The StreamRecord object from which TimestampedValue is to be created.
+     */
+	public static <T> TimestampedValue<T> from(StreamRecord<T> streamRecord) {
+		if (streamRecord.hasTimestamp()) {
+			return new TimestampedValue<>(streamRecord.getValue(), streamRecord.getTimestamp());
+		} else {
+			return new TimestampedValue<>(streamRecord.getValue());
+		}
+	}
 }
