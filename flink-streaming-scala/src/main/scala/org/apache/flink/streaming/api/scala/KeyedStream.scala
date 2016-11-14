@@ -176,7 +176,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     if (fun == null) {
       throw new NullPointerException("Reduce function must not be null.")
     }
-    val cleanFun = clean(fun)
+    val cleanFun = clean(check(fun))
     val reducer = new ReduceFunction[T] {
       def reduce(v1: T, v2: T) : T = { cleanFun(v1, v2) }
     }
@@ -209,7 +209,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     if (fun == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
-    val cleanFun = clean(fun)
+    val cleanFun = clean(check(fun))
     val folder = new FoldFunction[T,R] {
       def fold(acc: R, v: T) = {
         cleanFun(acc, v)
@@ -390,7 +390,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
       throw new NullPointerException("Filter function must not be null.")
     }
 
-    val cleanFun = clean(fun)
+    val cleanFun = clean(check(fun))
     val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
     val serializer: TypeSerializer[S] = stateTypeInfo.createSerializer(getExecutionConfig)
 
@@ -419,7 +419,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
       throw new NullPointerException("Map function must not be null.")
     }
 
-    val cleanFun = clean(fun)
+    val cleanFun = clean(check(fun))
     val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
     val serializer: TypeSerializer[S] = stateTypeInfo.createSerializer(getExecutionConfig)
     
@@ -448,7 +448,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
       throw new NullPointerException("Flatmap function must not be null.")
     }
 
-    val cleanFun = clean(fun)
+    val cleanFun = clean(check(fun))
     val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
     val serializer: TypeSerializer[S] = stateTypeInfo.createSerializer(getExecutionConfig)
     

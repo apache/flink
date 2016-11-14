@@ -65,8 +65,8 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     if (fun1 == null || fun2 == null) {
       throw new NullPointerException("Map function must not be null.")
     }
-    val cleanFun1 = clean(fun1)
-    val cleanFun2 = clean(fun2)
+    val cleanFun1 = clean(check(fun1))
+    val cleanFun2 = clean(check(fun2))
     val comapper = new CoMapFunction[IN1, IN2, R] {
       def map1(in1: IN1): R = cleanFun1(in1)
       def map2(in2: IN2): R = cleanFun2(in2)
@@ -176,8 +176,8 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     if (fun1 == null || fun2 == null) {
       throw new NullPointerException("FlatMap functions must not be null.")
     }
-    val cleanFun1 = clean(fun1)
-    val cleanFun2 = clean(fun2)
+    val cleanFun1 = clean(check(fun1))
+    val cleanFun2 = clean(check(fun2))
     val flatMapper = new CoFlatMapFunction[IN1, IN2, R] {
       def flatMap1(value: IN1, out: Collector[R]): Unit = cleanFun1(value, out)
       def flatMap2(value: IN2, out: Collector[R]): Unit = cleanFun2(value, out)
@@ -203,8 +203,8 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     if (fun1 == null || fun2 == null) {
       throw new NullPointerException("FlatMap functions must not be null.")
     }
-    val cleanFun1 = clean(fun1)
-    val cleanFun2 = clean(fun2)
+    val cleanFun1 = clean(check(fun1))
+    val cleanFun2 = clean(check(fun2))
     
     val flatMapper = new CoFlatMapFunction[IN1, IN2, R] {
       def flatMap1(value: IN1, out: Collector[R]) = { cleanFun1(value) foreach out.collect }
@@ -285,8 +285,8 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     val keyType1 = implicitly[TypeInformation[K1]]
     val keyType2 = implicitly[TypeInformation[K2]]
     
-    val cleanFun1 = clean(fun1)
-    val cleanFun2 = clean(fun2)
+    val cleanFun1 = clean(check(fun1))
+    val cleanFun2 = clean(check(fun2))
     
     val keyExtractor1 = new KeySelectorWithType[IN1, K1](cleanFun1, keyType1)
     val keyExtractor2 = new KeySelectorWithType[IN2, K2](cleanFun2, keyType2)
@@ -301,6 +301,14 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
   private[flink] def clean[F <: AnyRef](f: F): F = {
     new StreamExecutionEnvironment(javaStream.getExecutionEnvironment).scalaClean(f)
   }
+
+  /**
+    * Check if the user defined function is a legal function.
+    */
+  private[flink] def check[F <: AnyRef](f: F): F = {
+    new StreamExecutionEnvironment(javaStream.getExecutionEnvironment).scalaCheck(f)
+  }
+
 
   @PublicEvolving
   def transform[R: TypeInformation](

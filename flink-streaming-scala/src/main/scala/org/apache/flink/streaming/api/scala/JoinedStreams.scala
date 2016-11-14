@@ -60,7 +60,7 @@ class JoinedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
    * Specifies a [[KeySelector]] for elements from the first input.
    */
   def where[KEY: TypeInformation](keySelector: T1 => KEY): Where[KEY] = {
-    val cleanFun = clean(keySelector)
+    val cleanFun = clean(check(keySelector))
     val keyType = implicitly[TypeInformation[KEY]]
     val javaSelector = new KeySelector[T1, KEY] with ResultTypeQueryable[KEY] {
       def getKey(in: T1) = cleanFun(in)
@@ -83,7 +83,7 @@ class JoinedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
       * Specifies a [[KeySelector]] for elements from the second input.
       */
     def equalTo(keySelector: T2 => KEY): EqualTo = {
-      val cleanFun = clean(keySelector)
+      val cleanFun = clean(check(keySelector))
       val localKeyType = keyType
       val javaSelector = new KeySelector[T2, KEY] with ResultTypeQueryable[KEY] {
         def getKey(in: T2) = cleanFun(in)
@@ -110,7 +110,7 @@ class JoinedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
             "You first need to specify KeySelectors for both inputs using where() and equalTo().")
         }
 
-        new WithWindow[W](clean(assigner), null, null)
+        new WithWindow[W](clean(check(assigner)), null, null)
       }
 
       /**
@@ -153,7 +153,7 @@ class JoinedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
           require(fun != null, "Join function must not be null.")
 
           val joiner = new FlatJoinFunction[T1, T2, O] {
-            val cleanFun = clean(fun)
+            val cleanFun = clean(check(fun))
             def join(left: T1, right: T2, out: Collector[O]) = {
               out.collect(cleanFun(left, right))
             }
@@ -169,7 +169,7 @@ class JoinedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
           require(fun != null, "Join function must not be null.")
 
           val joiner = new FlatJoinFunction[T1, T2, O] {
-            val cleanFun = clean(fun)
+            val cleanFun = clean(check(fun))
             def join(left: T1, right: T2, out: Collector[O]) = {
               cleanFun(left, right, out)
             }
@@ -191,7 +191,7 @@ class JoinedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
             .window(windowAssigner)
             .trigger(trigger)
             .evictor(evictor)
-            .apply(clean(function), implicitly[TypeInformation[T]]))
+            .apply(clean(check(function)), implicitly[TypeInformation[T]]))
         }
 
         /**
@@ -208,7 +208,7 @@ class JoinedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
             .window(windowAssigner)
             .trigger(trigger)
             .evictor(evictor)
-            .apply(clean(function), implicitly[TypeInformation[T]]))
+            .apply(clean(check(function)), implicitly[TypeInformation[T]]))
         }
       }
     }
@@ -221,4 +221,12 @@ class JoinedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
   private[flink] def clean[F <: AnyRef](f: F): F = {
     new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaClean(f)
   }
+
+  /**
+    * Check if the user defined function is a legal function.
+    */
+  private[flink] def check[F <: AnyRef](f: F): F = {
+    new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaCheck(f)
+  }
+
 }

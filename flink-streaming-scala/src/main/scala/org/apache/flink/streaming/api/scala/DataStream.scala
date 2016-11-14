@@ -313,7 +313,7 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   def keyBy[K: TypeInformation](fun: T => K): KeyedStream[T, K] = {
 
-    val cleanFun = clean(fun)
+    val cleanFun = clean(check(fun))
     val keyType: TypeInformation[K] = implicitly[TypeInformation[K]]
 
     val keyExtractor = new KeySelector[T, K] with ResultTypeQueryable[K] {
@@ -356,7 +356,7 @@ class DataStream[T](stream: JavaStream[T]) {
       : DataStream[T] = {
     
     val keyType = implicitly[TypeInformation[K]]
-    val cleanFun = clean(fun)
+    val cleanFun = clean(check(fun))
     
     val keyExtractor = new KeySelector[T, K] with ResultTypeQueryable[K] {
       def getKey(in: T) = cleanFun(in)
@@ -492,7 +492,7 @@ class DataStream[T](stream: JavaStream[T]) {
     if (fun == null) {
       throw new NullPointerException("Map function must not be null.")
     }
-    val cleanFun = clean(fun)
+    val cleanFun = clean(check(fun))
     val mapper = new MapFunction[T, R] {
       def map(in: T): R = cleanFun(in)
     }
@@ -533,7 +533,7 @@ class DataStream[T](stream: JavaStream[T]) {
     if (fun == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
-    val cleanFun = clean(fun)
+    val cleanFun = clean(check(fun))
     val flatMapper = new FlatMapFunction[T, R] {
       def flatMap(in: T, out: Collector[R]) { cleanFun(in, out) }
     }
@@ -548,7 +548,7 @@ class DataStream[T](stream: JavaStream[T]) {
     if (fun == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
-    val cleanFun = clean(fun)
+    val cleanFun = clean(check(fun))
     val flatMapper = new FlatMapFunction[T, R] {
       def flatMap(in: T, out: Collector[R]) { cleanFun(in) foreach out.collect }
     }
@@ -572,7 +572,7 @@ class DataStream[T](stream: JavaStream[T]) {
     if (fun == null) {
       throw new NullPointerException("Filter function must not be null.")
     }
-    val cleanFun = clean(fun)
+    val cleanFun = clean(check(fun))
     val filterFun = new FilterFunction[T] {
       def filter(in: T) = cleanFun(in)
     }
@@ -677,7 +677,7 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   @deprecated
   def assignTimestamps(extractor: TimestampExtractor[T]): DataStream[T] = {
-    asScalaStream(stream.assignTimestamps(clean(extractor)))
+    asScalaStream(stream.assignTimestamps(clean(check(extractor))))
   }
 
   /**
@@ -757,7 +757,7 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   @PublicEvolving
   def assignAscendingTimestamps(extractor: T => Long): DataStream[T] = {
-    val cleanExtractor = clean(extractor)
+    val cleanExtractor = clean(check(extractor))
     val extractorFunction = new AscendingTimestampExtractor[T] {
       def extractAscendingTimestamp(element: T): Long = {
         cleanExtractor(element)
@@ -782,7 +782,7 @@ class DataStream[T](stream: JavaStream[T]) {
     if (fun == null) {
       throw new NullPointerException("OutputSelector must not be null.")
     }
-    val cleanFun = clean(fun)
+    val cleanFun = clean(check(fun))
     val selector = new OutputSelector[T] {
       def select(in: T): java.lang.Iterable[String] = {
         cleanFun(in).toIterable.asJava
@@ -955,7 +955,7 @@ class DataStream[T](stream: JavaStream[T]) {
     if (fun == null) {
       throw new NullPointerException("Sink function must not be null.")
     }
-    val cleanFun = clean(fun)
+    val cleanFun = clean(check(fun))
     val sinkFunction = new SinkFunction[T] {
       def invoke(in: T) = cleanFun(in)
     }
@@ -968,6 +968,13 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   private[flink] def clean[F <: AnyRef](f: F): F = {
     new StreamExecutionEnvironment(stream.getExecutionEnvironment).scalaClean(f)
+  }
+
+  /**
+    * Check if the user defined function is a legal function.
+    */
+  private[flink] def check[F <: AnyRef](f: F): F = {
+    new StreamExecutionEnvironment(javaStream.getExecutionEnvironment).scalaCheck(f)
   }
 
   /**

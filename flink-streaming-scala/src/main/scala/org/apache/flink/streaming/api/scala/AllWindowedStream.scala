@@ -111,7 +111,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    * @return The data stream that is the result of applying the reduce function to the window.
    */
   def reduce(function: ReduceFunction[T]): DataStream[T] = {
-    asScalaStream(javaStream.reduce(clean(function)))
+    asScalaStream(javaStream.reduce(clean(check(function))))
   }
 
   /**
@@ -133,7 +133,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     if (function == null) {
       throw new NullPointerException("Reduce function must not be null.")
     }
-    val cleanFun = clean(function)
+    val cleanFun = clean(check(function))
     val reducer = new ScalaReduceFunction[T](cleanFun)
     
     reduce(reducer)
@@ -227,7 +227,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     if (function == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
-    val cleanFun = clean(function)
+    val cleanFun = clean(check(function))
     val folder = new ScalaFoldFunction[T,R](cleanFun)
     
     fold(initialValue, folder)
@@ -312,7 +312,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
   def apply[R: TypeInformation](
       function: AllWindowFunction[T, R, W]): DataStream[R] = {
     
-    val cleanedFunction = clean(function)
+    val cleanedFunction = clean(check(function))
     val javaFunction = new ScalaAllWindowFunctionWrapper[T, R, W](cleanedFunction)
     
     asScalaStream(javaStream.apply(javaFunction, implicitly[TypeInformation[R]]))
@@ -332,7 +332,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
   def apply[R: TypeInformation](
       function: (W, Iterable[T], Collector[R]) => Unit): DataStream[R] = {
     
-    val cleanedFunction = clean(function)
+    val cleanedFunction = clean(check(function))
     val applyFunction = new ScalaAllWindowFunction[T, R, W](cleanedFunction)
     
     asScalaStream(javaStream.apply(applyFunction, implicitly[TypeInformation[R]]))
@@ -355,8 +355,8 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
       preAggregator: ReduceFunction[T],
       windowFunction: AllWindowFunction[T, R, W]): DataStream[R] = {
 
-    val cleanedReducer = clean(preAggregator)
-    val cleanedWindowFunction = clean(windowFunction)
+    val cleanedReducer = clean(check(preAggregator))
+    val cleanedWindowFunction = clean(check(windowFunction))
     
     val applyFunction = new ScalaAllWindowFunctionWrapper[T, R, W](cleanedWindowFunction)
 
@@ -388,8 +388,8 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
       throw new NullPointerException("WindowApply function must not be null.")
     }
 
-    val cleanReducer = clean(preAggregator)
-    val cleanWindowFunction = clean(windowFunction)
+    val cleanReducer = clean(check(preAggregator))
+    val cleanWindowFunction = clean(check(windowFunction))
     
     val reducer = new ScalaReduceFunction[T](cleanReducer)
     val applyFunction = new ScalaAllWindowFunction[T, R, W](cleanWindowFunction)
@@ -417,8 +417,8 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
       preAggregator: FoldFunction[T, R],
       windowFunction: AllWindowFunction[R, R, W]): DataStream[R] = {
 
-    val cleanFolder = clean(preAggregator)
-    val cleanWindowFunction = clean(windowFunction)
+    val cleanFolder = clean(check(preAggregator))
+    val cleanWindowFunction = clean(check(windowFunction))
     
     val applyFunction = new ScalaAllWindowFunctionWrapper[R, R, W](cleanWindowFunction)
     
@@ -455,9 +455,8 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
       throw new NullPointerException("WindowApply function must not be null.")
     }
 
-    val cleanFolder = clean(preAggregator)
-    val cleanWindowFunction = clean(windowFunction)
-
+    val cleanFolder = clean(check(preAggregator))
+    val cleanWindowFunction = clean(check(windowFunction))
     val folder = new ScalaFoldFunction[T, R](cleanFolder)
     val applyFunction = new ScalaAllWindowFunction[R, R, W](cleanWindowFunction)
 
@@ -566,6 +565,13 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    */
   private[flink] def clean[F <: AnyRef](f: F): F = {
     new StreamExecutionEnvironment(javaStream.getExecutionEnvironment).scalaClean(f)
+  }
+
+  /**
+    * Check if the user defined function is a legal function.
+    */
+  private[flink] def check[F <: AnyRef](f: F): F = {
+    new StreamExecutionEnvironment(javaStream.getExecutionEnvironment).scalaCheck(f)
   }
 
   /**
