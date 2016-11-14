@@ -165,27 +165,7 @@ public class StreamMockEnvironment implements Environment {
 				@Override
 				public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
 					Buffer buffer = (Buffer) invocationOnMock.getArguments()[0];
-					if (buffer.isBuffer()) {
-						recordDeserializer.setNextBuffer(buffer);
-
-						while (recordDeserializer.hasUnfinishedData()) {
-							RecordDeserializer.DeserializationResult result = recordDeserializer.getNextRecord(delegate);
-
-							if (result.isFullRecord()) {
-								outputList.add(delegate.getInstance());
-							}
-
-							if (result == RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER
-								|| result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
-								break;
-							}
-						}
-					} else {
-						// is event
-						AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
-						outputList.add(event);
-					}
-
+					addBufferToOutputList(recordDeserializer, delegate, buffer, outputList);
 					return null;
 				}
 			}).when(mockWriter).writeBuffer(any(Buffer.class), anyInt());
@@ -194,18 +174,43 @@ public class StreamMockEnvironment implements Environment {
 
 				@Override
 				public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-					AbstractEvent event = (AbstractEvent) invocationOnMock.getArguments()[0];
-
-					outputList.add(event);
+					Buffer buffer = (Buffer) invocationOnMock.getArguments()[0];
+					addBufferToOutputList(recordDeserializer, delegate, buffer, outputList);
 					return null;
 				}
-			}).when(mockWriter).writeEventToAllChannels(any(AbstractEvent.class));
+			}).when(mockWriter).writeBufferToAllChannels(any(Buffer.class));
+
 
 			outputs.add(mockWriter);
 		}
 		catch (Throwable t) {
 			t.printStackTrace();
 			fail(t.getMessage());
+		}
+	}
+
+	private <T> void addBufferToOutputList(RecordDeserializer<DeserializationDelegate<T>> recordDeserializer,
+									   NonReusingDeserializationDelegate<T> delegate, Buffer buffer,
+									   final Queue<Object> outputList) throws java.io.IOException {
+		if (buffer.isBuffer()) {
+			recordDeserializer.setNextBuffer(buffer);
+
+			while (recordDeserializer.hasUnfinishedData()) {
+				RecordDeserializer.DeserializationResult result = recordDeserializer.getNextRecord(delegate);
+
+				if (result.isFullRecord()) {
+					outputList.add(delegate.getInstance());
+				}
+
+				if (result == RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER
+					|| result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
+					break;
+				}
+			}
+		} else {
+			// is event
+			AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
+			outputList.add(event);
 		}
 	}
 
