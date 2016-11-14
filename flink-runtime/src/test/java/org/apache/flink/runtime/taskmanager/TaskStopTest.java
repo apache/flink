@@ -64,6 +64,9 @@ public class TaskStopTest {
 		TaskInfo taskInfoMock = mock(TaskInfo.class);
 		when(taskInfoMock.getTaskNameWithSubtasks()).thenReturn("dummyName");
 
+		TaskManagerRuntimeInfo tmRuntimeInfo = mock(TaskManagerRuntimeInfo.class);
+		when(tmRuntimeInfo.getConfiguration()).thenReturn(new Configuration());
+
 		task = new Task(
 			mock(JobInformation.class),
 			new TaskInformation(
@@ -89,7 +92,7 @@ public class TaskStopTest {
 			mock(CheckpointResponder.class),
 			mock(LibraryCacheManager.class),
 			mock(FileCache.class),
-			mock(TaskManagerRuntimeInfo.class),
+			tmRuntimeInfo,
 			mock(TaskMetricGroup.class),
 			mock(ResultPartitionConsumableNotifier.class),
 			mock(PartitionStateChecker.class),
