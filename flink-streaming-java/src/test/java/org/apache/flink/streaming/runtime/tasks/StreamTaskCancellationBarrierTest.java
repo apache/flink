@@ -50,6 +50,7 @@ public class StreamTaskCancellationBarrierTest {
 	public void testEmitCancellationBarrierWhenNotReady() throws Exception {
 		StreamTask<String, ?> task = new InitBlockingTask();
 		StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		// start the test - this cannot succeed across the 'init()' method
 		testHarness.invoke();
@@ -80,6 +81,7 @@ public class StreamTaskCancellationBarrierTest {
 				task,
 				1, 2,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamMap<String, String> mapOperator = new StreamMap<>(new IdentityMap());
@@ -124,6 +126,7 @@ public class StreamTaskCancellationBarrierTest {
 		TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
 				task,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		CoStreamMap<String, String, String> op = new CoStreamMap<>(new UnionCoMap());

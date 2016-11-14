@@ -106,9 +106,6 @@ public class StreamTaskTestHarness<OUT> {
 		this.executionConfig = new ExecutionConfig();
 
 		streamConfig = new StreamConfig(taskConfig);
-		streamConfig.setChainStart();
-		streamConfig.setBufferTimeout(0);
-		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		outputSerializer = outputType.createSerializer(executionConfig);
 		outputStreamRecordSerializer = new StreamElementSerializer<OUT>(outputSerializer);
@@ -129,11 +126,25 @@ public class StreamTaskTestHarness<OUT> {
 	@SuppressWarnings("unchecked")
 	private void initializeOutput() {
 		outputList = new ConcurrentLinkedQueue<Object>();
-
 		mockEnv.addOutput(outputList, outputStreamRecordSerializer);
+	}
 
+	/**
+	 * Users of the test harness can call this utility method to setup the stream config
+	 * if there will only be a single operator to be tested. The method will setup the
+	 * outgoing network connection for the operator.
+	 *
+	 * For more advanced test cases such as testing chains of multiple operators with the harness,
+	 * please manually configure the stream config.
+	 */
+	public void setupOutputForSingletonOperatorChain() {
+		streamConfig.setChainStart();
+		streamConfig.setBufferTimeout(0);
+		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		streamConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
 		streamConfig.setNumberOfOutputs(1);
+		streamConfig.setTypeSerializerOut(outputSerializer);
+		streamConfig.setVertexID(0);
 
 		StreamOperator<OUT> dummyOperator = new AbstractStreamOperator<OUT>() {
 			private static final long serialVersionUID = 1L;
@@ -142,13 +153,10 @@ public class StreamTaskTestHarness<OUT> {
 		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
 		StreamNode sourceVertexDummy = new StreamNode(null, 0, "group", dummyOperator, "source dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
 		StreamNode targetVertexDummy = new StreamNode(null, 1, "group", dummyOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
-
 		outEdgesInOrder.add(new StreamEdge(sourceVertexDummy, targetVertexDummy, 0, new LinkedList<String>(), new BroadcastPartitioner<Object>()));
+
 		streamConfig.setOutEdgesInOrder(outEdgesInOrder);
 		streamConfig.setNonChainedOutputs(outEdgesInOrder);
-		streamConfig.setTypeSerializerOut(outputSerializer);
-		streamConfig.setVertexID(0);
-
 	}
 
 	public StreamMockEnvironment createEnvironment() {
@@ -330,9 +338,6 @@ public class StreamTaskTestHarness<OUT> {
 					allEmpty = false;
 				}
 			}
-			try {
-				Thread.sleep(10);
-			} catch (InterruptedException ignored) {}
 
 			if (allEmpty) {
 				break;
