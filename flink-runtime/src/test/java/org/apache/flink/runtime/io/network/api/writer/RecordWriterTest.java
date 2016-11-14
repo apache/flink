@@ -26,6 +26,9 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.SerializationResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -33,6 +36,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
+import org.apache.flink.runtime.io.network.util.TestInfiniteBufferProvider;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.testutils.DiscardingRecycler;
 import org.apache.flink.types.IntValue;
@@ -42,6 +46,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -68,7 +73,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@PrepareForTest(ResultPartitionWriter.class)
+@PrepareForTest({ResultPartitionWriter.class, EventSerializer.class})
 @RunWith(PowerMockRunner.class)
 public class RecordWriterTest {
 
@@ -242,7 +247,7 @@ public class RecordWriterTest {
 			try {
 				// Verify that end of super step correctly clears the buffer.
 				recordWriter.emit(new IntValue(0));
-				recordWriter.sendEndOfSuperstep();
+				recordWriter.broadcastEvent(EndOfSuperstepEvent.INSTANCE);
 
 				Assert.fail("Did not throw expected test Exception");
 			}
@@ -395,6 +400,39 @@ public class RecordWriterTest {
 		assertEquals(1, queues[3].size()); // 0 buffers + 1 event
 	}
 
+	/**
+	 * Tests that event buffers are properly recycled when broadcasting events
+	 * to multiple channels.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testBroadcastEventBufferReferenceCounting() throws Exception {
+		Buffer buffer = EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE);
+
+		// Partial mocking of static method...
+		PowerMockito
+			.stub(PowerMockito.method(EventSerializer.class, "toBuffer"))
+			.toReturn(buffer);
+
+		@SuppressWarnings("unchecked")
+		ArrayDeque<BufferOrEvent>[] queues =
+			new ArrayDeque[]{new ArrayDeque(), new ArrayDeque()};
+
+		ResultPartitionWriter partition =
+			createCollectingPartitionWriter(queues,
+				new TestInfiniteBufferProvider());
+		RecordWriter<?> writer = new RecordWriter<>(partition);
+
+		writer.broadcastEvent(EndOfPartitionEvent.INSTANCE);
+
+		// Verify added to all queues
+		assertEquals(1, queues[0].size());
+		assertEquals(1, queues[1].size());
+
+		assertTrue(buffer.isRecycled());
+	}
+
 	// ---------------------------------------------------------------------------------------------
 	// Helpers
 	// ---------------------------------------------------------------------------------------------
@@ -421,21 +459,19 @@ public class RecordWriterTest {
 			@Override
 			public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
 				Buffer buffer = (Buffer) invocationOnMock.getArguments()[0];
-				Integer targetChannel = (Integer) invocationOnMock.getArguments()[1];
-				queues[targetChannel].add(new BufferOrEvent(buffer, targetChannel));
+				if (buffer.isBuffer()) {
+					Integer targetChannel = (Integer) invocationOnMock.getArguments()[1];
+					queues[targetChannel].add(new BufferOrEvent(buffer, targetChannel));
+				} else {
+					// is event:
+					AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
+					buffer.recycle(); // the buffer is not needed anymore
+					Integer targetChannel = (Integer) invocationOnMock.getArguments()[1];
+					queues[targetChannel].add(new BufferOrEvent(event, targetChannel));
+				}
 				return null;
 			}
 		}).when(partitionWriter).writeBuffer(any(Buffer.class), anyInt());
-
-		doAnswer(new Answer<Void>() {
-			@Override
-			public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-				AbstractEvent event = (AbstractEvent) invocationOnMock.getArguments()[0];
-				Integer targetChannel = (Integer) invocationOnMock.getArguments()[1];
-				queues[targetChannel].add(new BufferOrEvent(event, targetChannel));
-				return null;
-			}
-		}).when(partitionWriter).writeEvent(any(AbstractEvent.class), anyInt());
 
 		return partitionWriter;
 	}
