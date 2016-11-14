@@ -312,7 +312,9 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 
 	@Override
 	public void close() throws Exception {
-		this.spout.close();
+		if (spout != null) {
+			spout.close();
+		}
 	}
 
 }

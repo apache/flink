@@ -92,8 +92,12 @@ public abstract class MultipleIdsMessageAcknowledgingSourceBase<Type, UId, Sessi
 	@Override
 	public void close() throws Exception {
 		super.close();
-		sessionIds.clear();
-		sessionIdsPerSnapshot.clear();
+		if (sessionIds != null) {
+			sessionIds.clear();
+		}
+		if (sessionIdsPerSnapshot != null) {
+			sessionIdsPerSnapshot.clear();
+		}
 	}
 
 	// ------------------------------------------------------------------------

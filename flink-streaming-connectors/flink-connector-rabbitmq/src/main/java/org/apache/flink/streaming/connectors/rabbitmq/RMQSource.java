@@ -177,11 +177,13 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	@Override
 	public void close() throws Exception {
 		super.close();
-		try {
-			connection.close();
-		} catch (IOException e) {
-			throw new RuntimeException("Error while closing RMQ connection with " + queueName
-				+ " at " + rmqConnectionConfig.getHost(), e);
+		if (connection != null) {
+			try {
+				connection.close();
+			} catch (IOException e) {
+				throw new RuntimeException("Error while closing RMQ connection with " + queueName
+										   + " at " + rmqConnectionConfig.getHost(), e);
+			}
 		}
 	}
 

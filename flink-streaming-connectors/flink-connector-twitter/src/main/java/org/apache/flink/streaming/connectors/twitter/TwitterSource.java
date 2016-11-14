@@ -175,8 +175,10 @@ public class TwitterSource extends RichSourceFunction<String> implements Stoppab
 			client.stop();
 		}
 		// leave main method
-		synchronized (waitLock) {
-			waitLock.notify();
+		if (waitLock != null) {
+			synchronized (waitLock) {
+				waitLock.notify();
+			}
 		}
 	}
 

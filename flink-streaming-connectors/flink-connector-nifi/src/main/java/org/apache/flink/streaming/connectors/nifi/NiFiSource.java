@@ -145,7 +145,9 @@ public class NiFiSource extends RichParallelSourceFunction<NiFiDataPacket> imple
 	@Override
 	public void close() throws Exception {
 		super.close();
-		client.close();
+		if (client != null) {
+			client.close();
+		}
 	}
 
 	@Override
