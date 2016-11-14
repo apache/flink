@@ -35,6 +35,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -158,26 +159,31 @@ public class StreamMockEnvironment implements Environment {
 			final RecordDeserializer<DeserializationDelegate<T>> recordDeserializer = new AdaptiveSpanningRecordDeserializer<DeserializationDelegate<T>>();
 			final NonReusingDeserializationDelegate<T> delegate = new NonReusingDeserializationDelegate<T>(serializer);
 
-			// Add records from the buffer to the output list
+			// Add records and events from the buffer to the output list
 			doAnswer(new Answer<Void>() {
 
 				@Override
 				public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
 					Buffer buffer = (Buffer) invocationOnMock.getArguments()[0];
+					if (buffer.isBuffer()) {
+						recordDeserializer.setNextBuffer(buffer);
 
-					recordDeserializer.setNextBuffer(buffer);
+						while (recordDeserializer.hasUnfinishedData()) {
+							RecordDeserializer.DeserializationResult result = recordDeserializer.getNextRecord(delegate);
 
-					while (recordDeserializer.hasUnfinishedData()) {
-						RecordDeserializer.DeserializationResult result = recordDeserializer.getNextRecord(delegate);
+							if (result.isFullRecord()) {
+								outputList.add(delegate.getInstance());
+							}
 
-						if (result.isFullRecord()) {
-							outputList.add(delegate.getInstance());
+							if (result == RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER
+								|| result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
+								break;
+							}
 						}
-
-						if (result == RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER
-							|| result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
-							break;
-						}
+					} else {
+						// is event
+						AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
+						outputList.add(event);
 					}
 
 					return null;

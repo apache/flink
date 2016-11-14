@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.SerializationResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -421,8 +422,15 @@ public class RecordWriterTest {
 			@Override
 			public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
 				Buffer buffer = (Buffer) invocationOnMock.getArguments()[0];
-				Integer targetChannel = (Integer) invocationOnMock.getArguments()[1];
-				queues[targetChannel].add(new BufferOrEvent(buffer, targetChannel));
+				if (buffer.isBuffer()) {
+					Integer targetChannel = (Integer) invocationOnMock.getArguments()[1];
+					queues[targetChannel].add(new BufferOrEvent(buffer, targetChannel));
+				} else {
+					// is event:
+					AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
+					Integer targetChannel = (Integer) invocationOnMock.getArguments()[1];
+					queues[targetChannel].add(new BufferOrEvent(event, targetChannel));
+				}
 				return null;
 			}
 		}).when(partitionWriter).writeBuffer(any(Buffer.class), anyInt());
