@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.operators.AbstractUdfOperator;
 import org.apache.flink.api.common.operators.CompilerHints;
@@ -98,7 +99,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 	// --------------------------------- General Parameters ---------------------------------------
 	
-	private int parallelism = -1; // the number of parallel instances of this node
+	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT; // the number of parallel instances of this node
 
 	private long minimalMemoryPerSubTask = -1;
 
@@ -372,8 +373,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	/**
 	 * Gets the parallelism for the operator represented by this optimizer node.
 	 * The parallelism denotes how many parallel instances of the operator on will be
-	 * spawned during the execution. If this value is <code>-1</code>, then the system will take
-	 * the default number of parallel instances.
+	 * spawned during the execution. If this value is {@link ExecutionConfig#PARALLELISM_DEFAULT}
+	 * then the system will take the default number of parallel instances.
 	 * 
 	 * @return The parallelism of the operator.
 	 */
@@ -384,14 +385,14 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	/**
 	 * Sets the parallelism for this optimizer node.
 	 * The parallelism denotes how many parallel instances of the operator will be
-	 * spawned during the execution. If this value is set to <code>-1</code>, then the system will take
-	 * the default number of parallel instances.
+	 * spawned during the execution.
 	 * 
-	 * @param parallelism The parallelism to set.
-	 * @throws IllegalArgumentException If the parallelism is smaller than one and not -1.
+	 * @param parallelism The parallelism to set. If this value is {@link ExecutionConfig#PARALLELISM_DEFAULT}
+	 *        then the system will take the default number of parallel instances.
+	 * @throws IllegalArgumentException If the parallelism is smaller than one.
 	 */
 	public void setParallelism(int parallelism) {
-		if (parallelism < 1 && parallelism != -1) {
+		if (parallelism < 1 && parallelism != ExecutionConfig.PARALLELISM_DEFAULT) {
 			throw new IllegalArgumentException("Parallelism of " + parallelism + " is invalid.");
 		}
 		this.parallelism = parallelism;

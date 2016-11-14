@@ -33,14 +33,14 @@ import org.apache.flink.streaming.api.scala._
  *
  * Usage:
  * {{{
- *   SocketTextStreamWordCount <hostname> <port> <output path>
+ *   SocketTextStreamWordCount <hostname> <port>
  * }}}
  *
  * This example shows how to:
  *
  *   - use StreamExecutionEnvironment.socketTextStream
- *   - write a simple Flink Streaming program in scala.
- *   - write and use user-defined functions.
+ *   - write a simple Flink Streaming program in scala
+ *   - write and use user-defined functions
  */
 object SocketTextStreamWordCount {
 
@@ -55,7 +55,7 @@ object SocketTextStreamWordCount {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    //Create streams for names and ages by mapping the inputs to the corresponding objects
+    // create streams for names and ages by mapping the inputs to the corresponding objects
     val text = env.socketTextStream(hostName, port)
     val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
       .map { (_, 1) }
@@ -64,7 +64,6 @@ object SocketTextStreamWordCount {
 
     counts print
 
-    env.execute("Scala SocketTextStreamWordCount Example")
+    env.execute("Scala WordCount from SocketTextStream Example")
   }
-
 }

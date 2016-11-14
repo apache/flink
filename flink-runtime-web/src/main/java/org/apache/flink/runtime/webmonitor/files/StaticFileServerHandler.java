@@ -36,6 +36,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpChunkedInput;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
@@ -43,6 +44,8 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.stream.ChunkedFile;
 import io.netty.util.CharsetUtil;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
@@ -60,6 +63,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -69,7 +75,6 @@ import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CACHE_CONTROL;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
@@ -82,6 +87,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_MODIFIED;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Simple file server handler that serves requests to web frontend's static files, such as
@@ -117,6 +123,9 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	/** The path in which the static documents are */
 	private final File rootPath;
 
+	/** Whether the web service has https enabled */
+	private final boolean httpsEnabled;
+
 	/** The log for all error reporting */
 	private final Logger logger;
 
@@ -126,9 +135,10 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			JobManagerRetriever retriever,
 			Future<String> localJobManagerAddressPromise,
 			FiniteDuration timeout,
-			File rootPath) {
+			File rootPath,
+			boolean httpsEnabled) throws IOException {
 
-		this(retriever, localJobManagerAddressPromise, timeout, rootPath, DEFAULT_LOGGER);
+		this(retriever, localJobManagerAddressPromise, timeout, rootPath, httpsEnabled, DEFAULT_LOGGER);
 	}
 
 	public StaticFileServerHandler(
@@ -136,12 +146,14 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			Future<String> localJobManagerAddressFuture,
 			FiniteDuration timeout,
 			File rootPath,
-			Logger logger) {
+			boolean httpsEnabled,
+			Logger logger) throws IOException {
 
 		this.retriever = checkNotNull(retriever);
 		this.localJobManagerAddressFuture = checkNotNull(localJobManagerAddressFuture);
 		this.timeout = checkNotNull(timeout);
-		this.rootPath = checkNotNull(rootPath);
+		this.rootPath = checkNotNull(rootPath).getCanonicalFile();
+		this.httpsEnabled = httpsEnabled;
 		this.logger = checkNotNull(logger);
 	}
 
@@ -177,7 +189,8 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 					localJobManagerAddress, jobManager.get());
 
 				if (redirectAddress != null) {
-					HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(redirectAddress, requestPath);
+					HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(
+						redirectAddress, requestPath, httpsEnabled);
 					KeepAliveWrite.flush(ctx, routed.request(), redirect);
 				}
 				else {
@@ -196,28 +209,56 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	 * Response when running with leading JobManager.
 	 */
 	private void respondAsLeader(ChannelHandlerContext ctx, HttpRequest request, String requestPath)
-		throws IOException, ParseException {
+			throws IOException, ParseException, URISyntaxException {
 
 		// convert to absolute path
 		final File file = new File(rootPath, requestPath);
 
-		if(!file.exists()) {
+		if (!file.exists()) {
 			// file does not exist. Try to load it with the classloader
 			ClassLoader cl = StaticFileServerHandler.class.getClassLoader();
+
 			try(InputStream resourceStream = cl.getResourceAsStream("web" + requestPath)) {
-				if (resourceStream == null) {
+				boolean success = false;
+				try {
+					if (resourceStream != null) {
+						URL root = cl.getResource("web");
+						URL requested = cl.getResource("web" + requestPath);
+
+						if (root != null && requested != null) {
+							URI rootURI = new URI(root.getPath()).normalize();
+							URI requestedURI = new URI(requested.getPath()).normalize();
+
+							// Check that we don't load anything from outside of the
+							// expected scope.
+							if (!rootURI.relativize(requestedURI).equals(requestedURI)) {
+								logger.debug("Loading missing file from classloader: {}", requestPath);
+								// ensure that directory to file exists.
+								file.getParentFile().mkdirs();
+								Files.copy(resourceStream, file.toPath());
+
+								success = true;
+							}
+						}
+					}
+				} catch (Throwable t) {
+					logger.error("error while responding", t);
+				} finally {
+					if (!success) {
 						logger.debug("Unable to load requested file {} from classloader", requestPath);
 						sendError(ctx, NOT_FOUND);
 						return;
+					}
 				}
-				logger.debug("Loading missing file from classloader: {}", requestPath);
-				// ensure that directory to file exists.
-				file.getParentFile().mkdirs();
-				Files.copy(resourceStream, file.toPath());
 			}
 		}
 
 		if (!file.exists() || file.isHidden() || file.isDirectory() || !file.isFile()) {
+			sendError(ctx, NOT_FOUND);
+			return;
+		}
+
+		if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
 			sendError(ctx, NOT_FOUND);
 			return;
 		}
@@ -273,8 +314,15 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 		ctx.write(response);
 
 		// write the content.
-		ctx.write(new DefaultFileRegion(raf.getChannel(), 0, fileLength), ctx.newProgressivePromise());
-		ChannelFuture lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+		ChannelFuture lastContentFuture;
+		if (ctx.pipeline().get(SslHandler.class) == null) {
+			ctx.write(new DefaultFileRegion(raf.getChannel(), 0, fileLength), ctx.newProgressivePromise());
+			lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+		} else {
+			lastContentFuture = ctx.writeAndFlush(new HttpChunkedInput(new ChunkedFile(raf, 0, fileLength, 8192)),
+				ctx.newProgressivePromise());
+			// HttpChunkedInput will write the end marker (LastHttpContent) for us.
+		}
 
 		// close the connection, if no keep-alive is needed
 		if (!HttpHeaders.isKeepAlive(request)) {

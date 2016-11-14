@@ -79,6 +79,9 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		List<Vertex<Long, Long>> vertices = new ArrayList<>();
+		// the first vertex has a duplicate ID from a vertex in the graph and
+		// should not be added to the new graph
+		vertices.add(new Vertex<>(5L, 0L));
 		vertices.add(new Vertex<>(6L, 6L));
 		vertices.add(new Vertex<>(7L, 7L));
 
@@ -471,12 +474,17 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		// duplicate edge should be preserved in output
+		graph = graph.addEdge(new Vertex<>(1L, 1L), new Vertex<>(2L, 2L), 12L);
+
 		graph = graph.removeEdge(new Edge<>(5L, 1L, 51L));
 
 		DataSet<Edge<Long,Long>> data = graph.getEdges();
 		List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
+				"1,2,12\n" +
 				"1,3,13\n" +
 				"2,3,23\n" +
 				"3,4,34\n" +
@@ -500,12 +508,16 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 		edgesToBeRemoved.add(new Edge<>(5L, 1L, 51L));
 		edgesToBeRemoved.add(new Edge<>(2L, 3L, 23L));
 
+		// duplicate edge should be preserved in output
+		graph = graph.addEdge(new Vertex<>(1L, 1L), new Vertex<>(2L, 2L), 12L);
+
 		graph = graph.removeEdges(edgesToBeRemoved);
 
 		DataSet<Edge<Long,Long>> data = graph.getEdges();
 		List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
+				"1,2,12\n" +
 				"1,3,13\n" +
 				"3,4,34\n" +
 				"3,5,35\n" +

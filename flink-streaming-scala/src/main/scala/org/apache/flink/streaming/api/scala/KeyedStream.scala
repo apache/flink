@@ -18,21 +18,24 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.functions._
+import org.apache.flink.api.common.state.{FoldingStateDescriptor, ListStateDescriptor, ReducingStateDescriptor, ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, KeyedStream => KeyedJavaStream, WindowedStream => WindowedJavaStream}
+import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.streaming.api.datastream.{QueryableStateStream, SingleOutputStreamOperator, DataStream => JavaStream, KeyedStream => KeyedJavaStream, WindowedStream => WindowedJavaStream}
+import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
+import org.apache.flink.streaming.api.functions.query.{QueryableAppendingStateOperator, QueryableValueStateOperator}
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce
 import org.apache.flink.streaming.api.scala.function.StatefulFunction
 import org.apache.flink.streaming.api.windowing.assigners._
-import org.apache.flink.streaming.api.windowing.time.AbstractTime
+import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
 import org.apache.flink.util.Collector
 
-import scala.reflect.ClassTag
-
-
+@Public
 class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T](javaStream) {
 
   // ------------------------------------------------------------------------
@@ -42,7 +45,38 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   /**
    * Gets the type of the key by which this stream is keyed.
    */
+  @Internal
   def getKeyType = javaStream.getKeyType()
+
+
+  // ------------------------------------------------------------------------
+  //  basic transformations
+  // ------------------------------------------------------------------------
+
+  /**
+    * Applies the given [[TimelyFlatMapFunction]] on the input stream, thereby
+    * creating a transformed output stream.
+    *
+    * The function will be called for every element in the stream and can produce
+    * zero or more output. The function can also query the time and set timers. When
+    * reacting to the firing of set timers the function can emit yet more elements.
+    *
+    * A [[org.apache.flink.streaming.api.functions.RichTimelyFlatMapFunction]]
+    * can be used to gain access to features provided by the
+    * [[org.apache.flink.api.common.functions.RichFunction]]
+    *
+    * @param flatMapper The [[TimelyFlatMapFunction]] that is called for each element
+    *                   in the stream.
+    */
+  def flatMap[R: TypeInformation](
+      flatMapper: TimelyFlatMapFunction[T, R]): DataStream[R] = {
+
+    if (flatMapper == null) {
+      throw new NullPointerException("TimelyFlatMapFunction must not be null.")
+    }
+
+    asScalaStream(javaStream.flatMap(flatMapper, implicitly[TypeInformation[R]]))
+  }
   
   // ------------------------------------------------------------------------
   //  Windowing
@@ -51,16 +85,15 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   /**
    * Windows this [[KeyedStream]] into tumbling time windows.
    *
-   * This is a shortcut for either `.window(TumblingTimeWindows.of(size))` or
+   * This is a shortcut for either `.window(TumblingEventTimeWindows.of(size))` or
    * `.window(TumblingProcessingTimeWindows.of(size))` depending on the time characteristic
    * set using
    * [[StreamExecutionEnvironment.setStreamTimeCharacteristic()]]
    *
    * @param size The size of the window.
    */
-  def timeWindow(size: AbstractTime): WindowedStream[T, K, TimeWindow] = {
-    val assigner = TumblingTimeWindows.of(size).asInstanceOf[WindowAssigner[T, TimeWindow]]
-    window(assigner)
+  def timeWindow(size: Time): WindowedStream[T, K, TimeWindow] = {
+    new WindowedStream(javaStream.timeWindow(size))
   }
 
   /**
@@ -85,16 +118,15 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   /**
    * Windows this [[KeyedStream]] into sliding time windows.
    *
-   * This is a shortcut for either `.window(SlidingTimeWindows.of(size))` or
+   * This is a shortcut for either `.window(SlidingEventTimeWindows.of(size))` or
    * `.window(SlidingProcessingTimeWindows.of(size))` depending on the time characteristic
    * set using
    * [[StreamExecutionEnvironment.setStreamTimeCharacteristic()]]
    *
    * @param size The size of the window.
    */
-  def timeWindow(size: AbstractTime, slide: AbstractTime): WindowedStream[T, K, TimeWindow] = {
-    val assigner = SlidingTimeWindows.of(size, slide).asInstanceOf[WindowAssigner[T, TimeWindow]]
-    window(assigner)
+  def timeWindow(size: Time, slide: Time): WindowedStream[T, K, TimeWindow] = {
+    new WindowedStream(javaStream.timeWindow(size, slide))
   }
 
   /**
@@ -109,6 +141,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * @param assigner The `WindowAssigner` that assigns elements to windows.
    * @return The trigger windows data stream.
    */
+  @PublicEvolving
   def window[W <: Window](assigner: WindowAssigner[_ >: T, W]): WindowedStream[T, K, W] = {
     new WindowedStream(new WindowedJavaStream[T, K, W](javaStream, assigner))
   }
@@ -126,7 +159,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
       throw new NullPointerException("Reduce function must not be null.")
     }
  
-    javaStream.reduce(reducer)
+    asScalaStream(javaStream.reduce(reducer))
   }
 
   /**
@@ -139,7 +172,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     }
     val cleanFun = clean(fun)
     val reducer = new ReduceFunction[T] {
-      def reduce(v1: T, v2: T) = { cleanFun(v1, v2) }
+      def reduce(v1: T, v2: T) : T = { cleanFun(v1, v2) }
     }
     reduce(reducer)
   }
@@ -149,16 +182,16 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * using an associative fold function and an initial value. An independent 
    * aggregate is kept per key.
    */
-  def fold[R: TypeInformation: ClassTag](initialValue: R, folder: FoldFunction[T,R]): 
-  DataStream[R] = {
+  def fold[R: TypeInformation](initialValue: R, folder: FoldFunction[T,R]): 
+      DataStream[R] = {
     if (folder == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
     
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
     
-    javaStream.fold(initialValue, folder).
-      returns(outType).asInstanceOf[JavaStream[R]]
+    asScalaStream(javaStream.fold(initialValue, folder).
+      returns(outType).asInstanceOf[JavaStream[R]])
   }
 
   /**
@@ -166,7 +199,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * using an associative fold function and an initial value. An independent 
    * aggregate is kept per key.
    */
-  def fold[R: TypeInformation: ClassTag](initialValue: R, fun: (R,T) => R): DataStream[R] = {
+  def fold[R: TypeInformation](initialValue: R)(fun: (R,T) => R): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
@@ -298,10 +331,11 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     val cleanFun = clean(fun)
     val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
+    val serializer: TypeSerializer[S] = stateTypeInfo.createSerializer(getExecutionConfig)
 
     val filterFun = new RichFilterFunction[T] with StatefulFunction[T, Boolean, S] {
 
-      override val stateType: TypeInformation[S] = stateTypeInfo
+      override val stateSerializer: TypeSerializer[S] = serializer
 
       override def filter(in: T): Boolean = {
         applyWithState(in, cleanFun)
@@ -318,7 +352,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    *
    * Note that the user state object needs to be serializable.
    */
-  def mapWithState[R: TypeInformation: ClassTag, S: TypeInformation](
+  def mapWithState[R: TypeInformation, S: TypeInformation](
         fun: (T, Option[S]) => (R, Option[S])): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("Map function must not be null.")
@@ -326,10 +360,11 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     val cleanFun = clean(fun)
     val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
+    val serializer: TypeSerializer[S] = stateTypeInfo.createSerializer(getExecutionConfig)
     
     val mapper = new RichMapFunction[T, R] with StatefulFunction[T, R, S] {
 
-      override val stateType: TypeInformation[S] = stateTypeInfo
+      override val stateSerializer: TypeSerializer[S] = serializer
       
       override def map(in: T): R = {
         applyWithState(in, cleanFun)
@@ -346,7 +381,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    *
    * Note that the user state object needs to be serializable.
    */
-  def flatMapWithState[R: TypeInformation: ClassTag, S: TypeInformation](
+  def flatMapWithState[R: TypeInformation, S: TypeInformation](
         fun: (T, Option[S]) => (TraversableOnce[R], Option[S])): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("Flatmap function must not be null.")
@@ -354,10 +389,11 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     val cleanFun = clean(fun)
     val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
+    val serializer: TypeSerializer[S] = stateTypeInfo.createSerializer(getExecutionConfig)
     
     val flatMapper = new RichFlatMapFunction[T, R] with StatefulFunction[T,TraversableOnce[R],S]{
 
-      override val stateType: TypeInformation[S] = stateTypeInfo
+      override val stateSerializer: TypeSerializer[S] = serializer
       
       override def flatMap(in: T, out: Collector[R]): Unit = {
         applyWithState(in, cleanFun) foreach out.collect
@@ -365,6 +401,118 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     }
 
     flatMap(flatMapper)
+  }
+
+  /**
+    * Publishes the keyed stream as a queryable ValueState instance.
+    *
+    * @param queryableStateName Name under which to the publish the queryable state instance
+    * @return Queryable state instance
+    */
+  @PublicEvolving
+  def asQueryableState(queryableStateName: String) : QueryableStateStream[K, T] = {
+    val stateDescriptor = new ValueStateDescriptor(
+      queryableStateName,
+      dataType.createSerializer(executionConfig),
+      null.asInstanceOf[T])
+
+    asQueryableState(queryableStateName, stateDescriptor)
+  }
+
+  /**
+    * Publishes the keyed stream as a queryable ValueState instance.
+    *
+    * @param queryableStateName Name under which to the publish the queryable state instance
+    * @param stateDescriptor State descriptor to create state instance from
+    * @return Queryable state instance
+    */
+  @PublicEvolving
+  def asQueryableState(
+      queryableStateName: String,
+      stateDescriptor: ValueStateDescriptor[T]) : QueryableStateStream[K, T] = {
+
+    transform(
+      s"Queryable state: $queryableStateName",
+      new QueryableValueStateOperator(queryableStateName, stateDescriptor))(dataType)
+
+    stateDescriptor.initializeSerializerUnlessSet(executionConfig)
+
+    new QueryableStateStream(
+      queryableStateName,
+      stateDescriptor.getSerializer,
+      getKeyType.createSerializer(executionConfig))
+  }
+
+  /**
+    * Publishes the keyed stream as a queryable ListState instance.
+    *
+    * @param queryableStateName Name under which to the publish the queryable state instance
+    * @param stateDescriptor State descriptor to create state instance from
+    * @return Queryable state instance
+    */
+  @PublicEvolving
+  def asQueryableState(
+     queryableStateName: String,
+      stateDescriptor: ListStateDescriptor[T]) : QueryableStateStream[K, T]  = {
+
+    transform(
+      s"Queryable state: $queryableStateName",
+      new QueryableAppendingStateOperator(queryableStateName, stateDescriptor))(dataType)
+
+    stateDescriptor.initializeSerializerUnlessSet(executionConfig)
+
+    new QueryableStateStream(
+      queryableStateName,
+      stateDescriptor.getSerializer,
+      getKeyType.createSerializer(executionConfig))
+  }
+
+  /**
+    * Publishes the keyed stream as a queryable FoldingState instance.
+    *
+    * @param queryableStateName Name under which to the publish the queryable state instance
+    * @param stateDescriptor State descriptor to create state instance from
+    * @return Queryable state instance
+    */
+  @PublicEvolving
+  def asQueryableState[ACC](
+      queryableStateName: String,
+      stateDescriptor: FoldingStateDescriptor[T, ACC]) : QueryableStateStream[K, ACC] =  {
+
+    transform(
+      s"Queryable state: $queryableStateName",
+      new QueryableAppendingStateOperator(queryableStateName, stateDescriptor))(dataType)
+
+    stateDescriptor.initializeSerializerUnlessSet(executionConfig)
+
+    new QueryableStateStream(
+      queryableStateName,
+      stateDescriptor.getSerializer,
+      getKeyType.createSerializer(executionConfig))
+  }
+
+  /**
+    * Publishes the keyed stream as a queryable ReducingState instance.
+    *
+    * @param queryableStateName Name under which to the publish the queryable state instance
+    * @param stateDescriptor State descriptor to create state instance from
+    * @return Queryable state instance
+    */
+  @PublicEvolving
+  def asQueryableState(
+      queryableStateName: String,
+      stateDescriptor: ReducingStateDescriptor[T]) : QueryableStateStream[K, T] = {
+
+    transform(
+      s"Queryable state: $queryableStateName",
+      new QueryableAppendingStateOperator(queryableStateName, stateDescriptor))(dataType)
+
+    stateDescriptor.initializeSerializerUnlessSet(executionConfig)
+
+    new QueryableStateStream(
+      queryableStateName,
+      stateDescriptor.getSerializer,
+      getKeyType.createSerializer(executionConfig))
   }
   
 }

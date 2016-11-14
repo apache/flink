@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -38,6 +39,7 @@ import java.util.Collection;
  * 
  * @param <T> The type of elements returned by this function.
  */
+@PublicEvolving
 public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedAsynchronously<Integer> {
 	
 	private static final long serialVersionUID = 1L;

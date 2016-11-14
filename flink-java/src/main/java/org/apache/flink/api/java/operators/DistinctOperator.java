@@ -18,33 +18,36 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.operators.Keys;
+import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
-import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
-import org.apache.flink.api.common.operators.base.MapOperatorBase;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
-import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.util.Collector;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceOperator;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 /**
  * This operator represents the application of a "distinct" function on a data set, and the
  * result data set produced by the function.
- * 
+ *
  * @param <T> The type of the data set made distinct by the operator.
  */
+@Public
 public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOperator<T>> {
-	
+
 	private final Keys<T> keys;
-	
+
 	private final String distinctLocationName;
+
+	private CombineHint hint = CombineHint.OPTIMIZER_CHOOSES;
 
 	public DistinctOperator(DataSet<T> input, Keys<T> keys, String distinctLocationName) {
 		super(input, input.getType());
@@ -53,98 +56,107 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 
 		// if keys is null distinction is done on all fields
 		if (keys == null) {
-			keys = new Keys.ExpressionKeys<T>(new String[] {Keys.ExpressionKeys.SELECT_ALL_CHAR }, input.getType());
+			keys = new Keys.ExpressionKeys<>(input.getType());
 		}
 
 		this.keys = keys;
 	}
 
 	@Override
-	protected org.apache.flink.api.common.operators.base.GroupReduceOperatorBase<?, T, ?> translateToDataFlow(Operator<T> input) {
-		
-		final RichGroupReduceFunction<T, T> function = new DistinctFunction<T>();
+	protected org.apache.flink.api.common.operators.SingleInputOperator<?, T, ?> translateToDataFlow(Operator<T> input) {
+
+		final ReduceFunction<T> function = new DistinctFunction<>();
 
 		String name = getName() != null ? getName() : "Distinct at " + distinctLocationName;
-		
+
 		if (keys instanceof Keys.ExpressionKeys) {
 
 			int[] logicalKeyPositions = keys.computeLogicalKeyPositions();
-			UnaryOperatorInformation<T, T> operatorInfo = new UnaryOperatorInformation<T, T>(getInputType(), getResultType());
-			GroupReduceOperatorBase<T, T, GroupReduceFunction<T, T>> po =
-					new GroupReduceOperatorBase<T, T, GroupReduceFunction<T, T>>(function, operatorInfo, logicalKeyPositions, name);
+			UnaryOperatorInformation<T, T> operatorInfo = new UnaryOperatorInformation<>(getInputType(), getResultType());
+			ReduceOperatorBase<T, ReduceFunction<T>> po =
+					new ReduceOperatorBase<>(function, operatorInfo, logicalKeyPositions, name);
 
-			po.setCombinable(true);
+			po.setCombineHint(hint);
 			po.setInput(input);
 			po.setParallelism(getParallelism());
-			
+
 			// make sure that distinct preserves the partitioning for the fields on which they operate
 			if (getType().isTupleType()) {
 				SingleInputSemanticProperties sProps = new SingleInputSemanticProperties();
-				
+
 				for (int field : keys.computeLogicalKeyPositions()) {
 					sProps.addForwardedField(field, field);
 				}
-				
+
 				po.setSemanticProperties(sProps);
 			}
-			
-			
+
 			return po;
 		}
-		else if (keys instanceof Keys.SelectorFunctionKeys) {
-		
+		else if (keys instanceof SelectorFunctionKeys) {
+
 			@SuppressWarnings("unchecked")
-			Keys.SelectorFunctionKeys<T, ?> selectorKeys = (Keys.SelectorFunctionKeys<T, ?>) keys;
+			SelectorFunctionKeys<T, ?> selectorKeys = (SelectorFunctionKeys<T, ?>) keys;
 
+			org.apache.flink.api.common.operators.SingleInputOperator<?, T, ?> po =
+				translateSelectorFunctionDistinct(selectorKeys, function, getResultType(), name, input, parallelism, hint);
 
-			PlanUnwrappingReduceGroupOperator<T, T, ?> po = translateSelectorFunctionDistinct(
-							selectorKeys, function, getInputType(), getResultType(), name, input);
-			
-			po.setParallelism(this.getParallelism());
-			
 			return po;
 		}
 		else {
 			throw new UnsupportedOperationException("Unrecognized key type.");
 		}
 	}
-	
+
+	/**
+	 * Sets the strategy to use for the combine phase of the reduce.
+	 *
+	 * If this method is not called, then the default hint will be used.
+	 * ({@link org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint#OPTIMIZER_CHOOSES})
+	 *
+	 * @param strategy The hint to use.
+	 * @return The DistinctOperator object, for function call chaining.
+	 */
+	@PublicEvolving
+	public DistinctOperator<T> setCombineHint(CombineHint strategy) {
+		this.hint = strategy;
+		return this;
+	}
+
 	// --------------------------------------------------------------------------------------------
-	
-	private static <IN, OUT, K> PlanUnwrappingReduceGroupOperator<IN, OUT, K> translateSelectorFunctionDistinct(
-			Keys.SelectorFunctionKeys<IN, ?> rawKeys, RichGroupReduceFunction<IN, OUT> function,
-			TypeInformation<IN> inputType, TypeInformation<OUT> outputType, String name, Operator<IN> input)
+
+	private static <IN, K> org.apache.flink.api.common.operators.SingleInputOperator<?, IN, ?> translateSelectorFunctionDistinct(
+			SelectorFunctionKeys<IN, ?> rawKeys,
+			ReduceFunction<IN> function,
+			TypeInformation<IN> outputType,
+			String name,
+			Operator<IN> input,
+			int parallelism,
+			CombineHint hint)
 	{
 		@SuppressWarnings("unchecked")
-		final Keys.SelectorFunctionKeys<IN, K> keys = (Keys.SelectorFunctionKeys<IN, K>) rawKeys;
-		
-		TypeInformation<Tuple2<K, IN>> typeInfoWithKey = new TupleTypeInfo<Tuple2<K, IN>>(keys.getKeyType(), inputType);
-		
-		KeyExtractingMapper<IN, K> extractor = new KeyExtractingMapper<IN, K>(keys.getKeyExtractor());
+		final SelectorFunctionKeys<IN, K> keys = (SelectorFunctionKeys<IN, K>) rawKeys;
 
+		TypeInformation<Tuple2<K, IN>> typeInfoWithKey = KeyFunctions.createTypeWithKey(keys);
+		Operator<Tuple2<K, IN>> keyedInput = KeyFunctions.appendKeyExtractor(input, keys);
 
-		PlanUnwrappingReduceGroupOperator<IN, OUT, K> reducer =
-				new PlanUnwrappingReduceGroupOperator<IN, OUT, K>(function, keys, name, outputType, typeInfoWithKey, true);
-		
-		MapOperatorBase<IN, Tuple2<K, IN>, MapFunction<IN, Tuple2<K, IN>>> mapper = new MapOperatorBase<IN, Tuple2<K, IN>, MapFunction<IN, Tuple2<K, IN>>>(extractor, new UnaryOperatorInformation<IN, Tuple2<K, IN>>(inputType, typeInfoWithKey), "Key Extractor");
+		PlanUnwrappingReduceOperator<IN, K> reducer =
+				new PlanUnwrappingReduceOperator<>(function, keys, name, outputType, typeInfoWithKey);
+		reducer.setInput(keyedInput);
+		reducer.setCombineHint(hint);
+		reducer.setParallelism(parallelism);
 
-		reducer.setInput(mapper);
-		mapper.setInput(input);
-		
-		// set the mapper's parallelism to the input parallelism to make sure it is chained
-		mapper.setParallelism(input.getParallelism());
-		
-		return reducer;
+		return KeyFunctions.appendKeyRemover(reducer, keys);
 	}
-	
-	@RichGroupReduceFunction.Combinable
-	public static final class DistinctFunction<T> extends RichGroupReduceFunction<T, T> {
+
+	@Internal
+	public static final class DistinctFunction<T> implements ReduceFunction<T> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce(Iterable<T> values, Collector<T> out) {
-			out.collect(values.iterator().next());
+		public T reduce(T value1, T value2) throws Exception {
+			return value1;
 		}
 	}
 }

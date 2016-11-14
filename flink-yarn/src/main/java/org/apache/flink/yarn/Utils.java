@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.yarn;
 
 import java.io.File;
@@ -23,11 +24,15 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.apache.flink.configuration.ConfigConstants;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -55,19 +60,39 @@ public final class Utils {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
 
+	/** Keytab file name populated in YARN container */
+	public static final String KEYTAB_FILE_NAME = "krb5.keytab";
+
+	/** KRB5 file name populated in YARN container for secure IT run */
+	public static final String KRB5_FILE_NAME = "krb5.conf";
+
+	/** Yarn site xml file name populated in YARN container for secure IT run */
+	public static final String YARN_SITE_FILE_NAME = "yarn-site.xml";
 
 	/**
 	 * See documentation
 	 */
 	public static int calculateHeapSize(int memory, org.apache.flink.configuration.Configuration conf) {
-		float memoryCutoffRatio = conf.getFloat(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF_RATIO);
-		int minCutoff = conf.getInteger(ConfigConstants.YARN_HEAP_CUTOFF_MIN, ConfigConstants.DEFAULT_YARN_MIN_HEAP_CUTOFF);
+
+		BootstrapTools.substituteDeprecatedConfigKey(conf,
+			ConfigConstants.YARN_HEAP_CUTOFF_RATIO, ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO);
+		BootstrapTools.substituteDeprecatedConfigKey(conf,
+			ConfigConstants.YARN_HEAP_CUTOFF_MIN, ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN);
+
+		float memoryCutoffRatio = conf.getFloat(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO,
+			ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF_RATIO);
+		int minCutoff = conf.getInteger(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN,
+			ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF);
 
 		if (memoryCutoffRatio > 1 || memoryCutoffRatio < 0) {
-			throw new IllegalArgumentException("The configuration value '" + ConfigConstants.YARN_HEAP_CUTOFF_RATIO + "' must be between 0 and 1. Value given=" + memoryCutoffRatio);
+			throw new IllegalArgumentException("The configuration value '"
+				+ ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO
+				+ "' must be between 0 and 1. Value given=" + memoryCutoffRatio);
 		}
 		if (minCutoff > memory) {
-			throw new IllegalArgumentException("The configuration value '" + ConfigConstants.YARN_HEAP_CUTOFF_MIN + "' is higher (" + minCutoff + ") than the requested amount of memory " + memory);
+			throw new IllegalArgumentException("The configuration value '"
+				+ ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN
+				+ "' is higher (" + minCutoff + ") than the requested amount of memory " + memory);
 		}
 
 		int heapLimit = (int)((float)memory * memoryCutoffRatio);
@@ -77,33 +102,43 @@ public final class Utils {
 		return memory - heapLimit;
 	}
 
-	
-	public static void setupEnv(Configuration conf, Map<String, String> appMasterEnv) {
-		addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), Environment.PWD.$() + File.separator + "*");
-		for (String c: conf.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH,YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
+
+	public static void setupYarnClassPath(Configuration conf, Map<String, String> appMasterEnv) {
+		addToEnvironment(
+			appMasterEnv,
+			Environment.CLASSPATH.name(),
+			appMasterEnv.get(YarnConfigKeys.ENV_FLINK_CLASSPATH));
+		String[] applicationClassPathEntries = conf.getStrings(
+			YarnConfiguration.YARN_APPLICATION_CLASSPATH,
+			YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH);
+		for (String c : applicationClassPathEntries) {
 			addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), c.trim());
 		}
 	}
-	
-	
+
+
 	/**
 	 * 
 	 * @return Path to remote file (usually hdfs)
 	 * @throws IOException
 	 */
-	public static Path setupLocalResource(Configuration conf, FileSystem fs, String appId, Path localRsrcPath, LocalResource appMasterJar, Path homedir)
-			throws IOException {
-		// copy to HDFS
+	public static Path setupLocalResource(
+			FileSystem fs,
+			String appId, Path localRsrcPath,
+			LocalResource appMasterJar,
+			Path homedir) throws IOException {
+
+		// copy resource to HDFS
 		String suffix = ".flink/" + appId + "/" + localRsrcPath.getName();
-		
+
 		Path dst = new Path(homedir, suffix);
-		
+
 		LOG.info("Copying from " + localRsrcPath + " to " + dst);
 		fs.copyFromLocalFile(localRsrcPath, dst);
 		registerLocalResource(fs, dst, appMasterJar);
 		return dst;
 	}
-	
+
 	public static void registerLocalResource(FileSystem fs, Path remoteRsrcPath, LocalResource localResource) throws IOException {
 		FileStatus jarStat = fs.getFileStatus(remoteRsrcPath);
 		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
@@ -113,30 +148,31 @@ public final class Utils {
 		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
 	}
 
-	public static void setTokensFor(ContainerLaunchContext amContainer, Path[] paths, Configuration conf) throws IOException {
+	public static void setTokensFor(ContainerLaunchContext amContainer, List<Path> paths, Configuration conf) throws IOException {
 		Credentials credentials = new Credentials();
 		// for HDFS
-		TokenCache.obtainTokensForNamenodes(credentials, paths, conf);
+		TokenCache.obtainTokensForNamenodes(credentials, paths.toArray(new Path[0]), conf);
 		// for HBase
 		obtainTokenForHBase(credentials, conf);
 		// for user
 		UserGroupInformation currUsr = UserGroupInformation.getCurrentUser();
-		
+
 		Collection<Token<? extends TokenIdentifier>> usrTok = currUsr.getTokens();
 		for(Token<? extends TokenIdentifier> token : usrTok) {
 			final Text id = new Text(token.getIdentifier());
 			LOG.info("Adding user token " + id + " with " + token);
 			credentials.addToken(id, token);
 		}
-		DataOutputBuffer dob = new DataOutputBuffer();
-		credentials.writeTokenStorageToStream(dob);
+		try (DataOutputBuffer dob = new DataOutputBuffer()) {
+			credentials.writeTokenStorageToStream(dob);
 
-		if(LOG.isDebugEnabled()) {
-			LOG.debug("Wrote tokens. Credentials buffer length: " + dob.getLength());
+			if(LOG.isDebugEnabled()) {
+				LOG.debug("Wrote tokens. Credentials buffer length: " + dob.getLength());
+			}
+
+			ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
+			amContainer.setTokens(securityTokens);
 		}
-
-		ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
-		amContainer.setTokens(securityTokens);
 	}
 
 	/**

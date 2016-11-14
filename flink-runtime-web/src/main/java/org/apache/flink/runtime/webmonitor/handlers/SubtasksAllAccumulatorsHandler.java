@@ -21,9 +21,9 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import com.fasterxml.jackson.core.JsonGenerator;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
 import java.io.StringWriter;
@@ -32,16 +32,16 @@ import java.util.Map;
 /**
  * Request handler that returns the accumulators for all subtasks of job vertex.
  */
-public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHandler implements RequestHandler.JsonResponse {
+public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHandler {
 	
 	public SubtasksAllAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
 	@Override
-	public String handleRequest(ExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		gen.writeStartObject();
 		gen.writeStringField("id", jobVertex.getJobVertexId().toString());
@@ -50,9 +50,9 @@ public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHand
 		gen.writeArrayFieldStart("subtasks");
 		
 		int num = 0;
-		for (ExecutionVertex vertex : jobVertex.getTaskVertices()) {
+		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
 
-			InstanceConnectionInfo location = vertex.getCurrentAssignedResourceLocation();
+			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
 			String locationString = location == null ? "(unassigned)" : location.getHostname();
 			
 			gen.writeStartObject();

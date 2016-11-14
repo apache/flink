@@ -31,7 +31,7 @@ trait LeaderSessionMessageFilter extends FlinkActor {
   protected def leaderSessionID: Option[UUID]
 
   abstract override def receive: Receive = {
-    case leaderMessage@LeaderSessionMessage(msgID, msg) =>
+    case leaderMessage @ LeaderSessionMessage(msgID, msg) =>
       if (leaderSessionID.equals(Option(msgID))) {
         super.receive(msg)
       } else {

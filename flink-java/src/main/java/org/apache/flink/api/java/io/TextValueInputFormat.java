@@ -23,15 +23,16 @@ import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-import com.google.common.base.Charsets;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.DelimitedInputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
 
-
+@PublicEvolving
 public class TextValueInputFormat extends DelimitedInputFormat<StringValue> {
 	
 	private static final long serialVersionUID = 1L;
@@ -49,7 +50,7 @@ public class TextValueInputFormat extends DelimitedInputFormat<StringValue> {
 	// --------------------------------------------------------------------------------------------
 	
 	public TextValueInputFormat(Path filePath) {
-		super(filePath);
+		super(filePath, null);
 	}
 	
 	// --------------------------------------------------------------------------------------------	
@@ -84,7 +85,7 @@ public class TextValueInputFormat extends DelimitedInputFormat<StringValue> {
 			throw new RuntimeException("Unsupported charset: " + charsetName);
 		}
 
-		if (charsetName.equalsIgnoreCase(Charsets.US_ASCII.name())) {
+		if (charsetName.equalsIgnoreCase(StandardCharsets.US_ASCII.name())) {
 			ascii = true;
 		}
 		

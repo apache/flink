@@ -18,24 +18,17 @@
 
 package org.apache.flink.api.java.utils;
 
-import org.apache.flink.api.java.ClosureCleaner;
-import org.apache.flink.configuration.Configuration;
 import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Map;
 import java.util.Properties;
 
-public class ParameterToolTest {
-
-	@Rule
-	public TemporaryFolder tmp = new TemporaryFolder();
+public class ParameterToolTest extends AbstractParameterToolTest {
 
 	// ----- Parser tests -----------------
 
@@ -118,7 +111,9 @@ public class ParameterToolTest {
 		Properties props = new Properties();
 		props.setProperty("input", "myInput");
 		props.setProperty("expectedCount", "15");
-		props.store(new FileOutputStream(propertiesFile), "Test properties");
+		try (final OutputStream out = new FileOutputStream(propertiesFile)) {
+			props.store(out, "Test properties");
+		}
 		ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFile.getAbsolutePath());
 		Assert.assertEquals(2, parameter.getNumberOfParameters());
 		validate(parameter);
@@ -158,39 +153,5 @@ public class ParameterToolTest {
 	public void testFromGenericOptionsParser() throws IOException {
 		ParameterTool parameter = ParameterTool.fromGenericOptionsParser(new String[]{"-D", "input=myInput", "-DexpectedCount=15"});
 		validate(parameter);
-	}
-
-	private void validate(ParameterTool parameter) {
-		ClosureCleaner.ensureSerializable(parameter);
-		Assert.assertEquals("myInput", parameter.getRequired("input"));
-		Assert.assertEquals("myDefaultValue", parameter.get("output", "myDefaultValue"));
-		Assert.assertEquals(null, parameter.get("whatever"));
-		Assert.assertEquals(15L, parameter.getLong("expectedCount", -1L));
-		Assert.assertTrue(parameter.getBoolean("thisIsUseful", true));
-		Assert.assertEquals(42, parameter.getByte("myDefaultByte", (byte) 42));
-		Assert.assertEquals(42, parameter.getShort("myDefaultShort", (short) 42));
-
-		Configuration config = parameter.getConfiguration();
-		Assert.assertEquals(15L, config.getLong("expectedCount", -1L));
-
-		Properties props = parameter.getProperties();
-		Assert.assertEquals("myInput", props.getProperty("input"));
-		props = null;
-
-		// -------- test the default file creation ------------
-		try {
-			String pathToFile = tmp.newFile().getAbsolutePath();
-			parameter.createPropertiesFile(pathToFile);
-			Properties defaultProps = new Properties();
-			defaultProps.load(new FileInputStream(pathToFile));
-
-			Assert.assertEquals("myDefaultValue", defaultProps.get("output"));
-			Assert.assertEquals("-1", defaultProps.get("expectedCount"));
-			Assert.assertTrue(defaultProps.containsKey("input"));
-
-		} catch (IOException e) {
-			Assert.fail(e.getMessage());
-			e.printStackTrace();
-		}
 	}
 }

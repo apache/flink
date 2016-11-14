@@ -17,10 +17,11 @@
 
 package org.apache.flink.storm.wordcount;
 
+import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.generated.StormTopology;
 import backtype.storm.topology.TopologyBuilder;
-import backtype.storm.utils.Utils;
+
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
@@ -60,10 +61,9 @@ public class WordCountLocal {
 		final TopologyBuilder builder = WordCountTopology.buildTopology();
 
 		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
-		cluster.submitTopology(topologyId, null, FlinkTopology.createTopology(builder));
-
-		Utils.sleep(10 * 1000);
-
+		Config conf = new Config();
+		conf.put(FlinkLocalCluster.SUBMIT_BLOCKING, true); // only required to stabilize integration test
+		cluster.submitTopology(topologyId, conf, FlinkTopology.createTopology(builder));
 		cluster.shutdown();
 	}
 

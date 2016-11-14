@@ -23,9 +23,11 @@ import java.lang
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
+import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction
+import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction.{Context, OnTimerContext}
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
-import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamOperator}
+import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamOperator, StreamTimelyFlatMap}
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
 import org.apache.flink.streaming.api.windowing.triggers.{CountTrigger, PurgingTrigger}
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
@@ -68,7 +70,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val windowed = connected
       .windowAll(GlobalWindows.create())
       .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](10)))
-      .fold((0L, 0L), func)
+      .fold((0L, 0L))(func)
 
     windowed.name("testWindowFold")
 
@@ -87,8 +89,8 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
   }
 
   /**
-   * Tests that {@link DataStream#keyBy} and {@link DataStream#partitionBy(KeySelector)} result in
-   * different and correct topologies. Does the some for the {@link ConnectedStreams}.
+   * Tests that [[DataStream.keyBy]] and [[DataStream.partitionCustom]] result in
+   * different and correct topologies. Does the some for the [[ConnectedStreams]].
    */
   @Test
   def testPartitioning(): Unit = {
@@ -114,10 +116,10 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     assert(isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, gid4)))
 
     //Testing DataStream partitioning
-    val partition1: DataStream[_] = src1.partitionByHash(0)
-    val partition2: DataStream[_] = src1.partitionByHash(1, 0)
-    val partition3: DataStream[_] = src1.partitionByHash("_1")
-    val partition4: DataStream[_] = src1.partitionByHash((x : (Long, Long)) => x._1)
+    val partition1: DataStream[_] = src1.keyBy(0)
+    val partition2: DataStream[_] = src1.keyBy(1, 0)
+    val partition3: DataStream[_] = src1.keyBy("_1")
+    val partition4: DataStream[_] = src1.keyBy((x : (Long, Long)) => x._1)
 
     val pid1 = createDownStreamId(partition1)
     val pid2 = createDownStreamId(partition2)
@@ -181,22 +183,22 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     assert(isPartitioned(env.getStreamGraph.getStreamEdges(src2.getId, downStreamId5)))
 
     //Testing ConnectedStreams partitioning
-    val connectedPartition1: ConnectedStreams[_, _] = connected.partitionByHash(0, 0)
+    val connectedPartition1: ConnectedStreams[_, _] = connected.keyBy(0, 0)
     val connectDownStreamId1: Integer = createDownStreamId(connectedPartition1)
 
     val connectedPartition2: ConnectedStreams[_, _] =
-      connected.partitionByHash(Array[Int](0), Array[Int](0))
+      connected.keyBy(Array[Int](0), Array[Int](0))
     val connectDownStreamId2: Integer = createDownStreamId(connectedPartition2)
 
-    val connectedPartition3: ConnectedStreams[_, _] = connected.partitionByHash("_1", "_1")
+    val connectedPartition3: ConnectedStreams[_, _] = connected.keyBy("_1", "_1")
     val connectDownStreamId3: Integer = createDownStreamId(connectedPartition3)
 
     val connectedPartition4: ConnectedStreams[_, _] =
-      connected.partitionByHash(Array[String]("_1"), Array[String]("_1"))
+      connected.keyBy(Array[String]("_1"), Array[String]("_1"))
     val connectDownStreamId4: Integer = createDownStreamId(connectedPartition4)
 
     val connectedPartition5: ConnectedStreams[_, _] =
-      connected.partitionByHash(x => x._1, x => x._1)
+      connected.keyBy(x => x._1, x => x._1)
     val connectDownStreamId5: Integer = createDownStreamId(connectedPartition5)
 
     assert(
@@ -247,7 +249,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val windowed: DataStream[(Long, Long)] = map
       .windowAll(GlobalWindows.create())
       .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](10)))
-      .fold((0L, 0L), (x: (Long, Long), y: (Long, Long)) => (0L, 0L))
+      .fold((0L, 0L))((x: (Long, Long), y: (Long, Long)) => (0L, 0L))
 
     windowed.print()
     val sink = map.addSink(x => {})
@@ -309,10 +311,33 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val flatten: DataStream[Int] = window
       .windowAll(GlobalWindows.create())
       .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](5)))
-      .fold(0, (accumulator: Int, value: String) => 0)
+      .fold(0)((accumulator: Int, value: String) => 0)
     assert(TypeExtractor.getForClass(classOf[Int]) == flatten.getType())
 
     // TODO check for custom case class
+  }
+
+  /**
+   * Verify that a timely flat map call is correctly translated to an operator.
+   */
+  @Test
+  def testTimelyFlatMapTranslation(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+
+    val src = env.generateSequence(0, 0)
+
+    val timelyFlatMapFunction = new TimelyFlatMapFunction[Long, Int] {
+      override def flatMap(value: Long, ctx: Context, out: Collector[Int]): Unit = ???
+      override def onTimer(
+          timestamp: Long,
+          ctx: OnTimerContext,
+          out: Collector[Int]): Unit = ???
+    }
+
+    val flatMapped = src.keyBy(x => x).flatMap(timelyFlatMapFunction)
+
+    assert(timelyFlatMapFunction == getFunctionForDataStream(flatMapped))
+    assert(getOperatorForDataStream(flatMapped).isInstanceOf[StreamTimelyFlatMap[_, _, _]])
   }
 
   @Test def operatorTest() {
@@ -404,7 +429,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     assert(foldFunction == getFunctionForDataStream(fold))
     assert(
       getFunctionForDataStream(map.keyBy(x=>x)
-        .fold("", (x: String, y: Int) => ""))
+        .fold("")((x: String, y: Int) => ""))
         .isInstanceOf[FoldFunction[_, _]])
 
     val connect = fold.connect(flatMap)
@@ -487,17 +512,6 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val iterated2 = source.iterate((input: DataStream[Int]) => 
       (input.map(_ + 1), input.map(_.toString)), 2000)
 
-    try {
-      val invalid = source.iterate((input: ConnectedStreams[Int, String]) => {
-        val head = input.partitionByHash(1, 1).map(i => (i + 1).toString, s => s)
-        (head.filter(_ == "2"), head.filter(_ != "2"))
-      }, 1000).print()
-      fail()
-    } catch {
-      case uoe: UnsupportedOperationException =>
-      case e: Exception => fail()
-    }
-
     val sg = env.getStreamGraph
 
     assert(sg.getIterationSourceSinkPairs.size() == 2)
@@ -516,14 +530,14 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
   private def getOperatorForDataStream(dataStream: DataStream[_]): StreamOperator[_] = {
     dataStream.print()
-    val env = dataStream.getJavaStream.getExecutionEnvironment
+    val env = dataStream.javaStream.getExecutionEnvironment
     val streamGraph: StreamGraph = env.getStreamGraph
     streamGraph.getStreamNode(dataStream.getId).getOperator
   }
 
   private def isPartitioned(edges: java.util.List[StreamEdge]): Boolean = {
     import scala.collection.JavaConverters._
-    edges.asScala.forall( _.getPartitioner.isInstanceOf[HashPartitioner[_]])
+    edges.asScala.forall( _.getPartitioner.isInstanceOf[KeyGroupStreamPartitioner[_, _]])
   }
 
   private def isCustomPartitioned(edges: java.util.List[StreamEdge]): Boolean = {

@@ -17,11 +17,12 @@
  */
 package org.apache.flink.api.java.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
-
+@Internal
 public class SelectByMinFunction<T extends Tuple> implements ReduceFunction<T> {
 	private static final long serialVersionUID = 1L;
 	

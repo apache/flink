@@ -20,15 +20,16 @@ package org.apache.flink.runtime.util;
 
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
-import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Properties;
 
 import org.apache.hadoop.util.VersionInfo;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.apache.hadoop.security.UserGroupInformation;
 
 /**
@@ -58,27 +59,26 @@ public class EnvironmentInformation {
 	 * @return The code revision.
 	 */
 	public static RevisionInformation getRevisionInformation() {
-		RevisionInformation info = new RevisionInformation();
 		String revision = UNKNOWN;
 		String commitDate = UNKNOWN;
-		try {
-			Properties properties = new Properties();
-			InputStream propFile = EnvironmentInformation.class.getClassLoader().getResourceAsStream(".version.properties");
+		try (InputStream propFile = EnvironmentInformation.class.getClassLoader().getResourceAsStream(".version.properties")) {
 			if (propFile != null) {
+				Properties properties = new Properties();
 				properties.load(propFile);
-				revision = properties.getProperty("git.commit.id.abbrev");
-				commitDate = properties.getProperty("git.commit.time");
+				String propRevision = properties.getProperty("git.commit.id.abbrev");
+				String propCommitDate = properties.getProperty("git.commit.time");
+				revision = propRevision != null ? propRevision : UNKNOWN;
+				commitDate = propCommitDate != null ? propCommitDate : UNKNOWN;
 			}
 		} catch (Throwable t) {
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Cannot determine code revision: Unable ro read version property file.", t);
+				LOG.debug("Cannot determine code revision: Unable to read version property file.", t);
 			} else {
-				LOG.info("Cannot determine code revision: Unable ro read version property file.");
+				LOG.info("Cannot determine code revision: Unable to read version property file.");
 			}
 		}
-		info.commitId = revision;
-		info.commitDate = commitDate;
-		return info;
+		
+		return new RevisionInformation(revision, commitDate);
 	}
 
 	/**
@@ -103,9 +103,7 @@ public class EnvironmentInformation {
 		String user = System.getProperty("user.name");
 		if (user == null) {
 			user = UNKNOWN;
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Cannot determine user/group information for the current user.");
-			}
+			LOG.debug("Cannot determine user/group information for the current user.");
 		}
 		return user;
 	}
@@ -113,27 +111,27 @@ public class EnvironmentInformation {
 	/**
 	 * The maximum JVM heap size, in bytes.
 	 * 
+	 * <p>This method uses the <i>-Xmx</i> value of the JVM, if set. If not set, it returns (as
+	 * a heuristic) 1/4th of the physical memory size.
+	 * 
 	 * @return The maximum JVM heap size, in bytes.
 	 */
 	public static long getMaxJvmHeapMemory() {
-		long maxMemory = Runtime.getRuntime().maxMemory();
-
-		if (maxMemory == Long.MAX_VALUE) {
-			// amount of free memory unknown
-			try {
-				// workaround for Oracle JDK
-				OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean();
-				Class<?> clazz = Class.forName("com.sun.management.OperatingSystemMXBean");
-				Method method = clazz.getMethod("getTotalPhysicalMemorySize");
-				maxMemory = (Long) method.invoke(operatingSystemMXBean) / 4;
-			}
-			catch (Throwable e) {
+		final long maxMemory = Runtime.getRuntime().maxMemory();
+		if (maxMemory != Long.MAX_VALUE) {
+			// we have the proper max memory
+			return maxMemory;
+		} else {
+			// max JVM heap size is not set - use the heuristic to use 1/4th of the physical memory
+			final long physicalMemory = Hardware.getSizeOfPhysicalMemory();
+			if (physicalMemory != -1) {
+				// got proper value for physical memory
+				return physicalMemory / 4;
+			} else {
 				throw new RuntimeException("Could not determine the amount of free memory.\n" +
 						"Please set the maximum memory for the JVM, e.g. -Xmx512M for 512 megabytes.");
 			}
 		}
-		
-		return maxMemory;
 	}
 
 	/**
@@ -161,23 +159,7 @@ public class EnvironmentInformation {
 	 */
 	public static long getSizeOfFreeHeapMemory() {
 		Runtime r = Runtime.getRuntime();
-		long maxMemory = r.maxMemory();
-
-		if (maxMemory == Long.MAX_VALUE) {
-			// amount of free memory unknown
-			try {
-				// workaround for Oracle JDK
-				OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean();
-				Class<?> clazz = Class.forName("com.sun.management.OperatingSystemMXBean");
-				Method method = clazz.getMethod("getTotalPhysicalMemorySize");
-				maxMemory = (Long) method.invoke(operatingSystemMXBean) / 4;
-			} catch (Throwable e) {
-				throw new RuntimeException("Could not determine the amount of free memory.\n" +
-						"Please set the maximum memory for the JVM, e.g. -Xmx512M for 512 megabytes.");
-			}
-		}
-
-		return maxMemory - r.totalMemory() + r.freeMemory();
+		return getMaxJvmHeapMemory() - r.totalMemory() + r.freeMemory();
 	}
 
 	/**
@@ -326,27 +308,6 @@ public class EnvironmentInformation {
 		}
 	}
 
-	/**
-	 * Checks whether the Java version is lower than Java 7 (Java 1.7) and
-	 * prints a warning message in that case.
-	 */
-	public static void checkJavaVersion() {
-		try {
-			String versionString = System.getProperty("java.version").substring(0, 3);
-			double versionDouble = Double.parseDouble(versionString);
-			if (versionDouble < 1.7) {
-				LOG.warn("Flink has been started with Java 6. " +
-						"Java 6 is not maintained any more by Oracle or the OpenJDK community. " +
-						"Flink may drop support for Java 6 in future releases, due to the " +
-						"unavailability of bug fixes security patches.");
-			}
-		}
-		catch (Exception e) {
-			LOG.warn("Could not parse java version for startup checks");
-			LOG.debug("Exception when parsing java version", e);
-		}
-	}
-
 	// --------------------------------------------------------------------------------------------
 
 	/** Don't instantiate this class */
@@ -359,9 +320,16 @@ public class EnvironmentInformation {
 	 * code.
 	 */
 	public static class RevisionInformation {
+		
 		/** The git commit id (hash) */
-		public String commitId;
+		public final String commitId;
+		
 		/** The git commit date */
-		public String commitDate;
+		public final String commitDate;
+
+		public RevisionInformation(String commitId, String commitDate) {
+			this.commitId = commitId;
+			this.commitDate = commitDate;
+		}
 	}
 }

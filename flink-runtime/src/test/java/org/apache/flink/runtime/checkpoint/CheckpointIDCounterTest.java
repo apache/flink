@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
@@ -35,6 +37,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 public abstract class CheckpointIDCounterTest extends TestLogger {
 
@@ -54,14 +58,42 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 
 		@AfterClass
 		public static void tearDown() throws Exception {
-			if (ZooKeeper != null) {
-				ZooKeeper.shutdown();
-			}
+			ZooKeeper.shutdown();
 		}
 
 		@Before
 		public void cleanUp() throws Exception {
 			ZooKeeper.deleteAll();
+		}
+
+		/**
+		 * Tests that counter node is removed from ZooKeeper after shutdown.
+		 */
+		@Test
+		public void testShutdownRemovesState() throws Exception {
+			CheckpointIDCounter counter = createCompletedCheckpoints();
+			counter.start();
+
+			CuratorFramework client = ZooKeeper.getClient();
+			assertNotNull(client.checkExists().forPath("/checkpoint-id-counter"));
+
+			counter.shutdown(JobStatus.FINISHED);
+			assertNull(client.checkExists().forPath("/checkpoint-id-counter"));
+		}
+
+		/**
+		 * Tests that counter node is NOT removed from ZooKeeper after suspend.
+		 */
+		@Test
+		public void testSuspendKeepsState() throws Exception {
+			CheckpointIDCounter counter = createCompletedCheckpoints();
+			counter.start();
+
+			CuratorFramework client = ZooKeeper.getClient();
+			assertNotNull(client.checkExists().forPath("/checkpoint-id-counter"));
+
+			counter.shutdown(JobStatus.SUSPENDED);
+			assertNotNull(client.checkExists().forPath("/checkpoint-id-counter"));
 		}
 
 		@Override
@@ -89,7 +121,7 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 			assertEquals(4, counter.getAndIncrement());
 		}
 		finally {
-			counter.stop();
+			counter.shutdown(JobStatus.FINISHED);
 		}
 	}
 
@@ -152,8 +184,24 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 				executor.shutdown();
 			}
 
-			counter.stop();
+			counter.shutdown(JobStatus.FINISHED);
 		}
+	}
+
+	/**
+	 * Tests a simple {@link CheckpointIDCounter#setCount(long)} operation.
+	 */
+	@Test
+	public void testSetCount() throws Exception {
+		final CheckpointIDCounter counter = createCompletedCheckpoints();
+		counter.start();
+
+		// Test setCount
+		counter.setCount(1337);
+		assertEquals(1337, counter.getAndIncrement());
+		assertEquals(1338, counter.getAndIncrement());
+
+		counter.shutdown(JobStatus.FINISHED);
 	}
 
 	/**

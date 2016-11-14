@@ -18,38 +18,33 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.Archiveable;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
-import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.TaskStateHandles;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 
-import scala.concurrent.duration.FiniteDuration;
-
-import java.io.Serializable;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -68,11 +63,8 @@ import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
  * The ExecutionVertex is a parallel subtask of the execution. It may be executed once, or several times, each of
  * which time it spawns an {@link Execution}.
  */
-public class ExecutionVertex implements Serializable {
+public class ExecutionVertex implements AccessExecutionVertex, Archiveable<ArchivedExecutionVertex> {
 
-	private static final long serialVersionUID = 42L;
-
-	@SuppressWarnings("unused")
 	private static final Logger LOG = ExecutionGraph.LOG;
 
 	private static final int MAX_DISTINCT_LOCATIONS_TO_CONSIDER = 8;
@@ -89,13 +81,14 @@ public class ExecutionVertex implements Serializable {
 
 	private final List<Execution> priorExecutions;
 
-	private final FiniteDuration timeout;
+	private final Time timeout;
+
+	/** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations */
+	private final String taskNameWithSubtask;
 
 	private volatile CoLocationConstraint locationConstraint;
 
 	private volatile Execution currentExecution;	// this field must never be null
-
-	private volatile List<Instance> locationConstraintInstances;
 
 	private volatile boolean scheduleLocalOnly;
 
@@ -105,7 +98,7 @@ public class ExecutionVertex implements Serializable {
 			ExecutionJobVertex jobVertex,
 			int subTaskIndex,
 			IntermediateResult[] producedDataSets,
-			FiniteDuration timeout) {
+			Time timeout) {
 		this(jobVertex, subTaskIndex, producedDataSets, timeout, System.currentTimeMillis());
 	}
 
@@ -113,10 +106,13 @@ public class ExecutionVertex implements Serializable {
 			ExecutionJobVertex jobVertex,
 			int subTaskIndex,
 			IntermediateResult[] producedDataSets,
-			FiniteDuration timeout,
+			Time timeout,
 			long createTimestamp) {
+
 		this.jobVertex = jobVertex;
 		this.subTaskIndex = subTaskIndex;
+		this.taskNameWithSubtask = String.format("%s (%d/%d)",
+				jobVertex.getJobVertex().getName(), subTaskIndex + 1, jobVertex.getParallelism());
 
 		this.resultPartitions = new LinkedHashMap<IntermediateResultPartitionID, IntermediateResultPartition>(producedDataSets.length, 1);
 
@@ -132,7 +128,7 @@ public class ExecutionVertex implements Serializable {
 		this.priorExecutions = new CopyOnWriteArrayList<Execution>();
 
 		this.currentExecution = new Execution(
-			getExecutionGraph().getExecutionContext(),
+			getExecutionGraph().getExecutor(),
 			this,
 			0,
 			createTimestamp,
@@ -171,18 +167,20 @@ public class ExecutionVertex implements Serializable {
 		return this.jobVertex.getJobVertex().getName();
 	}
 
+	@Override
 	public String getTaskNameWithSubtaskIndex() {
-		return String.format(
-				"%s (%d/%d)",
-				jobVertex.getJobVertex().getName(),
-				subTaskIndex + 1,
-				getTotalNumberOfParallelSubtasks());
+		return this.taskNameWithSubtask;
 	}
 
 	public int getTotalNumberOfParallelSubtasks() {
 		return this.jobVertex.getParallelism();
 	}
 
+	public int getMaxParallelism() {
+		return this.jobVertex.getMaxParallelism();
+	}
+
+	@Override
 	public int getParallelSubtaskIndex() {
 		return this.subTaskIndex;
 	}
@@ -202,16 +200,24 @@ public class ExecutionVertex implements Serializable {
 		return locationConstraint;
 	}
 
+	@Override
 	public Execution getCurrentExecutionAttempt() {
 		return currentExecution;
 	}
 
+	@Override
 	public ExecutionState getExecutionState() {
 		return currentExecution.getState();
 	}
 
+	@Override
 	public long getStateTimestamp(ExecutionState state) {
 		return currentExecution.getStateTimestamp(state);
+	}
+
+	@Override
+	public String getFailureCauseAsString() {
+		return ExceptionUtils.stringifyException(getFailureCause());
 	}
 
 	public Throwable getFailureCause() {
@@ -222,10 +228,12 @@ public class ExecutionVertex implements Serializable {
 		return currentExecution.getAssignedResource();
 	}
 
-	public InstanceConnectionInfo getCurrentAssignedResourceLocation() {
+	@Override
+	public TaskManagerLocation getCurrentAssignedResourceLocation() {
 		return currentExecution.getAssignedResourceLocation();
 	}
-	
+
+	@Override
 	public Execution getPriorExecutionAttempt(int attemptNumber) {
 		if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
 			return priorExecutions.get(attemptNumber);
@@ -234,7 +242,11 @@ public class ExecutionVertex implements Serializable {
 			throw new IllegalArgumentException("attempt does not exist");
 		}
 	}
-	
+
+	List<Execution> getPriorExecutions() {
+		return priorExecutions;
+	}
+
 	public ExecutionGraph getExecutionGraph() {
 		return this.jobVertex.getGraph();
 	}
@@ -271,7 +283,7 @@ public class ExecutionVertex implements Serializable {
 		this.inputEdges[inputNumber] = edges;
 
 		// add the consumers to the source
-		// for now (until the receiver initiated handshake is in place), we need to register the 
+		// for now (until the receiver initiated handshake is in place), we need to register the
 		// edges as the execution graph
 		for (ExecutionEdge ee : edges) {
 			ee.getSource().addConsumer(ee, consumerNumber);
@@ -346,10 +358,6 @@ public class ExecutionVertex implements Serializable {
 		}
 	}
 
-	public void setLocationConstraintHosts(List<Instance> instances) {
-		this.locationConstraintInstances = instances;
-	}
-
 	public void setScheduleLocalOnly(boolean scheduleLocalOnly) {
 		if (scheduleLocalOnly && inputEdges != null && inputEdges.length > 0) {
 			throw new IllegalArgumentException("Strictly local scheduling is only supported for sources.");
@@ -370,20 +378,14 @@ public class ExecutionVertex implements Serializable {
 	 *
 	 * @return The preferred locations for this vertex execution, or null, if there is no preference.
 	 */
-	public Iterable<Instance> getPreferredLocations() {
-		// if we have hard location constraints, use those
-		List<Instance> constraintInstances = this.locationConstraintInstances;
-		if (constraintInstances != null && !constraintInstances.isEmpty()) {
-			return constraintInstances;
-		}
-
+	public Iterable<TaskManagerLocation> getPreferredLocations() {
 		// otherwise, base the preferred locations on the input connections
 		if (inputEdges == null) {
 			return Collections.emptySet();
 		}
 		else {
-			Set<Instance> locations = new HashSet<Instance>();
-			Set<Instance> inputLocations = new HashSet<Instance>();
+			Set<TaskManagerLocation> locations = new HashSet<>();
+			Set<TaskManagerLocation> inputLocations = new HashSet<>();
 
 			// go over all inputs
 			for (int i = 0; i < inputEdges.length; i++) {
@@ -396,7 +398,7 @@ public class ExecutionVertex implements Serializable {
 						SimpleSlot sourceSlot = sources[k].getSource().getProducer().getCurrentAssignedResource();
 						if (sourceSlot != null) {
 							// add input location
-							inputLocations.add(sourceSlot.getInstance());
+							inputLocations.add(sourceSlot.getTaskManagerLocation());
 							// inputs which have too many distinct sources are not considered
 							if (inputLocations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
 								inputLocations.clear();
@@ -433,7 +435,7 @@ public class ExecutionVertex implements Serializable {
 			if (state == FINISHED || state == CANCELED || state == FAILED) {
 				priorExecutions.add(execution);
 				currentExecution = new Execution(
-					getExecutionGraph().getExecutionContext(),
+					getExecutionGraph().getExecutor(),
 					this,
 					execution.getAttemptNumber()+1,
 					System.currentTimeMillis(),
@@ -450,8 +452,8 @@ public class ExecutionVertex implements Serializable {
 		}
 	}
 
-	public boolean scheduleForExecution(Scheduler scheduler, boolean queued) throws NoResourceAvailableException {
-		return this.currentExecution.scheduleForExecution(scheduler, queued);
+	public boolean scheduleForExecution(SlotProvider slotProvider, boolean queued) throws NoResourceAvailableException {
+		return this.currentExecution.scheduleForExecution(slotProvider, queued);
 	}
 
 	public void deployToSlot(SimpleSlot slot) throws JobException {
@@ -462,34 +464,14 @@ public class ExecutionVertex implements Serializable {
 		this.currentExecution.cancel();
 	}
 
+	public void stop() {
+		this.currentExecution.stop();
+	}
+
 	public void fail(Throwable t) {
 		this.currentExecution.fail(t);
 	}
 
-	public void sendMessageToCurrentExecution(Serializable message, ExecutionAttemptID attemptID) {
-		Execution exec = getCurrentExecutionAttempt();
-		
-		// check that this is for the correct execution attempt
-		if (exec != null && exec.getAttemptId().equals(attemptID)) {
-			SimpleSlot slot = exec.getAssignedResource();
-			
-			// send only if we actually have a target
-			if (slot != null) {
-				ActorGateway gateway = slot.getInstance().getActorGateway();
-				if (gateway != null) {
-					gateway.tell(message);
-				}
-			}
-			else {
-				LOG.debug("Skipping message to undeployed task execution {}/{}", getSimpleName(), attemptID);
-			}
-		}
-		else {
-			LOG.debug("Skipping message to {}/{} because it does not match the current execution",
-					getSimpleName(), attemptID);
-		}
-	}
-	
 	/**
 	 * Schedules or updates the consumer tasks of the result partition with the given ID.
 	 */
@@ -516,33 +498,6 @@ public class ExecutionVertex implements Serializable {
 			throw new IllegalArgumentException("ScheduleOrUpdateConsumers msg is only valid for" +
 					"pipelined partitions.");
 		}
-	}
-
-	/**
-	 * This method cleans fields that are irrelevant for the archived execution attempt.
-	 */
-	public void prepareForArchiving() throws IllegalStateException {
-		Execution execution = currentExecution;
-		ExecutionState state = execution.getState();
-
-		// sanity check
-		if (!(state == FINISHED || state == CANCELED || state == FAILED)) {
-			throw new IllegalStateException("Cannot archive ExecutionVertex that is not in a finished state.");
-		}
-
-		// prepare the current execution for archiving
-		execution.prepareForArchiving();
-
-		// prepare previous executions for archiving
-		for (Execution exec : priorExecutions) {
-			exec.prepareForArchiving();
-		}
-
-		// clear the unnecessary fields in this class
-		this.resultPartitions = null;
-		this.inputEdges = null;
-		this.locationConstraint = null;
-		this.locationConstraintInstances = null;
 	}
 
 	public void cachePartitionInfo(PartialInputChannelDeploymentDescriptor partitionInfo){
@@ -606,29 +561,31 @@ public class ExecutionVertex implements Serializable {
 
 	/**
 	 * Creates a task deployment descriptor to deploy a subtask to the given target slot.
-	 * 
+	 *
 	 * TODO: This should actually be in the EXECUTION
 	 */
 	TaskDeploymentDescriptor createDeploymentDescriptor(
 			ExecutionAttemptID executionId,
 			SimpleSlot targetSlot,
-			SerializedValue<StateHandle<?>> operatorState,
-			long recoveryTimestamp,
-			int attemptNumber) {
-
+			TaskStateHandles taskStateHandles,
+			int attemptNumber) throws ExecutionGraphException {
+		
 		// Produced intermediate results
-		List<ResultPartitionDeploymentDescriptor> producedPartitions = new ArrayList<ResultPartitionDeploymentDescriptor>(resultPartitions.size());
+		List<ResultPartitionDeploymentDescriptor> producedPartitions = new ArrayList<>(resultPartitions.size());
+		
+		// Consumed intermediate results
+		List<InputGateDeploymentDescriptor> consumedPartitions = new ArrayList<>(inputEdges.length);
+		
+		boolean lazyScheduling = getExecutionGraph().getScheduleMode().allowLazyDeployment();
 
 		for (IntermediateResultPartition partition : resultPartitions.values()) {
-			producedPartitions.add(ResultPartitionDeploymentDescriptor.from(partition));
+			producedPartitions.add(ResultPartitionDeploymentDescriptor.from(partition, lazyScheduling));
 		}
-
-		// Consumed intermediate results
-		List<InputGateDeploymentDescriptor> consumedPartitions = new ArrayList<InputGateDeploymentDescriptor>();
-
+		
+		
 		for (ExecutionEdge[] edges : inputEdges) {
 			InputChannelDeploymentDescriptor[] partitions = InputChannelDeploymentDescriptor
-					.fromEdges(edges, targetSlot);
+					.fromEdges(edges, targetSlot, lazyScheduling);
 
 			// If the produced partition has multiple consumers registered, we
 			// need to request the one matching our sub task index.
@@ -642,14 +599,19 @@ public class ExecutionVertex implements Serializable {
 			consumedPartitions.add(new InputGateDeploymentDescriptor(resultId, queueToRequest, partitions));
 		}
 
-		List<BlobKey> jarFiles = getExecutionGraph().getRequiredJarFiles();
-		List<URL> classpaths = getExecutionGraph().getRequiredClasspaths();
+		SerializedValue<JobInformation> serializedJobInformation = getExecutionGraph().getSerializedJobInformation();
+		SerializedValue<TaskInformation> serializedJobVertexInformation = jobVertex.getSerializedTaskInformation();
 
-		return new TaskDeploymentDescriptor(getJobId(), getJobvertexId(), executionId, getTaskName(),
-				subTaskIndex, getTotalNumberOfParallelSubtasks(), attemptNumber, getExecutionGraph().getJobConfiguration(),
-				jobVertex.getJobVertex().getConfiguration(), jobVertex.getJobVertex().getInvokableClassName(),
-				producedPartitions, consumedPartitions, jarFiles, classpaths, targetSlot.getRoot().getSlotNumber(),
-				operatorState, recoveryTimestamp);
+		return new TaskDeploymentDescriptor(
+			serializedJobInformation,
+			serializedJobVertexInformation,
+			executionId,
+			subTaskIndex,
+			attemptNumber,
+			targetSlot.getRoot().getSlotNumber(),
+			taskStateHandles,
+			producedPartitions,
+			consumedPartitions);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -665,11 +627,16 @@ public class ExecutionVertex implements Serializable {
 	 * @return A simple name representation.
 	 */
 	public String getSimpleName() {
-		return getTaskName() + " (" + (getParallelSubtaskIndex()+1) + '/' + getTotalNumberOfParallelSubtasks() + ')';
+		return taskNameWithSubtask;
 	}
 
 	@Override
 	public String toString() {
 		return getSimpleName();
+	}
+
+	@Override
+	public ArchivedExecutionVertex archive() {
+		return new ArchivedExecutionVertex(this);
 	}
 }

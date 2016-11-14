@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
@@ -25,6 +26,7 @@ import org.apache.flink.core.memory.{DataOutputView, DataInputView}
  * Serializer for Case Classes. Creation and access is different from
  * our Java Tuples so we have to treat them differently.
  */
+@Internal
 abstract class CaseClassSerializer[T <: Product](
     clazz: Class[T],
     scalaFieldSerializers: Array[TypeSerializer[_]])

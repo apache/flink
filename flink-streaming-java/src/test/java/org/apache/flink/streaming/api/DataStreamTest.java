@@ -37,34 +37,37 @@ import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamTimelyFlatMap;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
-import org.apache.flink.streaming.runtime.partitioner.HashPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
-import org.apache.flink.streaming.util.NoOpSink;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class DataStreamTest extends StreamingMultipleProgramsTestBase {
+@SuppressWarnings("serial")
+public class DataStreamTest {
 
 	/**
 	 * Tests union functionality. This ensures that self-unions and unions of streams
@@ -225,18 +228,17 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 					}
 				}).name("testMap");
 
-		DataStreamSink<Long> connected = dataStream1.connect(dataStream2)
+		dataStream1.connect(dataStream2)
 				.flatMap(new CoFlatMapFunction<Long, Long, Long>() {
-					private static final long serialVersionUID = 1L;
 
 					@Override
-					public void flatMap1(Long value, Collector<Long> out) throws Exception {
-					}
+					public void flatMap1(Long value, Collector<Long> out) throws Exception {}
 
 					@Override
-					public void flatMap2(Long value, Collector<Long> out) throws Exception {
-					}
+					public void flatMap2(Long value, Collector<Long> out) throws Exception {}
+					
 				}).name("testCoFlatMap")
+				
 				.windowAll(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(10)))
 				.fold(0L, new FoldFunction<Long, Long>() {
@@ -262,7 +264,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 	}
 
 	/**
-	 * Tests that {@link DataStream#keyBy} and {@link DataStream#partitionByHash} result in
+	 * Tests that {@link DataStream#keyBy} and {@link DataStream#partitionCustom(Partitioner, int)} result in
 	 * different and correct topologies. Does the some for the {@link ConnectedStreams}.
 	 */
 	@Test
@@ -296,10 +298,10 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		assertTrue(isKeyed(group4));
 
 		//Testing DataStream partitioning
-		DataStream<Tuple2<Long, Long>> partition1 = src1.partitionByHash(0);
-		DataStream<Tuple2<Long, Long>> partition2 = src1.partitionByHash(1, 0);
-		DataStream<Tuple2<Long, Long>> partition3 = src1.partitionByHash("f0");
-		DataStream<Tuple2<Long, Long>> partition4 = src1.partitionByHash(new FirstSelector());
+		DataStream<Tuple2<Long, Long>> partition1 = src1.keyBy(0);
+		DataStream<Tuple2<Long, Long>> partition2 = src1.keyBy(1, 0);
+		DataStream<Tuple2<Long, Long>> partition3 = src1.keyBy("f0");
+		DataStream<Tuple2<Long, Long>> partition4 = src1.keyBy(new FirstSelector());
 
 		int pid1 = createDownStreamId(partition1);
 		int pid2 = createDownStreamId(partition2);
@@ -311,10 +313,10 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdges(src1.getId(), pid3)));
 		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdges(src1.getId(), pid4)));
 
-		assertFalse(isKeyed(partition1));
-		assertFalse(isKeyed(partition3));
-		assertFalse(isKeyed(partition2));
-		assertFalse(isKeyed(partition4));
+		assertTrue(isKeyed(partition1));
+		assertTrue(isKeyed(partition3));
+		assertTrue(isKeyed(partition2));
+		assertTrue(isKeyed(partition4));
 
 		// Testing DataStream custom partitioning
 		Partitioner<Long> longPartitioner = new Partitioner<Long>() {
@@ -378,19 +380,19 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		assertTrue(isKeyed(connectedGroup5));
 
 		//Testing ConnectedStreams partitioning
-		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition1 = connected.partitionByHash(0, 0);
+		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition1 = connected.keyBy(0, 0);
 		Integer connectDownStreamId1 = createDownStreamId(connectedPartition1);
 
-		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition2 = connected.partitionByHash(new int[]{0}, new int[]{0});
+		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition2 = connected.keyBy(new int[]{0}, new int[]{0});
 		Integer connectDownStreamId2 = createDownStreamId(connectedPartition2);
 
-		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition3 = connected.partitionByHash("f0", "f0");
+		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition3 = connected.keyBy("f0", "f0");
 		Integer connectDownStreamId3 = createDownStreamId(connectedPartition3);
 
-		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition4 = connected.partitionByHash(new String[]{"f0"}, new String[]{"f0"});
+		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition4 = connected.keyBy(new String[]{"f0"}, new String[]{"f0"});
 		Integer connectDownStreamId4 = createDownStreamId(connectedPartition4);
 
-		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition5 = connected.partitionByHash(new FirstSelector(), new FirstSelector());
+		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition5 = connected.keyBy(new FirstSelector(), new FirstSelector());
 		Integer connectDownStreamId5 = createDownStreamId(connectedPartition5);
 
 		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdges(src1.getId(),
@@ -418,11 +420,11 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdges(src2.getId(),
 				connectDownStreamId5)));
 
-		assertFalse(isKeyed(connectedPartition1));
-		assertFalse(isKeyed(connectedPartition2));
-		assertFalse(isKeyed(connectedPartition3));
-		assertFalse(isKeyed(connectedPartition4));
-		assertFalse(isKeyed(connectedPartition5));
+		assertTrue(isKeyed(connectedPartition1));
+		assertTrue(isKeyed(connectedPartition2));
+		assertTrue(isKeyed(connectedPartition3));
+		assertTrue(isKeyed(connectedPartition4));
+		assertTrue(isKeyed(connectedPartition5));
 	}
 
 	/**
@@ -435,7 +437,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		DataStreamSource<Tuple2<Long, Long>> src = env.fromElements(new Tuple2<>(0L, 0L));
 		env.setParallelism(10);
 
-		SingleOutputStreamOperator<Long, ?> map = src.map(new MapFunction<Tuple2<Long, Long>, Long>() {
+		SingleOutputStreamOperator<Long> map = src.map(new MapFunction<Tuple2<Long, Long>, Long>() {
 			@Override
 			public Long map(Tuple2<Long, Long> value) throws Exception {
 				return null;
@@ -452,7 +454,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 					}
 				});
 
-		windowed.addSink(new NoOpSink<Long>());
+		windowed.addSink(new DiscardingSink<Long>());
 
 		DataStreamSink<Long> sink = map.addSink(new SinkFunction<Long>() {
 			private static final long serialVersionUID = 1L;
@@ -486,7 +488,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		}
 
 		DataStreamSource<Long> parallelSource = env.generateSequence(0, 0);
-		parallelSource.addSink(new NoOpSink<Long>());
+		parallelSource.addSink(new DiscardingSink<Long>());
 		assertEquals(7, env.getStreamGraph().getStreamNode(parallelSource.getId()).getParallelism());
 
 		parallelSource.setParallelism(3);
@@ -544,6 +546,44 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		assertEquals(TypeExtractor.getForClass(CustomPOJO.class), flatten.getType());
 	}
 
+	/**
+	 * Verify that a timely flat map call is correctly translated to an operator.
+	 */
+	@Test
+	public void testTimelyFlatMapTranslation() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStreamSource<Long> src = env.generateSequence(0, 0);
+
+		TimelyFlatMapFunction<Long, Integer> timelyFlatMapFunction = new TimelyFlatMapFunction<Long, Integer>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void flatMap(
+					Long value,
+					Context ctx,
+					Collector<Integer> out) throws Exception {
+
+			}
+
+			@Override
+			public void onTimer(
+					long timestamp,
+					OnTimerContext ctx,
+					Collector<Integer> out) throws Exception {
+
+			}
+		};
+
+		DataStream<Integer> flatMapped = src
+				.keyBy(new IdentityKeySelector<Long>())
+				.flatMap(timelyFlatMapFunction);
+
+		flatMapped.addSink(new DiscardingSink<Integer>());
+
+		assertEquals(timelyFlatMapFunction, getFunctionForDataStream(flatMapped));
+		assertTrue(getOperatorForDataStream(flatMapped) instanceof StreamTimelyFlatMap);
+	}
+
 	@Test
 	public void operatorTest() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -557,7 +597,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 			}
 		};
 		DataStream<Integer> map = src.map(mapFunction);
-		map.addSink(new NoOpSink<Integer>());
+		map.addSink(new DiscardingSink<Integer>());
 		assertEquals(mapFunction, getFunctionForDataStream(map));
 
 
@@ -569,7 +609,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 			}
 		};
 		DataStream<Integer> flatMap = src.flatMap(flatMapFunction);
-		flatMap.addSink(new NoOpSink<Integer>());
+		flatMap.addSink(new DiscardingSink<Integer>());
 		assertEquals(flatMapFunction, getFunctionForDataStream(flatMap));
 
 		FilterFunction<Integer> filterFunction = new FilterFunction<Integer>() {
@@ -582,7 +622,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		DataStream<Integer> unionFilter = map.union(flatMap)
 				.filter(filterFunction);
 
-		unionFilter.addSink(new NoOpSink<Integer>());
+		unionFilter.addSink(new DiscardingSink<Integer>());
 
 		assertEquals(filterFunction, getFunctionForDataStream(unionFilter));
 
@@ -606,7 +646,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		};
 
 		SplitStream<Integer> split = unionFilter.split(outputSelector);
-		split.select("dummy").addSink(new NoOpSink<Integer>());
+		split.select("dummy").addSink(new DiscardingSink<Integer>());
 		List<OutputSelector<?>> outputSelectors = env.getStreamGraph().getStreamNode(unionFilter.getId()).getOutputSelectors();
 		assertEquals(1, outputSelectors.size());
 		assertEquals(outputSelector, outputSelectors.get(0));
@@ -632,7 +672,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 			}
 		};
 		DataStream<String> coMap = connect.map(coMapper);
-		coMap.addSink(new NoOpSink<String>());
+		coMap.addSink(new DiscardingSink<String>());
 		assertEquals(coMapper, getFunctionForDataStream(coMap));
 
 		try {
@@ -653,7 +693,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStreamSink<Long> sink = env.generateSequence(1, 100).print();
-		assertTrue(env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getStatePartitioner() == null);
+		assertTrue(env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getStatePartitioner1() == null);
 		assertTrue(env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof ForwardPartitioner);
 
 		KeySelector<Long, Long> key1 = new KeySelector<Long, Long>() {
@@ -668,11 +708,11 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
 		DataStreamSink<Long> sink2 = env.generateSequence(1, 100).keyBy(key1).print();
 
-		assertNotNull(env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getStatePartitioner());
+		assertNotNull(env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getStatePartitioner1());
 		assertNotNull(env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getStateKeySerializer());
 		assertNotNull(env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getStateKeySerializer());
-		assertEquals(key1, env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getStatePartitioner());
-		assertTrue(env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof HashPartitioner);
+		assertEquals(key1, env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getStatePartitioner1());
+		assertTrue(env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof KeyGroupStreamPartitioner);
 
 		KeySelector<Long, Long> key2 = new KeySelector<Long, Long>() {
 
@@ -686,9 +726,9 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
 		DataStreamSink<Long> sink3 = env.generateSequence(1, 100).keyBy(key2).print();
 
-		assertTrue(env.getStreamGraph().getStreamNode(sink3.getTransformation().getId()).getStatePartitioner() != null);
-		assertEquals(key2, env.getStreamGraph().getStreamNode(sink3.getTransformation().getId()).getStatePartitioner());
-		assertTrue(env.getStreamGraph().getStreamNode(sink3.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof HashPartitioner);
+		assertTrue(env.getStreamGraph().getStreamNode(sink3.getTransformation().getId()).getStatePartitioner1() != null);
+		assertEquals(key2, env.getStreamGraph().getStreamNode(sink3.getTransformation().getId()).getStatePartitioner1());
+		assertTrue(env.getStreamGraph().getStreamNode(sink3.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof KeyGroupStreamPartitioner);
 	}
 
 	@Test
@@ -759,7 +799,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
 	@SuppressWarnings("rawtypes,unchecked")
 	private static Integer createDownStreamId(ConnectedStreams dataStream) {
-		SingleOutputStreamOperator<?, ?> coMap = dataStream.map(new CoMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Object>() {
+		SingleOutputStreamOperator<?> coMap = dataStream.map(new CoMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Object>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -772,7 +812,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 				return null;
 			}
 		});
-		coMap.addSink(new NoOpSink());
+		coMap.addSink(new DiscardingSink());
 		return coMap.getId();
 	}
 
@@ -783,7 +823,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 	private static boolean isPartitioned(List<StreamEdge> edges) {
 		boolean result = true;
 		for (StreamEdge edge: edges) {
-			if (!(edge.getPartitioner() instanceof HashPartitioner)) {
+			if (!(edge.getPartitioner() instanceof KeyGroupStreamPartitioner)) {
 				result = false;
 			}
 		}
@@ -806,6 +846,15 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		@Override
 		public Long getKey(Tuple2<Long, Long> value) throws Exception {
 			return value.f0;
+		}
+	}
+
+	private static class IdentityKeySelector<T> implements KeySelector<T, T> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public T getKey(T value) throws Exception {
+			return value;
 		}
 	}
 

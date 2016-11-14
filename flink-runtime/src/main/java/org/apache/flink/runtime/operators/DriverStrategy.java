@@ -21,12 +21,13 @@ package org.apache.flink.runtime.operators;
 import static org.apache.flink.runtime.operators.DamBehavior.FULL_DAM;
 import static org.apache.flink.runtime.operators.DamBehavior.MATERIALIZING;
 import static org.apache.flink.runtime.operators.DamBehavior.PIPELINED;
-import org.apache.flink.runtime.operators.chaining.ChainedAllReduceDriver;
 
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
+import org.apache.flink.runtime.operators.chaining.ChainedAllReduceDriver;
 import org.apache.flink.runtime.operators.chaining.ChainedFlatMapDriver;
 import org.apache.flink.runtime.operators.chaining.ChainedMapDriver;
 import org.apache.flink.runtime.operators.chaining.SynchronousChainedCombineDriver;
+import org.apache.flink.runtime.operators.chaining.ChainedReduceCombineDriver;
 
 /**
  * Enumeration of all available operator strategies. 
@@ -35,7 +36,7 @@ public enum DriverStrategy {
 	// no local strategy, as for sources and sinks
 	NONE(null, null, PIPELINED, 0),
 	// a unary no-op operator
-	UNARY_NO_OP(NoOpDriver.class, null, PIPELINED, PIPELINED, 0),
+	UNARY_NO_OP(NoOpDriver.class, NoOpChainedDriver.class, PIPELINED, PIPELINED, 0),
 	// a binary no-op operator. non implementation available
 	BINARY_NO_OP(null, null, PIPELINED, PIPELINED, 0),
 
@@ -57,8 +58,11 @@ public enum DriverStrategy {
 
 	// grouping the inputs and apply the Reduce Function
 	SORTED_REDUCE(ReduceDriver.class, null, PIPELINED, 1),
-	// sorted partial reduce is the combiner for the Reduce. same function, but potentially not fully sorted
-	SORTED_PARTIAL_REDUCE(ReduceCombineDriver.class, null, MATERIALIZING, 1),
+	// sorted partial reduce is a combiner for the Reduce. same function, but potentially not fully sorted
+	SORTED_PARTIAL_REDUCE(ReduceCombineDriver.class, ChainedReduceCombineDriver.class, MATERIALIZING, 1),
+
+	// hashed partial reduce is a combiner for the Reduce
+	HASHED_PARTIAL_REDUCE(ReduceCombineDriver.class, ChainedReduceCombineDriver.class, MATERIALIZING, 1),
 	
 	// grouping the inputs and apply the GroupReduce function
 	SORTED_GROUP_REDUCE(GroupReduceDriver.class, null, PIPELINED, 1),
@@ -88,12 +92,20 @@ public enum DriverStrategy {
 	HYBRIDHASH_BUILD_FIRST_CACHED(BuildFirstCachedJoinDriver.class, null, FULL_DAM, MATERIALIZING, 2),
 	//  cached variant of HYBRIDHASH_BUILD_SECOND, that can only be used inside of iterations
 	HYBRIDHASH_BUILD_SECOND_CACHED(BuildSecondCachedJoinDriver.class, null, MATERIALIZING, FULL_DAM, 2),
-
-	// right outer join, the first input is build side, the second side is probe side of a hybrid hash table
-	RIGHT_HYBRIDHASH_BUILD_FIRST(RightOuterJoinDriver.class, null, FULL_DAM, MATERIALIZING, 2),
-	// left outer join, the second input is build side, the first side is probe side of a hybrid hash table
-	LEFT_HYBRIDHASH_BUILD_SECOND(LeftOuterJoinDriver.class, null, MATERIALIZING, FULL_DAM, 2),
 	
+	// right outer join, the first input is build side, the second input is probe side of a hybrid hash table.
+	RIGHT_HYBRIDHASH_BUILD_FIRST(RightOuterJoinDriver.class, null, FULL_DAM, MATERIALIZING, 2),
+	// right outer join, the first input is probe side, the second input is build side of a hybrid hash table.
+	RIGHT_HYBRIDHASH_BUILD_SECOND(RightOuterJoinDriver.class, null, FULL_DAM, MATERIALIZING, 2),
+	// left outer join, the first input is build side, the second input is probe side of a hybrid hash table.
+	LEFT_HYBRIDHASH_BUILD_FIRST(LeftOuterJoinDriver.class, null, MATERIALIZING, FULL_DAM, 2),
+	// left outer join, the first input is probe side, the second input is build side of a hybrid hash table.
+	LEFT_HYBRIDHASH_BUILD_SECOND(LeftOuterJoinDriver.class, null, MATERIALIZING, FULL_DAM, 2),
+	// full outer join, the first input is build side, the second input is the probe side of a hybrid hash table.
+	FULL_OUTER_HYBRIDHASH_BUILD_FIRST(FullOuterJoinDriver.class, null, FULL_DAM, MATERIALIZING, 2),
+	// full outer join, the first input is probe side, the second input is the build side of a hybrid hash table.
+	FULL_OUTER_HYBRIDHASH_BUILD_SECOND(FullOuterJoinDriver.class, null, MATERIALIZING, FULL_DAM, 2),
+
 	// the second input is inner loop, the first input is outer loop and block-wise processed
 	NESTEDLOOP_BLOCKED_OUTER_FIRST(CrossDriver.class, null, MATERIALIZING, FULL_DAM, 0),
 	// the first input is inner loop, the second input is outer loop and block-wise processed

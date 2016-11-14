@@ -60,17 +60,20 @@ parallelism.default: 1
 #==============================================================================
 # Web Frontend
 #==============================================================================
+ 
+# The address under which the web-based runtime monitor listens.
+#
+#jobmanager.web.address: 0.0.0.0
 
 # The port under which the web-based runtime monitor listens.
 # A value of -1 deactivates the web server.
 
 jobmanager.web.port: 8081
 
+# Flag to specify whether job submission is enabled from the web-based
+# runtime monitor. Uncomment to disable.
 
-# The port uder which the standalone web client
-# (for job upload and submit) listens.
-
-webclient.port: 8080
+#jobmanager.web.submit.enable: false
 
 
 #==============================================================================
@@ -80,7 +83,7 @@ webclient.port: 8080
 # The backend that will be used to store operator state checkpoints if
 # checkpointing is enabled.
 #
-# Supported backends: jobmanager, filesystem, <class-name-of-factory>
+# Supported backends: jobmanager, filesystem, rocksdb, <class-name-of-factory>
 #
 #state.backend: filesystem
 
@@ -132,18 +135,45 @@ webclient.port: 8080
 
 
 #==============================================================================
-# Master High Availability (required configuration)
+# High Availability
 #==============================================================================
 
-# The list of ZooKepper quorum peers that coordinate the high-availability
+# The list of ZooKeeper quorum peers that coordinate the high-availability
 # setup. This must be a list of the form:
-# "host1:clientPort,host2[:clientPort],..." (default clientPort: 2181)
 #
-# recovery.mode: zookeeper
+# "host1:clientPort,host2:clientPort,..." (default clientPort: 2181)
 #
-# recovery.zookeeper.quorum: localhost:2181,...
+
+# high-availability: zookeeper
+# high-availability.zookeeper.quorum: localhost:2181
+# high-availability.zookeeper.storageDir: hdfs:///flink/ha/
+
+# ACL options are based on https://zookeeper.apache.org/doc/r3.1.2/zookeeperProgrammers.html#sc_BuiltinACLSchemes
+# It can be either "creator" (ZOO_CREATE_ALL_ACL) or "open" (ZOO_OPEN_ACL_UNSAFE)
+# The default value is "open" and it can be changed to "creator" if ZK security is enabled
 #
-# Note: You need to set the state backend to 'filesystem' and the checkpoint
-# directory (see above) before configuring the storageDir.
+# high-availability.zookeeper.client.acl: open
+
+#==============================================================================
+# Flink Cluster Security Configuration (optional configuration)
+#==============================================================================
+
+# Kerberos security for the connectors can be enabled by providing below configurations
+# Security works in two modes - keytab/principal combination or using the Kerberos token cache
+# If keytab and principal are not provided, token cache (manual kinit) will be used
+
+#security.keytab: /path/to/kerberos/keytab
+#security.principal: flink-user
+
+#==============================================================================
+# ZK Security Configuration (optional configuration)
+#==============================================================================
+# Below configurations are applicable if ZK quorum is configured for Kerberos security
+
+# SASL authentication is disabled by default and can be enabled by changig the value to false
 #
-# recovery.zookeeper.storageDir: hdfs:///recovery
+# zookeeper.sasl.disable: true
+
+# Override below configuration to provide custom ZK service name if configured
+#
+# zookeeper.sasl.service-name: zookeeper

@@ -22,15 +22,20 @@ import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
+import backtype.storm.tuple.MessageId;
 import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.storm.util.AbstractTest;
 import org.apache.flink.storm.util.SplitStreamType;
 import org.apache.flink.storm.util.StormConfig;
@@ -38,13 +43,14 @@ import org.apache.flink.storm.util.TestDummyBolt;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -62,7 +68,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({StreamRecordSerializer.class, WrapperSetupHelper.class})
+@PrepareForTest({StreamElementSerializer.class, WrapperSetupHelper.class, StreamRecord.class})
+@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*", "org.apache.log4j.*"})
 public class BoltWrapperTest extends AbstractTest {
 
 	@Test(expected = IllegalArgumentException.class)
@@ -139,6 +146,7 @@ public class BoltWrapperTest extends AbstractTest {
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
 		when(taskContext.getExecutionConfig()).thenReturn(mock(ExecutionConfig.class));
 		when(taskContext.getTaskName()).thenReturn("name");
+		when(taskContext.getMetricGroup()).thenReturn(new UnregisteredMetricsGroup());
 
 		final IRichBolt bolt = mock(IRichBolt.class);
 
@@ -152,9 +160,13 @@ public class BoltWrapperTest extends AbstractTest {
 
 		wrapper.processElement(record);
 		if (numberOfAttributes == -1) {
-			verify(bolt).execute(eq(new StormTuple<String>(rawTuple, null)));
+			verify(bolt).execute(
+					eq(new StormTuple<String>(rawTuple, null, -1, null, null, MessageId
+							.makeUnanchored())));
 		} else {
-			verify(bolt).execute(eq(new StormTuple<Tuple>(flinkTuple, null)));
+			verify(bolt).execute(
+					eq(new StormTuple<Tuple>(flinkTuple, null, -1, null, null, MessageId
+							.makeUnanchored())));
 		}
 	}
 
@@ -191,7 +203,7 @@ public class BoltWrapperTest extends AbstractTest {
 			splitRecord.value = new Tuple1<Integer>(2);
 		}
 		wrapper.processElement(record);
-		verify(output).collect(new StreamRecord<SplitStreamType>(splitRecord, 0));
+		verify(output).collect(new StreamRecord<SplitStreamType>(splitRecord));
 
 		if (rawOutType2) {
 			splitRecord.streamId = "stream2";
@@ -201,18 +213,30 @@ public class BoltWrapperTest extends AbstractTest {
 			splitRecord.value = new Tuple1<Integer>(3);
 		}
 		wrapper.processElement(record);
-		verify(output, times(2)).collect(new StreamRecord<SplitStreamType>(splitRecord, 0));
+		verify(output, times(2)).collect(new StreamRecord<SplitStreamType>(splitRecord));
 	}
 
 	@SuppressWarnings("unchecked")
 	@Test
 	public void testOpen() throws Exception {
-		
+
 		// utility mocks
+		final StormConfig stormConfig = new StormConfig();
+		final Configuration flinkConfig = new Configuration();
+
+		final ExecutionConfig taskConfig = mock(ExecutionConfig.class);
+		when(taskConfig.getGlobalJobParameters()).thenReturn(null).thenReturn(stormConfig)
+		.thenReturn(flinkConfig);
+
+		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
+		when(taskContext.getExecutionConfig()).thenReturn(taskConfig);
+		when(taskContext.getTaskName()).thenReturn("name");
+		when(taskContext.getMetricGroup()).thenReturn(new UnregisteredMetricsGroup());
+
 		final SetupOutputFieldsDeclarer declarer = new SetupOutputFieldsDeclarer();
 		declarer.declare(new Fields("dummy"));
 		PowerMockito.whenNew(SetupOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
-		
+
 		// (1) open with no configuration
 		{
 			ExecutionConfig execConfig = mock(ExecutionConfig.class);
@@ -228,8 +252,6 @@ public class BoltWrapperTest extends AbstractTest {
 
 		// (2) open with a storm specific configuration
 		{
-			final StormConfig stormConfig = new StormConfig();
-
 			ExecutionConfig execConfig = mock(ExecutionConfig.class);
 			when(execConfig.getGlobalJobParameters()).thenReturn(stormConfig);
 
@@ -264,12 +286,24 @@ public class BoltWrapperTest extends AbstractTest {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void testOpenSink() throws Exception {
+		final StormConfig stormConfig = new StormConfig();
+		final Configuration flinkConfig = new Configuration();
+
+		final ExecutionConfig taskConfig = mock(ExecutionConfig.class);
+		when(taskConfig.getGlobalJobParameters()).thenReturn(null).thenReturn(stormConfig)
+		.thenReturn(flinkConfig);
+
+		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
+		when(taskContext.getExecutionConfig()).thenReturn(taskConfig);
+		when(taskContext.getTaskName()).thenReturn("name");
+		when(taskContext.getMetricGroup()).thenReturn(new UnregisteredMetricsGroup());
+
 		final IRichBolt bolt = mock(IRichBolt.class);
 		BoltWrapper<Object, Object> wrapper = new BoltWrapper<Object, Object>(bolt);
-		
+
 		wrapper.setup(createMockStreamTask(), new StreamConfig(new Configuration()), mock(Output.class));
 		wrapper.open();
-		
+
 		verify(bolt).prepare(any(Map.class), any(TopologyContext.class), isNotNull(OutputCollector.class));
 	}
 
@@ -283,7 +317,7 @@ public class BoltWrapperTest extends AbstractTest {
 		PowerMockito.whenNew(SetupOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
 		final BoltWrapper<Object, Object> wrapper = new BoltWrapper<Object, Object>(bolt);
-		
+
 		wrapper.setup(createMockStreamTask(), new StreamConfig(new Configuration()), mock(Output.class));
 
 		wrapper.close();
@@ -294,7 +328,7 @@ public class BoltWrapperTest extends AbstractTest {
 
 	private static final class TestBolt implements IRichBolt {
 		private static final long serialVersionUID = 7278692872260138758L;
-		private OutputCollector collector;
+		private transient OutputCollector collector;
 
 		@SuppressWarnings("rawtypes")
 		@Override
@@ -330,18 +364,20 @@ public class BoltWrapperTest extends AbstractTest {
 	public static StreamTask<?, ?> createMockStreamTask() {
 		return createMockStreamTask(new ExecutionConfig());
 	}
-	
+
 	public static StreamTask<?, ?> createMockStreamTask(ExecutionConfig execConfig) {
 		Environment env = mock(Environment.class);
-		when(env.getTaskInfo()).thenReturn(new TaskInfo("Mock Task", 0, 1, 0));
+		when(env.getTaskInfo()).thenReturn(new TaskInfo("Mock Task", 1, 0, 1, 0));
 		when(env.getUserClassLoader()).thenReturn(BoltWrapperTest.class.getClassLoader());
-		
+		when(env.getMetricGroup()).thenReturn(new UnregisteredTaskMetricsGroup());
+		when(env.getTaskManagerInfo()).thenReturn(new TaskManagerRuntimeInfo("foo", new Configuration(), "foo"));
+
 		StreamTask<?, ?> mockTask = mock(StreamTask.class);
 		when(mockTask.getCheckpointLock()).thenReturn(new Object());
 		when(mockTask.getConfiguration()).thenReturn(new StreamConfig(new Configuration()));
 		when(mockTask.getEnvironment()).thenReturn(env);
 		when(mockTask.getExecutionConfig()).thenReturn(execConfig);
-		
+
 		return mockTask;
 	}
 }

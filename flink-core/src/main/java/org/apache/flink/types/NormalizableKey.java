@@ -19,6 +19,7 @@
 
 package org.apache.flink.types;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.MemorySegment;
 
 
@@ -34,8 +35,9 @@ import org.apache.flink.core.memory.MemorySegment;
  * key. A normalized key is considered a prefix, if its length is less than the maximal normalized
  * key length.
  */
-public interface NormalizableKey<T> extends Key<T> {
-	
+@Public
+public interface NormalizableKey<T> extends Comparable<T>, Key<T> {
+
 	/**
 	 * Gets the maximal length of normalized keys that the data type would produce to determine
 	 * the order of instances solely by the normalized key. A value of {@link java.lang.Integer}.MAX_VALUE

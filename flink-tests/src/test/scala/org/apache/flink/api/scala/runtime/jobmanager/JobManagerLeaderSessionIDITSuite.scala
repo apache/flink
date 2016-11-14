@@ -23,6 +23,7 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import akka.actor.Status.Success
 import akka.testkit.{ImplicitSender, TestKit}
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.runtime.akka.{ListeningBehaviour, AkkaUtils}
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobVertex}
@@ -90,9 +91,6 @@ class JobManagerLeaderSessionIDITSuite(_system: ActorSystem)
 }
 
 class BlockingUntilSignalNoOpInvokable extends AbstractInvokable {
-  override def registerInputOutput(): Unit = {
-
-  }
 
   override def invoke(): Unit = {
     BlockingUntilSignalNoOpInvokable.lock.synchronized{

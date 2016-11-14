@@ -18,20 +18,24 @@
 
 package org.apache.flink.streaming.api.scala.function
 
+import org.apache.flink.annotation.Public
 import org.apache.flink.api.common.functions.RichFunction
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.state.{ValueStateDescriptor, ValueState}
+import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.api.common.state.OperatorState
 
 /**
  * Trait implementing the functionality necessary to apply stateful functions in 
  * RichFunctions without exposing the OperatorStates to the user. The user should
  * call the applyWithState method in his own RichFunction implementation.
  */
+@Public
 trait StatefulFunction[I, O, S] extends RichFunction {
+
+  protected val stateSerializer: TypeSerializer[S]
   
-  var state: OperatorState[S] = _
-  val stateType: TypeInformation[S]
+  private[this] var state: ValueState[S] = _
+  
 
   def applyWithState(in: I, fun: (I, Option[S]) => (O, Option[S])): O = {
     val (o, s: Option[S]) = fun(in, Option(state.value()))
@@ -43,6 +47,7 @@ trait StatefulFunction[I, O, S] extends RichFunction {
   }
 
   override def open(c: Configuration) = {
-    state = getRuntimeContext().getKeyValueState[S]("state", stateType, null.asInstanceOf[S])
+    val info = new ValueStateDescriptor[S]("state", stateSerializer, null.asInstanceOf[S])
+    state = getRuntimeContext().getState(info)
   }
 }

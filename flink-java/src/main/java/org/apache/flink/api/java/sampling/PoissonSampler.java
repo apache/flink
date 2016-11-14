@@ -17,8 +17,9 @@
  */
 package org.apache.flink.api.java.sampling;
 
-import com.google.common.base.Preconditions;
 import org.apache.commons.math3.distribution.PoissonDistribution;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.XORShiftRandom;
 
 import java.util.Iterator;
@@ -32,6 +33,7 @@ import java.util.Random;
  * @see <a href="https://en.wikipedia.org/wiki/Poisson_distribution">https://en.wikipedia.org/wiki/Poisson_distribution</a>
  * @see <a href="http://erikerlandson.github.io/blog/2014/09/11/faster-random-samples-with-gap-sampling/">Gap Sampling</a>
  */
+@Internal
 public class PoissonSampler<T> extends RandomSampler<T> {
 	
 	private PoissonDistribution poissonDistribution;
@@ -111,7 +113,7 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 				return currentElement;
 			}
 			
-			public int poisson_ge1(double p){
+			public int poisson_ge1(double p) {
 				// sample 'k' from Poisson(p), conditioned to k >= 1.
 				double q = Math.pow(Math.E, -p);
 				// simulate a poisson trial such that k >= 1.
@@ -129,13 +131,13 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 			private void skipGapElements(int num) {
 				// skip the elements that occurrence number is zero.
 				int elementCount = 0;
-				while (input.hasNext() && elementCount < num){
+				while (input.hasNext() && elementCount < num) {
 					currentElement = input.next();
 					elementCount++;
 				}
 			}
 			
-			private void samplingProcess(){
+			private void samplingProcess() {
 				if (fraction <= THRESHOLD) {
 					double u = Math.max(random.nextDouble(), EPSILON);
 					int gap = (int) (Math.log(u) / -fraction);
@@ -145,7 +147,7 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 						currentCount = poisson_ge1(fraction);
 					}
 				} else {
-					while (input.hasNext()){
+					while (input.hasNext()) {
 						currentElement = input.next();
 						currentCount = poissonDistribution.sample();
 						if (currentCount > 0) {

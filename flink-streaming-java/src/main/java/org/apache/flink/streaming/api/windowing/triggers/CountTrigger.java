@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,34 +15,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.windowing.triggers;
 
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-
-import java.io.IOException;
 
 /**
  * A {@link Trigger} that fires once the count of elements in a pane reaches the given count.
  *
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.
  */
-public class CountTrigger<W extends Window> implements Trigger<Object, W> {
+@PublicEvolving
+public class CountTrigger<W extends Window> extends Trigger<Object, W> {
 	private static final long serialVersionUID = 1L;
 
 	private final long maxCount;
+
+	private final ReducingStateDescriptor<Long> stateDesc =
+			new ReducingStateDescriptor<>("count", new Sum(), LongSerializer.INSTANCE);
+
 
 	private CountTrigger(long maxCount) {
 		this.maxCount = maxCount;
 	}
 
 	@Override
-	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws IOException {
-		OperatorState<Long> count = ctx.getKeyValueState("count", 0L);
-		long currentCount = count.value() + 1;
-		count.update(currentCount);
-		if (currentCount >= maxCount) {
-			count.update(0L);
+	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
+		ReducingState<Long> count = ctx.getPartitionedState(stateDesc);
+		count.add(1L);
+		if (count.get() >= maxCount) {
+			count.clear();
 			return TriggerResult.FIRE;
 		}
 		return TriggerResult.CONTINUE;
@@ -59,6 +66,26 @@ public class CountTrigger<W extends Window> implements Trigger<Object, W> {
 	}
 
 	@Override
+	public void clear(W window, TriggerContext ctx) throws Exception {
+		ctx.getPartitionedState(stateDesc).clear();
+	}
+
+	@Override
+	public boolean canMerge() {
+		return true;
+	}
+
+	@Override
+	public TriggerResult onMerge(W window, OnMergeContext ctx) throws Exception {
+		ctx.mergePartitionedState(stateDesc);
+		ReducingState<Long> count = ctx.getPartitionedState(stateDesc);
+		if (count.get() >= maxCount) {
+			return TriggerResult.FIRE;
+		}
+		return TriggerResult.CONTINUE;
+	}
+
+	@Override
 	public String toString() {
 		return "CountTrigger(" +  maxCount + ")";
 	}
@@ -71,5 +98,15 @@ public class CountTrigger<W extends Window> implements Trigger<Object, W> {
 	 */
 	public static <W extends Window> CountTrigger<W> of(long maxCount) {
 		return new CountTrigger<>(maxCount);
+	}
+
+	private static class Sum implements ReduceFunction<Long> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Long reduce(Long value1, Long value2) throws Exception {
+			return value1 + value2;
+		}
+
 	}
 }

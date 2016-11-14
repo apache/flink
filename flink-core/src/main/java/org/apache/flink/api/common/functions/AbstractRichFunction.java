@@ -20,6 +20,7 @@ package org.apache.flink.api.common.functions;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.Configuration;
 
 /**
@@ -28,6 +29,7 @@ import org.apache.flink.configuration.Configuration;
  * teardown ({@link #close()}), as well as access to their runtime execution context via
  * {@link #getRuntimeContext()}.
  */
+@Public
 public abstract class AbstractRichFunction implements RichFunction, Serializable {
 	
 	private static final long serialVersionUID = 1L;

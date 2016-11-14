@@ -33,7 +33,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.memory.ListMemorySegmentSource;
 import org.apache.flink.runtime.util.IntArrayList;
 import org.apache.flink.runtime.util.LongArrayList;
-import org.apache.flink.runtime.util.MathUtils;
+import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
@@ -132,9 +132,6 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 	// ------------------------------------------------------------------------
 	//                              Members
 	// ------------------------------------------------------------------------
-
-	/** The lock to synchronize state changes on */
-	private final Object stateLock = new Object();
 	
 	/** The free memory segments currently available to the hash join. */
 	private final ArrayList<MemorySegment> availableMemory;
@@ -179,9 +176,6 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 	
 	/** Flag to interrupt closed loops */
 	private boolean running = true;
-
-	/** Flag to mark the table as open / closed */
-	private boolean closed;
 	
 	/** Flag necessary so a resize is never triggered during a resize since the code paths are interleaved */
 	private boolean isResizing;
@@ -237,9 +231,6 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 		this.bucketsPerSegmentBits = MathUtils.log2strict(bucketsPerSegment);
 		
 		this.partitions = new ArrayList<InMemoryPartition<T>>();
-		
-		// because we allow to open and close multiple times, the state is initially closed
-		this.closed = true;
 		
 		// so far no partition has any MemorySegments
 	}
@@ -331,8 +322,8 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 		if (this.closed) {
 			return;
 		}
-		
-		final int hashCode = hash(this.buildSideComparator.hash(record));
+
+		final int hashCode = MathUtils.jenkinsHash(this.buildSideComparator.hash(record));
 		final int posHashCode = hashCode % this.numBuckets;
 		
 		// get the bucket for the given hash code
@@ -359,8 +350,8 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 		if (this.closed) {
 			return;
 		}
-		
-		final int searchHashCode = hash(this.buildSideComparator.hash(record));
+
+		final int searchHashCode = MathUtils.jenkinsHash(this.buildSideComparator.hash(record));
 		final int posHashCode = searchHashCode % this.numBuckets;
 		
 		// get the bucket for the given hash code
@@ -1140,26 +1131,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 		this.compactionMemory.resetRWViews();
 		this.compactionMemory.pushDownPages();
 	}
-	
-	/**
-	 * This function hashes an integer value. It is adapted from Bob Jenkins' website
-	 * <a href="http://www.burtleburtle.net/bob/hash/integer.html">http://www.burtleburtle.net/bob/hash/integer.html</a>.
-	 * The hash function has the <i>full avalanche</i> property, meaning that every bit of the value to be hashed
-	 * affects every bit of the hash value. 
-	 * 
-	 * @param code The integer to be hashed.
-	 * @return The hash code for the integer.
-	 */
-	private static int hash(int code) {
-		code = (code + 0x7ed55d16) + (code << 12);
-		code = (code ^ 0xc761c23c) ^ (code >>> 19);
-		code = (code + 0x165667b1) + (code << 5);
-		code = (code + 0xd3a2646c) ^ (code << 9);
-		code = (code + 0xfd7046c5) + (code << 3);
-		code = (code ^ 0xb55a4f09) ^ (code >>> 16);
-		return code >= 0 ? code : -(code + 1);
-	}
-	
+
 	/**
 	 * Iterator that traverses the whole hash table once
 	 * 
@@ -1286,7 +1258,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 			if (closed) {
 				return null;
 			}
-			final int searchHashCode = hash(this.probeTypeComparator.hash(probeSideRecord));
+			final int searchHashCode = MathUtils.jenkinsHash(this.probeTypeComparator.hash(probeSideRecord));
 			
 			final int posHashCode = searchHashCode % numBuckets;
 			
@@ -1359,7 +1331,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 			if (closed) {
 				return null;
 			}
-			final int searchHashCode = hash(this.probeTypeComparator.hash(probeSideRecord));
+			final int searchHashCode = MathUtils.jenkinsHash(this.probeTypeComparator.hash(probeSideRecord));
 
 			final int posHashCode = searchHashCode % numBuckets;
 

@@ -51,7 +51,7 @@ public class BlobServerPutTest {
 			server = new BlobServer(config);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			client = new BlobClient(serverAddress);
+			client = new BlobClient(serverAddress, config);
 
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
@@ -82,7 +82,7 @@ public class BlobServerPutTest {
 
 			// close the client and create a new one for the remaining requests
 			client.close();
-			client = new BlobClient(serverAddress);
+			client = new BlobClient(serverAddress, config);
 
 			InputStream is2 = client.get(key1);
 			byte[] result2 = new byte[data.length];
@@ -125,7 +125,7 @@ public class BlobServerPutTest {
 			server = new BlobServer(config);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			client = new BlobClient(serverAddress);
+			client = new BlobClient(serverAddress, config);
 
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
@@ -172,7 +172,7 @@ public class BlobServerPutTest {
 			server = new BlobServer(config);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			client = new BlobClient(serverAddress);
+			client = new BlobClient(serverAddress, config);
 
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
@@ -228,7 +228,7 @@ public class BlobServerPutTest {
 			assertTrue(tempFileDir.setWritable(false, false));
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			client = new BlobClient(serverAddress);
+			client = new BlobClient(serverAddress, config);
 
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
@@ -292,7 +292,7 @@ public class BlobServerPutTest {
 			assertTrue(tempFileDir.setWritable(false, false));
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			client = new BlobClient(serverAddress);
+			client = new BlobClient(serverAddress, config);
 
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);

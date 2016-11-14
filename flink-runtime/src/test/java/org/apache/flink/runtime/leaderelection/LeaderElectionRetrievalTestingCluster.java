@@ -85,7 +85,7 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 
 	@Override
 	public int getNumberOfJobManagers() {
-		return this.configuration().getInteger(
+		return this.originalConfiguration().getInteger(
 				ConfigConstants.LOCAL_NUMBER_JOB_MANAGER,
 				ConfigConstants.DEFAULT_LOCAL_NUMBER_JOB_MANAGER);
 	}
@@ -107,6 +107,13 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 
 		for(TestingLeaderRetrievalService service: leaderRetrievalServices) {
 			service.notifyListener(address, leaderSessionID);
+		}
+	}
+
+	public void revokeLeadership() {
+		if (leaderIndex >= 0) {
+			leaderElectionServices.get(leaderIndex).notLeader();
+			leaderIndex = -1;
 		}
 	}
 }

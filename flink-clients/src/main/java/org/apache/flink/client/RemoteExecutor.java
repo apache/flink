@@ -19,8 +19,6 @@
 package org.apache.flink.client;
 
 import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
@@ -29,8 +27,9 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
-import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
+import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.configuration.ConfigConstants;
@@ -59,7 +58,7 @@ public class RemoteExecutor extends PlanExecutor {
 
 	private final Configuration clientConfiguration;
 
-	private Client client;
+	private ClusterClient client;
 
 	private int defaultParallelism = 1;
 
@@ -75,7 +74,7 @@ public class RemoteExecutor extends PlanExecutor {
 	}
 
 	public RemoteExecutor(String hostport, URL jarFile) {
-		this(getInetFromHostport(hostport), new Configuration(), Collections.singletonList(jarFile),
+		this(ClientUtils.parseHostPortAddress(hostport), new Configuration(), Collections.singletonList(jarFile),
 				Collections.<URL>emptyList());
 	}
 
@@ -95,7 +94,7 @@ public class RemoteExecutor extends PlanExecutor {
 	}
 
 	public RemoteExecutor(String hostport, Configuration clientConfiguration, URL jarFile) {
-		this(getInetFromHostport(hostport), clientConfiguration,
+		this(ClientUtils.parseHostPortAddress(hostport), clientConfiguration,
 				Collections.singletonList(jarFile), Collections.<URL>emptyList());
 	}
 
@@ -151,7 +150,7 @@ public class RemoteExecutor extends PlanExecutor {
 	public void start() throws Exception {
 		synchronized (lock) {
 			if (client == null) {
-				client = new Client(clientConfiguration);
+				client = new StandaloneClusterClient(clientConfiguration);
 				client.setPrintStatusDuringExecution(isPrintingStatusDuringExecution());
 			}
 			else {
@@ -209,7 +208,7 @@ public class RemoteExecutor extends PlanExecutor {
 			}
 
 			try {
-				return client.runBlocking(program, defaultParallelism);
+				return client.run(program, defaultParallelism).getJobExecutionResult();
 			}
 			finally {
 				if (shutDownAtEnd) {
@@ -255,32 +254,5 @@ public class RemoteExecutor extends PlanExecutor {
 				}
 			}
 		}
-	}
-
-	// --------------------------------------------------------------------------------------------
-	//   Utilities
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Utility method that converts a string of the form "host:port" into an {@link InetSocketAddress}.
-	 * The returned InetSocketAddress may be unresolved!
-	 * 
-	 * @param hostport The "host:port" string.
-	 * @return The converted InetSocketAddress.
-	 */
-	private static InetSocketAddress getInetFromHostport(String hostport) {
-		// from http://stackoverflow.com/questions/2345063/java-common-way-to-validate-and-convert-hostport-to-inetsocketaddress
-		URI uri;
-		try {
-			uri = new URI("my://" + hostport);
-		} catch (URISyntaxException e) {
-			throw new RuntimeException("Could not identify hostname and port in '" + hostport + "'.", e);
-		}
-		String host = uri.getHost();
-		int port = uri.getPort();
-		if (host == null || port == -1) {
-			throw new RuntimeException("Could not identify hostname and port in '" + hostport + "'.");
-		}
-		return new InetSocketAddress(host, port);
 	}
 }

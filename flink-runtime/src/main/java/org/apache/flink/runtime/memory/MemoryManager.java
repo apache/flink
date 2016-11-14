@@ -33,7 +33,9 @@ import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.HybridMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
-import org.apache.flink.runtime.util.MathUtils;
+import org.apache.flink.util.MathUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The memory manager governs the memory that Flink uses for sorting, hashing, and caching. Memory
@@ -53,6 +55,7 @@ import org.apache.flink.runtime.util.MathUtils;
  */
 public class MemoryManager {
 
+	private static final Logger LOG = LoggerFactory.getLogger(MemoryManager.class);
 	/** The default memory page size. Currently set to 32 KiBytes. */
 	public static final int DEFAULT_PAGE_SIZE = 32 * 1024;
 
@@ -163,6 +166,10 @@ public class MemoryManager {
 				this.memoryPool = new HeapMemoryPool(memToAllocate, pageSize);
 				break;
 			case OFF_HEAP:
+				if(!preAllocateMemory) {
+					LOG.warn("It is advisable to set 'taskmanager.memory.preallocate' to true when" +
+						" the memory type 'taskmanager.memory.off-heap' is set to true.");
+				}
 				this.memoryPool = new HybridOffHeapMemoryPool(memToAllocate, pageSize);
 				break;
 			default:

@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple;
 
 /**
@@ -25,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple;
  * @param <OUT>
  *            The type of the extracted field.
  */
+@Internal
 public class FieldFromTuple<OUT> implements Extractor<Tuple, OUT> {
 
 	/**

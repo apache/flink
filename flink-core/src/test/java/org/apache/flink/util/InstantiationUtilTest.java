@@ -20,6 +20,9 @@ package org.apache.flink.util;
 
 import org.apache.flink.api.common.typeutils.base.DoubleValueSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
@@ -28,6 +31,8 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.Objects;
+import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -133,11 +138,20 @@ public class InstantiationUtilTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testCopyWritable() throws Exception {
+		WritableType original = new WritableType();
+		WritableType copy = InstantiationUtil.createCopyWritable(original);
+		
+		assertTrue(original != copy);
+		assertTrue(original.equals(copy));
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	private class TestClass {}
 	
-	private static class TestException extends IOException{
+	private static class TestException extends IOException {
 		private static final long serialVersionUID = 1L;
 	}
 	
@@ -165,6 +179,49 @@ public class InstantiationUtilTest extends TestLogger {
 
 		private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 			throw new ClassNotFoundException("test exception");
+		}
+	}
+	
+	public static final class WritableType implements IOReadableWritable {
+		
+		private int aInt;
+		private long aLong;
+
+		public WritableType() {
+			Random rnd = new Random();
+			this.aInt = rnd.nextInt();
+			this.aLong = rnd.nextLong();
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(aInt, aLong);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == this) {
+				return true;
+			}
+			else if (obj != null && obj.getClass() == WritableType.class) {
+				WritableType that = (WritableType) obj;
+				return this.aLong == that.aLong && this.aInt == that.aInt;
+			}
+			else {
+				return false;
+			}
+		}
+
+		@Override
+		public void write(DataOutputView out) throws IOException {
+			out.writeInt(aInt);
+			out.writeLong(aLong);
+		}
+
+		@Override
+		public void read(DataInputView in) throws IOException {
+			this.aInt = in.readInt();
+			this.aLong = in.readLong();
 		}
 	}
 }

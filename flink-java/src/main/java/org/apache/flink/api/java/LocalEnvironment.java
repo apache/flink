@@ -18,6 +18,9 @@
 
 package org.apache.flink.api.java;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -36,6 +39,7 @@ import org.apache.flink.configuration.Configuration;
  * and {@link ExecutionEnvironment#createLocalEnvironment(int)}. The former version will pick a
  * default parallelism equal to the number of hardware contexts in the local machine.
  */
+@Public
 public class LocalEnvironment extends ExecutionEnvironment {
 	
 	/** The user-defined configuration for the local execution */
@@ -106,6 +110,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	}
 
 	@Override
+	@PublicEvolving
 	public void startNewSession() throws Exception {
 		if (executor != null) {
 			// we need to end the previous session
@@ -133,7 +138,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	
 	@Override
 	public String toString() {
-		return "Local Environment (parallelism = " + (getParallelism() == -1 ? "default" : getParallelism())
+		return "Local Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism())
 				+ ") : " + getIdString();
 	}
 

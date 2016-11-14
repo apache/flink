@@ -31,19 +31,30 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.util.NoOpSink;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.SplittableIterator;
+
 import org.junit.Test;
 
-public class StreamExecutionEnvironmentTest extends StreamingMultipleProgramsTestBase {
+public class StreamExecutionEnvironmentTest {
+
+	@Test
+	public void fromElementsWithBaseTypeTest1() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.fromElements(ParentClass.class, new SubClass(1, "Java"), new ParentClass(1, "hello"));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void fromElementsWithBaseTypeTest2() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.fromElements(SubClass.class, new SubClass(1, "Java"), new ParentClass(1, "hello"));
+	}
 
 	@Test
 	@SuppressWarnings("unchecked")
@@ -62,18 +73,18 @@ public class StreamExecutionEnvironmentTest extends StreamingMultipleProgramsTes
 				// expected
 			}
 
-			dataStream1.addSink(new NoOpSink<Integer>());
+			dataStream1.addSink(new DiscardingSink<Integer>());
 	
 			DataStreamSource<Integer> dataStream2 = env.fromParallelCollection(new DummySplittableIterator<Integer>(),
 					typeInfo).setParallelism(4);
 
-			dataStream2.addSink(new NoOpSink<Integer>());
+			dataStream2.addSink(new DiscardingSink<Integer>());
 
-			String plan = env.getExecutionPlan();
+			env.getExecutionPlan();
 
 			assertEquals("Parallelism of collection source must be 1.", 1, env.getStreamGraph().getStreamNode(dataStream1.getId()).getParallelism());
 			assertEquals("Parallelism of parallel collection source must be 4.",
-					4,
+					4, 
 					env.getStreamGraph().getStreamNode(dataStream2.getId()).getParallelism());
 		}
 		catch (Exception e) {
@@ -98,7 +109,7 @@ public class StreamExecutionEnvironmentTest extends StreamingMultipleProgramsTes
 			}
 		};
 		DataStreamSource<Integer> src1 = env.addSource(srcFun);
-		src1.addSink(new NoOpSink<Integer>());
+		src1.addSink(new DiscardingSink<Integer>());
 		assertEquals(srcFun, getFunctionFromDataSource(src1));
 
 		List<Long> list = Arrays.asList(0L, 1L, 2L);
@@ -124,8 +135,9 @@ public class StreamExecutionEnvironmentTest extends StreamingMultipleProgramsTes
 		return streamGraph.getStreamNode(dataStream.getId()).getOperator();
 	}
 
+	@SuppressWarnings("unchecked")
 	private static <T> SourceFunction<T> getFunctionFromDataSource(DataStreamSource<T> dataStreamSource) {
-		dataStreamSource.addSink(new NoOpSink<T>());
+		dataStreamSource.addSink(new DiscardingSink<T>());
 		AbstractUdfStreamOperator<?, ?> operator =
 				(AbstractUdfStreamOperator<?, ?>) getOperatorFromDataStream(dataStreamSource);
 		return (SourceFunction<T>) operator.getUserFunction();
@@ -158,6 +170,21 @@ public class StreamExecutionEnvironmentTest extends StreamingMultipleProgramsTes
 		@Override
 		public void remove() {
 			throw new UnsupportedOperationException();
+		}
+	}
+
+	public static class ParentClass {
+		int num;
+		String string;
+		public ParentClass(int num, String string) {
+			this.num = num;
+			this.string = string;
+		}
+	}
+
+	public static class SubClass extends ParentClass{
+		public SubClass(int num, String string) {
+			super(num, string);
 		}
 	}
 }

@@ -25,22 +25,14 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.NoOpFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputOperator;
-import org.apache.flink.api.common.operators.RecordOperator;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.types.Key;
 
 
-public class NoOpBinaryUdfOp<OUT> extends DualInputOperator<OUT, OUT, OUT, NoOpFunction> implements RecordOperator {
+public class NoOpBinaryUdfOp<OUT> extends DualInputOperator<OUT, OUT, OUT, NoOpFunction> {
 
 	public NoOpBinaryUdfOp(TypeInformation<OUT> type) {
 		super(new UserCodeClassWrapper<NoOpFunction>(NoOpFunction.class), new BinaryOperatorInformation<OUT, OUT, OUT>(type, type, type), "NoContract");
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public Class<? extends Key<?>>[] getKeyClasses() {
-		return (Class<? extends Key<?>>[]) new Class[0];
 	}
 
 	@Override

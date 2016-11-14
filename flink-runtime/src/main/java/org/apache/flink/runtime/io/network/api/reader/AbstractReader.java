@@ -28,7 +28,7 @@ import org.apache.flink.runtime.util.event.EventListener;
 
 import java.io.IOException;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A basic reader implementation, which wraps an input gate and handles events.

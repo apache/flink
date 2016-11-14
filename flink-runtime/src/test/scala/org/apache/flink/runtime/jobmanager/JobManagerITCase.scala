@@ -18,23 +18,26 @@
 
 package org.apache.flink.runtime.jobmanager
 
-
-import Tasks._
 import akka.actor.ActorSystem
-import akka.actor.Status.{Success, Failure}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
+import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.akka.ListeningBehaviour
+import org.apache.flink.runtime.checkpoint.{CheckpointCoordinator, CompletedCheckpoint}
 import org.apache.flink.runtime.client.JobExecutionException
-import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph, ScheduleMode}
-import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.testingUtils.{TestingUtils, ScalaTestingUtils}
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture
+import org.apache.flink.runtime.jobgraph.tasks.{ExternalizedCheckpointSettings, JobSnapshottingSettings}
+import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph, JobVertex, ScheduleMode}
+import org.apache.flink.runtime.jobmanager.Tasks._
 import org.apache.flink.runtime.jobmanager.scheduler.{NoResourceAvailableException, SlotSharingGroup}
-
+import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
+import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.junit.runner.RunWith
-import org.scalatest.{Matchers, BeforeAndAfterAll, WordSpecLike}
+import org.mockito.Mockito
+import org.mockito.Mockito._
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -339,7 +342,7 @@ class JobManagerITCase(_system: ActorSystem)
 
       val jobGraph = new JobGraph("Forwarding Job", sender, forwarder, receiver)
 
-      jobGraph.setScheduleMode(ScheduleMode.ALL)
+      jobGraph.setScheduleMode(ScheduleMode.EAGER)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks, 1)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -733,6 +736,249 @@ class JobManagerITCase(_system: ActorSystem)
       }
     }
 
+    // ------------------------------------------------------------------------
+    // Savepoint messages
+    // ------------------------------------------------------------------------
+
+    "handle trigger savepoint response for non-existing job" in {
+      val deadline = TestingUtils.TESTING_DURATION.fromNow
+
+      val flinkCluster = TestingUtils.startTestingCluster(0, 0)
+
+      try {
+        within(deadline.timeLeft) {
+          val jobManager = flinkCluster
+            .getLeaderGateway(deadline.timeLeft)
+
+          val jobId = new JobID()
+
+          // Trigger savepoint for non-existing job
+          jobManager.tell(TriggerSavepoint(jobId, Option.apply("any")), testActor)
+          val response = expectMsgType[TriggerSavepointFailure](deadline.timeLeft)
+
+          // Verify the response
+          response.jobId should equal(jobId)
+          response.cause.getClass should equal(classOf[IllegalArgumentException])
+        }
+      }
+      finally {
+        flinkCluster.stop()
+      }
+    }
+
+    "handle trigger savepoint response for job with disabled checkpointing" in {
+      val deadline = TestingUtils.TESTING_DURATION.fromNow
+
+      val flinkCluster = TestingUtils.startTestingCluster(1, 1)
+
+      try {
+        within(deadline.timeLeft) {
+          val jobManager = flinkCluster
+            .getLeaderGateway(deadline.timeLeft)
+
+          val jobVertex = new JobVertex("Blocking vertex")
+          jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
+          val jobGraph = new JobGraph(jobVertex)
+
+          // Submit job w/o checkpointing configured
+          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
+
+          // Trigger savepoint for job with disabled checkpointing
+          jobManager.tell(TriggerSavepoint(jobGraph.getJobID(), Option.apply("any")), testActor)
+          val response = expectMsgType[TriggerSavepointFailure](deadline.timeLeft)
+
+          // Verify the response
+          response.jobId should equal(jobGraph.getJobID())
+          response.cause.getClass should equal(classOf[IllegalStateException])
+          response.cause.getMessage should (include("disabled") or include("configured"))
+        }
+      }
+      finally {
+        flinkCluster.stop()
+      }
+    }
+
+    "handle trigger savepoint response after trigger savepoint failure" in {
+      val deadline = TestingUtils.TESTING_DURATION.fromNow
+
+      val flinkCluster = TestingUtils.startTestingCluster(1, 1)
+
+      try {
+        within(deadline.timeLeft) {
+          val jobManager = flinkCluster
+            .getLeaderGateway(deadline.timeLeft)
+
+          val jobVertex = new JobVertex("Blocking vertex")
+          jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
+          val jobGraph = new JobGraph(jobVertex)
+          jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
+            java.util.Collections.emptyList(),
+            java.util.Collections.emptyList(),
+            java.util.Collections.emptyList(),
+            60000, 60000, 60000, 1, ExternalizedCheckpointSettings.none))
+
+          // Submit job...
+          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
+
+          // Request the execution graph and set a checkpoint coordinator mock
+          jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActor)
+          val executionGraph = expectMsgType[ExecutionGraphFound](
+            deadline.timeLeft).executionGraph
+
+          // Mock the checkpoint coordinator
+          val checkpointCoordinator = mock(classOf[CheckpointCoordinator])
+          doThrow(new Exception("Expected Test Exception"))
+            .when(checkpointCoordinator)
+            .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
+
+          // Update the savepoint coordinator field
+          val field = executionGraph.getClass.getDeclaredField("checkpointCoordinator")
+          field.setAccessible(true)
+          field.set(executionGraph, checkpointCoordinator)
+
+          // Trigger savepoint for job
+          jobManager.tell(TriggerSavepoint(jobGraph.getJobID(), Option.apply("any")), testActor)
+          val response = expectMsgType[TriggerSavepointFailure](deadline.timeLeft)
+
+          // Verify the response
+          response.jobId should equal(jobGraph.getJobID())
+          response.cause.getCause.getClass should equal(classOf[Exception])
+          response.cause.getCause.getMessage should equal("Expected Test Exception")
+        }
+      }
+      finally {
+        flinkCluster.stop()
+      }
+    }
+
+    "handle failed savepoint triggering" in {
+      val deadline = TestingUtils.TESTING_DURATION.fromNow
+
+      val flinkCluster = TestingUtils.startTestingCluster(1, 1)
+
+      try {
+        within(deadline.timeLeft) {
+          val jobManager = flinkCluster
+            .getLeaderGateway(deadline.timeLeft)
+
+          val jobVertex = new JobVertex("Blocking vertex")
+          jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
+          val jobGraph = new JobGraph(jobVertex)
+          jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
+            java.util.Collections.emptyList(),
+            java.util.Collections.emptyList(),
+            java.util.Collections.emptyList(),
+            60000, 60000, 60000, 1, ExternalizedCheckpointSettings.none))
+
+          // Submit job...
+          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
+
+          // Mock the checkpoint coordinator
+          val checkpointCoordinator = mock(classOf[CheckpointCoordinator])
+          doThrow(new Exception("Expected Test Exception"))
+            .when(checkpointCoordinator)
+            .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
+          val savepointPathPromise = new FlinkCompletableFuture[CompletedCheckpoint]()
+          doReturn(savepointPathPromise)
+            .when(checkpointCoordinator)
+            .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
+
+          // Request the execution graph and set a checkpoint coordinator mock
+          jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActor)
+          val executionGraph = expectMsgType[ExecutionGraphFound](
+            deadline.timeLeft).executionGraph
+
+          // Update the savepoint coordinator field
+          val field = executionGraph.getClass.getDeclaredField("checkpointCoordinator")
+          field.setAccessible(true)
+          field.set(executionGraph, checkpointCoordinator)
+
+          // Trigger savepoint for job
+          jobManager.tell(TriggerSavepoint(jobGraph.getJobID(), Option.apply("any")), testActor)
+
+          // Fail the promise
+          savepointPathPromise.completeExceptionally(new Exception("Expected Test Exception"))
+
+          val response = expectMsgType[TriggerSavepointFailure](deadline.timeLeft)
+
+          // Verify the response
+          response.jobId should equal(jobGraph.getJobID())
+          response.cause.getCause.getClass should equal(classOf[Exception])
+          response.cause.getCause.getMessage should equal("Expected Test Exception")
+        }
+      }
+      finally {
+        flinkCluster.stop()
+      }
+    }
+
+    "handle trigger savepoint response after succeeded savepoint future" in {
+      val deadline = TestingUtils.TESTING_DURATION.fromNow
+
+      val flinkCluster = TestingUtils.startTestingCluster(1, 1)
+
+      try {
+        within(deadline.timeLeft) {
+          val jobManager = flinkCluster
+            .getLeaderGateway(deadline.timeLeft)
+
+          val jobVertex = new JobVertex("Blocking vertex")
+          jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
+          val jobGraph = new JobGraph(jobVertex)
+          jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
+            java.util.Collections.emptyList(),
+            java.util.Collections.emptyList(),
+            java.util.Collections.emptyList(),
+            60000, 60000, 60000, 1, ExternalizedCheckpointSettings.none))
+
+          // Submit job...
+          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
+
+          // Mock the checkpoint coordinator
+          val checkpointCoordinator = mock(classOf[CheckpointCoordinator])
+          doThrow(new Exception("Expected Test Exception"))
+            .when(checkpointCoordinator)
+            .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
+
+          val savepointPromise = new FlinkCompletableFuture[CompletedCheckpoint]()
+          doReturn(savepointPromise)
+            .when(checkpointCoordinator)
+            .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
+
+          // Request the execution graph and set a checkpoint coordinator mock
+          jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActor)
+          val executionGraph = expectMsgType[ExecutionGraphFound](
+            deadline.timeLeft).executionGraph
+
+          // Update the savepoint coordinator field
+          val field = executionGraph.getClass.getDeclaredField("checkpointCoordinator")
+          field.setAccessible(true)
+          field.set(executionGraph, checkpointCoordinator)
+
+          // Trigger savepoint for job
+          jobManager.tell(TriggerSavepoint(jobGraph.getJobID(), Option.apply("any")), testActor)
+
+          val checkpoint = Mockito.mock(classOf[CompletedCheckpoint])
+          when(checkpoint.getExternalPath).thenReturn("Expected test savepoint path")
+
+          // Succeed the promise
+          savepointPromise.complete(checkpoint)
+
+          val response = expectMsgType[TriggerSavepointSuccess](deadline.timeLeft)
+
+          // Verify the response
+          response.jobId should equal(jobGraph.getJobID())
+          response.savepointPath should equal("Expected test savepoint path")
+        }
+      }
+      finally {
+        flinkCluster.stop()
+      }
+    }
   }
 
   class WaitingOnFinalizeJobVertex(name: String, val waitingTime: Long) extends JobVertex(name){

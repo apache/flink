@@ -19,9 +19,10 @@
 package org.apache.flink.runtime.taskmanager;
 
 import akka.actor.ActorSystem;
-
 import org.slf4j.Logger;
+import javax.management.MBeanServer;
 
+import java.lang.management.BufferPoolMXBean;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
@@ -49,6 +50,8 @@ public class MemoryLogger extends Thread {
 	private final List<MemoryPoolMXBean> poolBeans;
 	
 	private final List<GarbageCollectorMXBean> gcBeans;
+
+	private final BufferPoolMXBean directBufferBean;
 	
 	private final ActorSystem monitored;
 	
@@ -57,11 +60,11 @@ public class MemoryLogger extends Thread {
 	/**
 	 * Creates a new memory logger that logs in the given interval and lives as long as the
 	 * given actor system.
-	 * 
+	 *
 	 * @param logger The logger to use for outputting the memory statistics.
 	 * @param interval The interval in which the thread logs.
 	 * @param monitored The actor system to whose life the thread is bound. The thread terminates
-	 *                  once the actor system terminates.   
+	 *                  once the actor system terminates.
 	 */
 	public MemoryLogger(Logger logger, long interval, ActorSystem monitored) {
 		super("Memory Logger");
@@ -75,6 +78,22 @@ public class MemoryLogger extends Thread {
 		this.memoryBean = ManagementFactory.getMemoryMXBean();
 		this.poolBeans = ManagementFactory.getMemoryPoolMXBeans();
 		this.gcBeans = ManagementFactory.getGarbageCollectorMXBeans();
+
+		// The direct buffer pool bean needs to be accessed via the bean server
+		MBeanServer beanServer = ManagementFactory.getPlatformMBeanServer();
+		BufferPoolMXBean directBufferBean = null;
+		try {
+			directBufferBean = ManagementFactory.newPlatformMXBeanProxy(
+					beanServer,
+					"java.nio:type=BufferPool,name=direct",
+					BufferPoolMXBean.class);
+		}
+		catch (Exception e) {
+			logger.warn("Failed to initialize direct buffer pool bean.", e);
+		}
+		finally {
+			this.directBufferBean = directBufferBean;
+		}
 	}
 	
 	public void shutdown() {
@@ -89,6 +108,7 @@ public class MemoryLogger extends Thread {
 		try {
 			while (running && (monitored == null || !monitored.isTerminated())) {
 				logger.info(getMemoryUsageStatsAsString(memoryBean));
+				logger.info(getDirectMemoryStatsAsString(directBufferBean));
 				logger.info(getMemoryPoolStatsAsString(poolBeans));
 				logger.info(getGarbageCollectorStatsAsString(gcBeans));
 				
@@ -129,6 +149,27 @@ public class MemoryLogger extends Thread {
 		return String.format("Memory usage stats: [HEAP: %d/%d/%d MB, " +
 				"NON HEAP: %d/%d/%d MB (used/committed/max)]",
 				heapUsed, heapCommitted, heapMax, nonHeapUsed, nonHeapCommitted, nonHeapMax);
+	}
+
+	/**
+	 * Returns a String with the <strong>direct</strong> memory footprint.
+	 *
+	 * <p>These stats are not part of the other memory beans.
+	 *
+	 * @param bufferPoolMxBean The direct buffer pool bean or <code>null</code> if none available.
+	 *
+	 * @return A string with the count, total capacity, and used direct memory.
+	 */
+	public static String getDirectMemoryStatsAsString(BufferPoolMXBean bufferPoolMxBean) {
+		if (bufferPoolMxBean == null) {
+			return "Direct memory stats: unavailable";
+		}
+		else {
+			return String.format("Direct memory stats: Count: %d, Total Capacity: %d, Used Memory: %d",
+					bufferPoolMxBean.getCount(),
+					bufferPoolMxBean.getTotalCapacity(),
+					bufferPoolMxBean.getMemoryUsed());
+		}
 	}
 
 	/**

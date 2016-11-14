@@ -285,7 +285,7 @@ public class RecordTest {
 			record.setNull(mask);
 	
 			for (int i = 0; i < 58; i++) {
-				if (((1l << i) & mask) != 0) {
+				if (((1L << i) & mask) != 0) {
 					assertTrue(record.getField(i, IntValue.class) == null);
 				}
 			}

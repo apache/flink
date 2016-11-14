@@ -18,9 +18,12 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * The class of memory, such as heap or off-heap.
  */
+@Internal
 public enum MemoryType {
 
 	/**

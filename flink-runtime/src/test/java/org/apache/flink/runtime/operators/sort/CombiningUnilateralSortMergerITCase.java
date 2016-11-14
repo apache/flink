@@ -23,6 +23,7 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,7 +117,7 @@ public class CombiningUnilateralSortMergerITCase {
 		
 		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(comb,
 				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory2, this.comparator2,
-				0.25, 64, 0.7f, false);
+				0.25, 64, 0.7f, true /* use large record handler */, false);
 
 		final Tuple2<Integer, Integer> rec = new Tuple2<>();
 		rec.setField(1, 1);
@@ -155,7 +156,7 @@ public class CombiningUnilateralSortMergerITCase {
 		
 		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(comb,
 				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory2, this.comparator2,
-				0.01, 64, 0.005f, true);
+				0.01, 64, 0.005f, true /* use large record handler */, true);
 
 		final Tuple2<Integer, Integer> rec = new Tuple2<>();
 		rec.setField(1, 1);
@@ -202,7 +203,7 @@ public class CombiningUnilateralSortMergerITCase {
 		
 		Sorter<Tuple2<Integer, String>> merger = new CombiningUnilateralSortMerger<>(comb,
 				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory1, this.comparator1,
-				0.25, 2, 0.7f, false);
+				0.25, 2, 0.7f, true /* use large record handler */, false);
 
 		// emit data
 		LOG.debug("emitting data");
@@ -252,7 +253,10 @@ public class CombiningUnilateralSortMergerITCase {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public static class TestCountCombiner extends RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
+	public static class TestCountCombiner
+		extends RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
+		implements GroupCombineFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
+	{
 		private static final long serialVersionUID = 1L;
 		
 		private Integer count = 0;
@@ -290,7 +294,10 @@ public class CombiningUnilateralSortMergerITCase {
 		}
 	}
 
-	public static class TestCountCombiner2 extends RichGroupReduceFunction<Tuple2<Integer, String>, Tuple2<Integer, String>> {
+	public static class TestCountCombiner2
+		extends RichGroupReduceFunction<Tuple2<Integer, String>, Tuple2<Integer, String>>
+		implements GroupCombineFunction<Tuple2<Integer, String>, Tuple2<Integer, String>>
+	{
 		private static final long serialVersionUID = 1L;
 		
 		public volatile boolean opened = false;

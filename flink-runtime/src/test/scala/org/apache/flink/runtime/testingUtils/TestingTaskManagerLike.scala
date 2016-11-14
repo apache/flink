@@ -18,25 +18,25 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import akka.actor.{Terminated, ActorRef}
+import java.util.UUID
+
+import akka.actor.{ActorRef, Terminated}
+import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.FlinkActor
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
-import org.apache.flink.runtime.messages.JobManagerMessages.{ResponseLeaderSessionID,
-RequestLeaderSessionID}
-import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
-import org.apache.flink.runtime.messages.RegistrationMessages.{AlreadyRegistered,
-AcknowledgeRegistration}
-import org.apache.flink.runtime.messages.TaskMessages.{UpdateTaskExecutionState, TaskInFinalState}
+import org.apache.flink.runtime.messages.Acknowledge
+import org.apache.flink.runtime.messages.JobManagerMessages.{RequestLeaderSessionID, ResponseLeaderSessionID}
+import org.apache.flink.runtime.messages.Messages.Disconnect
+import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, AlreadyRegistered}
+import org.apache.flink.runtime.messages.TaskMessages.{SubmitTask, TaskInFinalState, UpdateTaskExecutionState}
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
-import org.apache.flink.runtime.testingUtils.TestingMessages.{DisableDisconnect,
-CheckIfJobRemoved, Alive}
+import org.apache.flink.runtime.testingUtils.TestingMessages._
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages._
 
 import scala.concurrent.duration._
-
-import language.postfixOps
+import scala.language.postfixOps
 
 /** This mixin can be used to decorate a TaskManager with messages for testing purposes. */
 trait TestingTaskManagerLike extends FlinkActor {
@@ -45,10 +45,16 @@ trait TestingTaskManagerLike extends FlinkActor {
   import scala.collection.JavaConverters._
 
   val waitForRemoval = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
-  val waitForJobManagerToBeTerminated = scala.collection.mutable.HashMap[String, Set[ActorRef]]()
-  val waitForRegisteredAtJobManager = scala.collection.mutable.HashMap[ActorRef, Set[ActorRef]]()
+  val waitForJobManagerToBeTerminated = scala.collection.mutable.HashMap[UUID, Set[ActorRef]]()
+  val waitForRegisteredAtResourceManager =
+    scala.collection.mutable.HashMap[ActorRef, Set[ActorRef]]()
   val waitForRunning = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
   val unregisteredTasks = scala.collection.mutable.HashSet[ExecutionAttemptID]()
+
+  /** Map of registered task submit listeners */
+  val registeredSubmitTaskListeners = scala.collection.mutable.HashMap[JobID, ActorRef]()
+
+  val waitForShutdown = scala.collection.mutable.HashSet[ActorRef]()
 
   var disconnectDisabled = false
 
@@ -60,7 +66,7 @@ trait TestingTaskManagerLike extends FlinkActor {
   }
 
   def handleTestingMessage: Receive = {
-    case Alive => sender() ! Acknowledge
+    case Alive => sender() ! Acknowledge.get()
 
     case NotifyWhenTaskIsRunning(executionID) =>
       Option(runningTasks.get(executionID)) match {
@@ -98,20 +104,6 @@ trait TestingTaskManagerLike extends FlinkActor {
 
       unregisteredTasks += executionID
 
-    case RequestBroadcastVariablesWithReferences =>
-      sender ! decorateMessage(
-        ResponseBroadcastVariablesWithReferences(
-          bcVarManager.getNumberOfVariablesWithReferences)
-      )
-
-    case RequestNumActiveConnections =>
-      val numActive = if (network.isAssociated) {
-        network.getConnectionManager.getNumberOfActiveConnections
-      } else {
-        0
-      }
-      sender ! decorateMessage(ResponseNumActiveConnections(numActive))
-
     case NotifyWhenJobRemoved(jobID) =>
       if(runningTasks.values.asScala.exists(_.getJobID == jobID)){
         context.system.scheduler.scheduleOnce(
@@ -138,9 +130,30 @@ trait TestingTaskManagerLike extends FlinkActor {
           )
       }
 
-    case NotifyWhenJobManagerTerminated(jobManager) =>
-      val waiting = waitForJobManagerToBeTerminated.getOrElse(jobManager.path.name, Set())
-      waitForJobManagerToBeTerminated += jobManager.path.name -> (waiting + sender)
+    case NotifyWhenJobManagerTerminated(leaderId) =>
+      val waiting = waitForJobManagerToBeTerminated.getOrElse(leaderId, Set())
+      waitForJobManagerToBeTerminated += leaderId -> (waiting + sender)
+
+    case RegisterSubmitTaskListener(jobId) =>
+      registeredSubmitTaskListeners.put(jobId, sender())
+
+    case msg@SubmitTask(tdd) =>
+      try {
+        val jobId = tdd.getSerializedJobInformation.deserializeValue(getClass.getClassLoader)
+          .getJobId
+
+        registeredSubmitTaskListeners.get(jobId) match {
+          case Some(listenerRef) =>
+            listenerRef ! ResponseSubmitTaskListener(tdd)
+          case None =>
+          // Nothing to do
+        }
+      } catch {
+        case e: Exception =>
+          log.error("Could not deserialize the job information.", e)
+      }
+
+      super.handleMessage(msg)
 
     /**
      * Message from task manager that accumulator values changed and need to be reported immediately
@@ -158,29 +171,40 @@ trait TestingTaskManagerLike extends FlinkActor {
       }
 
     case msg@Terminated(jobManager) =>
+
+      val currentJM = currentJobManager.getOrElse(ActorRef.noSender)
+
+      val leaderId = if (jobManager.equals(currentJM)) {
+        leaderSessionID
+      } else {
+        None
+      }
+
       super.handleMessage(msg)
 
-      waitForJobManagerToBeTerminated.remove(jobManager.path.name) foreach {
+      waitForJobManagerToBeTerminated.remove(leaderId.orNull) foreach {
         _ foreach {
-          _ ! decorateMessage(JobManagerTerminated(jobManager))
+          _ ! decorateMessage(JobManagerTerminated(leaderId.orNull))
         }
       }
 
     case msg:Disconnect =>
       if (!disconnectDisabled) {
+        val leaderId = leaderSessionID
         super.handleMessage(msg)
 
-        val jobManager = sender()
-
-        waitForJobManagerToBeTerminated.remove(jobManager.path.name) foreach {
+        waitForJobManagerToBeTerminated.remove(leaderId.orNull) foreach {
           _ foreach {
-            _ ! decorateMessage(JobManagerTerminated(jobManager))
+            _ ! decorateMessage(JobManagerTerminated(leaderId.orNull))
           }
         }
       }
 
     case DisableDisconnect =>
       disconnectDisabled = true
+
+    case NotifyOfComponentShutdown =>
+      waitForShutdown += sender()
 
     case msg @ UpdateTaskExecutionState(taskExecutionState) =>
       super.handleMessage(msg)
@@ -198,11 +222,11 @@ trait TestingTaskManagerLike extends FlinkActor {
       if(isConnected && jobManager == currentJobManager.get) {
         sender() ! true
       } else {
-        val list = waitForRegisteredAtJobManager.getOrElse(
+        val list = waitForRegisteredAtResourceManager.getOrElse(
           jobManager,
           Set[ActorRef]())
 
-        waitForRegisteredAtJobManager += jobManager -> (list + sender())
+        waitForRegisteredAtResourceManager += jobManager -> (list + sender())
       }
 
     case msg @ (_: AcknowledgeRegistration | _: AlreadyRegistered) =>
@@ -210,11 +234,20 @@ trait TestingTaskManagerLike extends FlinkActor {
 
       val jm = sender()
 
-      waitForRegisteredAtJobManager.remove(jm).foreach {
+      waitForRegisteredAtResourceManager.remove(jm).foreach {
         listeners => listeners.foreach{
           listener =>
             listener ! true
         }
       }
+  }
+
+  /**
+    * No killing of the VM for testing.
+    */
+  override protected def shutdown(): Unit = {
+    log.info("Shutting down TestingJobManager.")
+    waitForShutdown.foreach(_ ! ComponentShutdown(self))
+    waitForShutdown.clear()
   }
 }

@@ -98,7 +98,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 		final int NUM_INPUTS = 4;
 		
 		// construct the plan it will be multiple flat maps, all unioned
-		// and the "unioned" dataSet will be grouped
+		// and the "unioned" inputDataSet will be grouped
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
 		DataSet<String> source = env.readTextFile(IN_FILE);

@@ -17,37 +17,46 @@
  */
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.datastream.AllWindowedStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
 import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.HeapWindowBuffer;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.PreAggregatingHeapWindowBuffer;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.fail;
 
 /**
  * These tests verify that the api calls on
  * {@link org.apache.flink.streaming.api.datastream.AllWindowedStream} instantiate
  * the correct window operator.
  */
-public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
+public class AllWindowTranslationTest {
 
 	/**
 	 * These tests ensure that the correct trigger is set when using event-time windows.
@@ -63,20 +72,19 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 		DummyReducer reducer = new DummyReducer();
 
 		DataStream<Tuple2<String, Integer>> window1 = source
-				.windowAll(SlidingTimeWindows.of(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
+				.windowAll(SlidingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
 				.reduce(reducer);
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform1 = (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window1.getTransformation();
 		OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator1 = transform1.getOperator();
-		Assert.assertTrue(operator1 instanceof NonKeyedWindowOperator);
-		NonKeyedWindowOperator winOperator1 = (NonKeyedWindowOperator) operator1;
-		Assert.assertFalse(winOperator1.isSetProcessingTime());
+		Assert.assertTrue(operator1 instanceof WindowOperator);
+		WindowOperator winOperator1 = (WindowOperator) operator1;
 		Assert.assertTrue(winOperator1.getTrigger() instanceof EventTimeTrigger);
-		Assert.assertTrue(winOperator1.getWindowAssigner() instanceof SlidingTimeWindows);
-		Assert.assertTrue(winOperator1.getWindowBufferFactory() instanceof PreAggregatingHeapWindowBuffer.Factory);
+		Assert.assertTrue(winOperator1.getWindowAssigner() instanceof SlidingEventTimeWindows);
+		Assert.assertTrue(winOperator1.getStateDescriptor() instanceof ReducingStateDescriptor);
 
 		DataStream<Tuple2<String, Integer>> window2 = source
-				.windowAll(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
+				.windowAll(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
 				.apply(new AllWindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
 
@@ -91,12 +99,11 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform2 = (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window2.getTransformation();
 		OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator2 = transform2.getOperator();
-		Assert.assertTrue(operator2 instanceof NonKeyedWindowOperator);
-		NonKeyedWindowOperator winOperator2 = (NonKeyedWindowOperator) operator2;
-		Assert.assertFalse(winOperator2.isSetProcessingTime());
+		Assert.assertTrue(operator2 instanceof WindowOperator);
+		WindowOperator winOperator2 = (WindowOperator) operator2;
 		Assert.assertTrue(winOperator2.getTrigger() instanceof EventTimeTrigger);
-		Assert.assertTrue(winOperator2.getWindowAssigner() instanceof TumblingTimeWindows);
-		Assert.assertTrue(winOperator2.getWindowBufferFactory() instanceof HeapWindowBuffer.Factory);
+		Assert.assertTrue(winOperator2.getWindowAssigner() instanceof TumblingEventTimeWindows);
+		Assert.assertTrue(winOperator2.getStateDescriptor() instanceof ListStateDescriptor);
 	}
 
 	@Test
@@ -110,21 +117,20 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 		DummyReducer reducer = new DummyReducer();
 
 		DataStream<Tuple2<String, Integer>> window1 = source
-				.windowAll(SlidingTimeWindows.of(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
+				.windowAll(SlidingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
 				.trigger(CountTrigger.of(100))
 				.reduce(reducer);
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform1 = (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window1.getTransformation();
 		OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator1 = transform1.getOperator();
-		Assert.assertTrue(operator1 instanceof NonKeyedWindowOperator);
-		NonKeyedWindowOperator winOperator1 = (NonKeyedWindowOperator) operator1;
-		Assert.assertTrue(winOperator1.isSetProcessingTime());
+		Assert.assertTrue(operator1 instanceof WindowOperator);
+		WindowOperator winOperator1 = (WindowOperator) operator1;
 		Assert.assertTrue(winOperator1.getTrigger() instanceof CountTrigger);
-		Assert.assertTrue(winOperator1.getWindowAssigner() instanceof SlidingTimeWindows);
-		Assert.assertTrue(winOperator1.getWindowBufferFactory() instanceof PreAggregatingHeapWindowBuffer.Factory);
+		Assert.assertTrue(winOperator1.getWindowAssigner() instanceof SlidingEventTimeWindows);
+		Assert.assertTrue(winOperator1.getStateDescriptor() instanceof ReducingStateDescriptor);
 
 		DataStream<Tuple2<String, Integer>> window2 = source
-				.windowAll(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
+				.windowAll(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
 				.trigger(CountTrigger.of(100))
 				.apply(new AllWindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
@@ -140,12 +146,11 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform2 = (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window2.getTransformation();
 		OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator2 = transform2.getOperator();
-		Assert.assertTrue(operator2 instanceof NonKeyedWindowOperator);
-		NonKeyedWindowOperator winOperator2 = (NonKeyedWindowOperator) operator2;
-		Assert.assertTrue(winOperator1.isSetProcessingTime());
+		Assert.assertTrue(operator2 instanceof WindowOperator);
+		WindowOperator winOperator2 = (WindowOperator) operator2;
 		Assert.assertTrue(winOperator2.getTrigger() instanceof CountTrigger);
-		Assert.assertTrue(winOperator2.getWindowAssigner() instanceof TumblingTimeWindows);
-		Assert.assertTrue(winOperator2.getWindowBufferFactory() instanceof HeapWindowBuffer.Factory);
+		Assert.assertTrue(winOperator2.getWindowAssigner() instanceof TumblingEventTimeWindows);
+		Assert.assertTrue(winOperator2.getStateDescriptor() instanceof ListStateDescriptor);
 	}
 
 	@Test
@@ -159,22 +164,21 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 		DummyReducer reducer = new DummyReducer();
 
 		DataStream<Tuple2<String, Integer>> window1 = source
-				.windowAll(SlidingTimeWindows.of(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
+				.windowAll(SlidingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
 				.evictor(CountEvictor.of(100))
 				.reduce(reducer);
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform1 = (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window1.getTransformation();
 		OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator1 = transform1.getOperator();
-		Assert.assertTrue(operator1 instanceof EvictingNonKeyedWindowOperator);
-		EvictingNonKeyedWindowOperator winOperator1 = (EvictingNonKeyedWindowOperator) operator1;
-		Assert.assertFalse(winOperator1.isSetProcessingTime());
+		Assert.assertTrue(operator1 instanceof EvictingWindowOperator);
+		EvictingWindowOperator winOperator1 = (EvictingWindowOperator) operator1;
 		Assert.assertTrue(winOperator1.getTrigger() instanceof EventTimeTrigger);
-		Assert.assertTrue(winOperator1.getWindowAssigner() instanceof SlidingTimeWindows);
+		Assert.assertTrue(winOperator1.getWindowAssigner() instanceof SlidingEventTimeWindows);
 		Assert.assertTrue(winOperator1.getEvictor() instanceof CountEvictor);
-		Assert.assertTrue(winOperator1.getWindowBufferFactory() instanceof HeapWindowBuffer.Factory);
+		Assert.assertTrue(winOperator1.getStateDescriptor() instanceof ListStateDescriptor);
 
 		DataStream<Tuple2<String, Integer>> window2 = source
-				.windowAll(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
+				.windowAll(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
 				.trigger(CountTrigger.of(100))
 				.evictor(TimeEvictor.of(Time.of(100, TimeUnit.MILLISECONDS)))
 				.apply(new AllWindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow>() {
@@ -191,20 +195,137 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform2 = (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window2.getTransformation();
 		OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator2 = transform2.getOperator();
-		Assert.assertTrue(operator2 instanceof EvictingNonKeyedWindowOperator);
-		EvictingNonKeyedWindowOperator winOperator2 = (EvictingNonKeyedWindowOperator) operator2;
-		Assert.assertFalse(winOperator2.isSetProcessingTime());
+		Assert.assertTrue(operator2 instanceof EvictingWindowOperator);
+		EvictingWindowOperator winOperator2 = (EvictingWindowOperator) operator2;
 		Assert.assertTrue(winOperator2.getTrigger() instanceof CountTrigger);
-		Assert.assertTrue(winOperator2.getWindowAssigner() instanceof TumblingTimeWindows);
+		Assert.assertTrue(winOperator2.getWindowAssigner() instanceof TumblingEventTimeWindows);
 		Assert.assertTrue(winOperator2.getEvictor() instanceof TimeEvictor);
-		Assert.assertTrue(winOperator2.getWindowBufferFactory() instanceof HeapWindowBuffer.Factory);
+		Assert.assertTrue(winOperator2.getStateDescriptor() instanceof ListStateDescriptor);
+	}
+
+	/**
+	 * These tests ensure that a Fold buffer is used if possible
+	 */
+	@Test
+	@SuppressWarnings("rawtypes")
+	public void testFoldBuffer() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
+
+		DummyFolder folder = new DummyFolder();
+
+		DataStream<Integer> window1 = source
+				.windowAll(SlidingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
+				.fold(0, folder);
+
+		OneInputTransformation<Tuple2<String, Integer>, Integer> transform1 = (OneInputTransformation<Tuple2<String, Integer>, Integer>) window1.getTransformation();
+		OneInputStreamOperator<Tuple2<String, Integer>, Integer> operator1 = transform1.getOperator();
+		Assert.assertTrue(operator1 instanceof WindowOperator);
+		WindowOperator winOperator1 = (WindowOperator) operator1;
+		Assert.assertTrue(winOperator1.getTrigger() instanceof EventTimeTrigger);
+		Assert.assertTrue(winOperator1.getWindowAssigner() instanceof SlidingEventTimeWindows);
+		Assert.assertTrue(winOperator1.getStateDescriptor() instanceof FoldingStateDescriptor);
+
+		DataStream<Integer> window2 = source
+				.windowAll(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
+				.evictor(CountEvictor.of(13))
+				.fold(0, folder);
+
+		OneInputTransformation<Tuple2<String, Integer>, Integer> transform2 = (OneInputTransformation<Tuple2<String, Integer>, Integer>) window2.getTransformation();
+		OneInputStreamOperator<Tuple2<String, Integer>, Integer> operator2 = transform2.getOperator();
+		Assert.assertTrue(operator2 instanceof WindowOperator);
+		WindowOperator winOperator2 = (WindowOperator) operator2;
+		Assert.assertTrue(winOperator2.getTrigger() instanceof EventTimeTrigger);
+		Assert.assertTrue(winOperator2.getWindowAssigner() instanceof TumblingEventTimeWindows);
+		Assert.assertTrue(winOperator2.getStateDescriptor() instanceof ListStateDescriptor);
+	}
+
+	@Test
+	public void testSessionWithFold() throws Exception {
+		// verify that fold does not work with merging windows
+
+		StreamExecutionEnvironment env = LocalStreamEnvironment.createLocalEnvironment();
+
+		AllWindowedStream<String, TimeWindow> windowedStream = env.fromElements("Hello", "Ciao")
+				.windowAll(EventTimeSessionWindows.withGap(Time.seconds(5)));
+
+		try {
+			windowedStream.fold("", new FoldFunction<String, String>() {
+				private static final long serialVersionUID = -8722899157560218917L;
+
+				@Override
+				public String fold(String accumulator, String value) throws Exception {
+					return accumulator;
+				}
+			});
+		} catch (UnsupportedOperationException e) {
+			// expected
+			// use a catch to ensure that the exception is thrown by the fold
+			return;
+		}
+
+		fail("The fold call should fail.");
+	}
+
+	@Test
+	public void testMergingAssignerWithNonMergingTrigger() throws Exception {
+		// verify that we check for trigger compatibility
+
+		StreamExecutionEnvironment env = LocalStreamEnvironment.createLocalEnvironment();
+
+		AllWindowedStream<String, TimeWindow> windowedStream = env.fromElements("Hello", "Ciao")
+				.windowAll(EventTimeSessionWindows.withGap(Time.seconds(5)));
+
+		try {
+			windowedStream.trigger(new Trigger<String, TimeWindow>() {
+				private static final long serialVersionUID = 8360971631424870421L;
+
+				@Override
+				public TriggerResult onElement(String element,
+						long timestamp,
+						TimeWindow window,
+						TriggerContext ctx) throws Exception {
+					return null;
+				}
+
+				@Override
+				public TriggerResult onProcessingTime(long time,
+						TimeWindow window,
+						TriggerContext ctx) throws Exception {
+					return null;
+				}
+
+				@Override
+				public TriggerResult onEventTime(long time,
+						TimeWindow window,
+						TriggerContext ctx) throws Exception {
+					return null;
+				}
+
+				@Override
+				public boolean canMerge() {
+					return false;
+				}
+
+				@Override
+				public void clear(TimeWindow window, TriggerContext ctx) throws Exception {}
+			});
+		} catch (UnsupportedOperationException e) {
+			// expected
+			// use a catch to ensure that the exception is thrown by the fold
+			return;
+		}
+
+		fail("The trigger call should fail.");
 	}
 
 	// ------------------------------------------------------------------------
 	//  UDFs
 	// ------------------------------------------------------------------------
 
-	public static class DummyReducer extends RichReduceFunction<Tuple2<String, Integer>> {
+	public static class DummyReducer implements ReduceFunction<Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -212,4 +333,14 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 			return value1;
 		}
 	}
+
+	public static class DummyFolder implements FoldFunction<Tuple2<String, Integer>, Integer> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Integer fold(Integer accumulator, Tuple2<String, Integer> value) throws Exception {
+			return accumulator;
+		}
+	}
+
 }

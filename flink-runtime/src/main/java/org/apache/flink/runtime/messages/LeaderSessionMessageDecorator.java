@@ -26,6 +26,8 @@ import java.util.UUID;
  */
 public class LeaderSessionMessageDecorator implements MessageDecorator {
 
+	private static final long serialVersionUID = 5359618147408392706L;
+	
 	/** Leader session ID with which the RequiresLeaderSessionID messages will be decorated */
 	private final UUID leaderSessionID;
 

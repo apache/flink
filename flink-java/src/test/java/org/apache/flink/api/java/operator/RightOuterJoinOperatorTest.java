@@ -123,7 +123,7 @@ public class RightOuterJoinOperatorTest {
 				.with(new DummyJoin());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testRightOuter7() {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -181,7 +181,7 @@ public class RightOuterJoinOperatorTest {
 		this.testRightOuterStrategies(JoinHint.REPARTITION_SORT_MERGE);
 	}
 
-	@Test(expected = InvalidProgramException.class)
+	@Test
 	public void testRightOuterStrategy3() {
 		this.testRightOuterStrategies(JoinHint.REPARTITION_HASH_SECOND);
 	}

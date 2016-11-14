@@ -29,7 +29,7 @@ import scala.util.Try
 class TryTypeInfoTest extends TestLogger with JUnitSuiteLike {
 
   @Test
-  def testTryTypeEquality: Unit = {
+  def testTryTypeEquality(): Unit = {
     val TryTypeInfo1 = new TryTypeInfo[Integer, Try[Integer]](BasicTypeInfo.INT_TYPE_INFO)
     val TryTypeInfo2 = new TryTypeInfo[Integer, Try[Integer]](BasicTypeInfo.INT_TYPE_INFO)
 
@@ -38,18 +38,20 @@ class TryTypeInfoTest extends TestLogger with JUnitSuiteLike {
   }
 
   @Test
-  def testTryTypeInequality: Unit = {
+  def testTryTypeInequality(): Unit = {
     val TryTypeInfo1 = new TryTypeInfo[Integer, Try[Integer]](BasicTypeInfo.INT_TYPE_INFO)
     val TryTypeInfo2 = new TryTypeInfo[String, Try[String]](BasicTypeInfo.STRING_TYPE_INFO)
 
+    //noinspection ComparingUnrelatedTypes
     assert(!TryTypeInfo1.equals(TryTypeInfo2))
   }
 
   @Test
-  def testTryTypeInequalityWithDifferentType: Unit = {
+  def testTryTypeInequalityWithDifferentType(): Unit = {
     val TryTypeInfo = new TryTypeInfo[Integer, Try[Integer]](BasicTypeInfo.INT_TYPE_INFO)
     val genericTypeInfo = new GenericTypeInfo[Double](Double.getClass.asInstanceOf[Class[Double]])
 
+    //noinspection ComparingUnrelatedTypes
     assert(!TryTypeInfo.equals(genericTypeInfo))
   }
 }

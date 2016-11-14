@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.StringValue;
@@ -29,6 +30,7 @@ import org.apache.flink.types.StringValue;
 /**
  * Utility class to convert objects into strings in vice-versa.
  */
+@PublicEvolving
 public final class StringUtils {
 
 	/**

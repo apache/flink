@@ -19,12 +19,14 @@
 
 package org.apache.flink.types.parser;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.LongValue;
 
 /**
  * Parses a decimal text field into a LongValue.
  * Only characters '1' to '0' and '-' are allowed.
  */
+@PublicEvolving
 public class LongValueParser extends FieldParser<LongValue> {
 	
 	private LongValue result;
@@ -34,7 +36,7 @@ public class LongValueParser extends FieldParser<LongValue> {
 		long val = 0;
 		boolean neg = false;
 
-		final int delimLimit = limit-delimiter.length+1;
+		final int delimLimit = limit - delimiter.length + 1;
 
 		this.result = reusable;
 		
@@ -52,7 +54,7 @@ public class LongValueParser extends FieldParser<LongValue> {
 		for (int i = startPos; i < limit; i++) {
 			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
 				if (i == startPos) {
-					setErrorState(ParseErrorState.EMPTY_STRING);
+					setErrorState(ParseErrorState.EMPTY_COLUMN);
 					return -1;
 				}
 				reusable.setValue(neg ? -val : val);
@@ -73,7 +75,7 @@ public class LongValueParser extends FieldParser<LongValue> {
 					
 					if (i+1 >= limit) {
 						return limit;
-					} else if (i+1 < delimLimit && delimiterNext(bytes, i+1, delimiter)) {
+					} else if (i + 1 < delimLimit && delimiterNext(bytes, i + 1, delimiter)) {
 						return i + 1 + delimiter.length;
 					} else {
 						setErrorState(ParseErrorState.NUMERIC_VALUE_OVERFLOW_UNDERFLOW);

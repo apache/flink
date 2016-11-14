@@ -26,13 +26,16 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.createTemporaryLog4JProperties;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.fail;
 
 /**
@@ -42,7 +45,7 @@ public abstract class TestJvmProcess {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TestJvmProcess.class);
 
-	/** Lock to guard {@link #createAndStart()} and {@link #destroy()} calls. */
+	/** Lock to guard {@link #startProcess()} and {@link #destroy()} calls. */
 	private final Object createDestroyLock = new Object();
 
 	/** The java command path */
@@ -58,10 +61,14 @@ public abstract class TestJvmProcess {
 	private int jvmMemoryInMb = 80;
 
 	/** The JVM process */
-	private Process process;
+	private volatile Process process;
 
 	/** Writer for the process output */
 	private volatile StringWriter processOutput;
+
+	/** flag to mark the process as already destroyed */
+	private volatile boolean destroyed;
+
 
 	public TestJvmProcess() throws Exception {
 		this(getJavaCommandPath(), createTemporaryLog4JProperties().getPath());
@@ -111,7 +118,9 @@ public abstract class TestJvmProcess {
 	 * @param jvmMemoryInMb Amount of memory in Megabytes for the JVM (>= 80).
 	 */
 	public void setJVMMemory(int jvmMemoryInMb) {
-		checkArgument(jvmMemoryInMb >= 80, "JobManager JVM Requires at least 80 MBs of memory.");
+		checkArgument(jvmMemoryInMb >= 80, "Process JVM Requires at least 80 MBs of memory.");
+		checkState(process == null, "Cannot set memory after process was started");
+
 		this.jvmMemoryInMb = jvmMemoryInMb;
 	}
 
@@ -122,7 +131,7 @@ public abstract class TestJvmProcess {
 	 * resource leaks. The created process will be child process and is not guaranteed to
 	 * terminate when the parent process terminates.
 	 */
-	public void createAndStart() throws IOException {
+	public void startProcess() throws IOException {
 		String[] cmd = new String[] {
 				javaCommandPath,
 				"-Dlog.level=DEBUG",
@@ -139,35 +148,30 @@ public abstract class TestJvmProcess {
 		}
 
 		synchronized (createDestroyLock) {
-			if (process == null) {
-				LOG.debug("Running command '{}'.", Arrays.toString(cmd));
-				this.process = new ProcessBuilder(cmd).start();
+			checkState(process == null, "process already started");
 
-				// Forward output
-				this.processOutput = new StringWriter();
-				new CommonTestUtils.PipeForwarder(process.getErrorStream(), processOutput);
+			LOG.debug("Running command '{}'.", Arrays.toString(cmd));
+			this.process = new ProcessBuilder(cmd).start();
 
-				try {
-					// Add JVM shutdown hook to call shutdown of service
-					Runtime.getRuntime().addShutdownHook(shutdownHook);
-				}
-				catch (IllegalStateException ignored) {
-					// JVM is already shutting down. No need to do this.
-				}
-				catch (Throwable t) {
-					LOG.error("Cannot register process cleanup shutdown hook.", t);
-				}
+			// Forward output
+			this.processOutput = new StringWriter();
+			new CommonTestUtils.PipeForwarder(process.getErrorStream(), processOutput);
+
+			try {
+				// Add JVM shutdown hook to call shutdown of service
+				Runtime.getRuntime().addShutdownHook(shutdownHook);
 			}
-			else {
-				throw new IllegalStateException("Already running.");
+			catch (IllegalStateException ignored) {
+				// JVM is already shutting down. No need to do this.
+			}
+			catch (Throwable t) {
+				LOG.error("Cannot register process cleanup shutdown hook.", t);
 			}
 		}
 	}
 
 	public void printProcessLog() {
-		if (processOutput == null) {
-			throw new IllegalStateException("Not started");
-		}
+		checkState(processOutput != null, "not started");
 
 		System.out.println("-----------------------------------------");
 		System.out.println(" BEGIN SPAWNED PROCESS LOG FOR " + getName());
@@ -188,30 +192,105 @@ public abstract class TestJvmProcess {
 
 	public void destroy() {
 		synchronized (createDestroyLock) {
-			if (process != null) {
-				LOG.debug("Destroying " + getName() + " process.");
+			checkState(process != null, "process not started");
 
+			if (destroyed) {
+				// already done
+				return;
+			}
+
+			LOG.info("Destroying " + getName() + " process.");
+
+			try {
+				// try to call "destroyForcibly()" on Java 8
+				boolean destroyed = false;
 				try {
-					process.destroy();
+					Method m = process.getClass().getMethod("destroyForcibly");
+					m.setAccessible(true);
+					m.invoke(process);
+					destroyed = true;
+				}
+				catch (NoSuchMethodException ignored) {
+					// happens on Java 7
 				}
 				catch (Throwable t) {
-					LOG.error("Error while trying to destroy process.", t);
+					LOG.error("Failed to forcibly destroy process", t);
 				}
-				finally {
-					process = null;
 
-					if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
-						try {
-							Runtime.getRuntime().removeShutdownHook(shutdownHook);
-						}
-						catch (IllegalStateException ignored) {
-							// JVM is in shutdown already, we can safely ignore this.
-						}
-						catch (Throwable t) {
-							LOG.warn("Exception while unregistering prcess cleanup shutdown hook.");
-						}
+				// if it was not destroyed, call the regular destroy method
+				if (!destroyed) {
+					try {
+						process.destroy();
+					}
+					catch (Throwable t) {
+						LOG.error("Error while trying to destroy process.", t);
 					}
 				}
+			}
+			finally {
+				destroyed = true;
+
+				if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
+					try {
+						Runtime.getRuntime().removeShutdownHook(shutdownHook);
+					}
+					catch (IllegalStateException ignored) {
+						// JVM is in shutdown already, we can safely ignore this.
+					}
+					catch (Throwable t) {
+						LOG.warn("Exception while unregistering process cleanup shutdown hook.");
+					}
+				}
+			}
+		}
+	}
+
+	public String getProcessOutput() {
+		if (processOutput != null) {
+			return processOutput.toString();
+		}
+		else {
+			return null;
+		}
+	}
+
+	/**
+	 * Gets the process ID, if possible. This method currently only work on UNIX-based
+	 * operating systems. On others, it returns {@code -1}.
+	 * 
+	 * @return The process ID, or -1, if the ID cannot be determined.
+	 */
+	public long getProcessId() {
+		checkState(process != null, "process not started");
+
+		try {
+			Class<? extends Process> clazz = process.getClass();
+			if (clazz.getName().equals("java.lang.UNIXProcess")) {
+				Field pidField = clazz.getDeclaredField("pid");
+				pidField.setAccessible(true);
+				return pidField.getLong(process);
+			} else {
+				return -1;
+			}
+		}
+		catch (Throwable ignored) {
+			return -1;
+		}
+	}
+
+	public boolean isAlive() {
+		if (destroyed) {
+			return false;
+		} else {
+			try {
+				// the method throws an exception as long as the
+				// process is alive
+				process.exitValue();
+				return false;
+			}
+			catch (IllegalThreadStateException ignored) {
+				// thi
+				return true;
 			}
 		}
 	}
@@ -229,6 +308,19 @@ public abstract class TestJvmProcess {
 		}
 	}
 
+	public static void waitForMarkerFile(File file, long timeoutMillis) throws InterruptedException {
+		final long deadline = System.nanoTime() + timeoutMillis * 1_000_000;
+
+		boolean exists;
+		while (!(exists = file.exists()) && System.nanoTime() < deadline) {
+			Thread.sleep(10);
+		}
+
+		if (!exists) {
+			fail("The marker file was not found within " + timeoutMillis + " msecs");
+		}
+	}
+	
 	public static void waitForMarkerFiles(File basedir, String prefix, int num, long timeout) {
 		long now = System.currentTimeMillis();
 		final long deadline = now + timeout;

@@ -18,22 +18,26 @@
 
 package org.apache.flink.runtime.state.memory;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.Serializable;
+import java.util.Collection;
 
 /**
- * A {@link StateBackend} that stores all its data and checkpoints in memory and has no
+ * A {@link AbstractStateBackend} that stores all its data and checkpoints in memory and has no
  * capabilities to spill to disk. Checkpoints are serialized and the serialized data is
  * transferred
  */
-public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
+public class MemoryStateBackend extends AbstractStateBackend {
 
 	private static final long serialVersionUID = 4109305377809414635L;
 
@@ -61,149 +65,51 @@ public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
 		this.maxStateSize = maxStateSize;
 	}
 
-	// ------------------------------------------------------------------------
-	//  initialization and cleanup
-	// ------------------------------------------------------------------------
-
-	@Override
-	public void initializeForJob(Environment env) {
-		// nothing to do here
-	}
-
-	@Override
-	public void disposeAllStateForCurrentJob() {
-		// nothing to do here, GC will do it
-	}
-
-	@Override
-	public void close() throws Exception {}
-
-	// ------------------------------------------------------------------------
-	//  State backend operations
-	// ------------------------------------------------------------------------
-
-	@Override
-	public <K, V> MemHeapKvState<K, V> createKvState(String stateId, String stateName,
-			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) {
-		return new MemHeapKvState<K, V>(keySerializer, valueSerializer, defaultValue);
-	}
-
-	/**
-	 * Serialized the given state into bytes using Java serialization and creates a state handle that
-	 * can re-create that state.
-	 *
-	 * @param state The state to checkpoint.
-	 * @param checkpointID The ID of the checkpoint.
-	 * @param timestamp The timestamp of the checkpoint.
-	 * @param <S> The type of the state.
-	 *
-	 * @return A state handle that contains the given state serialized as bytes.
-	 * @throws Exception Thrown, if the serialization fails.
-	 */
-	@Override
-	public <S extends Serializable> StateHandle<S> checkpointStateSerializable(
-			S state, long checkpointID, long timestamp) throws Exception
-	{
-		SerializedStateHandle<S> handle = new SerializedStateHandle<>(state);
-		checkSize(handle.getSizeOfSerializedState(), maxStateSize);
-		return new SerializedStateHandle<S>(state);
-	}
-
-	@Override
-	public CheckpointStateOutputStream createCheckpointStateOutputStream(
-			long checkpointID, long timestamp) throws Exception
-	{
-		return new MemoryCheckpointOutputStream(maxStateSize);
-	}
-
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
-
 	@Override
 	public String toString() {
 		return "MemoryStateBackend (data in heap memory / checkpoints to JobManager)";
 	}
 
-	static void checkSize(int size, int maxSize) throws IOException {
-		if (size > maxSize) {
-			throw new IOException(
-					"Size of the state is larger than the maximum permitted memory-backed state. Size="
-							+ size + " , maxSize=" + maxSize
-							+ " . Consider using a different state backend, like the File System State backend.");
-		}
+	@Override
+	public CheckpointStreamFactory createStreamFactory(
+			JobID jobId, String operatorIdentifier) throws IOException {
+		return new MemCheckpointStreamFactory(maxStateSize);
 	}
 
-	// ------------------------------------------------------------------------
+	@Override
+	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
+			Environment env, JobID jobID,
+			String operatorIdentifier,
+			TypeSerializer<K> keySerializer,
+			int numberOfKeyGroups,
+			KeyGroupRange keyGroupRange,
+			TaskKvStateRegistry kvStateRegistry) throws IOException {
 
-	/**
-	 * A CheckpointStateOutputStream that writes into a byte array.
-	 */
-	public static final class MemoryCheckpointOutputStream extends CheckpointStateOutputStream {
-
-		private final ByteArrayOutputStream os = new ByteArrayOutputStream();
-
-		private final int maxSize;
-
-		private boolean closed;
-
-		public MemoryCheckpointOutputStream(int maxSize) {
-			this.maxSize = maxSize;
-		}
-
-		@Override
-		public void write(int b) {
-			os.write(b);
-		}
-
-		@Override
-		public void write(byte[] b, int off, int len) {
-			os.write(b, off, len);
-		}
-
-		// --------------------------------------------------------------------
-
-		@Override
-		public void close() {
-			closed = true;
-			os.reset();
-		}
-
-		@Override
-		public StreamStateHandle closeAndGetHandle() throws IOException {
-			return new ByteStreamStateHandle(closeAndGetBytes());
-		}
-
-		/**
-		 * Closes the stream and returns the byte array containing the stream's data.
-		 * @return The byte array containing the stream's data.
-		 * @throws IOException Thrown if the size of the data exceeds the maximal
-		 */
-		public byte[] closeAndGetBytes() throws IOException {
-			if (!closed) {
-				checkSize(os.size(), maxSize);
-				byte[] bytes = os.toByteArray();
-				close();
-				return bytes;
-			}
-			else {
-				throw new IllegalStateException("stream has already been closed");
-			}
-		}
+		return new HeapKeyedStateBackend<>(
+				kvStateRegistry,
+				keySerializer,
+				env.getUserClassLoader(),
+				numberOfKeyGroups,
+				keyGroupRange);
 	}
 
-	// ------------------------------------------------------------------------
-	//  Static default instance
-	// ------------------------------------------------------------------------
+	@Override
+	public <K> AbstractKeyedStateBackend<K> restoreKeyedStateBackend(
+			Environment env, JobID jobID,
+			String operatorIdentifier,
+			TypeSerializer<K> keySerializer,
+			int numberOfKeyGroups,
+			KeyGroupRange keyGroupRange,
+			Collection<KeyGroupsStateHandle> restoredState,
+			TaskKvStateRegistry kvStateRegistry) throws Exception {
 
-	/** The default instance of this state backend, using the default maximal state size */
-	private static final MemoryStateBackend DEFAULT_INSTANCE = new MemoryStateBackend();
-
-	/**
-	 * Gets the default instance of this state backend, using the default maximal state size.
-	 * @return The default instance of this state backend.
-	 */
-	public static MemoryStateBackend defaultInstance() {
-		return DEFAULT_INSTANCE;
+		return new HeapKeyedStateBackend<>(
+				kvStateRegistry,
+				keySerializer,
+				env.getUserClassLoader(),
+				numberOfKeyGroups,
+				keyGroupRange,
+				restoredState);
 	}
+
 }

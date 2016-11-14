@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -58,18 +60,22 @@ public class UnionWithTempOperator<T> implements Driver<Function, T> {
 
 	@Override
 	public void run() throws Exception {
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 		
-		final Collector<T> output = this.taskContext.getOutputCollector();
+		final Collector<T> output = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 		T reuse = this.taskContext.<T>getInputSerializer(STREAMED_INPUT).getSerializer().createInstance();
 		T record;
 		
 		final MutableObjectIterator<T> input = this.taskContext.getInput(STREAMED_INPUT);
 		while (this.running && ((record = input.next(reuse)) != null)) {
+			numRecordsIn.inc();
 			output.collect(record);
 		}
 		
 		final MutableObjectIterator<T> cache = this.taskContext.getInput(CACHED_INPUT);
 		while (this.running && ((record = cache.next(reuse)) != null)) {
+			numRecordsIn.inc();
 			output.collect(record);
 		}
 	}

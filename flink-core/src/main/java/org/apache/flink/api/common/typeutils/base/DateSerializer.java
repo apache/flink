@@ -18,17 +18,17 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import java.io.IOException;
+import java.util.Date;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-import java.io.IOException;
-import java.util.Date;
-
-
+@Internal
 public final class DateSerializer extends TypeSerializerSingleton<Date> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final DateSerializer INSTANCE = new DateSerializer();
 
 	@Override
@@ -49,10 +49,9 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 		return new Date(from.getTime());
 	}
 
-	
 	@Override
 	public Date copy(Date from, Date reuse) {
-		if(from == null) {
+		if (from == null) {
 			return null;
 		}
 		reuse.setTime(from.getTime());
@@ -66,8 +65,8 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 
 	@Override
 	public void serialize(Date record, DataOutputView target) throws IOException {
-		if(record == null) {
-			target.writeLong(-1L);
+		if (record == null) {
+			target.writeLong(Long.MIN_VALUE);
 		} else {
 			target.writeLong(record.getTime());
 		}
@@ -75,8 +74,8 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 
 	@Override
 	public Date deserialize(DataInputView source) throws IOException {
-		long v = source.readLong();
-		if(v == -1L) {
+		final long v = source.readLong();
+		if (v == Long.MIN_VALUE) {
 			return null;
 		} else {
 			return new Date(v);
@@ -85,8 +84,8 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 	
 	@Override
 	public Date deserialize(Date reuse, DataInputView source) throws IOException {
-		long v = source.readLong();
-		if(v == -1L) {
+		final long v = source.readLong();
+		if (v == Long.MIN_VALUE) {
 			return null;
 		}
 		reuse.setTime(v);

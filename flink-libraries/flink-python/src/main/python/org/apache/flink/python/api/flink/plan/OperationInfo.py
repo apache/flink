@@ -18,33 +18,46 @@
 from flink.plan.Constants import WriteMode
 
 
+class Value():
+    def __init__(self, value):
+        self.value = value
+
+
 class OperationInfo():
     def __init__(self, info=None):
         if info is None:
+            #fields being transferred to the java side
+            self.identifier = -1
             self.parent = None
             self.other = None
-            self.identifier = None
-            self.field = None
-            self.order = None
-            self.keys = None
-            self.key1 = None
-            self.key2 = None
+            self.field = -1
+            self.order = 0
+            self.keys = ()
+            self.key1 = ()
+            self.key2 = ()
             self.types = None
-            self.operator = None
+            self.uses_udf = False
             self.name = None
-            self.combine = False
             self.delimiter_line = "\n"
             self.delimiter_field = ","
             self.write_mode = WriteMode.NO_OVERWRITE
-            self.sinks = []
-            self.children = []
-            self.combineop = None
-            self.path = None
+            self.path = ""
+            self.frm = 0
+            self.to = 0
+            self.count = 0
             self.values = []
             self.projections = []
-            self.bcvars = []
-            self.id = None
+            self.id = -1
             self.to_err = False
+            self.parallelism = Value(-1)
+            #internally used
+            self.parent_set = None
+            self.other_set = None
+            self.chained_info = None
+            self.bcvars = []
+            self.sinks = []
+            self.children = []
+            self.operator = None
         else:
             self.__dict__.update(info.__dict__)
 

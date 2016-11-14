@@ -20,9 +20,9 @@
 package org.apache.flink.runtime.testutils.recordutils;
 
 import org.apache.flink.api.common.typeutils.TypePairComparator;
-import org.apache.flink.types.Key;
 import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.types.Record;
+import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
 
 
@@ -35,10 +35,10 @@ public class RecordPairComparator extends TypePairComparator<Record, Record>  {
 	private final int[] keyFields1, keyFields2;			// arrays with the positions of the keys in the records
 	
 	@SuppressWarnings("rawtypes")
-	private final Key[] keyHolders1, keyHolders2;		// arrays with mutable objects for the key types
+	private final Value[] keyHolders1, keyHolders2;		// arrays with mutable objects for the key types
 	
 	
-	public RecordPairComparator(int[] keyFieldsReference, int[] keyFieldsCandidate, Class<? extends Key<?>>[] keyTypes) {
+	public RecordPairComparator(int[] keyFieldsReference, int[] keyFieldsCandidate, Class<? extends Value>[] keyTypes) {
 		if (keyFieldsReference.length != keyFieldsCandidate.length || keyFieldsCandidate.length != keyTypes.length) {
 			throw new IllegalArgumentException(
 				"The arrays describing the key positions and types must be of the same length.");
@@ -47,15 +47,15 @@ public class RecordPairComparator extends TypePairComparator<Record, Record>  {
 		this.keyFields2 = keyFieldsCandidate;
 		
 		// instantiate fields to extract keys into
-		this.keyHolders1 = new Key[keyTypes.length];
-		this.keyHolders2 = new Key[keyTypes.length];
+		this.keyHolders1 = new Value[keyTypes.length];
+		this.keyHolders2 = new Value[keyTypes.length];
 		
 		for (int i = 0; i < keyTypes.length; i++) {
 			if (keyTypes[i] == null) {
 				throw new NullPointerException("Key type " + i + " is null.");
 			}
-			this.keyHolders1[i] = InstantiationUtil.instantiate(keyTypes[i], Key.class);
-			this.keyHolders2[i] = InstantiationUtil.instantiate(keyTypes[i], Key.class);
+			this.keyHolders1[i] = InstantiationUtil.instantiate(keyTypes[i], Value.class);
+			this.keyHolders2[i] = InstantiationUtil.instantiate(keyTypes[i], Value.class);
 		}
 	}
 	
@@ -76,7 +76,7 @@ public class RecordPairComparator extends TypePairComparator<Record, Record>  {
 	@Override
 	public boolean equalToReference(Record candidate) {
 		for (int i = 0; i < this.keyFields2.length; i++) {
-			final Key k = candidate.getField(this.keyFields2[i], this.keyHolders2[i]);
+			final Value k = candidate.getField(this.keyFields2[i], this.keyHolders2[i]);
 			if (k == null) {
 				throw new NullKeyFieldException(this.keyFields2[i]);
 			} else if (!k.equals(this.keyHolders1[i])) {
@@ -91,7 +91,7 @@ public class RecordPairComparator extends TypePairComparator<Record, Record>  {
 	@Override
 	public int compareToReference(Record candidate) {
 		for (int i = 0; i < this.keyFields2.length; i++) {
-			final Key k = candidate.getField(this.keyFields2[i], this.keyHolders2[i]);
+			final Comparable k = (Comparable) candidate.getField(this.keyFields2[i], this.keyHolders2[i]);
 			if (k == null) {
 				throw new NullKeyFieldException(this.keyFields2[i]);
 			} else {

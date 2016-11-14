@@ -71,7 +71,7 @@ class DistinctOperatorTest {
     tupleDs.distinct()
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[IndexOutOfBoundsException])
   def testDistinctByKeyIndices6(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tupleDs = env.fromCollection(emptyTupleData)

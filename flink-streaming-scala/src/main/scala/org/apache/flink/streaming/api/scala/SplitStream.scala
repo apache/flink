@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.annotation.Public
 import org.apache.flink.streaming.api.datastream.{ SplitStream => SplitJavaStream }
 
 /**
@@ -27,11 +28,12 @@ import org.apache.flink.streaming.api.datastream.{ SplitStream => SplitJavaStrea
  * the appropriate method on this stream.
  *
  */
+@Public
 class SplitStream[T](javaStream: SplitJavaStream[T]) extends DataStream[T](javaStream){
 
   /**
    *  Sets the output names for which the next operator will receive values.
    */
-  def select(outputNames: String*): DataStream[T] = javaStream.select(outputNames: _*)
-  
+  def select(outputNames: String*): DataStream[T] = 
+    asScalaStream(javaStream.select(outputNames: _*))
 }

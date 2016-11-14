@@ -18,9 +18,7 @@
 
 package org.apache.flink.api.common.functions;
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.FoldFunction;
-import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.annotation.Public;
 
 /**
  * Rich variant of the {@link FoldFunction}. As a {@link RichFunction}, it gives access to the
@@ -31,6 +29,7 @@ import org.apache.flink.api.common.functions.RichFunction;
  * @param <T> Type of the initial input and the returned element
  * @param <O> Type of the elements that the group/list/stream contains
  */
+@Public
 public abstract class RichFoldFunction<O, T> extends AbstractRichFunction implements FoldFunction<O, T> {
 
 	private static final long serialVersionUID = 1L;

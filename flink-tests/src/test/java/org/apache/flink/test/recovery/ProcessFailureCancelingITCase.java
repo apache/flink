@@ -25,6 +25,7 @@ import akka.util.Timeout;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -97,9 +98,9 @@ public class ProcessFailureCancelingITCase {
 			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "5 s");
 			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2000 s");
 			jmConfig.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 10);
-			jmConfig.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "10 s");
+			jmConfig.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
 
-			jmActorSystem = AkkaUtils.createActorSystem(jmConfig, new Some<Tuple2<String, Object>>(localAddress));
+			jmActorSystem = AkkaUtils.createActorSystem(jmConfig, new Some<>(localAddress));
 			ActorRef jmActor = JobManager.startJobManagerActors(
 				jmConfig,
 				jmActorSystem,
@@ -134,7 +135,7 @@ public class ProcessFailureCancelingITCase {
 					try {
 						ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", jobManagerPort);
 						env.setParallelism(2);
-						env.setNumberOfExecutionRetries(0);
+						env.setRestartStrategy(RestartStrategies.noRestart());
 						env.getConfig().disableSysoutLogging();
 
 						env.generateSequence(0, Long.MAX_VALUE)

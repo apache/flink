@@ -20,15 +20,18 @@ package org.apache.flink.runtime.akka
 
 import java.io.IOException
 import java.net._
-import java.util.concurrent.{TimeUnit, Callable}
+import java.util.concurrent.{Callable, TimeUnit}
 
 import akka.actor._
 import akka.pattern.{ask => akkaAsk}
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.{Config, ConfigFactory, ConfigParseOptions, ConfigValueFactory}
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.runtime.net.SSLUtils
 import org.apache.flink.util.NetUtils
-import org.jboss.netty.logging.{Slf4JLoggerFactory, InternalLoggerFactory}
+import org.jboss.netty.logging.{InternalLoggerFactory, Slf4JLoggerFactory}
 import org.slf4j.LoggerFactory
+
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -144,7 +147,7 @@ object AkkaUtils {
       ConfigConstants.DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS)
 
     val jvmExitOnFatalError = if (
-      configuration.getBoolean(ConfigConstants.AKKA_JVM_EXIT_ON_FATAL_ERROR, false)){
+      configuration.getBoolean(ConfigConstants.AKKA_JVM_EXIT_ON_FATAL_ERROR, true)){
       "on"
     } else {
       "off"
@@ -189,6 +192,25 @@ object AkkaUtils {
     ConfigFactory.parseString(config)
   }
 
+  def testDispatcherConfig: Config = {
+    val config =
+      s"""
+         |akka {
+         |  actor {
+         |    default-dispatcher {
+         |      fork-join-executor {
+         |        parallelism-factor = 1.0
+         |        parallelism-min = 1
+         |        parallelism-max = 4
+         |      }
+         |    }
+         |  }
+         |}
+      """.stripMargin
+
+    ConfigFactory.parseString(config)
+  }
+
   /**
    * Creates a Akka config for a remote actor system listening on port on the network interface
    * identified by hostname.
@@ -206,7 +228,7 @@ object AkkaUtils {
 
     val startupTimeout = configuration.getString(
       ConfigConstants.AKKA_STARTUP_TIMEOUT,
-      akkaAskTimeout.toString)
+      (akkaAskTimeout * 10).toString)
 
     val transportHeartbeatInterval = configuration.getString(
       ConfigConstants.AKKA_TRANSPORT_HEARTBEAT_INTERVAL,
@@ -222,11 +244,11 @@ object AkkaUtils {
 
     val watchHeartbeatInterval = configuration.getString(
       ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL,
-      (akkaAskTimeout/10).toString)
+      (akkaAskTimeout).toString)
 
     val watchHeartbeatPause = configuration.getString(
       ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE,
-      akkaAskTimeout.toString)
+      (akkaAskTimeout * 10).toString)
 
     val watchThreshold = configuration.getDouble(
       ConfigConstants.AKKA_WATCH_THRESHOLD,
@@ -234,7 +256,7 @@ object AkkaUtils {
 
     val akkaTCPTimeout = configuration.getString(
       ConfigConstants.AKKA_TCP_TIMEOUT,
-      akkaAskTimeout.toString)
+      (akkaAskTimeout * 10).toString)
 
     val akkaFramesize = configuration.getString(
       ConfigConstants.AKKA_FRAMESIZE,
@@ -245,6 +267,41 @@ object AkkaUtils {
       ConfigConstants.DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS)
 
     val logLifecycleEvents = if (lifecycleEvents) "on" else "off"
+
+    val akkaEnableSSLConfig = configuration.getBoolean(ConfigConstants.AKKA_SSL_ENABLED,
+        ConfigConstants.DEFAULT_AKKA_SSL_ENABLED) &&
+          SSLUtils.getSSLEnabled(configuration)
+
+    val akkaEnableSSL = if (akkaEnableSSLConfig) "on" else "off"
+
+    val akkaSSLKeyStore = configuration.getString(
+      ConfigConstants.SECURITY_SSL_KEYSTORE,
+      null)
+
+    val akkaSSLKeyStorePassword = configuration.getString(
+      ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD,
+      null)
+
+    val akkaSSLKeyPassword = configuration.getString(
+      ConfigConstants.SECURITY_SSL_KEY_PASSWORD,
+      null)
+
+    val akkaSSLTrustStore = configuration.getString(
+      ConfigConstants.SECURITY_SSL_TRUSTSTORE,
+      null)
+
+    val akkaSSLTrustStorePassword = configuration.getString(
+      ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD,
+      null)
+
+    val akkaSSLProtocol = configuration.getString(
+      ConfigConstants.SECURITY_SSL_PROTOCOL,
+      ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL)
+
+    val akkaSSLAlgorithmsString = configuration.getString(
+      ConfigConstants.SECURITY_SSL_ALGORITHMS,
+      ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS)
+    val akkaSSLAlgorithms = akkaSSLAlgorithmsString.split(",").toList.mkString("[", ",", "]")
 
     val configString =
       s"""
@@ -301,7 +358,40 @@ object AkkaUtils {
         ""
       }
 
-    ConfigFactory.parseString(configString + hostnameConfigString)
+    val sslConfigString = if (akkaEnableSSLConfig) {
+      s"""
+         |akka {
+         |  remote {
+         |
+         |    enabled-transports = ["akka.remote.netty.ssl"]
+         |
+         |    netty {
+         |
+         |      ssl = $${akka.remote.netty.tcp}
+         |
+         |      ssl {
+         |
+         |        enable-ssl = $akkaEnableSSL
+         |        security {
+         |          key-store = "$akkaSSLKeyStore"
+         |          key-store-password = "$akkaSSLKeyStorePassword"
+         |          key-password = "$akkaSSLKeyPassword"
+         |          trust-store = "$akkaSSLTrustStore"
+         |          trust-store-password = "$akkaSSLTrustStorePassword"
+         |          protocol = $akkaSSLProtocol
+         |          enabled-algorithms = $akkaSSLAlgorithms
+         |          random-number-generator = ""
+         |        }
+         |      }
+         |    }
+         |  }
+         |}
+       """.stripMargin
+    }else{
+      ""
+    }
+
+    ConfigFactory.parseString(configString + hostnameConfigString + sslConfigString).resolve()
   }
 
   def getLogLevel: String = {
@@ -457,10 +547,16 @@ object AkkaUtils {
     new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
   }
 
-  def getDefaultTimeout: FiniteDuration = {
+  def getDefaultTimeout: Time = {
     val duration = Duration(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT)
 
-    new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
+    Time.milliseconds(duration.toMillis)
+  }
+
+  def getDefaultTimeoutAsFiniteDuration: FiniteDuration = {
+    val timeout = getDefaultTimeout
+
+    new FiniteDuration(timeout.toMilliseconds, TimeUnit.MILLISECONDS)
   }
 
   def getLookupTimeout(config: Configuration): FiniteDuration = {
@@ -473,6 +569,22 @@ object AkkaUtils {
 
   def getDefaultLookupTimeout: FiniteDuration = {
     val duration = Duration(ConfigConstants.DEFAULT_AKKA_LOOKUP_TIMEOUT)
+    new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
+  }
+
+  def getClientTimeout(config: Configuration): FiniteDuration = {
+    val duration = Duration(
+      config.getString(
+        ConfigConstants.AKKA_CLIENT_TIMEOUT,
+        ConfigConstants.DEFAULT_AKKA_CLIENT_TIMEOUT
+      ))
+
+    new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
+  }
+
+  def getDefaultClientTimeout: FiniteDuration = {
+    val duration = Duration(ConfigConstants.DEFAULT_AKKA_CLIENT_TIMEOUT)
+
     new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
   }
 
@@ -542,4 +654,18 @@ object AkkaUtils {
         throw new Exception(s"Could not retrieve InetSocketAddress from Akka URL $akkaURL")
     }
   }
+
+  /** Returns the protocol field for the URL of the remote actor system given the user configuration
+    *
+    * @param config instance containing the user provided configuration values
+    * @return the remote url's protocol field
+    */
+  def getAkkaProtocol(config: Configuration): String = {
+    val sslEnabled = config.getBoolean(ConfigConstants.AKKA_SSL_ENABLED,
+        ConfigConstants.DEFAULT_AKKA_SSL_ENABLED) &&
+      SSLUtils.getSSLEnabled(config)
+    if (sslEnabled) "akka.ssl.tcp" else "akka.tcp"
+  }
+
 }
+

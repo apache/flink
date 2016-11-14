@@ -167,7 +167,9 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		ds.writeAsCsv(resultPath).sortLocalOutput(1, Order.DESCENDING).sortLocalOutput(0, Order.ASCENDING).setParallelism(1);
+		ds.writeAsCsv(resultPath)
+			.sortLocalOutput(1, Order.DESCENDING).sortLocalOutput(0, Order.ASCENDING)
+			.setParallelism(1);
 
 		env.execute();
 
@@ -203,9 +205,9 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Tuple2<Integer, Integer>, String, Integer>> ds =
 				CollectionDataSets.getGroupSortedNestedTupleDataSet2(env);
 		ds.writeAsText(resultPath)
-				.sortLocalOutput("f0.f1", Order.ASCENDING)
-				.sortLocalOutput("f1", Order.DESCENDING)
-				.setParallelism(1);
+			.sortLocalOutput("f0.f1", Order.ASCENDING)
+			.sortLocalOutput("f1", Order.DESCENDING)
+			.setParallelism(1);
 
 		env.execute();
 
@@ -228,9 +230,9 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Tuple2<Integer, Integer>, String, Integer>> ds =
 				CollectionDataSets.getGroupSortedNestedTupleDataSet2(env);
 		ds.writeAsText(resultPath)
-				.sortLocalOutput(1, Order.ASCENDING)
-				.sortLocalOutput(2, Order.DESCENDING)
-				.setParallelism(1);
+			.sortLocalOutput(1, Order.ASCENDING)
+			.sortLocalOutput(2, Order.DESCENDING)
+			.setParallelism(1);
 
 		env.execute();
 
@@ -273,9 +275,9 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 		DataSet<CollectionDataSets.POJO> ds = CollectionDataSets.getMixedPojoDataSet(env);
 		ds.writeAsText(resultPath)
-				.sortLocalOutput("str", Order.ASCENDING)
-				.sortLocalOutput("number", Order.DESCENDING)
-				.setParallelism(1);
+			.sortLocalOutput("str", Order.ASCENDING)
+			.sortLocalOutput("number", Order.DESCENDING)
+			.setParallelism(1);
 
 		env.execute();
 
@@ -299,10 +301,10 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 		DataSet<CollectionDataSets.POJO> ds = CollectionDataSets.getMixedPojoDataSet(env);
 		ds.writeAsText(resultPath)
-				.sortLocalOutput("nestedTupleWithCustom.f0", Order.ASCENDING)
-				.sortLocalOutput("nestedTupleWithCustom.f1.myInt", Order.DESCENDING)
-				.sortLocalOutput("nestedPojo.longNumber", Order.ASCENDING)
-				.setParallelism(1);
+			.sortLocalOutput("nestedTupleWithCustom.f0", Order.ASCENDING)
+			.sortLocalOutput("nestedTupleWithCustom.f1.myInt", Order.DESCENDING)
+			.sortLocalOutput("nestedPojo.longNumber", Order.ASCENDING)
+			.setParallelism(1);
 
 		env.execute();
 
@@ -327,14 +329,14 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 		// randomize
 		ds.map(new MapFunction<Long, Long>() {
 
-			Random rand = new Random(1234l);
+			Random rand = new Random(1234L);
 			@Override
 			public Long map(Long value) throws Exception {
 				return rand.nextLong();
 			}
 		}).writeAsText(resultPath)
-				.sortLocalOutput("*", Order.ASCENDING)
-				.setParallelism(4);
+			.sortLocalOutput("*", Order.ASCENDING)
+			.setParallelism(4);
 
 		env.execute();
 

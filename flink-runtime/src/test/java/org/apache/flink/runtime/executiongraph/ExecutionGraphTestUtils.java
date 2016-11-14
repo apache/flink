@@ -24,17 +24,21 @@ import static org.mockito.Mockito.spy;
 
 import java.lang.reflect.Field;
 import java.net.InetAddress;
+import java.util.concurrent.Executor;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.BaseTestingActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
-import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -42,12 +46,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
 import org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPartitions;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
-import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.SerializedValue;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -100,14 +103,15 @@ public class ExecutionGraphTestUtils {
 	//  utility mocking methods
 	// --------------------------------------------------------------------------------------------
 
-	public static Instance getInstance(final ActorGateway gateway) throws Exception {
+	public static Instance getInstance(final TaskManagerGateway gateway) throws Exception {
 		return getInstance(gateway, 1);
 	}
 
-	public static Instance getInstance(final ActorGateway gateway, final int numberOfSlots) throws Exception {
+	public static Instance getInstance(final TaskManagerGateway gateway, final int numberOfSlots) throws Exception {
+		ResourceID resourceID = ResourceID.generate();
 		HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
 		InetAddress address = InetAddress.getByName("127.0.0.1");
-		InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
+		TaskManagerLocation connection = new TaskManagerLocation(resourceID, address, 10001);
 
 		return new Instance(gateway, connection, new InstanceID(), hardwareDescription, numberOfSlots);
 	}
@@ -128,11 +132,11 @@ public class ExecutionGraphTestUtils {
 				SubmitTask submitTask = (SubmitTask) message;
 				lastTDD = submitTask.tasks();
 
-				result = Messages.getAcknowledge();
+				result = Acknowledge.get();
 			} else if(message instanceof CancelTask) {
 				CancelTask cancelTask = (CancelTask) message;
 
-				result = new TaskOperationResult(cancelTask.attemptID(), true);
+				result = Acknowledge.get();
 			} else if(message instanceof FailIntermediateResultPartitions) {
 				result = new Object();
 			}
@@ -155,7 +159,7 @@ public class ExecutionGraphTestUtils {
 			} else if (message instanceof CancelTask) {
 				CancelTask cancelTask = (CancelTask) message;
 
-				return new TaskOperationResult(cancelTask.attemptID(), true);
+				return Acknowledge.get();
 			} else {
 				return null;
 			}
@@ -164,16 +168,18 @@ public class ExecutionGraphTestUtils {
 
 	public static final String ERROR_MESSAGE = "test_failure_error_message";
 
-	public static ExecutionJobVertex getExecutionVertex(JobVertexID id, ExecutionContext executionContext) throws JobException {
+	public static ExecutionJobVertex getExecutionVertex(JobVertexID id, Executor executor) throws Exception {
 		JobVertex ajv = new JobVertex("TestVertex", id);
 		ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
 
 		ExecutionGraph graph = new ExecutionGraph(
-				executionContext,
-				new JobID(),
-				"test job",
-				new Configuration(),
-				AkkaUtils.getDefaultTimeout());
+			executor,
+			new JobID(), 
+			"test job", 
+			new Configuration(),
+			new SerializedValue<>(new ExecutionConfig()),
+			AkkaUtils.getDefaultTimeout(),
+			new NoRestartStrategy());
 
 		ExecutionJobVertex ejv = spy(new ExecutionJobVertex(graph, ajv, 1,
 				AkkaUtils.getDefaultTimeout()));
@@ -192,7 +198,7 @@ public class ExecutionGraphTestUtils {
 		return ejv;
 	}
 	
-	public static ExecutionJobVertex getExecutionVertex(JobVertexID id) throws JobException {
+	public static ExecutionJobVertex getExecutionVertex(JobVertexID id) throws Exception {
 		return getExecutionVertex(id, TestingUtils.defaultExecutionContext());
 	}
 }

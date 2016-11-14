@@ -19,6 +19,8 @@
 
 package org.apache.flink.api.common.operators.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -28,6 +30,7 @@ import java.util.Iterator;
 /**
  * Immutable unordered collection of fields IDs.
  */
+@Internal
 public class FieldSet implements Iterable<Integer> {
 	
 	public static final FieldSet EMPTY_SET = new FieldSet();

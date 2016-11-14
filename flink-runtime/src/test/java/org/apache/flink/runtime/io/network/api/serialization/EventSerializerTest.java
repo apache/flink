@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
@@ -28,34 +29,30 @@ import org.junit.Test;
 
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class EventSerializerTest {
 
 	@Test
-	public void testSerializeDeserializeEvent() {
-		try {
-			AbstractEvent[] events = {
-					EndOfPartitionEvent.INSTANCE,
-					EndOfSuperstepEvent.INSTANCE,
-					new CheckpointBarrier(1678L, 4623784L),
-					new TestTaskEvent(Math.random(), 12361231273L)
-			};
-			
-			for (AbstractEvent evt : events) {
-				ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(evt);
-				assertTrue(serializedEvent.hasRemaining());
+	public void testSerializeDeserializeEvent() throws Exception {
+		AbstractEvent[] events = {
+				EndOfPartitionEvent.INSTANCE,
+				EndOfSuperstepEvent.INSTANCE,
+				new CheckpointBarrier(1678L, 4623784L),
+				new TestTaskEvent(Math.random(), 12361231273L),
+				new CancelCheckpointMarker(287087987329842L)
+		};
+		
+		for (AbstractEvent evt : events) {
+			ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(evt);
+			assertTrue(serializedEvent.hasRemaining());
 
-				AbstractEvent deserialized = 
-						EventSerializer.fromSerializedEvent(serializedEvent, getClass().getClassLoader());
-				assertNotNull(deserialized);
-				assertEquals(evt, deserialized);
-			}
-			
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+			AbstractEvent deserialized = 
+					EventSerializer.fromSerializedEvent(serializedEvent, getClass().getClassLoader());
+			assertNotNull(deserialized);
+			assertEquals(evt, deserialized);
 		}
 	}
 }

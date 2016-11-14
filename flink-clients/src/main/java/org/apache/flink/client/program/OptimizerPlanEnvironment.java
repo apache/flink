@@ -94,14 +94,15 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 			unsetAsContext();
 			System.setOut(originalOut);
 			System.setErr(originalErr);
-			System.err.println(baes);
-			System.out.println(baos);
 		}
 
+		String stdout = baos.toString();
+		String stderr = baes.toString();
+		
 		throw new ProgramInvocationException(
-				"The program plan could not be fetched - the program aborted pre-maturely.\n"
-						+ "System.err: " + baes.toString() + '\n'
-						+ "System.out: " + baos.toString() + '\n');
+				"The program plan could not be fetched - the program aborted pre-maturely."
+						+ "\n\nSystem.err: " + (stdout.length() == 0 ? "(none)" : stdout) 
+						+ "\n\nSystem.out: " + (stderr.length() == 0 ? "(none)" : stderr));
 	}
 	// ------------------------------------------------------------------------
 

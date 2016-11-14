@@ -81,7 +81,7 @@ public class JobClientActorRecoveryITCase extends TestLogger {
 	public void testJobClientRecovery() throws Exception {
 		File rootFolder = tempFolder.getRoot();
 
-		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 			zkServer.getConnectString(),
 			rootFolder.getPath());
 
@@ -141,11 +141,6 @@ public class JobClientActorRecoveryITCase extends TestLogger {
 		private volatile static int BlockExecution = 1;
 		private volatile static int HasBlockedExecution = 0;
 		private static Object waitLock = new Object();
-
-		@Override
-		public void registerInputOutput() throws Exception {
-			// Nothing to do
-		}
 
 		@Override
 		public void invoke() throws Exception {

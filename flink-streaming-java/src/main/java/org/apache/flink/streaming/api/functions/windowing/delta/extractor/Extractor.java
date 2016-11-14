@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.Serializable;
 
 /**
@@ -29,6 +31,7 @@ import java.io.Serializable;
  * @param <TO>
  *            The output data type.
  */
+@Internal
 public interface Extractor<FROM, TO> extends Serializable {
 
 	/**

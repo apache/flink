@@ -44,6 +44,7 @@ object TaskManagerMessages {
 
     /**
      * Accessor for the case object instance, to simplify Java interoperability.
+     *
      * @return The SendHeartbeat case object instance.
      */
     def get() : SendHeartbeat.type = SendHeartbeat
@@ -51,15 +52,12 @@ object TaskManagerMessages {
 
   /**
    * Reports liveliness of the TaskManager instance with the given instance ID to the
-   * This message is sent to the job. This message reports the TaskManagers
-   * metrics, as a byte array.
+   * This message is sent to the job.
    *
    * @param instanceID The instance ID of the reporting TaskManager.
-   * @param metricsReport utf-8 encoded JSON metrics report from the metricRegistry.
    * @param accumulators Accumulators of tasks serialized as Tuple2[internal, user-defined]
    */
-  case class Heartbeat(instanceID: InstanceID, metricsReport: Array[Byte],
-     accumulators: Seq[AccumulatorSnapshot])
+  case class Heartbeat(instanceID: InstanceID, accumulators: Seq[AccumulatorSnapshot])
 
 
   // --------------------------------------------------------------------------
@@ -74,6 +72,7 @@ object TaskManagerMessages {
 
     /**
      * Accessor for the case object instance, to simplify Java interoperability.
+     *
      * @return The SendStackTrace case object instance.
      */
     def get() : SendStackTrace.type = SendStackTrace
@@ -95,14 +94,14 @@ object TaskManagerMessages {
 
   /**
    * Requests a notification from the task manager as soon as the task manager has been
-   * registered at any job manager. Once the task manager is registered at any job manager a
+   * registered at a job manager. Once the task manager is registered at a job manager a
    * [[RegisteredAtJobManager]] message will be sent to the sender.
    */
-  case object NotifyWhenRegisteredAtAnyJobManager
+  case object NotifyWhenRegisteredAtJobManager
 
   /**
    * Acknowledges that the task manager has been successfully registered at any job manager. This
-   * message is a response to [[NotifyWhenRegisteredAtAnyJobManager]].
+   * message is a response to [[NotifyWhenRegisteredAtJobManager]].
    */
   case object RegisteredAtJobManager
 
@@ -114,6 +113,30 @@ object TaskManagerMessages {
     */
   case class JobManagerLeaderAddress(jobManagerAddress: String, leaderSessionID: UUID)
 
+  /** Trait do differentiate which log file is requested */
+  sealed trait LogTypeRequest
+
+  /** Indicates a request for the .log file */
+  case object LogFileRequest extends LogTypeRequest
+
+  /** Indicates a request for the .out file */
+  case object StdOutFileRequest extends LogTypeRequest
+
+  /** Requests the TaskManager to upload either his log/stdout file to the Blob store 
+    * param requestType LogTypeRequest indicating which file is requested
+    */
+  case class RequestTaskManagerLog(requestType : LogTypeRequest)
+
+  /** Requests the number of active connections at the ConnectionManager */
+  case object RequestNumActiveConnections
+
+  case class ResponseNumActiveConnections(number: Int)
+
+  /** Requests the number of broadcast variables with references */
+  case object RequestBroadcastVariablesWithReferences
+
+  case class ResponseBroadcastVariablesWithReferences(number: Int)
+
 
   // --------------------------------------------------------------------------
   //  Utility getters for case objects to simplify access from Java
@@ -121,16 +144,49 @@ object TaskManagerMessages {
 
   /**
    * Accessor for the case object instance, to simplify Java interoperability.
+   *
    * @return The NotifyWhenRegisteredAtJobManager case object instance.
    */
   def getNotifyWhenRegisteredAtJobManagerMessage:
-            NotifyWhenRegisteredAtAnyJobManager.type = NotifyWhenRegisteredAtAnyJobManager
+  NotifyWhenRegisteredAtJobManager.type = NotifyWhenRegisteredAtJobManager
 
   /**
    * Accessor for the case object instance, to simplify Java interoperability.
+   *
    * @return The RegisteredAtJobManager case object instance.
    */
   def getRegisteredAtJobManagerMessage:
             RegisteredAtJobManager.type = RegisteredAtJobManager
 
+  /**
+    * Accessor for the case object instance, to simplify Java interoperability.
+    * @return The RequestTaskManagerLog case object instance.
+    */
+  def getRequestTaskManagerLog(): AnyRef = {
+    RequestTaskManagerLog(LogFileRequest)
+  }
+
+  /**
+    * Accessor for the case object instance, to simplify Java interoperability.
+    * @return The RequestTaskManagerStdout case object instance.
+    */
+  def getRequestTaskManagerStdout(): AnyRef = {
+    RequestTaskManagerLog(StdOutFileRequest)
+  }
+
+  /**
+    * Accessor for the case object instance, to simplify Java interoperability.
+    * @return The RequestBroadcastVariablesWithReferences case object instance.
+    */
+  def getRequestBroadcastVariablesWithReferences(): RequestBroadcastVariablesWithReferences.type = {
+    RequestBroadcastVariablesWithReferences
+  }
+
+  /**
+    * Accessor for the case object instance, to simplify Java interoperability.
+    * @return The RequestNumActiveConnections case object instance.
+    */
+  def getRequestNumActiveConnections(): RequestNumActiveConnections.type  = {
+    RequestNumActiveConnections
+  }
 }

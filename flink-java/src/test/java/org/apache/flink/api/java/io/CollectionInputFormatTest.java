@@ -76,11 +76,19 @@ public class CollectionInputFormatTest {
 		public int hashCode() {
 			return id;
 		}
+
+		@Override
+		public String toString() {
+			return "ElementType{" +
+				"id=" + id +
+				'}';
+		}
 	}
 
 	@Test
 	public void testSerializability() {
-		try {
+		try (ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+			 ObjectOutputStream out = new ObjectOutputStream(buffer)) {
 			Collection<ElementType> inputCollection = new ArrayList<ElementType>();
 			ElementType element1 = new ElementType(1);
 			ElementType element2 = new ElementType(2);
@@ -94,9 +102,6 @@ public class CollectionInputFormatTest {
 	
 			CollectionInputFormat<ElementType> inputFormat = new CollectionInputFormat<ElementType>(inputCollection,
 					info.createSerializer(new ExecutionConfig()));
-
-			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-			ObjectOutputStream out = new ObjectOutputStream(buffer);
 
 			out.writeObject(inputFormat);
 
@@ -125,6 +130,7 @@ public class CollectionInputFormatTest {
 			e.printStackTrace();
 			fail(e.toString());
 		}
+
 	}
 	
 	@Test
@@ -204,13 +210,11 @@ public class CollectionInputFormatTest {
 	
 	@Test
 	public void testSerializationFailure() {
-		try {
+		try (ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+			ObjectOutputStream out = new ObjectOutputStream(buffer)) {
 			// a mock serializer that fails when writing
 			CollectionInputFormat<ElementType> inFormat = new CollectionInputFormat<ElementType>(
 					Collections.singleton(new ElementType()), new TestSerializer(false, true));
-			
-			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-			ObjectOutputStream out = new ObjectOutputStream(buffer);
 			
 			try {
 				out.writeObject(inFormat);
@@ -231,13 +235,12 @@ public class CollectionInputFormatTest {
 	
 	@Test
 	public void testDeserializationFailure() {
-		try {
+		try (ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+			 ObjectOutputStream out = new ObjectOutputStream(buffer)) {
 			// a mock serializer that fails when writing
 			CollectionInputFormat<ElementType> inFormat = new CollectionInputFormat<ElementType>(
 					Collections.singleton(new ElementType()), new TestSerializer(true, false));
-			
-			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-			ObjectOutputStream out = new ObjectOutputStream(buffer);
+
 			out.writeObject(inFormat);
 			out.close();
 			
@@ -257,7 +260,37 @@ public class CollectionInputFormatTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
+	@Test
+	public void testToStringOnSmallCollection() {
+		ArrayList<ElementType> smallList = new ArrayList<>();
+		smallList.add(new ElementType(1));
+		smallList.add(new ElementType(2));
+		CollectionInputFormat<ElementType> inputFormat = new CollectionInputFormat<>(
+			smallList,
+			new TestSerializer(true, false)
+		);
+
+		assertEquals("[ElementType{id=1}, ElementType{id=2}]", inputFormat.toString());
+	}
+
+	@Test
+	public void testToStringOnBigCollection() {
+		ArrayList<ElementType> list = new ArrayList<>();
+		for (int i = 0; i < 10; i++) {
+			list.add(new ElementType(i));
+		}
+		CollectionInputFormat<ElementType> inputFormat = new CollectionInputFormat<>(
+			list,
+			new TestSerializer(true, false)
+		);
+
+		assertEquals(
+			"[ElementType{id=0}, ElementType{id=1}, ElementType{id=2}, " +
+			"ElementType{id=3}, ElementType{id=4}, ElementType{id=5}, ...]",
+			inputFormat.toString());
+	}
+
 	private static class TestException extends IOException{
 		private static final long serialVersionUID = 1L;
 	}

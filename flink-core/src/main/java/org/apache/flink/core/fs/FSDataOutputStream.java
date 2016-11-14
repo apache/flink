@@ -18,13 +18,18 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.IOException;
 import java.io.OutputStream;
 
 /**
  * Interface for a data output stream to a file on a {@link FileSystem}.
  */
+@Public
 public abstract class FSDataOutputStream extends OutputStream {
+
+	public abstract long getPos() throws IOException;
 
 	public abstract void flush() throws IOException;
 

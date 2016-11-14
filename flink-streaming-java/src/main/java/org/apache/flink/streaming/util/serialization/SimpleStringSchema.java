@@ -17,14 +17,15 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
  * Very simple serialization schema for strings.
  */
-public class SimpleStringSchema implements DeserializationSchema<String>,
-		SerializationSchema<String> {
+@PublicEvolving
+public class SimpleStringSchema implements DeserializationSchema<String>, SerializationSchema<String> {
 
 	private static final long serialVersionUID = 1L;
 

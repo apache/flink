@@ -29,13 +29,15 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.types.IntValue;
+
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.BitSet;
 
-public class SlotCountExceedingParallelismTest {
+public class SlotCountExceedingParallelismTest extends TestLogger {
 
 	// Test configuration
 	private final static int NUMBER_OF_TMS = 2;
@@ -120,18 +122,11 @@ public class SlotCountExceedingParallelismTest {
 
 		public final static String CONFIG_KEY = "number-of-times-to-send";
 
-		private RecordWriter<IntValue> writer;
-
-		private int numberOfTimesToSend;
-
-		@Override
-		public void registerInputOutput() {
-			writer = new RecordWriter<IntValue>(getEnvironment().getWriter(0));
-			numberOfTimesToSend = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
-		}
-
 		@Override
 		public void invoke() throws Exception {
+			RecordWriter<IntValue> writer = new RecordWriter<>(getEnvironment().getWriter(0));
+			final int numberOfTimesToSend = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
+
 			final IntValue subtaskIndex = new IntValue(
 					getEnvironment().getTaskInfo().getIndexOfThisSubtask());
 
@@ -154,26 +149,17 @@ public class SlotCountExceedingParallelismTest {
 
 		public final static String CONFIG_KEY = "number-of-indexes-to-receive";
 
-		private RecordReader<IntValue> reader;
-
-		private int numberOfSubtaskIndexesToReceive;
-
-		/** Each set bit position corresponds to a received subtask index */
-		private BitSet receivedSubtaskIndexes;
-
-		@Override
-		public void registerInputOutput() {
-			reader = new RecordReader<IntValue>(
-					getEnvironment().getInputGate(0),
-					IntValue.class);
-
-			numberOfSubtaskIndexesToReceive = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
-			receivedSubtaskIndexes = new BitSet(numberOfSubtaskIndexesToReceive);
-		}
-
 		@Override
 		public void invoke() throws Exception {
+			RecordReader<IntValue> reader = new RecordReader<>(
+					getEnvironment().getInputGate(0),
+					IntValue.class,
+					getEnvironment().getTaskManagerInfo().getTmpDirectories());
+
 			try {
+				final int numberOfSubtaskIndexesToReceive = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
+				final BitSet receivedSubtaskIndexes = new BitSet(numberOfSubtaskIndexesToReceive);
+
 				IntValue record;
 
 				int numberOfReceivedSubtaskIndexes = 0;

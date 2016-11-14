@@ -20,6 +20,8 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -106,6 +108,9 @@ public class ReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 			LOG.debug(this.taskContext.formatLogString("Reducer preprocessing done. Running Reducer code."));
 		}
 
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
+
 		// cache references on the stack
 		final MutableObjectIterator<T> input = this.input;
 		final TypeSerializer<T> serializer = this.serializer;
@@ -113,50 +118,65 @@ public class ReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 		
 		final ReduceFunction<T> function = this.taskContext.getStub();
 		
-		final Collector<T> output = this.taskContext.getOutputCollector();
+		final Collector<T> output = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 
 		if (objectReuseEnabled) {
-			// We only need two objects. The user function is expected to return
-			// the first input as the result. The output value is also expected
-			// to have the same key fields as the input elements.
+			// We only need two objects. The first reference stores results and is
+			// eventually collected. New values are read into the second.
+			//
+			// The output value must have the same key fields as the input values.
 
-			T reuse1 = serializer.createInstance();
+			T reuse1 = input.next();
 			T reuse2 = serializer.createInstance();
 
-			T value = input.next(reuse1);
+			T value = reuse1;
 
 			// iterate over key groups
 			while (this.running && value != null) {
+				numRecordsIn.inc();
 				comparator.setReference(value);
-				T res = value;
 
 				// iterate within a key group
-				while ((value = input.next(reuse2)) != null) {
-					if (comparator.equalToReference(value)) {
+				while ((reuse2 = input.next(reuse2)) != null) {
+					numRecordsIn.inc();
+					if (comparator.equalToReference(reuse2)) {
 						// same group, reduce
-						res = function.reduce(res, value);
+						value = function.reduce(value, reuse2);
+
+						// we must never read into the object returned
+						// by the user, so swap the reuse objects
+						if (value == reuse2) {
+							T tmp = reuse1;
+							reuse1 = reuse2;
+							reuse2 = tmp;
+						}
 					} else {
 						// new key group
 						break;
 					}
 				}
 
-				output.collect(res);
+				output.collect(value);
 
-				if (value != null) {
-					value = serializer.copy(value, reuse1);
-				}
+				// swap the value from the new key group into the first object
+				T tmp = reuse1;
+				reuse1 = reuse2;
+				reuse2 = tmp;
+
+				value = reuse1;
 			}
 		} else {
 			T value = input.next();
 
 			// iterate over key groups
 			while (this.running && value != null) {
+				numRecordsIn.inc();
 				comparator.setReference(value);
 				T res = value;
 
 				// iterate within a key group
 				while ((value = input.next()) != null) {
+					numRecordsIn.inc();
 					if (comparator.equalToReference(value)) {
 						// same group, reduce
 						res = function.reduce(res, value);

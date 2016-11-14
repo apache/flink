@@ -17,8 +17,11 @@
 
 package org.apache.flink.streaming.api.functions.aggregation;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.Serializable;
 
+@Internal
 public abstract class SumFunction implements Serializable{
 
 	private static final long serialVersionUID = 1L;

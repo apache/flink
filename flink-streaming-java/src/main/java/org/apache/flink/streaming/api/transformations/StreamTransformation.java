@@ -17,13 +17,14 @@
  */
 package org.apache.flink.streaming.api.transformations;
 
-import com.google.common.base.Preconditions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 
@@ -93,6 +94,7 @@ import java.util.Collection;
  *
  * @param <T> The type of the elements that result from this {@code StreamTransformation}
  */
+@Internal
 public abstract class StreamTransformation<T> {
 
 	// This is used to assign a unique ID to every StreamTransformation
@@ -114,9 +116,23 @@ public abstract class StreamTransformation<T> {
 
 	private int parallelism;
 
+	/**
+	 * The maximum parallelism for this stream transformation. It defines the upper limit for
+	 * dynamic scaling and the number of key groups used for partitioned state.
+	 */
+	private int maxParallelism = -1;
+
+	/**
+	 * User-specified ID for this transformation. This is used to assign the
+	 * same operator ID across job restarts. There is also the automatically
+	 * generated {@link #id}, which is assigned from a static counter. That
+	 * field is independent from this.
+	 */
+	private String uid;
+
 	protected long bufferTimeout = -1;
 
-	protected StreamGraph.ResourceStrategy resourceStrategy = StreamGraph.ResourceStrategy.DEFAULT;
+	private String slotSharingGroup;
 
 	/**
 	 * Creates a new {@code StreamTransformation} with the given name, output type and parallelism.
@@ -130,6 +146,7 @@ public abstract class StreamTransformation<T> {
 		this.name = Preconditions.checkNotNull(name);
 		this.outputType = outputType;
 		this.parallelism = parallelism;
+		this.slotSharingGroup = null;
 	}
 
 	/**
@@ -167,6 +184,71 @@ public abstract class StreamTransformation<T> {
 	public void setParallelism(int parallelism) {
 		Preconditions.checkArgument(parallelism > 0, "Parallelism must be bigger than zero.");
 		this.parallelism = parallelism;
+	}
+
+	/**
+	 * Gets the maximum parallelism for this stream transformation.
+	 *
+	 * @return Maximum parallelism of this transformation.
+	 */
+	public int getMaxParallelism() {
+		return maxParallelism;
+	}
+
+	/**
+	 * Sets the maximum parallelism for this stream transformation.
+	 *
+	 * @param maxParallelism Maximum parallelism for this stream transformation.
+	 */
+	public void setMaxParallelism(int maxParallelism) {
+		this.maxParallelism = maxParallelism;
+	}
+
+	/**
+	 * Sets an ID for this {@link StreamTransformation}.
+	 *
+	 * <p>The specified ID is used to assign the same operator ID across job
+	 * submissions (for example when starting a job from a savepoint).
+	 *
+	 * <p><strong>Important</strong>: this ID needs to be unique per
+	 * transformation and job. Otherwise, job submission will fail.
+	 *
+	 * @param uid The unique user-specified ID of this transformation.
+	 */
+	public void setUid(String uid) {
+		this.uid = uid;
+	}
+
+	/**
+	 * Returns the user-specified ID of this transformation.
+	 *
+	 * @return The unique user-specified ID of this transformation.
+	 */
+	public String getUid() {
+		return uid;
+	}
+
+	/**
+	 * Returns the slot sharing group of this transformation.
+	 *
+	 * @see #setSlotSharingGroup(String)
+	 */
+	public String getSlotSharingGroup() {
+		return slotSharingGroup;
+	}
+
+	/**
+	 * Sets the slot sharing group of this transformation. Parallel instances of operations that
+	 * are in the same slot sharing group will be co-located in the same TaskManager slot, if
+	 * possible.
+	 *
+	 * <p>Initially, an operation is in the default slot sharing group. This can be explicitly
+	 * set using {@code setSlotSharingGroup("default")}.
+	 *
+	 * @param slotSharingGroup The slot sharing group name.
+	 */
+	public void setSlotSharingGroup(String slotSharingGroup) {
+		this.slotSharingGroup = slotSharingGroup;
 	}
 
 	/**
@@ -240,25 +322,6 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * Sets the {@link org.apache.flink.streaming.api.graph.StreamGraph.ResourceStrategy} of this
-	 * {@code StreamTransformation}. The resource strategy is used when scheduling operations on actual
-	 * workers when transforming the StreamTopology to an
-	 * {@link org.apache.flink.runtime.executiongraph.ExecutionGraph}.
-	 */
-	public void setResourceStrategy(StreamGraph.ResourceStrategy resourceStrategy) {
-		this.resourceStrategy = resourceStrategy;
-	}
-
-	/**
-	 * Returns the {@code ResourceStrategy} of this {@code StreamTransformation}.
-	 *
-	 * @see #setResourceStrategy(StreamGraph.ResourceStrategy)
-	 */
-	public StreamGraph.ResourceStrategy getResourceStrategy() {
-		return resourceStrategy;
-	}
-
-	/**
 	 * Returns all transitive predecessor {@code StreamTransformation}s of this {@code StreamTransformation}. This
 	 * is, for example, used when determining whether a feedback edge of an iteration
 	 * actually has the iteration head as a predecessor.
@@ -300,10 +363,7 @@ public abstract class StreamTransformation<T> {
 		if (!name.equals(that.name)) {
 			return false;
 		}
-		if (outputType != null ? !outputType.equals(that.outputType) : that.outputType != null) {
-			return false;
-		}
-		return resourceStrategy == that.resourceStrategy;
+		return outputType != null ? outputType.equals(that.outputType) : that.outputType == null;
 	}
 
 	@Override
@@ -313,7 +373,6 @@ public abstract class StreamTransformation<T> {
 		result = 31 * result + (outputType != null ? outputType.hashCode() : 0);
 		result = 31 * result + parallelism;
 		result = 31 * result + (int) (bufferTimeout ^ (bufferTimeout >>> 32));
-		result = 31 * result + resourceStrategy.hashCode();
 		return result;
 	}
 }

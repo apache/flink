@@ -58,15 +58,9 @@ public final class BlobKeyTest {
 	 * Tests the serialization/deserialization of BLOB keys
 	 */
 	@Test
-	public void testSerialization() {
+	public void testSerialization() throws Exception {
 		final BlobKey k1 = new BlobKey(KEY_ARRAY_1);
-		final BlobKey k2;
-		try {
-			k2 = CommonTestUtils.createCopySerializable(k1);
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
-			return;
-		}
+		final BlobKey k2 = CommonTestUtils.createCopySerializable(k1);
 		assertEquals(k1, k2);
 		assertEquals(k1.hashCode(), k2.hashCode());
 		assertEquals(0, k1.compareTo(k2));
@@ -100,25 +94,16 @@ public final class BlobKeyTest {
 	 * Test the serialization/deserialization using input/output streams.
 	 */
 	@Test
-	public void testStreams() {
+	public void testStreams() throws Exception {
 		final BlobKey k1 = new BlobKey(KEY_ARRAY_1);
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream(20);
-		try {
-			k1.writeToOutputStream(baos);
-			baos.close();
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
-			return;
-		}
-		final ByteArrayInputStream bais = new ByteArrayInputStream(
-			baos.toByteArray());
-		final BlobKey k2;
-		try {
-			k2 = BlobKey.readFromInputStream(bais);
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
-			return;
-		}
+		
+		k1.writeToOutputStream(baos);
+		baos.close();
+		
+		final ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+		final BlobKey k2 = BlobKey.readFromInputStream(bais);
+
 		assertEquals(k1, k2);
 	}
 }

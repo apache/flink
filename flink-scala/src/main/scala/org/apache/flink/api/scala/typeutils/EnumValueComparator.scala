@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.common.typeutils.base.IntComparator
 import org.apache.flink.core.memory.{DataOutputView, DataInputView, MemorySegment}
@@ -24,6 +25,7 @@ import org.apache.flink.core.memory.{DataOutputView, DataInputView, MemorySegmen
 /**
  * Comparator for [[Enumeration]] values.
  */
+@Internal
 @SerialVersionUID(1000L)
 class EnumValueComparator[E <: Enumeration](ascComp: Boolean) extends TypeComparator[E#Value] {
 

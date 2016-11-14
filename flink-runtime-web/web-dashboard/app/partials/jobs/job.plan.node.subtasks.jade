@@ -34,7 +34,7 @@ table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="subta
       th Status
 
   tbody
-    tr(ng-repeat="subtask in subtasks")
+    tr(ng-repeat="subtask in subtasks | orderBy:'host'")
       td
         span(ng-if="subtask['start-time'] > -1") {{ subtask['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
       td

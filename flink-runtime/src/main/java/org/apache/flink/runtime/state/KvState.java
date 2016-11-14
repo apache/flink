@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.state.OperatorState;
-
 /**
  * Key/Value state implementation for user-defined state. The state is backed by a state
  * backend, which typically follows one of the following patterns: Either the state is stored
@@ -28,42 +26,27 @@ import org.apache.flink.api.common.state.OperatorState;
  * by an external key/value store as the state backend, and checkpoints merely record the
  * metadata of what is considered part of the checkpoint.
  * 
- * @param <K> The type of the key.
- * @param <V> The type of the value.
+ * @param <N> The type of the namespace.
  */
-public interface KvState<K, V, Backend extends StateBackend<Backend>> extends OperatorState<V> {
+public interface KvState<N> {
 
 	/**
-	 * Sets the current key, which will be used to retrieve values for the next calls to
-	 * {@link #value()} and {@link #update(Object)}.
-	 * 
-	 * @param key The key.
-	 */
-	void setCurrentKey(K key);
-
-	/**
-	 * Creates a snapshot of this state.
-	 * 
-	 * @param checkpointId The ID of the checkpoint for which the snapshot should be created.
-	 * @param timestamp The timestamp of the checkpoint.
-	 * @return A snapshot handle for this key/value state.
-	 * 
-	 * @throws Exception Exceptions during snapshotting the state should be forwarded, so the system
-	 *                   can react to failed snapshots.
-	 */
-	KvStateSnapshot<K, V, Backend> snapshot(long checkpointId, long timestamp) throws Exception;
-
-	/**
-	 * Gets the number of key/value pairs currently stored in the state. Note that is a key
-	 * has been associated with "null", the key is removed from the state an will not
-	 * be counted here.
+	 * Sets the current namespace, which will be used when using the state access methods.
 	 *
-	 * @return The number of key/value pairs currently stored in the state.
+	 * @param namespace The namespace.
 	 */
-	int size();
+	void setCurrentNamespace(N namespace);
 
 	/**
-	 * Disposes the key/value state, releasing all occupied resources.
+	 * Returns the serialized value for the given key and namespace.
+	 *
+	 * <p>If no value is associated with key and namespace, <code>null</code>
+	 * is returned.
+	 *
+	 * @param serializedKeyAndNamespace Serialized key and namespace
+	 * @return Serialized value or <code>null</code> if no value is associated
+	 * with the key and namespace.
+	 * @throws Exception Exceptions during serialization are forwarded
 	 */
-	void dispose();
+	byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception;
 }

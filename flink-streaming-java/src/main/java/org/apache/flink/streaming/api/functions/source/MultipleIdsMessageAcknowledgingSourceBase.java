@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -48,6 +49,7 @@ import java.util.List;
  * @param <SessionId> The type of the IDs that are used for acknowledging elements
  *                    (ids valid during session).
  */
+@PublicEvolving
 public abstract class MultipleIdsMessageAcknowledgingSourceBase<Type, UId, SessionId>
 		extends MessageAcknowledgingSourceBase<Type, UId> {
 

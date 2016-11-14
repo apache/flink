@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.sca;
 
+import org.apache.flink.annotation.Internal;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.analysis.BasicValue;
 
@@ -30,6 +31,7 @@ import java.util.Map.Entry;
  * Extension of ASM's BasicValue that allows to assign "tags"
  * to values and add additional information depending on the tag to the Value.
  */
+@Internal
 public class TaggedValue extends BasicValue {
 
 	public static enum Tag {
@@ -42,7 +44,7 @@ public class TaggedValue extends BasicValue {
 		INPUT_1_ITERABLE, INPUT_2_ITERABLE, INPUT_1_ITERATOR, INPUT_2_ITERATOR, // input iterators
 		ITERATOR_TRUE_ASSUMPTION, // boolean value that is "true" at least once
 		NULL // null
-	};
+	}
 
 	public static enum Input {
 		INPUT_1(0), INPUT_2(1);
@@ -56,7 +58,7 @@ public class TaggedValue extends BasicValue {
 		public int getId() {
 			return id;
 		}
-	};
+	}
 
 	private Tag tag;
 	// only inputs can set this to true

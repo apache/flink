@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,45 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.functions;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
- * Interface for user functions that extract timestamps from elements. The extracting timestamps
- * must be monotonically increasing.
+ * A timestamp assigner and watermark generator for streams where timestamps are monotonously
+ * ascending. In this case, the local watermarks for the streams are easy to generate, because
+ * they strictly follow the timestamps.
+ *
+ * <b>Note:</b> This is just a deprecated stub class. The actual code for this has moved to
+ * {@link org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor}.
  *
  * @param <T> The type of the elements that this function can extract timestamps from
  */
-public abstract class AscendingTimestampExtractor<T> implements TimestampExtractor<T> {
+@PublicEvolving
+@Deprecated
+public abstract class AscendingTimestampExtractor<T>
+	extends org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor<T> {
 
-	long currentTimestamp = 0;
-
-	/**
-	 * Extracts a timestamp from an element. The timestamp must be monotonically increasing.
-	 *
-	 * @param element The element that the timestamp is extracted from.
-	 * @param currentTimestamp The current internal timestamp of the element.
-	 * @return The new timestamp.
-	 */
-	public abstract long extractAscendingTimestamp(T element, long currentTimestamp);
-
-	@Override
-	public final long extractTimestamp(T element, long currentTimestamp) {
-		long newTimestamp = extractAscendingTimestamp(element, currentTimestamp);
-		if (newTimestamp < this.currentTimestamp) {
-			throw new RuntimeException("Timestamp is lower than previously extracted timestamp. " +
-					"You should implement a custom TimestampExtractor.");
-		}
-		this.currentTimestamp = newTimestamp;
-		return this.currentTimestamp;
-	}
-
-	@Override
-	public final long extractWatermark(T element, long currentTimestamp) {
-		return Long.MIN_VALUE;
-	}
-
-	@Override
-	public final long getCurrentWatermark() {
-		return currentTimestamp - 1;
-	}
 }

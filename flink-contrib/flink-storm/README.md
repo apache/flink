@@ -8,7 +8,6 @@ The code that builds the topology itself, can be reused unmodified. See `flink-s
 **Please note**: Do not add `storm-core` as a dependency. It is already included via `flink-storm`.
 
 The following Storm features are not (yet/fully) supported by the compatibility layer right now:
-* tuple meta information
 * no fault-tolerance guarantees (ie, calls to `ack()`/`fail()` and anchoring is ignored)
 * for whole Storm topologies the following is not supported by Flink:
   * direct emit connection pattern

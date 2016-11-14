@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -42,6 +43,7 @@ import scala.Product;
  * or a field expression string. TypeInformation can also be requested for the field.
  * The position index might specify a field of a Tuple, an array, or a simple type (only "0th field").
  */
+@Internal
 public abstract class FieldAccessor<R, F> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
@@ -180,11 +182,14 @@ public abstract class FieldAccessor<R, F> implements Serializable {
 			@SuppressWarnings("unchecked")
 			CompositeType<R> cType = (CompositeType<R>) type;
 
+			if(field.contains(".")) {
+				throw new IllegalArgumentException("The Pojo field accessor currently doesn't support nested POJOs");
+			}
+
 			List<CompositeType.FlatFieldDescriptor> fieldDescriptors = cType.getFlatFields(field);
 
 			int logicalKeyPosition = fieldDescriptors.get(0).getPosition();
 			this.fieldType = fieldDescriptors.get(0).getType();
-			Class<?> keyClass = fieldType.getTypeClass();
 
 			if (cType instanceof PojoTypeInfo) {
 				comparator = (PojoComparator<R>) cType.createComparator(

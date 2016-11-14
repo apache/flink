@@ -20,13 +20,15 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.configuration.Configuration;
 
+import java.io.Serializable;
+
 /**
  * A factory to create a specific state backend. The state backend creation gets a Configuration
  * object that can be used to read further config values.
  * 
  * @param <T> The type of the state backend created.
  */
-public interface StateBackendFactory<T extends StateBackend<T>> {
+public interface StateBackendFactory<T extends AbstractStateBackend> extends Serializable {
 
 	/**
 	 * Creates the state backend, optionally using the given configuration.
@@ -36,5 +38,5 @@ public interface StateBackendFactory<T extends StateBackend<T>> {
 	 * 
 	 * @throws Exception Exceptions during instantiation can be forwarded.
 	 */
-	StateBackend<T> createFromConfig(Configuration config) throws Exception;
+	AbstractStateBackend createFromConfig(Configuration config) throws Exception;
 }

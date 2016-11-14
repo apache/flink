@@ -18,9 +18,7 @@
 
 package org.apache.flink.api.common.functions;
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 
 /**
@@ -32,6 +30,7 @@ import org.apache.flink.util.Collector;
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
  */
+@Public
 public abstract class RichFlatMapFunction<IN, OUT> extends AbstractRichFunction implements FlatMapFunction<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;

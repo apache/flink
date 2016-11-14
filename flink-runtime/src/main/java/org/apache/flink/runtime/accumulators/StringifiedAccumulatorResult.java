@@ -55,6 +55,9 @@ public class StringifiedAccumulatorResult implements java.io.Serializable{
 	//  Utilities
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Flatten a map of accumulator names to Accumulator instances into an array of StringifiedAccumulatorResult values
+     */
 	public static StringifiedAccumulatorResult[] stringifyAccumulatorResults(Map<String, Accumulator<?, ?>> accs) {
 		if (accs == null || accs.isEmpty()) {
 			return new StringifiedAccumulatorResult[0];
@@ -65,9 +68,14 @@ public class StringifiedAccumulatorResult implements java.io.Serializable{
 			int i = 0;
 			for (Map.Entry<String, Accumulator<?, ?>> entry : accs.entrySet()) {
 				StringifiedAccumulatorResult result;
-				Accumulator<?, ?> value = entry.getValue();
-				if (value != null) {
-					result = new StringifiedAccumulatorResult(entry.getKey(), value.getClass().getSimpleName(), value.toString());
+				Accumulator<?, ?> accumulator = entry.getValue();
+				if (accumulator != null) {
+					Object localValue = accumulator.getLocalValue();
+					if (localValue != null) {
+						result = new StringifiedAccumulatorResult(entry.getKey(), accumulator.getClass().getSimpleName(), localValue.toString());
+					} else {
+						result = new StringifiedAccumulatorResult(entry.getKey(), accumulator.getClass().getSimpleName(), "null");
+					}
 				} else {
 					result = new StringifiedAccumulatorResult(entry.getKey(), "null", "null");
 				}

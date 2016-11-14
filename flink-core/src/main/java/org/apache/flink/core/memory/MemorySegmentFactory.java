@@ -18,22 +18,27 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.annotation.Internal;
+
 import java.nio.ByteBuffer;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A factory for memory segments. The purpose of this factory is to make sure that all memory segments
  * for heap data are of the same type. That way, the runtime does not mix the various specializations
  * of the {@link org.apache.flink.core.memory.MemorySegment}. Not mixing them has shown to be beneficial
  * to method specialization by the JIT and to overall performance.
- * <p>
- * Note that this factory auto-initialized to use {@link org.apache.flink.core.memory.HeapMemorySegment},
+ * 
+ * <p>Note that this factory auto-initialized to use {@link org.apache.flink.core.memory.HeapMemorySegment},
  * if a request to create a segment comes before the initialization.
  */
+@Internal
 public class MemorySegmentFactory {
 
 	/** The factory to use */
 	private static volatile Factory factory;
-	
+
 	/**
 	 * Creates a new memory segment that targets the given heap memory region.
 	 * This method should be used to turn short lived byte arrays into memory segments.
@@ -107,26 +112,28 @@ public class MemorySegmentFactory {
 		ensureInitialized();
 		return factory.wrapPooledOffHeapMemory(memory, owner);
 	}
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	/**
-	 * Initializes this factory with the given concrete factory.
-	 * 
+	 * Initializes this factory with the given concrete factory, iff it is not yet initialized.
+	 * This also checks if the factory is already initialized to the exact same concrete factory
+	 * as given.
+	 *
 	 * @param f The concrete factory to use.
-	 * @throws java.lang.IllegalStateException Thrown, if this factory has been initialized before.
+	 * @return True, if the factory is initialized with the given concrete factory, or if it was already
+	 *         initialized with the exact same concrete factory. False, if it is already initialized with
+	 *         a different concrete factory.
 	 */
-	public static void initializeFactory(Factory f) {
-		if (f == null) {
-			throw new NullPointerException();
-		}
-	
+	public static boolean initializeIfNotInitialized(Factory f) {
+		checkNotNull(f);
+
 		synchronized (MemorySegmentFactory.class) {
 			if (factory == null) {
 				factory = f;
-			}
-			else {
-				throw new IllegalStateException("Factory has already been initialized");
+				return true;
+			} else {
+				return factory == f;
 			}
 		}
 	}
@@ -148,10 +155,17 @@ public class MemorySegmentFactory {
 	public static Factory getFactory() {
 		return factory;
 	}
-	
+
+	/**
+	 * Sets the factory to the {@link HeapMemorySegment#FACTORY} is no factory has been initialized, yet.
+	 */
 	private static void ensureInitialized() {
 		if (factory == null) {
-			factory = HeapMemorySegment.FACTORY;
+			synchronized (MemorySegmentFactory.class) {
+				if (factory == null) {
+					factory = HeapMemorySegment.FACTORY;
+				}
+			}
 		}
 	}
 
@@ -162,7 +176,7 @@ public class MemorySegmentFactory {
 	/**
 	 * A concrete factory for memory segments.
 	 */
-	public static interface Factory {
+	public interface Factory {
 
 		/**
 		 * Creates a new memory segment that targets the given heap memory region.

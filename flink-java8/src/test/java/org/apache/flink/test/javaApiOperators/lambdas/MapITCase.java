@@ -24,10 +24,24 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 
 public class MapITCase extends JavaProgramTestBase {
 
-	private static final String EXPECTED_RESULT = "bb\n" +
-			"bb\n" +
-			"bc\n" +
-			"bd\n";
+	public static class Trade {
+
+		public String v;
+
+		public Trade(String v) {
+			this.v = v;
+		}
+
+		@Override
+		public String toString() {
+			return v;
+		}
+	}
+
+	private static final String EXPECTED_RESULT = "22\n" +
+			"22\n" +
+			"23\n" +
+			"24\n";
 
 	private String resultPath;
 
@@ -40,8 +54,12 @@ public class MapITCase extends JavaProgramTestBase {
 	protected void testProgram() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<String> stringDs = env.fromElements("aa", "ab", "ac", "ad");
-		DataSet<String> mappedDs = stringDs.map (s -> s.replace("a", "b"));
+		DataSet<Integer> stringDs = env.fromElements(11, 12, 13, 14);
+		DataSet<String> mappedDs = stringDs
+			.map(Object::toString)
+			.map (s -> s.replace("1", "2"))
+			.map(Trade::new)
+			.map(Trade::toString);
 		mappedDs.writeAsText(resultPath);
 		env.execute();
 	}

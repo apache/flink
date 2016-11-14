@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io;
 
 import java.util.HashMap;
@@ -27,9 +26,12 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.types.Value;
-import org.junit.Assert;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests runtime context access from inside an RichInputFormat class
@@ -39,10 +41,16 @@ public class RichInputFormatTest {
 	@Test
 	public void testCheckRuntimeContextAccess() {
 		final SerializedInputFormat<Value> inputFormat = new SerializedInputFormat<Value>();
-		final TaskInfo taskInfo = new TaskInfo("test name", 1, 3, 0);
-		inputFormat.setRuntimeContext(new RuntimeUDFContext(taskInfo, getClass().getClassLoader(), new ExecutionConfig(), new HashMap<String, Future<Path>>(), new HashMap<String, Accumulator<?, ?>>()));
+		final TaskInfo taskInfo = new TaskInfo("test name", 3, 1, 3, 0);
+		inputFormat.setRuntimeContext(
+				new RuntimeUDFContext(
+						taskInfo, getClass().getClassLoader(), new ExecutionConfig(),
+						new HashMap<String, Future<Path>>(),
+						new HashMap<String, Accumulator<?, ?>>(),
+						new UnregisteredMetricsGroup()));
 
-		Assert.assertEquals(inputFormat.getRuntimeContext().getIndexOfThisSubtask(), 1);
-		Assert.assertEquals(inputFormat.getRuntimeContext().getNumberOfParallelSubtasks(),3);
+		assertEquals(inputFormat.getRuntimeContext().getIndexOfThisSubtask(), 1);
+		assertEquals(inputFormat.getRuntimeContext().getNumberOfParallelSubtasks(),3);
 	}
+
 }

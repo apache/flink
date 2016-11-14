@@ -107,7 +107,7 @@ public class GroupingTest {
 		
 	}
 	
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testGroupByKeyFields4() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -117,7 +117,7 @@ public class GroupingTest {
 		tupleDs.groupBy(5);
 	}
 	
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testGroupByKeyFields5() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -334,7 +334,7 @@ public class GroupingTest {
 		}
 	}
 	
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testGroupSortKeyFields2() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -606,8 +606,8 @@ public class GroupingTest {
 		public String myString;
 		public Nest nested;
 		
-		public CustomType() {};
-		
+		public CustomType() {}
+
 		public CustomType(int i, long l, String s) {
 			myInt = i;
 			myLong = l;

@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -50,8 +51,8 @@ public class DegreesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                 TestGraphUtils.getLongLongEdgeData(env), env);
 
-        DataSet<Tuple2<Long,Long>> data =graph.outDegrees();
-        List<Tuple2<Long,Long>> result= data.collect();
+        DataSet<Tuple2<Long, LongValue>> data = graph.outDegrees();
+        List<Tuple2<Long, LongValue>> result = data.collect();
        
         
         expectedResult = "1,2\n" +
@@ -76,8 +77,8 @@ public class DegreesITCase extends MultipleProgramsTestBase {
 
         
         
-        DataSet<Tuple2<Long,Long>> data =graph.outDegrees();
-        List<Tuple2<Long,Long>> result= data.collect();
+        DataSet<Tuple2<Long, LongValue>> data = graph.outDegrees();
+        List<Tuple2<Long, LongValue>> result = data.collect();
         
         expectedResult = "1,3\n" +
                 "2,1\n" +
@@ -99,8 +100,8 @@ public class DegreesITCase extends MultipleProgramsTestBase {
 	            TestGraphUtils.getLongLongEdgeData(env), env);
 
 
-        DataSet<Tuple2<Long,Long>> data =graph.inDegrees();
-        List<Tuple2<Long,Long>> result= data.collect();
+        DataSet<Tuple2<Long, LongValue>> data = graph.inDegrees();
+        List<Tuple2<Long, LongValue>> result = data.collect();
 	    
 	    expectedResult = "1,1\n" +
 		            "2,1\n" +
@@ -120,8 +121,8 @@ public class DegreesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                 TestGraphUtils.getLongLongEdgeDataWithZeroDegree(env), env);
 
-        DataSet<Tuple2<Long,Long>> data =graph.inDegrees();
-        List<Tuple2<Long,Long>> result= data.collect();
+        DataSet<Tuple2<Long, LongValue>> data = graph.inDegrees();
+        List<Tuple2<Long, LongValue>> result = data.collect();
         
         expectedResult = "1,0\n" +
 	                "2,1\n" +
@@ -142,8 +143,8 @@ public class DegreesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                 TestGraphUtils.getLongLongEdgeData(env), env);
 
-        DataSet<Tuple2<Long,Long>> data =graph.getDegrees();
-        List<Tuple2<Long,Long>> result= data.collect();
+        DataSet<Tuple2<Long, LongValue>> data = graph.getDegrees();
+        List<Tuple2<Long, LongValue>> result = data.collect();
         
         expectedResult = "1,3\n" +
 	                "2,2\n" +
@@ -164,8 +165,8 @@ public class DegreesITCase extends MultipleProgramsTestBase {
         Graph<Long, NullValue, Long> graph =
                 Graph.fromDataSet(TestGraphUtils.getDisconnectedLongLongEdgeData(env), env);
 
-        DataSet<Tuple2<Long,Long>> data =graph.outDegrees();
-        List<Tuple2<Long,Long>> result= data.collect();
+        DataSet<Tuple2<Long, LongValue>> data = graph.outDegrees();
+        List<Tuple2<Long, LongValue>> result = data.collect();
         
         expectedResult = "1,2\n" +
                 "2,1\n" +

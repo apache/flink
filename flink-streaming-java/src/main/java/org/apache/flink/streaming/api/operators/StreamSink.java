@@ -17,10 +17,12 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+@Internal
 public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFunction<IN>>
 		implements OneInputStreamOperator<IN, Object> {
 
@@ -28,7 +30,6 @@ public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFuncti
 
 	public StreamSink(SinkFunction<IN> sinkFunction) {
 		super(sinkFunction);
-
 		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
@@ -38,7 +39,10 @@ public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFuncti
 	}
 
 	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		// ignore it for now, we are a sink, after all
+	protected void reportOrForwardLatencyMarker(LatencyMarker maker) {
+		// all operators are tracking latencies
+		this.latencyGauge.reportLatency(maker, true);
+
+		// sinks don't forward latency markers
 	}
 }

@@ -18,9 +18,12 @@
 package org.apache.flink.api.common.typeutils.base.array;
 
 import static java.lang.Math.min;
+
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.base.IntComparator;
 
+@Internal
 public class IntPrimitiveArrayComparator extends PrimitiveArrayComparator<int[], IntComparator> {
 	public IntPrimitiveArrayComparator(boolean ascending) {
 		super(ascending, new IntComparator(ascending));

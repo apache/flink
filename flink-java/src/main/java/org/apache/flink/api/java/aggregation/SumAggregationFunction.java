@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.FloatValue;
@@ -25,6 +26,7 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.ShortValue;
 
+@Internal
 public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 
 	private static final long serialVersionUID = 1L;

@@ -21,35 +21,39 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
-import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapperFactory;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.util.Preconditions;
 
 /**
- * Class representing the operators in the streaming programs, with all their
- * properties.
- * 
+ * Class representing the operators in the streaming programs, with all their properties.
  */
+@Internal
 public class StreamNode implements Serializable {
 
 	private static final long serialVersionUID = 1L;
-	private static int currentSlotSharingIndex = 1;
 
 	transient private StreamExecutionEnvironment env;
 
-	private Integer id;
+	private final int id;
 	private Integer parallelism = null;
+	/**
+	 * Maximum parallelism for this stream node. The maximum parallelism is the upper limit for
+	 * dynamic scaling and the number of key groups used for partitioned state.
+	 */
+	private int maxParallelism;
 	private Long bufferTimeout = null;
-	private String operatorName;
-	private Integer slotSharingID;
-	private boolean isolatedSlot = false;
-	private KeySelector<?,?> statePartitioner;
+	private final String operatorName;
+	private String slotSharingGroup;
+	private KeySelector<?,?> statePartitioner1;
+	private KeySelector<?,?> statePartitioner2;
 	private TypeSerializer<?> stateKeySerializer;
 
 	private transient StreamOperator<?> operator;
@@ -61,20 +65,26 @@ public class StreamNode implements Serializable {
 	private List<StreamEdge> inEdges = new ArrayList<StreamEdge>();
 	private List<StreamEdge> outEdges = new ArrayList<StreamEdge>();
 
-	private Class<? extends AbstractInvokable> jobVertexClass;
+	private final Class<? extends AbstractInvokable> jobVertexClass;
 
 	private InputFormat<?, ?> inputFormat;
 
-	public StreamNode(StreamExecutionEnvironment env, Integer id, StreamOperator<?> operator,
-			String operatorName, List<OutputSelector<?>> outputSelector,
-			Class<? extends AbstractInvokable> jobVertexClass) {
+	private String transformationId;
+
+	public StreamNode(StreamExecutionEnvironment env,
+		Integer id,
+		String slotSharingGroup,
+		StreamOperator<?> operator,
+		String operatorName,
+		List<OutputSelector<?>> outputSelector,
+		Class<? extends AbstractInvokable> jobVertexClass) {
 		this.env = env;
 		this.id = id;
 		this.operatorName = operatorName;
 		this.operator = operator;
 		this.outputSelectors = outputSelector;
 		this.jobVertexClass = jobVertexClass;
-		this.slotSharingID = currentSlotSharingIndex;
+		this.slotSharingGroup = slotSharingGroup;
 	}
 
 	public void addInEdge(StreamEdge inEdge) {
@@ -121,12 +131,12 @@ public class StreamNode implements Serializable {
 		return inEdgeIndices;
 	}
 
-	public Integer getId() {
+	public int getId() {
 		return id;
 	}
 
 	public int getParallelism() {
-		if (parallelism == -1) {
+		if (parallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
 			return env.getParallelism();
 		} else {
 			return parallelism;
@@ -135,6 +145,25 @@ public class StreamNode implements Serializable {
 
 	public void setParallelism(Integer parallelism) {
 		this.parallelism = parallelism;
+	}
+
+	/**
+	 * Get the maximum parallelism for this stream node.
+	 *
+	 * @return Maximum parallelism
+	 */
+	int getMaxParallelism() {
+		return maxParallelism;
+	}
+
+	/**
+	 * Set the maximum parallelism for this stream node.
+	 *
+	 * @param maxParallelism Maximum parallelism to be set
+	 */
+	void setMaxParallelism(int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0, "The maximum parallelism must be at least 1.");
+		this.maxParallelism = maxParallelism;
 	}
 
 	public Long getBufferTimeout() {
@@ -157,16 +186,8 @@ public class StreamNode implements Serializable {
 		return operatorName;
 	}
 
-	public void setOperatorName(String operatorName) {
-		this.operatorName = operatorName;
-	}
-
 	public List<OutputSelector<?>> getOutputSelectors() {
 		return outputSelectors;
-	}
-
-	public OutputSelectorWrapper<?> getOutputSelectorWrapper() {
-		return OutputSelectorWrapperFactory.create(getOutputSelectors());
 	}
 
 	public void addOutputSelector(OutputSelector<?> outputSelector) {
@@ -209,29 +230,38 @@ public class StreamNode implements Serializable {
 		this.inputFormat = inputFormat;
 	}
 
-	public int getSlotSharingID() {
-		return isolatedSlot ? -1 : slotSharingID;
+	public void setSlotSharingGroup(String slotSharingGroup) {
+		this.slotSharingGroup = slotSharingGroup;
 	}
 
-	public void startNewSlotSharingGroup() {
-		this.slotSharingID = ++currentSlotSharingIndex;
+	public String getSlotSharingGroup() {
+		return slotSharingGroup;
 	}
 
-	public void isolateSlot() {
-		isolatedSlot = true;
+	public boolean isSameSlotSharingGroup(StreamNode downstreamVertex) {
+		return (slotSharingGroup == null && downstreamVertex.slotSharingGroup == null) ||
+				(slotSharingGroup != null && slotSharingGroup.equals(downstreamVertex.slotSharingGroup));
 	}
-	
+
 	@Override
 	public String toString() {
 		return operatorName + "-" + id;
 	}
 
-	public KeySelector<?, ?> getStatePartitioner() {
-		return statePartitioner;
+	public KeySelector<?, ?> getStatePartitioner1() {
+		return statePartitioner1;
 	}
 
-	public void setStatePartitioner(KeySelector<?, ?> statePartitioner) {
-		this.statePartitioner = statePartitioner;
+	public KeySelector<?, ?> getStatePartitioner2() {
+		return statePartitioner2;
+	}
+
+	public void setStatePartitioner1(KeySelector<?, ?> statePartitioner) {
+		this.statePartitioner1 = statePartitioner;
+	}
+
+	public void setStatePartitioner2(KeySelector<?, ?> statePartitioner) {
+		this.statePartitioner2 = statePartitioner;
 	}
 
 	public TypeSerializer<?> getStateKeySerializer() {
@@ -240,6 +270,14 @@ public class StreamNode implements Serializable {
 
 	public void setStateKeySerializer(TypeSerializer<?> stateKeySerializer) {
 		this.stateKeySerializer = stateKeySerializer;
+	}
+
+	String getTransformationId() {
+		return transformationId;
+	}
+
+	void setTransformationId(String transformationId) {
+		this.transformationId = transformationId;
 	}
 
 	@Override
@@ -252,12 +290,11 @@ public class StreamNode implements Serializable {
 		}
 
 		StreamNode that = (StreamNode) o;
-
-		return id.equals(that.id);
+		return id == that.id;
 	}
 
 	@Override
 	public int hashCode() {
-		return id.hashCode();
+		return id;
 	}
 }

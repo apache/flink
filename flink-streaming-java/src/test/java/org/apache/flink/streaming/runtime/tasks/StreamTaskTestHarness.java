@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -26,7 +27,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleIn
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.streaming.api.collector.selector.BroadcastOutputSelectorWrapper;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -34,16 +35,16 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
-import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
-import org.apache.flink.util.InstantiationUtil;
+
 import org.junit.Assert;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
 
 /**
  * Test harness for testing a {@link StreamTask}.
@@ -91,6 +92,7 @@ public class StreamTaskTestHarness<OUT> {
 	// input related methods only need to be implemented once, in generic form
 	protected int numInputGates;
 	protected int numInputChannelsPerGate;
+	
 	@SuppressWarnings("rawtypes")
 	protected StreamTestSingleInputGate[] inputGates;
 
@@ -102,19 +104,21 @@ public class StreamTaskTestHarness<OUT> {
 		this.jobConfig = new Configuration();
 		this.taskConfig = new Configuration();
 		this.executionConfig = new ExecutionConfig();
-		executionConfig.enableTimestamps();
-		try {
-			InstantiationUtil.writeObjectToConfig(executionConfig, this.jobConfig, ExecutionConfig.CONFIG_KEY);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
 
 		streamConfig = new StreamConfig(taskConfig);
 		streamConfig.setChainStart();
 		streamConfig.setBufferTimeout(0);
+		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		outputSerializer = outputType.createSerializer(executionConfig);
-		outputStreamRecordSerializer = new MultiplexingStreamRecordSerializer<OUT>(outputSerializer);
+		outputStreamRecordSerializer = new StreamElementSerializer<OUT>(outputSerializer);
+	}
+
+	public ProcessingTimeService getProcessingTimeService() {
+		if (!(task instanceof StreamTask)) {
+			throw new UnsupportedOperationException("getProcessingTimeService() only supported on StreamTasks.");
+		}
+		return ((StreamTask<?, ?>) task).getProcessingTimeService();
 	}
 
 	/**
@@ -128,7 +132,7 @@ public class StreamTaskTestHarness<OUT> {
 
 		mockEnv.addOutput(outputList, outputStreamRecordSerializer);
 
-		streamConfig.setOutputSelectorWrapper(new BroadcastOutputSelectorWrapper<Object>());
+		streamConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
 		streamConfig.setNumberOfOutputs(1);
 
 		StreamOperator<OUT> dummyOperator = new AbstractStreamOperator<OUT>() {
@@ -136,8 +140,8 @@ public class StreamTaskTestHarness<OUT> {
 		};
 
 		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
-		StreamNode sourceVertexDummy = new StreamNode(null, 0, dummyOperator, "source dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
-		StreamNode targetVertexDummy = new StreamNode(null, 1, dummyOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
+		StreamNode sourceVertexDummy = new StreamNode(null, 0, "group", dummyOperator, "source dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
+		StreamNode targetVertexDummy = new StreamNode(null, 1, "group", dummyOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
 
 		outEdgesInOrder.add(new StreamEdge(sourceVertexDummy, targetVertexDummy, 0, new LinkedList<String>(), new BroadcastPartitioner<Object>()));
 		streamConfig.setOutEdgesInOrder(outEdgesInOrder);
@@ -147,22 +151,18 @@ public class StreamTaskTestHarness<OUT> {
 
 	}
 
+	public StreamMockEnvironment createEnvironment() {
+		return new StreamMockEnvironment(
+				jobConfig, taskConfig, executionConfig, memorySize, new MockInputSplitProvider(), bufferSize);
+	}
+
 	/**
 	 * Invoke the Task. This resets the output of any previous invocation. This will start a new
 	 * Thread to execute the Task in. Use {@link #waitForTaskCompletion()} to wait for the
 	 * Task thread to finish running.
 	 */
 	public void invoke() throws Exception {
-		mockEnv = new StreamMockEnvironment(jobConfig, taskConfig, memorySize, new MockInputSplitProvider(), bufferSize);
-		task.setEnvironment(mockEnv);
-
-		initializeInputs();
-		initializeOutput();
-
-		task.registerInputOutput();
-
-		taskThread = new TaskThread(task);
-		taskThread.start();
+		invoke(createEnvironment());
 	}
 
 	/**
@@ -180,20 +180,74 @@ public class StreamTaskTestHarness<OUT> {
 		initializeInputs();
 		initializeOutput();
 
-		task.registerInputOutput();
-
 		taskThread = new TaskThread(task);
 		taskThread.start();
 	}
 
+	/**
+	 * Waits for the task completion.
+	 *
+	 * @throws Exception
+	 */
 	public void waitForTaskCompletion() throws Exception {
+		waitForTaskCompletion(Long.MAX_VALUE);
+	}
+
+	/**
+	 * Waits for the task completion. If this does not happen within the timeout, then a
+	 * TimeoutException is thrown.
+	 *
+	 * @param timeout Timeout for the task completion
+	 * @throws Exception
+	 */
+	public void waitForTaskCompletion(long timeout) throws Exception {
 		if (taskThread == null) {
 			throw new IllegalStateException("Task thread was not started.");
 		}
 
-		taskThread.join();
+		taskThread.join(timeout);
 		if (taskThread.getError() != null) {
 			throw new Exception("error in task", taskThread.getError());
+		}
+	}
+
+	/**
+	 * Waits for the task to be running.
+	 *
+	 * @throws Exception
+	 */
+	public void waitForTaskRunning() throws Exception {
+		waitForTaskRunning(Long.MAX_VALUE);
+	}
+
+	/**
+	 * Waits fro the task to be running. If this does not happen within the timeout, then a
+	 * TimeoutException is thrown.
+	 *
+	 * @param timeout Timeout for the task to be running.
+	 * @throws Exception
+	 */
+	public void waitForTaskRunning(long timeout) throws Exception {
+		if (taskThread == null) {
+			throw new IllegalStateException("Task thread was not started.");
+		}
+		else {
+			if (taskThread.task instanceof StreamTask) {
+				StreamTask<?, ?> streamTask = (StreamTask<?, ?>) taskThread.task;
+				while (!streamTask.isRunning()) {
+					Thread.sleep(10);
+					if (!taskThread.isAlive()) {
+						if (taskThread.getError() != null) {
+							throw new Exception("Task Thread failed due to an error.", taskThread.getError());
+						} else {
+							throw new Exception("Task Thread unexpectedly shut down.");
+						}
+					}
+				}
+			}
+			else {
+				throw new IllegalStateException("Not a StreamTask");
+			}
 		}
 	}
 
@@ -258,15 +312,14 @@ public class StreamTaskTestHarness<OUT> {
 	/**
 	 * This only returns after all input queues are empty.
 	 */
-	public void waitForInputProcessing() {
+	public void waitForInputProcessing() throws Exception {
 
-
-		// first wait for all input queues to be empty
-		try {
-			Thread.sleep(1);
-		} catch (InterruptedException ignored) {}
-		
 		while (true) {
+			Throwable error = taskThread.getError();
+			if (error != null) {
+				throw new Exception("Exception in the task thread", error);
+			}
+
 			boolean allEmpty = true;
 			for (int i = 0; i < numInputGates; i++) {
 				if (!inputGates[i].allQueuesEmpty()) {
@@ -315,7 +368,6 @@ public class StreamTaskTestHarness<OUT> {
 		private final AbstractInvokable task;
 		
 		private volatile Throwable error;
-
 
 		TaskThread(AbstractInvokable task) {
 			super("Task Thread");

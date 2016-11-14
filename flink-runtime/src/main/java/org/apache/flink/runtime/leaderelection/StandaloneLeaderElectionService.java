@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 import java.util.UUID;
 

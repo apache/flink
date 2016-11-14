@@ -18,11 +18,14 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * Function to implement a custom partition assignment for keys.
  * 
  * @param <K> The type of the key to be partitioned.
  */
+@Public
 public interface Partitioner<K> extends java.io.Serializable {
 
 	/**

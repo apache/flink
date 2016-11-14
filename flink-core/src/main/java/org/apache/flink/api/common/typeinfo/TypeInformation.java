@@ -18,12 +18,16 @@
 
 package org.apache.flink.api.common.typeinfo;
 
+import java.util.Map;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import java.io.Serializable;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.Collections;
 
 /**
  * TypeInformation is the core class of Flink's type system. Flink requires a type information
@@ -67,6 +71,7 @@ import java.util.List;
  *
  * @param <T> The type represented by this type information.
  */
+@Public
 public abstract class TypeInformation<T> implements Serializable {
 	
 	private static final long serialVersionUID = -7742311969684489493L;
@@ -78,6 +83,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 *  
 	 * @return True, if this type information describes a basic type, false otherwise.
 	 */
+	@PublicEvolving
 	public abstract boolean isBasicType();
 	
 	/**
@@ -86,6 +92,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 *  
 	 * @return True, if this type information describes a tuple type, false otherwise.
 	 */
+	@PublicEvolving
 	public abstract boolean isTupleType();
 	
 	/**
@@ -93,6 +100,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 * 
 	 * @return Gets the number of fields in this type without nesting.
 	 */
+	@PublicEvolving
 	public abstract int getArity();
 	
 	/**
@@ -103,6 +111,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 * 
 	 * @return The number of fields in this type, including its sub-fields (for composite types) 
 	 */
+	@PublicEvolving
 	public abstract int getTotalFields();
 	
 	/**
@@ -110,16 +119,29 @@ public abstract class TypeInformation<T> implements Serializable {
 	 *  
 	 * @return The class of the type represented by this type information.
 	 */
+	@PublicEvolving
 	public abstract Class<T> getTypeClass();
 
 	/**
-	 * Returns the generic parameters of this type.
+	 * Optional method for giving Flink's type extraction system information about the mapping
+	 * of a generic type parameter to the type information of a subtype. This information is necessary
+	 * in cases where type information should be deduced from an input type.
 	 *
-	 * @return The list of generic parameters. This list can be empty.
+	 * For instance, a method for a {@link Tuple2} would look like this:
+	 * <code>
+	 * Map m = new HashMap();
+	 * m.put("T0", this.getTypeAt(0));
+	 * m.put("T1", this.getTypeAt(1));
+	 * return m;
+	 * </code>
+	 *
+	 * @return map of inferred subtypes; it does not have to contain all generic parameters as key;
+	 *         values may be null if type could not be inferred
 	 */
-	public List<TypeInformation<?>> getGenericParameters() {
-		// Return an empty list as the default implementation
-		return new LinkedList<>();
+	@PublicEvolving
+	public Map<String, TypeInformation<?>> getGenericParameters() {
+		// return an empty map as the default implementation
+		return Collections.emptyMap();
 	}
 
 	/**
@@ -128,12 +150,14 @@ public abstract class TypeInformation<T> implements Serializable {
 	 *  
 	 * @return True, if the type can be used as a key, false otherwise.
 	 */
+	@PublicEvolving
 	public abstract boolean isKeyType();
 
 	/**
 	 * Checks whether this type can be used as a key for sorting.
 	 * The order produced by sorting this type must be meaningful.
 	 */
+	@PublicEvolving
 	public boolean isSortKeyType() {
 		return isKeyType();
 	}
@@ -145,6 +169,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 * @param config The config used to parameterize the serializer.
 	 * @return A serializer for this type.
 	 */
+	@PublicEvolving
 	public abstract TypeSerializer<T> createSerializer(ExecutionConfig config);
 
 	@Override
@@ -163,4 +188,39 @@ public abstract class TypeInformation<T> implements Serializable {
 	 * @return true if obj can be equaled with this, otherwise false
 	 */
 	public abstract boolean canEqual(Object obj);
+	
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Creates a TypeInformation for the type described by the given class.
+	 * 
+	 * <p>This method only works for non-generic types. For generic types, use the
+	 * {@link #of(TypeHint)} method.
+	 *
+	 * @param typeClass The class of the type.
+	 * @param <T> The generic type.
+	 *
+	 * @return The TypeInformation object for the type described by the hint.
+	 */
+	public static <T> TypeInformation<T> of(Class<T> typeClass) {
+		return TypeExtractor.createTypeInfo(typeClass);
+	}
+	
+	/**
+	 * Creates a TypeInformation for a generic type via a utility "type hint".
+	 * This method can be used as follows:
+	 * <pre>
+	 * {@code
+	 * TypeInformation<Tuple2<String, Long>> info = TypeInformation.of(new TypeHint<Tuple2<String, Long>>(){});
+	 * }
+	 * </pre>
+	 * 
+	 * @param typeHint The hint for the generic type.
+	 * @param <T> The generic type.
+	 *    
+	 * @return The TypeInformation object for the type described by the hint.
+	 */
+	public static <T> TypeInformation<T> of(TypeHint<T> typeHint) {
+		return typeHint.getTypeInfo();
+	}
 }

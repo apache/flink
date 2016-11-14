@@ -18,10 +18,11 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.ResettableValue;
 
-
+@Internal
 public abstract class MaxAggregationFunction<T extends Comparable<T>> extends AggregationFunction<T> {
 	private static final long serialVersionUID = 1L;
 
@@ -97,7 +98,7 @@ public abstract class MaxAggregationFunction<T extends Comparable<T>> extends Ag
 		@Override
 		public <T> AggregationFunction<T> createAggregationFunction(Class<T> type) {
 			if (Comparable.class.isAssignableFrom(type)) {
-				if (ResettableValue.class.isAssignableFrom(type) & CopyableValue.class.isAssignableFrom(type)) {
+				if (ResettableValue.class.isAssignableFrom(type) && CopyableValue.class.isAssignableFrom(type)) {
 					return (AggregationFunction<T>) new MutableMaxAgg();
 				} else {
 					return (AggregationFunction<T>) new ImmutableMaxAgg();

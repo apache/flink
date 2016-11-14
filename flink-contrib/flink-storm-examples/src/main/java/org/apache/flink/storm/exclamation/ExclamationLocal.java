@@ -19,7 +19,6 @@ package org.apache.flink.storm.exclamation;
 
 import backtype.storm.Config;
 import backtype.storm.topology.TopologyBuilder;
-import backtype.storm.utils.Utils;
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
 import org.apache.flink.storm.exclamation.operators.ExclamationBolt;
@@ -63,11 +62,10 @@ public class ExclamationLocal {
 		// execute program locally
 		Config conf = new Config();
 		conf.put(ExclamationBolt.EXCLAMATION_COUNT, ExclamationTopology.getExclamation());
+		conf.put(FlinkLocalCluster.SUBMIT_BLOCKING, true); // only required to stabilize integration test
 
 		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
 		cluster.submitTopology(topologyId, conf, FlinkTopology.createTopology(builder));
-
-		Utils.sleep(10 * 1000);
 		cluster.shutdown();
 	}
 

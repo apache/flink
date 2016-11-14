@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +41,7 @@ import org.apache.flink.types.StringValue;
  * Record delimiter separate records from each other ('\n' is common). Field
  * delimiters separate fields within a record.
  */
+@PublicEvolving
 public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implements InputTypeConfigurable {
 	private static final long serialVersionUID = 1L;
 
@@ -120,7 +122,7 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 	 * Configures the format to either allow null values (writing an empty field),
 	 * or to throw an exception when encountering a null field.
 	 * <p>
-	 * by default, null values are allowed.
+	 * by default, null values are disallowed.
 	 *
 	 * @param allowNulls Flag to indicate whether the output format should accept null values.
 	 */

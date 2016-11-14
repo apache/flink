@@ -19,25 +19,29 @@
 package org.apache.flink.streaming.api.scala
 
 import com.esotericsoftware.kryo.Serializer
-import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
+import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
+import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
-import org.apache.flink.runtime.state.StateBackend
+import org.apache.flink.runtime.state.AbstractStateBackend
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
-import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
-import org.apache.flink.streaming.api.functions.source.SourceFunction
+import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
-import org.apache.flink.types.StringValue
 import org.apache.flink.util.SplittableIterator
 
 import scala.collection.JavaConverters._
-import scala.reflect.ClassTag
-
 import _root_.scala.language.implicitConversions
 
+@Public
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
+
+  /**
+    * @return the wrapped Java environment
+    */
+  def getJavaEnv: JavaEnv = javaEnv
 
   /**
    * Gets the config object.
@@ -55,10 +59,28 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
+    * Sets the maximum degree of parallelism defined for the program.
+    * The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
+    * defines the number of key groups used for partitioned state.
+    **/
+  def setMaxParallelism(maxParallelism: Int): Unit = {
+    javaEnv.setMaxParallelism(maxParallelism)
+  }
+
+  /**
    * Returns the default parallelism for this execution environment. Note that this
    * value can be overridden by individual operations using [[DataStream#setParallelism(int)]]
    */
   def getParallelism = javaEnv.getParallelism
+
+  /**
+    * Returns the maximum degree of parallelism defined for the program.
+    *
+    * The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
+    * defines the number of key groups used for partitioned state.
+    *
+    */
+  def getMaxParallelism = javaEnv.getMaxParallelism
 
   /**
    * Sets the maximum time frequency (milliseconds) for the flushing of the
@@ -88,6 +110,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * avoiding serialization and de-serialization.
    *
    */
+  @PublicEvolving
   def disableOperatorChaining(): StreamExecutionEnvironment = {
     javaEnv.disableOperatorChaining()
     this
@@ -123,6 +146,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *           If true checkpointing will be enabled for iterative jobs as well.
    */
   @deprecated
+  @PublicEvolving
   def enableCheckpointing(interval : Long,
                           mode: CheckpointingMode,
                           force: Boolean) : StreamExecutionEnvironment = {
@@ -181,10 +205,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * operator states. Time interval between state checkpoints is specified in in millis.
    *
    * Setting this option assumes that the job is used in production and thus if not stated
-   * explicitly otherwise with calling with the
-   * [[setNumberOfExecutionRetries(int)]] method in case of
+   * explicitly otherwise with calling the [[setRestartStrategy]] method in case of
    * failure the job will be resubmitted to the cluster indefinitely.
    */
+  @deprecated
+  @PublicEvolving
   def enableCheckpointing() : StreamExecutionEnvironment = {
     javaEnv.enableCheckpointing()
     this
@@ -211,7 +236,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * program can be executed highly available and strongly consistent (assuming that Flink
    * is run in high-availability mode).
    */
-  def setStateBackend(backend: StateBackend[_]): StreamExecutionEnvironment = {
+  @PublicEvolving
+  def setStateBackend(backend: AbstractStateBackend): StreamExecutionEnvironment = {
     javaEnv.setStateBackend(backend)
     this
   }
@@ -219,22 +245,52 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Returns the state backend that defines how to store and checkpoint state.
    */
-  def getStateBackend: StateBackend[_] = javaEnv.getStateBackend()
-  
+  @PublicEvolving
+  def getStateBackend: AbstractStateBackend = javaEnv.getStateBackend()
+
   /**
-   * Sets the number of times that failed tasks are re-executed. A value of zero
-   * effectively disables fault tolerance. A value of "-1" indicates that the system
-   * default value (as defined in the configuration) should be used.
-   */
+    * Sets the restart strategy configuration. The configuration specifies which restart strategy
+    * will be used for the execution graph in case of a restart.
+    *
+    * @param restartStrategyConfiguration Restart strategy configuration to be set
+    */
+  @PublicEvolving
+  def setRestartStrategy(restartStrategyConfiguration: RestartStrategyConfiguration): Unit = {
+    javaEnv.setRestartStrategy(restartStrategyConfiguration)
+  }
+
+  /**
+    * Returns the specified restart strategy configuration.
+    *
+    * @return The restart strategy configuration to be used
+    */
+  @PublicEvolving
+  def getRestartStrategy: RestartStrategyConfiguration = {
+    javaEnv.getRestartStrategy()
+  }
+
+  /**
+    * Sets the number of times that failed tasks are re-executed. A value of zero
+    * effectively disables fault tolerance. A value of "-1" indicates that the system
+    * default value (as defined in the configuration) should be used.
+    *
+    * @deprecated This method will be replaced by [[setRestartStrategy()]]. The
+    *            FixedDelayRestartStrategyConfiguration contains the number of execution retries.
+    */
+  @PublicEvolving
   def setNumberOfExecutionRetries(numRetries: Int): Unit = {
     javaEnv.setNumberOfExecutionRetries(numRetries)
   }
 
   /**
-   * Gets the number of times the system will try to re-execute failed tasks. A value
-   * of "-1" indicates that the system default value (as defined in the configuration)
-   * should be used.
-   */
+    * Gets the number of times the system will try to re-execute failed tasks. A value
+    * of "-1" indicates that the system default value (as defined in the configuration)
+    * should be used.
+    *
+    * @deprecated This method will be replaced by [[getRestartStrategy]]. The
+    *            FixedDelayRestartStrategyConfiguration contains the number of execution retries.
+    */
+  @PublicEvolving
   def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
 
   // --------------------------------------------------------------------------------------------
@@ -316,6 +372,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * @param characteristic The time characteristic.
    */
+  @PublicEvolving
   def setStreamTimeCharacteristic(characteristic: TimeCharacteristic) : Unit = {
     javaEnv.setStreamTimeCharacteristic(characteristic)
   }
@@ -324,9 +381,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Gets the time characteristic/
    *
    * @see #setStreamTimeCharacteristic
-   *
    * @return The time characteristic.
    */
+  @PublicEvolving
   def getStreamTimeCharacteristic = javaEnv.getStreamTimeCharacteristic()
 
   // --------------------------------------------------------------------------------------------
@@ -349,9 +406,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Note that this operation will result in a non-parallel data source, i.e. a data source with
    * a parallelism of one.
    */
-  def fromElements[T: ClassTag: TypeInformation](data: T*): DataStream[T] = {
-    val typeInfo = implicitly[TypeInformation[T]]
-    fromCollection(data)(implicitly[ClassTag[T]], typeInfo)
+  def fromElements[T: TypeInformation](data: T*): DataStream[T] = {
+    fromCollection(data)
   }
 
   /**
@@ -361,11 +417,12 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Note that this operation will result in a non-parallel data source, i.e. a data source with
    * a parallelism of one.
    */
-  def fromCollection[T: ClassTag: TypeInformation](data: Seq[T]): DataStream[T] = {
+  def fromCollection[T: TypeInformation](data: Seq[T]): DataStream[T] = {
     require(data != null, "Data must not be null.")
     val typeInfo = implicitly[TypeInformation[T]]
 
-    javaEnv.fromCollection(scala.collection.JavaConversions.asJavaCollection(data), typeInfo)
+    val collection = scala.collection.JavaConversions.asJavaCollection(data)
+    asScalaStream(javaEnv.fromCollection(collection, typeInfo))
   }
 
   /**
@@ -374,86 +431,134 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Note that this operation will result in a non-parallel data source, i.e. a data source with
    * a parallelism of one.
    */
-  def fromCollection[T: ClassTag : TypeInformation] (data: Iterator[T]): DataStream[T] = {
+  def fromCollection[T: TypeInformation] (data: Iterator[T]): DataStream[T] = {
     val typeInfo = implicitly[TypeInformation[T]]
-    javaEnv.fromCollection(data.asJava, typeInfo)
+    asScalaStream(javaEnv.fromCollection(data.asJava, typeInfo))
   }
 
   /**
    * Creates a DataStream from the given [[SplittableIterator]].
    */
-  def fromParallelCollection[T: ClassTag : TypeInformation] (data: SplittableIterator[T]):
-  DataStream[T] = {
+  def fromParallelCollection[T: TypeInformation] (data: SplittableIterator[T]):
+      DataStream[T] = {
     val typeInfo = implicitly[TypeInformation[T]]
-    javaEnv.fromParallelCollection(data, typeInfo)
+    asScalaStream(javaEnv.fromParallelCollection(data, typeInfo))
   }
 
   /**
    * Creates a DataStream that represents the Strings produced by reading the
    * given file line wise. The file will be read with the system's default
    * character set.
-   *
    */
   def readTextFile(filePath: String): DataStream[String] =
-    javaEnv.readTextFile(filePath)
+    asScalaStream(javaEnv.readTextFile(filePath))
 
   /**
    * Creates a data stream that represents the Strings produced by reading the given file
    * line wise. The character set with the given name will be used to read the files.
    */
   def readTextFile(filePath: String, charsetName: String): DataStream[String] =
-    javaEnv.readTextFile(filePath, charsetName)
+    asScalaStream(javaEnv.readTextFile(filePath, charsetName))
 
-  /**
-   * Creates a data stream that represents the strings produced by reading the given file
-   * line wise. This method is similar to the standard text file reader, but it produces
-   * a data stream with mutable StringValue objects, rather than Java Strings.
-   * StringValues can be used to tune implementations to be less object and garbage
-   * collection heavy. The file will be read with the system's default character set.
-   */
-  def readTextFileWithValue(filePath: String): DataStream[StringValue] =
-      javaEnv.readTextFileWithValue(filePath)
-
-  /**
-   * Creates a data stream that represents the strings produced by reading the given file
-   * line wise. This method is similar to the standard text file reader, but it produces
-   * a data stream with mutable StringValue objects, rather than Java Strings.
-   * StringValues can be used to tune implementations to be less object and garbage
-   * collection heavy. The boolean flag indicates whether to skip lines that cannot
-   * be read with the given character set.
-   */
-  def readTextFileWithValue(filePath: String, charsetName : String, skipInvalidLines : Boolean):
-    DataStream[StringValue] =
-    javaEnv.readTextFileWithValue(filePath, charsetName, skipInvalidLines)
 
   /**
    * Reads the given file with the given input format. The file path should be passed
    * as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
    */
-  def readFile[T: ClassTag : TypeInformation](inputFormat: FileInputFormat[T], filePath: String):
-    DataStream[T] =
-    javaEnv.readFile(inputFormat, filePath)
+  def readFile[T: TypeInformation](inputFormat: FileInputFormat[T], filePath: String):
+        DataStream[T] =
+    asScalaStream(javaEnv.readFile(inputFormat, filePath))
 
   /**
-   * Creates a data stream that represents the primitive type produced by reading the given file
-   * line wise. The file path should be passed as a URI (e.g., "file:///some/local/file" or
-   * "hdfs://host:port/file/path").
-   */
-  def readFileOfPrimitives[T: ClassTag : TypeInformation](filePath: String,
-    delimiter: String = "\n", typeClass: Class[T]): DataStream[T] =
-    javaEnv.readFileOfPrimitives(filePath, delimiter, typeClass)
+    * Creates a DataStream that contains the contents of file created while
+    * system watches the given path. The file will be read with the system's
+    * default character set. The user can check the monitoring interval in milliseconds,
+    * and the way file modifications are handled. By default it checks for only new files
+    * every 100 milliseconds.
+    *
+    */
+  @Deprecated
+  def readFileStream(StreamPath: String, intervalMillis: Long = 100,
+                     watchType: FileMonitoringFunction.WatchType =
+                     FileMonitoringFunction.WatchType.ONLY_NEW_FILES): DataStream[String] =
+    asScalaStream(javaEnv.readFileStream(StreamPath, intervalMillis, watchType))
 
   /**
-   * Creates a DataStream that contains the contents of file created while
-   * system watches the given path. The file will be read with the system's
-   * default character set. The user can check the monitoring interval in milliseconds,
-   * and the way file modifications are handled. By default it checks for only new files
-   * every 100 milliseconds.
-   *
-   */
-  def readFileStream(StreamPath: String, intervalMillis: Long = 100, watchType: WatchType = 
-    WatchType.ONLY_NEW_FILES): DataStream[String] =
-    javaEnv.readFileStream(StreamPath, intervalMillis, watchType)
+    * Reads the contents of the user-specified path based on the given [[FileInputFormat]].
+    * Depending on the provided [[FileProcessingMode]].
+    *
+    * @param inputFormat
+    *          The input format used to create the data stream
+    * @param filePath
+    *          The path of the file, as a URI (e.g., "file:///some/local/file" or
+    *          "hdfs://host:port/file/path")
+    * @param watchType
+    *          The mode in which the source should operate, i.e. monitor path and react
+    *          to new data, or process once and exit
+    * @param interval
+    *          In the case of periodic path monitoring, this specifies the interval (in millis)
+    *          between consecutive path scans
+    * @param filter
+    *          The files to be excluded from the processing
+    * @return The data stream that represents the data read from the given file
+    *
+    * @deprecated Use {@link FileInputFormat#setFilesFilter(FilePathFilter)} to set a filter and
+    *         {@link StreamExecutionEnvironment#readFile(FileInputFormat,
+      *              String, FileProcessingMode, long)}
+    */
+  @PublicEvolving
+  @Deprecated
+  def readFile[T: TypeInformation](
+                                    inputFormat: FileInputFormat[T],
+                                    filePath: String,
+                                    watchType: FileProcessingMode,
+                                    interval: Long,
+                                    filter: FilePathFilter): DataStream[T] = {
+    asScalaStream(javaEnv.readFile(inputFormat, filePath, watchType, interval, filter))
+  }
+
+  /**
+    * Reads the contents of the user-specified path based on the given [[FileInputFormat]].
+    * Depending on the provided [[FileProcessingMode]], the source
+    * may periodically monitor (every `interval` ms) the path for new data
+    * ([[FileProcessingMode.PROCESS_CONTINUOUSLY]]), or process
+    * once the data currently in the path and exit
+    * ([[FileProcessingMode.PROCESS_ONCE]]). In addition,
+    * if the path contains files not to be processed, the user can specify a custom
+    * [[FilePathFilter]]. As a default implementation you can use
+    * [[FilePathFilter.createDefaultFilter()]].
+    *
+    * ** NOTES ON CHECKPOINTING: ** If the `watchType` is set to
+    * [[FileProcessingMode#PROCESS_ONCE]], the source monitors the path ** once **,
+    * creates the [[org.apache.flink.core.fs.FileInputSplit FileInputSplits]]
+    * to be processed, forwards them to the downstream
+    * [[ContinuousFileReaderOperator readers]] to read the actual data,
+    * and exits, without waiting for the readers to finish reading. This
+    * implies that no more checkpoint barriers are going to be forwarded
+    * after the source exits, thus having no checkpoints after that point.
+    *
+    * @param inputFormat
+    *          The input format used to create the data stream
+    * @param filePath
+    *          The path of the file, as a URI (e.g., "file:///some/local/file" or
+    *          "hdfs://host:port/file/path")
+    * @param watchType
+    *          The mode in which the source should operate, i.e. monitor path and react
+    *          to new data, or process once and exit
+    * @param interval
+    *          In the case of periodic path monitoring, this specifies the interval (in millis)
+    *          between consecutive path scans
+    * @return The data stream that represents the data read from the given file
+    */
+  @PublicEvolving
+  def readFile[T: TypeInformation](
+      inputFormat: FileInputFormat[T],
+      filePath: String,
+      watchType: FileProcessingMode,
+      interval: Long): DataStream[T] = {
+    val typeInfo = implicitly[TypeInformation[T]]
+    asScalaStream(javaEnv.readFile(inputFormat, filePath, watchType, interval, typeInfo))
+  }
 
   /**
    * Creates a new DataStream that contains the strings received infinitely
@@ -461,9 +566,10 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * character set. The maximum retry interval is specified in seconds, in case
    * of temporary service outage reconnection is initiated every second.
    */
+  @PublicEvolving
   def socketTextStream(hostname: String, port: Int, delimiter: Char = '\n', maxRetry: Long = 0):
-    DataStream[String] =
-    javaEnv.socketTextStream(hostname, port)
+        DataStream[String] =
+    asScalaStream(javaEnv.socketTextStream(hostname, port))
 
   /**
    * Generic method to create an input data stream with a specific input format.
@@ -471,8 +577,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * determine the type of the data produced by the input format. It will attempt to determine the
    * data type by reflection, unless the input format implements the ResultTypeQueryable interface.
    */
-  def createInput[T: ClassTag : TypeInformation](inputFormat: InputFormat[T, _]): DataStream[T] =
-    javaEnv.createInput(inputFormat)
+  @PublicEvolving
+  def createInput[T: TypeInformation](inputFormat: InputFormat[T, _]): DataStream[T] =
+    asScalaStream(javaEnv.createInput(inputFormat))
 
   /**
    * Create a DataStream using a user defined source function for arbitrary
@@ -483,19 +590,19 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * To change this afterwards call DataStreamSource.setParallelism(int)
    *
    */
-  def addSource[T: ClassTag: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
+  def addSource[T: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
     require(function != null, "Function must not be null.")
+    
     val cleanFun = scalaClean(function)
     val typeInfo = implicitly[TypeInformation[T]]
-    javaEnv.addSource(cleanFun).returns(typeInfo)
+    asScalaStream(javaEnv.addSource(cleanFun).returns(typeInfo))
   }
 
   /**
    * Create a DataStream using a user defined source function for arbitrary
    * source functionality.
-   *
    */
-  def addSource[T: ClassTag: TypeInformation](function: SourceContext[T] => Unit): DataStream[T] = {
+  def addSource[T: TypeInformation](function: SourceContext[T] => Unit): DataStream[T] = {
     require(function != null, "Function must not be null.")
     val sourceFunction = new SourceFunction[T] {
       val cleanFun = scalaClean(function)
@@ -511,10 +618,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Triggers the program execution. The environment will execute all parts of
    * the program that have resulted in a "sink" operation. Sink operations are
    * for example printing results or forwarding them to a message queue.
-   * <p>
+   * 
    * The program execution will be logged and displayed with a generated
    * default name.
-   *
    */
   def execute() = javaEnv.execute()
 
@@ -522,9 +628,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Triggers the program execution. The environment will execute all parts of
    * the program that have resulted in a "sink" operation. Sink operations are
    * for example printing results or forwarding them to a message queue.
-   * <p>
-   * The program execution will be logged and displayed with the provided name
-   *
+   * 
+   * The program execution will be logged and displayed with the provided name.
    */
   def execute(jobName: String) = javaEnv.execute(jobName)
 
@@ -533,7 +638,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * returns it as a String using a JSON representation of the execution data
    * flow graph. Note that this needs to be called, before the plan is
    * executed.
-   *
    */
   def getExecutionPlan = javaEnv.getExecutionPlan
 
@@ -542,12 +646,15 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * @return The StreamGraph representing the transformations
    */
+  @Internal
   def getStreamGraph = javaEnv.getStreamGraph
 
   /**
    * Getter of the wrapped [[org.apache.flink.streaming.api.environment.StreamExecutionEnvironment]]
+ *
    * @return The encased ExecutionEnvironment
    */
+  @Internal
   def getWrappedStreamExecutionEnvironment = javaEnv
 
   /**
@@ -573,6 +680,7 @@ object StreamExecutionEnvironment {
    * @param parallelism
    * The parallelism to use as the default local parallelism.
    */
+  @PublicEvolving
   def setDefaultLocalParallelism(parallelism: Int) : Unit =
     StreamExecutionEnvironment.setDefaultLocalParallelism(parallelism)
 

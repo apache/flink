@@ -44,6 +44,10 @@ public class WebLogAnalysisITCase extends JavaProgramTestBase {
 	}
 	@Override
 	protected void testProgram() throws Exception {
-		WebLogAnalysis.main(new String[]{docsPath, ranksPath, visitsPath, resultPath});
+		WebLogAnalysis.main(new String[]{
+				"--documents", docsPath,
+				"--ranks", ranksPath,
+				"--visits", visitsPath,
+				"--output", resultPath});
 	}
 }

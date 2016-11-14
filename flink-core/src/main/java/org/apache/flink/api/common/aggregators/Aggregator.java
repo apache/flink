@@ -21,6 +21,7 @@ package org.apache.flink.api.common.aggregators;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.Value;
 
 /**
@@ -73,6 +74,7 @@ import org.apache.flink.types.Value;
  * 
  * @param <T> The type of the aggregated value.
  */
+@PublicEvolving
 public interface Aggregator<T extends Value> extends Serializable {
 
 	/**

@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 /**
- * A test for the {@link LongSerializerTest}.
+ * A test for the {@link LongSerializer}.
  */
 public class LongSerializerTest extends SerializerTestBase<Long> {
 	

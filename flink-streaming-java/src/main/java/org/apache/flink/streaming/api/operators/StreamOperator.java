@@ -17,12 +17,15 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import java.io.Serializable;
-
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+
+import java.io.Serializable;
 
 /**
  * Basic interface for stream operators. Implementers would implement one of
@@ -39,6 +42,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
  * 
  * @param <OUT> The output type of the operator
  */
+@PublicEvolving
 public interface StreamOperator<OUT> extends Serializable {
 	
 	// ------------------------------------------------------------------------
@@ -66,7 +70,7 @@ public interface StreamOperator<OUT> extends Serializable {
 
 	 * <p>
 	 * The method is expected to flush all remaining buffered data. Exceptions during this flushing
-	 * of buffered should be propagated, in order to cause the operation to be recognized asa failed,
+	 * of buffered should be propagated, in order to cause the operation to be recognized as failed,
 	 * because the last data items are not processed properly.
 	 * 
 	 * @throws java.lang.Exception An exception in this method causes the operator to fail.
@@ -80,45 +84,34 @@ public interface StreamOperator<OUT> extends Serializable {
 	 * This method is expected to make a thorough effort to release all resources
 	 * that the operator has acquired.
 	 */
-	void dispose();
+	void dispose() throws Exception;
 
 	// ------------------------------------------------------------------------
 	//  state snapshots
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Called to draw a state snapshot from the operator. This method snapshots the operator state
-	 * (if the operator is stateful) and the key/value state (if it is being used and has been
-	 * initialized).
+	 * Called to draw a state snapshot from the operator.
 	 *
-	 * @param checkpointId The ID of the checkpoint.
-	 * @param timestamp The timestamp of the checkpoint.
-	 *
-	 * @return The StreamTaskState object, possibly containing the snapshots for the
-	 *         operator and key/value state.
-	 *
-	 * @throws Exception Forwards exceptions that occur while drawing snapshots from the operator
-	 *                   and the key/value state.
+	 * @throws Exception Forwards exceptions that occur while preparing for the snapshot
 	 */
-	StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception;
-	
+
 	/**
-	 * Restores the operator state, if this operator's execution is recovering from a checkpoint.
-	 * This method restores the operator state (if the operator is stateful) and the key/value state
-	 * (if it had been used and was initialized when the snapshot ocurred).
+	 * Called to draw a state snapshot from the operator.
 	 *
-	 * <p>This method is called after {@link #setup(StreamTask, StreamConfig, Output)}
-	 * and before {@link #open()}.
-	 *
-	 * @param state The state of operator that was snapshotted as part of checkpoint
-	 *              from which the execution is restored.
-	 * 
-	 * @param recoveryTimestamp Global recovery timestamp
-	 *
-	 * @throws Exception Exceptions during state restore should be forwarded, so that the system can
-	 *                   properly react to failed state restore and fail the execution attempt.
+	 * @return a runnable future to the state handle that points to the snapshotted state. For synchronous implementations,
+	 * the runnable might already be finished.
+	 * @throws Exception exception that happened during snapshotting.
 	 */
-	void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception;
+	OperatorSnapshotResult snapshotState(
+			long checkpointId, long timestamp, CheckpointStreamFactory streamFactory) throws Exception;
+
+	/**
+	 * Provides state handles to restore the operator state.
+	 *
+	 * @param stateHandles state handles to the operator state.
+	 */
+	void initializeState(OperatorStateHandles stateHandles) throws Exception;
 
 	/**
 	 * Called when the checkpoint with the given ID is completed and acknowledged on the JobManager.
@@ -134,15 +127,13 @@ public interface StreamOperator<OUT> extends Serializable {
 	//  miscellaneous
 	// ------------------------------------------------------------------------
 	
-	void setKeyContextElement(StreamRecord<?> record) throws Exception;
-	
-	/**
-	 * An operator can return true here to disable copying of its input elements. This overrides
-	 * the object-reuse setting on the {@link org.apache.flink.api.common.ExecutionConfig}
-	 */
-	boolean isInputCopyingDisabled();
-	
+	void setKeyContextElement1(StreamRecord<?> record) throws Exception;
+
+	void setKeyContextElement2(StreamRecord<?> record) throws Exception;
+
 	ChainingStrategy getChainingStrategy();
 
 	void setChainingStrategy(ChainingStrategy strategy);
+	
+	MetricGroup getMetricGroup();
 }

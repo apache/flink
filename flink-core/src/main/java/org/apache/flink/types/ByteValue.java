@@ -21,6 +21,7 @@ package org.apache.flink.types;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -28,9 +29,8 @@ import org.apache.flink.core.memory.MemorySegment;
 /**
  * Boxed serializable and comparable byte type, representing the primitive
  * type {@code byte} (signed 8 bit integer).
- * 
- * @see org.apache.flink.types.Key
  */
+@Public
 public class ByteValue implements NormalizableKey<ByteValue>, ResettableValue<ByteValue>, CopyableValue<ByteValue> {
 	private static final long serialVersionUID = 1L;
 	

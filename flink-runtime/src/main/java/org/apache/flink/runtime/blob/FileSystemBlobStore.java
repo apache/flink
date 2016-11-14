@@ -19,13 +19,17 @@
 package org.apache.flink.runtime.blob;
 
 import com.google.common.io.Files;
+
+import org.apache.commons.lang3.StringUtils;
+
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.util.IOUtils;
+import org.apache.flink.util.IOUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,12 +39,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Blob store backed by {@link FileSystem}.
+ *
+ * <p>This is used in addition to the local blob storage for high availability.
  */
 class FileSystemBlobStore implements BlobStore {
 
@@ -50,26 +55,16 @@ class FileSystemBlobStore implements BlobStore {
 	private final String basePath;
 
 	FileSystemBlobStore(Configuration config) throws IOException {
-		String stateBackendBasePath = config.getString(
-				ConfigConstants.ZOOKEEPER_RECOVERY_PATH, "");
+		String storagePath = config.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
 
-		if (stateBackendBasePath.equals("")) {
-			throw new IllegalConfigurationException(String.format("Missing configuration for " +
-				"file system state backend recovery path. Please specify via " +
-				"'%s' key.", ConfigConstants.ZOOKEEPER_RECOVERY_PATH));
+		if (storagePath == null || StringUtils.isBlank(storagePath)) {
+			throw new IllegalConfigurationException("Missing high-availability storage path for metadata." +
+					" Specify via configuration key '" + HighAvailabilityOptions.HA_STORAGE_PATH + "'.");
 		}
 
-		stateBackendBasePath += "/blob";
+		this.basePath = storagePath + "/blob";
 
-		this.basePath = stateBackendBasePath;
-
-		try {
-			FileSystem.get(new URI(basePath)).mkdirs(new Path(basePath));
-		}
-		catch (URISyntaxException e) {
-			throw new IOException(e);
-		}
-
+		FileSystem.get(new Path(basePath).toUri()).mkdirs(new Path(basePath));
 		LOG.info("Created blob directory {}.", basePath);
 	}
 
@@ -151,7 +146,17 @@ class FileSystemBlobStore implements BlobStore {
 		try {
 			LOG.debug("Deleting {}.", blobPath);
 
-			FileSystem.get(new URI(blobPath)).delete(new Path(blobPath), true);
+			FileSystem fs = FileSystem.get(new URI(blobPath));
+			Path path = new Path(blobPath);
+
+			fs.delete(path, true);
+
+			// send a call to delete the directory containing the file. This will
+			// fail (and be ignored) when some files still exist.
+			try {
+				fs.delete(path.getParent(), false);
+				fs.delete(new Path(basePath), false);
+			} catch (IOException ignored) {}
 		}
 		catch (Exception e) {
 			LOG.warn("Failed to delete blob at " + blobPath);

@@ -18,10 +18,12 @@
 
 package org.apache.flink.api.java.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
 
+@Internal
 public class FormattingMapper<T> implements MapFunction<T, String> {
 	private static final long serialVersionUID = 1L;
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
 import java.util.Map;
@@ -26,7 +26,7 @@ import java.util.Map;
 /**
  * Request handler that returns the JSON program plan of a job graph.
  */
-public class JobPlanHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
+public class JobPlanHandler extends AbstractExecutionGraphRequestHandler {
 
 	
 	public JobPlanHandler(ExecutionGraphHolder executionGraphHolder) {
@@ -34,7 +34,7 @@ public class JobPlanHandler extends AbstractExecutionGraphRequestHandler impleme
 	}
 
 	@Override
-	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
 		return graph.getJsonPlan();
 	}
 }

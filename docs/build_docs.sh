@@ -17,35 +17,30 @@
 # limitations under the License.
 ################################################################################
 
+set -e
+cd "$(dirname ${BASH_SOURCE[0]})"
 
-HAS_JEKYLL=true
+DIR="`pwd`"
 
-command -v jekyll > /dev/null
-if [ $? -ne 0 ]; then
-	echo -n "ERROR: Could not find jekyll. "
-	echo "Please install with 'gem install jekyll' (see http://jekyllrb.com)."
+# We need at least bundler to proceed
+if [ "`command -v bundle`" == "" ]; then
+	echo "WARN: Could not find bundle."
+    echo "Attempting to install locally. If this doesn't work, please install with 'gem install bundler'."
 
-	HAS_JEKYLL=false
+    # Adjust the PATH to discover the locally installed Ruby gem
+    if which ruby >/dev/null && which gem >/dev/null; then
+        export PATH="$(ruby -rubygems -e 'puts Gem.user_dir')/bin:$PATH"
+    fi
+
+    # install bundler locally
+    gem install --user-install bundler
 fi
 
-command -v redcarpet > /dev/null
-if [ $? -ne 0 ]; then
-	echo -n "WARN: Could not find redcarpet. "
-	echo -n "Please install with 'sudo gem install redcarpet' (see https://github.com/vmg/redcarpet). "
-	echo "Redcarpet is needed for Markdown parsing and table of contents generation."
-fi
-
-command -v pygmentize > /dev/null
-if [ $? -ne 0 ]; then
-	echo -n "WARN: Could not find pygments. "
-	echo -n "Please install with 'sudo easy_install Pygments' (requires Python; see http://pygments.org). "
-	echo "Pygments is needed for syntax highlighting of the code examples."
-fi
-
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Install Ruby dependencies locally
+bundle install --path .rubydeps
 
 DOCS_SRC=${DIR}
-DOCS_DST=${DOCS_SRC}/target
+DOCS_DST=${DOCS_SRC}/content
 
 # default jekyll command is to just build site
 JEKYLL_CMD="build"
@@ -54,11 +49,10 @@ JEKYLL_CMD="build"
 while getopts ":p" opt; do
 	case $opt in
 		p)
-		JEKYLL_CMD="serve --baseurl "" --watch"
+		JEKYLL_CMD="serve --baseurl= --watch"
 		;;
 	esac
 done
 
-if $HAS_JEKYLL; then
-	jekyll ${JEKYLL_CMD} --source ${DOCS_SRC} --destination ${DOCS_DST}
-fi
+# use 'bundle exec' to insert the local Ruby dependencies
+bundle exec jekyll ${JEKYLL_CMD} --source "${DOCS_SRC}" --destination "${DOCS_DST}"

@@ -20,6 +20,7 @@ package org.apache.flink.api.java.hadoop.mapreduce;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.hadoop.mapreduce.Job;
 
@@ -29,6 +30,7 @@ import org.apache.hadoop.mapreduce.Job;
  * @param <K> Key Type
  * @param <V> Value Type
  */
+@Public
 public class HadoopOutputFormat<K, V> extends HadoopOutputFormatBase<K, V, Tuple2<K, V>> {
 	
 	private static final long serialVersionUID = 1L;

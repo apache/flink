@@ -19,41 +19,36 @@
 
 package org.apache.flink.types.parser;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.FloatValue;
 
 /**
  * Parses a text field into a {@link FloatValue}
  */
+@PublicEvolving
 public class FloatValueParser extends FieldParser<FloatValue> {
 	
 	private FloatValue result;
 	
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, FloatValue reusable) {
-		
-		int i = startPos;
-
-		final int delimLimit = limit - delimiter.length + 1;
-
-		while (i < limit) {
-			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
-				break;
-			}
-			i++;
+		final int endPos = nextStringEndPos(bytes, startPos, limit, delimiter);
+		if (endPos < 0) {
+			return -1;
 		}
-		
-		if (i > startPos &&
-				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[i - 1]))) {
+
+		if (endPos > startPos &&
+				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[endPos - 1]))) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
 			return -1;
 		}
 
-		String str = new String(bytes, startPos, i - startPos);
+		String str = new String(bytes, startPos, endPos - startPos);
 		try {
 			float value = Float.parseFloat(str);
 			reusable.setValue(value);
 			this.result = reusable;
-			return (i == limit) ? limit : i + delimiter.length;
+			return (endPos == limit) ? limit : endPos + delimiter.length;
 		}
 		catch (NumberFormatException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);

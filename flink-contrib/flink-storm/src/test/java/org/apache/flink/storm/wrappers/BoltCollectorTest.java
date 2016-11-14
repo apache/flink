@@ -18,6 +18,7 @@
 package org.apache.flink.storm.wrappers;
 
 import backtype.storm.tuple.Values;
+
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.storm.util.AbstractTest;
 import org.apache.flink.streaming.api.operators.Output;
@@ -48,11 +49,11 @@ public class BoltCollectorTest extends AbstractTest {
 			attributes.put(streamId, numberOfAttributes);
 
 			if (numberOfAttributes == -1) {
-				collector = new BoltCollector(attributes, flinkCollector);
+				collector = new BoltCollector(attributes, -1, flinkCollector);
 				tuple.add(new Integer(this.r.nextInt()));
 
 			} else {
-				collector = new BoltCollector(attributes, flinkCollector);
+				collector = new BoltCollector(attributes, -1, flinkCollector);
 				flinkTuple = Tuple.getTupleClass(numberOfAttributes).newInstance();
 
 				for (int i = 0; i < numberOfAttributes; ++i) {
@@ -75,10 +76,69 @@ public class BoltCollectorTest extends AbstractTest {
 		}
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Test
+	public void testBoltStormCollectorWithTaskId() throws InstantiationException, IllegalAccessException {
+		for (int numberOfAttributes = 0; numberOfAttributes < 25; ++numberOfAttributes) {
+			final Output flinkCollector = mock(Output.class);
+			final int taskId = 42;
+			final String streamId = "streamId";
+
+			HashMap<String, Integer> attributes = new HashMap<String, Integer>();
+			attributes.put(streamId, numberOfAttributes);
+
+			BoltCollector<?> collector = new BoltCollector(attributes, taskId, flinkCollector);
+
+			final Values tuple = new Values();
+			final Tuple flinkTuple = Tuple.getTupleClass(numberOfAttributes + 1).newInstance();
+
+			for (int i = 0; i < numberOfAttributes; ++i) {
+				tuple.add(new Integer(this.r.nextInt()));
+				flinkTuple.setField(tuple.get(i), i);
+			}
+			flinkTuple.setField(taskId, numberOfAttributes);
+
+			final Collection anchors = mock(Collection.class);
+			final List<Integer> taskIds;
+			taskIds = collector.emit(streamId, anchors, tuple);
+
+			Assert.assertNull(taskIds);
+
+			verify(flinkCollector).collect(flinkTuple);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test(expected = UnsupportedOperationException.class)
+	public void testToManyAttributes() {
+		HashMap<String, Integer> attributes = new HashMap<String, Integer>();
+		attributes.put("", 26);
+
+		new BoltCollector<Object>(attributes, -1, mock(Output.class));
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test(expected = UnsupportedOperationException.class)
+	public void testToManyAttributesWithTaskId() {
+		HashMap<String, Integer> attributes = new HashMap<String, Integer>();
+		attributes.put("", 25);
+
+		new BoltCollector<Object>(attributes, 42, mock(Output.class));
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test(expected = UnsupportedOperationException.class)
+	public void testRawStreamWithTaskId() {
+		HashMap<String, Integer> attributes = new HashMap<String, Integer>();
+		attributes.put("", -1);
+
+		new BoltCollector<Object>(attributes, 42, mock(Output.class));
+	}
+
 	@SuppressWarnings("unchecked")
 	@Test(expected = UnsupportedOperationException.class)
 	public void testEmitDirect() {
-		new BoltCollector<Object>(mock(HashMap.class), mock(Output.class)).emitDirect(0, null,
+		new BoltCollector<Object>(mock(HashMap.class), -1, mock(Output.class)).emitDirect(0, null,
 				null, null);
 	}
 

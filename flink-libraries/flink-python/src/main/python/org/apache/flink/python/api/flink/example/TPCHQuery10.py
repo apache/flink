@@ -76,7 +76,7 @@ if __name__ == "__main__":
              STRING, STRING, STRING, STRING, STRING, STRING, STRING, STRING], '\n', '|') \
         .project(0,5,6,8) \
         .filter(LineitemFilter()) \
-        .map(ComputeRevenue(), [INT, FLOAT])
+        .map(ComputeRevenue())
 
 	nation = env \
     	.read_csv(sys.argv[4], [INT, STRING, INT, STRING], '\n', '|') \

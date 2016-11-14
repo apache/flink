@@ -34,6 +34,8 @@ public class VerifyAndEnrichBolt extends BaseRichBolt {
 	private final String token;
 	private OutputCollector collector;
 
+	public static boolean errorOccured = false;
+
 	public VerifyAndEnrichBolt(boolean evenOrOdd) {
 		this.evenOrOdd = evenOrOdd;
 		this.token = evenOrOdd ? "even" : "odd";
@@ -48,7 +50,7 @@ public class VerifyAndEnrichBolt extends BaseRichBolt {
 	@Override
 	public void execute(Tuple input) {
 		if ((input.getInteger(0) % 2 == 0) != this.evenOrOdd) {
-			throw new RuntimeException("Invalid number detected.");
+			errorOccured = true;
 		}
 		this.collector.emit(new Values(this.token, input.getInteger(0)));
 	}

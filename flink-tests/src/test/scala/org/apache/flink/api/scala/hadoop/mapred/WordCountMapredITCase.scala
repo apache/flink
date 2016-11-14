@@ -18,12 +18,12 @@
 package org.apache.flink.api.scala.hadoop.mapred
 
 import org.apache.flink.api.scala._
-
+import org.apache.flink.hadoopcompatibility.scala.HadoopInputs
 import org.apache.flink.test.testdata.WordCountData
-import org.apache.flink.test.util.{TestBaseUtils, JavaProgramTestBase}
+import org.apache.flink.test.util.{JavaProgramTestBase, TestBaseUtils}
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.{Text, LongWritable}
-import org.apache.hadoop.mapred.{FileOutputFormat, JobConf, TextOutputFormat, TextInputFormat}
+import org.apache.hadoop.io.{LongWritable, Text}
+import org.apache.hadoop.mapred.{FileOutputFormat, JobConf, TextInputFormat, TextOutputFormat}
 
 class WordCountMapredITCase extends JavaProgramTestBase {
   protected var textPath: String = null
@@ -39,21 +39,27 @@ class WordCountMapredITCase extends JavaProgramTestBase {
                                                 resultPath, Array[String](".", "_"))
   }
 
-  protected def testProgram() {
+  private def internalRun (testDeprecatedAPI: Boolean): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val input =
-      env.readHadoopFile(new TextInputFormat, classOf[LongWritable], classOf[Text], textPath)
+      if (testDeprecatedAPI) {
+        env.readHadoopFile(new TextInputFormat, classOf[LongWritable], classOf[Text], textPath)
+      } else {
+        env.createInput(HadoopInputs.readHadoopFile(new TextInputFormat, classOf[LongWritable],
+          classOf[Text], textPath))
+      }
 
-    val text = input map { _._2.toString }
-    val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
-      .map { (_, 1) }
+    val counts = input
+      .map(_._2.toString)
+      .flatMap(_.toLowerCase.split("\\W+").filter(_.nonEmpty).map( (_, 1)))
       .groupBy(0)
       .sum(1)
 
-    val words = counts map { t => (new Text(t._1), new LongWritable(t._2)) }
+    val words = counts
+      .map( t => (new Text(t._1), new LongWritable(t._2)) )
 
-    val hadoopOutputFormat = new HadoopOutputFormat[Text,LongWritable](
+    val hadoopOutputFormat = new HadoopOutputFormat[Text, LongWritable](
       new TextOutputFormat[Text, LongWritable],
       new JobConf)
     hadoopOutputFormat.getJobConf.set("mapred.textoutputformat.separator", " ")
@@ -63,6 +69,13 @@ class WordCountMapredITCase extends JavaProgramTestBase {
     words.output(hadoopOutputFormat)
 
     env.execute("Hadoop Compat WordCount")
+  }
+
+  protected def testProgram() {
+    internalRun(testDeprecatedAPI = true)
+    postSubmit()
+    resultPath = getTempDirPath("result2")
+    internalRun(testDeprecatedAPI = false)
   }
 }
 

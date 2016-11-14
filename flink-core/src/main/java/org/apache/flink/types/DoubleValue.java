@@ -21,16 +21,16 @@ package org.apache.flink.types;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 /**
  * Boxed serializable and comparable double precision floating point type, representing the primitive
  * type {@code double}.
- * 
- * @see org.apache.flink.types.Key
  */
-public class DoubleValue implements Key<DoubleValue>, ResettableValue<DoubleValue>, CopyableValue<DoubleValue> {
+@Public
+public class DoubleValue implements Comparable<DoubleValue>, ResettableValue<DoubleValue>, CopyableValue<DoubleValue>, Key<DoubleValue> {
 	private static final long serialVersionUID = 1L;
 
 	private double value;

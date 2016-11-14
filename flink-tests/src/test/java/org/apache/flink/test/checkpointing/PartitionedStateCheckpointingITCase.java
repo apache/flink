@@ -28,7 +28,8 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -153,7 +154,7 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 		private long failurePos;
 		private long count;
 
-		private OperatorState<Long> sum;
+		private ValueState<Long> sum;
 
 		OnceFailingPartitionedSum(long numElements) {
 			this.numElements = numElements;
@@ -168,7 +169,8 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 
 			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
 			count = 0;
-			sum = getRuntimeContext().getKeyValueState("my_state", Long.class, 0L);
+			sum = getRuntimeContext().getState(
+					new ValueStateDescriptor<>("my_state", Long.class, 0L));
 		}
 
 		@Override
@@ -189,15 +191,18 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 	private static class CounterSink extends RichSinkFunction<Tuple2<Integer, Long>> {
 
 		private static Map<Integer, Long> allCounts = new ConcurrentHashMap<Integer, Long>();
-
-		private OperatorState<NonSerializableLong> aCounts;
-		private OperatorState<Long> bCounts;
+		
+		private ValueState<NonSerializableLong> aCounts;
+		private ValueState<Long> bCounts;
 
 		@Override
 		public void open(Configuration parameters) throws IOException {
-			aCounts = getRuntimeContext().getKeyValueState(
-					"a", NonSerializableLong.class, NonSerializableLong.of(0L));
-			bCounts = getRuntimeContext().getKeyValueState("b", Long.class, 0L);
+			
+			aCounts = getRuntimeContext().getState(
+					new ValueStateDescriptor<>("a", NonSerializableLong.class, NonSerializableLong.of(0L)));
+			
+			bCounts = getRuntimeContext().getState(
+					new ValueStateDescriptor<>("b", Long.class, 0L));
 		}
 
 		@Override
@@ -223,6 +228,22 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 
 		public static NonSerializableLong of(long value) {
 			return new NonSerializableLong(value);
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+
+			NonSerializableLong that = (NonSerializableLong) o;
+
+			return value.equals(that.value);
+
+		}
+
+		@Override
+		public int hashCode() {
+			return value.hashCode();
 		}
 	}
 	

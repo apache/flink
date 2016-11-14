@@ -19,6 +19,8 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 
@@ -46,10 +48,6 @@ import java.io.IOException;
  * of the Task read from this queue. Use {@link #waitForInputProcessing()} to wait until all
  * queues are empty. This must be used after entering some elements before checking the
  * desired output.
- *
- * <p>
- * When using this you need to add the following line to your test class to setup Powermock:
- * {@code {@literal @}PrepareForTest({ResultPartitionWriter.class})}
  */
 public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarness<OUT> {
 
@@ -95,10 +93,16 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 			this.mockEnv.addInputGate(inputGates[i].getInputGate());
 		}
 
-
 		streamConfig.setNumberOfInputs(1);
 		streamConfig.setTypeSerializerIn1(inputSerializer);
 	}
 
+	public <K> void configureForKeyedStream(
+			KeySelector<IN, K> keySelector,
+			TypeInformation<K> keyType) {
+		ClosureCleaner.clean(keySelector, false);
+		streamConfig.setStatePartitioner(0, keySelector);
+		streamConfig.setStateKeySerializer(keyType.createSerializer(executionConfig));
+	}
 }
 

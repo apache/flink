@@ -18,20 +18,36 @@
 
 package org.apache.flink.api.java.utils;
 
-import com.google.common.collect.Lists;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
+import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
+import org.apache.flink.api.common.operators.Keys;
+import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SampleInCoordinator;
 import org.apache.flink.api.java.functions.SampleInPartition;
 import org.apache.flink.api.java.functions.SampleWithFraction;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
+import org.apache.flink.api.java.operators.PartitionOperator;
+import org.apache.flink.api.java.summarize.aggregation.SummaryAggregatorFactory;
+import org.apache.flink.api.java.summarize.aggregation.TupleSummaryAggregator;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -40,6 +56,7 @@ import java.util.List;
  * This class provides simple utility methods for zipping elements in a data set with an index
  * or with a unique identifier.
  */
+@PublicEvolving
 public final class DataSetUtils {
 
 	/**
@@ -49,7 +66,7 @@ public final class DataSetUtils {
 	 * @param input the DataSet received as input
 	 * @return a data set containing tuples of subtask index, number of elements mappings.
 	 */
-	private static <T> DataSet<Tuple2<Integer, Long>> countElements(DataSet<T> input) {
+	public static <T> DataSet<Tuple2<Integer, Long>> countElementsPerPartition(DataSet<T> input) {
 		return input.mapPartition(new RichMapPartitionFunction<T, Tuple2<Integer, Long>>() {
 			@Override
 			public void mapPartition(Iterable<T> values, Collector<Tuple2<Integer, Long>> out) throws Exception {
@@ -57,7 +74,6 @@ public final class DataSetUtils {
 				for (T value : values) {
 					counter++;
 				}
-
 				out.collect(new Tuple2<>(getRuntimeContext().getIndexOfThisSubtask(), counter));
 			}
 		});
@@ -72,7 +88,7 @@ public final class DataSetUtils {
 	 */
 	public static <T> DataSet<Tuple2<Long, T>> zipWithIndex(DataSet<T> input) {
 
-		DataSet<Tuple2<Integer, Long>> elementCount = countElements(input);
+		DataSet<Tuple2<Integer, Long>> elementCount = countElementsPerPartition(input);
 
 		return input.mapPartition(new RichMapPartitionFunction<T, Tuple2<Long, T>>() {
 
@@ -88,7 +104,10 @@ public final class DataSetUtils {
 							@Override
 							public List<Tuple2<Integer, Long>> initializeBroadcastVariable(Iterable<Tuple2<Integer, Long>> data) {
 								// sort the list by task id to calculate the correct offset
-								List<Tuple2<Integer, Long>> sortedData = Lists.newArrayList(data);
+								List<Tuple2<Integer, Long>> sortedData = new ArrayList<>();
+								for (Tuple2<Integer, Long> datum : data) {
+									sortedData.add(datum);
+								}
 								Collections.sort(sortedData, new Comparator<Tuple2<Integer, Long>>() {
 									@Override
 									public int compare(Tuple2<Integer, Long> o1, Tuple2<Integer, Long> o2) {
@@ -244,6 +263,95 @@ public final class DataSetUtils {
 		String callLocation = Utils.getCallLocationName();
 		SampleInCoordinator<T> sampleInCoordinator = new SampleInCoordinator<>(withReplacement, numSamples, seed);
 		return new GroupReduceOperator<>(mapPartitionOperator, input.getType(), sampleInCoordinator, callLocation);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Partition
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Range-partitions a DataSet on the specified tuple field positions.
+	 */
+	public static <T> PartitionOperator<T> partitionByRange(DataSet<T> input, DataDistribution distribution, int... fields) {
+		return new PartitionOperator<>(input, PartitionOperatorBase.PartitionMethod.RANGE, new Keys.ExpressionKeys<>(fields, input.getType(), false), distribution, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Range-partitions a DataSet on the specified fields.
+	 */
+	public static <T> PartitionOperator<T> partitionByRange(DataSet<T> input, DataDistribution distribution, String... fields) {
+		return new PartitionOperator<>(input, PartitionOperatorBase.PartitionMethod.RANGE, new Keys.ExpressionKeys<>(fields, input.getType()), distribution, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Range-partitions a DataSet using the specified key selector function.
+	 */
+	public static <T, K extends Comparable<K>> PartitionOperator<T> partitionByRange(DataSet<T> input, DataDistribution distribution, KeySelector<T, K> keyExtractor) {
+		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, input.getType());
+		return new PartitionOperator<>(input, PartitionOperatorBase.PartitionMethod.RANGE, new Keys.SelectorFunctionKeys<>(input.clean(keyExtractor), input.getType(), keyType), distribution, Utils.getCallLocationName());
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Summarize
+	// --------------------------------------------------------------------------------------------
+
+
+	/**
+	 * Summarize a DataSet of Tuples by collecting single pass statistics for all columns
+	 *
+	 * Example usage:
+	 * <pre>
+	 * {@code
+	 * Dataset<Tuple3<Double, String, Boolean>> input = // [...]
+	 * Tuple3<NumericColumnSummary,StringColumnSummary, BooleanColumnSummary> summary = DataSetUtils.summarize(input)
+	 *
+	 * summary.f0.getStandardDeviation()
+	 * summary.f1.getMaxLength()
+	 * }
+	 * </pre>
+	 * @return the summary as a Tuple the same width as input rows
+	 */
+	public static <R extends Tuple, T extends Tuple> R summarize(DataSet<T> input) throws Exception {
+		if( !input.getType().isTupleType()) {
+			throw new IllegalArgumentException("summarize() is only implemented for DataSet's of Tuples");
+		}
+		final TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) input.getType();
+		DataSet<TupleSummaryAggregator<R>> result = input.mapPartition(new MapPartitionFunction<T, TupleSummaryAggregator<R>>() {
+			@Override
+			public void mapPartition(Iterable<T> values, Collector<TupleSummaryAggregator<R>> out) throws Exception {
+				TupleSummaryAggregator<R> aggregator = SummaryAggregatorFactory.create(inType);
+				for (Tuple value: values) {
+					aggregator.aggregate(value);
+				}
+				out.collect(aggregator);
+			}
+		}).reduce(new ReduceFunction<TupleSummaryAggregator<R>>() {
+			@Override
+			public TupleSummaryAggregator<R> reduce(TupleSummaryAggregator<R> agg1, TupleSummaryAggregator<R> agg2) throws Exception {
+				agg1.combine(agg2);
+				return agg1;
+			}
+		});
+		return result.collect().get(0).result();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Checksum
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Convenience method to get the count (number of elements) of a DataSet
+	 * as well as the checksum (sum over element hashes).
+	 *
+	 * @return A ChecksumHashCode that represents the count and checksum of elements in the data set.
+	 */
+	public static <T> Utils.ChecksumHashCode checksumHashCode(DataSet<T> input) throws Exception {
+		final String id = new AbstractID().toString();
+
+		input.output(new Utils.ChecksumHashCodeHelper<T>(id)).name("ChecksumHashCode");
+
+		JobExecutionResult res = input.getExecutionEnvironment().execute();
+		return res.<Utils.ChecksumHashCode> getAccumulatorResult(id);
 	}
 
 

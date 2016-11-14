@@ -17,8 +17,11 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.Iterator;
 
+@PublicEvolving
 public class FromIteratorFunction<T> implements SourceFunction<T> {
 
 	private static final long serialVersionUID = 1L;

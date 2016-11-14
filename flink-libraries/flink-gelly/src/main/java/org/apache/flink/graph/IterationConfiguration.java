@@ -22,7 +22,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
-import com.google.common.base.Preconditions;
+import org.apache.flink.graph.spargel.GatherFunction;
+import org.apache.flink.util.Preconditions;
 
 /**
  * This is used as a base class for vertex-centric iteration or gather-sum-apply iteration configuration.
@@ -36,7 +37,7 @@ public abstract class IterationConfiguration {
 	private int parallelism = -1;
 
 	/** the iteration aggregators **/
-	private Map<String, Aggregator<?>> aggregators = new HashMap<String, Aggregator<?>>();
+	private Map<String, Aggregator<?>> aggregators = new HashMap<>();
 
 	/** flag that defines whether the solution set is kept in managed memory **/
 	private boolean unmanagedSolutionSet = false;
@@ -133,8 +134,8 @@ public abstract class IterationConfiguration {
 
 	/**
 	 * Registers a new aggregator. Aggregators registered here are available during the execution of the vertex updates
-	 * via {@link org.apache.flink.graph.spargel.VertexUpdateFunction#getIterationAggregator(String)} and
-	 * {@link org.apache.flink.graph.spargel.VertexUpdateFunction#getPreviousIterationAggregate(String)}.
+	 * via {@link GatherFunction#getIterationAggregator(String)} and
+	 * {@link GatherFunction#getPreviousIterationAggregate(String)}.
 	 * 
 	 * @param name The name of the aggregator, used to retrieve it and its aggregates during execution. 
 	 * @param aggregator The aggregator.

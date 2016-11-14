@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.graph;
 import java.io.Serializable;
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 /**
@@ -27,6 +28,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
  * gets converted to a connection between two job vertices (due to
  * chaining/optimization).
  */
+@Internal
 public class StreamEdge implements Serializable {
 
 	private static final long serialVersionUID = 1L;

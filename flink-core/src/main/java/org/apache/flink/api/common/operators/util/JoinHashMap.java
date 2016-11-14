@@ -19,10 +19,12 @@
 package org.apache.flink.api.common.operators.util;
 
 import org.apache.commons.collections.map.AbstractHashedMap;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+@Internal
 public class JoinHashMap<BT> extends AbstractHashedMap {
 
 	private final TypeSerializer<BT> buildSerializer;

@@ -20,12 +20,13 @@ package org.apache.flink.configuration;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.core.testutils.CommonTestUtils;
-
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 /**
@@ -33,7 +34,7 @@ import org.junit.Test;
  * objects is tested.
  */
 public class ConfigurationTest extends TestLogger {
-	
+
 	private static final byte[] EMPTY_BYTES = new byte[0];
 	private static final long TOO_LONG = Integer.MAX_VALUE + 10L;
 	private static final double TOO_LONG_DOUBLE = Double.MAX_VALUE;
@@ -54,7 +55,7 @@ public class ConfigurationTest extends TestLogger {
 			orig.setBytes("bytes sequence", new byte[] { 1, 2, 3, 4, 5 } );
 			orig.setClass("myclass", this.getClass());
 	
-			final Configuration copy = CommonTestUtils.createCopyWritable(orig);
+			final Configuration copy = InstantiationUtil.createCopyWritable(orig);
 			assertEquals("myvalue", copy.getString("mykey", "null"));
 			assertEquals(100, copy.getInteger("mynumber", 0));
 			assertEquals(478236947162389746L, copy.getLong("longvalue", 0L));
@@ -73,7 +74,7 @@ public class ConfigurationTest extends TestLogger {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testConversions() {
 		try {
@@ -175,7 +176,7 @@ public class ConfigurationTest extends TestLogger {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testCopyConstructor() {
 		try {
@@ -193,5 +194,93 @@ public class ConfigurationTest extends TestLogger {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testOptionWithDefault() {
+		Configuration cfg = new Configuration();
+		cfg.setInteger("int-key", 11);
+		cfg.setString("string-key", "abc");
+
+		ConfigOption<String> presentStringOption = ConfigOptions.key("string-key").defaultValue("my-beautiful-default");
+		ConfigOption<Integer> presentIntOption = ConfigOptions.key("int-key").defaultValue(87);
+
+		assertEquals("abc", cfg.getString(presentStringOption));
+		assertEquals("abc", cfg.getValue(presentStringOption));
+
+		assertEquals(11, cfg.getInteger(presentIntOption));
+		assertEquals("11", cfg.getValue(presentIntOption));
+
+		// test getting default when no value is present
+
+		ConfigOption<String> stringOption = ConfigOptions.key("test").defaultValue("my-beautiful-default");
+		ConfigOption<Integer> intOption = ConfigOptions.key("test2").defaultValue(87);
+
+		// getting strings with default value should work
+		assertEquals("my-beautiful-default", cfg.getValue(stringOption));
+		assertEquals("my-beautiful-default", cfg.getString(stringOption));
+
+		// overriding the default should work
+		assertEquals("override", cfg.getString(stringOption, "override"));
+
+		// getting a primitive with a default value should work
+		assertEquals(87, cfg.getInteger(intOption));
+		assertEquals("87", cfg.getValue(intOption));
+	}
+
+	@Test
+	public void testOptionWithNoDefault() {
+		Configuration cfg = new Configuration();
+		cfg.setInteger("int-key", 11);
+		cfg.setString("string-key", "abc");
+
+		ConfigOption<String> presentStringOption = ConfigOptions.key("string-key").noDefaultValue();
+
+		assertEquals("abc", cfg.getString(presentStringOption));
+		assertEquals("abc", cfg.getValue(presentStringOption));
+
+		// test getting default when no value is present
+
+		ConfigOption<String> stringOption = ConfigOptions.key("test").noDefaultValue();
+
+		// getting strings for null should work
+		assertNull(cfg.getValue(stringOption));
+		assertNull(cfg.getString(stringOption));
+
+		// overriding the null default should work
+		assertEquals("override", cfg.getString(stringOption, "override"));
+	}
+
+	@Test
+	public void testDeprecatedKeys() {
+		Configuration cfg = new Configuration();
+		cfg.setInteger("the-key", 11);
+		cfg.setInteger("old-key", 12);
+		cfg.setInteger("older-key", 13);
+
+		ConfigOption<Integer> matchesFirst = ConfigOptions
+				.key("the-key")
+				.defaultValue(-1)
+				.withDeprecatedKeys("old-key", "older-key");
+
+		ConfigOption<Integer> matchesSecond = ConfigOptions
+				.key("does-not-exist")
+				.defaultValue(-1)
+				.withDeprecatedKeys("old-key", "older-key");
+
+		ConfigOption<Integer> matchesThird = ConfigOptions
+				.key("does-not-exist")
+				.defaultValue(-1)
+				.withDeprecatedKeys("foo", "older-key");
+
+		ConfigOption<Integer> notContained = ConfigOptions
+				.key("does-not-exist")
+				.defaultValue(-1)
+				.withDeprecatedKeys("not-there", "also-not-there");
+
+		assertEquals(11, cfg.getInteger(matchesFirst));
+		assertEquals(12, cfg.getInteger(matchesSecond));
+		assertEquals(13, cfg.getInteger(matchesThird));
+		assertEquals(-1, cfg.getInteger(notContained));
 	}
 }

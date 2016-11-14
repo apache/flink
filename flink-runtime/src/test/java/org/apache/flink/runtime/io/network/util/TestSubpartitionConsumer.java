@@ -27,7 +27,7 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import java.util.Random;
 import java.util.concurrent.Callable;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A test subpartition view consumer.

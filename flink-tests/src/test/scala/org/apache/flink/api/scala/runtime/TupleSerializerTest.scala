@@ -18,20 +18,21 @@
 package org.apache.flink.api.scala.runtime
 
 import java.util
+import java.util.Random
+
+import org.apache.flink.api.scala._
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.java.ExecutionEnvironment
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.runtime.kryo.{Serializers, KryoSerializer}
 import org.apache.flink.util.StringUtils
-import org.joda.time.DateTime
+
 import org.joda.time.LocalDate
+
 import org.junit.Assert
 import org.junit.Test
-import org.apache.flink.api.scala._
+
 import scala.collection.JavaConverters._
-import java.util.Random
 
 class TupleSerializerTest {
 
@@ -39,7 +40,7 @@ class TupleSerializerTest {
   def testTuple1Int(): Unit = {
     val testTuples = Array(Tuple1(42), Tuple1(1), Tuple1(0), Tuple1(-1), Tuple1(Int.MaxValue),
       Tuple1(Int.MinValue))
-    runTests(testTuples)
+    runTests(testTuples, 4)
   }
 
   @Test
@@ -52,7 +53,7 @@ class TupleSerializerTest {
       Tuple1(StringUtils.getRandomString(rnd, 30, 170)),
       Tuple1(StringUtils.getRandomString(rnd, 15, 50)),
       Tuple1(""))
-    runTests(testTuples)
+    runTests(testTuples, -1)
   }
 
   @Test
@@ -76,7 +77,7 @@ class TupleSerializerTest {
       StringUtils.getRandomString(rnd, 100 * 1024, 105 * 1024),
       "bar")
     val testTuples = Array(Tuple1(arr1), Tuple1(arr2))
-    runTests(testTuples)
+    runTests(testTuples, -1)
   }
 
   @Test
@@ -90,25 +91,11 @@ class TupleSerializerTest {
       ("", rnd.nextDouble),
       (StringUtils.getRandomString(rnd, 10, 100), rnd.nextDouble),
       (StringUtils.getRandomString(rnd, 10, 100), rnd.nextDouble))
-    runTests(testTuples)
+    runTests(testTuples, -1)
   }
 
   @Test
   def testTuple2StringJodaTime(): Unit = {
-    val rnd: Random = new Random(807346528946L)
-
-    val testTuples = Array(
-      (StringUtils.getRandomString(rnd, 10, 100), new DateTime(rnd.nextInt)),
-      (StringUtils.getRandomString(rnd, 10, 100), new DateTime(rnd.nextInt)),
-      (StringUtils.getRandomString(rnd, 10, 100), new DateTime(rnd.nextInt)),
-      ("", rnd.nextDouble),
-      (StringUtils.getRandomString(rnd, 10, 100), new DateTime(rnd.nextInt)),
-      (StringUtils.getRandomString(rnd, 10, 100), new DateTime(rnd.nextInt)))
-    runTests(testTuples)
-  }
-
-  @Test
-  def testTuple2StringJodaTime2(): Unit = {
     val rnd: Random = new Random(807346528946L)
 
     val testTuples = Array(
@@ -119,7 +106,7 @@ class TupleSerializerTest {
       (StringUtils.getRandomString(rnd, 10, 100), new LocalDate(rnd.nextInt)),
       (StringUtils.getRandomString(rnd, 10, 100), new LocalDate(rnd.nextInt)))
       
-    runTests(testTuples)
+    runTests(testTuples, -1)
   }
 
   @Test
@@ -147,7 +134,7 @@ class TupleSerializerTest {
       (StringUtils.getRandomString(rnd, 30, 170), arr1),
       (StringUtils.getRandomString(rnd, 30, 170), arr2),
       (StringUtils.getRandomString(rnd, 30, 170), arr2))
-    runTests(testTuples)
+    runTests(testTuples, -1)
   }
 
   @Test
@@ -202,19 +189,19 @@ class TupleSerializerTest {
       (e, b4, o5, ba2, co4),
       (f, b5, o1, ba2, co4),
       (g, b6, o4, ba1, co2))
-    runTests(testTuples)
+    runTests(testTuples, -1)
   }
 
-  private final def runTests[T <: Product : TypeInformation](instances: Array[T]) {
+  private final def runTests[T <: Product : TypeInformation](instances: Array[T], length: Int) {
     try {
       // Register the custom Kryo Serializer
-      val conf = new ExecutionConfig
+      val conf = new ExecutionConfig()
       conf.registerTypeWithKryoSerializer(classOf[LocalDate], classOf[LocalDateSerializer])
-      Serializers.registerJodaTime(conf)
+      
       val tupleTypeInfo = implicitly[TypeInformation[T]].asInstanceOf[TupleTypeInfoBase[T]]
       val serializer = tupleTypeInfo.createSerializer(conf)
       val tupleClass = tupleTypeInfo.getTypeClass
-      val test = new TupleSerializerTestInstance[T](serializer, tupleClass, -1, instances)
+      val test = new TupleSerializerTestInstance[T](serializer, tupleClass, length, instances)
       test.testAll()
     } catch {
       case e: Exception => {

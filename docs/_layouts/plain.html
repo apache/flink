@@ -19,15 +19,39 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<div class="row">
-  <div class="col-sm-10 col-sm-offset-1">
-    <h1>{{ page.title }}{% if page.is_beta %} <span class="badge">Beta</span>{% endif %}</h1>
+
+{% assign active_pages = site.array %}
+{% assign active = page %}
+
+{% for i in (1..10) %}
+  {% assign active_pages = active_pages | push: active %}
+  {% if active.nav-parent_id %}
+    {% assign next = (site.pages | where: "nav-id" , active.nav-parent_id ) %}
+    {% if next.size > 0 %}
+      {% assign active = next[0] %}
+    {% else %}
+      {% break %}
+    {% endif %}
+  {% else %}
+    {% break %}
+  {% endif %}
+{% endfor %}
+
+{% assign active_pages = active_pages | reverse %}
+
+<ol class="breadcrumb">
+{% for p in active_pages %}
+  {% capture title %}{% if p.nav-title %}{{ p.nav-title }}{% else %}{{ p.title }}{% endif %}{% endcapture %}
+  {% if forloop.last == true %}
+    <li class="active">{{ title }}</li>
+  {% elsif p.nav-show_overview %}
+    <li><a href="{{ site.baseurl }}{{ p.url }}">{{ title }}</a></li>
+  {% else %}
+    <li>{{ title }}</li>
+  {% endif %}
+{% endfor %}
+</ol>
+
+<h1>{{ page.title }}{% if page.is_beta %} <span class="beta">Beta</span>{% endif %}</h1>
 
 {{ content }}
-  </div>
-
-  <div class="col-sm-10 col-sm-offset-1">
-    <!-- Disqus thread and some vertical offset -->
-    <div style="margin-top: 75px; margin-bottom: 50px" id="disqus_thread"></div>
-  </div>
-</div>

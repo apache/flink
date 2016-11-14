@@ -26,9 +26,10 @@ import org.apache.flink.runtime.util.event.NotificationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A pipelined in-memory only subpartition, which can be consumed once.
@@ -88,7 +89,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public void finish() {
+	public void finish() throws IOException {
 		final NotificationListener listener;
 
 		synchronized (buffers) {
@@ -219,5 +220,10 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 			throw new IllegalStateException("Already registered listener.");
 		}
+	}
+
+	@Override
+	public int getNumberOfQueuedBuffers() {
+			return buffers.size();
 	}
 }

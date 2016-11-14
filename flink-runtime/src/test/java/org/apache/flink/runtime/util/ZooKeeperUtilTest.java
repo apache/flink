@@ -20,6 +20,7 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -71,7 +72,7 @@ public class ZooKeeperUtilTest extends TestLogger {
 	}
 
 	private Configuration setQuorum(Configuration conf, String quorum) {
-		conf.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, quorum);
+		conf.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, quorum);
 		return conf;
 	}
 }

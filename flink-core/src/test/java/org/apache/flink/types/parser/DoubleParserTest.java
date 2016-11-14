@@ -19,9 +19,6 @@
 
 package org.apache.flink.types.parser;
 
-import org.apache.flink.types.parser.DoubleParser;
-import org.apache.flink.types.parser.FieldParser;
-
 
 public class DoubleParserTest extends ParserTestBase<Double> {
 

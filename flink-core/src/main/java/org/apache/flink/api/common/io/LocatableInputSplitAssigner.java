@@ -25,6 +25,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.flink.annotation.Public;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -35,6 +36,7 @@ import org.apache.flink.util.NetUtils;
  * The locatable input split assigner assigns to each host splits that are local, before assigning
  * splits that are not local.
  */
+@Public
 public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 
 	private static final Logger LOG = LoggerFactory.getLogger(LocatableInputSplitAssigner.class);

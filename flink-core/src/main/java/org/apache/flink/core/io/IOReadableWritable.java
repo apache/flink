@@ -20,6 +20,7 @@ package org.apache.flink.core.io;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -30,6 +31,7 @@ import org.apache.flink.core.memory.DataOutputView;
  * to a binary representation.
  * When implementing this Interface make sure that the implementing class has a default (zero-argument) constructor!
  */
+@Public
 public interface IOReadableWritable {
 
 	/**

@@ -20,9 +20,11 @@ package org.apache.flink.storm.wordcount;
 import backtype.storm.generated.StormTopology;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
+
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.util.BoltFileSink;
 import org.apache.flink.storm.util.BoltPrintSink;
+import org.apache.flink.storm.util.NullTerminatingSpout;
 import org.apache.flink.storm.util.OutputFormatter;
 import org.apache.flink.storm.util.TupleOutputFormatter;
 import org.apache.flink.storm.wordcount.operators.BoltCounter;
@@ -67,7 +69,8 @@ public class WordCountTopology {
 			// read the text file from given input path
 			final String[] tokens = textPath.split(":");
 			final String inputFile = tokens[tokens.length - 1];
-			builder.setSpout(spoutId, new WordCountFileSpout(inputFile));
+			// inserting NullTerminatingSpout only required to stabilize integration test
+			builder.setSpout(spoutId, new NullTerminatingSpout(new WordCountFileSpout(inputFile)));
 		} else {
 			builder.setSpout(spoutId, new WordCountInMemorySpout());
 		}

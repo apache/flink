@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.util;
 
-import com.google.common.hash.Hashing;
+import org.apache.flink.annotation.Public;
 
 import java.util.Random;
 
@@ -29,8 +30,10 @@ import java.util.Random;
  *
  * @see <a href="http://www.jstatsoft.org/v08/i14/paper">XORShift Algorithm Paper</a>
  */
+@Public
 public class XORShiftRandom extends Random {
 
+	private static final long serialVersionUID = -825722456120842841L;
 	private long seed;
 
 	public XORShiftRandom() {
@@ -39,7 +42,7 @@ public class XORShiftRandom extends Random {
 
 	public XORShiftRandom(long input) {
 		super(input);
-		this.seed = Hashing.murmur3_128().hashLong(input).asLong();
+		this.seed = MathUtils.murmurHash((int) input) ^ MathUtils.murmurHash((int) (input >>> 32));
 	}
 
 	/**

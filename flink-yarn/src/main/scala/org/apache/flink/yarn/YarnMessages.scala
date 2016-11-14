@@ -18,29 +18,40 @@
 
 package org.apache.flink.yarn
 
-import java.util.{UUID, Date}
+import java.util.{Date, UUID, List => JavaList}
 
 import org.apache.flink.api.common.JobID
+import org.apache.flink.runtime.clusterframework.ApplicationStatus
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
+import org.apache.hadoop.yarn.api.records.{Container, ContainerStatus, FinalApplicationStatus}
 
 import scala.concurrent.duration.{Deadline, FiniteDuration}
 
 object YarnMessages {
 
-  case class YarnMessage(message: String, date: Date = new Date())
   case class ApplicationMasterStatus(numTaskManagers: Int, numSlots: Int)
 
-  case object UnregisterClient extends RequiresLeaderSessionID
+  case class LocalStopYarnSession(status: ApplicationStatus, diagnostics: String)
 
-  case class StopYarnSession(status: FinalApplicationStatus, diagnostics: String)
-    extends RequiresLeaderSessionID
-  case class LocalStopYarnSession(status: FinalApplicationStatus, diagnostics: String)
-
-  case object JobManagerStopped
-
+  /**
+    * Entry point to start a new YarnSession.
+    * @param config The configuration to start the YarnSession with.
+    * @param webServerPort The port of the web server to bind to.
+    */
   case class StartYarnSession(config: Configuration, webServerPort: Int)
+
+  /**
+    * Callback from the async ResourceManager client when containers were allocated.
+    * @param containers List of containers which were allocated.
+    */
+  case class YarnContainersAllocated(containers: JavaList[Container])
+
+  /**
+    * Callback from the async ResourceManager client when containers were completed.
+    * @param statuses List of the completed containers' status.
+    */
+  case class YarnContainersCompleted(statuses: JavaList[ContainerStatus])
 
   /** Triggers the registration of the ApplicationClient to the YarnJobManager
     *
@@ -53,8 +64,8 @@ object YarnMessages {
       currentTimeout: FiniteDuration,
       deadline: Option[Deadline]) extends RequiresLeaderSessionID
 
-  /** Registration message sent from the [[ApplicationClient]] to the [[YarnJobManager]]. A
-    * succesful registration is acknowledged with a [[AcknowledgeApplicationClientRegistration]]
+  /** Registration message sent from the [[ApplicationClient]] to the [[YarnFlinkResourceManager]].
+    * A successful registration is acknowledged with a [[AcknowledgeApplicationClientRegistration]]
     * message.
     */
   case object RegisterApplicationClient extends RequiresLeaderSessionID
@@ -73,22 +84,12 @@ object YarnMessages {
   case class JobManagerLeaderAddress(jobManagerAkkaURL: String, leaderSessionID: UUID)
 
   case object HeartbeatWithYarn
-  case object PollYarnClusterStatus // see org.apache.flink.runtime.yarn.FlinkYarnClusterStatus for
-                                    // the response
   case object CheckForUserCommand
 
-  // tell the AM to monitor the job and stop once it has finished
-  case class StopAMAfterJob(jobId:JobID) extends RequiresLeaderSessionID
-  case class LocalStopAMAfterJob(jobId:JobID)
-
   case object LocalGetYarnMessage // request new message
-  case object LocalGetYarnClusterStatus // request the latest cluster status
 
   def getLocalGetYarnMessage(): AnyRef = {
     LocalGetYarnMessage
   }
 
-  def getLocalGetyarnClusterStatus(): AnyRef = {
-    LocalGetYarnClusterStatus
-  }
 }

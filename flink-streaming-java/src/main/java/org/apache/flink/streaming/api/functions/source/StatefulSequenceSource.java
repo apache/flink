@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.functions.source;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 
@@ -24,6 +25,7 @@ import org.apache.flink.streaming.api.checkpoint.Checkpointed;
  * A stateful streaming source that emits each number from a given interval exactly once,
  * possibly in parallel.
  */
+@PublicEvolving
 public class StatefulSequenceSource extends RichParallelSourceFunction<Long> implements Checkpointed<Long> {
 	
 	private static final long serialVersionUID = 1L;

@@ -123,7 +123,7 @@ public class FullOuterJoinOperatorTest {
 				.with(new DummyJoin());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testFullOuter7() {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -181,7 +181,7 @@ public class FullOuterJoinOperatorTest {
 		this.testFullOuterStrategies(JoinHint.REPARTITION_SORT_MERGE);
 	}
 
-	@Test(expected = InvalidProgramException.class)
+	@Test
 	public void testFullOuterStrategy3() {
 		this.testFullOuterStrategies(JoinHint.REPARTITION_HASH_SECOND);
 	}
@@ -191,7 +191,7 @@ public class FullOuterJoinOperatorTest {
 		this.testFullOuterStrategies(JoinHint.BROADCAST_HASH_SECOND);
 	}
 
-	@Test(expected = InvalidProgramException.class)
+	@Test
 	public void testFullOuterStrategy5() {
 		this.testFullOuterStrategies(JoinHint.REPARTITION_HASH_FIRST);
 	}

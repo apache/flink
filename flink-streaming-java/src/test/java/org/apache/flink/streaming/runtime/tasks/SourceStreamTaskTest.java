@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -32,9 +32,6 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.Serializable;
 import java.util.List;
@@ -50,21 +47,18 @@ import java.util.concurrent.atomic.AtomicLong;
  * These tests verify that the RichFunction methods are called (in correct order). And that
  * checkpointing/element emission don't occur concurrently.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ResultPartitionWriter.class})
 public class SourceStreamTaskTest {
-
 
 	/**
 	 * This test verifies that open() and close() are correctly called by the StreamTask.
 	 */
 	@Test
 	public void testOpenClose() throws Exception {
-		final SourceStreamTask<String> sourceTask = new SourceStreamTask<String>();
+		final SourceStreamTask<String, SourceFunction<String>, StreamSource<String, SourceFunction<String>>> sourceTask = new SourceStreamTask<>();
 		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<String>(sourceTask, BasicTypeInfo.STRING_TYPE_INFO);
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
-		StreamSource<String> sourceOperator = new StreamSource<String>(new OpenCloseTestSource());
+		StreamSource<String, ?> sourceOperator = new StreamSource<>(new OpenCloseTestSource());
 		streamConfig.setStreamOperator(sourceOperator);
 
 		testHarness.invoke();
@@ -101,26 +95,27 @@ public class SourceStreamTaskTest {
 		ExecutorService executor = Executors.newFixedThreadPool(10);
 		try {
 			final TupleTypeInfo<Tuple2<Long, Integer>> typeInfo = new TupleTypeInfo<Tuple2<Long, Integer>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
-			final SourceStreamTask<Tuple2<Long, Integer>> sourceTask = new SourceStreamTask<Tuple2<Long, Integer>>();
+			final SourceStreamTask<Tuple2<Long, Integer>, SourceFunction<Tuple2<Long, Integer>>,
+				StreamSource<Tuple2<Long, Integer>, SourceFunction<Tuple2<Long, Integer>>>> sourceTask = new SourceStreamTask<>();
 			final StreamTaskTestHarness<Tuple2<Long, Integer>> testHarness = new StreamTaskTestHarness<Tuple2<Long, Integer>>(sourceTask, typeInfo);
-	
+
 			StreamConfig streamConfig = testHarness.getStreamConfig();
-			StreamSource<Tuple2<Long, Integer>> sourceOperator = new StreamSource<Tuple2<Long, Integer>>(new MockSource(NUM_ELEMENTS, SOURCE_CHECKPOINT_DELAY, SOURCE_READ_DELAY));
+			StreamSource<Tuple2<Long, Integer>, ?> sourceOperator = new StreamSource<>(new MockSource(NUM_ELEMENTS, SOURCE_CHECKPOINT_DELAY, SOURCE_READ_DELAY));
 			streamConfig.setStreamOperator(sourceOperator);
-			
-			// prepare the 
-			
+
+			// prepare the
+
 			Future<Boolean>[] checkpointerResults = new Future[NUM_CHECKPOINTERS];
-	
+
 			// invoke this first, so the tasks are actually running when the checkpoints are scheduled
 			testHarness.invoke();
-			
+
 			for (int i = 0; i < NUM_CHECKPOINTERS; i++) {
 				checkpointerResults[i] = executor.submit(new Checkpointer(NUM_CHECKPOINTS, CHECKPOINT_INTERVAL, sourceTask));
 			}
-			
+
 			testHarness.waitForTaskCompletion();
-	
+
 			// Get the result from the checkpointers, if these threw an exception it
 			// will be rethrown here
 			for (int i = 0; i < NUM_CHECKPOINTERS; i++) {
@@ -131,7 +126,7 @@ public class SourceStreamTaskTest {
 					checkpointerResults[i].get();
 				}
 			}
-	
+
 			List<Tuple2<Long, Integer>> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
 			Assert.assertEquals(NUM_ELEMENTS, resultElements.size());
 		}
@@ -208,9 +203,7 @@ public class SourceStreamTaskTest {
 		}
 
 		@Override
-		public void restoreState(Serializable state) {
-
-		}
+		public void restoreState(Serializable state) {}
 	}
 
 	/**
@@ -233,7 +226,8 @@ public class SourceStreamTaskTest {
 		public Boolean call() throws Exception {
 			for (int i = 0; i < numCheckpoints; i++) {
 				long currentCheckpointId = checkpointId.getAndIncrement();
-				sourceTask.triggerCheckpoint(currentCheckpointId, 0L);
+				CheckpointMetaData checkpointMetaData = new CheckpointMetaData(currentCheckpointId, 0L);
+				sourceTask.triggerCheckpoint(checkpointMetaData);
 				Thread.sleep(checkpointInterval);
 			}
 			return true;

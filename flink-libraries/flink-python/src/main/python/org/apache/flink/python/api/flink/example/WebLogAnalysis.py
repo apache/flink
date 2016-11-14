@@ -19,7 +19,7 @@ import sys
 
 from datetime import datetime
 from flink.plan.Environment import get_environment
-from flink.plan.Constants import INT, STRING, FLOAT, WriteMode
+from flink.plan.Constants import WriteMode
 from flink.functions.CoGroupFunction import CoGroupFunction
 from flink.functions.FilterFunction import FilterFunction
 
@@ -54,16 +54,16 @@ if __name__ == "__main__":
     	sys.exit("Usage: ./bin/pyflink.sh WebLogAnalysis <docments path> <ranks path> <visits path> <output path>")
 
     documents = env \
-        .read_csv(sys.argv[1], [STRING, STRING], "\n", "|") \
+        .read_csv(sys.argv[1], "\n", "|") \
         .filter(DocumentFilter()) \
         .project(0)
 
     ranks = env \
-        .read_csv(sys.argv[2], [INT, STRING, INT], "\n", "|") \
+        .read_csv(sys.argv[2], "\n", "|") \
         .filter(RankFilter())
 
     visits = env \
-        .read_csv(sys.argv[3], [STRING, STRING, STRING, FLOAT, STRING, STRING, STRING, STRING, INT], "\n", "|") \
+        .read_csv(sys.argv[3], "\n", "|") \
         .project(1,2) \
         .filter(VisitFilter()) \
         .project(0)
@@ -78,7 +78,7 @@ if __name__ == "__main__":
         .co_group(visits) \
         .where(1) \
         .equal_to(0) \
-        .using(AntiJoinVisits(), [INT, STRING, INT])
+        .using(AntiJoinVisits())
 
     result.write_csv(sys.argv[4], '\n', '|', WriteMode.OVERWRITE)
 

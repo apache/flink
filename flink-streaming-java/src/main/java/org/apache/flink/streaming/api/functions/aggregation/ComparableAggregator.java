@@ -17,10 +17,12 @@
 
 package org.apache.flink.streaming.api.functions.aggregation;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.util.FieldAccessor;
 
+@Internal
 public class ComparableAggregator<T> extends AggregationFunction<T> {
 
 	private static final long serialVersionUID = 1L;

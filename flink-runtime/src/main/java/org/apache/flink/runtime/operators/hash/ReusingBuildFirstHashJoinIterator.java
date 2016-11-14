@@ -56,7 +56,9 @@ public class ReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIterat
 	
 	private final MutableObjectIterator<V2> secondInput;
 
-	private final boolean joinWithEmptyBuildSide;
+	private final boolean probeSideOuterJoin;
+
+	private final boolean buildSideOuterJoin;
 	
 	private volatile boolean running = true;
 	
@@ -74,7 +76,8 @@ public class ReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIterat
 			IOManager ioManager,
 			AbstractInvokable ownerTask,
 			double memoryFraction,
-			boolean joinWithEmptyBuildSide,
+			boolean probeSideOuterJoin,
+			boolean buildSideOuterJoin,
 			boolean useBitmapFilters) throws MemoryAllocationException {
 		
 		this.memManager = memManager;
@@ -82,10 +85,11 @@ public class ReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIterat
 		this.secondInput = secondInput;
 		this.probeSideSerializer = serializer2;
 
-		if(useBitmapFilters && joinWithEmptyBuildSide) {
+		if(useBitmapFilters && probeSideOuterJoin) {
 			throw new IllegalArgumentException("Bitmap filter may not be activated for joining with empty build side");
 		}
-		this.joinWithEmptyBuildSide = joinWithEmptyBuildSide;
+		this.probeSideOuterJoin = probeSideOuterJoin;
+		this.buildSideOuterJoin = buildSideOuterJoin;
 		
 		this.nextBuildSideObject = serializer1.createInstance();
 		this.tempBuildSideRecord = serializer1.createInstance();
@@ -98,7 +102,7 @@ public class ReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIterat
 	
 	@Override
 	public void open() throws IOException, MemoryAllocationException, InterruptedException {
-		this.hashJoin.open(this.firstInput, this.secondInput);
+		this.hashJoin.open(this.firstInput, this.secondInput, buildSideOuterJoin);
 	}
 	
 
@@ -119,40 +123,34 @@ public class ReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIterat
 		if (this.hashJoin.nextRecord())
 		{
 			// we have a next record, get the iterators to the probe and build side values
-			final MutableHashTable.HashBucketIterator<V1, V2> buildSideIterator = this.hashJoin.getBuildSideIterator();
-			V1 nextBuildSideRecord = this.nextBuildSideObject;
-			
-			// get the first build side value
-			if ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null) {
-				V1 tmpRec = this.tempBuildSideRecord;
-				final V2 probeRecord = this.hashJoin.getCurrentProbeRecord();
-				
-				// check if there is another build-side value
-				if ((tmpRec = buildSideIterator.next(tmpRec)) != null) {
+			final MutableObjectIterator<V1> buildSideIterator = this.hashJoin.getBuildSideIterator();
 
-					// call match on the first pair
+			final V2 probeRecord = this.hashJoin.getCurrentProbeRecord();
+			V1 nextBuildSideRecord = buildSideIterator.next(this.nextBuildSideObject);
+
+			if (probeRecord != null && nextBuildSideRecord != null) {
+				matchFunction.join(nextBuildSideRecord, probeRecord, collector);
+
+				while (this.running && ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null)) {
 					matchFunction.join(nextBuildSideRecord, probeRecord, collector);
-					
-					// call match on the second pair
-					matchFunction.join(tmpRec, probeRecord, collector);
-					
+				}
+			} else {
+				if (probeSideOuterJoin && probeRecord != null && nextBuildSideRecord == null) {
+					matchFunction.join(null, probeRecord, collector);
+				}
+
+				if (buildSideOuterJoin && probeRecord == null && nextBuildSideRecord != null) {
+					// call match on the first pair
+					matchFunction.join(nextBuildSideRecord, null, collector);
+
 					while (this.running && ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null)) {
 						// call match on the next pair
 						// make sure we restore the value of the probe side record
-						matchFunction.join(nextBuildSideRecord, probeRecord, collector);
+						matchFunction.join(nextBuildSideRecord, null, collector);
 					}
 				}
-				else {
-					// only single pair matches
-					matchFunction.join(nextBuildSideRecord, probeRecord, collector);
-				}
 			}
-			else if(joinWithEmptyBuildSide) {
-				// build side is empty, join with null
-				final V2 probeRecord = this.hashJoin.getCurrentProbeRecord();
 
-				matchFunction.join(null, probeRecord, collector);
-			}
 			return true;
 		}
 		else {

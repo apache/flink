@@ -46,10 +46,6 @@ public class BlobLibraryCacheManagerTest {
 
 	@Test
 	public void testLibraryCacheManagerCleanup() {
-		Configuration config = new Configuration();
-
-		config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1);
-		GlobalConfiguration.includeConfiguration(config);
 
 		JobID jid = new JobID();
 		List<BlobKey> keys = new ArrayList<BlobKey>();
@@ -59,9 +55,10 @@ public class BlobLibraryCacheManagerTest {
 		final byte[] buf = new byte[128];
 
 		try {
-			server = new BlobServer(new Configuration());
+			Configuration config = new Configuration();
+			server = new BlobServer(config);
 			InetSocketAddress blobSocketAddress = new InetSocketAddress(server.getPort());
-			BlobClient bc = new BlobClient(blobSocketAddress);
+			BlobClient bc = new BlobClient(blobSocketAddress, config);
 
 			keys.add(bc.put(buf));
 			buf[0] += 1;
@@ -147,7 +144,7 @@ public class BlobLibraryCacheManagerTest {
 			cache = new BlobCache(serverAddress, config);
 
 			// upload some meaningless data to the server
-			BlobClient uploader = new BlobClient(serverAddress);
+			BlobClient uploader = new BlobClient(serverAddress, config);
 			BlobKey dataKey1 = uploader.put(new byte[]{1, 2, 3, 4, 5, 6, 7, 8});
 			BlobKey dataKey2 = uploader.put(new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
 			uploader.close();

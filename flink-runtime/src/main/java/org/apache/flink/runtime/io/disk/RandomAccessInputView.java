@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.SeekableDataInputView;
 import org.apache.flink.runtime.memory.AbstractPagedInputView;
-import org.apache.flink.runtime.util.MathUtils;
+import org.apache.flink.util.MathUtils;
 
 
 public class RandomAccessInputView extends AbstractPagedInputView implements SeekableDataInputView {
@@ -45,7 +45,7 @@ public class RandomAccessInputView extends AbstractPagedInputView implements See
 	{
 		this(segments, segmentSize, segmentSize);
 	}
-	
+
 	public RandomAccessInputView(ArrayList<MemorySegment> segments, int segmentSize, int limitInLastSegment) {
 		super(segments.get(0), segments.size() > 1 ? segmentSize : limitInLastSegment, 0);
 		this.segments = segments;
@@ -64,6 +64,10 @@ public class RandomAccessInputView extends AbstractPagedInputView implements See
 		
 		this.currentSegmentIndex = bufferNum;
 		seekInput(this.segments.get(bufferNum), offset, bufferNum < this.segments.size() - 1 ? this.segmentSize : this.limitInLastSegment);
+	}
+
+	public long getReadPosition() {
+		return (((long) currentSegmentIndex) << segmentSizeBits) + getCurrentPositionInSegment();
 	}
 
 

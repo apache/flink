@@ -25,26 +25,36 @@ import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.operators.BatchTask;
+import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.SerializedValue;
+
 import org.junit.Test;
 
 public class ExecutionGraphDeploymentTest {
@@ -79,11 +89,13 @@ public class ExecutionGraphDeploymentTest {
 			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
 
 			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jobId,
-					"some job",
-					new Configuration(),
-					AkkaUtils.getDefaultTimeout());
+				TestingUtils.defaultExecutionContext(), 
+				jobId, 
+				"some job", 
+				new Configuration(),
+				new SerializedValue<>(new ExecutionConfig()),
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 
 			List<JobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
 
@@ -94,7 +106,7 @@ public class ExecutionGraphDeploymentTest {
 
 			ExecutionGraphTestUtils.SimpleActorGateway instanceGateway = new ExecutionGraphTestUtils.SimpleActorGateway(TestingUtils.directExecutionContext());
 
-			final Instance instance = getInstance(instanceGateway);
+			final Instance instance = getInstance(new ActorTaskManagerGateway(instanceGateway));
 
 			final SimpleSlot slot = instance.allocateSimpleSlot(jobId);
 
@@ -107,22 +119,28 @@ public class ExecutionGraphDeploymentTest {
 			TaskDeploymentDescriptor descr = instanceGateway.lastTDD;
 			assertNotNull(descr);
 
-			assertEquals(jobId, descr.getJobID());
-			assertEquals(jid2, descr.getVertexID());
-			assertEquals(3, descr.getIndexInSubtaskGroup());
-			assertEquals(10, descr.getNumberOfSubtasks());
-			assertEquals(BatchTask.class.getName(), descr.getInvokableClassName());
-			assertEquals("v2", descr.getTaskName());
+			JobInformation jobInformation = descr.getSerializedJobInformation().deserializeValue(getClass().getClassLoader());
+			TaskInformation taskInformation = descr.getSerializedTaskInformation().deserializeValue(getClass().getClassLoader());
 
-			List<ResultPartitionDeploymentDescriptor> producedPartitions = descr.getProducedPartitions();
-			List<InputGateDeploymentDescriptor> consumedPartitions = descr.getInputGates();
+			assertEquals(jobId, jobInformation.getJobId());
+			assertEquals(jid2, taskInformation.getJobVertexId());
+			assertEquals(3, descr.getSubtaskIndex());
+			assertEquals(10, taskInformation.getNumberOfSubtasks());
+			assertEquals(BatchTask.class.getName(), taskInformation.getInvokableClassName());
+			assertEquals("v2", taskInformation.getTaskName());
+
+			Collection<ResultPartitionDeploymentDescriptor> producedPartitions = descr.getProducedPartitions();
+			Collection<InputGateDeploymentDescriptor> consumedPartitions = descr.getInputGates();
 
 			assertEquals(2, producedPartitions.size());
 			assertEquals(1, consumedPartitions.size());
 
-			assertEquals(10, producedPartitions.get(0).getNumberOfSubpartitions());
-			assertEquals(10, producedPartitions.get(1).getNumberOfSubpartitions());
-			assertEquals(10, consumedPartitions.get(0).getInputChannelDeploymentDescriptors().length);
+			Iterator<ResultPartitionDeploymentDescriptor> iteratorProducedPartitions = producedPartitions.iterator();
+			Iterator<InputGateDeploymentDescriptor> iteratorConsumedPartitions = consumedPartitions.iterator();
+
+			assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
+			assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
+			assertEquals(10, iteratorConsumedPartitions.next().getInputChannelDeploymentDescriptors().length);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -270,6 +288,63 @@ public class ExecutionGraphDeploymentTest {
 		}
 	}
 
+	@Test
+	/**
+	 * Tests that a blocking batch job fails if there are not enough resources left to schedule the
+	 * succeeding tasks. This test case is related to [FLINK-4296] where finished producing tasks
+	 * swallow the fail exception when scheduling a consumer task.
+	 */
+	public void testNoResourceAvailableFailure() throws Exception {
+		final JobID jobId = new JobID();
+		JobVertex v1 = new JobVertex("source");
+		JobVertex v2 = new JobVertex("sink");
+
+		int dop1 = 1;
+		int dop2 = 1;
+
+		v1.setParallelism(dop1);
+		v2.setParallelism(dop2);
+
+		v1.setInvokableClass(BatchTask.class);
+		v2.setInvokableClass(BatchTask.class);
+
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+
+		// execution graph that executes actions synchronously
+		ExecutionGraph eg = new ExecutionGraph(
+			TestingUtils.directExecutionContext(),
+			jobId,
+			"failing test job",
+			new Configuration(),
+			new SerializedValue<>(new ExecutionConfig()),
+			AkkaUtils.getDefaultTimeout(),
+			new NoRestartStrategy());
+
+		eg.setQueuedSchedulingAllowed(false);
+
+		List<JobVertex> ordered = Arrays.asList(v1, v2);
+		eg.attachJobGraph(ordered);
+
+		Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
+		for (int i = 0; i < dop1; i++) {
+			scheduler.newInstanceAvailable(
+				ExecutionGraphTestUtils.getInstance(
+					new ActorTaskManagerGateway(
+						new ExecutionGraphTestUtils.SimpleActorGateway(
+							TestingUtils.directExecutionContext()))));
+		}
+		assertEquals(dop1, scheduler.getNumberOfAvailableSlots());
+
+		// schedule, this triggers mock deployment
+		eg.scheduleForExecution(scheduler);
+
+		ExecutionAttemptID attemptID = eg.getJobVertex(v1.getID()).getTaskVertices()[0].getCurrentExecutionAttempt().getAttemptId();
+		eg.updateState(new TaskExecutionState(jobId, attemptID, ExecutionState.RUNNING));
+		eg.updateState(new TaskExecutionState(jobId, attemptID, ExecutionState.FINISHED, null));
+
+		assertEquals(JobStatus.FAILED, eg.getState());
+	}
+
 	private Map<ExecutionAttemptID, Execution> setupExecution(JobVertex v1, int dop1, JobVertex v2, int dop2) throws Exception {
 		final JobID jobId = new JobID();
 
@@ -281,11 +356,14 @@ public class ExecutionGraphDeploymentTest {
 
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.directExecutionContext(),
-				jobId,
-				"some job",
-				new Configuration(),
-				AkkaUtils.getDefaultTimeout());
+			TestingUtils.directExecutionContext(), 
+			jobId, 
+			"some job", 
+			new Configuration(), 
+			new SerializedValue<>(new ExecutionConfig()),
+			AkkaUtils.getDefaultTimeout(),
+			new NoRestartStrategy());
+		
 		eg.setQueuedSchedulingAllowed(false);
 
 		List<JobVertex> ordered = Arrays.asList(v1, v2);
@@ -294,9 +372,10 @@ public class ExecutionGraphDeploymentTest {
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 		for (int i = 0; i < dop1 + dop2; i++) {
 			scheduler.newInstanceAvailable(
-					ExecutionGraphTestUtils.getInstance(
-							new ExecutionGraphTestUtils.SimpleActorGateway(
-									TestingUtils.directExecutionContext())));
+				ExecutionGraphTestUtils.getInstance(
+					new ActorTaskManagerGateway(
+						new ExecutionGraphTestUtils.SimpleActorGateway(
+							TestingUtils.directExecutionContext()))));
 		}
 		assertEquals(dop1 + dop2, scheduler.getNumberOfAvailableSlots());
 

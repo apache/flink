@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
 import org.apache.flink.api.java.typeutils.runtime.TupleComparatorBase
 import org.apache.flink.core.memory.MemorySegment
@@ -26,6 +27,7 @@ import org.apache.flink.types.{KeyFieldOutOfBoundsException, NullKeyFieldExcepti
  * Comparator for Case Classes. Access is different from
  * our Java Tuples so we have to treat them differently.
  */
+@Internal
 class CaseClassComparator[T <: Product](
     keys: Array[Int],
     scalaComparators: Array[TypeComparator[_]],

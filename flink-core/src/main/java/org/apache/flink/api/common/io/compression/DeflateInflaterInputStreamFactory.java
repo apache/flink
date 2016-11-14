@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.common.io.compression;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
@@ -26,6 +28,7 @@ import java.util.zip.InflaterInputStream;
 /**
  * Factory for input streams that decompress the "deflate" compression format.
  */
+@Internal
 public class DeflateInflaterInputStreamFactory implements InflaterInputStreamFactory<InflaterInputStream> {
 
 	private static DeflateInflaterInputStreamFactory INSTANCE = null;

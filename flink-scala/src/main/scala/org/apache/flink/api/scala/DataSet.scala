@@ -17,12 +17,13 @@
  */
 package org.apache.flink.api.scala
 
+import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.aggregators.Aggregator
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
-import org.apache.flink.api.common.operators.Order
+import org.apache.flink.api.common.operators.{Keys, Order}
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
@@ -30,11 +31,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.Utils.CountHelper
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
-import org.apache.flink.api.java.io.{DiscardingOutputFormat, PrintingOutputFormat, TextOutputFormat}
-import org.apache.flink.api.java.operators.Keys.ExpressionKeys
+import org.apache.flink.api.java.io.{PrintingOutputFormat, TextOutputFormat}
+import Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.api.java.{DataSet => JavaDataSet, Utils}
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
+import org.apache.flink.api.java.{Utils, DataSet => JavaDataSet}
 import org.apache.flink.api.scala.operators.{ScalaAggregateOperator, ScalaCsvOutputFormat}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.{FileSystem, Path}
@@ -83,6 +85,7 @@ import scala.reflect.ClassTag
  *
  * @tparam T The type of the DataSet, i.e., the type of the elements of the DataSet.
  */
+@Public
 class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   require(set != null, "Java DataSet must not be null.")
 
@@ -93,6 +96,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
 
   /**
    * Returns the execution environment associated with the current DataSet.
+ *
    * @return associated execution environment
    */
   def getExecutionEnvironment: ExecutionEnvironment =
@@ -187,6 +191,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @param name The name under which the aggregator is registered.
    * @param aggregator The aggregator class.
    */
+  @PublicEvolving
   def registerAggregator(name: String, aggregator: Aggregator[_]): DataSet[T] = {
     javaSet match {
       case di: DeltaIterationResultSet[_, _] =>
@@ -258,7 +263,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       case udfOp: UdfOperator[_] => udfOp.withParameters(parameters)
       case source: DataSource[_] => source.withParameters(parameters)
       case _ =>
-        throw new UnsupportedOperationException("Operator " + javaSet.toString 
+        throw new UnsupportedOperationException("Operator " + javaSet.toString
             + " cannot have parameters")
     }
     this
@@ -515,13 +520,12 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * Convenience method to get the count (number of elements) of a DataSet
    *
    * @return A long integer that represents the number of elements in the set
-   *
    * @see org.apache.flink.api.java.Utils.CountHelper
    */
   @throws(classOf[Exception])
   def count(): Long = {
     val id = new AbstractID().toString
-    javaSet.flatMap(new CountHelper[T](id)).output(new DiscardingOutputFormat[java.lang.Long])
+    javaSet.output(new CountHelper[T](id))
     val res = getExecutionEnvironment.execute()
     res.getAccumulatorResult[Long](id)
   }
@@ -531,7 +535,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * As DataSet can contain a lot of data, this method should be used with caution.
    *
    * @return A Seq containing the elements of the DataSet
-   *
    * @see org.apache.flink.api.java.Utils.CollectHelper
    */
   @throws(classOf[Exception])
@@ -539,8 +542,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val id = new AbstractID().toString
     val serializer = getType().createSerializer(getExecutionEnvironment.getConfig)
     
-    javaSet.flatMap(new Utils.CollectHelper[T](id, serializer))
-           .output(new DiscardingOutputFormat[T])
+    javaSet.output(new Utils.CollectHelper[T](id, serializer))
     
     val res = getExecutionEnvironment.execute()
 
@@ -698,6 +700,62 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
+    * Selects an element with minimum value.
+    *
+    * The minimum is computed over the specified fields in lexicographical order.
+    *
+    * Example 1: Given a data set with elements [0, 1], [1, 0], the
+    * results will be:
+    * {{{
+    *   minBy(0)[0, 1]
+    *   minBy(1)[1, 0]
+    * }}}
+    * Example 2: Given a data set with elements [0, 0], [0, 1], the
+    * results will be:
+    * {{{
+    *   minBy(0, 1)[0, 0]
+    * }}}
+    * If multiple values with minimum value at the specified fields exist, a random one will be
+    * picked.
+    * Internally, this operation is implemented as a [[ReduceFunction]]
+    */
+  def minBy(fields: Int*) : DataSet[T]  = {
+    if (!getType.isTupleType) {
+      throw new InvalidProgramException("DataSet#minBy(int...) only works on Tuple types.")
+    }
+
+    reduce(new SelectByMinFunction[T](getType.asInstanceOf[TupleTypeInfoBase[T]], fields.toArray))
+  }
+
+  /**
+    * Selects an element with maximum value.
+    *
+    * The maximum is computed over the specified fields in lexicographical order.
+    *
+    * Example 1: Given a data set with elements [0, 1], [1, 0], the
+    * results will be:
+    * {{{
+    *   maxBy(0)[1, 0]
+    *   maxBy(1)[0, 1]
+    * }}}
+    * Example 2: Given a data set with elements [0, 0], [0, 1], the
+    * results will be:
+    * {{{
+    *   maxBy(0, 1)[0, 1]
+    * }}}
+    * If multiple values with maximum value at the specified fields exist, a random one will be
+    * picked
+    * Internally, this operation is implemented as a [[ReduceFunction]].
+    *
+    */
+  def maxBy(fields: Int*) : DataSet[T] = {
+    if (!getType.isTupleType) {
+      throw new InvalidProgramException("DataSet#maxBy(int...) only works on Tuple types.")
+    }
+    reduce(new SelectByMaxFunction[T](getType.asInstanceOf[TupleTypeInfoBase[T]], fields.toArray))
+  }
+
+  /**
    * Creates a new DataSet containing the first `n` elements of this DataSet.
    */
   def first(n: Int): DataSet[T] = {
@@ -753,7 +811,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def distinct(fields: Int*): DataSet[T] = {
     wrap(new DistinctOperator[T](
       javaSet,
-      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType, true),
+      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType),
       getCallLocationName()))
   }
 
@@ -814,7 +872,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def groupBy(fields: Int*): GroupedDataSet[T] = {
     new GroupedDataSet[T](
       this,
-      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType,false))
+      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType))
   }
 
   /**
@@ -1163,7 +1221,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[Int])(
       stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
-    val key = new ExpressionKeys[T](keyFields, javaSet.getType, false)
+    val key = new ExpressionKeys[T](keyFields, javaSet.getType)
 
     val iterativeSet = new DeltaIteration[T, R](
       javaSet.getExecutionEnvironment,
@@ -1191,7 +1249,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[Int],
                                  solutionSetUnManaged: Boolean)(
     stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
-    val key = new ExpressionKeys[T](keyFields, javaSet.getType, false)
+    val key = new ExpressionKeys[T](keyFields, javaSet.getType)
 
     val iterativeSet = new DeltaIteration[T, R](
       javaSet.getExecutionEnvironment,
@@ -1308,7 +1366,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val op = new PartitionOperator[T](
       javaSet,
       PartitionMethod.HASH,
-      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType, false),
+      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType),
       getCallLocationName())
     wrap(op)
   }
@@ -1349,6 +1407,62 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
         getCallLocationName())
     wrap(op)
   }
+
+  /**
+   * Range-partitions a DataSet on the specified tuple field positions.
+   *
+   * '''important:''' This operation requires an extra pass over the DataSet to compute the range
+   * boundaries and shuffles the whole DataSet over the network.
+   * This can take significant amount of time.
+   *
+   */
+  def partitionByRange(fields: Int*): DataSet[T] = {
+    val op = new PartitionOperator[T](
+      javaSet,
+      PartitionMethod.RANGE,
+      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType),
+      getCallLocationName())
+    wrap(op)
+  }
+
+  /**
+   * Range-partitions a DataSet on the specified fields.
+   *
+  *'''important:''' This operation requires an extra pass over the DataSet to compute the range
+   * boundaries and shuffles the whole DataSet over the network.
+   * This can take significant amount of time.
+   */
+  def partitionByRange(firstField: String, otherFields: String*): DataSet[T] = {
+    val op = new PartitionOperator[T](
+      javaSet,
+      PartitionMethod.RANGE,
+      new Keys.ExpressionKeys[T](firstField +: otherFields.toArray, javaSet.getType),
+      getCallLocationName())
+    wrap(op)
+  }
+
+  /**
+   * Range-partitions a DataSet using the specified key selector function.
+   *
+  *'''important:''' This operation requires an extra pass over the DataSet to compute the range
+   * boundaries and shuffles the whole DataSet over the network.
+   * This can take significant amount of time.
+   */
+  def partitionByRange[K: TypeInformation](fun: T => K): DataSet[T] = {
+    val keyExtractor = new KeySelector[T, K] {
+      val cleanFun = clean(fun)
+      def getKey(in: T) = cleanFun(in)
+    }
+    val op = new PartitionOperator[T](
+      javaSet,
+      PartitionMethod.RANGE,
+      new Keys.SelectorFunctionKeys[T, K](
+        keyExtractor,
+        javaSet.getType,
+        implicitly[TypeInformation[K]]),
+      getCallLocationName())
+    wrap(op)
+  }
   
   /**
    * Partitions a tuple DataSet on the specified key fields using a custom partitioner.
@@ -1360,7 +1474,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: Int) : DataSet[T] = {
     val op = new PartitionOperator[T](
       javaSet,
-      new Keys.ExpressionKeys[T](Array[Int](field), javaSet.getType, false),
+      new Keys.ExpressionKeys[T](Array[Int](field), javaSet.getType),
       partitioner,
       implicitly[TypeInformation[K]],
       getCallLocationName())
@@ -1454,6 +1568,31 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       new SortPartitionOperator[T](javaSet, field, order, getCallLocationName()))
   }
 
+  /**
+    * Locally sorts the partitions of the DataSet on the extracted key in the specified order.
+    * The DataSet can be sorted on multiple values by returning a tuple from the KeySelector.
+    *
+    * Note that no additional sort keys can be appended to a KeySelector sort keys. To sort
+    * the partitions by multiple values using KeySelector, the KeySelector must return a tuple
+    * consisting of the values.
+    */
+  def sortPartition[K: TypeInformation](fun: T => K, order: Order): DataSet[T] ={
+    val keyExtractor = new KeySelector[T, K] {
+      val cleanFun = clean(fun)
+      def getKey(in: T) = cleanFun(in)
+    }
+
+    val keyType = implicitly[TypeInformation[K]]
+    new PartitionSortedDataSet[T](
+      new SortPartitionOperator[T](javaSet,
+        new Keys.SelectorFunctionKeys[T, K](
+          keyExtractor,
+          javaSet.getType,
+          keyType),
+        order,
+        getCallLocationName()))
+  }
+
   // --------------------------------------------------------------------------------------------
   //  Result writing
   // --------------------------------------------------------------------------------------------
@@ -1461,6 +1600,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Writes `this` DataSet to the specified location. This uses [[AnyRef.toString]] on
    * each element.
+ *
    * @see org.apache.flink.api.java.DataSet#writeAsText(String)
    */
   def writeAsText(
@@ -1477,6 +1617,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * Writes `this` DataSet to the specified location as CSV file(s).
    *
    * This only works on Tuple DataSets. For individual tuple fields [[AnyRef.toString]] is used.
+ *
    * @see org.apache.flink.api.java.DataSet#writeAsText(String)
    */
   def writeAsCsv(
@@ -1515,7 +1656,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def output(outputFormat: OutputFormat[T]): DataSink[T] = {
     javaSet.output(outputFormat)
   }
-  
+
   /**
    * Prints the elements in a DataSet to the standard output stream [[System.out]] of the
    * JVM that calls the print() method. For programs that are executed in a cluster, this
@@ -1568,12 +1709,12 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * *
    * Writes a DataSet to the standard output stream (stdout) with a sink identifier prefixed.
    * This uses [[AnyRef.toString]] on each element.
-   * @param sinkIdentifier The string to prefix the output with.
-   * 
+ *
+   * @param sinkIdentifier The string to prefix the output with. 
    * @deprecated Use [[printOnTaskManager(String)]] instead.
    */
-  @Deprecated
   @deprecated
+  @PublicEvolving
   def print(sinkIdentifier: String): DataSink[T] = {
     output(new PrintingOutputFormat[T](sinkIdentifier, false))
   }
@@ -1581,12 +1722,12 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Writes a DataSet to the standard error stream (stderr) with a sink identifier prefixed.
    * This uses [[AnyRef.toString]] on each element.
-   * @param sinkIdentifier The string to prefix the output with.
-   * 
+ *
+   * @param sinkIdentifier The string to prefix the output with. 
    * @deprecated Use [[printOnTaskManager(String)]] instead.
    */
-  @Deprecated
   @deprecated
+  @PublicEvolving
   def printToErr(sinkIdentifier: String): DataSink[T] = {
       output(new PrintingOutputFormat[T](sinkIdentifier, true))
   }

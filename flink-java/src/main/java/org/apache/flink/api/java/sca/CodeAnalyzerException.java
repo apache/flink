@@ -17,9 +17,12 @@
  */
 package org.apache.flink.api.java.sca;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * Exception that is thrown if code analysis could not run properly.
  */
+@PublicEvolving
 public class CodeAnalyzerException extends RuntimeException {
 	private static final long serialVersionUID = 1L;
 

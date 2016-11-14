@@ -39,6 +39,8 @@ public abstract class AbstractHashTableProber<PT, BT> {
 	}
 	
 	public abstract BT getMatchFor(PT probeSideRecord, BT targetForMatch);
+
+	public abstract BT getMatchFor(PT probeSideRecord);
 	
 	public abstract void updateMatch(BT record) throws IOException;
 }

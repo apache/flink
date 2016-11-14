@@ -18,8 +18,10 @@
 
 package org.apache.flink.types.parser;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.BooleanValue;
 
+@PublicEvolving
 public class BooleanValueParser extends FieldParser<BooleanValue> {
 
 	private BooleanParser parser = new BooleanParser();

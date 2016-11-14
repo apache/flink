@@ -68,4 +68,9 @@ public interface BufferPool extends BufferProvider, BufferRecycler {
 	 */
 	int getNumberOfAvailableMemorySegments();
 
+	/**
+	 * Returns the number of used buffers of this buffer pool.
+	 */
+	int getNumberOfUsedBuffers();
+
 }

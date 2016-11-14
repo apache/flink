@@ -20,18 +20,11 @@ package org.apache.flink.runtime.client;
 
 import akka.actor.ActorRef;
 import akka.actor.PoisonPill;
-import akka.actor.Props;
 import akka.actor.Status;
 import akka.actor.Terminated;
-import akka.dispatch.Futures;
 import akka.dispatch.OnSuccess;
-import com.google.common.base.Preconditions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
-import org.apache.flink.runtime.akka.ListeningBehaviour;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.AkkaActorGateway;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -39,53 +32,46 @@ import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobClientMessages.JobManagerActorRef;
 import org.apache.flink.runtime.messages.JobClientMessages.JobManagerLeaderAddress;
-import org.apache.flink.runtime.messages.JobClientMessages.SubmitJobAndWait;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.util.SerializedThrowable;
+import org.apache.flink.util.Preconditions;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.IOException;
 import java.util.UUID;
-import java.util.concurrent.Callable;
+
 
 /**
- * Actor which constitutes the bridge between the non-actor code and the JobManager. The JobClient
- * is used to submit jobs to the JobManager and to request the port of the BlobManager.
+ * Actor which constitutes the bridge between the non-actor code and the JobManager.
+ * This base class handles the connection to the JobManager and notifies in case of timeouts. It also
+ * receives and prints job updates until job completion.
  */
-public class JobClientActor extends FlinkUntypedActor implements LeaderRetrievalListener {
+public abstract class JobClientActor extends FlinkUntypedActor implements LeaderRetrievalListener {
 
 	private final LeaderRetrievalService leaderRetrievalService;
 
 	/** timeout for futures */
-	private final FiniteDuration timeout;
+	protected final FiniteDuration timeout;
 
 	/** true if status messages shall be printed to sysout */
 	private final boolean sysoutUpdates;
 
-	/** true if a SubmitJobSuccess message has been received */
-	private boolean jobSuccessfullySubmitted = false;
-
-	/** true if a PoisonPill was taken */
-	private boolean terminated = false;
+	/** true if a PoisonPill about to be taken */
+	private boolean toBeTerminated = false;
 
 	/** ActorRef to the current leader */
-	private ActorRef jobManager;
+	protected ActorRef jobManager;
 
 	/** leader session ID of the JobManager when this actor was created */
-	private UUID leaderSessionID;
+	protected UUID leaderSessionID;
 
-	/** Actor which submits a job to the JobManager via this actor */
-	private ActorRef submitter;
-
-	/** JobGraph which shall be submitted to the JobManager */
-	private JobGraph jobGraph;
+	/** The client which the actor is responsible for */
+	protected ActorRef client;
 
 	public JobClientActor(
 			LeaderRetrievalService leaderRetrievalService,
-			FiniteDuration submissionTimeout,
+			FiniteDuration timeout,
 			boolean sysoutUpdates) {
 		this.leaderRetrievalService = Preconditions.checkNotNull(leaderRetrievalService);
-		this.timeout = Preconditions.checkNotNull(submissionTimeout);
+		this.timeout = Preconditions.checkNotNull(timeout);
 		this.sysoutUpdates = sysoutUpdates;
 	}
 
@@ -108,9 +94,27 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 		}
 	}
 
+	/**
+	 * Hook to be called once a connection has been established with the JobManager.
+	 */
+	protected abstract void connectedToJobManager();
+
+	/**
+	 * Hook to handle custom client message which are not handled by the base class.
+	 * @param message The message to be handled
+	 */
+	protected abstract void handleCustomMessage(Object message);
+
+	/**
+	 * Hook to let the client know about messages that should start a timer for a timeout
+	 * @return The message class after which a timeout should be started
+	 */
+	protected abstract Class getClientMessageClass();
+
+
 	@Override
 	protected void handleMessage(Object message) {
-		
+
 		// =========== State Change Messages ===============
 
 		if (message instanceof ExecutionGraphMessages.ExecutionStateChanged) {
@@ -123,6 +127,11 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 
 		else if (message instanceof JobManagerLeaderAddress) {
 			JobManagerLeaderAddress msg = (JobManagerLeaderAddress) message;
+
+			if (jobManager != null) {
+				// only print this message when we had been connected to a JobManager before
+				logAndPrintMessage("New JobManager elected. Connecting to " + msg.address());
+			}
 
 			disconnectFromJobManager();
 
@@ -143,77 +152,31 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 			JobManagerActorRef msg = (JobManagerActorRef) message;
 			connectToJobManager(msg.jobManager());
 
-			if (jobGraph != null && !jobSuccessfullySubmitted) {
-				// if we haven't yet submitted the job successfully
-				tryToSubmitJob(jobGraph);
-			}
+			logAndPrintMessage("Connected to JobManager at " + msg.jobManager());
+
+			connectedToJobManager();
 		}
 
 		// =========== Job Life Cycle Messages ===============
-		
-		// submit a job to the JobManager
-		else if (message instanceof SubmitJobAndWait) {
-			// only accept SubmitJobWait messages if we're not about to terminate
-			if (!terminated) {
-				// sanity check that this no job was submitted through this actor before -
-				// it is a one-shot actor after all
-				if (this.submitter == null) {
-					jobGraph = ((SubmitJobAndWait) message).jobGraph();
-					if (jobGraph == null) {
-						LOG.error("Received null JobGraph");
-						sender().tell(
-							decorateMessage(new Status.Failure(new Exception("JobGraph is null"))),
-							getSelf());
-					} else {
-						LOG.info("Received job {} ({}).", jobGraph.getName(), jobGraph.getJobID());
 
-						this.submitter = getSender();
-
-						// is only successful if we already know the job manager leader
-						tryToSubmitJob(jobGraph);
-					}
-				} else {
-					// repeated submission - tell failure to sender and kill self
-					String msg = "Received repeated 'SubmitJobAndWait'";
-					LOG.error(msg);
-					getSender().tell(
-						decorateMessage(new Status.Failure(new Exception(msg))), ActorRef.noSender());
-
-					terminate();
-				}
-			} else {
-				// we're about to receive a PoisonPill because terminated == true
-				String msg = getClass().getName() + " is about to be terminated. Therefore, the " +
-					"job submission cannot be executed.";
-				LOG.error(msg);
-				getSender().tell(
-					decorateMessage(new Status.Failure(new Exception(msg))), ActorRef.noSender());
-			}
-		}
 		// acknowledgement to submit job is only logged, our original
-		// submitter is only interested in the final job result
-		else if (message instanceof JobManagerMessages.JobResultSuccess ||
-				message instanceof JobManagerMessages.JobResultFailure) {
-			
+		// client is only interested in the final job result
+		else if (message instanceof JobManagerMessages.JobResultMessage) {
+
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Received {} message from JobManager", message.getClass().getSimpleName());
 			}
 
-			// forward the success to the original job submitter
-			if (hasJobBeenSubmitted()) {
-				this.submitter.tell(decorateMessage(message), getSelf());
+			// forward the success to the original client
+			if (isClientConnected()) {
+				this.client.tell(decorateMessage(message), getSelf());
 			}
 
 			terminate();
 		}
-		else if (message instanceof JobManagerMessages.JobSubmitSuccess) {
-			// job was successfully submitted :-)
-			LOG.info("Job was successfully submitted to the JobManager {}.", getSender().path());
-			jobSuccessfullySubmitted = true;
-		}
 
 		// =========== Actor / Communication Failure / Timeouts ===============
-		
+
 		else if (message instanceof Terminated) {
 			ActorRef target = ((Terminated) message).getActor();
 			if (jobManager.equals(target)) {
@@ -226,7 +189,7 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 				// Important: The ConnectionTimeout message is filtered out in case that we are
 				// notified about a new leader by setting the new leader session ID, because
 				// ConnectionTimeout extends RequiresLeaderSessionID
-				if (hasJobBeenSubmitted()) {
+				if (isClientConnected()) {
 					getContext().system().scheduler().scheduleOnce(
 						timeout,
 						getSelf(),
@@ -237,44 +200,65 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 			} else {
 				LOG.warn("Received 'Terminated' for unknown actor " + target);
 			}
-		} else if (JobClientMessages.getConnectionTimeout().equals(message)) {
+		}
+		else if (JobClientMessages.getConnectionTimeout().equals(message)) {
 			// check if we haven't found a job manager yet
-			if (!isConnected()) {
-				if (hasJobBeenSubmitted()) {
-					submitter.tell(
-						decorateMessage(new Status.Failure(
-							new JobClientActorConnectionTimeoutException("Lost connection to the JobManager."))),
+			if (!isJobManagerConnected()) {
+				final JobClientActorConnectionTimeoutException errorMessage =
+					new JobClientActorConnectionTimeoutException("Lost connection to the JobManager.");
+				final Object replyMessage = decorateMessage(new Status.Failure(errorMessage));
+				if (isClientConnected()) {
+					client.tell(
+						replyMessage,
 						getSelf());
 				}
 				// Connection timeout reached, let's terminate
 				terminate();
 			}
-		} else if (JobClientMessages.getSubmissionTimeout().equals(message)) {
-			// check if our job submission was successful in the meantime
-			if (!jobSuccessfullySubmitted) {
-				if (hasJobBeenSubmitted()) {
-					submitter.tell(
-						decorateMessage(new Status.Failure(
-							new JobClientActorSubmissionTimeoutException("Job submission to the JobManager timed out."))),
-						getSelf());
-				}
+		}
 
-				// We haven't heard back from the job manager after sending the job graph to him,
-				// therefore terminate
-				terminate();
+		// =========== Message Delegation ===============
+
+		else if (!isJobManagerConnected() && getClientMessageClass().equals(message.getClass())) {
+			LOG.info(
+				"Received {} but there is no connection to a JobManager yet.",
+				message);
+			// We want to submit/attach to a job, but we haven't found a job manager yet.
+			// Let's give him another chance to find a job manager within the given timeout.
+			getContext().system().scheduler().scheduleOnce(
+				timeout,
+				getSelf(),
+				decorateMessage(JobClientMessages.getConnectionTimeout()),
+				getContext().dispatcher(),
+				ActorRef.noSender()
+			);
+			handleCustomMessage(message);
+		}
+		else {
+			if (!toBeTerminated) {
+				handleCustomMessage(message);
+			} else {
+				// we're about to receive a PoisonPill because toBeTerminated == true
+				String msg = getClass().getName() + " is about to be terminated. Therefore, the " +
+					"job submission cannot be executed.";
+				LOG.error(msg);
+				getSender().tell(
+					decorateMessage(new Status.Failure(new Exception(msg))), ActorRef.noSender());
 			}
 		}
-
-		// =========== Unknown Messages ===============
-		
-		else {
-			LOG.error("JobClient received unknown message: " + message);
-		}
 	}
+
 
 	@Override
 	protected UUID getLeaderSessionID() {
 		return leaderSessionID;
+	}
+
+	protected void logAndPrintMessage(String message) {
+		LOG.info(message);
+		if (sysoutUpdates) {
+			System.out.println(message);
+		}
 	}
 
 	private void logAndPrintMessage(ExecutionGraphMessages.ExecutionStateChanged message) {
@@ -315,6 +299,7 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 	}
 
 	private void disconnectFromJobManager() {
+		LOG.info("Disconnect from JobManager {}.", jobManager);
 		if (jobManager != ActorRef.noSender()) {
 			getContext().unwatch(jobManager);
 			jobManager = ActorRef.noSender();
@@ -322,6 +307,7 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 	}
 
 	private void connectToJobManager(ActorRef jobManager) {
+		LOG.info("Connect to JobManager {}.", jobManager);
 		if (jobManager != ActorRef.noSender()) {
 			getContext().unwatch(jobManager);
 		}
@@ -332,96 +318,19 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 		getContext().watch(jobManager);
 	}
 
-	private void tryToSubmitJob(final JobGraph jobGraph) {
-		this.jobGraph = jobGraph;
-
-		if (isConnected()) {
-			LOG.info("Sending message to JobManager {} to submit job {} ({}) and wait for progress",
-				jobManager.path().toString(), jobGraph.getName(), jobGraph.getJobID());
-
-			Futures.future(new Callable<Object>() {
-				@Override
-				public Object call() throws Exception {
-					ActorGateway jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID);
-
-					LOG.info("Upload jar files to job manager {}.", jobManager.path());
-
-					try {
-						JobClient.uploadJarFiles(jobGraph, jobManagerGateway, timeout);
-					} catch (IOException exception) {
-						getSelf().tell(
-							decorateMessage(new JobManagerMessages.JobResultFailure(
-								new SerializedThrowable(
-									new JobSubmissionException(
-										jobGraph.getJobID(),
-										"Could not upload the jar files to the job manager.",
-										exception)
-								)
-							)),
-							ActorRef.noSender()
-						);
-					}
-
-					LOG.info("Submit job to the job manager {}.", jobManager.path());
-
-					jobManager.tell(
-						decorateMessage(
-							new JobManagerMessages.SubmitJob(
-								jobGraph,
-								ListeningBehaviour.EXECUTION_RESULT_AND_STATE_CHANGES)),
-						getSelf());
-
-					// issue a SubmissionTimeout message to check that we submit the job within
-					// the given timeout
-					getContext().system().scheduler().scheduleOnce(
-						timeout,
-						getSelf(),
-						decorateMessage(JobClientMessages.getSubmissionTimeout()),
-						getContext().dispatcher(),
-						ActorRef.noSender());
-
-					return null;
-				}
-			}, getContext().dispatcher());
-		} else {
-			LOG.info("Could not submit job {} ({}), because there is no connection to a " +
-					"JobManager.",
-				jobGraph.getName(), jobGraph.getJobID());
-
-			// We want to submit a job, but we haven't found a job manager yet.
-			// Let's give him another chance to find a job manager within the given timeout.
-			getContext().system().scheduler().scheduleOnce(
-				timeout,
-				getSelf(),
-				decorateMessage(JobClientMessages.getConnectionTimeout()),
-				getContext().dispatcher(),
-				ActorRef.noSender()
-			);
-		}
-	}
-
-	private void terminate() {
-		terminated = true;
+	protected void terminate() {
+		LOG.info("Terminate JobClientActor.");
+		toBeTerminated = true;
 		disconnectFromJobManager();
 		getSelf().tell(decorateMessage(PoisonPill.getInstance()), ActorRef.noSender());
 	}
 
-	private boolean isConnected() {
+	private boolean isJobManagerConnected() {
 		return jobManager != ActorRef.noSender();
 	}
 
-	private boolean hasJobBeenSubmitted() {
-		return submitter != ActorRef.noSender();
+	protected boolean isClientConnected() {
+		return client != ActorRef.noSender();
 	}
 
-	public static Props createJobClientActorProps(
-			LeaderRetrievalService leaderRetrievalService,
-			FiniteDuration timeout,
-			boolean sysoutUpdates) {
-		return Props.create(
-			JobClientActor.class,
-			leaderRetrievalService,
-			timeout,
-			sysoutUpdates);
-	}
 }

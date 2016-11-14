@@ -29,10 +29,9 @@ import static java.util.Objects.requireNonNull;
  * for the asynchronous checkpoints of the JobGraph, such as interval, and which vertices
  * need to participate.
  */
-public class JobSnapshottingSettings implements java.io.Serializable{
+public class JobSnapshottingSettings implements java.io.Serializable {
 	
 	private static final long serialVersionUID = -2593319571078198180L;
-
 	
 	private final List<JobVertexID> verticesToTrigger;
 
@@ -47,18 +46,23 @@ public class JobSnapshottingSettings implements java.io.Serializable{
 	private final long minPauseBetweenCheckpoints;
 	
 	private final int maxConcurrentCheckpoints;
+
+	/** Settings for externalized checkpoints. */
+	private final ExternalizedCheckpointSettings externalizedCheckpointSettings;
 	
-	
-	public JobSnapshottingSettings(List<JobVertexID> verticesToTrigger,
-									List<JobVertexID> verticesToAcknowledge,
-									List<JobVertexID> verticesToConfirm,
-									long checkpointInterval, long checkpointTimeout,
-									long minPauseBetweenCheckpoints, int maxConcurrentCheckpoints)
-	{
+	public JobSnapshottingSettings(
+			List<JobVertexID> verticesToTrigger,
+			List<JobVertexID> verticesToAcknowledge,
+			List<JobVertexID> verticesToConfirm,
+			long checkpointInterval,
+			long checkpointTimeout,
+			long minPauseBetweenCheckpoints,
+			int maxConcurrentCheckpoints,
+			ExternalizedCheckpointSettings externalizedCheckpointSettings) {
+
 		// sanity checks
 		if (checkpointInterval < 1 || checkpointTimeout < 1 ||
-				minPauseBetweenCheckpoints < 0 || maxConcurrentCheckpoints < 1)
-		{
+				minPauseBetweenCheckpoints < 0 || maxConcurrentCheckpoints < 1) {
 			throw new IllegalArgumentException();
 		}
 		
@@ -69,6 +73,7 @@ public class JobSnapshottingSettings implements java.io.Serializable{
 		this.checkpointTimeout = checkpointTimeout;
 		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
 		this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
+		this.externalizedCheckpointSettings = requireNonNull(externalizedCheckpointSettings);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -99,6 +104,10 @@ public class JobSnapshottingSettings implements java.io.Serializable{
 
 	public int getMaxConcurrentCheckpoints() {
 		return maxConcurrentCheckpoints;
+	}
+
+	public ExternalizedCheckpointSettings getExternalizedCheckpointSettings() {
+		return externalizedCheckpointSettings;
 	}
 
 	// --------------------------------------------------------------------------------------------

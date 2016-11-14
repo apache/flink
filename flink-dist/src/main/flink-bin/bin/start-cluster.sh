@@ -29,11 +29,11 @@ bin=`cd "$bin"; pwd`
 
 # Start the JobManager instance(s)
 shopt -s nocasematch
-if [[ $RECOVERY_MODE == "zookeeper" ]]; then
+if [[ $HIGH_AVAILABILITY == "zookeeper" ]]; then
     # HA Mode
     readMasters
 
-    echo "Starting HA cluster with ${#MASTERS[@]} masters and ${#ZK_QUORUM[@]} peers in ZooKeeper quorum."
+    echo "Starting HA cluster with ${#MASTERS[@]} masters."
 
     for ((i=0;i<${#MASTERS[@]};++i)); do
         master=${MASTERS[i]}
@@ -49,9 +49,15 @@ else
 fi
 shopt -u nocasematch
 
-# Start TaskManager instance(s)
+# Start TaskManager instance(s) using pdsh (Parallel Distributed Shell) when available
 readSlaves
 
-for slave in ${SLAVES[@]}; do
-    ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" start &"
-done
+command -v pdsh >/dev/null 2>&1
+if [[ $? -ne 0 ]]; then
+    for slave in ${SLAVES[@]}; do
+        ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" start &"
+    done
+else
+    PDSH_SSH_ARGS="" PDSH_SSH_ARGS_APPEND="${FLINK_SSH_OPTS}" pdsh -w $(IFS=, ; echo "${SLAVES[*]}") \
+        "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" start"
+fi

@@ -18,9 +18,12 @@
 
 package org.apache.flink.core.io;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * A generic input split that has only a partition number.
  */
+@Public
 public class GenericInputSplit implements InputSplit, java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;

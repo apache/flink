@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.codegen
 
+import org.apache.flink.annotation.Internal
 import org.apache.flink.types.{BooleanValue, ByteValue, CharValue, DoubleValue, FloatValue, IntValue, LongValue, ShortValue, StringValue}
 
 import scala.collection._
@@ -24,6 +25,7 @@ import scala.collection.generic.CanBuildFrom
 import scala.reflect.macros.Context
 import scala.util.DynamicVariable
 
+@Internal
 private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
   with TypeDescriptors[C] =>
 
@@ -48,6 +50,9 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
         tpe match {
 
           case TypeParameter() => TypeParameterDescriptor(id, tpe)
+
+          // type or super type defines type information factory
+          case FactoryType(baseType) => analyzeFactoryType(id, tpe, baseType)
 
           case PrimitiveType(default, wrapper) => PrimitiveDescriptor(id, tpe, default, wrapper)
 
@@ -87,6 +92,19 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
           case _ => analyzePojo(id, tpe)
         }
       }
+    }
+
+    private def analyzeFactoryType(
+        id: Int,
+        tpe: Type,
+        baseType: Type): UDTDescriptor = {
+      val params: Seq[UDTDescriptor] = baseType match {
+        case TypeRef(_, _, args) =>
+          args.map(analyze)
+        case _ =>
+          Seq[UDTDescriptor]()
+      }
+      FactoryTypeDescriptor(id, tpe, baseType, params)
     }
 
     private def analyzeArray(
@@ -151,9 +169,6 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
       val immutableFields = tpe.members filter { _.isTerm } map { _.asTerm } filter { _.isVal }
       if (immutableFields.nonEmpty) {
         // We don't support POJOs with immutable fields
-        c.warning(
-          c.enclosingPosition,
-          s"Type $tpe is no POJO, has immutable fields: ${immutableFields.mkString(", ")}.")
         return GenericClassDescriptor(id, tpe)
       }
 
@@ -178,8 +193,6 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
       }
 
       if (invalidFields.nonEmpty) {
-        c.warning(c.enclosingPosition, s"Type $tpe is no POJO because it has non-public fields '" +
-          s"${invalidFields.mkString(", ")}' that don't have public getters/setters.")
         return GenericClassDescriptor(id, tpe)
       }
 
@@ -192,9 +205,6 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
       if (!hasZeroCtor) {
         // We don't support POJOs without zero-paramter ctor
-        c.warning(
-          c.enclosingPosition,
-          s"Class $tpe is no POJO, has no zero-parameters constructor.")
         return GenericClassDescriptor(id, tpe)
       }
 
@@ -442,6 +452,15 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
     private object JavaTupleType {
       def unapply(tpe: Type): Boolean = tpe <:< typeOf[org.apache.flink.api.java.tuple.Tuple]
+    }
+
+    private object FactoryType {
+      def unapply(tpe: Type): Option[Type] = {
+        val definingType = tpe.typeSymbol.asClass.baseClasses find {
+          _.annotations.exists(_.tpe =:= typeOf[org.apache.flink.api.common.typeinfo.TypeInfo])
+        }
+        definingType.map(tpe.baseType)
+      }
     }
 
     private class UDTAnalyzerCache {

@@ -18,9 +18,12 @@
 
 package org.apache.flink.types;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * An exception specifying that a required field was not set in a record, i.e. was <code>null</code>.
  */
+@Public
 public class NullFieldException extends RuntimeException
 {
 	/**

@@ -24,8 +24,8 @@ import java.util.Arrays;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.types.Key;
 import org.apache.flink.types.Record;
+import org.apache.flink.types.Value;
 
 /**
  * A factory for a {@link org.apache.flink.api.common.typeutils.TypeComparator} for {@link Record}. The comparator uses a subset of
@@ -46,7 +46,7 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record> {
 	
 	private int[] positions;
 	
-	private Class<? extends Key<?>>[] types;
+	private Class<? extends Value>[] types;
 	
 	private boolean[] sortDirections;
 	
@@ -56,11 +56,11 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record> {
 		// do nothing, allow to be configured via config
 	}
 	
-	public RecordComparatorFactory(int[] positions, Class<? extends Key<?>>[] types) {
+	public RecordComparatorFactory(int[] positions, Class<? extends Value>[] types) {
 		this(positions, types, null);
 	}
 	
-	public RecordComparatorFactory(int[] positions, Class<? extends Key<?>>[] types, boolean[] sortDirections) {
+	public RecordComparatorFactory(int[] positions, Class<? extends Value>[] types, boolean[] sortDirections) {
 		if (positions == null || types == null) {
 			throw new NullPointerException();
 		}
@@ -88,9 +88,9 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record> {
 			if (this.positions[i] < 0) {
 				throw new IllegalArgumentException("The key position " + i + " is invalid: " + this.positions[i]);
 			}
-			if (this.types[i] == null || !Key.class.isAssignableFrom(this.types[i])) {
+			if (this.types[i] == null || !Value.class.isAssignableFrom(this.types[i])) {
 				throw new IllegalArgumentException("The key type " + i + " is null or not implenting the interface " + 
-					Key.class.getName() + ".");
+					Value.class.getName() + ".");
 			}
 		}
 		
@@ -113,7 +113,7 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record> {
 		}
 		
 		final int[] positions = new int[numKeyFields];
-		final Class<? extends Key<?>>[] types = new Class[numKeyFields];
+		final Class<? extends Value>[] types = new Class[numKeyFields];
 		final boolean[] direction = new boolean[numKeyFields];
 		
 		// read the individual key positions and types
@@ -129,7 +129,7 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record> {
 			// next key type
 			final String name = config.getString(KEY_CLASS_PREFIX + i, null);
 			if (name != null) {
-				types[i] = (Class<? extends Key<?>>) Class.forName(name, true, cl).asSubclass(Key.class);
+				types[i] = (Class<? extends Value>) Class.forName(name, true, cl).asSubclass(Value.class);
 			} else {
 				throw new IllegalConfigurationException("The key type (" + i +
 					") for the comparator is null"); 

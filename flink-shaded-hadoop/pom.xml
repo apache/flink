@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.0-SNAPSHOT</version>
+		<version>1.2-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -35,8 +35,17 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>${shading-artifact-module.name}</module>
+		<module>${shading-artifact.name}</module>
 	</modules>
+
+	<dependencies>
+		<!-- Flink already includes JSR 305. Setting this to provided excludes it from the dependencies-->
+		<dependency>
+			<groupId>com.google.code.findbugs</groupId>
+			<artifactId>jsr305</artifactId>
+			<scope>provided</scope>
+		</dependency>
+	</dependencies>
 
 	<profiles>
 		<profile>
@@ -62,6 +71,12 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
+					<execution>
+						<!--Disable shade-flink execution to avoid duplicate relocation of
+						dependencies-->
+						<id>shade-flink</id>
+						<phase>none</phase>
+					</execution>
 					<execution>
 						<id>shade-hadoop</id>
 						<phase>package</phase>
@@ -111,6 +126,12 @@ under the License.
 									<include>io.netty:netty:*</include>
 									<include>org.apache.curator:*</include>
 									<include>org.apache.hadoop:*</include>
+									<include>org.htrace:htrace-core</include>
+
+									<!-- This dependency needs to be included to properly get rid of the HTTP Components dependency -->
+									<include>net.java.dev.jets3t:jets3t</include>
+									<include>org.apache.httpcomponents:*</include>
+									<include>commons-httpclient:commons-httpclient</include>
 								</includes>
 							</artifactSet>
 							<relocations>
@@ -133,11 +154,24 @@ under the License.
 									<pattern>org.apache.curator</pattern>
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.apache.curator</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>org.apache.http</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.org.apache.http</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.commons.httpclient</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.org.apache.commons.httpclient</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.htrace</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.org.htrace</shadedPattern>
+								</relocation>
 							</relocations>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
+
 		</plugins>
 	</build>
 

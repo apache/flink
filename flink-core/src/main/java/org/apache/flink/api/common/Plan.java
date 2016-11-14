@@ -18,9 +18,6 @@
 
 package org.apache.flink.api.common;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
@@ -34,6 +31,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
@@ -42,17 +40,17 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Visitable;
 import org.apache.flink.util.Visitor;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * This class represents Flink programs, in the form of dataflow plans.
  *
  * <p>The dataflow is referenced by the data sinks, from which all connected
  * operators of the data flow can be reached via backwards traversal</p>.
  */
+@Internal
 public class Plan implements Visitable<Operator<?>> {
 
-	/** The default parallelism indicates to use the cluster's default */
-	private static final int DEFAULT_PARALELLISM = -1;
-	
 	/**
 	 * A collection of all sinks in the plan. Since the plan is traversed from the sinks to the sources, this
 	 * collection must contain all the sinks.
@@ -63,7 +61,7 @@ public class Plan implements Visitable<Operator<?>> {
 	protected String jobName;
 
 	/** The default parallelism to use for nodes that have no explicitly specified parallelism. */
-	protected int defaultParallelism = DEFAULT_PARALELLISM;
+	protected int defaultParallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 	
 	/** Hash map for files in the distributed cache: registered name to cache entry. */
 	protected HashMap<String, DistributedCacheEntry> cacheFile = new HashMap<>();
@@ -89,7 +87,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param jobName The name to display for the job.
 	 */
 	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks, String jobName) {
-		this(sinks, jobName, DEFAULT_PARALELLISM);
+		this(sinks, jobName, ExecutionConfig.PARALLELISM_DEFAULT);
 	}
 
 	/**
@@ -120,7 +118,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param jobName The name to display for the job.
 	 */
 	public Plan(GenericDataSinkBase<?> sink, String jobName) {
-		this(sink, jobName, DEFAULT_PARALELLISM);
+		this(sink, jobName, ExecutionConfig.PARALLELISM_DEFAULT);
 	}
 
 	/**
@@ -150,7 +148,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param sinks The collection will the sinks of the data flow.
 	 */
 	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks) {
-		this(sinks, DEFAULT_PARALELLISM);
+		this(sinks, ExecutionConfig.PARALLELISM_DEFAULT);
 	}
 
 	/**
@@ -178,7 +176,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param sink The data sink of the data flow.
 	 */
 	public Plan(GenericDataSinkBase<?> sink) {
-		this(sink, DEFAULT_PARALELLISM);
+		this(sink, ExecutionConfig.PARALLELISM_DEFAULT);
 	}
 
 	/**
@@ -285,29 +283,10 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param defaultParallelism The default parallelism for the plan.
 	 */
 	public void setDefaultParallelism(int defaultParallelism) {
-		checkArgument(defaultParallelism >= 1 || defaultParallelism == -1,
-			"The default parallelism must be positive, or -1 if the system should use the globally comfigured default.");
+		checkArgument(defaultParallelism >= 1 || defaultParallelism == ExecutionConfig.PARALLELISM_DEFAULT,
+			"The default parallelism must be positive, or ExecutionConfig.PARALLELISM_DEFAULT if the system should use the globally configured default.");
 		
 		this.defaultParallelism = defaultParallelism;
-	}
-	
-	/**
-	 * Gets the number of times the system will try to re-execute failed tasks. A value
-	 * of {@code -1} indicates that the system default value (as defined in the configuration)
-	 * should be used.
-	 * 
-	 * @return The number of times the system will try to re-execute failed tasks.
-	 */
-	public int getNumberOfExecutionRetries() {
-		return getExecutionConfig().getNumberOfExecutionRetries();
-	}
-	
-	/**
-	 * Gets the delay between retry failed task.
-	 * @return The delay the system will wait to retry.
-	 */
-	public long getExecutionRetryDelay() {
-		return getExecutionConfig().getExecutionRetryDelay();
 	}
 
 	/**

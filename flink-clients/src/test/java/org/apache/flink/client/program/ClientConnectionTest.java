@@ -98,7 +98,7 @@ public class ClientConnectionTest {
 				@Override
 				public void run() {
 					try {
-						new Client(config);
+						new StandaloneClusterClient(config);
 						fail("This should fail with an exception since the JobManager is unreachable.");
 					}
 					catch (Throwable t) {
@@ -149,8 +149,6 @@ public class ClientConnectionTest {
 	// --------------------------------------------------------------------------------------------
 
 	public static class TestInvokable extends AbstractInvokable {
-		@Override
-		public void registerInputOutput() {}
 
 		@Override
 		public void invoke() {}

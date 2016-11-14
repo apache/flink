@@ -120,7 +120,7 @@ class WrapperSetupHelper {
 		String stormId = (String) stormConfig.get(TOPOLOGY_NAME);
 		String codeDir = null; // not supported
 		String pidDir = null; // not supported
-		Integer taskId = null;
+		Integer taskId = -1;
 		Integer workerPort = null; // not supported
 		List<Integer> workerTasks = new ArrayList<Integer>();
 		final Map<String, Object> defaultResources = new HashMap<String, Object>();
@@ -143,8 +143,6 @@ class WrapperSetupHelper {
 				bolts.put(operatorName, new Bolt(null, common));
 			}
 			stormTopology = new StormTopology(spouts, bolts, new HashMap<String, StateSpoutSpec>());
-
-			taskId = context.getIndexOfThisSubtask();
 
 			List<Integer> sortedTasks = new ArrayList<Integer>(dop);
 			for (int i = 1; i <= dop; ++i) {

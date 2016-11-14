@@ -18,43 +18,48 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
-
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.SerializedValue;
+
 import org.junit.Test;
 
-import scala.concurrent.duration.FiniteDuration;
-
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
 
 public class TerminalStateDeadlockTest {
-	
+
 	private final Field stateField;
 	private final Field resourceField;
 	private final Field execGraphStateField;
-	private final Field execGraphSchedulerField;
-	
+	private final Field execGraphSlotProviderField;
+
 	private final SimpleSlot resource;
 
 
@@ -70,15 +75,17 @@ public class TerminalStateDeadlockTest {
 			this.execGraphStateField = ExecutionGraph.class.getDeclaredField("state");
 			this.execGraphStateField.setAccessible(true);
 
-			this.execGraphSchedulerField = ExecutionGraph.class.getDeclaredField("scheduler");
-			this.execGraphSchedulerField.setAccessible(true);
+			this.execGraphSlotProviderField = ExecutionGraph.class.getDeclaredField("slotProvider");
+			this.execGraphSlotProviderField.setAccessible(true);
 			
 			// the dummy resource
+			ResourceID resourceId = ResourceID.generate();
 			InetAddress address = InetAddress.getByName("127.0.0.1");
-			InstanceConnectionInfo ci = new InstanceConnectionInfo(address, 12345);
+			TaskManagerLocation ci = new TaskManagerLocation(resourceId, address, 12345);
 				
 			HardwareDescription resources = new HardwareDescription(4, 4000000, 3000000, 2000000);
-			Instance instance = new Instance(DummyActorGateway.INSTANCE, ci, new InstanceID(), resources, 4);
+			Instance instance = new Instance(
+				new ActorTaskManagerGateway(DummyActorGateway.INSTANCE), ci, new InstanceID(), resources, 4);
 
 			this.resource = instance.allocateSimpleSlot(new JobID());
 		}
@@ -90,20 +97,15 @@ public class TerminalStateDeadlockTest {
 			throw new RuntimeException();
 		}
 	}
-	
-	 
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	@Test
 	public void testProvokeDeadlock() {
 		try {
 			final JobID jobId = resource.getJobID();
 			final JobVertexID vid1 = new JobVertexID();
 			final JobVertexID vid2 = new JobVertexID();
-
-			
-			final Configuration jobConfig = new Configuration();
 			
 			final List<JobVertex> vertices;
 			{
@@ -124,9 +126,7 @@ public class TerminalStateDeadlockTest {
 			for (int i = 0; i < 20000; i++) {
 				final TestExecGraph eg = new TestExecGraph(jobId);
 				eg.attachJobGraph(vertices);
-				eg.setDelayBeforeRetrying(0);
-				eg.setNumberOfRetriesLeft(1);
-				
+
 				final Execution e1 = eg.getJobVertex(vid1).getTaskVertices()[0].getCurrentExecutionAttempt();
 				final Execution e2 = eg.getJobVertex(vid2).getTaskVertices()[0].getCurrentExecutionAttempt();
 
@@ -134,7 +134,7 @@ public class TerminalStateDeadlockTest {
 				initializeExecution(e2);
 
 				execGraphStateField.set(eg, JobStatus.FAILING);
-				execGraphSchedulerField.set(eg, scheduler);
+				execGraphSlotProviderField.set(eg, scheduler);
 				
 				Runnable r1 = new Runnable() {
 					@Override
@@ -172,27 +172,32 @@ public class TerminalStateDeadlockTest {
 	
 	static class TestExecGraph extends ExecutionGraph {
 
-		private static final long serialVersionUID = -7606144898417942044L;
-		
 		private static final Configuration EMPTY_CONFIG = new Configuration();
 
-		private static final FiniteDuration TIMEOUT = new FiniteDuration(30, TimeUnit.SECONDS);
-		
+		private static final Time TIMEOUT = Time.seconds(30L);
+
 		private volatile boolean done;
 
-		TestExecGraph(JobID jobId) {
-			super(TestingUtils.defaultExecutionContext(), jobId, "test graph", EMPTY_CONFIG, TIMEOUT);
+		TestExecGraph(JobID jobId) throws IOException {
+			super(
+				TestingUtils.defaultExecutionContext(),
+				jobId,
+				"test graph",
+				EMPTY_CONFIG,
+				new SerializedValue<>(new ExecutionConfig()),
+				TIMEOUT,
+				new FixedDelayRestartStrategy(1, 0));
 		}
 
 		@Override
-		public void scheduleForExecution(Scheduler scheduler) {
+		public void scheduleForExecution(SlotProvider slotProvider) {
 			// notify that we are done with the "restarting"
 			synchronized (this) {
 				done = true;
 				this.notifyAll();
 			}
 		}
-		
+
 		public void waitTillDone() {
 			try {
 				synchronized (this) {

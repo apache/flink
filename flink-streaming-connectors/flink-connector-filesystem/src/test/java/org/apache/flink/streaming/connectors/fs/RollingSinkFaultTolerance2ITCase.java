@@ -60,7 +60,10 @@ import static org.junit.Assert.assertTrue;
 * This differs from RollingSinkFaultToleranceITCase in that the checkpoint interval is extremely
 * high. This provokes the case that the sink restarts without any checkpoint having been performed.
 * This tests the initial cleanup of pending/in-progress files.
+*
+* @deprecated should be removed with the {@link RollingSink}.
 */
+@Deprecated
 public class RollingSinkFaultTolerance2ITCase extends StreamFaultToleranceTestBase {
 
 	final long NUM_STRINGS = 16_000;
@@ -104,7 +107,7 @@ public class RollingSinkFaultTolerance2ITCase extends StreamFaultToleranceTestBa
 	public void testProgram(StreamExecutionEnvironment env) {
 		assertTrue("Broken test setup", NUM_STRINGS % 40 == 0);
 
-		int PARALLELISM = 6;
+		int PARALLELISM = 12;
 
 		env.enableCheckpointing(Long.MAX_VALUE);
 		env.setParallelism(PARALLELISM);

@@ -22,6 +22,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+
 import backtype.storm.Config;
 import backtype.storm.generated.AlreadyAliveException;
 import backtype.storm.generated.InvalidTopologyException;
@@ -31,12 +32,14 @@ import backtype.storm.generated.NotAliveException;
 import backtype.storm.utils.NimbusClient;
 import backtype.storm.utils.Utils;
 
-import com.google.common.collect.Lists;
+import com.esotericsoftware.kryo.Serializer;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -48,8 +51,11 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 import org.apache.flink.storm.util.StormConfig;
-
 import org.apache.flink.streaming.api.graph.StreamGraph;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -63,12 +69,16 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * {@link FlinkClient} mimics a Storm {@link NimbusClient} and {@link Nimbus}{@code .Client} at once, to interact with
  * Flink's JobManager instead of Storm's Nimbus.
  */
 public class FlinkClient {
+
+	/** The log used by this client. */
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkClient.class);
 
 	/** The client's configuration */
 	private final Map<?,?> conf;
@@ -163,9 +173,8 @@ public class FlinkClient {
 	 * Parameter {@code uploadedJarLocation} is actually used to point to the local jar, because Flink does not support
 	 * uploading a jar file before hand. Jar files are always uploaded directly when a program is submitted.
 	 */
-	public void submitTopologyWithOpts(final String name, final String uploadedJarLocation, final FlinkTopology
-			topology)
-					throws AlreadyAliveException, InvalidTopologyException {
+	public void submitTopologyWithOpts(final String name, final String uploadedJarLocation, final FlinkTopology topology)
+			throws AlreadyAliveException, InvalidTopologyException {
 
 		if (this.getTopologyJobId(name) != null) {
 			throw new AlreadyAliveException();
@@ -181,9 +190,11 @@ public class FlinkClient {
 			throw new RuntimeException("Problem with jar file " + uploadedJarLocation, e);
 		}
 
-		/* set storm configuration */
-		if (this.conf != null) {
-			topology.getExecutionEnvironment().getConfig().setGlobalJobParameters(new StormConfig(this.conf));
+		try {
+			FlinkClient.addStormConfigToTopology(topology, conf);
+		} catch(ClassNotFoundException e) {
+			LOG.error("Could not register class for Kryo serialization.", e);
+			throw new InvalidTopologyException("Could not register class for Kryo serialization.");
 		}
 
 		final StreamGraph streamGraph = topology.getExecutionEnvironment().getStreamGraph();
@@ -196,16 +207,16 @@ public class FlinkClient {
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerHost);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
 
-		final Client client;
+		final ClusterClient client;
 		try {
-			client = new Client(configuration);
-		} catch (IOException e) {
+			client = new StandaloneClusterClient(configuration);
+		} catch (final IOException e) {
 			throw new RuntimeException("Could not establish a connection to the job manager", e);
 		}
 
 		try {
 			ClassLoader classLoader = JobWithJars.buildUserCodeClassLoader(
-					Lists.newArrayList(uploadedJarUrl),
+					Collections.<URL>singletonList(uploadedJarUrl),
 					Collections.<URL>emptyList(),
 					this.getClass().getClassLoader());
 			client.runDetached(jobGraph, classLoader);
@@ -232,19 +243,19 @@ public class FlinkClient {
 			}
 		}
 
-		final Configuration configuration = GlobalConfiguration.getConfiguration();
+		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, this.jobManagerHost);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, this.jobManagerPort);
 
-		final Client client;
+		final ClusterClient client;
 		try {
-			client = new Client(configuration);
+			client = new StandaloneClusterClient(configuration);
 		} catch (final IOException e) {
 			throw new RuntimeException("Could not establish a connection to the job manager", e);
 		}
 
 		try {
-			client.cancel(jobId);
+			client.stop(jobId);
 		} catch (final Exception e) {
 			throw new RuntimeException("Cannot stop job.", e);
 		}
@@ -261,7 +272,7 @@ public class FlinkClient {
 	 * @return Flink's internally used {@link JobID}.
 	 */
 	JobID getTopologyJobId(final String id) {
-		final Configuration configuration = GlobalConfiguration.getConfiguration();
+		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 		if (this.timeout != null) {
 			configuration.setString(ConfigConstants.AKKA_ASK_TIMEOUT, this.timeout);
 		}
@@ -273,7 +284,7 @@ public class FlinkClient {
 			final Future<Object> response = Patterns.ask(jobManager, JobManagerMessages.getRequestRunningJobsStatus(),
 					new Timeout(askTimeout));
 
-			Object result;
+			final Object result;
 			try {
 				result = Await.result(response, askTimeout);
 			} catch (final Exception e) {
@@ -301,16 +312,16 @@ public class FlinkClient {
 	}
 
 	private FiniteDuration getTimeout() {
-		final Configuration configuration = GlobalConfiguration.getConfiguration();
+		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 		if (this.timeout != null) {
 			configuration.setString(ConfigConstants.AKKA_ASK_TIMEOUT, this.timeout);
 		}
 
-		return AkkaUtils.getTimeout(configuration);
+		return AkkaUtils.getClientTimeout(configuration);
 	}
 
 	private ActorRef getJobManager() throws IOException {
-		final Configuration configuration = GlobalConfiguration.getConfiguration();
+		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 
 		ActorSystem actorSystem;
 		try {
@@ -321,8 +332,32 @@ public class FlinkClient {
 			throw new RuntimeException("Could not start actor system to communicate with JobManager", e);
 		}
 
-		return JobManager.getJobManagerActorRef(new InetSocketAddress(this.jobManagerHost, this.jobManagerPort),
+		return JobManager.getJobManagerActorRef(AkkaUtils.getAkkaProtocol(configuration),
+				new InetSocketAddress(this.jobManagerHost, this.jobManagerPort),
 				actorSystem, AkkaUtils.getLookupTimeout(configuration));
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	static void addStormConfigToTopology(FlinkTopology topology, Map conf) throws ClassNotFoundException {
+		if (conf != null) {
+			ExecutionConfig flinkConfig = topology.getExecutionEnvironment().getConfig();
+
+			flinkConfig.setGlobalJobParameters(new StormConfig(conf));
+
+			// add all registered types to ExecutionConfig
+			List<?> registeredClasses = (List<?>) conf.get(Config.TOPOLOGY_KRYO_REGISTER);
+			if (registeredClasses != null) {
+				for (Object klass : registeredClasses) {
+					if (klass instanceof String) {
+						flinkConfig.registerKryoType(Class.forName((String) klass));
+					} else {
+						for (Entry<String,String> register : ((Map<String,String>)klass).entrySet()) {
+							flinkConfig.registerTypeWithKryoSerializer(Class.forName(register.getKey()),
+									(Class<? extends Serializer<?>>)Class.forName(register.getValue()));
+						}
+					}
+				}
+			}
+		}
+	}
 }

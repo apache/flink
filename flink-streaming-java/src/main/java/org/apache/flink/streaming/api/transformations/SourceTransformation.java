@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.transformations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -30,9 +31,10 @@ import java.util.Collections;
  *
  * @param <T> The type of the elements that this source produces
  */
+@Internal
 public class SourceTransformation<T> extends StreamTransformation<T> {
 
-	private final StreamSource<T> operator;
+	private final StreamSource<T, ?> operator;
 
 	/**
 	 * Creates a new {@code SourceTransformation} from the given operator.
@@ -44,7 +46,7 @@ public class SourceTransformation<T> extends StreamTransformation<T> {
 	 */
 	public SourceTransformation(
 			String name,
-			StreamSource<T> operator,
+			StreamSource<T, ?> operator,
 			TypeInformation<T> outputType,
 			int parallelism) {
 		super(name, outputType, parallelism);
@@ -54,7 +56,7 @@ public class SourceTransformation<T> extends StreamTransformation<T> {
 	/**
 	 * Returns the {@code StreamSource}, the operator of this {@code SourceTransformation}.
 	 */
-	public StreamSource<T> getOperator() {
+	public StreamSource<T, ?> getOperator() {
 		return operator;
 	}
 

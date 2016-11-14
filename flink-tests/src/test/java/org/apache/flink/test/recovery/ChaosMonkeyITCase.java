@@ -24,6 +24,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
@@ -41,7 +42,7 @@ import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -67,7 +68,7 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -148,7 +149,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 		// -----------------------------------------------------------------------------------------
 
 		// Setup
-		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 				ZooKeeper.getConnectString(), FileStateBackendBasePath.toURI().toString());
 
 		// Akka and restart timeouts
@@ -320,6 +321,10 @@ public class ChaosMonkeyITCase extends TestLogger {
 			LOG.info("Recovery state clean");
 		}
 		catch (Throwable t) {
+			// Print early (in some situations the process logs get too big
+			// for Travis and the root problem is not shown)
+			t.printStackTrace();
+
 			System.out.println("#################################################");
 			System.out.println(" TASK MANAGERS");
 			System.out.println("#################################################");
@@ -378,7 +383,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 	}
 
 	public static class CheckpointedSequenceSource extends RichParallelSourceFunction<Long>
-			implements Checkpointed<Long>, CheckpointNotifier {
+			implements Checkpointed<Long>, CheckpointListener {
 
 		private static final long serialVersionUID = 0L;
 
@@ -448,7 +453,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 	}
 
 	public static class CountingSink extends RichSinkFunction<Long>
-			implements Checkpointed<CountingSink>, CheckpointNotifier {
+			implements Checkpointed<CountingSink>, CheckpointListener {
 
 		private static final Logger LOG = LoggerFactory.getLogger(CountingSink.class);
 
@@ -560,7 +565,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 			fail(fsCheckpoints + " does not exist: " + Arrays.toString(FileStateBackendBasePath.listFiles()));
 		}
 
-		File fsRecovery = new File(new URI(config.getString(ConfigConstants.ZOOKEEPER_RECOVERY_PATH, "")).getPath());
+		File fsRecovery = new File(new URI(config.getString(HighAvailabilityOptions.HA_STORAGE_PATH)).getPath());
 
 		LOG.info("Checking " + fsRecovery);
 
@@ -675,7 +680,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 
 		for (int i = 0; i < jobManagerProcesses.size(); i++) {
 			JobManagerProcess jobManager = jobManagerProcesses.get(i);
-			if (jobManager.getJobManagerAkkaURL().equals(currentLeader)) {
+			if (jobManager.getJobManagerAkkaURL(timeout).equals(currentLeader)) {
 				leaderIndex = i;
 				break;
 			}
@@ -692,7 +697,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 			throws Exception {
 
 		JobManagerProcess jobManager = new JobManagerProcess(jobManagerPid++, config);
-		jobManager.createAndStart();
+		jobManager.startProcess();
 		LOG.info("Created and started {}.", jobManager);
 
 		return jobManager;
@@ -702,7 +707,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 			throws Exception {
 
 		TaskManagerProcess taskManager = new TaskManagerProcess(taskManagerPid++, config);
-		taskManager.createAndStart();
+		taskManager.startProcess();
 		LOG.info("Created and started {}.", taskManager);
 
 		return taskManager;

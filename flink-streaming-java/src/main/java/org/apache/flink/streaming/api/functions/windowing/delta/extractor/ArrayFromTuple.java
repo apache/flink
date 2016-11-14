@@ -17,12 +17,14 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple;
 
 /**
  * Converts a Tuple to an Object-Array. The field which should be included in
  * the array can selected and reordered as needed.
  */
+@Internal
 public class ArrayFromTuple implements Extractor<Tuple, Object[]> {
 
 	/**

@@ -20,6 +20,9 @@ package org.apache.flink.api.java.operators;
 
 import java.util.Arrays;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
@@ -33,11 +36,10 @@ import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.util.Preconditions;
 
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import org.apache.flink.api.java.tuple.*;
-
-import com.google.common.base.Preconditions;
 
 /**
  * A {@link DataSet} that is the result of a Cross transformation.
@@ -48,6 +50,7 @@ import com.google.common.base.Preconditions;
  *
  * @see DataSet
  */
+@Public
 public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT, CrossOperator<I1, I2, OUT>> {
 
 	private final CrossFunction<I1, I2, OUT> function;
@@ -75,7 +78,8 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	protected CrossFunction<I1, I2, OUT> getFunction() {
 		return function;
 	}
-	
+
+	@Internal
 	public CrossHint getCrossHint() {
 		return hint;
 	}
@@ -117,23 +121,15 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	 * @see Tuple2
 	 * @see DataSet
 	 */
+	@Public
 	public static final class DefaultCross<I1, I2> extends CrossOperator<I1, I2, Tuple2<I1, I2>>  {
 
-		private final DataSet<I1> input1;
-		private final DataSet<I2> input2;
-
 		public DefaultCross(DataSet<I1> input1, DataSet<I2> input2, CrossHint hint, String defaultName) {
-			
 			super(input1, input2, new DefaultCrossFunction<I1, I2>(),
-					new TupleTypeInfo<Tuple2<I1, I2>>(input1.getType(), input2.getType()),
-					hint, defaultName);
-
-			if (input1 == null || input2 == null) {
-				throw new NullPointerException();
-			}
-
-			this.input1 = input1;
-			this.input2 = input2;
+				new TupleTypeInfo<Tuple2<I1, I2>>(
+					Preconditions.checkNotNull(input1, "input1 is null").getType(),
+					Preconditions.checkNotNull(input2, "input2 is null").getType()),
+				hint, defaultName);
 		}
 
 		/**
@@ -150,9 +146,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if (function == null) {
 				throw new NullPointerException("Cross function must not be null.");
 			}
-			TypeInformation<R> returnType = TypeExtractor.getCrossReturnTypes(function, input1.getType(), input2.getType(),
+			TypeInformation<R> returnType = TypeExtractor.getCrossReturnTypes(function, getInput1().getType(), getInput2().getType(),
 					super.getDefaultName(), true);
-			return new CrossOperator<I1, I2, R>(input1, input2, clean(function), returnType, 
+			return new CrossOperator<I1, I2, R>(getInput1(), getInput2(), clean(function), returnType,
 					getCrossHint(), Utils.getCallLocationName());
 		}
 		
@@ -220,6 +216,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	 * @see Tuple
 	 * @see DataSet
 	 */
+	@Public
 	public static final class ProjectCross<I1, I2, OUT extends Tuple> extends CrossOperator<I1, I2, OUT> {
 		
 		private CrossProjection<I1, I2> crossProjection;
@@ -308,6 +305,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 */
 		@SuppressWarnings({ "hiding", "unchecked" })
 		@Deprecated
+		@PublicEvolving
 		public <OUT extends Tuple> CrossOperator<I1, I2, OUT> types(Class<?>... types) {
 			TupleTypeInfo<OUT> typeInfo = (TupleTypeInfo<OUT>)this.getResultType();
 
@@ -341,6 +339,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 	}
 
+	@Internal
 	public static final class ProjectCrossFunction<T1, T2, R extends Tuple> implements CrossFunction<T1, T2, R> {
 
 		private static final long serialVersionUID = 1L;
@@ -398,6 +397,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		
 	}
 
+	@Internal
 	public static final class CrossProjection<I1, I2> {
 		
 		private final DataSet<I1> ds1;
@@ -1082,6 +1082,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	//  default join functions
 	// --------------------------------------------------------------------------------------------
 
+	@Internal
 	public static final class DefaultCrossFunction<T1, T2> implements CrossFunction<T1, T2, Tuple2<T1, T2>> {
 
 		private static final long serialVersionUID = 1L;

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.NoOpFunction;
@@ -38,6 +39,7 @@ import java.util.List;
 /**
  * @param <IN> The input and result type.
  */
+@Internal
 public class SortPartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, NoOpFunction> {
 
 	private final Ordering partitionOrdering;

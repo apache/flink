@@ -18,19 +18,6 @@
 
 package org.apache.flink.optimizer.plandump;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.flink.api.common.operators.CompilerHints;
 import org.apache.flink.optimizer.CompilerException;
@@ -54,6 +41,19 @@ import org.apache.flink.optimizer.util.Utils;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.StringUtils;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 
 public class PlanJSONDumpGenerator {
@@ -160,7 +160,7 @@ public class PlanJSONDumpGenerator {
 			//to set first to false!
 			if (visit(child, writer, first)) {
 				first = false;
-			};
+			}
 		}
 		
 		// check if this node should be skipped from the dump
@@ -290,11 +290,13 @@ public class PlanJSONDumpGenerator {
 				final DumpableNode<?> source = inConn.getSource();
 				writer.print(inputNum == 0 ? "\n" : ",\n");
 				if (inputNum == 0) {
-					child1name += child1name.length() > 0 ? ", " : ""; 
-					child1name += source.getOptimizerNode().getOperator().getName();
+					child1name += child1name.length() > 0 ? ", " : "";
+					child1name += source.getOptimizerNode().getOperator().getName() +
+						" (id: " + this.nodeIds.get(source) + ")";
 				} else if (inputNum == 1) {
-					child2name += child2name.length() > 0 ? ", " : ""; 
-					child2name = source.getOptimizerNode().getOperator().getName();
+					child2name += child2name.length() > 0 ? ", " : "";
+					child2name += source.getOptimizerNode().getOperator().getName() +
+						" (id: " + this.nodeIds.get(source) + ")";
 				}
 
 				// output predecessor id

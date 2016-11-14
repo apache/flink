@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -29,18 +31,17 @@ import java.util.ArrayList;
  * @param <IN>
  *            Input tuple type
  */
+@PublicEvolving
 public class WriteFormatAsCsv<IN> extends WriteFormat<IN> {
 	private static final long serialVersionUID = 1L;
 
 	@Override
 	protected void write(String path, ArrayList<IN> tupleList) {
-		try {
-			PrintWriter outStream = new PrintWriter(new BufferedWriter(new FileWriter(path, true)));
+		try (PrintWriter outStream = new PrintWriter(new BufferedWriter(new FileWriter(path, true)))) {
 			for (IN tupleToWrite : tupleList) {
 				String strTuple = tupleToWrite.toString();
 				outStream.println(strTuple.substring(1, strTuple.length() - 1));
 			}
-			outStream.close();
 		} catch (IOException e) {
 			throw new RuntimeException("Exception occured while writing file " + path, e);
 		}

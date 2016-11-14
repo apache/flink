@@ -536,6 +536,4 @@ class CsvInputFormatTest {
     assert(expected.sameElements(actual))
   }
 
-
-
 }

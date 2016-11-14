@@ -18,10 +18,16 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
+
+import static org.apache.flink.configuration.ConfigOptions.key;
+
 /**
  * This class contains all constants for the configuration. That includes the configuration keys and
  * the default values.
  */
+@Public
 public final class ConfigConstants {
 
 	// ------------------------------------------------------------------------
@@ -35,17 +41,73 @@ public final class ConfigConstants {
 	 */
 	public static final String DEFAULT_PARALLELISM_KEY = "parallelism.default";
 
+	// ---------------------------- Restart strategies ------------------------
+
+	/**
+	 * Defines the restart strategy to be used. It can be "off", "none", "disable" to be disabled or
+	 * it can be "fixeddelay", "fixed-delay" to use the FixedDelayRestartStrategy or it can
+	 * be "failurerate", "failure-rate" to use FailureRateRestartStrategy. You can also
+	 * specify a class name which implements the RestartStrategy interface and has a static
+	 * create method which takes a Configuration object.
+	 */
+	@PublicEvolving
+	public static final String RESTART_STRATEGY = "restart-strategy";
+
+	/**
+	 * Maximum number of attempts the fixed delay restart strategy will try before failing a job.
+	 */
+	@PublicEvolving
+	public static final String RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS = "restart-strategy.fixed-delay.attempts";
+
+	/**
+	 * Delay between two consecutive restart attempts in FixedDelayRestartStrategy. It can be specified using Scala's
+	 * FiniteDuration notation: "1 min", "20 s"
+	 */
+	@PublicEvolving
+	public static final String RESTART_STRATEGY_FIXED_DELAY_DELAY = "restart-strategy.fixed-delay.delay";
+
+	/**
+	 * Maximum number of restarts in given time interval {@link #RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL} before failing a job
+	 * in FailureRateRestartStrategy.
+	 */
+	@PublicEvolving
+	public static final String RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL = "restart-strategy.failure-rate.max-failures-per-interval";
+
+	/**
+	 * Time interval in which greater amount of failures than {@link #RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL} causes
+	 * job fail in FailureRateRestartStrategy. It can be specified using Scala's FiniteDuration notation: "1 min", "20 s"
+	 */
+	@PublicEvolving
+	public static final String RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL = "restart-strategy.failure-rate.failure-rate-interval";
+
+	/**
+	 * Delay between two consecutive restart attempts in FailureRateRestartStrategy.
+	 * It can be specified using Scala's FiniteDuration notation: "1 min", "20 s".
+	 */
+	@PublicEvolving
+	public static final String RESTART_STRATEGY_FAILURE_RATE_DELAY = "restart-strategy.failure-rate.delay";
+
 	/**
 	 * Config parameter for the number of re-tries for failed tasks. Setting this
 	 * value to 0 effectively disables fault tolerance.
+	 *
+	 * @deprecated The configuration value will be replaced by {@link #RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS}
+	 * and the corresponding FixedDelayRestartStrategy.
 	 */
-	public static final String DEFAULT_EXECUTION_RETRIES_KEY = "execution-retries.default";
+	@Deprecated
+	@PublicEvolving
+	public static final String EXECUTION_RETRIES_KEY = "execution-retries.default";
 
 	/**
 	 * Config parameter for the delay between execution retries. The value must be specified in the
 	 * notation "10 s" or "1 min" (style of Scala Finite Durations)
+	 *
+	 * @deprecated The configuration value will be replaced by {@link #RESTART_STRATEGY_FIXED_DELAY_DELAY}
+	 * and the corresponding FixedDelayRestartStrategy.
 	 */
-	public static final String DEFAULT_EXECUTION_RETRY_DELAY_KEY = "execution-retries.delay";
+	@Deprecated
+	@PublicEvolving
+	public static final String EXECUTION_RETRY_DELAY_KEY = "execution-retries.delay";
 	
 	// -------------------------------- Runtime -------------------------------
 	
@@ -60,6 +122,12 @@ public final class ConfigConstants {
 	 * for communication with the job manager.
 	 */
 	public static final String JOB_MANAGER_IPC_PORT_KEY = "jobmanager.rpc.port";
+
+	/**
+	 * The config parameter defining the network port to connect to
+	 * for communication with the resource manager.
+	 */
+	public static final String RESOURCE_MANAGER_IPC_PORT_KEY = "resourcemanager.rpc.port";
 
 	/**
 	 * The config parameter defining the storage directory to be used by the blob server.
@@ -91,6 +159,9 @@ public final class ConfigConstants {
 	 */
 	public static final String BLOB_SERVER_PORT = "blob.server.port";
 
+	/** Flag to override ssl support for the blob service transport */
+	public static final String BLOB_SERVICE_SSL_ENABLED = "blob.service.ssl.enabled";
+
 	/**
 	 * The config parameter defining the cleanup interval of the library cache manager.
 	 */
@@ -112,9 +183,19 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DATA_PORT_KEY = "taskmanager.data.port";
 
 	/**
+	 * Config parameter to override SSL support for taskmanager's data transport
+	 */
+	public static final String TASK_MANAGER_DATA_SSL_ENABLED = "taskmanager.data.ssl.enabled";
+
+	/**
 	 * The config parameter defining the directories for temporary files.
 	 */
 	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dirs";
+
+	/**
+	 * The config parameter defining the taskmanager log file location
+	 */
+	public static final String TASK_MANAGER_LOG_PATH_KEY = "taskmanager.log.path";
 
 	/**
 	 * The config parameter defining the amount of memory to be allocated by the task manager's
@@ -172,9 +253,33 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = "taskmanager.debug.memory.logIntervalMs";
 
 	/**
-	 *
+	 * Defines the maximum time it can take for the TaskManager registration. If the duration is
+	 * exceeded without a successful registration, then the TaskManager terminates.
 	 */
 	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
+
+	/**
+	 * The initial registration pause between two consecutive registration attempts. The pause
+	 * is doubled for each new registration attempt until it reaches the maximum registration pause.
+	 */
+	public static final String TASK_MANAGER_INITIAL_REGISTRATION_PAUSE = "taskmanager.initial-registration-pause";
+
+	/**
+	 * The maximum registration pause between two consecutive registration attempts.
+	 */
+	public static final String TASK_MANAGER_MAX_REGISTARTION_PAUSE = "taskmanager.max-registration-pause";
+
+	/**
+	 * The pause after a registration has been refused by the job manager before retrying to connect.
+	 */
+	public static final String TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "taskmanager.refused-registration-pause";
+
+	/**
+	 * Deprecated. Please use {@link TaskManagerOptions#TASK_CANCELLATION_INTERVAL}.
+	 */
+	@PublicEvolving
+	@Deprecated
+	public static final String TASK_CANCELLATION_INTERVAL_MILLIS = "task.cancellation-interval";
 
 	// --------------------------- Runtime Algorithms -------------------------------
 	
@@ -202,21 +307,65 @@ public final class ConfigConstants {
 	 */
 	public static final String FS_STREAM_OPENING_TIMEOUT_KEY = "taskmanager.runtime.fs_timeout";
 
+	/**
+	 * Whether to use the LargeRecordHandler when spilling.
+	 */
+	public static final String USE_LARGE_RECORD_HANDLER_KEY = "taskmanager.runtime.large-record-handler";
+
+
+	// -------- Common Resource Framework Configuration (YARN & Mesos) --------
+
+	/**
+	 * Percentage of heap space to remove from containers (YARN / Mesos), to compensate
+	 * for other JVM memory usage.
+	 */
+	public static final String CONTAINERIZED_HEAP_CUTOFF_RATIO = "containerized.heap-cutoff-ratio";
+
+	/**
+	 * Minimum amount of heap memory to remove in containers, as a safety margin.
+	 */
+	public static final String CONTAINERIZED_HEAP_CUTOFF_MIN = "containerized.heap-cutoff-min";
+
+	/**
+	 * Prefix for passing custom environment variables to Flink's master process.
+	 * For example for passing LD_LIBRARY_PATH as an env variable to the AppMaster, set:
+	 * containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
+	 * in the flink-conf.yaml.
+	 */
+	public static final String CONTAINERIZED_MASTER_ENV_PREFIX = "containerized.master.env.";
+
+	/**
+	 * Similar to the {@see CONTAINERIZED_MASTER_ENV_PREFIX}, this configuration prefix allows
+	 * setting custom environment variables for the workers (TaskManagers)
+	 */
+	public static final String CONTAINERIZED_TASK_MANAGER_ENV_PREFIX = "containerized.taskmanager.env.";
+
+	
 	// ------------------------ YARN Configuration ------------------------
 
 	/**
-	 * Percentage of heap space to remove from containers started by YARN.
+	 * The vcores exposed by YARN.
 	 */
+	public static final String YARN_VCORES = "yarn.containers.vcores";
+
+	/**
+	 * Percentage of heap space to remove from containers started by YARN.
+	 * @deprecated in favor of {@code #CONTAINERIZED_HEAP_CUTOFF_RATIO}
+	 */
+	@Deprecated
 	public static final String YARN_HEAP_CUTOFF_RATIO = "yarn.heap-cutoff-ratio";
 
 	/**
 	 * Minimum amount of memory to remove from the heap space as a safety margin.
+	 * @deprecated in favor of {@code #CONTAINERIZED_HEAP_CUTOFF_MIN}
 	 */
+	@Deprecated
 	public static final String YARN_HEAP_CUTOFF_MIN = "yarn.heap-cutoff-min";
 
 	/**
 	 * Reallocate failed YARN containers.
 	 */
+	@Deprecated
 	public static final String YARN_REALLOCATE_FAILED_CONTAINERS = "yarn.reallocate-failed";
 
 	/**
@@ -256,17 +405,25 @@ public final class ConfigConstants {
 	 * For example for passing LD_LIBRARY_PATH as an env variable to the AppMaster, set:
 	 * 	yarn.application-master.env.LD_LIBRARY_PATH: "/usr/lib/native"
 	 * in the flink-conf.yaml.
+	 * @deprecated Please use {@code CONTAINERIZED_MASTER_ENV_PREFIX}.
 	 */
+	@Deprecated
 	public static final String YARN_APPLICATION_MASTER_ENV_PREFIX = "yarn.application-master.env.";
+
+	// these default values are not used anymore, but remain here until Flink 2.0
+	@Deprecated
+	public static final String DEFAULT_YARN_APPLICATION_MASTER_PORT = "deprecated";
+	@Deprecated
+	public static final int DEFAULT_YARN_MIN_HEAP_CUTOFF = -1;
 
 	/**
 	 * Similar to the {@see YARN_APPLICATION_MASTER_ENV_PREFIX}, this configuration prefix allows
 	 * setting custom environment variables.
+	 * @deprecated Please use {@code CONTAINERIZED_TASK_MANAGER_ENV_PREFIX}.
 	 */
+	@Deprecated
 	public static final String YARN_TASK_MANAGER_ENV_PREFIX = "yarn.taskmanager.env.";
-
-
-
+	
 	 /**
 	 * The config parameter defining the Akka actor system port for the ApplicationMaster and
 	 * JobManager
@@ -279,6 +436,60 @@ public final class ConfigConstants {
 	 */
 	public static final String YARN_APPLICATION_MASTER_PORT = "yarn.application-master.port";
 
+
+	// ------------------------ Mesos Configuration ------------------------
+
+	/**
+	 * The maximum number of failed Mesos tasks before entirely stopping
+	 * the Mesos session / job on Mesos.
+	 *
+	 * By default, we take the number of of initially requested tasks.
+	 */
+	public static final String MESOS_MAX_FAILED_TASKS = "mesos.maximum-failed-tasks";
+
+	/**
+	 * The Mesos master URL.
+	 *
+	 * The value should be in one of the following forms:
+	 * <pre>
+	 * {@code
+	 *     host:port
+	 *     zk://host1:port1,host2:port2,.../path
+	 *     zk://username:password@host1:port1,host2:port2,.../path
+	 *     file:///path/to/file (where file contains one of the above)
+	 * }
+	 * </pre>
+	 *
+	 */
+	public static final String MESOS_MASTER_URL = "mesos.master";
+
+	/**
+	 * The failover timeout for the Mesos scheduler, after which running tasks are automatically shut down.
+	 *
+	 * The default value is 600 (seconds).
+	 */
+	public static final String MESOS_FAILOVER_TIMEOUT_SECONDS = "mesos.failover-timeout";
+
+	/**
+	 * The config parameter defining the Mesos artifact server port to use.
+	 * Setting the port to 0 will let the OS choose an available port.
+	 */
+	public static final String MESOS_ARTIFACT_SERVER_PORT_KEY = "mesos.resourcemanager.artifactserver.port";
+
+	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_NAME = "mesos.resourcemanager.framework.name";
+
+	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE = "mesos.resourcemanager.framework.role";
+
+	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_PRINCIPAL = "mesos.resourcemanager.framework.principal";
+
+	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_SECRET = "mesos.resourcemanager.framework.secret";
+
+	/**
+	 * The cpus to acquire from Mesos.
+	 *
+	 * By default, we use the number of requested task slots.
+	 */
+	public static final String MESOS_RESOURCEMANAGER_TASKS_CPUS = "mesos.resourcemanager.tasks.cpus";
 
 	// ------------------------ Hadoop Configuration ------------------------
 
@@ -298,6 +509,13 @@ public final class ConfigConstants {
 	public static final String PATH_HADOOP_CONFIG = "fs.hdfs.hadoopconf";
 	
 	// ------------------------ File System Behavior ------------------------
+
+	/**
+	 * Key to specify the default filesystem to be used by a job. In the case of
+	 * <code>file:///</code>, which is the default (see {@link ConfigConstants#DEFAULT_FILESYSTEM_SCHEME}),
+	 * the local filesystem is going to be used to resolve URIs without an explicit scheme.
+	 * */
+	public static final String FILESYSTEM_SCHEME = "fs.default-scheme";
 
 	/**
 	 * Key to specify whether the file systems should simply overwrite existing files.
@@ -330,11 +548,27 @@ public final class ConfigConstants {
 	
 	
 	// ------------------------- JobManager Web Frontend ----------------------
-	
+
 	/**
 	 * The port for the runtime monitor web-frontend server.
 	 */
 	public static final String JOB_MANAGER_WEB_PORT_KEY = "jobmanager.web.port";
+
+	/**
+	 * Config parameter to override SSL support for the JobManager Web UI
+	 */
+	public static final String JOB_MANAGER_WEB_SSL_ENABLED = "jobmanager.web.ssl.enabled";
+
+	/**
+	 * The config parameter defining the flink web directory to be used by the webmonitor.
+	 */
+	public static final String JOB_MANAGER_WEB_TMPDIR_KEY = "jobmanager.web.tmpdir";
+
+	/**
+	 * The config parameter defining the directory for uploading the job jars. If not specified a dynamic directory
+	 * will be used under the directory specified by JOB_MANAGER_WEB_TMPDIR_KEY.
+	 */
+	public static final String JOB_MANAGER_WEB_UPLOAD_DIR_KEY = "jobmanager.web.upload.dir";
 
 	/**
 	 * The config parameter defining the number of archived jobs for the jobmanager
@@ -346,34 +580,26 @@ public final class ConfigConstants {
 	 */
 	public static final String JOB_MANAGER_WEB_LOG_PATH_KEY = "jobmanager.web.log.path";
 
+	/** Config parameter indicating whether jobs can be uploaded and run from the web-frontend. */
+	public static final String JOB_MANAGER_WEB_SUBMIT_ENABLED_KEY = "jobmanager.web.submit.enable";
 
-	// ------------------------------ Web Client ------------------------------
+	/** Flag to disable checkpoint stats. */
+	public static final String JOB_MANAGER_WEB_CHECKPOINTS_DISABLE = "jobmanager.web.checkpoints.disable";
 
-	/**
-	 * The config parameter defining port for the pact web-frontend server.
-	 */
-	public static final String WEB_FRONTEND_PORT_KEY = "webclient.port";
+	/** Config parameter defining the number of checkpoints to remember for recent history. */
+	public static final String JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = "jobmanager.web.checkpoints.history";
 
-	/**
-	 * The config parameter defining the temporary data directory for the web client.
-	 */
-	public static final String WEB_TMP_DIR_KEY = "webclient.tempdir";
+	/** Time after which cached stats are cleaned up if not accessed. */
+	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL = "jobmanager.web.backpressure.cleanup-interval";
 
-	/**
-	 * The config parameter defining the directory that programs are uploaded to.
-	 */
-	public static final String WEB_JOB_UPLOAD_DIR_KEY = "webclient.uploaddir";
+	/** Time after which available stats are deprecated and need to be refreshed (by resampling). */
+	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_REFRESH_INTERVAL = "jobmanager.web.backpressure.refresh-interval";
 
-	/**
-	 * The config parameter defining the directory that JSON plan dumps are written to.
-	 */
-	public static final String WEB_PLAN_DUMP_DIR_KEY = "webclient.plandump";
+	/** Number of stack trace samples to take to determine back pressure. */
+	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_NUM_SAMPLES = "jobmanager.web.backpressure.num-samples";
 
-	/**
-	 * The config parameter defining the port to the htaccess file protecting the web client.
-	 */
-	public static final String WEB_ACCESS_FILE_KEY = "webclient.access";
-	
+	/** Delay between stack trace samples to determine back pressure. */
+	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_DELAY = "jobmanager.web.backpressure.delay-between-samples";
 
 	// ------------------------------ AKKA ------------------------------------
 
@@ -418,6 +644,11 @@ public final class ConfigConstants {
 	public static final String AKKA_TCP_TIMEOUT = "akka.tcp.timeout";
 
 	/**
+	 * Override SSL support for the Akka transport
+	 */
+	public static final String AKKA_SSL_ENABLED = "akka.ssl.enabled";
+
+	/**
 	 * Maximum framesize of akka messages
 	 */
 	public static final String AKKA_FRAMESIZE = "akka.framesize";
@@ -433,7 +664,7 @@ public final class ConfigConstants {
 	public static final String AKKA_LOG_LIFECYCLE_EVENTS = "akka.log.lifecycle.events";
 
 	/**
-	 * Timeout for all blocking calls
+	 * Timeout for all blocking calls on the cluster side
 	 */
 	public static final String AKKA_ASK_TIMEOUT = "akka.ask.timeout";
 
@@ -443,10 +674,49 @@ public final class ConfigConstants {
 	public static final String AKKA_LOOKUP_TIMEOUT = "akka.lookup.timeout";
 
 	/**
+	 * Timeout for all blocking calls on the client side
+	 */
+	public static final String AKKA_CLIENT_TIMEOUT = "akka.client.timeout";
+
+	/**
 	 * Exit JVM on fatal Akka errors
 	 */
 	public static final String AKKA_JVM_EXIT_ON_FATAL_ERROR = "akka.jvm-exit-on-fatal-error";
 	
+	// ----------------------------- Transport SSL Settings--------------------
+
+	/**
+	 * Enable SSL support
+	 */
+	public static final String SECURITY_SSL_ENABLED = "security.ssl.enabled";
+
+	/** The Java keystore file containing the flink endpoint key and certificate */
+	public static final String SECURITY_SSL_KEYSTORE = "security.ssl.keystore";
+
+	/** secret to decrypt the keystore file */
+	public static final String SECURITY_SSL_KEYSTORE_PASSWORD = "security.ssl.keystore-password";
+
+	/** secret to decrypt the server key */
+	public static final String SECURITY_SSL_KEY_PASSWORD = "security.ssl.key-password";
+
+	/** The truststore file containing the public CA certificates to verify the ssl peers */
+	public static final String SECURITY_SSL_TRUSTSTORE = "security.ssl.truststore";
+
+	/** Secret to decrypt the truststore */
+	public static final String SECURITY_SSL_TRUSTSTORE_PASSWORD = "security.ssl.truststore-password";
+
+	/** SSL protocol version to be supported */
+	public static final String SECURITY_SSL_PROTOCOL = "security.ssl.protocol";
+
+	/**
+	 * The standard SSL algorithms to be supported
+	 * More options here - http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites
+	 * */
+	public static final String SECURITY_SSL_ALGORITHMS = "security.ssl.algorithms";
+
+	/** Flag to enable/disable hostname verification for the ssl connections */
+	public static final String SECURITY_SSL_VERIFY_HOSTNAME = "security.ssl.verify-hostname";
+
 	// ----------------------------- Streaming --------------------------------
 	
 	/**
@@ -463,45 +733,223 @@ public final class ConfigConstants {
 	
 	public static final String FLINK_JVM_OPTIONS = "env.java.opts";
 
-	// --------------------------- Recovery -----------------------------------
+	// --------------------------- High Availability --------------------------
 
-	/** Defines recovery mode used for the cluster execution ("standalone", "zookeeper") */
+	/** Defines high availabilty mode used for the cluster execution ("NONE", "ZOOKEEPER") */
+	@PublicEvolving
+	public static final String HA_MODE = "high-availability";
+
+	/** Ports used by the job manager if not in 'none' recovery mode */
+	@PublicEvolving
+	public static final String HA_JOB_MANAGER_PORT = "high-availability.jobmanager.port";
+
+	/** The time before the JobManager recovers persisted jobs */
+	@PublicEvolving
+	public static final String HA_JOB_DELAY = "high-availability.job.delay";
+
+	/** Deprecated in favour of {@link #HA_MODE}. */
+	@Deprecated
 	public static final String RECOVERY_MODE = "recovery.mode";
+
+	/** Deprecated in favour of {@link #HA_JOB_MANAGER_PORT}. */
+	@Deprecated
+	public static final String RECOVERY_JOB_MANAGER_PORT = "recovery.jobmanager.port";
+
+	/** Deprecated in favour of {@link #HA_JOB_DELAY}. */
+	@Deprecated
+	public static final String RECOVERY_JOB_DELAY = "recovery.job.delay";
 
 	// --------------------------- ZooKeeper ----------------------------------
 
 	/** ZooKeeper servers. */
-	public static final String ZOOKEEPER_QUORUM_KEY = "recovery.zookeeper.quorum";
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_QUORUM_KEY = "high-availability.zookeeper.quorum";
 
 	/**
 	 * File system state backend base path for recoverable state handles. Recovery state is written
 	 * to this path and the file state handles are persisted for recovery.
 	 */
-	public static final String ZOOKEEPER_RECOVERY_PATH = "recovery.zookeeper.storageDir";
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_STORAGE_PATH = "high-availability.zookeeper.storageDir";
 
 	/** ZooKeeper root path. */
-	public static final String ZOOKEEPER_DIR_KEY = "recovery.zookeeper.path.root";
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_DIR_KEY = "high-availability.zookeeper.path.root";
 
-	public static final String ZOOKEEPER_LATCH_PATH = "recovery.zookeeper.path.latch";
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_NAMESPACE_KEY = "high-availability.zookeeper.path.namespace";
 
-	public static final String ZOOKEEPER_LEADER_PATH = "recovery.zookeeper.path.leader";
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_LATCH_PATH = "high-availability.zookeeper.path.latch";
 
 	/** ZooKeeper root path (ZNode) for job graphs. */
-	public static final String ZOOKEEPER_JOBGRAPHS_PATH = "recovery.zookeeper.path.jobgraphs";
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_JOBGRAPHS_PATH = "high-availability.zookeeper.path.jobgraphs";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_LEADER_PATH = "high-availability.zookeeper.path.leader";
 
 	/** ZooKeeper root path (ZNode) for completed checkpoints. */
-	public static final String ZOOKEEPER_CHECKPOINTS_PATH = "recovery.zookeeper.path.checkpoints";
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_CHECKPOINTS_PATH = "high-availability.zookeeper.path.checkpoints";
 
 	/** ZooKeeper root path (ZNode) for checkpoint counters. */
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "high-availability.zookeeper.path.checkpoint-counter";
+
+	/** ZooKeeper root path (ZNode) for Mesos workers. */
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_MESOS_WORKERS_PATH = "recovery.zookeeper.path.mesos-workers";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_SESSION_TIMEOUT = "high-availability.zookeeper.client.session-timeout";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_CONNECTION_TIMEOUT = "high-availability.zookeeper.client.connection-timeout";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_RETRY_WAIT = "high-availability.zookeeper.client.retry-wait";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_MAX_RETRY_ATTEMPTS = "high-availability.zookeeper.client.max-retry-attempts";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_CLIENT_ACL = "high-availability.zookeeper.client.acl";
+
+	@PublicEvolving
+	public static final String ZOOKEEPER_SASL_DISABLE = "zookeeper.sasl.disable";
+
+	@PublicEvolving
+	public static final String ZOOKEEPER_SASL_SERVICE_NAME = "zookeeper.sasl.service-name";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_QUORUM_KEY}. */
+	@Deprecated
+	public static final String ZOOKEEPER_QUORUM_KEY = "recovery.zookeeper.quorum";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_STORAGE_PATH}. */
+	@Deprecated
+	public static final String ZOOKEEPER_RECOVERY_PATH = "recovery.zookeeper.storageDir";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_DIR_KEY}. */
+	@Deprecated
+	public static final String ZOOKEEPER_DIR_KEY = "recovery.zookeeper.path.root";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_NAMESPACE_KEY}. */
+	@Deprecated
+	public static final String ZOOKEEPER_NAMESPACE_KEY = "recovery.zookeeper.path.namespace";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_LATCH_PATH}. */
+	@Deprecated
+	public static final String ZOOKEEPER_LATCH_PATH = "recovery.zookeeper.path.latch";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_LEADER_PATH}. */
+	@Deprecated
+	public static final String ZOOKEEPER_LEADER_PATH = "recovery.zookeeper.path.leader";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_JOBGRAPHS_PATH}. */
+	@Deprecated
+	public static final String ZOOKEEPER_JOBGRAPHS_PATH = "recovery.zookeeper.path.jobgraphs";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_CHECKPOINTS_PATH}. */
+	@Deprecated
+	public static final String ZOOKEEPER_CHECKPOINTS_PATH = "recovery.zookeeper.path.checkpoints";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH}. */
+	@Deprecated
 	public static final String ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "recovery.zookeeper.path.checkpoint-counter";
 
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_SESSION_TIMEOUT}. */
+	@Deprecated
 	public static final String ZOOKEEPER_SESSION_TIMEOUT = "recovery.zookeeper.client.session-timeout";
 
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_CONNECTION_TIMEOUT}. */
+	@Deprecated
 	public static final String ZOOKEEPER_CONNECTION_TIMEOUT = "recovery.zookeeper.client.connection-timeout";
 
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_RETRY_WAIT}. */
+	@Deprecated
 	public static final String ZOOKEEPER_RETRY_WAIT = "recovery.zookeeper.client.retry-wait";
 
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_MAX_RETRY_ATTEMPTS}. */
+	@Deprecated
 	public static final String ZOOKEEPER_MAX_RETRY_ATTEMPTS = "recovery.zookeeper.client.max-retry-attempts";
+
+	// ---------------------------- Metrics -----------------------------------
+
+	/**
+	 * The list of named reporters. Names are defined here and per-reporter configs
+	 * are given with the reporter config prefix and the reporter name.
+	 *
+	 * Example:
+	 * <pre>{@code
+	 * metrics.reporters = foo, bar
+	 *
+	 * metrics.reporter.foo.class = org.apache.flink.metrics.reporter.JMXReporter
+	 * metrics.reporter.foo.interval = 10
+	 *
+	 * metrics.reporter.bar.class = org.apache.flink.metrics.graphite.GraphiteReporter
+	 * metrics.reporter.bar.port = 1337
+	 * }</pre>
+	 */
+	public static final String METRICS_REPORTERS_LIST = "metrics.reporters";
+
+	/**
+	 * The prefix for per-reporter configs. Has to be combined with a reporter name and
+	 * the configs mentioned below.
+	 */
+	public static final String METRICS_REPORTER_PREFIX = "metrics.reporter.";
+
+	/** The class of the reporter to use. This is used as a suffix in an actual reporter config */
+	public static final String METRICS_REPORTER_CLASS_SUFFIX = "class";
+	
+	/** The interval between reports. This is used as a suffix in an actual reporter config */
+	public static final String METRICS_REPORTER_INTERVAL_SUFFIX = "interval";
+
+	/**	The delimiter used to assemble the metric identifier. This is used as a suffix in an actual reporter config. */
+	public static final String METRICS_REPORTER_SCOPE_DELIMITER = "scope.delimiter";
+
+	/** The delimiter used to assemble the metric identifier. */
+	public static final String METRICS_SCOPE_DELIMITER = "metrics.scope.delimiter";
+
+	/** The scope format string that is applied to all metrics scoped to a JobManager. */
+	public static final String METRICS_SCOPE_NAMING_JM = "metrics.scope.jm";
+
+	/** The scope format string that is applied to all metrics scoped to a TaskManager. */
+	public static final String METRICS_SCOPE_NAMING_TM = "metrics.scope.tm";
+
+	/** The scope format string that is applied to all metrics scoped to a job on a JobManager. */
+	public static final String METRICS_SCOPE_NAMING_JM_JOB = "metrics.scope.jm.job";
+
+	/** The scope format string that is applied to all metrics scoped to a job on a TaskManager. */
+	public static final String METRICS_SCOPE_NAMING_TM_JOB = "metrics.scope.tm.job";
+
+	/** The scope format string that is applied to all metrics scoped to a task. */
+	public static final String METRICS_SCOPE_NAMING_TASK = "metrics.scope.task";
+
+	/** The scope format string that is applied to all metrics scoped to an operator. */
+	public static final String METRICS_SCOPE_NAMING_OPERATOR = "metrics.scope.operator";
+
+	/** The number of measured latencies to maintain at each operator */
+	public static final String METRICS_LATENCY_HISTORY_SIZE = "metrics.latency.history-size";
+
+
+	// ---------------------------- Checkpoints -------------------------------
+
+	/** The default directory for savepoints. */
+	@PublicEvolving
+	public static final String SAVEPOINT_DIRECTORY_KEY = "state.savepoints.dir";
+
+	/** The default directory used for persistent checkpoints. */
+	@PublicEvolving
+	public static final String CHECKPOINTS_DIRECTORY_KEY = "state.checkpoints.dir";
+
+	/**
+	 * This key was used in Flink versions <= 1.1.X with the savepoint backend
+	 * configuration. We now always use the FileSystem for savepoints. For this,
+	 * the only relevant config key is {@link #SAVEPOINT_DIRECTORY_KEY}.
+	 */
+	@Deprecated
+	public static final String SAVEPOINT_FS_DIRECTORY_KEY = "savepoints.state.backend.fs.dir";
 
 	// ------------------------------------------------------------------------
 	//                            Default Values
@@ -518,7 +966,7 @@ public final class ConfigConstants {
 	 * The default number of execution retries.
 	 */
 	public static final int DEFAULT_EXECUTION_RETRIES = 0;
-	
+
 	// ------------------------------ Runtime ---------------------------------
 
 	/**
@@ -530,6 +978,16 @@ public final class ConfigConstants {
 	 * The default network port to connect to for communication with the job manager.
 	 */
 	public static final int DEFAULT_JOB_MANAGER_IPC_PORT = 6123;
+
+	/**
+	 * The default network port of the resource manager.
+	 */
+	public static final int DEFAULT_RESOURCE_MANAGER_IPC_PORT = 0;
+
+	/**
+	 * The default value to override ssl support for blob service transport
+	 */
+	public static final boolean DEFAULT_BLOB_SERVICE_SSL_ENABLED = true;
 
 	/**
 	 * Default number of retries for failed BLOB fetches.
@@ -562,6 +1020,11 @@ public final class ConfigConstants {
 	 * the TaskManager searches for a free port.
 	 */
 	public static final int DEFAULT_TASK_MANAGER_DATA_PORT = 0;
+
+	/**
+	 * The default value to override ssl support for task manager's data transport
+	 */
+	public static final boolean DEFAULT_TASK_MANAGER_DATA_SSL_ENABLED = true;
 
 	/**
 	 * The default directory for temporary files of the task manager.
@@ -605,9 +1068,30 @@ public final class ConfigConstants {
 	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION = "Inf";
 
 	/**
+	 * The default task manager's initial registration pause.
+	 */
+	public static final String DEFAULT_TASK_MANAGER_INITIAL_REGISTRATION_PAUSE = "500 ms";
+
+	/**
+	 * The default task manager's maximum registration pause.
+	 */
+	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_PAUSE = "30 s";
+
+	/**
+	 * The default task manager's refused registration pause.
+	 */
+	public static final String DEFAULT_TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "10 s";
+
+	/**
 	 * The default setting for TaskManager memory eager allocation of managed memory
 	 */
 	public static final boolean DEFAULT_TASK_MANAGER_MEMORY_PRE_ALLOCATE = false;
+
+	/**
+	 * Deprecated. Please use {@link TaskManagerOptions#TASK_CANCELLATION_INTERVAL}.
+	 */
+	@Deprecated
+	public static final long DEFAULT_TASK_CANCELLATION_INTERVAL_MILLIS = 30000;
 
 	// ------------------------ Runtime Algorithms ------------------------
 	
@@ -631,17 +1115,23 @@ public final class ConfigConstants {
 	 */
 	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
 
-	// ------------------------ YARN Configuration ------------------------
-
 	/**
-	 * Minimum amount of Heap memory to subtract from the requested TaskManager size.
-	 * We came up with these values experimentally.
-	 * Flink fails when the cutoff is set only to 500 mb.
+	 * Whether to use the LargeRecordHandler when spilling.
 	 */
-	public static final int DEFAULT_YARN_MIN_HEAP_CUTOFF = 600;
+	public static final boolean DEFAULT_USE_LARGE_RECORD_HANDLER = false;
+
+
+	// ------ Common Resource Framework Configuration (YARN & Mesos) ------
 
 	/**
-	 * Relative amount of memory to subtract from the requested memory.
+	 * Minimum amount of memory to subtract from the process memory to get the TaskManager
+	 * heap size. We came up with these values experimentally.
+	 */
+	public static final int DEFAULT_YARN_HEAP_CUTOFF = 600;
+
+	/**
+	 * Relative amount of memory to subtract from Java process memory to get the TaskManager
+	 * heap size
 	 */
 	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.25f;
 
@@ -649,11 +1139,33 @@ public final class ConfigConstants {
 	 * Default port for the application master is 0, which means
 	 * the operating system assigns an ephemeral port
 	 */
-	public static final String DEFAULT_YARN_APPLICATION_MASTER_PORT = "0";
-	
-	
+	public static final String DEFAULT_YARN_JOB_MANAGER_PORT = "0";
+
+	// ------ Mesos-Specific Configuration ------
+
+	/** The default failover timeout provided to Mesos (10 mins) */
+	public static final int DEFAULT_MESOS_FAILOVER_TIMEOUT_SECS = 10 * 60;
+
+	/**
+	 * The default network port to listen on for the Mesos artifact server.
+	 */
+	public static final int DEFAULT_MESOS_ARTIFACT_SERVER_PORT = 0;
+
+	/**
+	 * The default Mesos framework name for the ResourceManager to use.
+	 */
+	public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_NAME = "Flink";
+
+	public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE = "*";
+
 	// ------------------------ File System Behavior ------------------------
 
+	/**
+	 * The default filesystem to be used, if no other scheme is specified in the
+	 * user-provided URI (= local filesystem)
+	 * */
+	public static final String DEFAULT_FILESYSTEM_SCHEME = "file:///";
+	
 	/**
 	 * The default behavior with respect to overwriting existing files (= not overwrite)
 	 */
@@ -684,47 +1196,42 @@ public final class ConfigConstants {
 	
 	
 	// ------------------------- JobManager Web Frontend ----------------------
-	
-	/**
-	 * The config key for the port of the JobManager web frontend.
-	 * Setting this value to {@code -1} disables the web frontend.
-	 */
+
+	/** The config key for the address of the JobManager web frontend. */
+	public static final ConfigOption<String> DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS =
+		key("jobmanager.web.address")
+			.noDefaultValue();
+
+	/** The config key for the port of the JobManager web frontend.
+	 * Setting this value to {@code -1} disables the web frontend. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;
-	
-	/**
-	 * The default number of archived jobs for the jobmanager
-	 */
+
+	/** Default value to override SSL support for the JobManager web UI */
+	public static final boolean DEFAULT_JOB_MANAGER_WEB_SSL_ENABLED = true;
+
+	/** The default number of archived jobs for the jobmanager */
 	public static final int DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT = 5;
-	
-	
-	// ------------------------------ Web Client ------------------------------
-	
-	/**
-	 * The default port to launch the web frontend server on.
-	 */
-	public static final int DEFAULT_WEBCLIENT_PORT = 8080;
 
-	/**
-	 * The default directory to store temporary objects (e.g. during file uploads).
-	 */
-	public static final String DEFAULT_WEB_TMP_DIR = 
-			System.getProperty("java.io.tmpdir") == null ? "/tmp" : System.getProperty("java.io.tmpdir");
+	/** By default, submitting jobs from the web-frontend is allowed. */
+	public static final boolean DEFAULT_JOB_MANAGER_WEB_SUBMIT_ENABLED = true;
 
-	/**
-	 * The default directory for temporary plan dumps from the web frontend.
-	 */
-	public static final String DEFAULT_WEB_PLAN_DUMP_DIR = DEFAULT_WEB_TMP_DIR + "/webclient-plans/";
+	/** Default flag to disable checkpoint stats. */
+	public static final boolean DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_DISABLE = false;
 
-	/**
-	 * The default directory to store uploaded jobs in.
-	 */
-	public static final String DEFAULT_WEB_JOB_STORAGE_DIR = DEFAULT_WEB_TMP_DIR + "/webclient-jobs/";
-	
+	/** Default number of checkpoints to remember for recent history. */
+	public static final int DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = 10;
 
-	/**
-	 * The default path to the file containing the list of access privileged users and passwords.
-	 */
-	public static final String DEFAULT_WEB_ACCESS_FILE_PATH = null;
+	/** Time after which cached stats are cleaned up. */
+	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL = 10 * 60 * 1000;
+
+	/** Time after which available stats are deprecated and need to be refreshed (by resampling). */
+	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_REFRESH_INTERVAL = 60 * 1000;
+
+	/** Number of samples to take to determine back pressure. */
+	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_NUM_SAMPLES = 100;
+
+	/** Delay between samples to determine back pressure. */
+	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_DELAY = 50;
 
 	// ------------------------------ Akka Values ------------------------------
 
@@ -742,10 +1249,24 @@ public final class ConfigConstants {
 
 	public static String DEFAULT_AKKA_FRAMESIZE = "10485760b";
 
-	public static String DEFAULT_AKKA_ASK_TIMEOUT = "100 s";
+	public static String DEFAULT_AKKA_ASK_TIMEOUT = "10 s";
 
 	public static String DEFAULT_AKKA_LOOKUP_TIMEOUT = "10 s";
-	
+
+	public static String DEFAULT_AKKA_CLIENT_TIMEOUT = "60 s";
+
+	public static boolean DEFAULT_AKKA_SSL_ENABLED = true;
+
+	// ----------------------------- SSL Values --------------------------------
+
+	public static boolean DEFAULT_SECURITY_SSL_ENABLED = false;
+
+	public static String DEFAULT_SECURITY_SSL_PROTOCOL = "TLSv1.2";
+
+	public static String DEFAULT_SECURITY_SSL_ALGORITHMS = "TLS_RSA_WITH_AES_128_CBC_SHA";
+
+	public static boolean DEFAULT_SECURITY_SSL_VERIFY_HOSTNAME = true;
+
 	// ----------------------------- Streaming Values --------------------------
 	
 	public static String DEFAULT_STATE_BACKEND = "jobmanager";
@@ -763,15 +1284,37 @@ public final class ConfigConstants {
 
 	public static final int DEFAULT_LOCAL_NUMBER_JOB_MANAGER = 1;
 
+	public static final String LOCAL_NUMBER_RESOURCE_MANAGER = "local.number-resourcemanager";
+
+	public static final int DEFAULT_LOCAL_NUMBER_RESOURCE_MANAGER = 1;
+
 	public static final String LOCAL_START_WEBSERVER = "local.start-webserver";
 
-  	// --------------------------- Recovery ---------------------------------
+	// --------------------------- High Availability ---------------------------------
 
+	@PublicEvolving
+	public static String DEFAULT_HA_MODE = "none";
+
+	/** Deprecated in favour of {@link #DEFAULT_HA_MODE} */
+	@Deprecated
 	public static String DEFAULT_RECOVERY_MODE = "standalone";
+
+	/**
+	 * Default port used by the job manager if not in standalone recovery mode. If <code>0</code>
+	 * the OS picks a random port port.
+	 */
+	@PublicEvolving
+	public static final String DEFAULT_HA_JOB_MANAGER_PORT = "0";
+
+	/** Deprecated in favour of {@link #DEFAULT_HA_JOB_MANAGER_PORT} */
+	@Deprecated
+	public static final String DEFAULT_RECOVERY_JOB_MANAGER_PORT = "0";
 
 	// --------------------------- ZooKeeper ----------------------------------
 
 	public static final String DEFAULT_ZOOKEEPER_DIR_KEY = "/flink";
+
+	public static final String DEFAULT_ZOOKEEPER_NAMESPACE_KEY = "/default";
 
 	public static final String DEFAULT_ZOOKEEPER_LATCH_PATH = "/leaderlatch";
 
@@ -782,6 +1325,8 @@ public final class ConfigConstants {
 	public static final String DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH = "/checkpoints";
 
 	public static final String DEFAULT_ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "/checkpoint-counter";
+
+	public static final String DEFAULT_ZOOKEEPER_MESOS_WORKERS_PATH = "/mesos-workers";
 
 	public static final int DEFAULT_ZOOKEEPER_SESSION_TIMEOUT = 60000;
 
@@ -807,6 +1352,39 @@ public final class ConfigConstants {
 
 	/** ZooKeeper default leader port. */
 	public static final int DEFAULT_ZOOKEEPER_LEADER_PORT = 3888;
+
+	/** Defaults for ZK client security **/
+	public static final boolean DEFAULT_ZOOKEEPER_SASL_DISABLE = true;
+
+	/** ACL options supported "creator" or "open" */
+	public static final String DEFAULT_HA_ZOOKEEPER_CLIENT_ACL = "open";
+
+	// ----------------------------- Metrics ----------------------------
+
+	/** The default number of measured latencies to maintain at each operator */
+	public static final int DEFAULT_METRICS_LATENCY_HISTORY_SIZE = 128;
+
+	// ----------------------------- Environment Variables ----------------------------
+
+	/** The environment variable name which contains the location of the configuration directory */
+	public static final String ENV_FLINK_CONF_DIR = "FLINK_CONF_DIR";
+
+	/** The environment variable name which contains the location of the lib folder */
+	public static final String ENV_FLINK_LIB_DIR = "FLINK_LIB_DIR";
+
+	// -------------------------------- Security -------------------------------
+
+	/**
+	 * The config parameter defining security credentials required
+	 * for securing Flink cluster.
+	 */
+
+	/** Keytab file key name to be used in flink configuration file */
+	public static final String SECURITY_KEYTAB_KEY = "security.keytab";
+
+	/** Kerberos security principal key name to be used in flink configuration file */
+	public static final String SECURITY_PRINCIPAL_KEY = "security.principal";
+
 
 	/**
 	 * Not instantiable.

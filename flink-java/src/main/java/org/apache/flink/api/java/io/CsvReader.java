@@ -21,6 +21,8 @@ package org.apache.flink.api.java.io;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.operators.DataSource;
@@ -28,18 +30,18 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.Preconditions;
 
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import org.apache.flink.api.java.tuple.*;
 //CHECKSTYLE.ON: AvoidStarImport
-
-import com.google.common.base.Preconditions;
 
 /**
  * A builder class to instantiate a CSV parsing data source. The CSV reader configures the field types,
  * the delimiters (row and field),  the fields that should be included or skipped, and other flags
  * such as whether to skip the initial line as the header.
  */
+@Public
 public class CsvReader {
 
 	private final Path path;
@@ -107,6 +109,7 @@ public class CsvReader {
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
 	@Deprecated
+	@PublicEvolving
 	public CsvReader fieldDelimiter(char delimiter) {
 		this.fieldDelimiter = String.valueOf(delimiter);
 		return this;

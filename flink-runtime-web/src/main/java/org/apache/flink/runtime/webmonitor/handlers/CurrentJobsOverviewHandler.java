@@ -31,12 +31,12 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.StringWriter;
 import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Request handler that returns a summary of the job status.
  */
-public class CurrentJobsOverviewHandler implements RequestHandler, RequestHandler.JsonResponse {
+public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 
 	private final FiniteDuration timeout;
 	
@@ -55,7 +55,7 @@ public class CurrentJobsOverviewHandler implements RequestHandler, RequestHandle
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> params, ActorGateway jobManager) throws Exception {
+	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {
 			if (jobManager != null) {
 				Future<Object> future = jobManager.ask(
@@ -66,7 +66,7 @@ public class CurrentJobsOverviewHandler implements RequestHandler, RequestHandle
 				final long now = System.currentTimeMillis();
 	
 				StringWriter writer = new StringWriter();
-				JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+				JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 				gen.writeStartObject();
 				
 				

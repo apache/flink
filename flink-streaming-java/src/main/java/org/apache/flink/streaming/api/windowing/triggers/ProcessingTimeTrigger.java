@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,15 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.windowing.triggers;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 /**
  * A {@link Trigger} that fires once the current system time passes the end of the window
  * to which a pane belongs.
  */
-public class ProcessingTimeTrigger implements Trigger<Object, TimeWindow> {
+@PublicEvolving
+public class ProcessingTimeTrigger extends Trigger<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
 	private ProcessingTimeTrigger() {}
@@ -41,7 +44,24 @@ public class ProcessingTimeTrigger implements Trigger<Object, TimeWindow> {
 
 	@Override
 	public TriggerResult onProcessingTime(long time, TimeWindow window, TriggerContext ctx) {
-		return TriggerResult.FIRE_AND_PURGE;
+		return TriggerResult.FIRE;
+	}
+
+	@Override
+	public void clear(TimeWindow window, TriggerContext ctx) throws Exception {
+		ctx.deleteProcessingTimeTimer(window.maxTimestamp());
+	}
+
+	@Override
+	public boolean canMerge() {
+		return true;
+	}
+
+	@Override
+	public TriggerResult onMerge(TimeWindow window,
+			OnMergeContext ctx) {
+		ctx.registerProcessingTimeTimer(window.maxTimestamp());
+		return TriggerResult.CONTINUE;
 	}
 
 	@Override

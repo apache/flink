@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.runtime.tasks;
 
+package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoMapFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -29,11 +29,9 @@ import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -48,8 +46,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * used as a representative to test TwoInputStreamTask, since TwoInputStreamTask is used for all
  * TwoInputStreamOperators.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ResultPartitionWriter.class})
 public class TwoInputStreamTaskTest {
 
 	/**
@@ -71,6 +67,7 @@ public class TwoInputStreamTaskTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 
 		testHarness.invoke();
+		testHarness.waitForTaskRunning();
 
 		testHarness.processElement(new StreamRecord<String>("Hello", initialTime + 1), 0, 0);
 		expectedOutput.add(new StreamRecord<String>("Hello", initialTime + 1));
@@ -110,6 +107,7 @@ public class TwoInputStreamTaskTest {
 		long initialTime = 0L;
 
 		testHarness.invoke();
+		testHarness.waitForTaskRunning();
 
 		testHarness.processElement(new Watermark(initialTime), 0, 0);
 		testHarness.processElement(new Watermark(initialTime), 0, 1);
@@ -189,6 +187,7 @@ public class TwoInputStreamTaskTest {
 		long initialTime = 0L;
 
 		testHarness.invoke();
+		testHarness.waitForTaskRunning();
 
 		testHarness.processEvent(new CheckpointBarrier(0, 0), 0, 0);
 
@@ -209,6 +208,17 @@ public class TwoInputStreamTaskTest {
 		expectedOutput.add(new StreamRecord<String>("111", initialTime));
 
 		testHarness.waitForInputProcessing();
+
+		// Wait to allow input to end up in the output.
+		// TODO Use count down latches instead as a cleaner solution
+		for (int i = 0; i < 20; ++i) {
+			if (testHarness.getOutput().size() >= expectedOutput.size()) {
+				break;
+			} else {
+				Thread.sleep(100);
+			}
+		}
+
 		// we should not yet see the barrier, only the two elements from non-blocked input
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
 				testHarness.getOutput(),
@@ -219,17 +229,17 @@ public class TwoInputStreamTaskTest {
 		testHarness.processEvent(new CheckpointBarrier(0, 0), 1, 1);
 
 		testHarness.waitForInputProcessing();
+		testHarness.endInput();
+		testHarness.waitForTaskCompletion();
 
 		// now we should see the barrier and after that the buffered elements
 		expectedOutput.add(new CheckpointBarrier(0, 0));
 		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
+
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
-				testHarness.getOutput(),
-				expectedOutput);
+				expectedOutput,
+				testHarness.getOutput());
 
-		testHarness.endInput();
-
-		testHarness.waitForTaskCompletion();
 
 		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
 		Assert.assertEquals(4, resultElements.size());
@@ -255,6 +265,7 @@ public class TwoInputStreamTaskTest {
 		long initialTime = 0L;
 
 		testHarness.invoke();
+		testHarness.waitForTaskRunning();
 
 		testHarness.processEvent(new CheckpointBarrier(0, 0), 0, 0);
 
@@ -284,6 +295,7 @@ public class TwoInputStreamTaskTest {
 		testHarness.processEvent(new CheckpointBarrier(1, 1), 1, 0);
 		testHarness.processEvent(new CheckpointBarrier(1, 1), 1, 1);
 
+		expectedOutput.add(new CancelCheckpointMarker(0));
 		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
 		expectedOutput.add(new StreamRecord<String>("Ciao-0-0", initialTime));
 		expectedOutput.add(new CheckpointBarrier(1, 1));

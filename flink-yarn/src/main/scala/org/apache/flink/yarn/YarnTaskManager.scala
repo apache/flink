@@ -18,42 +18,50 @@
 
 package org.apache.flink.yarn
 
-import org.apache.flink.runtime.instance.InstanceConnectionInfo
+import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
-import org.apache.flink.runtime.taskmanager.{NetworkEnvironmentConfiguration, TaskManagerConfiguration, TaskManager}
-import org.apache.flink.yarn.YarnMessages.StopYarnSession
+import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerConfiguration, TaskManagerLocation}
+import org.apache.flink.runtime.metrics.MetricRegistry
 
 /** An extension of the TaskManager that listens for additional YARN related
   * messages.
   */
 class YarnTaskManager(
     config: TaskManagerConfiguration,
-    connectionInfo: InstanceConnectionInfo,
+    resourceID: ResourceID,
+    taskManagerLocation: TaskManagerLocation,
     memoryManager: MemoryManager,
     ioManager: IOManager,
     network: NetworkEnvironment,
     numberOfSlots: Int,
-    leaderRetrievalService: LeaderRetrievalService)
+    leaderRetrievalService: LeaderRetrievalService,
+    metricRegistry : MetricRegistry)
   extends TaskManager(
     config,
-    connectionInfo,
+    resourceID,
+    taskManagerLocation,
     memoryManager,
     ioManager,
     network,
     numberOfSlots,
-    leaderRetrievalService) {
+    leaderRetrievalService,
+    metricRegistry) {
 
   override def handleMessage: Receive = {
-    handleYarnMessages orElse super.handleMessage
+    super.handleMessage
   }
+}
 
-  def handleYarnMessages: Receive = {
-    case StopYarnSession(status, diagnostics) =>
-      log.info(s"Stopping YARN TaskManager with final application status $status " +
-        s"and diagnostics: $diagnostics")
-      context.system.shutdown()
-  }
+  object YarnTaskManager {
+    /** Entry point (main method) to run the TaskManager on YARN.
+      *
+      * @param args The command line arguments.
+      */
+    def main(args: Array[String]): Unit = {
+      YarnTaskManagerRunner.runYarnTaskManager(args, classOf[YarnTaskManager])
+    }
+
 }

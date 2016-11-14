@@ -18,12 +18,13 @@
 
 package org.apache.flink.api.common;
 
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class ExecutionConfigTest {
 
@@ -45,4 +46,22 @@ public class ExecutionConfigTest {
 
 		assertTrue(counter == expectedTypes.size());
 	}
+
+	@Test
+	public void testConfigurationOfParallelism() {
+		ExecutionConfig config = new ExecutionConfig();
+
+		// verify explicit change in parallelism
+		int parallelism = 36;
+		config.setParallelism(parallelism);
+
+		assertEquals(parallelism, config.getParallelism());
+
+		// verify that parallelism is reset to default flag value
+		parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+		config.setParallelism(parallelism);
+
+		assertEquals(parallelism, config.getParallelism());
+	}
+
 }

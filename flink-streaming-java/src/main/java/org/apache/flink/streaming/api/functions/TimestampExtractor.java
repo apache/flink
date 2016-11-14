@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,9 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 
 /**
  * Interface for user functions that extract timestamps from elements.
@@ -28,13 +30,18 @@ import org.apache.flink.api.common.functions.Function;
  *
  * <p>
  * Note: If you know that timestamps are monotonically increasing you can use
- * {@link org.apache.flink.streaming.api.functions.AscendingTimestampExtractor}. This will
+ * {@link AscendingTimestampExtractor}. This will
  * keep track of watermarks.
  *
- * @see org.apache.flink.streaming.api.watermark.Watermark
- *
  * @param <T> The type of the elements that this function can extract timestamps from
+ *
+ * @deprecated This class has been replaced by {@link AssignerWithPeriodicWatermarks} and
+ *             {@link AssignerWithPunctuatedWatermarks}
+ *             
+ * @see AssignerWithPeriodicWatermarks
+ * @see AssignerWithPunctuatedWatermarks
  */
+@Deprecated
 public interface TimestampExtractor<T> extends Function {
 
 	/**

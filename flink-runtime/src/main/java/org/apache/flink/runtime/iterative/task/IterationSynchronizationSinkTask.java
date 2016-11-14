@@ -39,8 +39,7 @@ import org.apache.flink.runtime.iterative.event.WorkerDoneEvent;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Value;
-
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 /**
  * The task responsible for synchronizing all iteration heads, implemented as an output task. This task
@@ -57,10 +56,14 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 	private SyncEventHandler eventHandler;
 
 	private ConvergenceCriterion<Value> convergenceCriterion;
+
+	private ConvergenceCriterion<Value> implicitConvergenceCriterion;
 	
 	private Map<String, Aggregator<?>> aggregators;
 
 	private String convergenceAggregatorName;
+
+	private String implicitConvergenceAggregatorName;
 
 	private int currentIteration = 1;
 	
@@ -68,20 +71,18 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 
 	private final AtomicBoolean terminated = new AtomicBoolean(false);
 
-
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public void registerInputOutput() {
-		this.headEventReader = new MutableRecordReader<IntValue>(getEnvironment().getInputGate(0));
-	}
-
-	@Override
 	public void invoke() throws Exception {
+		this.headEventReader = new MutableRecordReader<>(
+				getEnvironment().getInputGate(0),
+				getEnvironment().getTaskManagerInfo().getTmpDirectories());
+
 		TaskConfig taskConfig = new TaskConfig(getTaskConfiguration());
 		
 		// store all aggregators
-		this.aggregators = new HashMap<String, Aggregator<?>>();
+		this.aggregators = new HashMap<>();
 		for (AggregatorWithName<?> aggWithName : taskConfig.getIterationAggregators(getUserCodeClassLoader())) {
 			aggregators.put(aggWithName.getName(), aggWithName.getAggregator());
 		}
@@ -91,6 +92,13 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 			convergenceCriterion = taskConfig.getConvergenceCriterion(getUserCodeClassLoader());
 			convergenceAggregatorName = taskConfig.getConvergenceCriterionAggregatorName();
 			Preconditions.checkNotNull(convergenceAggregatorName);
+		}
+
+		// store the default aggregator convergence criterion
+		if (taskConfig.usesImplicitConvergenceCriterion()) {
+			implicitConvergenceCriterion = taskConfig.getImplicitConvergenceCriterion(getUserCodeClassLoader());
+			implicitConvergenceAggregatorName = taskConfig.getImplicitConvergenceCriterionAggregatorName();
+			Preconditions.checkNotNull(implicitConvergenceAggregatorName);
 		}
 		
 		maxNumberOfIterations = taskConfig.getNumberOfIterations();
@@ -105,7 +113,6 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 		
 		while (!terminationRequested()) {
 
-//			notifyMonitor(IterationMonitoring.Event.SYNC_STARTING, currentIteration);
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("starting iteration [" + currentIteration + "]"));
 			}
@@ -125,7 +132,6 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 
 				requestTermination();
 				sendToAllWorkers(new TerminationEvent());
-//				notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
 			} else {
 				if (log.isInfoEnabled()) {
 					log.info(formatLogString("signaling that all workers are done in iteration [" + currentIteration
@@ -139,18 +145,10 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 				for (Aggregator<?> agg : aggregators.values()) {
 					agg.reset();
 				}
-				
-//				notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
 				currentIteration++;
 			}
 		}
 	}
-
-//	protected void notifyMonitor(IterationMonitoring.Event event, int currentIteration) {
-//		if (log.isInfoEnabled()) {
-//			log.info(IterationMonitoring.logLine(getEnvironment().getJobID(), event, currentIteration, 1));
-//		}
-//	}
 
 	private boolean checkForConvergence() {
 		if (maxNumberOfIterations == currentIteration) {
@@ -178,6 +176,24 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 				return true;
 			}
 		}
+
+		if (implicitConvergenceAggregatorName != null) {
+			@SuppressWarnings("unchecked")
+			Aggregator<Value> aggregator = (Aggregator<Value>) aggregators.get(implicitConvergenceAggregatorName);
+			if (aggregator == null) {
+				throw new RuntimeException("Error: Aggregator for default convergence criterion was null.");
+			}
+
+			Value aggregate = aggregator.getAggregate();
+
+			if (implicitConvergenceCriterion.isConverged(currentIteration, aggregate)) {
+				if (log.isInfoEnabled()) {
+					log.info(formatLogString("empty workset convergence reached after [" + currentIteration
+							+ "] iterations, terminating..."));
+				}
+				return true;
+			}
+		}
 		
 		return false;
 	}
@@ -188,7 +204,7 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 		
 		// read (and thereby process all events in the handler's event handling functions)
 		try {
-			while (this.headEventReader.next(rec)) {
+			if (this.headEventReader.next(rec)) {
 				throw new RuntimeException("Synchronization task must not see any records!");
 			}
 		} catch (InterruptedException iex) {

@@ -18,8 +18,8 @@
 
 package org.apache.flink.util;
 
-import com.google.common.collect.Iterators;
-import com.google.common.net.InetAddresses;
+import org.apache.flink.annotation.Internal;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,10 +32,11 @@ import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 
+@Internal
 public class NetUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NetUtils.class);
@@ -114,8 +115,6 @@ public class NetUtils {
 	/**
 	 * Encodes an IP address properly as a URL string. This method makes sure that IPv6 addresses
 	 * have the proper formatting to be included in URLs.
-	 * <p>
-	 * This method internally uses Guava's functionality to properly encode IPv6 addresses.
 	 * 
 	 * @param address The IP address to encode.
 	 * @return The proper URL string encoded IP address.
@@ -128,7 +127,7 @@ public class NetUtils {
 			return address.getHostAddress();
 		}
 		else if (address instanceof Inet6Address) {
-			return '[' + InetAddresses.toAddrString(address) + ']';
+			return getIPv6UrlRepresentation((Inet6Address) address);
 		}
 		else {
 			throw new IllegalArgumentException("Unrecognized type of InetAddress: " + address);
@@ -176,23 +175,88 @@ public class NetUtils {
 	}
 
 	/**
+	 * Creates a compressed URL style representation of an Inet6Address.
+	 * 
+	 * <p>This method copies and adopts code from Google's Guava library.
+	 * We re-implement this here in order to reduce dependency on Guava.
+	 * The Guava library has frequently caused dependency conflicts in the past.
+	 */
+	private static String getIPv6UrlRepresentation(Inet6Address address) {
+		// first, convert bytes to 16 bit chunks
+		byte[] addressBytes = address.getAddress();
+		int[] hextets = new int[8];
+		for (int i = 0; i < hextets.length; i++) {
+			hextets[i] = (addressBytes[2 * i] & 0xFF) << 8 | (addressBytes[2 * i + 1] & 0xFF);
+		}
+
+		// now, find the sequence of zeros that should be compressed
+		int bestRunStart = -1;
+		int bestRunLength = -1;
+		int runStart = -1;
+		for (int i = 0; i < hextets.length + 1; i++) {
+			if (i < hextets.length && hextets[i] == 0) {
+				if (runStart < 0) {
+					runStart = i;
+				}
+			} else if (runStart >= 0) {
+				int runLength = i - runStart;
+				if (runLength > bestRunLength) {
+					bestRunStart = runStart;
+					bestRunLength = runLength;
+				}
+				runStart = -1;
+			}
+		}
+		if (bestRunLength >= 2) {
+			Arrays.fill(hextets, bestRunStart, bestRunStart + bestRunLength, -1);
+		}
+
+		// convert into text form
+		StringBuilder buf = new StringBuilder(40);
+		buf.append('[');
+		
+		boolean lastWasNumber = false;
+		for (int i = 0; i < hextets.length; i++) {
+			boolean thisIsNumber = hextets[i] >= 0;
+			if (thisIsNumber) {
+				if (lastWasNumber) {
+					buf.append(':');
+				}
+				buf.append(Integer.toHexString(hextets[i]));
+			} else {
+				if (i == 0 || lastWasNumber) {
+					buf.append("::");
+				}
+			}
+			lastWasNumber = thisIsNumber;
+		}
+		buf.append(']');
+		return buf.toString();
+	}
+	
+	// ------------------------------------------------------------------------
+	//  Port range parsing
+	// ------------------------------------------------------------------------
+	
+	/**
 	 * Returns an iterator over available ports defined by the range definition.
 	 *
 	 * @param rangeDefinition String describing a single port, a range of ports or multiple ranges.
 	 * @return Set of ports from the range definition
 	 * @throws NumberFormatException If an invalid string is passed.
 	 */
-
 	public static Iterator<Integer> getPortRangeFromString(String rangeDefinition) throws NumberFormatException {
 		final String[] ranges = rangeDefinition.trim().split(",");
-		List<Iterator<Integer>> iterators = new ArrayList<>(ranges.length);
-		for(String rawRange: ranges) {
-			Iterator<Integer> rangeIterator = null;
+		
+		UnionIterator<Integer> iterators = new UnionIterator<>();
+		
+		for (String rawRange: ranges) {
+			Iterator<Integer> rangeIterator;
 			String range = rawRange.trim();
 			int dashIdx = range.indexOf('-');
 			if (dashIdx == -1) {
 				// only one port in range:
-				rangeIterator = Iterators.singletonIterator(Integer.valueOf(range));
+				rangeIterator = Collections.singleton(Integer.valueOf(range)).iterator();
 			} else {
 				// evaluate range
 				final int start = Integer.valueOf(range.substring(0, dashIdx));
@@ -217,7 +281,8 @@ public class NetUtils {
 			}
 			iterators.add(rangeIterator);
 		}
-		return Iterators.concat(iterators.iterator());
+		
+		return iterators;
 	}
 
 	/**
@@ -227,7 +292,7 @@ public class NetUtils {
 	 * @param factory A factory for creating the SocketServer
 	 * @return null if no port was available or an allocated socket.
 	 */
-	public static ServerSocket createSocketFromPorts(Iterator<Integer> portsIterator, SocketFactory factory) throws IOException {
+	public static ServerSocket createSocketFromPorts(Iterator<Integer> portsIterator, SocketFactory factory) {
 		while (portsIterator.hasNext()) {
 			int port = portsIterator.next();
 			LOG.debug("Trying to open socket on port {}", port);

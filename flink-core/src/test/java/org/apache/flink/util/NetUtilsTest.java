@@ -18,17 +18,13 @@
 
 package org.apache.flink.util;
 
-import com.google.common.collect.DiscreteDomain;
-import com.google.common.collect.Iterators;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Set;
 
 import static org.hamcrest.core.IsCollectionContaining.hasItems;

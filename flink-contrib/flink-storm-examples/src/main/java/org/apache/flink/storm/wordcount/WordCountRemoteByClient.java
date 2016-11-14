@@ -50,7 +50,7 @@ import org.apache.flink.storm.api.FlinkTopology;
  */
 public class WordCountRemoteByClient {
 	public final static String topologyId = "Storm WordCount";
-	private final static String uploadedJarLocation = "target/WordCount-StormTopology.jar";
+	private final static String uploadedJarLocation = "WordCount-StormTopology.jar";
 
 	// *************************************************************************
 	// PROGRAM

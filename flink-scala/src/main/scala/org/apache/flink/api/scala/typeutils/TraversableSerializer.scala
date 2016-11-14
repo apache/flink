@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.typeutils
 
 import java.io.ObjectInputStream
 
+import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 
@@ -27,6 +28,7 @@ import scala.collection.generic.CanBuildFrom
 /**
  * Serializer for Scala Collections.
  */
+@Internal
 abstract class TraversableSerializer[T <: TraversableOnce[E], E](
     var elementSerializer: TypeSerializer[E])
   extends TypeSerializer[T] with Cloneable {

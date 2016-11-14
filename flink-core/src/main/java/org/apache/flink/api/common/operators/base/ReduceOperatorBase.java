@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -30,6 +31,7 @@ import org.apache.flink.api.common.operators.util.TypeComparable;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -50,7 +52,34 @@ import java.util.Map;
  * @param <T> The type (parameters and return type) of the reduce function.
  * @param <FT> The type of the reduce function.
  */
+@Internal
 public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleInputOperator<T, T, FT> {
+
+	/**
+	 * An enumeration of hints, optionally usable to tell the system exactly how to execute the combiner phase
+	 * of a reduce.
+	 * (Note: The final reduce phase (after combining) is currently always executed by a sort-based strategy.)
+	 */
+	public enum CombineHint {
+
+		/**
+		 * Leave the choice how to do the combine to the optimizer. (This currently defaults to SORT.)
+		 */
+		OPTIMIZER_CHOOSES,
+
+		/**
+		 * Use a sort-based strategy.
+		 */
+		SORT,
+
+		/**
+		 * Use a hash-based strategy. This should be faster in most cases, especially if the number
+		 * of different keys is small compared to the number of input elements (eg. 1/10).
+		 */
+		HASH
+	}
+
+	private CombineHint hint;
 
 	private Partitioner<?> customPartitioner;
 	
@@ -163,7 +192,7 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 
 		int[] inputColumns = getKeyColumns(0);
 
-		if (!(inputType instanceof CompositeType) && inputColumns.length > 0) {
+		if (!(inputType instanceof CompositeType) && inputColumns.length > 1) {
 			throw new InvalidProgramException("Grouping is only possible on composite types.");
 		}
 
@@ -174,7 +203,9 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 
 		if (inputColumns.length > 0) {
 			boolean[] inputOrderings = new boolean[inputColumns.length];
-			TypeComparator<T> inputComparator = ((CompositeType<T>) inputType).createComparator(inputColumns, inputOrderings, 0, executionConfig);
+			TypeComparator<T> inputComparator = inputType instanceof AtomicType
+					? ((AtomicType<T>) inputType).createComparator(false, executionConfig)
+					: ((CompositeType<T>) inputType).createComparator(inputColumns, inputOrderings, 0, executionConfig);
 
 			Map<TypeComparable<T>, T> aggregateMap = new HashMap<TypeComparable<T>, T>(inputData.size() / 10);
 
@@ -213,5 +244,16 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 			
 			return Collections.singletonList(aggregate);
 		}
+	}
+
+	public void setCombineHint(CombineHint hint) {
+		if (hint == null) {
+			throw new IllegalArgumentException("Reduce Hint must not be null.");
+		}
+		this.hint = hint;
+	}
+
+	public CombineHint getCombineHint() {
+		return hint;
 	}
 }

@@ -19,12 +19,15 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import java.io.IOException;
 import static java.lang.Math.min;
+
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.base.BasicTypeComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
+@Internal
 public abstract class PrimitiveArrayComparator<T, C extends BasicTypeComparator> extends TypeComparator<T> {
 	// For use by getComparators
 	@SuppressWarnings("rawtypes")

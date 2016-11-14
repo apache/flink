@@ -19,9 +19,10 @@
 
 package org.apache.flink.runtime.iterative.concurrent;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import org.junit.Test;
+
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.List;

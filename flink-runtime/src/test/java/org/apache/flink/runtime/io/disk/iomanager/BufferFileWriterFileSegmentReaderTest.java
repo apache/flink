@@ -34,7 +34,7 @@ import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -53,7 +53,7 @@ public class BufferFileWriterFileSegmentReaderTest {
 
 	private AsynchronousBufferFileSegmentReader reader;
 
-	private LinkedBlockingQueue<FileSegment> returnedFileSegments = new LinkedBlockingQueue<FileSegment>();
+	private LinkedBlockingQueue<FileSegment> returnedFileSegments = new LinkedBlockingQueue<>();
 
 	@Before
 	public void setUpWriterAndReader() {
@@ -61,7 +61,7 @@ public class BufferFileWriterFileSegmentReaderTest {
 
 		try {
 			writer = ioManager.createBufferFileWriter(channel);
-			reader = (AsynchronousBufferFileSegmentReader) ioManager.createBufferFileSegmentReader(channel, new QueuingCallback<FileSegment>(returnedFileSegments));
+			reader = (AsynchronousBufferFileSegmentReader) ioManager.createBufferFileSegmentReader(channel, new QueuingCallback<>(returnedFileSegments));
 		}
 		catch (IOException e) {
 			if (writer != null) {

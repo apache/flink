@@ -47,7 +47,7 @@ public class TestingListener implements LeaderRetrievalListener {
 		return leaderSessionID;
 	}
 
-	public void waitForNewLeader(long timeout) throws Exception {
+	public String waitForNewLeader(long timeout) throws Exception {
 		long start = System.currentTimeMillis();
 		long curTimeout;
 
@@ -72,6 +72,8 @@ public class TestingListener implements LeaderRetrievalListener {
 		}
 
 		oldAddress = address;
+
+		return address;
 	}
 
 	@Override

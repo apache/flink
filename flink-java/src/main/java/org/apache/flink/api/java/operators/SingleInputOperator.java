@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 
@@ -27,6 +28,7 @@ import org.apache.flink.api.java.DataSet;
  * @param <IN> The data type of the input data set.
  * @param <OUT> The data type of the returned data set.
  */
+@Public
 public abstract class SingleInputOperator<IN, OUT, O extends SingleInputOperator<IN, OUT, O>> extends Operator<OUT, O> {
 	
 	private final DataSet<IN> input;

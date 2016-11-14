@@ -18,9 +18,7 @@
 
 package org.apache.flink.api.common.functions;
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.CoGroupFunction;
-import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 
 /**
@@ -33,6 +31,7 @@ import org.apache.flink.util.Collector;
  * @param <IN2> The type of the elements in the second input.
  * @param <OUT> The type of the result elements.
  */
+@Public
 public abstract class RichCoGroupFunction<IN1, IN2, OUT> extends AbstractRichFunction implements CoGroupFunction<IN1, IN2, OUT> {
 
 	private static final long serialVersionUID = 1L;

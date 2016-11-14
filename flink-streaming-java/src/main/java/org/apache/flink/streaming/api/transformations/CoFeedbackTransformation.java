@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
@@ -26,7 +27,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * This represents a feedback point in a topology. The type of the feedback elements must not match
+ * This represents a feedback point in a topology. The type of the feedback elements need not match
  * the type of the upstream {@code StreamTransformation} because the only allowed operations
  * after a {@code CoFeedbackTransformation} are
  * {@link org.apache.flink.streaming.api.transformations.TwoInputTransformation TwoInputTransformations}.
@@ -51,6 +52,7 @@ import java.util.List;
  * @param <F> The type of the feedback elements.
  *
  */
+@Internal
 public class CoFeedbackTransformation<F> extends StreamTransformation<F> {
 
 	private final List<StreamTransformation<F>> feedbackEdges;

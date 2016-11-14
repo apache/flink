@@ -18,20 +18,26 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.net.SSLUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import java.net.InetAddress;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class NettyConfig {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NettyConfig.class);
 
 	// - Config keys ----------------------------------------------------------
+
+	public static final String NUM_ARENAS = "taskmanager.net.num-arenas";
 
 	public static final String NUM_THREADS_SERVER = "taskmanager.net.server.numThreads";
 
@@ -61,21 +67,27 @@ public class NettyConfig {
 
 	private final int memorySegmentSize;
 
+	private final int numberOfSlots;
+
 	private final Configuration config; // optional configuration
 
 	public NettyConfig(
 			InetAddress serverAddress,
 			int serverPort,
 			int memorySegmentSize,
+			int numberOfSlots,
 			Configuration config) {
 
 		this.serverAddress = checkNotNull(serverAddress);
 
-		checkArgument(serverPort > 0 && serverPort <= 65536, "Invalid port number.");
+		checkArgument(serverPort >= 0 && serverPort <= 65536, "Invalid port number.");
 		this.serverPort = serverPort;
 
 		checkArgument(memorySegmentSize > 0, "Invalid memory segment size.");
 		this.memorySegmentSize = memorySegmentSize;
+
+		checkArgument(numberOfSlots > 0, "Number of slots");
+		this.numberOfSlots = numberOfSlots;
 
 		this.config = checkNotNull(config);
 
@@ -92,6 +104,10 @@ public class NettyConfig {
 
 	int getMemorySegmentSize() {
 		return memorySegmentSize;
+	}
+
+	public int getNumberOfSlots() {
+		return numberOfSlots;
 	}
 
 	// ------------------------------------------------------------------------
@@ -153,14 +169,19 @@ public class NettyConfig {
 		return config.getInteger(CONNECT_BACKLOG, 0);
 	}
 
+	public int getNumberOfArenas() {
+		// default: number of slots
+		return config.getInteger(NUM_ARENAS, numberOfSlots);
+	}
+
 	public int getServerNumThreads() {
-		// default: 0 => Netty's default: 2 * #cores
-		return config.getInteger(NUM_THREADS_SERVER, 0);
+		// default: number of task slots
+		return config.getInteger(NUM_THREADS_SERVER, numberOfSlots);
 	}
 
 	public int getClientNumThreads() {
-		// default: 0 => Netty's default: 2 * #cores
-		return config.getInteger(NUM_THREADS_CLIENT, 0);
+		// default: number of task slots
+		return config.getInteger(NUM_THREADS_CLIENT, numberOfSlots);
 	}
 
 	public int getClientConnectTimeoutSeconds() {
@@ -187,11 +208,44 @@ public class NettyConfig {
 		}
 	}
 
+	public SSLContext createClientSSLContext() throws Exception {
+
+		// Create SSL Context from config
+		SSLContext clientSSLContext = null;
+		if (getSSLEnabled()) {
+			clientSSLContext = SSLUtils.createSSLClientContext(config);
+		}
+
+		return clientSSLContext;
+	}
+
+	public SSLContext createServerSSLContext() throws Exception {
+
+		// Create SSL Context from config
+		SSLContext serverSSLContext = null;
+		if (getSSLEnabled()) {
+			serverSSLContext = SSLUtils.createSSLServerContext(config);
+		}
+
+		return serverSSLContext;
+	}
+
+	public boolean getSSLEnabled() {
+		return config.getBoolean(ConfigConstants.TASK_MANAGER_DATA_SSL_ENABLED,
+				ConfigConstants.DEFAULT_TASK_MANAGER_DATA_SSL_ENABLED)
+			&& SSLUtils.getSSLEnabled(config);
+	}
+
+	public void setSSLVerifyHostname(SSLParameters sslParams) {
+		SSLUtils.setSSLVerifyHostname(config, sslParams);
+	}
+
 	@Override
 	public String toString() {
 		String format = "NettyConfig [" +
 				"server address: %s, " +
 				"server port: %d, " +
+				"ssl enabled: %s, " +
 				"memory segment size (bytes): %d, " +
 				"transport type: %s, " +
 				"number of server threads: %d (%s), " +
@@ -203,8 +257,9 @@ public class NettyConfig {
 		String def = "use Netty's default";
 		String man = "manual";
 
-		return String.format(format, serverAddress, serverPort, memorySegmentSize,
-				getTransportType(), getServerNumThreads(), getServerNumThreads() == 0 ? def : man,
+		return String.format(format, serverAddress, serverPort, getSSLEnabled() ? "true":"false",
+				memorySegmentSize, getTransportType(), getServerNumThreads(),
+				getServerNumThreads() == 0 ? def : man,
 				getClientNumThreads(), getClientNumThreads() == 0 ? def : man,
 				getServerConnectBacklog(), getServerConnectBacklog() == 0 ? def : man,
 				getClientConnectTimeoutSeconds(), getSendAndReceiveBufferSize(),

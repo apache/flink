@@ -21,16 +21,16 @@ package org.apache.flink.types;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 /**
  * Boxed serializable and comparable single precision floating point type, representing the primitive
  * type {@code float}.
- * 
- * @see org.apache.flink.types.Key
  */
-public class FloatValue implements Key<FloatValue>, ResettableValue<FloatValue>, CopyableValue<FloatValue> {
+@Public
+public class FloatValue implements Comparable<FloatValue>, ResettableValue<FloatValue>, CopyableValue<FloatValue>, Key<FloatValue> {
 	private static final long serialVersionUID = 1L;
 
 	private float value;

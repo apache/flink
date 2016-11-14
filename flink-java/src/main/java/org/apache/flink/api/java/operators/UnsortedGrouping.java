@@ -18,11 +18,13 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -34,9 +36,9 @@ import org.apache.flink.api.java.functions.SelectByMaxFunction;
 import org.apache.flink.api.java.functions.SelectByMinFunction;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.util.Preconditions;
 
-import com.google.common.base.Preconditions;
-
+@Public
 public class UnsortedGrouping<T> extends Grouping<T> {
 
 	public UnsortedGrouping(DataSet<T> set, Keys<T> keys) {
@@ -136,7 +138,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 		if (reducer == null) {
 			throw new NullPointerException("Reduce function must not be null.");
 		}
-		return new ReduceOperator<T>(this, dataSet.clean(reducer), Utils.getCallLocationName());
+		return new ReduceOperator<T>(this, inputDataSet.clean(reducer), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -157,9 +159,9 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
 		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer,
-				this.getDataSet().getType(), Utils.getCallLocationName(), true);
+				this.getInputDataSet().getType(), Utils.getCallLocationName(), true);
 
-		return new GroupReduceOperator<T, R>(this, resultType, dataSet.clean(reducer), Utils.getCallLocationName());
+		return new GroupReduceOperator<T, R>(this, resultType, inputDataSet.clean(reducer), Utils.getCallLocationName());
 	}
 
 	/**
@@ -179,9 +181,9 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 			throw new NullPointerException("GroupCombine function must not be null.");
 		}
 		TypeInformation<R> resultType = TypeExtractor.getGroupCombineReturnTypes(combiner,
-				this.getDataSet().getType(), Utils.getCallLocationName(), true);
+				this.getInputDataSet().getType(), Utils.getCallLocationName(), true);
 
-		return new GroupCombineOperator<T, R>(this, resultType, dataSet.clean(combiner), Utils.getCallLocationName());
+		return new GroupCombineOperator<T, R>(this, resultType, inputDataSet.clean(combiner), Utils.getCallLocationName());
 	}
 
 	/**
@@ -210,12 +212,12 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	public ReduceOperator<T> minBy(int... fields)  {
 		
 		// Check for using a tuple
-		if(!this.dataSet.getType().isTupleType()) {
+		if(!this.inputDataSet.getType().isTupleType()) {
 			throw new InvalidProgramException("Method minBy(int) only works on tuples.");
 		}
 			
 		return new ReduceOperator<T>(this, new SelectByMinFunction(
-				(TupleTypeInfo) this.dataSet.getType(), fields), Utils.getCallLocationName());
+				(TupleTypeInfo) this.inputDataSet.getType(), fields), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -231,12 +233,12 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	public ReduceOperator<T> maxBy(int... fields)  {
 		
 		// Check for using a tuple
-		if(!this.dataSet.getType().isTupleType()) {
+		if(!this.inputDataSet.getType().isTupleType()) {
 			throw new InvalidProgramException("Method maxBy(int) only works on tuples.");
 		}
 			
 		return new ReduceOperator<T>(this, new SelectByMaxFunction(
-				(TupleTypeInfo) this.dataSet.getType(), fields), Utils.getCallLocationName());
+				(TupleTypeInfo) this.inputDataSet.getType(), fields), Utils.getCallLocationName());
 	}
 	// --------------------------------------------------------------------------------------------
 	//  Group Operations
@@ -259,7 +261,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 			throw new InvalidProgramException("KeySelector grouping keys and field index group-sorting keys cannot be used together.");
 		}
 
-		SortedGrouping<T> sg = new SortedGrouping<T>(this.dataSet, this.keys, field, order);
+		SortedGrouping<T> sg = new SortedGrouping<T>(this.inputDataSet, this.keys, field, order);
 		sg.customPartitioner = getCustomPartitioner();
 		return sg;
 	}
@@ -280,7 +282,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 			throw new InvalidProgramException("KeySelector grouping keys and field expression group-sorting keys cannot be used together.");
 		}
 
-		SortedGrouping<T> sg = new SortedGrouping<T>(this.dataSet, this.keys, field, order);
+		SortedGrouping<T> sg = new SortedGrouping<T>(this.inputDataSet, this.keys, field, order);
 		sg.customPartitioner = getCustomPartitioner();
 		return sg;
 	}
@@ -301,8 +303,8 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 			throw new InvalidProgramException("KeySelector group-sorting keys can only be used with KeySelector grouping keys.");
 		}
 
-		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, this.dataSet.getType());
-		SortedGrouping<T> sg = new SortedGrouping<T>(this.dataSet, this.keys, new Keys.SelectorFunctionKeys<T, K>(keySelector, this.dataSet.getType(), keyType), order);
+		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, this.inputDataSet.getType());
+		SortedGrouping<T> sg = new SortedGrouping<T>(this.inputDataSet, this.keys, new Keys.SelectorFunctionKeys<T, K>(keySelector, this.inputDataSet.getType(), keyType), order);
 		sg.customPartitioner = getCustomPartitioner();
 		return sg;
 	}

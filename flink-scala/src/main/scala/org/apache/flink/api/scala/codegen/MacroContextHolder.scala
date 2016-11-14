@@ -18,10 +18,14 @@
 
 package org.apache.flink.api.scala.codegen
 
+import org.apache.flink.annotation.Internal
+
 import scala.reflect.macros.Context
 
+@Internal
 private[flink] class MacroContextHolder[C <: Context](val c: C)
 
+@Internal
 private[flink] object MacroContextHolder {
   def newMacroHelper[C <: Context](c: C) = new MacroContextHolder[c.type](c)
       with TypeDescriptors[c.type]

@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.io;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.Serializable;
 
 /**
@@ -26,6 +28,7 @@ import java.io.Serializable;
  * <p>Input splits are transferred in serialized form via the messages, so they need to be serializable
  * as defined by {@link java.io.Serializable}.</p>
  */
+@Public
 public interface InputSplit extends Serializable {
 	
 	/**

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -36,18 +37,19 @@ import java.util.List;
  *
  * @param <T> The type of the accumulated objects
  */
+@PublicEvolving
 public class SerializedListAccumulator<T> implements Accumulator<T, ArrayList<byte[]>> {
 
 	private static final long serialVersionUID = 1L;
 
-	private ArrayList<byte[]> localValue = new ArrayList<byte[]>();
-	
+	private ArrayList<byte[]> localValue = new ArrayList<>();
+
 
 	@Override
 	public void add(T value) {
 		throw new UnsupportedOperationException();
 	}
-	
+
 	public void add(T value, TypeSerializer<T> serializer) throws IOException {
 		try {
 			ByteArrayOutputStream outStream = new ByteArrayOutputStream();
@@ -94,5 +96,10 @@ public class SerializedListAccumulator<T> implements Accumulator<T, ArrayList<by
 			result.add(val);
 		}
 		return result;
+	}
+
+	@Override
+	public String toString() {
+		return "SerializedListAccumulator: " + localValue.size() + " elements";
 	}
 }

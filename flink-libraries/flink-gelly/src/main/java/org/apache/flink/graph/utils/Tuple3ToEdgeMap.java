@@ -19,23 +19,29 @@
 package org.apache.flink.graph.utils;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 
 /**
- * create an Edge DataSetfrom a Tuple3 dataset
+ * Create an Edge DataSet from a Tuple3 DataSet
  *
- * @param <K>
- * @param <EV>
+ * @param <K> edge ID type
+ * @param <EV> edge value type
  */
 @ForwardedFields("f0; f1; f2")
 public class Tuple3ToEdgeMap<K, EV> implements MapFunction<Tuple3<K, K, EV>, Edge<K, EV>> {
 
 	private static final long serialVersionUID = 1L;
 
+	private Edge<K, EV> edge = new Edge<>();
+
+	@Override
 	public Edge<K, EV> map(Tuple3<K, K, EV> tuple) {
-		return new Edge<K, EV>(tuple.f0, tuple.f1, tuple.f2);
+		edge.f0 = tuple.f0;
+		edge.f1 = tuple.f1;
+		edge.f2 = tuple.f2;
+		return edge;
 	}
 
 }

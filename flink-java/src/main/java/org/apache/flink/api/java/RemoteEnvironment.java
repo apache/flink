@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -28,6 +30,10 @@ import org.apache.flink.configuration.Configuration;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * An {@link ExecutionEnvironment} that sends programs to a cluster for execution. The environment
@@ -39,6 +45,7 @@ import java.net.URL;
  * must be attached to the remote environment as JAR files, to allow the environment to ship the
  * classes into the cluster for the distributed execution.
  */
+@Public
 public class RemoteEnvironment extends ExecutionEnvironment {
 	
 	/** The hostname of the JobManager */
@@ -48,19 +55,19 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	protected final int port;
 
 	/** The jar files that need to be attached to each job */
-	private final URL[] jarFiles;
+	protected final List<URL> jarFiles;
 
 	/** The configuration used by the client that connects to the cluster */
-	private Configuration clientConfiguration;
+	protected Configuration clientConfiguration;
 	
 	/** The remote executor lazily created upon first use */
-	private PlanExecutor executor;
+	protected PlanExecutor executor;
 	
 	/** Optional shutdown hook, used in session mode to eagerly terminate the last session */
 	private Thread shutdownHook;
 
 	/** The classpaths that need to be attached to each job */
-	private final URL[] globalClasspaths;
+	protected final List<URL> globalClasspaths;
 
 	/**
 	 * Creates a new RemoteEnvironment that points to the master (JobManager) described by the
@@ -130,26 +137,31 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 		this.port = port;
 		this.clientConfiguration = clientConfig == null ? new Configuration() : clientConfig;
 		if (jarFiles != null) {
-			this.jarFiles = new URL[jarFiles.length];
-			for (int i = 0; i < jarFiles.length; i++) {
+			this.jarFiles = new ArrayList<>(jarFiles.length);
+			for (String jarFile : jarFiles) {
 				try {
-					this.jarFiles[i] = new File(jarFiles[i]).getAbsoluteFile().toURI().toURL();
+					this.jarFiles.add(new File(jarFile).getAbsoluteFile().toURI().toURL());
 				} catch (MalformedURLException e) {
 					throw new IllegalArgumentException("JAR file path invalid", e);
 				}
 			}
 		}
 		else {
-			this.jarFiles = null;
+			this.jarFiles = Collections.emptyList();
 		}
-		this.globalClasspaths = globalClasspaths;
+
+		if (globalClasspaths == null) {
+			this.globalClasspaths = Collections.emptyList();
+		} else {
+			this.globalClasspaths = Arrays.asList(globalClasspaths);
+		}
 	}
 
 	// ------------------------------------------------------------------------
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		ensureExecutorCreated();
+		PlanExecutor executor = getExecutor();
 
 		Plan p = createProgramPlan(jobName);
 
@@ -175,18 +187,23 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 		}
 		else {
 			PlanExecutor le = PlanExecutor.createLocalExecutor(null);
-			return le.getOptimizerPlanAsJSON(p);
+			String plan = le.getOptimizerPlanAsJSON(p);
+
+			le.stop();
+
+			return plan;
 		}
 	}
 
 	@Override
+	@PublicEvolving
 	public void startNewSession() throws Exception {
 		dispose();
 		jobID = JobID.generate();
 		installShutdownHook();
 	}
 	
-	private void ensureExecutorCreated() throws Exception {
+	protected PlanExecutor getExecutor() throws Exception {
 		if (executor == null) {
 			executor = PlanExecutor.createRemoteExecutor(host, port, clientConfiguration,
 				jarFiles, globalClasspaths);
@@ -198,6 +215,8 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 			executor.start();
 			installShutdownHook();
 		}
+
+		return executor;
 	}
 
 	// ------------------------------------------------------------------------

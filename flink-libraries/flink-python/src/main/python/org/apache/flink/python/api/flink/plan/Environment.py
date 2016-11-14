@@ -17,10 +17,12 @@
 ################################################################################
 from flink.connection import Connection
 from flink.connection import Collector
+from flink.connection import Iterator
 from flink.plan.DataSet import DataSet
 from flink.plan.Constants import _Identifier
 from flink.plan.OperationInfo import OperationInfo
 from flink.utilities import Switch
+import socket as SOCKET
 import copy
 import sys
 from struct import pack
@@ -42,7 +44,6 @@ class Environment(object):
         #parameters
         self._dop = -1
         self._local_mode = False
-        self._debug_mode = False
         self._retry = 0
 
         #sets
@@ -117,6 +118,22 @@ class Environment(object):
         self._sources.append(child)
         return child_set
 
+    def generate_sequence(self, frm, to):
+        """
+        Creates a new data set that contains the given sequence
+
+        :param frm: The start number for the sequence.
+        :param to: The end number for the sequence.
+        :return: A DataSet representing the given sequence of numbers.
+        """
+        child = OperationInfo()
+        child_set = DataSet(self, child)
+        child.identifier = _Identifier.SOURCE_SEQ
+        child.frm = frm
+        child.to = to
+        self._sources.append(child)
+        return child_set
+
     def set_parallelism(self, parallelism):
         """
         Sets the parallelism for operations executed through this environment.
@@ -140,26 +157,26 @@ class Environment(object):
     def get_number_of_execution_retries(self):
         return self._retry
 
-    def execute(self, local=False, debug=False):
+    def execute(self, local=False):
         """
         Triggers the program execution.
 
         The environment will execute all parts of the program that have resulted in a "sink" operation.
         """
-        if debug:
-            local = True
         self._local_mode = local
-        self._debug_mode = debug
         self._optimize_plan()
 
         plan_mode = sys.stdin.readline().rstrip('\n') == "plan"
 
         if plan_mode:
-            output_path = sys.stdin.readline().rstrip('\n')
-            self._connection = Connection.OneWayBusyBufferingMappedFileConnection(output_path)
-            self._collector = Collector.TypedCollector(self._connection, self)
+            port = int(sys.stdin.readline().rstrip('\n'))
+            self._connection = Connection.PureTCPConnection(port)
+            self._iterator = Iterator.PlanIterator(self._connection, self)
+            self._collector = Collector.PlanCollector(self._connection, self)
             self._send_plan()
-            self._connection._write_buffer()
+            result = self._receive_result()
+            self._connection.close()
+            return result
         else:
             import struct
             operator = None
@@ -167,17 +184,19 @@ class Environment(object):
                 port = int(sys.stdin.readline().rstrip('\n'))
 
                 id = int(sys.stdin.readline().rstrip('\n'))
+                subtask_index = int(sys.stdin.readline().rstrip('\n'))
                 input_path = sys.stdin.readline().rstrip('\n')
                 output_path = sys.stdin.readline().rstrip('\n')
 
+                used_set = None
                 operator = None
                 for set in self._sets:
                     if set.id == id:
+                        used_set = set
                         operator = set.operator
-                    if set.id == -id:
-                        operator = set.combineop
-                operator._configure(input_path, output_path, port, self)
+                operator._configure(input_path, output_path, port, self, used_set, subtask_index)
                 operator._go()
+                operator._close()
                 sys.stdout.flush()
                 sys.stderr.flush()
             except:
@@ -185,193 +204,127 @@ class Environment(object):
                 sys.stderr.flush()
                 if operator is not None:
                     operator._connection._socket.send(struct.pack(">i", -2))
+                else:
+                    socket = SOCKET.socket(family=SOCKET.AF_INET, type=SOCKET.SOCK_STREAM)
+                    socket.connect((SOCKET.gethostbyname("localhost"), port))
+                    socket.send(struct.pack(">i", -2))
+                    socket.close()
                 raise
 
     def _optimize_plan(self):
         self._find_chains()
 
     def _find_chains(self):
-        udf = set([_Identifier.MAP, _Identifier.FLATMAP, _Identifier.FILTER, _Identifier.MAPPARTITION,
-                   _Identifier.GROUPREDUCE, _Identifier.REDUCE, _Identifier.COGROUP,
-                   _Identifier.CROSS, _Identifier.CROSSH, _Identifier.CROSST,
-                   _Identifier.JOIN, _Identifier.JOINH, _Identifier.JOINT])
-        chainable = set([_Identifier.MAP, _Identifier.FILTER, _Identifier.FLATMAP, _Identifier.GROUPREDUCE, _Identifier.REDUCE])
-        multi_input = set([_Identifier.JOIN, _Identifier.JOINH, _Identifier.JOINT, _Identifier.CROSS, _Identifier.CROSSH, _Identifier.CROSST, _Identifier.COGROUP, _Identifier.UNION])
+        chainable = set([_Identifier.MAP, _Identifier.FILTER, _Identifier.FLATMAP])
+        dual_input = set([_Identifier.JOIN, _Identifier.JOINH, _Identifier.JOINT, _Identifier.CROSS, _Identifier.CROSSH, _Identifier.CROSST, _Identifier.COGROUP, _Identifier.UNION])
         x = len(self._sets) - 1
         while x > -1:
+            # CHAIN(parent -> child) -> grand_child
+            # for all intents and purposes the child set ceases to exist; it is merged into the parent
             child = self._sets[x]
             child_type = child.identifier
             if child_type in chainable:
                 parent = child.parent
-                parent_type = parent.identifier
-                if len(parent.sinks) == 0:
-                    if child_type == _Identifier.GROUPREDUCE or child_type == _Identifier.REDUCE:
-                        if child.combine:
-                            while parent_type == _Identifier.GROUP or parent_type == _Identifier.SORT:
-                                parent = parent.parent
-                                parent_type = parent.identifier
-                            if parent_type in udf and len(parent.children) == 1:
-                                if parent.operator is not None:
-                                    function = child.combineop
-                                    parent.operator._chain(function)
-                                    child.combine = False
-                                    parent.name += " -> PythonCombine"
-                                    for bcvar in child.bcvars:
-                                        bcvar_copy = copy.deepcopy(bcvar)
-                                        bcvar_copy.parent = parent
-                                        self._broadcast.append(bcvar_copy)
-                    else:
-                        if parent_type in udf and len(parent.children) == 1:
-                            parent_op = parent.operator
-                            if parent_op is not None:
-                                function = child.operator
-                                parent_op._chain(function)
-                                parent.name += " -> " + child.name
-                                parent.types = child.types
-                                for grand_child in child.children:
-                                    if grand_child.identifier in multi_input:
-                                        if grand_child.parent.id == child.id:
-                                            grand_child.parent = parent
-                                        else:
-                                            grand_child.other = parent
-                                    else:
-                                        grand_child.parent = parent
-                                        parent.children.append(grand_child)
-                                parent.children.remove(child)
-                                for sink in child.sinks:
-                                    sink.parent = parent
-                                    parent.sinks.append(sink)
-                                for bcvar in child.bcvars:
-                                    bcvar.parent = parent
-                                    parent.bcvars.append(bcvar)
-                                self._remove_set((child))
+                # we can only chain to an actual python udf (=> operator is not None)
+                # we may only chain if the parent has only 1 child
+                # we may only chain if the parent is not used as a broadcast variable
+                # we may only chain if the parent does not use the child as a broadcast variable
+                if parent.operator is not None and len(parent.children) == 1 and len(parent.sinks) == 0 and parent not in self._broadcast and child not in parent.bcvars:
+                    parent.chained_info = child
+                    parent.name += " -> " + child.name
+                    parent.types = child.types
+                    # grand_children now belong to the parent
+                    for grand_child in child.children:
+                        # dual_input operations have 2 parents; hence we have to change the correct one
+                        if grand_child.identifier in dual_input:
+                            if grand_child.parent.id == child.id:
+                                grand_child.parent = parent
+                            else:
+                                grand_child.other = parent
+                        else:
+                            grand_child.parent = parent
+                        parent.children.append(grand_child)
+                    # if child is used as a broadcast variable the parent must now be used instead
+                    for s in self._sets:
+                        if child in s.bcvars:
+                            s.bcvars.remove(child)
+                            s.bcvars.append(parent)
+                    for bcvar in self._broadcast:
+                        if bcvar.other.id == child.id:
+                            bcvar.other = parent
+                    # child sinks now belong to the parent
+                    for sink in child.sinks:
+                        sink.parent = parent
+                        parent.sinks.append(sink)
+                    # child broadcast variables now belong to the parent
+                    for bcvar in child.bcvars:
+                        bcvar.parent = parent
+                        parent.bcvars.append(bcvar)
+                    # remove child set as it has been merged into the parent
+                    parent.children.remove(child)
+                    self._remove_set(child)
             x -= 1
 
     def _remove_set(self, set):
-        self._sets[:] = [s for s in self._sets if s.id!=set.id]
+        self._sets[:] = [s for s in self._sets if s.id != set.id]
 
     def _send_plan(self):
         self._send_parameters()
-        self._collector.collect(len(self._sources) + len(self._sets) + len(self._sinks) + len(self._broadcast))
-        self._send_sources()
         self._send_operations()
-        self._send_sinks()
-        self._send_broadcast()
 
     def _send_parameters(self):
         collect = self._collector.collect
         collect(("dop", self._dop))
-        collect(("debug", self._debug_mode))
         collect(("mode", self._local_mode))
         collect(("retry", self._retry))
 
-    def _send_sources(self):
-        for source in self._sources:
-            identifier = source.identifier
-            collect = self._collector.collect
-            collect(identifier)
-            collect(source.id)
-            for case in Switch(identifier):
-                if case(_Identifier.SOURCE_CSV):
-                    collect(source.path)
-                    collect(source.delimiter_field)
-                    collect(source.delimiter_line)
-                    collect(source.types)
-                    break
-                if case(_Identifier.SOURCE_TEXT):
-                    collect(source.path)
-                    break
-                if case(_Identifier.SOURCE_VALUE):
-                    collect(len(source.values))
-                    for value in source.values:
-                        collect(value)
-                    break
-
     def _send_operations(self):
-        collect = self._collector.collect
+        self._collector.collect(len(self._sources) + len(self._sets) + len(self._sinks) + len(self._broadcast))
+        for source in self._sources:
+            self._send_operation(source)
         for set in self._sets:
-            identifier = set.identifier
-            collect(set.identifier)
-            collect(set.id)
-            collect(set.parent.id)
-            for case in Switch(identifier):
-                if case(_Identifier.SORT):
-                    collect(set.field)
-                    collect(set.order)
-                    break
-                if case(_Identifier.GROUP):
-                    collect(set.keys)
-                    break
-                if case(_Identifier.COGROUP):
-                    collect(set.other.id)
-                    collect(set.key1)
-                    collect(set.key2)
-                    collect(set.types)
-                    collect(set.name)
-                    break
-                if case(_Identifier.CROSS, _Identifier.CROSSH, _Identifier.CROSST):
-                    collect(set.other.id)
-                    collect(set.types)
-                    collect(len(set.projections))
-                    for p in set.projections:
-                        collect(p[0])
-                        collect(p[1])
-                    collect(set.name)
-                    break
-                if case(_Identifier.REDUCE, _Identifier.GROUPREDUCE):
-                    collect(set.types)
-                    collect(set.combine)
-                    collect(set.name)
-                    break
-                if case(_Identifier.JOIN, _Identifier.JOINH, _Identifier.JOINT):
-                    collect(set.key1)
-                    collect(set.key2)
-                    collect(set.other.id)
-                    collect(set.types)
-                    collect(len(set.projections))
-                    for p in set.projections:
-                        collect(p[0])
-                        collect(p[1])
-                    collect(set.name)
-                    break
-                if case(_Identifier.MAP, _Identifier.MAPPARTITION, _Identifier.FLATMAP, _Identifier.FILTER):
-                    collect(set.types)
-                    collect(set.name)
-                    break
-                if case(_Identifier.UNION):
-                    collect(set.other.id)
-                    break
-                if case(_Identifier.PROJECTION):
-                    collect(set.keys)
-                    break
-                if case():
-                    raise KeyError("Environment._send_child_sets(): Invalid operation identifier: " + str(identifier))
-
-    def _send_sinks(self):
+            self._send_operation(set)
         for sink in self._sinks:
-            identifier = sink.identifier
-            collect = self._collector.collect
-            collect(identifier)
-            collect(sink.parent.id)
-            for case in Switch(identifier):
-                if case(_Identifier.SINK_CSV):
-                    collect(sink.path)
-                    collect(sink.delimiter_field)
-                    collect(sink.delimiter_line)
-                    collect(sink.write_mode)
-                    break;
-                if case(_Identifier.SINK_TEXT):
-                    collect(sink.path)
-                    collect(sink.write_mode)
-                    break
-                if case(_Identifier.SINK_PRINT):
-                    collect(sink.to_err)
-                    break
+            self._send_operation(sink)
+        for bcv in self._broadcast:
+            self._send_operation(bcv)
 
-    def _send_broadcast(self):
+    def _send_operation(self, set):
         collect = self._collector.collect
-        for entry in self._broadcast:
-            collect(_Identifier.BROADCAST)
-            collect(entry.parent.id)
-            collect(entry.other.id)
-            collect(entry.name)
+        collect(set.identifier)
+        collect(set.parent.id if set.parent is not None else -1)
+        collect(set.other.id if set.other is not None else -1)
+        collect(set.field)
+        collect(set.order)
+        collect(set.keys)
+        collect(set.key1)
+        collect(set.key2)
+        collect(set.types)
+        collect(set.uses_udf)
+        collect(set.name)
+        collect(set.delimiter_line)
+        collect(set.delimiter_field)
+        collect(set.write_mode)
+        collect(set.path)
+        collect(set.frm)
+        collect(set.to)
+        collect(set.id)
+        collect(set.to_err)
+        collect(set.count)
+        collect(len(set.values))
+        for value in set.values:
+            collect(value)
+        collect(set.parallelism.value)
+
+    def _receive_result(self):
+        jer = JobExecutionResult()
+        jer._net_runtime = self._iterator.next()
+        return jer
+
+
+class JobExecutionResult:
+    def __init__(self):
+        self._net_runtime = 0
+
+    def get_net_runtime(self):
+        return self._net_runtime

@@ -149,12 +149,13 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 
 		}
 		else if(produced1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED &&
-				produced2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
+				produced2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED &&
+				produced1.getDataDistribution() != null && produced2.getDataDistribution() != null) {
 
-			// both are range partitioned, check that partitioning fields are equivalently chosen
-			return checkEquivalentFieldPositionsInKeyFields(
-					produced1.getPartitioningFields(), produced2.getPartitioningFields());
-
+			return produced1.getPartitioningFields().size() == produced2.getPartitioningFields().size() &&
+					checkSameOrdering(produced1, produced2, produced1.getPartitioningFields().size()) &&
+					produced1.getDataDistribution().equals(produced2.getDataDistribution());
+			
 		}
 		else if(produced1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING &&
 				produced2.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING) {

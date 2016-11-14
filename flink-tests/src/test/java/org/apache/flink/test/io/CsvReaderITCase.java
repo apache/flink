@@ -40,6 +40,7 @@ import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.util.List;
+import java.util.Locale;
 
 @RunWith(Parameterized.class)
 public class CsvReaderITCase extends MultipleProgramsTestBase {
@@ -136,7 +137,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public String toString() {
-			return String.format("%s,%d,%.02f", f1, f2, f3);
+			return String.format(Locale.US, "%s,%d,%.02f", f1, f2, f3);
 		}
 	}
 }

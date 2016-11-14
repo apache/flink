@@ -20,10 +20,11 @@ package org.apache.flink.api.java.functions;
 
 import java.util.Iterator;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.util.Collector;
 
-
+@PublicEvolving
 public abstract class GroupReduceIterator<IN, OUT> extends RichGroupReduceFunction<IN, OUT> {
 	
 	private static final long serialVersionUID = 1L;

@@ -18,10 +18,8 @@
 
 package org.apache.flink.optimizer.dataproperties;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import org.apache.flink.api.common.ExecutionMode;
+import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
@@ -35,6 +33,9 @@ import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * This class represents global properties of the data at a certain point in the plan.
@@ -54,6 +55,8 @@ public class GlobalProperties implements Cloneable {
 	private Set<FieldSet> uniqueFieldCombinations;
 	
 	private Partitioner<?> customPartitioner;
+	
+	private DataDistribution distribution;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -80,9 +83,30 @@ public class GlobalProperties implements Cloneable {
 		this.partitioningFields = partitionedFields;
 		this.ordering = null;
 	}
-	
 
+	/**
+	 * Set the parameters for range partition.
+	 *
+	 * @param ordering Order of the partitioned fields
+	 */
 	public void setRangePartitioned(Ordering ordering) {
+		if (ordering == null) {
+			throw new NullPointerException();
+		}
+
+		this.partitioning = PartitioningProperty.RANGE_PARTITIONED;
+		this.ordering = ordering;
+		this.partitioningFields = ordering.getInvolvedIndexes();
+	}
+
+	/**
+	 * Set the parameters for range partition.
+	 * 
+	 * @param ordering Order of the partitioned fields
+	 * @param distribution The data distribution for range partition. User can supply a customized data distribution,
+	 *                     also the data distribution can be null.  
+	 */
+	public void setRangePartitioned(Ordering ordering, DataDistribution distribution) {
 		if (ordering == null) {
 			throw new NullPointerException();
 		}
@@ -90,6 +114,7 @@ public class GlobalProperties implements Cloneable {
 		this.partitioning = PartitioningProperty.RANGE_PARTITIONED;
 		this.ordering = ordering;
 		this.partitioningFields = ordering.getInvolvedIndexes();
+		this.distribution = distribution;
 	}
 	
 	public void setAnyPartitioning(FieldList partitionedFields) {
@@ -167,6 +192,10 @@ public class GlobalProperties implements Cloneable {
 		return this.customPartitioner;
 	}
 	
+	public DataDistribution getDataDistribution() {
+		return this.distribution;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	public boolean isPartitionedOnFields(FieldSet fields) {
@@ -195,7 +224,7 @@ public class GlobalProperties implements Cloneable {
 			}
 			
 			for (int i = 0; i < this.ordering.getNumberOfFields(); i++) {
-				if (this.ordering.getFieldNumber(i) != o.getFieldNumber(i)) {
+				if (!this.ordering.getFieldNumber(i).equals(o.getFieldNumber(i))) {
 					return false;
 				}
 				
@@ -282,6 +311,7 @@ public class GlobalProperties implements Cloneable {
 					gp.partitioning = PartitioningProperty.RANGE_PARTITIONED;
 					gp.ordering = newOrdering;
 					gp.partitioningFields = newOrdering.getInvolvedIndexes();
+					gp.distribution = this.distribution;
 				}
 				break;
 			case HASH_PARTITIONED:
@@ -407,6 +437,7 @@ public class GlobalProperties implements Cloneable {
 				throw new CompilerException("Unsupported partitioning strategy");
 		}
 
+		channel.setDataDistribution(this.distribution);
 		DataExchangeMode exMode = DataExchangeMode.select(exchangeMode, shipType, breakPipeline);
 		channel.setShipStrategy(shipType, partitionKeys, sortDirection, partitioner, exMode);
 	}
@@ -461,6 +492,7 @@ public class GlobalProperties implements Cloneable {
 		newProps.partitioning = this.partitioning;
 		newProps.partitioningFields = this.partitioningFields;
 		newProps.ordering = this.ordering;
+		newProps.distribution = this.distribution;
 		newProps.customPartitioner = this.customPartitioner;
 		newProps.uniqueFieldCombinations = this.uniqueFieldCombinations == null ? null : new HashSet<FieldSet>(this.uniqueFieldCombinations);
 		return newProps;

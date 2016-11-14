@@ -19,12 +19,13 @@
 package org.apache.flink.api.scala
 
 import org.apache.commons.lang3.tuple.{ImmutablePair, Pair}
+import org.apache.flink.annotation.{Internal, Public}
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.{CoGroupFunction, Partitioner, RichCoGroupFunction}
-import org.apache.flink.api.common.operators.Order
+import org.apache.flink.api.common.operators.{Keys, Order}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.operators.Keys.ExpressionKeys
+import Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.util.Collector
 
@@ -59,6 +60,7 @@ import scala.reflect.ClassTag
  * @tparam L Type of the left input of the coGroup.
  * @tparam R Type of the right input of the coGroup.
  */
+@Public
 class CoGroupDataSet[L, R](
     defaultCoGroup: CoGroupOperator[L, R, (Array[L], Array[R])],
     leftInput: DataSet[L],
@@ -177,6 +179,7 @@ class CoGroupDataSet[L, R](
   /**
    * Gets the custom partitioner used by this join, or null, if none is set.
    */
+  @Internal
   def getPartitioner[K]() : Partitioner[K] = {
     customPartitioner.asInstanceOf[Partitioner[K]]
   }
@@ -251,17 +254,12 @@ class CoGroupDataSet[L, R](
                                       new ImmutablePair[java.lang.Integer, Order](position, order))
         
         case ( Right(expression), order ) =>
-          if (!typeInfo.isInstanceOf[CompositeType[_]]) {
-            throw new InvalidProgramException("Specifying order keys via field positions is only "
-                                   + "valid for composite data types (pojo / tuple / case class)")
-          }
-          else {
-            val ek = new ExpressionKeys[T](Array[String](expression), typeInfo)
-            val groupOrderKeys : Array[Int] = ek.computeLogicalKeyPositions()
-            
-            for (k <- groupOrderKeys) {
-              result.add(new ImmutablePair[java.lang.Integer, Order](k, order))
-            }
+
+          val ek = new ExpressionKeys[T](Array[String](expression), typeInfo)
+          val groupOrderKeys : Array[Int] = ek.computeLogicalKeyPositions()
+
+          for (k <- groupOrderKeys) {
+            result.add(new ImmutablePair[java.lang.Integer, Order](k, order))
           }
       }
       

@@ -23,8 +23,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
+import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
+import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -34,21 +37,19 @@ import java.io.IOException;
 
 /**
  * A {@link Writer} that writes the bucket files as Hadoop {@link SequenceFile SequenceFiles}.
- * The input to the {@link RollingSink} must
+ * The input to the {@link BucketingSink} must
  * be a {@link org.apache.flink.api.java.tuple.Tuple2} of two Hadopo
  * {@link org.apache.hadoop.io.Writable Writables}.
  *
  * @param <K> The type of the first tuple field.
  * @param <V> The type of the second tuple field.
  */
-public class SequenceFileWriter<K extends Writable, V extends Writable> implements Writer<Tuple2<K, V>>, InputTypeConfigurable {
+public class SequenceFileWriter<K extends Writable, V extends Writable> extends StreamWriterBase<Tuple2<K, V>> implements InputTypeConfigurable {
 	private static final long serialVersionUID = 1L;
 
 	private final String compressionCodecName;
 
 	private SequenceFile.CompressionType compressionType;
-
-	private transient FSDataOutputStream outputStream;
 
 	private transient SequenceFile.Writer writer;
 
@@ -77,10 +78,8 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> implemen
 	}
 
 	@Override
-	public void open(FSDataOutputStream outStream) throws IOException {
-		if (outputStream != null) {
-			throw new IllegalStateException("SequenceFileWriter has already been opened.");
-		}
+	public void open(FileSystem fs, Path path) throws IOException {
+		super.open(fs, path);
 		if (keyClass == null) {
 			throw new IllegalStateException("Key Class has not been initialized.");
 		}
@@ -88,12 +87,12 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> implemen
 			throw new IllegalStateException("Value Class has not been initialized.");
 		}
 
-		this.outputStream = outStream;
-
 		CompressionCodec codec = null;
+		
+		Configuration conf = HadoopFileSystem.getHadoopConfiguration();
 
 		if (!compressionCodecName.equals("None")) {
-			CompressionCodecFactory codecFactory = new CompressionCodecFactory(new Configuration());
+			CompressionCodecFactory codecFactory = new CompressionCodecFactory(conf);
 			codec = codecFactory.getCodecByName(compressionCodecName);
 			if (codec == null) {
 				throw new RuntimeException("Codec " + compressionCodecName + " not found.");
@@ -101,8 +100,8 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> implemen
 		}
 
 		// the non-deprecated constructor syntax is only available in recent hadoop versions...
-		writer = SequenceFile.createWriter(new Configuration(),
-				outStream,
+		writer = SequenceFile.createWriter(conf,
+				getStream(),
 				keyClass,
 				valueClass,
 				compressionType,
@@ -110,28 +109,20 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> implemen
 	}
 
 	@Override
-	public void flush() throws IOException {
-	}
-
-	@Override
 	public void close() throws IOException {
 		if (writer != null) {
 			writer.close();
 		}
-		writer = null;
-		outputStream = null;
+		super.close();
 	}
 
 	@Override
 	public void write(Tuple2<K, V> element) throws IOException {
-		if (outputStream == null) {
-			throw new IllegalStateException("SequenceFileWriter has not been opened.");
-		}
+		getStream(); // Throws if the stream is not open
 		writer.append(element.f0, element.f1);
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
 		if (!type.isTupleType()) {
 			throw new IllegalArgumentException("Input TypeInformation is not a tuple type.");

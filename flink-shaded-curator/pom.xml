@@ -24,12 +24,12 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.0-SNAPSHOT</version>
+		<version>1.2-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<modules>
-        <module>flink-shaded-curator-recipes</module>
+		<module>flink-shaded-curator-recipes</module>
 		<module>flink-shaded-curator-test</module>
 	</modules>
 
@@ -37,4 +37,5 @@
 	<name>flink-shaded-curator</name>
 
 	<packaging>pom</packaging>
+
 </project>

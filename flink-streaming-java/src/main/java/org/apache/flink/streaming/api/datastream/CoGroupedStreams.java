@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -62,10 +65,11 @@ import static java.util.Objects.requireNonNull;
  * DataStream<T> result = one.coGroup(two)
  *     .where(new MyFirstKeySelector())
  *     .equalTo(new MyFirstKeySelector())
- *     .window(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS)))
+ *     .window(TumblingEventTimeWindows.of(Time.of(5, TimeUnit.SECONDS)))
  *     .apply(new MyCoGroupFunction());
  * } </pre>
  */
+@Public
 public class CoGroupedStreams<T1, T2> {
 
 	/** The first input stream */
@@ -100,6 +104,7 @@ public class CoGroupedStreams<T1, T2> {
 	 * 
 	 * @param <KEY> The type of the key.
 	 */
+	@Public
 	public class Where<KEY> {
 
 		private final KeySelector<T1, KEY> keySelector1;
@@ -128,6 +133,7 @@ public class CoGroupedStreams<T1, T2> {
 		/**
 		 * A co-group operation that has {@link KeySelector KeySelectors} defined for both inputs.
 		 */
+		@Public
 		public class EqualTo {
 
 			private final KeySelector<T2, KEY> keySelector2;
@@ -139,6 +145,7 @@ public class CoGroupedStreams<T1, T2> {
 			/**
 			 * Specifies the window on which the co-group operation works.
 			 */
+			@PublicEvolving
 			public <W extends Window> WithWindow<T1, T2, KEY, W> window(WindowAssigner<? super TaggedUnion<T1, T2>, W> assigner) {
 				return new WithWindow<>(input1, input2, keySelector1, keySelector2, keyType, assigner, null, null);
 			}
@@ -156,6 +163,7 @@ public class CoGroupedStreams<T1, T2> {
 	 * @param <KEY> Type of the key. This must be the same for both inputs
 	 * @param <W> Type of {@link Window} on which the co-group operation works.
 	 */
+	@Public
 	public static class WithWindow<T1, T2, KEY, W extends Window> {
 		private final DataStream<T1> input1;
 		private final DataStream<T2> input2;
@@ -194,6 +202,7 @@ public class CoGroupedStreams<T1, T2> {
 		/**
 		 * Sets the {@code Trigger} that should be used to trigger window emission.
 		 */
+		@PublicEvolving
 		public WithWindow<T1, T2, KEY, W> trigger(Trigger<? super TaggedUnion<T1, T2>, ? super W> newTrigger) {
 			return new WithWindow<>(input1, input2, keySelector1, keySelector2, keyType,
 					windowAssigner, newTrigger, evictor);
@@ -206,6 +215,7 @@ public class CoGroupedStreams<T1, T2> {
 		 * Note: When using an evictor window performance will degrade significantly, since
 		 * pre-aggregation of window results cannot be used.
 		 */
+		@PublicEvolving
 		public WithWindow<T1, T2, KEY, W> evictor(Evictor<? super TaggedUnion<T1, T2>, ? super W> newEvictor) {
 			return new WithWindow<>(input1, input2, keySelector1, keySelector2, keyType,
 					windowAssigner, trigger, newEvictor);
@@ -214,6 +224,10 @@ public class CoGroupedStreams<T1, T2> {
 		/**
 		 * Completes the co-group operation with the user function that is executed
 		 * for windowed groups.
+		 * 
+		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
+		 * Due to binary backwards compatibility, this cannot be altered. Use the {@link #with(CoGroupFunction)}
+		 * method to set an operator-specific parallelism.
 		 */
 		public <T> DataStream<T> apply(CoGroupFunction<T1, T2, T> function) {
 
@@ -233,6 +247,27 @@ public class CoGroupedStreams<T1, T2> {
 		/**
 		 * Completes the co-group operation with the user function that is executed
 		 * for windowed groups.
+		 *
+		 * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(CoGroupFunction)}
+		 * method has the wrong return type and hence does not allow one to set an operator-specific
+		 * parallelism
+		 * 
+		 * @deprecated This method will be removed once the {@link #apply(CoGroupFunction)} method is fixed
+		 *             in the next major version of Flink (2.0).
+		 */
+		@PublicEvolving
+		@Deprecated
+		public <T> SingleOutputStreamOperator<T> with(CoGroupFunction<T1, T2, T> function) {
+			return (SingleOutputStreamOperator<T>) apply(function);
+		}
+
+		/**
+		 * Completes the co-group operation with the user function that is executed
+		 * for windowed groups.
+		 * 
+		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
+		 * Due to binary backwards compatibility, this cannot be altered. Use the
+		 * {@link #with(CoGroupFunction, TypeInformation)} method to set an operator-specific parallelism.
 		 */
 		public <T> DataStream<T> apply(CoGroupFunction<T1, T2, T> function, TypeInformation<T> resultType) {
 			//clean the closure
@@ -243,9 +278,11 @@ public class CoGroupedStreams<T1, T2> {
 			
 			DataStream<TaggedUnion<T1, T2>> taggedInput1 = input1
 					.map(new Input1Tagger<T1, T2>())
+					.setParallelism(input1.getParallelism())
 					.returns(unionType);
 			DataStream<TaggedUnion<T1, T2>> taggedInput2 = input2
 					.map(new Input2Tagger<T1, T2>())
+					.setParallelism(input2.getParallelism())
 					.returns(unionType);
 
 			DataStream<TaggedUnion<T1, T2>> unionStream = taggedInput1.union(taggedInput2);
@@ -264,6 +301,23 @@ public class CoGroupedStreams<T1, T2> {
 
 			return windowOp.apply(new CoGroupWindowFunction<T1, T2, T, KEY, W>(function), resultType);
 		}
+
+		/**
+		 * Completes the co-group operation with the user function that is executed
+		 * for windowed groups.
+		 *
+		 * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(CoGroupFunction, TypeInformation)}
+		 * method has the wrong return type and hence does not allow one to set an operator-specific
+		 * parallelism
+		 *
+		 * @deprecated This method will be removed once the {@link #apply(CoGroupFunction, TypeInformation)}
+		 *             method is fixed in the next major version of Flink (2.0).
+		 */
+		@PublicEvolving
+		@Deprecated
+		public <T> SingleOutputStreamOperator<T> with(CoGroupFunction<T1, T2, T> function, TypeInformation<T> resultType) {
+			return (SingleOutputStreamOperator<T>) apply(function, resultType);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -273,6 +327,7 @@ public class CoGroupedStreams<T1, T2> {
 	/**
 	 * Internal class for implementing tagged union co-group.
 	 */
+	@Internal
 	public static class TaggedUnion<T1, T2> {
 		private final T1 one;
 		private final T2 two;
@@ -310,8 +365,8 @@ public class CoGroupedStreams<T1, T2> {
 	private static class UnionTypeInfo<T1, T2> extends TypeInformation<TaggedUnion<T1, T2>> {
 		private static final long serialVersionUID = 1L;
 
-		TypeInformation<T1> oneType;
-		TypeInformation<T2> twoType;
+		private final TypeInformation<T1> oneType;
+		private final TypeInformation<T2> twoType;
 
 		public UnionTypeInfo(TypeInformation<T1> oneType,
 				TypeInformation<T2> twoType) {

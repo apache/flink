@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Collector;
@@ -64,7 +65,9 @@ public interface TaskContext<S, OT> {
 
 	Collector<OT> getOutputCollector();
 	
-	AbstractInvokable getOwningNepheleTask();
+	AbstractInvokable getContainingTask();
 	
 	String formatLogString(String message);
+	
+	OperatorMetricGroup getMetricGroup();
 }

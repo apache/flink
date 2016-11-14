@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.wrappers;
 
 import backtype.storm.Config;
@@ -27,16 +28,18 @@ import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
-import com.google.common.collect.Sets;
+
 import org.apache.flink.storm.api.FlinkTopology;
 import org.apache.flink.storm.util.AbstractTest;
 import org.apache.flink.storm.util.TestDummyBolt;
 import org.apache.flink.storm.util.TestDummySpout;
 import org.apache.flink.storm.util.TestSink;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -48,12 +51,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import static java.util.Collections.singleton;
+
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@PowerMockIgnore("javax.*")
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(WrapperSetupHelper.class)
+@PowerMockIgnore({"javax.*", "org.apache.log4j.*"})
 public class WrapperSetupHelperTest extends AbstractTest {
 
 	@Test
@@ -85,7 +90,7 @@ public class WrapperSetupHelperTest extends AbstractTest {
 		PowerMockito.whenNew(SetupOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
 		WrapperSetupHelper.getNumberOfAttributes(boltOrSpout,
-				Sets.newHashSet(new String[] { Utils.DEFAULT_STREAM_ID }));
+				new HashSet<String>(singleton(Utils.DEFAULT_STREAM_ID)));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -143,8 +148,7 @@ public class WrapperSetupHelperTest extends AbstractTest {
 
 		Assert.assertEquals(attributes, WrapperSetupHelper.getNumberOfAttributes(
 				boltOrSpout,
-				numberOfAttributes == -1 ? Sets
-						.newHashSet(new String[] { Utils.DEFAULT_STREAM_ID }) : null));
+				numberOfAttributes == -1 ? new HashSet<String>(singleton(Utils.DEFAULT_STREAM_ID)) : null));
 	}
 
 	@Test
@@ -178,31 +182,19 @@ public class WrapperSetupHelperTest extends AbstractTest {
 		builder.setBolt("bolt2", (IRichBolt) operators.get("bolt2"), dops.get("bolt2")).allGrouping("spout2");
 		builder.setBolt("sink", (IRichBolt) operators.get("sink"), dops.get("sink"))
 				.shuffleGrouping("bolt1", TestDummyBolt.groupingStreamId)
+				.shuffleGrouping("bolt1", TestDummyBolt.shuffleStreamId)
+				.shuffleGrouping("bolt2", TestDummyBolt.groupingStreamId)
 				.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
 
-		int counter = 0;
-		while (true) {
-			LocalCluster cluster = new LocalCluster();
-			Config c = new Config();
-			c.setNumAckers(0);
-			cluster.submitTopology("test", c, builder.createTopology());
-			Utils.sleep(++counter * 10000);
-			cluster.shutdown();
+		LocalCluster cluster = new LocalCluster();
+		Config c = new Config();
+		c.setNumAckers(0);
+		cluster.submitTopology("test", c, builder.createTopology());
 
-			if (TestSink.result.size() == 5) {
-				break;
-			}
+		while (TestSink.result.size() != 8) {
+			Utils.sleep(100);
 		}
-
-		TopologyBuilder stormBuilder = new TopologyBuilder();
-
-		stormBuilder.setSpout("spout1", (IRichSpout) operators.get("spout1"), dops.get("spout1"));
-		stormBuilder.setSpout("spout2", (IRichSpout) operators.get("spout2"), dops.get("spout2"));
-		stormBuilder.setBolt("bolt1", (IRichBolt) operators.get("bolt1"), dops.get("bolt1")).shuffleGrouping("spout1");
-		stormBuilder.setBolt("bolt2", (IRichBolt) operators.get("bolt2"), dops.get("bolt2")).allGrouping("spout2");
-		stormBuilder.setBolt("sink", (IRichBolt) operators.get("sink"), dops.get("sink"))
-				.shuffleGrouping("bolt1", TestDummyBolt.groupingStreamId)
-				.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
+		cluster.shutdown();
 
 		final FlinkTopology flinkBuilder = FlinkTopology.createTopology(builder);
 		StormTopology stormTopology = flinkBuilder.getStormTopology();

@@ -25,15 +25,16 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.0-SNAPSHOT</version>
+		<version>1.2-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-dist</artifactId>
+	<artifactId>flink-dist_2.10</artifactId>
 	<name>flink-dist</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
+
 		<!-- BINARIES -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -49,80 +50,92 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala</artifactId>
+			<artifactId>flink-scala_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime</artifactId>
+			<artifactId>flink-runtime_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime-web</artifactId>
+			<artifactId>flink-runtime-web_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-optimizer</artifactId>
+			<artifactId>flink-optimizer_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
+			<artifactId>flink-clients_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-avro</artifactId>
+			<artifactId>flink-avro_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java-examples</artifactId>
+			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala-examples</artifactId>
+			<artifactId>flink-streaming-scala_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
+			<artifactId>flink-python_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala</artifactId>
+			<artifactId>flink-scala-shell_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-python</artifactId>
+			<artifactId>flink-metrics-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala-shell</artifactId>
+			<artifactId>flink-metrics-jmx</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+        
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-mesos_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-statebackend-rocksdb_2.10</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		
 	</dependencies>
 
-	<!-- See main pom.xml for explanation of profiles -->
 	<profiles>
+		<!-- See main pom.xml for explanation of Hadoop profiles -->
 		<profile>
 			<id>include-yarn</id>
 			<activation>
@@ -134,133 +147,54 @@ under the License.
 			<dependencies>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-yarn</artifactId>
+					<artifactId>flink-yarn_2.10</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 			</dependencies>
 		</profile>
 
 		<profile>
-			<id>debian-package</id>
+			<!-- Creates/Removes the 'build-target' symlink in the root directory (only Unix systems) -->
+			<id>symlink-build-target</id>
+			<activation>
+				<os>
+					<family>unix</family>
+				</os>
+			</activation>
 			<build>
 				<plugins>
 					<plugin>
-						<artifactId>jdeb</artifactId>
-						<groupId>org.vafer</groupId>
-						<version>1.0.1</version>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>exec-maven-plugin</artifactId>
+						<version>1.5.0</version>
 						<executions>
 							<execution>
-								<phase>package</phase>
+								<id>remove-build-target-link</id>
+								<phase>clean</phase>
 								<goals>
-									<goal>jdeb</goal>
+									<goal>exec</goal>
 								</goals>
 								<configuration>
-									<deb>${project.build.directory}/${project.artifactId}_${project.version}.deb</deb>
-									<controlDir>${basedir}/src/deb/control</controlDir>
-									<dataSet>
-										<data>
-											<src>${basedir}/src/deb/bin/jobManager</src>
-											<type>file</type>
-											<mapper>
-												<type>perm</type>
-												<prefix>/etc/init.d</prefix>
-												<user>root</user>
-												<group>root</group>
-												<filemode>0755</filemode>
-											</mapper>
-										</data>
-										<data>
-											<src>${basedir}/src/deb/bin/taskmanager</src>
-											<type>file</type>
-											<mapper>
-												<type>perm</type>
-												<prefix>/etc/init.d</prefix>
-												<user>root</user>
-												<group>root</group>
-												<filemode>0755</filemode>
-											</mapper>
-										</data>
-										<data>
-											<src>${basedir}/src/deb/bin/webclient</src>
-											<type>file</type>
-											<mapper>
-												<type>perm</type>
-												<prefix>/etc/init.d</prefix>
-												<user>root</user>
-												<group>root</group>
-												<filemode>0755</filemode>
-											</mapper>
-										</data>
-										<data>
-											<src>${project.build.directory}/${project.artifactId}-${project.version}-bin/flink-${project.version}/bin</src>
-											<type>directory</type>
-											<mapper>
-												<type>perm</type>
-												<prefix>/usr/share/${project.artifactId}/bin</prefix>
-												<user>root</user>
-												<group>root</group>
-												<filemode>0755</filemode>
-											</mapper>
-										</data>
-										<data>
-											<src>${project.build.directory}/${project.artifactId}-${project.version}-bin/flink-${project.version}/examples</src>
-											<type>directory</type>
-											<mapper>
-												<type>perm</type>
-												<prefix>/usr/share/${project.artifactId}/examples</prefix>
-												<user>root</user>
-												<group>root</group>
-											</mapper>
-										</data>
-										<data>
-											<src>${project.build.directory}/${project.artifactId}-${project.version}-bin/flink-${project.version}/lib</src>
-											<type>directory</type>
-											<mapper>
-												<type>perm</type>
-												<prefix>/usr/share/${project.artifactId}/lib</prefix>
-												<user>root</user>
-												<group>root</group>
-											</mapper>
-										</data>
-										<data>
-											<src>${project.build.directory}/${project.artifactId}-${project.version}-bin/flink-${project.version}/resources</src>
-											<type>directory</type>
-											<mapper>
-												<type>perm</type>
-												<prefix>/usr/share/${project.artifactId}/resources</prefix>
-												<user>root</user>
-												<group>root</group>
-											</mapper>
-										</data>
-										<data>
-											<src>${project.build.directory}/${project.artifactId}-${project.version}-bin/flink-${project.version}/conf</src>
-											<type>directory</type>
-											<mapper>
-												<type>perm</type>
-												<prefix>/etc/${project.artifactId}/conf</prefix>
-												<user>root</user>
-												<group>root</group>
-											</mapper>
-										</data>
-										<data>
-											<type>template</type>
-											<paths>
-												<path>/var/log/${project.artifactId}</path>
-											</paths>
-										</data>
-										<data>
-											<type>link</type>
-											<linkName>/usr/share/${project.artifactId}/conf</linkName>
-											<linkTarget>/etc/${project.artifactId}/conf</linkTarget>
-											<symlink>true</symlink>
-										</data>
-										<data>
-											<type>link</type>
-											<linkName>/usr/share/${project.artifactId}/log</linkName>
-											<linkTarget>/var/log/${project.artifactId}</linkTarget>
-											<symlink>true</symlink>
-										</data>
-									</dataSet>
+									<executable>rm</executable>
+									<arguments>
+										<argument>-f</argument>
+										<argument>${project.basedir}/../build-target</argument>
+									</arguments>
+								</configuration>
+							</execution>
+							<execution>
+								<id>create-build-target-link</id>
+								<phase>package</phase>
+								<goals>
+									<goal>exec</goal>
+								</goals>
+								<configuration>
+									<executable>ln</executable>
+									<arguments>
+										<argument>-sf</argument>
+										<argument>${project.basedir}/target/flink-${project.version}-bin/flink-${project.version}</argument>
+										<argument>${project.basedir}/../build-target</argument>
+									</arguments>
 								</configuration>
 							</execution>
 						</executions>
@@ -268,10 +202,18 @@ under the License.
 				</plugins>
 			</build>
 		</profile>
+
 	</profiles>
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>com.github.siom79.japicmp</groupId>
+				<artifactId>japicmp-maven-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
+			</plugin>
 			<plugin>
 				<!--Build uber jar-->
 				<groupId>org.apache.maven.plugins</groupId>
@@ -301,9 +243,8 @@ under the License.
 							</filters>
 							<artifactSet>
 								<excludes>
-									<exclude>org.apache.flink:flink-java-examples</exclude>
-									<exclude>org.apache.flink:flink-scala-examples</exclude>
-									<exclude>org.apache.flink:flink-streaming-examples</exclude>
+									<exclude>org.apache.flink:flink-examples-batch</exclude>
+									<exclude>org.apache.flink:flink-examples-streaming</exclude>
 									<exclude>org.apache.flink:flink-python</exclude>
 									<exclude>org.slf4j:slf4j-log4j12</exclude>
 									<exclude>log4j:log4j</exclude>
@@ -318,6 +259,15 @@ under the License.
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer"/>
 							</transformers>
 						</configuration>
+					</execution>
+					<execution>
+						<!--
+						Disable inherited shade-flink to prevent the Shade plugin from changing the project.basedir. The basedir
+						is changed by the Shade plugin when dependencyReducedPomLocation is set to a different location than the
+						original basedir. We do that in the root pom.xml.
+						-->
+						<id>shade-flink</id>
+						<phase>none</phase>
 					</execution>
 				</executions>
 			</plugin>
@@ -375,36 +325,7 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- create a symbolic link to the build target in the root directory -->
-			<plugin>
-				<groupId>com.pyx4j</groupId>
-				<artifactId>maven-junction-plugin</artifactId>
-				<version>1.0.3</version>
-				<executions>
-					<execution>
-						<phase>package</phase>
-						<goals>
-							<goal>link</goal>
-						</goals>
-					</execution>
-					<execution>
-						<id>unlink</id>
-						<phase>pre-clean</phase>
-						<goals>
-							<goal>unlink</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<links>
-						<link>
-							<dst>${project.basedir}/../build-target</dst>
-							<src>${project.basedir}/target/flink-${project.version}-bin/flink-${project.version}</src>
-						</link>
-					</links>
-				</configuration>
-			</plugin>
-
 		</plugins>
 	</build>
+
 </project>

@@ -18,34 +18,59 @@
 
 package org.apache.flink.runtime.jobgraph.tasks;
 
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.state.TaskStateHandles;
 
 /**
  * This interface must be implemented by any invokable that has recoverable state and participates
  * in checkpointing.
  */
-public interface StatefulTask<T extends StateHandle<?>> {
+public interface StatefulTask {
 
 	/**
 	 * Sets the initial state of the operator, upon recovery. The initial state is typically
 	 * a snapshot of the state from a previous execution.
-	 * 
-	 * @param stateHandle The handle to the state.
-	 * @param recoveryTimestamp Global recovery timestamp.
+	 *
+	 * @param taskStateHandles All state handle for the task.
 	 */
-	void setInitialState(T stateHandle, long recoveryTimestamp) throws Exception;
+	void setInitialState(TaskStateHandles taskStateHandles) throws Exception;
 
 	/**
-	 * This method is either called directly and asynchronously by the checkpoint
-	 * coordinator (in the case of functions that are directly notified - usually
-	 * the data sources), or called synchronously when all incoming channels have
-	 * reported a checkpoint barrier.
+	 * This method is called to trigger a checkpoint, asynchronously by the checkpoint
+	 * coordinator.
+	 * 
+	 * <p>This method is called for tasks that start the checkpoints by injecting the initial barriers,
+	 * i.e., the source tasks. In contrast, checkpoints on downstream operators, which are the result of
+	 * receiving checkpoint barriers, invoke the {@link #triggerCheckpointOnBarrier(CheckpointMetaData)}
+	 * method.
 	 *
-	 * @param checkpointId The ID of the checkpoint, incrementing.
-	 * @param timestamp The timestamp when the checkpoint was triggered at the JobManager.
+	 * @param checkpointMetaData Meta data for about this checkpoint
+	 *
+	 * @return {@code false} if the checkpoint can not be carried out, {@code true} otherwise
 	 */
-	void triggerCheckpoint(long checkpointId, long timestamp) throws Exception;
+	boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData) throws Exception;
 
+	/**
+	 * This method is called when a checkpoint is triggered as a result of receiving checkpoint
+	 * barriers on all input streams.
+	 * 
+	 * @param checkpointMetaData Meta data for about this checkpoint
+	 * 
+	 * @throws Exception Exceptions thrown as the result of triggering a checkpoint are forwarded.
+	 */
+	void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData) throws Exception;
+
+	/**
+	 * Aborts a checkpoint as the result of receiving possibly some checkpoint barriers,
+	 * but at least one {@link org.apache.flink.runtime.io.network.api.CancelCheckpointMarker}.
+	 * 
+	 * <p>This requires implementing tasks to forward a
+	 * {@link org.apache.flink.runtime.io.network.api.CancelCheckpointMarker} to their outputs.
+	 * 
+	 * @param checkpointId The ID of the checkpoint to be aborted.
+	 * @param cause The reason why the checkpoint was aborted during alignment   
+	 */
+	void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception;
 
 	/**
 	 * Invoked when a checkpoint has been completed, i.e., when the checkpoint coordinator has received

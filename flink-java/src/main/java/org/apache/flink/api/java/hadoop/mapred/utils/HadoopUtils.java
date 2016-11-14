@@ -23,6 +23,7 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.util.Map;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.hadoop.conf.Configuration;
@@ -37,6 +38,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Utility class to work with Apache Hadoop MapRed classes.
  */
+@Internal
 public final class HadoopUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopUtils.class);
@@ -47,7 +49,9 @@ public final class HadoopUtils {
 	public static void mergeHadoopConf(JobConf jobConf) {
 		org.apache.hadoop.conf.Configuration hadoopConf = getHadoopConfiguration();
 		for (Map.Entry<String, String> e : hadoopConf) {
-			jobConf.set(e.getKey(), e.getValue());
+			if (jobConf.get(e.getKey()) == null) {
+				jobConf.set(e.getKey(), e.getValue());
+			}
 		}
 	}
 	
@@ -100,13 +104,17 @@ public final class HadoopUtils {
 	 * This method is public because its being used in the HadoopDataSource.
 	 */
 	public static org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
+
+		org.apache.flink.configuration.Configuration flinkConfiguration =
+			GlobalConfiguration.loadConfiguration();
+
 		Configuration retConf = new org.apache.hadoop.conf.Configuration();
 
 		// We need to load both core-site.xml and hdfs-site.xml to determine the default fs path and
 		// the hdfs configuration
 		// Try to load HDFS configuration from Hadoop's own configuration files
 		// 1. approach: Flink configuration
-		final String hdfsDefaultPath = GlobalConfiguration.getString(ConfigConstants
+		final String hdfsDefaultPath = flinkConfiguration.getString(ConfigConstants
 				.HDFS_DEFAULT_CONFIG, null);
 		if (hdfsDefaultPath != null) {
 			retConf.addResource(new org.apache.hadoop.fs.Path(hdfsDefaultPath));
@@ -114,7 +122,7 @@ public final class HadoopUtils {
 			LOG.debug("Cannot find hdfs-default configuration file");
 		}
 
-		final String hdfsSitePath = GlobalConfiguration.getString(ConfigConstants.HDFS_SITE_CONFIG, null);
+		final String hdfsSitePath = flinkConfiguration.getString(ConfigConstants.HDFS_SITE_CONFIG, null);
 		if (hdfsSitePath != null) {
 			retConf.addResource(new org.apache.hadoop.fs.Path(hdfsSitePath));
 		} else {
@@ -123,7 +131,7 @@ public final class HadoopUtils {
 
 		// 2. Approach environment variables
 		String[] possibleHadoopConfPaths = new String[4];
-		possibleHadoopConfPaths[0] = GlobalConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
+		possibleHadoopConfPaths[0] = flinkConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
 		possibleHadoopConfPaths[1] = System.getenv("HADOOP_CONF_DIR");
 
 		if (System.getenv("HADOOP_HOME") != null) {

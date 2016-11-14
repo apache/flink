@@ -21,12 +21,14 @@ package org.apache.flink.api.common.operators;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.operators.util.FieldSet;
 
 /**
  * Container for the semantic properties associated to an operator.
  */
+@Internal
 public interface SemanticProperties extends Serializable {
 
 	/**

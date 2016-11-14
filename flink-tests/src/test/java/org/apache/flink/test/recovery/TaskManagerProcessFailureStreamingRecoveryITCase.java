@@ -26,6 +26,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
@@ -69,7 +70,7 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 				.createRemoteEnvironment("localhost", jobManagerPort);
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
-		env.setNumberOfExecutionRetries(1);
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));
 		env.enableCheckpointing(200);
 		
 		env.setStateBackend(new FsStateBackend(tempCheckpointDir.getAbsoluteFile().toURI()));

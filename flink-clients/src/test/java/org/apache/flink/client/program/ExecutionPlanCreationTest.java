@@ -54,7 +54,7 @@ public class ExecutionPlanCreationTest {
 			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, mockJmAddress.getPort());
 
 			Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-			OptimizedPlan op = (OptimizedPlan) Client.getOptimizedPlan(optimizer, prg, -1);
+			OptimizedPlan op = (OptimizedPlan) ClusterClient.getOptimizedPlan(optimizer, prg, -1);
 			assertNotNull(op);
 			
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();

@@ -18,8 +18,10 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
@@ -30,6 +32,8 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
+import java.io.OutputStream;
+import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
@@ -37,6 +41,7 @@ import java.util.HashMap;
 /**
  * Utility class to create instances from class objects and checking failure reasons.
  */
+@Internal
 public final class InstantiationUtil {
 	
 	/**
@@ -226,7 +231,7 @@ public final class InstantiationUtil {
 		} else if (clazz.isArray()) {
 			return "The class is an array. An array cannot be simply instantiated, as with a parameterless constructor.";
 		} else if (!isProperClass(clazz)) {
-			return "The class is no proper class, it is either abstract, an interface, or a primitive type.";
+			return "The class is not a proper class. It is either abstract, an interface, or a primitive type.";
 		} else if (isNonStaticInnerClass(clazz)) {
 			return "The class is an inner class, but not statically accessible.";
 		} else if (!hasPublicNullaryConstructor(clazz)) {
@@ -290,14 +295,103 @@ public final class InstantiationUtil {
 			Thread.currentThread().setContextClassLoader(old);
 		}
 	}
-	
+
+	@SuppressWarnings("unchecked")
+	public static <T> T deserializeObject(InputStream in, ClassLoader cl) throws IOException, ClassNotFoundException {
+		final ClassLoader old = Thread.currentThread().getContextClassLoader();
+		ObjectInputStream oois;
+		// not using resource try to avoid AutoClosable's close() on the given stream
+		try {
+			oois = new ClassLoaderObjectInputStream(in, cl);
+			Thread.currentThread().setContextClassLoader(cl);
+			return (T) oois.readObject();
+		}
+		finally {
+			Thread.currentThread().setContextClassLoader(old);
+		}
+	}
+
 	public static byte[] serializeObject(Object o) throws IOException {
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
 				ObjectOutputStream oos = new ObjectOutputStream(baos)) {
 			oos.writeObject(o);
+			oos.flush();
 			return baos.toByteArray();
 		}
 	}
+
+	public static void serializeObject(OutputStream out, Object o) throws IOException {
+		ObjectOutputStream oos = new ObjectOutputStream(out);
+		oos.writeObject(o);
+	}
+
+	/**
+	 * Clones the given serializable object using Java serialization.
+	 *
+	 * @param obj Object to clone
+	 * @param <T> Type of the object to clone
+	 * @return Cloned object
+	 * @throws IOException
+	 * @throws ClassNotFoundException
+	 */
+	public static <T extends Serializable> T clone(T obj) throws IOException, ClassNotFoundException {
+		if (obj == null) {
+			return null;
+		} else {
+			return clone(obj, obj.getClass().getClassLoader());
+		}
+	}
+
+	/**
+	 * Clones the given serializable object using Java serialization, using the given classloader to
+	 * resolve the cloned classes.
+	 *
+	 * @param obj Object to clone
+	 * @param classLoader The classloader to resolve the classes during deserialization.
+	 * @param <T> Type of the object to clone
+	 * 
+	 * @return Cloned object
+	 * 
+	 * @throws IOException
+	 * @throws ClassNotFoundException
+	 */
+	public static <T extends Serializable> T clone(T obj, ClassLoader classLoader) throws IOException, ClassNotFoundException {
+		if (obj == null) {
+			return null;
+		} else {
+			final byte[] serializedObject = serializeObject(obj);
+			return deserializeObject(serializedObject, classLoader);
+		}
+	}
+
+	/**
+	 * Clones the given writable using the {@link IOReadableWritable serialization}.
+	 *
+	 * @param original Object to clone
+	 * @param <T> Type of the object to clone
+	 * @return Cloned object
+	 * @throws IOException Thrown is the serialization fails.
+	 */
+	public static <T extends IOReadableWritable> T createCopyWritable(T original) throws IOException {
+		if (original == null) {
+			return null;
+		}
+
+		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		try (DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos)) {
+			original.write(out);
+		}
+
+		final ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+		try (DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais)) {
+
+			@SuppressWarnings("unchecked")
+			T copy = (T) instantiate(original.getClass());
+			copy.read(in);
+			return copy;
+		}
+	}
+	
 	
 	// --------------------------------------------------------------------------------------------
 	

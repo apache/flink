@@ -21,6 +21,8 @@ package org.apache.flink.optimizer.operators;
 import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
 import org.apache.flink.optimizer.dataproperties.RequestedGlobalProperties;
@@ -95,6 +97,52 @@ public class CoGroupGlobalPropertiesCompatibilityTest {
 				
 				assertTrue(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
 			}
+
+			TestDistribution dist1 = new TestDistribution(1);
+			TestDistribution dist2 = new TestDistribution(1);
+			
+			// test compatible range partitioning with one ordering
+			{
+				Ordering ordering1 = new Ordering();
+				for (int field : keysLeft) {
+					ordering1.appendOrdering(field, null, Order.ASCENDING);
+				}
+				Ordering ordering2 = new Ordering();
+				for (int field : keysRight) {
+					ordering2.appendOrdering(field, null, Order.ASCENDING);
+				}
+				
+				RequestedGlobalProperties reqLeft = new RequestedGlobalProperties();
+				reqLeft.setRangePartitioned(ordering1, dist1);
+				RequestedGlobalProperties reqRight = new RequestedGlobalProperties();
+				reqRight.setRangePartitioned(ordering2, dist2);
+
+				GlobalProperties propsLeft = new GlobalProperties();
+				propsLeft.setRangePartitioned(ordering1, dist1);
+				GlobalProperties propsRight = new GlobalProperties();
+				propsRight.setRangePartitioned(ordering2, dist2);
+				assertTrue(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+			}
+			// test compatible range partitioning with two orderings
+			{
+				Ordering ordering1 = new Ordering();
+				ordering1.appendOrdering(keysLeft.get(0), null, Order.DESCENDING);
+				ordering1.appendOrdering(keysLeft.get(1), null, Order.ASCENDING);
+				Ordering ordering2 = new Ordering();
+				ordering2.appendOrdering(keysRight.get(0), null, Order.DESCENDING);
+				ordering2.appendOrdering(keysRight.get(1), null, Order.ASCENDING);
+
+				RequestedGlobalProperties reqLeft = new RequestedGlobalProperties();
+				reqLeft.setRangePartitioned(ordering1, dist1);
+				RequestedGlobalProperties reqRight = new RequestedGlobalProperties();
+				reqRight.setRangePartitioned(ordering2, dist2);
+
+				GlobalProperties propsLeft = new GlobalProperties();
+				propsLeft.setRangePartitioned(ordering1, dist1);
+				GlobalProperties propsRight = new GlobalProperties();
+				propsRight.setRangePartitioned(ordering2, dist2);
+				assertTrue(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+			}
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -150,6 +198,82 @@ public class CoGroupGlobalPropertiesCompatibilityTest {
 				GlobalProperties propsRight = new GlobalProperties();
 				propsRight.setCustomPartitioned(keysRight, part2);
 				
+				assertFalse(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+			}
+
+			TestDistribution dist1 = new TestDistribution(1);
+			TestDistribution dist2 = new TestDistribution(1);
+
+			// test incompatible range partitioning with different key size
+			{
+				Ordering ordering1 = new Ordering();
+				for (int field : keysLeft) {
+					ordering1.appendOrdering(field, null, Order.ASCENDING);
+				}
+				Ordering ordering2 = new Ordering();
+				for (int field : keysRight) {
+					ordering1.appendOrdering(field, null, Order.ASCENDING);
+					ordering2.appendOrdering(field, null, Order.ASCENDING);
+				}
+
+				RequestedGlobalProperties reqLeft = new RequestedGlobalProperties();
+				reqLeft.setRangePartitioned(ordering1, dist1);
+				RequestedGlobalProperties reqRight = new RequestedGlobalProperties();
+				reqRight.setRangePartitioned(ordering2, dist2);
+
+				GlobalProperties propsLeft = new GlobalProperties();
+				propsLeft.setRangePartitioned(ordering1, dist1);
+				GlobalProperties propsRight = new GlobalProperties();
+				propsRight.setRangePartitioned(ordering2, dist2);
+				assertFalse(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+			}
+
+			// test incompatible range partitioning with different ordering
+			{
+				Ordering ordering1 = new Ordering();
+				for (int field : keysLeft) {
+					ordering1.appendOrdering(field, null, Order.ASCENDING);
+				}
+				Ordering ordering2 = new Ordering();
+				for (int field : keysRight) {
+					ordering2.appendOrdering(field, null, Order.DESCENDING);
+				}
+
+				RequestedGlobalProperties reqLeft = new RequestedGlobalProperties();
+				reqLeft.setRangePartitioned(ordering1, dist1);
+				RequestedGlobalProperties reqRight = new RequestedGlobalProperties();
+				reqRight.setRangePartitioned(ordering2, dist2);
+
+				GlobalProperties propsLeft = new GlobalProperties();
+				propsLeft.setRangePartitioned(ordering1, dist1);
+				GlobalProperties propsRight = new GlobalProperties();
+				propsRight.setRangePartitioned(ordering2, dist2);
+				assertFalse(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+			}
+
+			TestDistribution dist3 = new TestDistribution(1);
+			TestDistribution dist4 = new TestDistribution(2);
+
+			// test incompatible range partitioning with different distribution
+			{
+				Ordering ordering1 = new Ordering();
+				for (int field : keysLeft) {
+					ordering1.appendOrdering(field, null, Order.ASCENDING);
+				}
+				Ordering ordering2 = new Ordering();
+				for (int field : keysRight) {
+					ordering2.appendOrdering(field, null, Order.ASCENDING);
+				}
+
+				RequestedGlobalProperties reqLeft = new RequestedGlobalProperties();
+				reqLeft.setRangePartitioned(ordering1, dist3);
+				RequestedGlobalProperties reqRight = new RequestedGlobalProperties();
+				reqRight.setRangePartitioned(ordering2, dist4);
+
+				GlobalProperties propsLeft = new GlobalProperties();
+				propsLeft.setRangePartitioned(ordering1, dist3);
+				GlobalProperties propsRight = new GlobalProperties();
+				propsRight.setRangePartitioned(ordering2, dist4);
 				assertFalse(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
 			}
 		}

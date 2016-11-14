@@ -29,12 +29,12 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.flink.runtime.messages.JobManagerMessages.JobNotFound;
 import static org.apache.flink.runtime.messages.JobManagerMessages.RequestJobStatus;
 import static org.apache.flink.runtime.messages.JobManagerMessages.getRequestJobStatus;
 import static org.apache.flink.runtime.messages.JobManagerMessages.getRequestNumberRegisteredTaskManager;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * JobManager actor test utilities.
@@ -79,7 +79,7 @@ public class JobManagerActorTestUtils {
 				if (jobStatus == expectedJobStatus) {
 					return;
 				}
-				else if (jobStatus.isTerminalState()) {
+				else if (jobStatus.isGloballyTerminalState()) {
 					throw new IllegalStateException("Job is in terminal state " + jobStatus + ", "
 							+ "but was waiting for " + expectedJobStatus + ".");
 				}

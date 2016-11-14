@@ -25,8 +25,12 @@ import org.apache.flink.api.common.operators.base.OuterJoinOperatorBase.OuterJoi
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.operators.AbstractJoinDescriptor;
+import org.apache.flink.optimizer.operators.HashFullOuterJoinBuildFirstDescriptor;
+import org.apache.flink.optimizer.operators.HashFullOuterJoinBuildSecondDescriptor;
+import org.apache.flink.optimizer.operators.HashLeftOuterJoinBuildFirstDescriptor;
 import org.apache.flink.optimizer.operators.HashLeftOuterJoinBuildSecondDescriptor;
 import org.apache.flink.optimizer.operators.HashRightOuterJoinBuildFirstDescriptor;
+import org.apache.flink.optimizer.operators.HashRightOuterJoinBuildSecondDescriptor;
 import org.apache.flink.optimizer.operators.OperatorDescriptorDual;
 import org.apache.flink.optimizer.operators.SortMergeFullOuterJoinDescriptor;
 import org.apache.flink.optimizer.operators.SortMergeLeftOuterJoinDescriptor;
@@ -99,8 +103,10 @@ public class OuterJoinNode extends TwoInputNode {
 			case BROADCAST_HASH_SECOND:
 				list.add(new HashLeftOuterJoinBuildSecondDescriptor(this.keys1, this.keys2, true, false));
 				break;
-			case BROADCAST_HASH_FIRST:
 			case REPARTITION_HASH_FIRST:
+				list.add(new HashLeftOuterJoinBuildFirstDescriptor(this.keys1, this.keys2, false, true));
+				break;
+			case BROADCAST_HASH_FIRST:
 			default:
 				throw new CompilerException("Invalid join hint: " + hint + " for left outer join");
 		}
@@ -124,8 +130,10 @@ public class OuterJoinNode extends TwoInputNode {
 			case BROADCAST_HASH_FIRST:
 				list.add(new HashRightOuterJoinBuildFirstDescriptor(this.keys1, this.keys2, true, false));
 				break;
-			case BROADCAST_HASH_SECOND:
 			case REPARTITION_HASH_SECOND:
+				list.add(new HashRightOuterJoinBuildSecondDescriptor(this.keys1, this.keys2, false, true));
+				break;
+			case BROADCAST_HASH_SECOND:
 			default:
 				throw new CompilerException("Invalid join hint: " + hint + " for right outer join");
 		}
@@ -142,10 +150,14 @@ public class OuterJoinNode extends TwoInputNode {
 			case REPARTITION_SORT_MERGE:
 				list.add(new SortMergeFullOuterJoinDescriptor(this.keys1, this.keys2));
 				break;
-			case REPARTITION_HASH_SECOND:
-			case BROADCAST_HASH_SECOND:
-			case BROADCAST_HASH_FIRST:
 			case REPARTITION_HASH_FIRST:
+				list.add(new HashFullOuterJoinBuildFirstDescriptor(this.keys1, this.keys2));
+				break;
+			case REPARTITION_HASH_SECOND:
+				list.add(new HashFullOuterJoinBuildSecondDescriptor(this.keys1, this.keys2));
+				break;
+			case BROADCAST_HASH_FIRST:
+			case BROADCAST_HASH_SECOND:
 			default:
 				throw new CompilerException("Invalid join hint: " + hint + " for full outer join");
 		}

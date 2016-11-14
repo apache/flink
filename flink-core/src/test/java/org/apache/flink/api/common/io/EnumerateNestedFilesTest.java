@@ -37,11 +37,12 @@ public class EnumerateNestedFilesTest {
 	protected Configuration config;
 	final String tempPath = System.getProperty("java.io.tmpdir");
 
-	private final DummyFileInputFormat format = new DummyFileInputFormat();
+	private DummyFileInputFormat format;
 
 	@Before
 	public void setup() {
 		this.config = new Configuration();
+		format = new DummyFileInputFormat();
 	}
 
 	@After

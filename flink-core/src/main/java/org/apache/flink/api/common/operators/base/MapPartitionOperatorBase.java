@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators.base;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -40,6 +41,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * @param <OUT> The result type.
  * @param <FT> The type of the user-defined function.
  */
+@Internal
 public class MapPartitionOperatorBase<IN, OUT, FT extends MapPartitionFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 	
 	public MapPartitionOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {

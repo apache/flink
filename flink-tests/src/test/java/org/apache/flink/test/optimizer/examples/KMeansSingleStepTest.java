@@ -25,10 +25,9 @@ import java.util.Collection;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.util.FieldList;
@@ -51,6 +50,7 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
+@SuppressWarnings("serial")
 public class KMeansSingleStepTest extends CompilerTestBase {
 	
 	private static final String DATAPOINTS = "Data Points";
@@ -71,9 +71,9 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		p.setExecutionConfig(new ExecutionConfig());
 		// set the statistics
 		OperatorResolver cr = getContractResolver(p);
-		GenericDataSourceBase pointsSource = cr.getNode(DATAPOINTS);
-		GenericDataSourceBase centersSource = cr.getNode(CENTERS);
-		setSourceStatistics(pointsSource, 100l * 1024 * 1024 * 1024, 32f);
+		GenericDataSourceBase<?,?> pointsSource = cr.getNode(DATAPOINTS);
+		GenericDataSourceBase<?,?> centersSource = cr.getNode(CENTERS);
+		setSourceStatistics(pointsSource, 100L * 1024 * 1024 * 1024, 32f);
 		setSourceStatistics(centersSource, 1024 * 1024, 32f);
 		
 		OptimizedPlan plan = compileWithStats(p);
@@ -219,6 +219,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 	}
 
 	public static class Centroid extends Tuple2<Integer, Point> {
+
 		public Centroid(int id, double x, double y) {
 			this.f0 = id;
 			this.f1 = new Point(x, y);
@@ -256,8 +257,11 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		}
 	}
 
-	@Combinable
-	public static final class RecomputeClusterCenter extends RichGroupReduceFunction<Tuple3<Integer, Point, Integer>, Tuple3<Integer, Point, Integer>> {
+	public static final class RecomputeClusterCenter implements
+		GroupReduceFunction<Tuple3<Integer, Point, Integer>, Tuple3<Integer, Point, Integer>>,
+		GroupCombineFunction<Tuple3<Integer, Point, Integer>, Tuple3<Integer, Point, Integer>>
+	{
+
 		@Override
 		public void reduce(Iterable<Tuple3<Integer, Point, Integer>> values, Collector<Tuple3<Integer, Point, Integer>> out) throws Exception {
 			int id = -1;

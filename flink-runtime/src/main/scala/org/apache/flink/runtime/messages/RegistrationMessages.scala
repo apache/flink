@@ -18,12 +18,16 @@
 
 package org.apache.flink.runtime.messages
 
-import org.apache.flink.runtime.instance.{InstanceConnectionInfo, InstanceID, HardwareDescription}
+import java.util.UUID
+
+import org.apache.flink.runtime.clusterframework.types.ResourceID
+import org.apache.flink.runtime.instance.{HardwareDescription, InstanceID}
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation
 
 import scala.concurrent.duration.{Deadline, FiniteDuration}
 
 /**
- * A set of messages from the between TaskManager and JobManager handle the
+ * A set of messages between TaskManager and JobManager to handle the
  * registration of the TaskManager at the JobManager.
  */
 object RegistrationMessages {
@@ -40,16 +44,18 @@ object RegistrationMessages {
    * @param timeout The timeout for the message. The next retry will double this timeout.
    * @param deadline Optional deadline until when the registration must be completed.
    * @param attempt The attempt number, for logging.
+   * @param registrationRun UUID of the current registration run to filter out outdated runs
    */
   case class TriggerTaskManagerRegistration(
       jobManagerURL: String,
       timeout: FiniteDuration,
       deadline: Option[Deadline],
-      attempt: Int)
+      attempt: Int,
+      registrationRun: UUID)
     extends RegistrationMessage
 
   /**
-   * Registers a task manager at the job manager. A successful registration is acknowledged by
+   * Registers a task manager at the JobManager. A successful registration is acknowledged by
    * [[AcknowledgeRegistration]].
    *
    * @param connectionInfo The TaskManagers connection information.
@@ -57,14 +63,16 @@ object RegistrationMessages {
    * @param numberOfSlots The number of processing slots offered by the TaskManager.
    */
   case class RegisterTaskManager(
-      connectionInfo: InstanceConnectionInfo,
-      resources: HardwareDescription,
-      numberOfSlots: Int)
+                                  resourceId: ResourceID,
+                                  connectionInfo: TaskManagerLocation,
+                                  resources: HardwareDescription,
+                                  numberOfSlots: Int)
     extends RegistrationMessage
 
   /**
-   * Denotes the successful registration of a task manager at the job manager. This is the
-   * response triggered by the [[RegisterTaskManager]] message.
+   * Denotes the successful registration of a task manager at the JobManager. This is the
+   * response triggered by the [[RegisterTaskManager]] message when the JobManager has registered
+   * the task manager with the resource manager.
    *
    * @param instanceID The instance ID under which the TaskManager is registered at the
    *                   JobManager.
@@ -87,11 +95,11 @@ object RegistrationMessages {
     extends RegistrationMessage
 
   /**
-   * Denotes the unsuccessful registration of a task manager at the job manager. This is the
+   * Denotes the unsuccessful registration of a task manager at the JobManager. This is the
    * response triggered by the [[RegisterTaskManager]] message.
    *
    * @param reason Reason why the task manager registration was refused
    */
-  case class RefuseRegistration(reason: String)
-    extends RegistrationMessage
+  case class RefuseRegistration(reason: Throwable) extends RegistrationMessage
+
 }

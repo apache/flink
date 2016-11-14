@@ -18,20 +18,25 @@
 
 package org.apache.flink.runtime.execution;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 
 import java.util.Map;
@@ -44,6 +49,13 @@ import java.util.concurrent.Future;
  * memory manager, I/O manager, ...
  */
 public interface Environment {
+
+	/**
+	 * Returns the job specific {@link ExecutionConfig}.
+	 *
+	 * @return The execution configuration associated with the current job.
+	 * */
+	ExecutionConfig getExecutionConfig();
 
 	/**
 	 * Returns the ID of the job that the task belongs to.
@@ -67,7 +79,7 @@ public interface Environment {
 	ExecutionAttemptID getExecutionId();
 
 	/**
-	 * Returns the task-wide configuration object, originally attache to the job vertex.
+	 * Returns the task-wide configuration object, originally attached to the job vertex.
 	 *
 	 * @return The task-wide configuration
 	 */
@@ -79,6 +91,13 @@ public interface Environment {
 	 * @return The task manager info, with configuration and hostname. 
 	 */
 	TaskManagerRuntimeInfo getTaskManagerInfo();
+
+	/**
+	 * Returns the task specific metric group.
+	 * 
+	 * @return The MetricGroup of this task.
+     */
+	TaskMetricGroup getMetricGroup();
 
 	/**
 	 * Returns the job-wide configuration object that was attached to the JobGraph.
@@ -132,23 +151,50 @@ public interface Environment {
 	AccumulatorRegistry getAccumulatorRegistry();
 
 	/**
+	 * Returns the registry for {@link KvState} instances.
+	 *
+	 * @return KvState registry
+	 */
+	TaskKvStateRegistry getTaskKvStateRegistry();
+
+	/**
 	 * Confirms that the invokable has successfully completed all steps it needed to
 	 * to for the checkpoint with the give checkpoint-ID. This method does not include
 	 * any state in the checkpoint.
 	 * 
-	 * @param checkpointId The ID of the checkpoint.
+	 * @param checkpointMetaData the meta data for this checkpoint
 	 */
-	void acknowledgeCheckpoint(long checkpointId);
+	void acknowledgeCheckpoint(CheckpointMetaData checkpointMetaData);
 
 	/**
-	 * Confirms that the invokable has successfully completed all steps it needed to
-	 * to for the checkpoint with the give checkpoint-ID. This method does include
+	 * Confirms that the invokable has successfully completed all required steps for
+	 * the checkpoint with the give checkpoint-ID. This method does include
 	 * the given state in the checkpoint.
 	 *
-	 * @param checkpointId The ID of the checkpoint.
-	 * @param state A handle to the state to be included in the checkpoint.   
+	 * @param checkpointMetaData the meta data for this checkpoint
+	 * @param subtaskState All state handles for the checkpointed state
 	 */
-	void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state);
+	void acknowledgeCheckpoint(CheckpointMetaData checkpointMetaData, SubtaskState subtaskState);
+
+	/**
+	 * Declines a checkpoint. This tells the checkpoint coordinator that this task will
+	 * not be able to successfully complete a certain checkpoint.
+	 * 
+	 * @param checkpointId The ID of the declined checkpoint.
+	 * @param cause An optional reason why the checkpoint was declined.
+	 */
+	void declineCheckpoint(long checkpointId, Throwable cause);
+
+	/**
+	 * Marks task execution failed for an external reason (a reason other than the task code itself
+	 * throwing an exception). If the task is already in a terminal state
+	 * (such as FINISHED, CANCELED, FAILED), or if the task is already canceling this does nothing.
+	 * Otherwise it sets the state to FAILED, and, if the invokable code is running,
+	 * starts an asynchronous thread that aborts that code.
+	 *
+	 * <p>This method never blocks.
+	 */
+	void failExternally(Throwable cause);
 
 	// --------------------------------------------------------------------------------------------
 	//  Fields relevant to the I/O system. Should go into Task

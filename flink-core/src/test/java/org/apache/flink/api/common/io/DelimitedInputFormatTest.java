@@ -47,17 +47,18 @@ import org.junit.Test;
 
 public class DelimitedInputFormatTest {
 	
-	private final DelimitedInputFormat<String> format = new MyTextInputFormat();
+	private DelimitedInputFormat<String> format;
 	
 	// --------------------------------------------------------------------------------------------
 
 	@Before
 	public void setup() {
+		format = new MyTextInputFormat();
 		this.format.setFilePath(new Path("file:///some/file/that/will/not/be/read"));
 	}
 	
 	@After
-	public void setdown() throws Exception {
+	public void shutdown() throws Exception {
 		if (this.format != null) {
 			this.format.close();
 		}

@@ -63,11 +63,11 @@ public class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<In
 	@Override
 	protected BinaryInputFormat<Tuple2<Integer, String>> createInputFormat() {
 		Configuration configuration = new Configuration();
-		configuration.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, this.blockSize);
 
 		final TypeSerializerInputFormat<Tuple2<Integer, String>> inputFormat = new
 				TypeSerializerInputFormat<Tuple2<Integer, String>>(resultType);
 		inputFormat.setFilePath(this.tempFile.toURI().toString());
+		inputFormat.setBlockSize(this.blockSize);
 
 		inputFormat.configure(configuration);
 		return inputFormat;

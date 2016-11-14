@@ -19,6 +19,8 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * This interface marks types as visitable during a traversal. The central method <i>accept(...)</i> contains the logic
  * about how to invoke the supplied {@link Visitor} on the visitable object, and how to traverse further.
@@ -30,6 +32,7 @@ package org.apache.flink.util;
  *
  * @see Visitor
  */
+@Internal
 public interface Visitable<T extends Visitable<T>> {
 	
 	/**

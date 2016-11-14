@@ -18,25 +18,25 @@
 
 package org.apache.flink.runtime.zookeeper.filesystem;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.filesystem.FileSerializableStateHandle;
-import org.apache.flink.runtime.util.FileUtils;
-import org.apache.flink.runtime.zookeeper.StateStorageHelper;
+import org.apache.flink.runtime.state.RetrievableStateHandle;
+import org.apache.flink.runtime.state.RetrievableStreamStateHandle;
+import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
+import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 /**
- * {@link StateStorageHelper} implementation which stores the state in the given filesystem path.
+ * {@link RetrievableStateStorageHelper} implementation which stores the state in the given filesystem path.
  *
- * @param <T>
+ * @param <T> The type of the data that can be stored by this storage helper.
  */
-public class FileSystemStateStorageHelper<T extends Serializable> implements StateStorageHelper<T> {
+public class FileSystemStateStorageHelper<T extends Serializable> implements RetrievableStateStorageHelper<T> {
 
 	private final Path rootPath;
 
@@ -56,25 +56,19 @@ public class FileSystemStateStorageHelper<T extends Serializable> implements Sta
 	}
 
 	@Override
-	public StateHandle<T> store(T state) throws Exception {
+	public RetrievableStateHandle<T> store(T state) throws Exception {
 		Exception latestException = null;
 
 		for (int attempt = 0; attempt < 10; attempt++) {
 			Path filePath = getNewFilePath();
-			FSDataOutputStream outStream;
-			try {
-				outStream = fs.create(filePath, false);
+
+			try (FSDataOutputStream outStream = fs.create(filePath, false)) {
+				InstantiationUtil.serializeObject(outStream, state);
+				return new RetrievableStreamStateHandle<T>(filePath, outStream.getPos());
 			}
 			catch (Exception e) {
 				latestException = e;
-				continue;
 			}
-
-			try(ObjectOutputStream os = new ObjectOutputStream(outStream)) {
-				os.writeObject(state);
-			}
-
-			return new FileSerializableStateHandle<>(filePath);
 		}
 
 		throw new Exception("Could not open output stream for state backend", latestException);

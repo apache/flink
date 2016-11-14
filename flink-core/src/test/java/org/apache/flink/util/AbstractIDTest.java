@@ -22,7 +22,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.core.testutils.CommonTestUtils;
 import org.junit.Test;
 
 /**
@@ -36,7 +35,7 @@ public class AbstractIDTest extends TestLogger {
 	public void testSerialization() {
 		final AbstractID origID = new AbstractID();
 		try {
-			final AbstractID copyID = CommonTestUtils.createCopyWritable(origID);
+			final AbstractID copyID = InstantiationUtil.createCopyWritable(origID);
 
 			assertEquals(origID.hashCode(), copyID.hashCode());
 			assertEquals(origID, copyID);
@@ -83,16 +82,16 @@ public class AbstractIDTest extends TestLogger {
 			AbstractID id10 = new AbstractID(Long.MIN_VALUE, Long.MAX_VALUE);
 			
 			// test self equality
-			assertEquals(0, id1.compareTo(CommonTestUtils.createCopyWritable(id1)));
-			assertEquals(0, id2.compareTo(CommonTestUtils.createCopyWritable(id2)));
-			assertEquals(0, id3.compareTo(CommonTestUtils.createCopyWritable(id3)));
-			assertEquals(0, id4.compareTo(CommonTestUtils.createCopyWritable(id4)));
-			assertEquals(0, id5.compareTo(CommonTestUtils.createCopyWritable(id5)));
-			assertEquals(0, id6.compareTo(CommonTestUtils.createCopyWritable(id6)));
-			assertEquals(0, id7.compareTo(CommonTestUtils.createCopyWritable(id7)));
-			assertEquals(0, id8.compareTo(CommonTestUtils.createCopyWritable(id8)));
-			assertEquals(0, id9.compareTo(CommonTestUtils.createCopyWritable(id9)));
-			assertEquals(0, id10.compareTo(CommonTestUtils.createCopyWritable(id10)));
+			assertEquals(0, id1.compareTo(InstantiationUtil.createCopyWritable(id1)));
+			assertEquals(0, id2.compareTo(InstantiationUtil.createCopyWritable(id2)));
+			assertEquals(0, id3.compareTo(InstantiationUtil.createCopyWritable(id3)));
+			assertEquals(0, id4.compareTo(InstantiationUtil.createCopyWritable(id4)));
+			assertEquals(0, id5.compareTo(InstantiationUtil.createCopyWritable(id5)));
+			assertEquals(0, id6.compareTo(InstantiationUtil.createCopyWritable(id6)));
+			assertEquals(0, id7.compareTo(InstantiationUtil.createCopyWritable(id7)));
+			assertEquals(0, id8.compareTo(InstantiationUtil.createCopyWritable(id8)));
+			assertEquals(0, id9.compareTo(InstantiationUtil.createCopyWritable(id9)));
+			assertEquals(0, id10.compareTo(InstantiationUtil.createCopyWritable(id10)));
 			
 			// test order
 			assertCompare(id1, id2, -1);

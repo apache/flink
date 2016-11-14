@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.Serializable;
 
 /**
@@ -42,6 +44,7 @@ import java.io.Serializable;
  * 
  * @param <T> Type of the elements that this function processes.
  */
+@Public
 public interface ReduceFunction<T> extends Function, Serializable {
 
 	/**

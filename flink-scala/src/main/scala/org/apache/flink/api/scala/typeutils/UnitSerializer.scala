@@ -17,9 +17,11 @@
  */
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
+@Internal
 class UnitSerializer extends TypeSerializerSingleton[Unit] {
 
   def isImmutableType(): Boolean = true

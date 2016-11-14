@@ -18,15 +18,18 @@
 
 package org.apache.flink.api.java.functions;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.InvalidProgramException;
+
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.lang.annotation.Retention;
 import java.util.HashSet;
 import java.util.Set;
-
-import org.apache.flink.api.common.InvalidProgramException;
 
 /**
  * This class defines Java annotations for semantic assertions that can be added to Flink functions.
@@ -34,7 +37,7 @@ import org.apache.flink.api.common.InvalidProgramException;
  * For example, a <i>ForwardedFields</i> assertion for a map-type function can be declared as:
  *
  * <pre>{@code
- * {@literal @}ForwardedFields({"f0; f1->f2"})
+ * {@literal @}ForwardedFields({"f0; f2->f1"})
  * public class MyMapper extends MapFunction<Tuple3<String, String, Integer>, Tuple3<String, Integer, Integer>>
  * {
  *     public Tuple3<String, Integer, Integer> map(Tuple3<String, String, Integer> val) {
@@ -76,6 +79,7 @@ import org.apache.flink.api.common.InvalidProgramException;
  * </b>
  *
  */
+@Public
 public class FunctionAnnotation {
 
 	/**
@@ -306,6 +310,7 @@ public class FunctionAnnotation {
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
+	@PublicEvolving
 	public @interface ReadFields {
 		String[] value();
 	}
@@ -336,6 +341,7 @@ public class FunctionAnnotation {
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
+	@PublicEvolving
 	public @interface ReadFieldsFirst {
 		String[] value();
 	}
@@ -366,6 +372,7 @@ public class FunctionAnnotation {
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
+	@PublicEvolving
 	public @interface ReadFieldsSecond {
 		String[] value();
 	}
@@ -382,6 +389,7 @@ public class FunctionAnnotation {
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
+	@PublicEvolving
 	public @interface SkipCodeAnalysis {
 	}
 
@@ -400,6 +408,7 @@ public class FunctionAnnotation {
 	 * @param udfClass The user defined function, represented by its class.
 	 * @return	The DualInputSemanticProperties containing the forwarded fields.
 	 */
+	@Internal
 	public static Set<Annotation> readSingleForwardAnnotations(Class<?> udfClass) {
 		ForwardedFields forwardedFields = udfClass.getAnnotation(ForwardedFields.class);
 		NonForwardedFields nonForwardedFields = udfClass.getAnnotation(NonForwardedFields.class);
@@ -429,7 +438,7 @@ public class FunctionAnnotation {
 	 * @param udfClass The user defined function, represented by its class.
 	 * @return	The DualInputSemanticProperties containing the forwarded fields.
 	 */
-
+	@Internal
 	public static Set<Annotation> readDualForwardAnnotations(Class<?> udfClass) {
 
 		// get readSet annotation from stub

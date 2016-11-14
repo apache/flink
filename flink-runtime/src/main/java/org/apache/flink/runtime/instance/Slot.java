@@ -18,19 +18,32 @@
 
 package org.apache.flink.runtime.instance;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
+import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.api.common.JobID;
 
+import javax.annotation.Nullable;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * Base class for task slots. TaskManagers offer one or more task slots, which define a slice of 
- * their resources.
+ * Base class for slots that the Scheduler / ExecutionGraph take from the SlotPool and use to place
+ * tasks to execute into. A slot corresponds to an AllocatedSlot (a slice of a TaskManager's resources),
+ * plus additional fields to track what is currently executed in that slot, or if the slot is still
+ * used or disposed (ExecutionGraph gave it back to the pool).
  *
  * <p>In the simplest case, a slot holds a single task ({@link SimpleSlot}). In the more complex
  * case, a slot is shared ({@link SharedSlot}) and contains a set of tasks. Shared slots may contain
  * other shared slots which in turn can hold simple slots. That way, a shared slot may define a tree
- * of slots that belong to it.</p>
+ * of slots that belong to it.
  */
 public abstract class Slot {
 
@@ -47,49 +60,105 @@ public abstract class Slot {
 	/** State where all tasks in this slot have been canceled and the slot been given back to the instance */
 	private static final int RELEASED = 2;
 
+	// temporary placeholder for Slots that are not constructed from an AllocatedSlot (prior to FLIP-6)
+	protected static final AllocationID NO_ALLOCATION_ID = new AllocationID(0, 0);
+
 	// ------------------------------------------------------------------------
 
-	/** The ID of the job this slice belongs to. */
-	private final JobID jobID;
+	/** The allocated slot that this slot represents. */
+	private final AllocatedSlot allocatedSlot;
 
-	/** The id of the group that this slot is allocated to. May be null. */
-	private final AbstractID groupID;
-
-	/** The instance on which the slot is allocated */
-	private final Instance instance;
+	/** The owner of this slot - the slot was taken from that owner and must be disposed to it */
+	private final SlotOwner owner;
 
 	/** The parent of this slot in the hierarchy, or null, if this is the parent */
+	@Nullable
 	private final SharedSlot parent;
+
+	/** The id of the group that this slot is allocated to. May be null. */
+	@Nullable
+	private final AbstractID groupID;
 
 	/** The number of the slot on which the task is deployed */
 	private final int slotNumber;
 
 	/** The state of the vertex, only atomically updated */
 	private volatile int status = ALLOCATED_AND_ALIVE;
-	
+
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * Base constructor for slots.
 	 * 
+	 * <p>This is the old way of constructing slots, prior to the FLIP-6 resource management refactoring.
+	 * 
 	 * @param jobID The ID of the job that this slot is allocated for.
-	 * @param instance The instance from which this slot is allocated.
+	 * @param owner The component from which this slot is allocated.
+	 * @param location The location info of the TaskManager where the slot was allocated from
+	 * @param slotNumber The number of this slot.
+	 * @param taskManagerGateway The actor gateway to communicate with the TaskManager
+	 * @param parent The parent slot that contains this slot. May be null, if this slot is the root.
+	 * @param groupID The ID that identifies the task group for which this slot is allocated. May be null
+	 *                if the slot does not belong to any task group.   
+	 */
+	protected Slot(
+			JobID jobID,
+			SlotOwner owner,
+			TaskManagerLocation location,
+			int slotNumber,
+			TaskManagerGateway taskManagerGateway,
+			@Nullable SharedSlot parent,
+			@Nullable AbstractID groupID) {
+
+		checkArgument(slotNumber >= 0);
+
+		this.allocatedSlot = new AllocatedSlot(
+			NO_ALLOCATION_ID,
+			jobID,
+			location,
+			slotNumber,
+			ResourceProfile.UNKNOWN,
+			taskManagerGateway);
+
+		this.owner = checkNotNull(owner);
+		this.parent = parent; // may be null
+		this.groupID = groupID; // may be null
+		this.slotNumber = slotNumber;
+	}
+
+	/**
+	 * Base constructor for slots.
+	 *
+	 * @param allocatedSlot The allocated slot that this slot represents.
+	 * @param owner The component from which this slot is allocated.
 	 * @param slotNumber The number of this slot.
 	 * @param parent The parent slot that contains this slot. May be null, if this slot is the root.
 	 * @param groupID The ID that identifies the task group for which this slot is allocated. May be null
 	 *                if the slot does not belong to any task group.   
 	 */
-	protected Slot(JobID jobID, Instance instance, int slotNumber, SharedSlot parent, AbstractID groupID) {
-		if (jobID == null || instance == null || slotNumber < 0) {
-			throw new IllegalArgumentException();
-		}
+	protected Slot(
+			AllocatedSlot allocatedSlot, SlotOwner owner, int slotNumber,
+			@Nullable SharedSlot parent, @Nullable AbstractID groupID) {
 
-		this.jobID = jobID;
-		this.instance = instance;
+		checkArgument(slotNumber >= 0);
+
+		this.allocatedSlot = checkNotNull(allocatedSlot);
+		this.owner = checkNotNull(owner);
+		this.parent = parent; // may be null
+		this.groupID = groupID; // may be null
 		this.slotNumber = slotNumber;
-		this.parent = parent;
-		this.groupID = groupID;
-
 	}
+
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Gets the allocated slot that this slot refers to.
+	 * 
+	 * @return This slot's allocated slot.
+	 */
+	public AllocatedSlot getAllocatedSlot() {
+		return allocatedSlot;
+	}
 
 	/**
 	 * Returns the ID of the job this allocated slot belongs to.
@@ -97,16 +166,46 @@ public abstract class Slot {
 	 * @return the ID of the job this allocated slot belongs to
 	 */
 	public JobID getJobID() {
-		return this.jobID;
+		return allocatedSlot.getJobID();
 	}
 
 	/**
-	 * Gets the instance from which the slot was allocated.
+	 * Gets the ID of the TaskManager that offers this slot.
 	 *
-	 * @return The instance from which the slot was allocated.
+	 * @return The ID of the TaskManager that offers this slot
 	 */
-	public Instance getInstance() {
-		return instance;
+	public ResourceID getTaskManagerID() {
+		return allocatedSlot.getTaskManagerLocation().getResourceID();
+	}
+
+	/**
+	 * Gets the location info of the TaskManager that offers this slot.
+	 *
+	 * @return The location info of the TaskManager that offers this slot
+	 */
+	public TaskManagerLocation getTaskManagerLocation() {
+		return allocatedSlot.getTaskManagerLocation();
+	}
+
+	/**
+	 * Gets the actor gateway that can be used to send messages to the TaskManager.
+	 *
+	 * <p>This method should be removed once the new interface-based RPC abstraction is in place
+	 *
+	 * @return The actor gateway that can be used to send messages to the TaskManager.
+	 */
+	public TaskManagerGateway getTaskManagerGateway() {
+		return allocatedSlot.getTaskManagerGateway();
+	}
+
+	/**
+	 * Gets the owner of this slot. The owner is the component that the slot was created from
+	 * and to which it needs to be returned after the executed tasks are done.
+	 * 
+	 * @return The owner of this slot.
+	 */
+	public SlotOwner getOwner() {
+		return owner;
 	}
 
 	/**
@@ -149,6 +248,7 @@ public abstract class Slot {
 	 * 
 	 * @return The ID identifying the logical group of slots.
 	 */
+	@Nullable
 	public AbstractID getGroupID() {
 		return groupID;
 	}
@@ -158,10 +258,18 @@ public abstract class Slot {
 	 * 
 	 * @return The parent slot, or null, if no this slot has no parent.
 	 */
+	@Nullable
 	public SharedSlot getParent() {
 		return parent;
 	}
 
+	/**
+	 * Gets the root slot of the tree containing this slot. If this slot is the root,
+	 * the method returns this slot directly, otherwise it recursively goes to the parent until
+	 * it reaches the root.
+	 * 
+	 * @return The root slot of the tree containing this slot
+	 */
 	public Slot getRoot() {
 		if (parent == null) {
 			return this;
@@ -244,11 +352,11 @@ public abstract class Slot {
 
 	@Override
 	public String toString() {
-		return hierarchy() + " - " + instance + " - " + getStateName(status);
+		return hierarchy() + " - " + getTaskManagerLocation() + " - " + getStateName(status);
 	}
 
 	protected String hierarchy() {
-		return (getParent() != null ? getParent().hierarchy() : "") + "(" + slotNumber + ")";
+		return (getParent() != null ? getParent().hierarchy() : "") + '(' + slotNumber + ')';
 	}
 
 	private static String getStateName(int state) {

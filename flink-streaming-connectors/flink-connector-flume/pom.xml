@@ -25,12 +25,12 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-streaming-connectors-parent</artifactId>
-		<version>1.0-SNAPSHOT</version>
+		<artifactId>flink-streaming-connectors</artifactId>
+		<version>1.2-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-flume</artifactId>
+	<artifactId>flink-connector-flume_2.10</artifactId>
 	<name>flink-connector-flume</name>
 
 	<packaging>jar</packaging>
@@ -44,8 +44,9 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
+			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>

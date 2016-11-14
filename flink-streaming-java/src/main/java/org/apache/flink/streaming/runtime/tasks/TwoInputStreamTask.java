@@ -20,14 +20,15 @@ package org.apache.flink.streaming.runtime.tasks;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 
+@Internal
 public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputStreamOperator<IN1, IN2, OUT>> {
 
 	private StreamTwoInputProcessor<IN1, IN2> inputProcessor;
@@ -64,17 +65,16 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 			}
 		}
 	
-		this.inputProcessor = new StreamTwoInputProcessor<IN1, IN2>(inputList1, inputList2,
+		this.inputProcessor = new StreamTwoInputProcessor<IN1, IN2>(
+				inputList1, inputList2,
 				inputDeserializer1, inputDeserializer2,
-				getCheckpointBarrierListener(),
+				this,
 				configuration.getCheckpointMode(),
 				getEnvironment().getIOManager(),
-				getExecutionConfig().areTimestampsEnabled());
+				getEnvironment().getTaskManagerInfo().getConfiguration());
 
 		// make sure that stream tasks report their I/O statistics
-		AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
-		AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
-		this.inputProcessor.setReporter(reporter);
+		inputProcessor.setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());
 	}
 
 	@Override
@@ -85,7 +85,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 		final Object lock = getCheckpointLock();
 		
 		while (running && inputProcessor.processInput(operator, lock)) {
-			checkTimerException();
+			// all the work happens in the "processInput" method
 		}
 	}
 

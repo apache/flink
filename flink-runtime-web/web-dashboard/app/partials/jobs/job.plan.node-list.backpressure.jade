@@ -1,0 +1,77 @@
+//
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+ 
+      http://www.apache.org/licenses/LICENSE-2.0
+ 
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+table.table.table-body-hover.table-clickable.table-activable
+  thead
+    tr
+      th Name
+      th Status
+
+  tbody(ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid }" ng-click="v.id == nodeid || changeNode(v.id)")
+    tr(ng-if="v.type == 'regular'")
+      td {{ v.name | humanizeText }}
+      td
+        bs-label(status="{{v.status}}") {{v.status}}
+    tr(ng-if="nodeid && v.id == nodeid")
+      td(ng-if="v.status != 'RUNNING'" colspan=2)
+        p Operator is not running. Cannot sample back pressure.
+      td(ng-if="v.status == 'RUNNING'" colspan=2)
+        table.table.table-hover.table-clickable.table-activable.table-inner
+          thead
+            tr
+              th Measurement
+              th Back Pressure Status
+          tbody
+            tr
+              td
+                span(ng-if="backPressureOperatorStats[v.id]['end-timestamp']") {{ now - backPressureOperatorStats[v.id]['end-timestamp'] | humanizeDuration }} ago
+                span(ng-if="backPressureOperatorStats[v.id]['status'] == 'deprecated'")
+                  bp-label(status="in-progress") Sampling in progress...
+              td
+                bp-label(ng-if="backPressureOperatorStats[v.id]['backpressure-level']" status="{{backPressureOperatorStats[v.id]['backpressure-level']}}") {{ backPressureOperatorStats[v.id]['backpressure-level'] | toUpperCase }}
+
+        div(ng-if="!nodeUnfolded && backPressureOperatorStats[v.id]['subtasks'] && backPressureOperatorStats[v.id]['subtasks'].length > 0")
+          a.btn.btn-default(ng-click="toggleFold()")
+            | Show subtasks
+            = ' '
+            i.fa.fa-chevron-down
+
+          a.btn.btn-default.pull-right(ng-click="deactivateNode(); $event.stopPropagation()" title="Fold")
+            i.fa.fa-chevron-up
+
+        div(ng-if="nodeUnfolded && backPressureOperatorStats[v.id]['subtasks'] && backPressureOperatorStats[v.id]['subtasks'].length > 0")
+          a.btn.btn-default(ng-click="toggleFold()")
+            | Hide subtasks
+            = ' '
+            i.fa.fa-chevron-up
+
+          a.btn.btn-default.pull-right(ng-click="deactivateNode(); $event.stopPropagation()" title="Fold")
+            i.fa.fa-chevron-up
+
+          table.table.table-hover.table-clickable.table-activable.table-inner
+            thead
+              tr
+                th Subtask
+                th Ratio
+                th Status
+            tbody
+              tr(ng-repeat="subtask in backPressureOperatorStats[nodeid]['subtasks']")
+                td {{ subtask['subtask'] + 1 }}
+                td {{ subtask['ratio'] }}
+                td
+                  bp-label(status="{{subtask['backpressure-level']}}") {{ subtask['backpressure-level'] | toUpperCase }}
+

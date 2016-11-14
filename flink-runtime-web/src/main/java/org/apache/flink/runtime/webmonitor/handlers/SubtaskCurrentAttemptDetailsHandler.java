@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
 
 import java.util.Map;
 
@@ -28,12 +29,12 @@ import java.util.Map;
  */
 public class SubtaskCurrentAttemptDetailsHandler extends SubtaskExecutionAttemptDetailsHandler {
 	
-	public SubtaskCurrentAttemptDetailsHandler(ExecutionGraphHolder executionGraphHolder) {
-		super(executionGraphHolder);
+	public SubtaskCurrentAttemptDetailsHandler(ExecutionGraphHolder executionGraphHolder, MetricFetcher fetcher) {
+		super(executionGraphHolder, fetcher);
 	}
 
 	@Override
-	public String handleRequest(ExecutionVertex vertex, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecutionVertex vertex, Map<String, String> params) throws Exception {
 		return handleRequest(vertex.getCurrentExecutionAttempt(), params);
 	}
 }

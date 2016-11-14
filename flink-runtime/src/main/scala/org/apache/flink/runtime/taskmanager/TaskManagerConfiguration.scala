@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.taskmanager
 
+import java.util.concurrent.TimeUnit
+
 import org.apache.flink.configuration.Configuration
 
 import scala.concurrent.duration.FiniteDuration
@@ -28,4 +30,27 @@ case class TaskManagerConfiguration(
     timeout: FiniteDuration,
     maxRegistrationDuration: Option[FiniteDuration],
     numberOfSlots: Int,
-    configuration: Configuration)
+    configuration: Configuration,
+    initialRegistrationPause: FiniteDuration,
+    maxRegistrationPause: FiniteDuration,
+    refusedRegistrationPause: FiniteDuration) {
+
+  def this(
+      tmpDirPaths: Array[String],
+      cleanupInterval: Long,
+      timeout: FiniteDuration,
+      maxRegistrationDuration: Option[FiniteDuration],
+      numberOfSlots: Int,
+      configuration: Configuration) {
+    this (
+      tmpDirPaths,
+      cleanupInterval,
+      timeout,
+      maxRegistrationDuration,
+      numberOfSlots,
+      configuration,
+      FiniteDuration(500, TimeUnit.MILLISECONDS),
+      FiniteDuration(30, TimeUnit.SECONDS),
+      FiniteDuration(10, TimeUnit.SECONDS))
+  }
+}

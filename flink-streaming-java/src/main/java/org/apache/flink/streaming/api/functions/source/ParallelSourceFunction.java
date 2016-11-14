@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * A stream data source that is executed in parallel. Upon execution, the runtime will
  * execute as many parallel instances of this function function as configured parallelism
@@ -30,5 +32,6 @@ package org.apache.flink.streaming.api.functions.source;
  *
  * @param <OUT> The type of the records produced by this source.
  */
+@Public
 public interface ParallelSourceFunction<OUT> extends SourceFunction<OUT> {
 }

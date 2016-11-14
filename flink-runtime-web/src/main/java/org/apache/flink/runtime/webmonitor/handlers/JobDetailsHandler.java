@@ -20,15 +20,16 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.LongCounter;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
+import org.apache.flink.runtime.webmonitor.metrics.MetricStore;
 
 import java.io.StringWriter;
 import java.util.Map;
@@ -43,16 +44,19 @@ import java.util.Map;
  *     <li>info about job vertices, including runtime, status, I/O bytes and records, subtasks in each status</li>
  * </ul>
  */
-public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
-	
-	public JobDetailsHandler(ExecutionGraphHolder executionGraphHolder) {
+public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
+
+	private final MetricFetcher fetcher;
+
+	public JobDetailsHandler(ExecutionGraphHolder executionGraphHolder, MetricFetcher fetcher) {
 		super(executionGraphHolder);
+		this.fetcher = fetcher;
 	}
 
 	@Override
-	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
 		final StringWriter writer = new StringWriter();
-		final JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+		final JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		final long now = System.currentTimeMillis();
 		
@@ -61,11 +65,12 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler impl
 		// basic info
 		gen.writeStringField("jid", graph.getJobID().toString());
 		gen.writeStringField("name", graph.getJobName());
+		gen.writeBooleanField("isStoppable", graph.isStoppable());
 		gen.writeStringField("state", graph.getState().name());
 		
 		// times and duration
 		final long jobStartTime = graph.getStatusTimestamp(JobStatus.CREATED);
-		final long jobEndTime = graph.getState().isTerminalState() ?
+		final long jobEndTime = graph.getState().isGloballyTerminalState() ?
 				graph.getStatusTimestamp(graph.getState()) : -1L;
 		gen.writeNumberField("start-time", jobStartTime);
 		gen.writeNumberField("end-time", jobEndTime);
@@ -83,13 +88,13 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler impl
 		int[] jobVerticesPerState = new int[ExecutionState.values().length];
 		gen.writeArrayFieldStart("vertices");
 
-		for (ExecutionJobVertex ejv : graph.getVerticesTopologically()) {
+		for (AccessExecutionJobVertex ejv : graph.getVerticesTopologically()) {
 			int[] tasksPerState = new int[ExecutionState.values().length];
 			long startTime = Long.MAX_VALUE;
 			long endTime = 0;
 			boolean allFinished = true;
 			
-			for (ExecutionVertex vertex : ejv.getTaskVertices()) {
+			for (AccessExecutionVertex vertex : ejv.getTaskVertices()) {
 				final ExecutionState state = vertex.getExecutionState();
 				tasksPerState[state.ordinal()]++;
 
@@ -122,17 +127,10 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler impl
 			ExecutionState jobVertexState = 
 					ExecutionJobVertex.getAggregateJobVertexState(tasksPerState, ejv.getParallelism());
 			jobVerticesPerState[jobVertexState.ordinal()]++;
-			
-			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> metrics = ejv.getAggregatedMetricAccumulators();
-
-			LongCounter readBytes = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_IN);
-			LongCounter writeBytes = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_OUT);
-			LongCounter readRecords = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_IN);
-			LongCounter writeRecords = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_OUT);
 
 			gen.writeStartObject();
 			gen.writeStringField("id", ejv.getJobVertexId().toString());
-			gen.writeStringField("name", ejv.getJobVertex().getName());
+			gen.writeStringField("name", ejv.getName());
 			gen.writeNumberField("parallelism", ejv.getParallelism());
 			gen.writeStringField("status", jobVertexState.name());
 
@@ -146,11 +144,36 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler impl
 			}
 			gen.writeEndObject();
 			
+			long numBytesIn = 0;
+			long numBytesOut = 0;
+			long numRecordsIn = 0;
+			long numRecordsOut = 0;
+
+			for (AccessExecutionVertex vertex : ejv.getTaskVertices()) {
+				IOMetrics ioMetrics = vertex.getCurrentExecutionAttempt().getIOMetrics();
+
+				if (ioMetrics != null) { // execAttempt is already finished, use final metrics stored in ExecutionGraph
+					numBytesIn += ioMetrics.getNumBytesInLocal() + ioMetrics.getNumBytesInRemote();
+					numBytesOut += ioMetrics.getNumBytesOut();
+					numRecordsIn += ioMetrics.getNumRecordsIn();
+					numRecordsOut += ioMetrics.getNumRecordsOut();
+				} else { // execAttempt is still running, use MetricQueryService instead
+					fetcher.update();
+					MetricStore.SubtaskMetricStore metrics = fetcher.getMetricStore().getSubtaskMetricStore(graph.getJobID().toString(), ejv.getJobVertexId().toString(), vertex.getParallelSubtaskIndex());
+					if (metrics != null) {
+						numBytesIn += Long.valueOf(metrics.getMetric("numBytesInLocal", "0")) + Long.valueOf(metrics.getMetric("numBytesInRemote", "0"));
+						numBytesOut += Long.valueOf(metrics.getMetric("numBytesOut", "0"));
+						numRecordsIn += Long.valueOf(metrics.getMetric("numRecordsIn", "0"));
+						numRecordsOut += Long.valueOf(metrics.getMetric("numRecordsOut", "0"));
+					}
+				}
+			}
+
 			gen.writeObjectFieldStart("metrics");
-			gen.writeNumberField("read-bytes", readBytes != null ? readBytes.getLocalValuePrimitive() : -1L);
-			gen.writeNumberField("write-bytes", writeBytes != null ? writeBytes.getLocalValuePrimitive() : -1L);
-			gen.writeNumberField("read-records", readRecords != null ? readRecords.getLocalValuePrimitive() : -1L);
-			gen.writeNumberField("write-records",writeRecords != null ? writeRecords.getLocalValuePrimitive() : -1L);
+			gen.writeNumberField("read-bytes", numBytesIn);
+			gen.writeNumberField("write-bytes", numBytesOut);
+			gen.writeNumberField("read-records", numRecordsIn);
+			gen.writeNumberField("write-records", numRecordsOut);
 			gen.writeEndObject();
 			
 			gen.writeEndObject();

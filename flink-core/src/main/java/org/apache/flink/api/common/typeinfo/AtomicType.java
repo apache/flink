@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeinfo;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 
@@ -29,6 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
  * In contrast to atomic types are composite types, where the type information is aware of the individual
  * fields and individual fields may be used as a key.
  */
+@Public
 public interface AtomicType<T> {
 	
 	/**

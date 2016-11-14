@@ -21,7 +21,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import com.fasterxml.jackson.core.JsonGenerator;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
 import java.io.StringWriter;
@@ -31,24 +31,24 @@ import java.util.Map;
  * Base class for request handlers whose response depends on a specific job vertex (defined
  * via the "vertexid" parameter) in a specific job, defined via (defined voa the "jobid" parameter).  
  */
-public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskAttemptRequestHandler implements RequestHandler.JsonResponse {
+public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskAttemptRequestHandler {
 	
 	public SubtaskExecutionAttemptAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
 	@Override
-	public String handleRequest(Execution execAttempt, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecution execAttempt, Map<String, String> params) throws Exception {
 		final StringifiedAccumulatorResult[] accs = execAttempt.getUserAccumulatorsStringified();
 		
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		gen.writeStartObject();
 
-		gen.writeNumberField("subtask", execAttempt.getVertex().getParallelSubtaskIndex());
+		gen.writeNumberField("subtask", execAttempt.getParallelSubtaskIndex());
 		gen.writeNumberField("attempt", execAttempt.getAttemptNumber());
-		gen.writeStringField("id", execAttempt.getAttemptId().toShortString());
+		gen.writeStringField("id", execAttempt.getAttemptId().toString());
 		
 		gen.writeArrayFieldStart("user-accumulators");
 		for (StringifiedAccumulatorResult acc : accs) {

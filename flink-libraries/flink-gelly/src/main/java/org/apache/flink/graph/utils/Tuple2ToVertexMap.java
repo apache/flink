@@ -19,17 +19,28 @@
 package org.apache.flink.graph.utils;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 
+/**
+ * Create a Vertex DataSet from a Tuple2 DataSet
+ *
+ * @param <K> vertex ID type
+ * @param <VV> vertex value type
+ */
 @ForwardedFields("f0; f1")
 public class Tuple2ToVertexMap<K, VV> implements MapFunction<Tuple2<K, VV>, Vertex<K, VV>> {
 
 	private static final long serialVersionUID = 1L;
 
-	public Vertex<K, VV> map(Tuple2<K, VV> vertex) {
-		return new Vertex<K, VV>(vertex.f0, vertex.f1);
+	private Vertex<K, VV> vertex = new Vertex<>();
+
+	@Override
+	public Vertex<K, VV> map(Tuple2<K, VV> tuple) {
+		vertex.f0 = tuple.f0;
+		vertex.f1 = tuple.f1;
+		return vertex;
 	}
 
 }

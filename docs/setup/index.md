@@ -1,5 +1,9 @@
 ---
-title: "Setup"
+title: "Setup & Operations"
+nav-id: "setup"
+nav-title: '<i class="fa fa-cogs" aria-hidden="true"></i> Setup & Operations'
+nav-parent_id: root
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -18,20 +18,24 @@
 package org.apache.flink.client.cli;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
-import java.net.URL;
 import java.net.MalformedURLException;
-import java.util.List;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.apache.flink.client.cli.CliFrontendParser.ARGS_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.CLASSPATH_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.CLASS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.CLASS_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.CLASSPATH_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.LOGGING_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_ALLOW_NON_RESTORED_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_PATH_OPTION;
 
 /**
  * Base class for command line options that refer to a JAR file program.
@@ -51,6 +55,8 @@ public abstract class ProgramOptions extends CommandLineOptions {
 	private final boolean stdoutLogging;
 
 	private final boolean detachedMode;
+
+	private final SavepointRestoreSettings savepointSettings;
 
 	protected ProgramOptions(CommandLine line) throws CliArgsException {
 		super(line);
@@ -100,11 +106,19 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			}
 		}
 		else {
-			parallelism = -1;
+			parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 		}
 
 		stdoutLogging = !line.hasOption(LOGGING_OPTION.getOpt());
 		detachedMode = line.hasOption(DETACHED_OPTION.getOpt());
+
+		if (line.hasOption(SAVEPOINT_PATH_OPTION.getOpt())) {
+			String savepointPath = line.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
+			boolean allowNonRestoredState = line.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt());
+			this.savepointSettings = SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState);
+		} else {
+			this.savepointSettings = SavepointRestoreSettings.none();
+		}
 	}
 
 	public String getJarFilePath() {
@@ -133,5 +147,9 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	public boolean getDetachedMode() {
 		return detachedMode;
+	}
+
+	public SavepointRestoreSettings getSavepointRestoreSettings() {
+		return savepointSettings;
 	}
 }

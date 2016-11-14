@@ -36,7 +36,7 @@ public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 	public void testDeclare() {
 		for (int i = 0; i < 2; ++i) { // test case: simple / non-direct
 			for (int j = 1; j < 2; ++j) { // number of streams
-				for (int k = 0; k <= 25; ++k) { // number of attributes
+				for (int k = 0; k <= 24; ++k) { // number of attributes
 					this.runDeclareTest(i, j, k);
 				}
 			}
@@ -45,22 +45,22 @@ public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testDeclareSimpleToManyAttributes() {
-		this.runDeclareTest(0, this.r.nextBoolean() ? 1 : 2, 26);
+		this.runDeclareTest(0, this.r.nextBoolean() ? 1 : 2, 25);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testDeclareNonDirectToManyAttributes() {
-		this.runDeclareTest(1, this.r.nextBoolean() ? 1 : 2, 26);
+		this.runDeclareTest(1, this.r.nextBoolean() ? 1 : 2, 25);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testDeclareDefaultStreamToManyAttributes() {
-		this.runDeclareTest(2, this.r.nextBoolean() ? 1 : 2, 26);
+		this.runDeclareTest(2, this.r.nextBoolean() ? 1 : 2, 25);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testDeclareFullToManyAttributes() {
-		this.runDeclareTest(3, this.r.nextBoolean() ? 1 : 2, 26);
+		this.runDeclareTest(3, this.r.nextBoolean() ? 1 : 2, 25);
 	}
 
 	private void runDeclareTest(final int testCase, final int numberOfStreams,
@@ -95,7 +95,7 @@ public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 		for (String stream : streams) {
 			final TypeInformation<?> type = declarer.getOutputType(stream);
 
-			Assert.assertEquals(numberOfAttributes, type.getArity());
+			Assert.assertEquals(numberOfAttributes + 1, type.getArity());
 			Assert.assertTrue(type.isTupleType());
 		}
 	}
@@ -142,7 +142,7 @@ public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 
 	@Test
 	public void testGetGroupingFieldIndexes() {
-		final int numberOfAttributes = 5 + this.r.nextInt(21);
+		final int numberOfAttributes = 5 + this.r.nextInt(20);
 		final String[] attributes = new String[numberOfAttributes];
 		for (int i = 0; i < numberOfAttributes; ++i) {
 			attributes[i] = "a" + i;
@@ -151,12 +151,12 @@ public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 		final FlinkOutputFieldsDeclarer declarer = new FlinkOutputFieldsDeclarer();
 		declarer.declare(new Fields(attributes));
 
-		final int numberOfKeys = 1 + this.r.nextInt(25);
+		final int numberOfKeys = 1 + this.r.nextInt(24);
 		final LinkedList<String> groupingFields = new LinkedList<String>();
 		final boolean[] indexes = new boolean[numberOfAttributes];
 
 		for (int i = 0; i < numberOfAttributes; ++i) {
-			if (this.r.nextInt(26) < numberOfKeys) {
+			if (this.r.nextInt(25) < numberOfKeys) {
 				groupingFields.add(attributes[i]);
 				indexes[i] = true;
 			} else {

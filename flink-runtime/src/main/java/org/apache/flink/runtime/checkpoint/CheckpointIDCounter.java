@@ -18,20 +18,27 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.jobgraph.JobStatus;
+
 /**
  * A checkpoint ID counter.
  */
 public interface CheckpointIDCounter {
 
 	/**
-	 * Starts the {@link CheckpointIDCounter} service.
+	 * Starts the {@link CheckpointIDCounter} service down.
 	 */
 	void start() throws Exception;
 
 	/**
-	 * Stops the {@link CheckpointIDCounter} service.
+	 * Shuts the {@link CheckpointIDCounter} service.
+	 *
+	 * <p>The job status is forwarded and used to decide whether state should
+	 * actually be discarded or kept.
+	 *
+	 * @param jobStatus Job state on shut down
 	 */
-	void stop() throws Exception;
+	void shutdown(JobStatus jobStatus) throws Exception;
 
 	/**
 	 * Atomically increments the current checkpoint ID.
@@ -39,5 +46,12 @@ public interface CheckpointIDCounter {
 	 * @return The previous checkpoint ID
 	 */
 	long getAndIncrement() throws Exception;
-	
+
+	/**
+	 * Sets the current checkpoint ID.
+	 *
+	 * @param newId The new ID
+	 */
+	void setCount(long newId) throws Exception;
+
 }

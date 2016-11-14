@@ -19,15 +19,20 @@
 
 package org.apache.flink.client;
 
-import static org.apache.flink.client.CliFrontendTestUtils.*;
-import static org.junit.Assert.*;
-
-import org.apache.flink.client.cli.CommandLineOptions;
-import org.apache.flink.client.program.Client;
+import org.apache.flink.client.cli.CliFrontendParser;
+import org.apache.flink.client.cli.RunOptions;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mockito.Mockito;
+
+import static org.apache.flink.client.CliFrontendTestUtils.getTestJarPath;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 
 public class CliFrontendRunTest {
@@ -35,7 +40,6 @@ public class CliFrontendRunTest {
 	@BeforeClass
 	public static void init() {
 		CliFrontendTestUtils.pipeSystemOutToNull();
-		CliFrontendTestUtils.clearGlobalConfiguration();
 	}
 	
 	@Test
@@ -73,7 +77,7 @@ public class CliFrontendRunTest {
 			// test detached mode
 			{
 				String[] parameters = {"-p", "2", "-d", getTestJarPath()};
-				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(2, false, true);
+				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(2, true, true);
 				assertEquals(0, testFrontend.run(parameters));
 			}
 
@@ -90,6 +94,38 @@ public class CliFrontendRunTest {
 				CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 				assertNotEquals(0, testFrontend.run(parameters));
 			}
+
+			// test configure savepoint path (no ignore flag)
+			{
+				String[] parameters = {"-s", "expectedSavepointPath", getTestJarPath()};
+				RunOptions options = CliFrontendParser.parseRunCommand(parameters);
+				SavepointRestoreSettings savepointSettings = options.getSavepointRestoreSettings();
+				assertTrue(savepointSettings.restoreSavepoint());
+				assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
+				assertFalse(savepointSettings.allowNonRestoredState());
+			}
+
+			// test configure savepoint path (with ignore flag)
+			{
+				String[] parameters = {"-s", "expectedSavepointPath", "-n", getTestJarPath()};
+				RunOptions options = CliFrontendParser.parseRunCommand(parameters);
+				SavepointRestoreSettings savepointSettings = options.getSavepointRestoreSettings();
+				assertTrue(savepointSettings.restoreSavepoint());
+				assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
+				assertTrue(savepointSettings.allowNonRestoredState());
+			}
+
+			// test jar arguments
+			{
+				String[] parameters =
+					{"-m", "localhost:6123", getTestJarPath(), "-arg1", "value1", "justavalue", "--arg2", "value2"};
+				RunOptions options = CliFrontendParser.parseRunCommand(parameters);
+				assertEquals("-arg1", options.getProgramArgs()[0]);
+				assertEquals("value1", options.getProgramArgs()[1]);
+				assertEquals("justavalue", options.getProgramArgs()[2]);
+				assertEquals("--arg2", options.getProgramArgs()[3]);
+				assertEquals("value2", options.getProgramArgs()[4]);
+			}
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -98,13 +134,13 @@ public class CliFrontendRunTest {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static final class RunTestingCliFrontend extends CliFrontend {
-		
+
 		private final int expectedParallelism;
 		private final boolean sysoutLogging;
 		private final boolean isDetached;
-		
+
 		public RunTestingCliFrontend(int expectedParallelism, boolean logging, boolean isDetached) throws Exception {
 			super(CliFrontendTestUtils.getConfigDir());
 			this.expectedParallelism = expectedParallelism;
@@ -113,22 +149,11 @@ public class CliFrontendRunTest {
 		}
 
 		@Override
-		protected int executeProgramDetached(PackagedProgram program, Client client, int parallelism) {
-			assertTrue(isDetached);
-			assertEquals(this.expectedParallelism, parallelism);
-			assertEquals(this.sysoutLogging, client.getPrintStatusDuringExecution());
+		protected int executeProgram(PackagedProgram program, ClusterClient client, int parallelism) {
+			assertEquals(isDetached, client.isDetached());
+			assertEquals(sysoutLogging, client.getPrintStatusDuringExecution());
+			assertEquals(expectedParallelism, parallelism);
 			return 0;
-		}
-
-		@Override
-		protected int executeProgramBlocking(PackagedProgram program, Client client, int parallelism) {
-			assertTrue(!isDetached);
-			return 0;
-		}
-
-		@Override
-		protected Client getClient(CommandLineOptions options, String programName, int userParallelism, boolean detached) throws Exception {
-			return Mockito.mock(Client.class);
 		}
 	}
 }

@@ -20,16 +20,21 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.junit.Test;
 
 import scala.Tuple2;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.UnknownHostException;
+import java.io.PrintWriter;
+import java.lang.reflect.Field;
+import java.net.*;
+import java.util.UUID;
 
 import static org.junit.Assert.*;
 
@@ -104,6 +109,34 @@ public class TaskManagerConfigurationTest {
 	}
 
 	@Test
+	public void testDefaultFsParameterLoading() {
+		final File tmpDir = getTmpDir();
+		final File confFile =  new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
+
+		try {
+			final URI defaultFS = new URI("otherFS", null, "localhost", 1234, null, null, null);
+
+			final PrintWriter pw1 = new PrintWriter(confFile);
+			pw1.println("fs.default-scheme: "+ defaultFS);
+			pw1.close();
+
+			String[] args = new String[]{"--configDir:" + tmpDir};
+			TaskManager.parseArgsAndLoadConfig(args);
+
+			Field f = FileSystem.class.getDeclaredField("defaultScheme");
+			f.setAccessible(true);
+			URI scheme = (URI) f.get(null);
+
+			assertEquals("Default Filesystem Scheme not configured.", scheme, defaultFS);
+		} catch (Exception e) {
+			fail(e.getMessage());
+		} finally {
+			confFile.delete();
+			tmpDir.delete();
+		}
+	}
+
+	@Test
 	public void testNetworkInterfaceSelection() {
 		ServerSocket server;
 		String hostname = "localhost";
@@ -111,13 +144,7 @@ public class TaskManagerConfigurationTest {
 		try {
 			InetAddress localhostAddress = InetAddress.getByName(hostname);
 			server = new ServerSocket(0, 50, localhostAddress);
-		}
-		catch (UnknownHostException e) {
-			// may happen if disconnected. skip test.
-			System.err.println("Skipping 'testNetworkInterfaceSelection' test.");
-			return;
-		}
-		catch (IOException e) {
+		} catch (IOException e) {
 			// may happen in certain test setups, skip test.
 			System.err.println("Skipping 'testNetworkInterfaceSelection' test.");
 			return;
@@ -145,4 +172,9 @@ public class TaskManagerConfigurationTest {
 		}
 	}
 
+	private File getTmpDir() {
+		File tmpDir = new File(CommonTestUtils.getTempDir(), UUID.randomUUID().toString());
+		assertTrue("could not create temp directory", tmpDir.mkdirs());
+		return tmpDir;
+	}
 }

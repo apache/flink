@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.scala.io
 
+import java.util.Locale
+
 import com.google.common.base.Charsets
 import com.google.common.io.Files
 import org.apache.flink.api.scala._
@@ -120,5 +122,5 @@ class POJOItem(var f1: String, var f2: Double, var f3: Int) {
     this("", 0.0, 0)
   }
 
-  override def toString: String = "%s,%.02f,%d".format(f1, f2, f3)
+  override def toString: String = "%s,%.02f,%d".formatLocal(Locale.US, f1, f2, f3)
 }

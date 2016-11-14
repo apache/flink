@@ -77,7 +77,7 @@ public class AdditionalOperatorsTest extends CompilerTestBase {
 		DataSet<Long> set2 = env.generateSequence(0,1);
 
 		set1.crossWithHuge(set2).name("Cross")
-				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());;
+				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 
 		try {
 			Plan plan = env.createProgramPlan();

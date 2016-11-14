@@ -17,7 +17,6 @@
  */
 
 package org.apache.flink.graph;
-import com.google.common.base.Preconditions;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -27,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A class to build a Graph using path(s) provided to CSV file(s) with optional vertex and edge data.
@@ -104,7 +104,7 @@ public class GraphCsvReader {
 	public <K, VV, EV> Graph<K, VV, EV> types(Class<K> vertexKey, Class<VV> vertexValue,
 			Class<EV> edgeValue) {
 
-		DataSet<Tuple2<K, VV>> vertices = null;
+		DataSet<Tuple2<K, VV>> vertices;
 
 		if (edgeReader == null) {
 			throw new RuntimeException("The edges input file cannot be null!");
@@ -154,16 +154,15 @@ public class GraphCsvReader {
 			throw new RuntimeException("The edges input file cannot be null!");
 		}
 
-		@SuppressWarnings("serial")
 		DataSet<Tuple3<K, K, NullValue>> edges = edgeReader.types(vertexKey, vertexKey)
 				.map(new MapFunction<Tuple2<K, K>, Tuple3<K, K, NullValue>>() {
 
 					private static final long serialVersionUID = -2981792951286476970L;
 
 					public Tuple3<K, K, NullValue> map(Tuple2<K, K> edge) {
-						return new Tuple3<K, K, NullValue>(edge.f0, edge.f1, NullValue.getInstance());
+						return new Tuple3<>(edge.f0, edge.f1, NullValue.getInstance());
 					}
-				}).withForwardedFields("f0;f1");;
+				}).withForwardedFields("f0;f1");
 
 		return Graph.fromTupleDataSet(edges, executionContext);
 	}
@@ -180,7 +179,7 @@ public class GraphCsvReader {
 	@SuppressWarnings({ "serial", "unchecked" })
 	public <K, VV> Graph<K, VV, NullValue> vertexTypes(Class<K> vertexKey, Class<VV> vertexValue) {
 		
-		DataSet<Tuple2<K, VV>> vertices = null;
+		DataSet<Tuple2<K, VV>> vertices;
 
 		if (edgeReader == null) {
 			throw new RuntimeException("The edges input file cannot be null!");
@@ -190,7 +189,7 @@ public class GraphCsvReader {
 				.map(new MapFunction<Tuple2<K,K>, Tuple3<K, K, NullValue>>() {
 
 					public Tuple3<K, K, NullValue> map(Tuple2<K, K> input) {
-						return new Tuple3<K, K, NullValue>(input.f0, input.f1, NullValue.getInstance());
+						return new Tuple3<>(input.f0, input.f1, NullValue.getInstance());
 					}
 				}).withForwardedFields("f0;f1");
 

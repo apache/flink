@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 
@@ -27,6 +29,7 @@ import java.util.ArrayList;
  * @param <IN>
  *            Input tuple type
  */
+@PublicEvolving
 public abstract class WriteFormat<IN> implements Serializable {
 	private static final long serialVersionUID = 1L;
 

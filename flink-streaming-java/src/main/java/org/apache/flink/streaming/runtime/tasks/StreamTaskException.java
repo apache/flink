@@ -17,10 +17,13 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * An exception that is thrown by the stream vertices when encountering an
  * illegal condition.
  */
+@Internal
 public class StreamTaskException extends RuntimeException {
 
 	/**

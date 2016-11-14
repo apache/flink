@@ -20,7 +20,6 @@ package org.apache.flink.optimizer.plantranslate;
 
 import com.fasterxml.jackson.core.JsonFactory;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
@@ -31,6 +30,7 @@ import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.plan.BulkIterationPlanNode;
@@ -50,7 +50,6 @@ import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.optimizer.plan.WorksetPlanNode;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.optimizer.util.Utils;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -81,11 +80,9 @@ import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.Visitor;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -110,10 +107,11 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	
 	public static final String MERGE_ITERATION_AUX_TASKS_KEY = "compiler.merge-iteration-aux";
 	
-	private static final boolean mergeIterationAuxTasks = GlobalConfiguration.getBoolean(MERGE_ITERATION_AUX_TASKS_KEY, false);
-	
+	private static final boolean mergeIterationAuxTasks =
+		GlobalConfiguration.loadConfiguration().getBoolean(MERGE_ITERATION_AUX_TASKS_KEY, false);
+
 	private static final TaskInChain ALREADY_VISITED_PLACEHOLDER = new TaskInChain(null, null, null, null);
-	
+
 	// ------------------------------------------------------------------------
 
 	private Map<PlanNode, JobVertex> vertices; // a map from optimizer nodes to job vertices
@@ -129,6 +127,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	private final int defaultMaxFan;
 	
 	private final float defaultSortSpillingThreshold;
+
+	private final boolean useLargeRecordHandler;
 	
 	private int iterationIdEnumerator = 1;
 	
@@ -146,6 +146,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	public JobGraphGenerator() {
 		this.defaultMaxFan = ConfigConstants.DEFAULT_SPILLING_MAX_FAN;
 		this.defaultSortSpillingThreshold = ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD;
+		this.useLargeRecordHandler = ConfigConstants.DEFAULT_USE_LARGE_RECORD_HANDLER;
 	}
 	
 	public JobGraphGenerator(Configuration config) {
@@ -153,6 +154,9 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			ConfigConstants.DEFAULT_SPILLING_MAX_FAN);
 		this.defaultSortSpillingThreshold = config.getFloat(ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD_KEY,
 			ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD);
+		this.useLargeRecordHandler = config.getBoolean(
+				ConfigConstants.USE_LARGE_RECORD_HANDLER_KEY,
+				ConfigConstants.DEFAULT_USE_LARGE_RECORD_HANDLER);
 	}
 
 	/**
@@ -215,11 +219,11 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		attachOperatorNamesAndDescriptions();
 
 		// ----------- finalize the job graph -----------
-		
+
 		// create the job graph object
 		JobGraph graph = new JobGraph(jobId, program.getJobName());
-		graph.setNumberOfExecutionRetries(program.getOriginalPlan().getNumberOfExecutionRetries());
-		graph.setExecutionRetryDelay(program.getOriginalPlan().getExecutionRetryDelay());
+		graph.setExecutionConfig(program.getOriginalPlan().getExecutionConfig());
+
 		graph.setAllowQueuedScheduling(false);
 		graph.setSessionTimeout(program.getOriginalPlan().getSessionTimeout());
 
@@ -238,15 +242,6 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			DistributedCache.writeFileInfoToConfig(e.getKey(), e.getValue(), graph.getJobConfiguration());
 		}
 
-		try {
-			InstantiationUtil.writeObjectToConfig(
-					program.getOriginalPlan().getExecutionConfig(),
-					graph.getJobConfiguration(),
-					ExecutionConfig.CONFIG_KEY);
-		} catch (IOException e) {
-			throw new RuntimeException("Config object could not be written to Job Configuration: " + e);
-		}
-
 		// release all references again
 		this.vertices = null;
 		this.chainedTasks = null;
@@ -254,11 +249,11 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		this.auxVertices = null;
 		this.iterations = null;
 		this.iterationStack = null;
-		
+
 		// return job graph
 		return graph;
 	}
-	
+
 	/**
 	 * This methods implements the pre-visiting during a depth-first traversal. It create the job vertex and
 	 * sets local strategy.
@@ -1063,6 +1058,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			config.setRelativeMemoryInput(inputNum, c.getRelativeMemoryLocalStrategy());
 			config.setFilehandlesInput(inputNum, this.defaultMaxFan);
 			config.setSpillingThresholdInput(inputNum, this.defaultSortSpillingThreshold);
+			config.setUseLargeRecordHandler(this.useLargeRecordHandler);
 		}
 	}
 
@@ -1145,8 +1141,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			if (dataDistribution != null) {
 				sourceConfig.setOutputDataDistribution(dataDistribution, outputIndex);
 			} else {
-				throw new RuntimeException("Range partitioning requires data distribution");
-				// TODO: inject code and configuration for automatic histogram generation
+				throw new RuntimeException("Range partitioning requires data distribution.");
 			}
 		}
 		
@@ -1518,14 +1513,21 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		
 		String convAggName = aggs.getConvergenceCriterionAggregatorName();
 		ConvergenceCriterion<?> convCriterion = aggs.getConvergenceCriterion();
-		
+
 		if (convCriterion != null || convAggName != null) {
-			throw new CompilerException("Error: Cannot use custom convergence criterion with workset iteration. Workset iterations have implicit convergence criterion where workset is empty.");
+			if (convCriterion == null) {
+				throw new CompilerException("Error: Convergence criterion aggregator set, but criterion is null.");
+			}
+			if (convAggName == null) {
+				throw new CompilerException("Error: Aggregator convergence criterion set, but aggregator is null.");
+			}
+
+			syncConfig.setConvergenceCriterion(convAggName, convCriterion);
 		}
 		
 		headConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new LongSumAggregator());
 		syncConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new LongSumAggregator());
-		syncConfig.setConvergenceCriterion(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new WorksetEmptyConvergenceCriterion());
+		syncConfig.setImplicitConvergenceCriterion(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new WorksetEmptyConvergenceCriterion());
 	}
 	
 	private String getDescriptionForUserCode(UserCodeWrapper<?> wrapper) {

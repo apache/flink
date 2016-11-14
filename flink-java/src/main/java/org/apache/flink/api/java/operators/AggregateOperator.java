@@ -19,13 +19,15 @@
 package org.apache.flink.api.java.operators;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -38,8 +40,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
-
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 /**
  * This operator represents the application of a "aggregate" operation on a data set, and the
@@ -47,11 +48,12 @@ import com.google.common.base.Preconditions;
  * 
  * @param <IN> The type of the data set aggregated by the operator.
  */
+@Public
 public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, AggregateOperator<IN>> {
 	
-	private final List<AggregationFunction<?>> aggregationFunctions = new ArrayList<AggregationFunction<?>>(4);
+	private final List<AggregationFunction<?>> aggregationFunctions = new ArrayList<>(4);
 	
-	private final List<Integer> fields = new ArrayList<Integer>(4);
+	private final List<Integer> fields = new ArrayList<>(4);
 	
 	private final Grouping<IN> grouping;
 	
@@ -95,16 +97,16 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	 * @param field
 	 */
 	public AggregateOperator(Grouping<IN> input, Aggregations function, int field, String aggregateLocationName) {
-		super(Preconditions.checkNotNull(input).getDataSet(), input.getDataSet().getType());
+		super(Preconditions.checkNotNull(input).getInputDataSet(), input.getInputDataSet().getType());
 		Preconditions.checkNotNull(function);
 		
 		this.aggregateLocationName = aggregateLocationName;
 		
-		if (!input.getDataSet().getType().isTupleType()) {
+		if (!input.getInputDataSet().getType().isTupleType()) {
 			throw new InvalidProgramException("Aggregating on field positions is only possible on tuple data types.");
 		}
 		
-		TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) input.getDataSet().getType();
+		TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) input.getInputDataSet().getType();
 		
 		if (field < 0 || field >= inType.getArity()) {
 			throw new IllegalArgumentException("Aggregation field position is out of range.");
@@ -155,6 +157,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 
 	@SuppressWarnings("unchecked")
 	@Override
+	@Internal
 	protected org.apache.flink.api.common.operators.base.GroupReduceOperatorBase<IN, IN, GroupReduceFunction<IN, IN>> translateToDataFlow(Operator<IN> input) {
 		
 		// sanity check
@@ -186,7 +189,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 		// distinguish between grouped reduce and non-grouped reduce
 		if (this.grouping == null) {
 			// non grouped aggregation
-			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getResultType());
+			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<>(getInputType(), getResultType());
 			GroupReduceOperatorBase<IN, IN, GroupReduceFunction<IN, IN>> po =
 					new GroupReduceOperatorBase<IN, IN, GroupReduceFunction<IN, IN>>(function, operatorInfo, new int[0], name);
 			
@@ -203,7 +206,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 		if (this.grouping.getKeys() instanceof Keys.ExpressionKeys) {
 			// grouped aggregation
 			int[] logicalKeyPositions = this.grouping.getKeys().computeLogicalKeyPositions();
-			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getResultType());
+			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<>(getInputType(), getResultType());
 			GroupReduceOperatorBase<IN, IN, GroupReduceFunction<IN, IN>> po =
 					new GroupReduceOperatorBase<IN, IN, GroupReduceFunction<IN, IN>>(function, operatorInfo, logicalKeyPositions, name);
 			
@@ -214,19 +217,17 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			po.setCustomPartitioner(grouping.getCustomPartitioner());
 			
 			SingleInputSemanticProperties props = new SingleInputSemanticProperties();
-			
-			for (int i = 0; i < logicalKeyPositions.length; i++) {
-				int keyField = logicalKeyPositions[i];
+
+			for (int keyField : logicalKeyPositions) {
 				boolean keyFieldUsedInAgg = false;
-				
-				for (int k = 0; k < fields.length; k++) {
-					int aggField = fields[k];
+
+				for (int aggField : fields) {
 					if (keyField == aggField) {
 						keyFieldUsedInAgg = true;
 						break;
 					}
 				}
-				
+
 				if (!keyFieldUsedInAgg) {
 					props.addForwardedField(keyField, keyField);
 				}
@@ -247,8 +248,11 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	
 	// --------------------------------------------------------------------------------------------
 	
-	@Combinable
-	public static final class AggregatingUdf<T extends Tuple> extends RichGroupReduceFunction<T, T> {
+	@Internal
+	public static final class AggregatingUdf<T extends Tuple>
+		extends RichGroupReduceFunction<T, T>
+		implements GroupCombineFunction<T, T> {
+
 		private static final long serialVersionUID = 1L;
 		
 		private final int[] fieldPositions;
@@ -268,8 +272,8 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
-			for (int i = 0; i < aggFunctions.length; i++) {
-				aggFunctions[i].initializeAggregate();
+			for (AggregationFunction<Object> aggFunction : aggFunctions) {
+				aggFunction.initializeAggregate();
 			}
 		}
 		
@@ -280,24 +284,28 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 
 			// aggregators are initialized from before
 			
-			T current = null;
-			final Iterator<T> values = records.iterator();
-			while (values.hasNext()) {
-				current = values.next();
-				
+			T outT = null;
+			for (T record : records) {
+				outT = record;
+
 				for (int i = 0; i < fieldPositions.length; i++) {
-						Object val = current.getFieldNotNull(fieldPositions[i]);
-						aggFunctions[i].aggregate(val);
+					Object val = record.getFieldNotNull(fieldPositions[i]);
+					aggFunctions[i].aggregate(val);
 				}
 			}
 			
 			for (int i = 0; i < fieldPositions.length; i++) {
 				Object aggVal = aggFunctions[i].getAggregate();
-				current.setField(aggVal, fieldPositions[i]);
+				outT.setField(aggVal, fieldPositions[i]);
 				aggFunctions[i].initializeAggregate();
 			}
 			
-			out.collect(current);
+			out.collect(outT);
+		}
+
+		@Override
+		public void combine(Iterable<T> records, Collector<T> out) {
+			reduce(records, out);
 		}
 		
 	}

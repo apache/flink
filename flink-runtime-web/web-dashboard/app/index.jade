@@ -66,6 +66,11 @@ html(lang='en')
               i.fa.fa-server.fa-fw
               | 
               | Job Manager
+          li
+            a(ui-sref="submit" ui-sref-active='active')
+              i.fa.fa-upload.fa-fw
+              | 
+              | Submit new Job
 
     #content(ng-class="{ 'sidebar-visible': sidebarVisible }")
       div(ui-view='main')

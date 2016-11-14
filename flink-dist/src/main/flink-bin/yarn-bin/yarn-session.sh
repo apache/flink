@@ -17,8 +17,6 @@
 # limitations under the License.
 ################################################################################
 
-
-
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
@@ -35,14 +33,15 @@ JVM_ARGS="$JVM_ARGS -Xmx512m"
 # Flink CLI client
 constructCLIClientClassPath() {
 
-	for jarfile in $FLINK_LIB_DIR/*.jar ; do
-		if [[ $CC_CLASSPATH = "" ]]; then
-			CC_CLASSPATH=$jarfile;
-		else
-			CC_CLASSPATH=$CC_CLASSPATH:$jarfile
-		fi
-	done
-	echo $CC_CLASSPATH
+    while read -d '' -r jarfile ; do
+        if [[ $CC_CLASSPATH = "" ]]; then
+            CC_CLASSPATH="$jarfile";
+        else
+            CC_CLASSPATH="$CC_CLASSPATH":"$jarfile"
+        fi
+    done < <(find "$FLINK_LIB_DIR" ! -type d -name '*.jar' -print0)
+
+    echo $CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS
 }
 
 CC_CLASSPATH=`manglePathList $(constructCLIClientClassPath)`
@@ -52,5 +51,5 @@ log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4
 
 export FLINK_CONF_DIR
 
-$JAVA_RUN $JVM_ARGS -classpath $CC_CLASSPATH:$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR  $log_setting org.apache.flink.client.FlinkYarnSessionCli -ship $bin/../lib/ -j $FLINK_LIB_DIR/flink-dist*.jar "$@"
+$JAVA_RUN $JVM_ARGS -classpath "$CC_CLASSPATH" $log_setting org.apache.flink.yarn.cli.FlinkYarnSessionCli -j "$FLINK_LIB_DIR"/flink-dist*.jar "$@"
 

@@ -36,7 +36,7 @@ import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A Channel represents the result produced by an operator and the data exchange
@@ -133,6 +133,10 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	@Override
 	public PlanNode getSource() {
 		return this.source;
+	}
+
+	public void setSource(PlanNode source) {
+		this.source = source;
 	}
 	
 	/**
@@ -423,7 +427,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 					this.globalProps.setHashPartitioned(this.shipKeys);
 					break;
 				case PARTITION_RANGE:
-					this.globalProps.setRangePartitioned(Utils.createOrdering(this.shipKeys, this.shipSortOrder));
+					this.globalProps.setRangePartitioned(Utils.createOrdering(this.shipKeys, this.shipSortOrder), this.dataDistribution);
 					break;
 				case FORWARD:
 					break;

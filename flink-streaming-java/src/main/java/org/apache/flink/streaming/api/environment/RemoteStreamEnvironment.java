@@ -26,12 +26,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 
@@ -39,6 +41,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Public
 public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteStreamEnvironment.class);
@@ -50,7 +53,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	private final int port;
 
 	/** The configuration used to parametrize the client that connects to the remote cluster */
-	private final Configuration config;
+	private final Configuration clientConfiguration;
 
 	/** The jar files that need to be attached to each job */
 	private final List<URL> jarFiles;
@@ -88,7 +91,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 * @param port
 	 *            The port of the master (JobManager), where the program should
 	 *            be executed.
-	 * @param config
+	 * @param clientConfiguration
 	 *            The configuration used to parametrize the client that connects to the
 	 *            remote cluster.
 	 * @param jarFiles
@@ -97,8 +100,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 *            user-defined input formats, or any libraries, those must be
 	 *            provided in the JAR files.
 	 */
-	public RemoteStreamEnvironment(String host, int port, Configuration config, String... jarFiles) {
-		this(host, port, config, jarFiles, null);
+	public RemoteStreamEnvironment(String host, int port, Configuration clientConfiguration, String... jarFiles) {
+		this(host, port, clientConfiguration, jarFiles, null);
 	}
 
 	/**
@@ -111,7 +114,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 * @param port
 	 *            The port of the master (JobManager), where the program should
 	 *            be executed.
-	 * @param config
+	 * @param clientConfiguration
 	 *            The configuration used to parametrize the client that connects to the
 	 *            remote cluster.
 	 * @param jarFiles
@@ -125,7 +128,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 *            protocol (e.g. file://) and be accessible on all nodes (e.g. by means of a NFS share).
 	 *            The protocol must be supported by the {@link java.net.URLClassLoader}.
 	 */
-	public RemoteStreamEnvironment(String host, int port, Configuration config, String[] jarFiles, URL[] globalClasspaths) {
+	public RemoteStreamEnvironment(String host, int port, Configuration clientConfiguration, String[] jarFiles, URL[] globalClasspaths) {
 		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
 			throw new InvalidProgramException(
 					"The RemoteEnvironment cannot be used when submitting a program through a client, " +
@@ -141,7 +144,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 		this.host = host;
 		this.port = port;
-		this.config = config == null ? new Configuration() : config;
+		this.clientConfiguration = clientConfiguration == null ? new Configuration() : clientConfiguration;
 		this.jarFiles = new ArrayList<>(jarFiles.length);
 		for (String jarFile : jarFiles) {
 			try {
@@ -167,7 +170,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
 		transformations.clear();
-		return executeRemotely(streamGraph);
+		return executeRemotely(streamGraph, jarFiles);
 	}
 
 	/**
@@ -175,9 +178,11 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 * 
 	 * @param streamGraph
 	 *            Stream Graph to execute
+	 * @param jarFiles
+	 * 			  List of jar file URLs to ship to the cluster
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	private JobExecutionResult executeRemotely(StreamGraph streamGraph) throws ProgramInvocationException {
+	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
@@ -186,14 +191,14 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			getClass().getClassLoader());
 		
 		Configuration configuration = new Configuration();
-		configuration.addAll(this.config);
+		configuration.addAll(this.clientConfiguration);
 		
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, host);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
 
-		Client client;
+		ClusterClient client;
 		try {
-			client = new Client(configuration);
+			client = new StandaloneClusterClient(configuration);
 			client.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
 		}
 		catch (Exception e) {
@@ -201,7 +206,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		}
 
 		try {
-			return client.runBlocking(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader);
+			return client.run(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader).getJobExecutionResult();
 		}
 		catch (ProgramInvocationException e) {
 			throw e;
@@ -239,5 +244,10 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 */
 	public int getPort() {
 		return port;
+	}
+
+
+	public Configuration getClientConfiguration() {
+		return clientConfiguration;
 	}
 }

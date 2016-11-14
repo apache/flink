@@ -17,7 +17,7 @@
 # limitations under the License.
 ################################################################################
 
-# Start/stop a Flink JobManager.
+# Start/stop a Flink TaskManager.
 USAGE="Usage: taskmanager.sh (start|stop|stop-all)"
 
 STARTSTOP=$1
@@ -31,7 +31,7 @@ if [[ $STARTSTOP == "start" ]]; then
 
     # if memory allocation mode is lazy and no other JVM options are set,
     # set the 'Concurrent Mark Sweep GC'
-    if [[ $FLINK_TM_MEM_PRE_ALLOCATE == "false" ]] && [ -z $FLINK_ENV_JAVA_OPTS ]; then
+    if [[ $FLINK_TM_MEM_PRE_ALLOCATE == "false" ]] && [ -z "${FLINK_ENV_JAVA_OPTS}" ] && [ -z "${FLINK_ENV_JAVA_OPTS_TM}" ]; then
 
         JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
 
@@ -54,10 +54,9 @@ if [[ $STARTSTOP == "start" ]]; then
 
         TM_HEAP_SIZE=${FLINK_TM_HEAP}
         # Long.MAX_VALUE in TB: This is an upper bound, much less direct memory will be used
-        #
         TM_MAX_OFFHEAP_SIZE="8388607T"
 
-        if [[ "${FLINK_TM_MEM_PRE_ALLOCATE}" == "true" ]] && useOffHeapMemory; then
+        if useOffHeapMemory; then
             if [[ "${FLINK_TM_MEM_MANAGED_SIZE}" -gt "0" ]]; then
                 # We split up the total memory in heap and off-heap memory
                 if [[ "${FLINK_TM_HEAP}" -le "${FLINK_TM_MEM_MANAGED_SIZE}" ]]; then
@@ -66,19 +65,22 @@ if [[ $STARTSTOP == "start" ]]; then
                 fi
                 TM_HEAP_SIZE=$((FLINK_TM_HEAP - FLINK_TM_MEM_MANAGED_SIZE))
             else
-                # Bash only performs integer arithmetic so floating point computation is performed using bc
-                command -v bc >/dev/null 2>&1
+                # Bash only performs integer arithmetic so floating point computation is performed using awk
+                command -v awk >/dev/null 2>&1
                 if [[ $? -ne 0 ]]; then
-                    echo "[ERROR] Program 'bc' not found. Please install bc or define '${KEY_TASKM_MEM_MANAGED_SIZE}' instead of '${KEY_TASKM_MEM_MANAGED_FRACTION}' in ${FLINK_CONF_FILE}"
+                    echo "[ERROR] Program 'awk' not found."
+                    echo "Please install 'awk' or define '${KEY_TASKM_MEM_MANAGED_SIZE}' instead of '${KEY_TASKM_MEM_MANAGED_FRACTION}' in ${FLINK_CONF_FILE}."
                     exit 1
                 fi
                 # We calculate the memory using a fraction of the total memory
-                if [[ `bc -l <<< "${FLINK_TM_MEM_MANAGED_FRACTION} >= 1.0"` != "0" ]] || [[ `bc -l <<< "${FLINK_TM_MEM_MANAGED_FRACTION} <= 0.0"` != "0" ]]; then
-                    echo "[ERROR] Configured TaskManager managed memory fraction is not a valid value. Please set '${KEY_TASKM_MEM_MANAGED_FRACTION}' in ${FLINK_CONF_FILE}"
+                if [[ `awk '{ if ($1 > 0.0 && $1 < 1.0) print "1"; }' <<< "${FLINK_TM_MEM_MANAGED_FRACTION}"` != "1" ]]; then
+                    echo "[ERROR] Configured TaskManager managed memory fraction '${FLINK_TM_MEM_MANAGED_FRACTION}' is not a valid value."
+                    echo "It must be between 0.0 and 1.0."
+                    echo "Please set '${KEY_TASKM_MEM_MANAGED_FRACTION}' in ${FLINK_CONF_FILE}."
                     exit 1
                 fi
                 # recalculate the JVM heap memory by taking the off-heap ratio into account
-                OFFHEAP_MANAGED_MEMORY_SIZE=`printf '%.0f\n' $(bc -l <<< "${FLINK_TM_HEAP} * ${FLINK_TM_MEM_MANAGED_FRACTION}")`
+                OFFHEAP_MANAGED_MEMORY_SIZE=`awk "BEGIN { printf \"%.0f\n\", ${FLINK_TM_HEAP} * ${FLINK_TM_MEM_MANAGED_FRACTION} }"`
                 TM_HEAP_SIZE=$((FLINK_TM_HEAP - OFFHEAP_MANAGED_MEMORY_SIZE))
             fi
         fi
@@ -86,6 +88,9 @@ if [[ $STARTSTOP == "start" ]]; then
         export JVM_ARGS="${JVM_ARGS} -Xms${TM_HEAP_SIZE}M -Xmx${TM_HEAP_SIZE}M -XX:MaxDirectMemorySize=${TM_MAX_OFFHEAP_SIZE}"
 
     fi
+
+    # Add TaskManager-specific JVM options
+    export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_TM}"
 
     # Startup parameters
     args=("--configDir" "${FLINK_CONF_DIR}")

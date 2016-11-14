@@ -27,8 +27,8 @@ import org.apache.flink.runtime.testutils.DiscardingRecycler;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class TestBufferFactory {
 

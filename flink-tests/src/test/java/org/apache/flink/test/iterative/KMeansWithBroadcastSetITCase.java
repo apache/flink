@@ -29,6 +29,7 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.test.testdata.KMeansData;
 
 import java.util.List;
+import java.util.Locale;
 
 public class KMeansWithBroadcastSetITCase extends JavaProgramTestBase {
 
@@ -83,7 +84,7 @@ public class KMeansWithBroadcastSetITCase extends JavaProgramTestBase {
 				.map(new MapFunction<Centroid, String>() {
 					@Override
 					public String map(Centroid c) throws Exception {
-						return String.format("%d|%.2f|%.2f|", c.id, c.x, c.y);
+						return String.format(Locale.US, "%d|%.2f|%.2f|", c.id, c.x, c.y);
 					}
 				});
 

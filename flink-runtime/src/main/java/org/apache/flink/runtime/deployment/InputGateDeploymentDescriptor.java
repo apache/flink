@@ -25,8 +25,8 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import java.io.Serializable;
 import java.util.Arrays;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Deployment descriptor for a single input gate instance.
@@ -38,6 +38,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class InputGateDeploymentDescriptor implements Serializable {
 
+	private static final long serialVersionUID = -7143441863165366704L;
 	/**
 	 * The ID of the consumed intermediate result. Each input gate consumes partitions of the
 	 * intermediate result specified by this ID. This ID also identifies the input gate at the
@@ -83,7 +84,7 @@ public class InputGateDeploymentDescriptor implements Serializable {
 	public String toString() {
 		return String.format("InputGateDeploymentDescriptor [result id: %s, " +
 						"consumed subpartition index: %d, input channels: %s]",
-				consumedResultId.toShortString(), consumedSubpartitionIndex,
+				consumedResultId.toString(), consumedSubpartitionIndex,
 				Arrays.toString(inputChannels));
 	}
 }

@@ -30,7 +30,9 @@ import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
+
 import org.junit.Test;
 
 import java.io.Serializable;
@@ -119,15 +121,23 @@ public class InnerJoinOperatorBaseTest implements Serializable {
 
 
 		try {
-			final TaskInfo taskInfo = new TaskInfo(taskName, 0, 1, 0);
+			final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
 			final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<String, Accumulator<?, ?>>();
 			final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
 
 			ExecutionConfig executionConfig = new ExecutionConfig();
+			
 			executionConfig.disableObjectReuse();
-			List<Integer> resultSafe = base.executeOnCollections(inputData1, inputData2, new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks, accumulatorMap), executionConfig);
+			List<Integer> resultSafe = base.executeOnCollections(inputData1, inputData2,
+					new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks,
+							accumulatorMap, new UnregisteredMetricsGroup()),
+					executionConfig);
+			
 			executionConfig.enableObjectReuse();
-			List<Integer> resultRegular = base.executeOnCollections(inputData1, inputData2, new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks, accumulatorMap), executionConfig);
+			List<Integer> resultRegular = base.executeOnCollections(inputData1, inputData2,
+					new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks,
+							accumulatorMap, new UnregisteredMetricsGroup()),
+					executionConfig);
 
 			assertEquals(expected, resultSafe);
 			assertEquals(expected, resultRegular);

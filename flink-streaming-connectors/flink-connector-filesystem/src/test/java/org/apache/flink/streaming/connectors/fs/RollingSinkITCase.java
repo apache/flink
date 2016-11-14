@@ -1,34 +1,46 @@
 /**
-* Licensed to the Apache Software Foundation (ASF) under one
-* or more contributor license agreements.  See the NOTICE file
-* distributed with this work for additional information
-* regarding copyright ownership.  The ASF licenses this file
-* to you under the Apache License, Version 2.0 (the
-* "License"); you may not use this file except in compliance
-* with the License.  You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.streaming.connectors.fs;
 
+import org.apache.avro.Schema;
+import org.apache.avro.Schema.Type;
+import org.apache.avro.file.DataFileConstants;
+import org.apache.avro.file.DataFileStream;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericData.StringType;
+import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.taskmanager.MultiShotLatch;
+import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.fs.AvroKeyValueSinkWriter.AvroKeyValue;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.NetUtils;
+
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
@@ -37,17 +49,22 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
+
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Tests for {@link RollingSink}. These
@@ -57,22 +74,30 @@ import java.io.InputStreamReader;
  * <p>
  * This only tests the rolling behaviour of the sink. There is a separate ITCase that verifies
  * exactly once behaviour.
+ *
+ * @deprecated should be removed with the {@link RollingSink}.
  */
+@Deprecated
 public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
+
+	protected static final Logger LOG = LoggerFactory.getLogger(RollingSinkITCase.class);
 
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
-	private static MiniDFSCluster hdfsCluster;
-	private static org.apache.hadoop.fs.FileSystem dfs;
-	private static String hdfsURI;
+	protected static MiniDFSCluster hdfsCluster;
+	protected static org.apache.hadoop.fs.FileSystem dfs;
+	protected static String hdfsURI;
+	protected static Configuration conf = new Configuration();
 
+	protected static File dataDir;
 
 	@BeforeClass
 	public static void createHDFS() throws IOException {
-		Configuration conf = new Configuration();
 
-		File dataDir = tempFolder.newFolder();
+		LOG.info("In RollingSinkITCase: Starting MiniDFSCluster ");
+
+		dataDir = tempFolder.newFolder();
 
 		conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, dataDir.getAbsolutePath());
 		MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
@@ -87,6 +112,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 
 	@AfterClass
 	public static void destroyHDFS() {
+		LOG.info("In RollingSinkITCase: tearing down MiniDFSCluster ");
 		hdfsCluster.shutdown();
 	}
 
@@ -296,6 +322,201 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		reader.close();
 		inStream.close();
 	}
+	
+	
+	/**
+	 * This tests {@link AvroKeyValueSinkWriter}
+	 * with non-rolling output and without compression.
+	 */
+	@Test
+	public void testNonRollingAvroKeyValueWithoutCompressionWriter() throws Exception {
+		final int NUM_ELEMENTS = 20;
+		final int PARALLELISM = 2;
+		final String outPath = hdfsURI + "/avro-kv-no-comp-non-rolling-out";
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(PARALLELISM);
+
+		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(NUM_ELEMENTS))
+				.broadcast()
+				.filter(new OddEvenFilter());
+
+
+		Map<String, String> properties = new HashMap<>();
+		Schema keySchema = Schema.create(Type.INT);
+		Schema valueSchema = Schema.create(Type.STRING);
+		properties.put(AvroKeyValueSinkWriter.CONF_OUTPUT_KEY_SCHEMA, keySchema.toString());
+		properties.put(AvroKeyValueSinkWriter.CONF_OUTPUT_VALUE_SCHEMA, valueSchema.toString());
+		RollingSink<Tuple2<Integer, String>> sink = new RollingSink<Tuple2<Integer, String>>(outPath)
+				.setWriter(new AvroKeyValueSinkWriter<Integer, String>(properties))
+				.setBucketer(new NonRollingBucketer())
+				.setPartPrefix("part")
+				.setPendingPrefix("")
+				.setPendingSuffix("");
+
+		source.addSink(sink);
+
+		env.execute("RollingSink Avro KeyValue Writer Test");
+
+		GenericData.setStringType(valueSchema, StringType.String);
+		Schema elementSchema = AvroKeyValue.getSchema(keySchema, valueSchema);
+
+		FSDataInputStream inStream = dfs.open(new Path(outPath + "/part-0-0"));
+		SpecificDatumReader<GenericRecord> elementReader = new SpecificDatumReader<GenericRecord>(elementSchema);
+		DataFileStream<GenericRecord> dataFileStream = new DataFileStream<GenericRecord>(inStream, elementReader);
+		for (int i = 0; i < NUM_ELEMENTS; i += 2) {
+			AvroKeyValue<Integer, String> wrappedEntry = new AvroKeyValue<Integer, String>(dataFileStream.next());
+			int key = wrappedEntry.getKey().intValue();
+			Assert.assertEquals(i, key);
+			String value = wrappedEntry.getValue();
+			Assert.assertEquals("message #" + i, value);
+		}
+
+		dataFileStream.close();
+		inStream.close();
+
+		inStream = dfs.open(new Path(outPath + "/part-1-0"));
+		dataFileStream = new DataFileStream<GenericRecord>(inStream, elementReader);
+
+		for (int i = 1; i < NUM_ELEMENTS; i += 2) {
+			AvroKeyValue<Integer, String> wrappedEntry = new AvroKeyValue<Integer, String>(dataFileStream.next());
+			int key = wrappedEntry.getKey().intValue();
+			Assert.assertEquals(i, key);
+			String value = wrappedEntry.getValue();
+			Assert.assertEquals("message #" + i, value);
+		}
+
+		dataFileStream.close();
+		inStream.close();
+	}
+	
+	/**
+	 * This tests {@link AvroKeyValueSinkWriter}
+	 * with non-rolling output and with compression.
+	 */
+	@Test
+	public void testNonRollingAvroKeyValueWithCompressionWriter() throws Exception {
+		final int NUM_ELEMENTS = 20;
+		final int PARALLELISM = 2;
+		final String outPath = hdfsURI + "/avro-kv-no-comp-non-rolling-out";
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(PARALLELISM);
+
+		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(NUM_ELEMENTS))
+				.broadcast()
+				.filter(new OddEvenFilter());
+
+
+		Map<String, String> properties = new HashMap<>();
+		Schema keySchema = Schema.create(Type.INT);
+		Schema valueSchema = Schema.create(Type.STRING);
+		properties.put(AvroKeyValueSinkWriter.CONF_OUTPUT_KEY_SCHEMA, keySchema.toString());
+		properties.put(AvroKeyValueSinkWriter.CONF_OUTPUT_VALUE_SCHEMA, valueSchema.toString());
+		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS, String.valueOf(true));
+		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS_CODEC, DataFileConstants.SNAPPY_CODEC);
+		RollingSink<Tuple2<Integer, String>> sink = new RollingSink<Tuple2<Integer, String>>(outPath)
+				.setWriter(new AvroKeyValueSinkWriter<Integer, String>(properties))
+				.setBucketer(new NonRollingBucketer())
+				.setPartPrefix("part")
+				.setPendingPrefix("")
+				.setPendingSuffix("");
+
+		source.addSink(sink);
+
+		env.execute("RollingSink Avro KeyValue Writer Test");
+
+		GenericData.setStringType(valueSchema, StringType.String);
+		Schema elementSchema = AvroKeyValue.getSchema(keySchema, valueSchema);
+
+		FSDataInputStream inStream = dfs.open(new Path(outPath + "/part-0-0"));
+		SpecificDatumReader<GenericRecord> elementReader = new SpecificDatumReader<GenericRecord>(elementSchema);
+		DataFileStream<GenericRecord> dataFileStream = new DataFileStream<GenericRecord>(inStream, elementReader);
+		for (int i = 0; i < NUM_ELEMENTS; i += 2) {
+			AvroKeyValue<Integer, String> wrappedEntry = new AvroKeyValue<Integer, String>(dataFileStream.next());
+			int key = wrappedEntry.getKey().intValue();
+			Assert.assertEquals(i, key);
+			String value = wrappedEntry.getValue();
+			Assert.assertEquals("message #" + i, value);
+		}
+
+		dataFileStream.close();
+		inStream.close();
+
+		inStream = dfs.open(new Path(outPath + "/part-1-0"));
+		dataFileStream = new DataFileStream<GenericRecord>(inStream, elementReader);
+
+		for (int i = 1; i < NUM_ELEMENTS; i += 2) {
+			AvroKeyValue<Integer, String> wrappedEntry = new AvroKeyValue<Integer, String>(dataFileStream.next());
+			int key = wrappedEntry.getKey().intValue();
+			Assert.assertEquals(i, key);
+			String value = wrappedEntry.getValue();
+			Assert.assertEquals("message #" + i, value);
+		}
+
+		dataFileStream.close();
+		inStream.close();
+	}
+
+
+	/**
+	 * This tests user defined hdfs configuration
+	 * @throws Exception
+     */
+	@Test
+	public void testUserDefinedConfiguration() throws Exception {
+		final int NUM_ELEMENTS = 20;
+		final int PARALLELISM = 2;
+		final String outPath = hdfsURI + "/string-non-rolling-with-config";
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(PARALLELISM);
+
+		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(NUM_ELEMENTS))
+			.broadcast()
+			.filter(new OddEvenFilter());
+
+		Configuration conf = new Configuration();
+		conf.set("io.file.buffer.size", "40960");
+		RollingSink<String> sink = new RollingSink<String>(outPath)
+			.setFSConfig(conf)
+			.setWriter(new StreamWriterWithConfigCheck<String>("io.file.buffer.size", "40960"))
+			.setBucketer(new NonRollingBucketer())
+			.setPartPrefix("part")
+			.setPendingPrefix("")
+			.setPendingSuffix("");
+
+		source
+			.map(new MapFunction<Tuple2<Integer,String>, String>() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public String map(Tuple2<Integer, String> value) throws Exception {
+					return value.f1;
+				}
+			})
+			.addSink(sink);
+
+		env.execute("RollingSink with configuration Test");
+
+		FSDataInputStream inStream = dfs.open(new Path(outPath + "/part-0-0"));
+
+		BufferedReader br = new BufferedReader(new InputStreamReader(inStream));
+
+		for (int i = 0; i < NUM_ELEMENTS; i += 2) {
+			String line = br.readLine();
+			Assert.assertEquals("message #" + i, line);
+		}
+
+		inStream.close();
+
+		inStream = dfs.open(new Path(outPath + "/part-1-0"));
+
+		br = new BufferedReader(new InputStreamReader(inStream));
+
+		for (int i = 1; i < NUM_ELEMENTS; i += 2) {
+			String line = br.readLine();
+			Assert.assertEquals("message #" + i, line);
+		}
+
+		inStream.close();
+	}
 
 	// we use this to synchronize the clock changes to elements being processed
 	final static MultiShotLatch latch1 = new MultiShotLatch();
@@ -474,6 +695,27 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		@Override
 		public void cancel() {
 			running = false;
+		}
+	}
+
+
+	private static class StreamWriterWithConfigCheck<T> extends StringWriter<T> {
+		private String key;
+		private String expect;
+		public StreamWriterWithConfigCheck(String key, String expect) {
+			this.key = key;
+			this.expect = expect;
+		}
+
+		@Override
+		public void open(FileSystem fs, Path path) throws IOException {
+			super.open(fs, path);
+			Assert.assertEquals(expect, fs.getConf().get(key));
+		}
+
+		@Override
+		public Writer<T> duplicate() {
+			return new StreamWriterWithConfigCheck<>(key, expect);
 		}
 	}
 

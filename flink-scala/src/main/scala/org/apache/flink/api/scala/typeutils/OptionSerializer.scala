@@ -17,16 +17,26 @@
  */
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 
 /**
  * Serializer for [[Option]].
  */
+@Internal
 class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
   extends TypeSerializer[Option[A]] {
 
-  override def duplicate: OptionSerializer[A] = this
+  override def duplicate: OptionSerializer[A] = {
+    val duplicatedElemSerializer = elemSerializer.duplicate()
+
+    if (duplicatedElemSerializer.eq(elemSerializer)) {
+      this
+    } else {
+      new OptionSerializer[A](duplicatedElemSerializer)
+    }
+  }
 
   override def createInstance: Option[A] = {
     None

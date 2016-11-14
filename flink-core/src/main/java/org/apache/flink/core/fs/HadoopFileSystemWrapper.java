@@ -17,6 +17,9 @@
  */
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.PublicEvolving;
+
+@PublicEvolving
 public interface HadoopFileSystemWrapper {
 
 	/**

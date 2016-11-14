@@ -24,11 +24,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.0-SNAPSHOT</version>
+		<version>1.2-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-examples</artifactId>
+	<artifactId>flink-examples_2.10</artifactId>
 	<name>flink-examples</name>
 	<packaging>pom</packaging>
 
@@ -41,13 +41,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
+			<artifactId>flink-clients_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
 
 	<modules>
-		<module>flink-java-examples</module>
-		<module>flink-scala-examples</module>
+		<module>flink-examples-batch</module>
+		<module>flink-examples-streaming</module>
 	</modules>
 </project>

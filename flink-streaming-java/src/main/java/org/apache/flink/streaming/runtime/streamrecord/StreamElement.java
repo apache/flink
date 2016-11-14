@@ -18,11 +18,13 @@
 
 package org.apache.flink.streaming.runtime.streamrecord;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
 /**
  * An element in a data stream. Can be a record or a Watermark.
  */
+@Internal
 public abstract class StreamElement {
 	
 	/**
@@ -42,6 +44,14 @@ public abstract class StreamElement {
 	}
 
 	/**
+	 * Checks whether this element is a record.
+	 * @return True, if this element is a record, false otherwise.
+	 */
+	public final boolean isLatencyMarker() {
+		return getClass() == LatencyMarker.class;
+	}
+
+	/**
 	 * Casts this element into a StreamRecord.
 	 * @return This element as a stream record.
 	 * @throws java.lang.ClassCastException Thrown, if this element is actually not a stream record.
@@ -58,5 +68,14 @@ public abstract class StreamElement {
 	 */
 	public final Watermark asWatermark() {
 		return (Watermark) this;
+	}
+
+	/**
+	 * Casts this element into a LatencyMarker.
+	 * @return This element as a LatencyMarker.
+	 * @throws java.lang.ClassCastException Thrown, if this element is actually not a LatencyMarker.
+	 */
+	public final LatencyMarker asLatencyMarker() {
+		return (LatencyMarker) this;
 	}
 }

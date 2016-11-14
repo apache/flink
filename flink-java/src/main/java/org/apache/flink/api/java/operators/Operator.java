@@ -18,9 +18,12 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Base class of all operators in the Java API.
@@ -28,11 +31,12 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * @param <OUT> The type of the data set produced by this operator.
  * @param <O> The type of the operator, so that we can return it.
  */
+@Public
 public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<OUT> {
 
 	protected String name;
 	
-	protected int parallelism = -1;
+	protected int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
 	protected Operator(ExecutionEnvironment context, TypeInformation<OUT> resultType) {
 		super(context, resultType);
@@ -83,17 +87,18 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	
 	/**
 	 * Sets the parallelism for this operator.
-	 * The degree must be 1 or more.
+	 * The parallelism must be 1 or more.
 	 * 
-	 * @param parallelism The parallelism for this operator.
+	 * @param parallelism The parallelism for this operator. A value equal to {@link ExecutionConfig#PARALLELISM_DEFAULT}
+	 *        will use the system default.
 	 * @return The operator with set parallelism.
 	 */
 	public O setParallelism(int parallelism) {
-		if(parallelism < 1) {
-			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
-		}
+		Preconditions.checkArgument(parallelism > 0 || parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
+			"The parallelism of an operator must be at least 1.");
+
 		this.parallelism = parallelism;
-		
+
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
 		return returnType;

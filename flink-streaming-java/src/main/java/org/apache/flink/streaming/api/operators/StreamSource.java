@@ -17,10 +17,11 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.streaming.api.functions.source.EventTimeSourceFunction;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.concurrent.Executors;
@@ -30,46 +31,71 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * {@link StreamOperator} for streaming sources.
+ *
+ * @param <OUT> Type of the output elements
+ * @param <SRC> Type of the source function of this stream source operator
  */
-public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction<T>> implements StreamOperator<T> {
+@Internal
+public class StreamSource<OUT, SRC extends SourceFunction<OUT>> 
+		extends AbstractUdfStreamOperator<OUT, SRC> implements StreamOperator<OUT> {
 
 	private static final long serialVersionUID = 1L;
-	private transient SourceFunction.SourceContext<T> ctx;
+	
+	private transient SourceFunction.SourceContext<OUT> ctx;
 
-	public StreamSource(SourceFunction<T> sourceFunction) {
+	private transient volatile boolean canceledOrStopped = false;
+	
+	
+	public StreamSource(SRC sourceFunction) {
 		super(sourceFunction);
 
 		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
-	public void run(final Object lockingObject, final Output<StreamRecord<T>> collector) throws Exception {
-		final ExecutionConfig executionConfig = getExecutionConfig();
-		
-		if (userFunction instanceof EventTimeSourceFunction) {
-			ctx = new ManualWatermarkContext<T>(lockingObject, collector, getRuntimeContext().getExecutionConfig().areTimestampsEnabled());
-		} else if (executionConfig.getAutoWatermarkInterval() > 0) {
-			ctx = new AutomaticWatermarkContext<T>(lockingObject, collector, executionConfig);
-		} else if (executionConfig.areTimestampsEnabled()) {
-			ctx = new NonWatermarkContext<T>(lockingObject, collector);
-		} else {
-			ctx = new NonTimestampContext<T>(lockingObject, collector);
+	public void run(final Object lockingObject) throws Exception {
+		run(lockingObject, output);
+	}
+
+	
+	public void run(final Object lockingObject, final Output<StreamRecord<OUT>> collector) throws Exception {
+		final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
+
+		LatencyMarksEmitter latencyEmitter = null;
+		if(getExecutionConfig().isLatencyTrackingEnabled()) {
+			latencyEmitter = new LatencyMarksEmitter<>(lockingObject, collector, getExecutionConfig().getLatencyTrackingInterval(),
+					getOperatorConfig().getVertexID(), getRuntimeContext().getIndexOfThisSubtask());
 		}
+		
+		final long watermarkInterval = getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
 
-		userFunction.run(ctx);
+		this.ctx = StreamSourceContexts.getSourceContext(
+			timeCharacteristic, getProcessingTimeService(), lockingObject, collector, watermarkInterval);
 
-		// This will mostly emit a final +Inf Watermark to make the Watermark logic work
-		// when some sources finish before others do
-		ctx.close();
+		try {
+			userFunction.run(ctx);
 
-		if (executionConfig.areTimestampsEnabled()) {
-			synchronized (lockingObject) {
-				output.emitWatermark(new Watermark(Long.MAX_VALUE));
+			// if we get here, then the user function either exited after being done (finite source)
+			// or the function was canceled or stopped. For the finite source case, we should emit
+			// a final watermark that indicates that we reached the end of event-time
+			if (!isCanceledOrStopped()) {
+				ctx.emitWatermark(Watermark.MAX_WATERMARK);
+			}
+		} finally {
+			// make sure that the context is closed in any case
+			ctx.close();
+			if(latencyEmitter != null) {
+				latencyEmitter.close();
 			}
 		}
 	}
 
 	public void cancel() {
+		// important: marking the source as stopped has to happen before the function is stopped.
+		// the flag that tracks this status is volatile, so the memory model also guarantees
+		// the happens-before relationship
+		markCanceledOrStopped();
 		userFunction.cancel();
+		
 		// the context may not be initialized if the source was never running.
 		if (ctx != null) {
 			ctx.close();
@@ -77,243 +103,46 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 	}
 
 	/**
-	 * {@link SourceFunction.SourceContext} to be used for sources that don't emit watermarks.
-	 * In addition to {@link NonWatermarkContext} this will also not attach timestamps to sources.
-	 * (Technically it will always set the timestamp to 0).
+	 * Marks this source as canceled or stopped.
+	 * 
+	 * <p>This indicates that any exit of the {@link #run(Object, Output)} method
+	 * cannot be interpreted as the result of a finite source.  
 	 */
-	public static class NonTimestampContext<T> implements SourceFunction.SourceContext<T> {
-
-		private final Object lockingObject;
-		private final Output<StreamRecord<T>> output;
-		private final StreamRecord<T> reuse;
-
-		public NonTimestampContext(Object lockingObjectParam, Output<StreamRecord<T>> outputParam) {
-			this.lockingObject = lockingObjectParam;
-			this.output = outputParam;
-			this.reuse = new StreamRecord<T>(null);
-		}
-
-		@Override
-		public void collect(T element) {
-			output.collect(reuse.replace(element, 0));
-		}
-
-		@Override
-		public void collectWithTimestamp(T element, long timestamp) {
-			throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
-					" elements with a timestamp. See interface EventTimeSourceFunction" +
-					" if you want to manually assign timestamps to elements.");
-		}
-
-		@Override
-		public void emitWatermark(Watermark mark) {
-			throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
-					" elements with a timestamp. See interface EventTimeSourceFunction" +
-					" if you want to manually assign timestamps to elements.");
-		}
-
-		@Override
-		public Object getCheckpointLock() {
-			return lockingObject;
-		}
-
-		@Override
-		public void close() {}
+	protected void markCanceledOrStopped() {
+		this.canceledOrStopped = true;
+	}
+	
+	/**
+	 * Checks whether the source has been canceled or stopped. 
+	 * @return True, if the source is canceled or stopped, false is not.
+	 */
+	protected boolean isCanceledOrStopped() {
+		return canceledOrStopped;
 	}
 
-	/**
-	 * {@link SourceFunction.SourceContext} to be used for sources that don't emit watermarks.
-	 */
-	public static class NonWatermarkContext<T> implements SourceFunction.SourceContext<T> {
-
-		private final Object lockingObject;
-		private final Output<StreamRecord<T>> output;
-		private final StreamRecord<T> reuse;
-
-		public NonWatermarkContext(Object lockingObjectParam, Output<StreamRecord<T>> outputParam) {
-			this.lockingObject = lockingObjectParam;
-			this.output = outputParam;
-			this.reuse = new StreamRecord<T>(null);
-		}
-
-		@Override
-		public void collect(T element) {
-			long currentTime = System.currentTimeMillis();
-			output.collect(reuse.replace(element, currentTime));
-		}
-
-		@Override
-		public void collectWithTimestamp(T element, long timestamp) {
-			throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
-					" elements with a timestamp. See interface EventTimeSourceFunction" +
-					" if you want to manually assign timestamps to elements.");
-		}
-
-		@Override
-		public void emitWatermark(Watermark mark) {
-			if (mark.getTimestamp() == Long.MAX_VALUE) {
-				// allow it since this is the special end-watermark that for example the Kafka
-				// source emits
-				output.emitWatermark(mark);
-			} else {
-				throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
-					" elements with a timestamp. See interface EventTimeSourceFunction" +
-					" if you want to manually assign timestamps to elements.");
-			}
-		}
-
-		@Override
-		public Object getCheckpointLock() {
-			return lockingObject;
-		}
-
-		@Override
-		public void close() {}
-	}
-
-	/**
-	 * {@link SourceFunction.SourceContext} to be used for sources with automatic timestamps
-	 * and watermark emission.
-	 */
-	public static class AutomaticWatermarkContext<T> implements SourceFunction.SourceContext<T> {
-
+	private static class LatencyMarksEmitter<OUT> {
 		private final ScheduledExecutorService scheduleExecutor;
-		private final ScheduledFuture<?> watermarkTimer;
-		private final long watermarkInterval;
+		private final ScheduledFuture<?> latencyMarkTimer;
 
-		private final Object lockingObject;
-		private final Output<StreamRecord<T>> output;
-		private final StreamRecord<T> reuse;
-
-		private volatile long lastWatermarkTime;
-
-		public AutomaticWatermarkContext(Object lockingObjectParam,
-				Output<StreamRecord<T>> outputParam,
-				ExecutionConfig executionConfig) {
-			this.lockingObject = lockingObjectParam;
-			this.output = outputParam;
-			this.reuse = new StreamRecord<T>(null);
-
-			watermarkInterval = executionConfig.getAutoWatermarkInterval();
-
-			scheduleExecutor = Executors.newScheduledThreadPool(1);
-
-			watermarkTimer = scheduleExecutor.scheduleAtFixedRate(new Runnable() {
+		public LatencyMarksEmitter(final Object lockingObject, final Output<StreamRecord<OUT>> output, long latencyTrackingInterval, final int vertexID, final int subtaskIndex) {
+			this.scheduleExecutor = Executors.newScheduledThreadPool(1);
+			this.latencyMarkTimer = scheduleExecutor.scheduleAtFixedRate(new Runnable() {
 				@Override
 				public void run() {
-					long currentTime = System.currentTimeMillis();
-					// align the watermarks across all machines. this will ensure that we
-					// don't have watermarks that creep along at different intervals because
-					// the machine clocks are out of sync
-					long watermarkTime = currentTime - (currentTime % watermarkInterval);
-					if (currentTime > watermarkTime && watermarkTime - lastWatermarkTime >= watermarkInterval) {
+					try {
 						synchronized (lockingObject) {
-							if (currentTime > watermarkTime && watermarkTime - lastWatermarkTime >= watermarkInterval) {
-								output.emitWatermark(new Watermark(watermarkTime));
-								lastWatermarkTime = watermarkTime;
-							}
+							output.emitLatencyMarker(new LatencyMarker(System.currentTimeMillis(), vertexID, subtaskIndex));
 						}
+					} catch (Throwable t) {
+						LOG.warn("Error while emitting latency marker", t);
 					}
 				}
-			}, 0, watermarkInterval, TimeUnit.MILLISECONDS);
-
+			}, 0, latencyTrackingInterval, TimeUnit.MILLISECONDS);
 		}
 
-		@Override
-		public void collect(T element) {
-			synchronized (lockingObject) {
-				long currentTime = System.currentTimeMillis();
-				output.collect(reuse.replace(element, currentTime));
-
-				long watermarkTime = currentTime - (currentTime % watermarkInterval);
-				if (currentTime > watermarkTime && watermarkTime - lastWatermarkTime >= watermarkInterval) {
-					output.emitWatermark(new Watermark(watermarkTime));
-					lastWatermarkTime = watermarkTime;
-				}
-			}
-		}
-
-		@Override
-		public void collectWithTimestamp(T element, long timestamp) {
-			throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
-					" elements with a timestamp. See interface EventTimeSourceFunction" +
-					" if you want to manually assign timestamps to elements.");
-		}
-
-		@Override
-		public void emitWatermark(Watermark mark) {
-			if (mark.getTimestamp() == Long.MAX_VALUE) {
-				// allow it since this is the special end-watermark that for example the Kafka
-				// source emits
-				output.emitWatermark(mark);
-			} else {
-				throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
-					" elements with a timestamp. See interface EventTimeSourceFunction" +
-					" if you want to manually assign timestamps to elements.");
-			}
-		}
-
-		@Override
-		public Object getCheckpointLock() {
-			return lockingObject;
-		}
-
-		@Override
 		public void close() {
-			watermarkTimer.cancel(true);
+			latencyMarkTimer.cancel(true);
 			scheduleExecutor.shutdownNow();
-			// emit one last +Inf watermark to make downstream watermark processing work
-			// when some sources close early
-			synchronized (lockingObject) {
-				output.emitWatermark(new Watermark(Long.MAX_VALUE));
-			}
 		}
-	}
-
-	/**
-	 * {@link SourceFunction.SourceContext} to be used for sources with manual timestamp
-	 * assignment and manual watermark emission.
-	 */
-	public static class ManualWatermarkContext<T> implements SourceFunction.SourceContext<T> {
-
-		private final Object lockingObject;
-		private final Output<StreamRecord<T>> output;
-		private final StreamRecord<T> reuse;
-		private final boolean watermarkMultiplexingEnabled;
-
-		public ManualWatermarkContext(Object lockingObject, Output<StreamRecord<T>> output, boolean watermarkMultiplexingEnabled) {
-			this.lockingObject = lockingObject;
-			this.output = output;
-			this.reuse = new StreamRecord<T>(null);
-			this.watermarkMultiplexingEnabled = watermarkMultiplexingEnabled;
-		}
-
-		@Override
-		public void collect(T element) {
-			throw new UnsupportedOperationException("Manual-Timestamp sources can only emit" +
-					" elements with a timestamp. Please use collectWithTimestamp().");
-		}
-
-		@Override
-		public void collectWithTimestamp(T element, long timestamp) {
-			synchronized (lockingObject) {
-				output.collect(reuse.replace(element, timestamp));
-			}
-		}
-
-		@Override
-		public void emitWatermark(Watermark mark) {
-			if (watermarkMultiplexingEnabled) {
-				output.emitWatermark(mark);
-			}
-		}
-
-		@Override
-		public Object getCheckpointLock() {
-			return lockingObject;
-		}
-
-		@Override
-		public void close() {}
 	}
 }

@@ -35,6 +35,21 @@ angular.module('flinkApp')
 
 # ----------------------------------------------
 
+.directive 'bpLabel', (JobsService) ->
+  transclude: true
+  replace: true
+  scope:
+    getBackPressureLabelClass: "&"
+    status: "@"
+
+  template: "<span title='{{status}}' ng-class='getBackPressureLabelClass()'><ng-transclude></ng-transclude></span>"
+
+  link: (scope, element, attrs) ->
+    scope.getBackPressureLabelClass = ->
+      'label label-' + JobsService.translateBackPressureLabelState(attrs.status)
+
+# ----------------------------------------------
+
 .directive 'indicatorPrimary', (JobsService) ->
   replace: true
   scope: 

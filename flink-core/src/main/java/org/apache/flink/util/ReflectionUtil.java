@@ -19,9 +19,12 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
+@Internal
 public final class ReflectionUtil {
 	public static <T> T newInstance(Class<T> clazz) {
 		try {

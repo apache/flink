@@ -20,6 +20,7 @@ package org.apache.flink.util;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.types.StringValue;
 
 /**
@@ -27,6 +28,7 @@ import org.apache.flink.types.StringValue;
  * written to be optimized for efficiency and work only on strings whose characters are
  * representable in a single <tt>char</tt>, ie. strings without surrogate characters.
  */
+@Internal
 public final class SimpleStringUtils {
 	
 	/**

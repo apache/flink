@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.functions.windowing.delta.extractor.Extractor;
 
 /**
@@ -31,6 +32,7 @@ import org.apache.flink.streaming.api.functions.windowing.delta.extractor.Extrac
  *            the respective extractor has been set. See
  *            {@link ExtractionAwareDeltaFunction} for more information.
  */
+@PublicEvolving
 public class CosineDistance<DATA> extends ExtractionAwareDeltaFunction<DATA, double[]> {
 
 	/**

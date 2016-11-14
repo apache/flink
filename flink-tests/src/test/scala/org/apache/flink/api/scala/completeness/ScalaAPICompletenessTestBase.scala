@@ -82,6 +82,10 @@ abstract class ScalaAPICompletenessTestBase extends TestLogger {
     }
   }
 
+  protected def checkEquality(scalaInstance: AnyRef, extractJavaFun : ((AnyRef) => AnyRef)) {
+    val javaInstance = extractJavaFun(scalaInstance)
+  }
+
   /**
    * Tests to be performed to ensure API completeness.
    */

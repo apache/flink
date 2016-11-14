@@ -19,12 +19,15 @@
 
 package org.apache.flink.api.common;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.Serializable;
 
 /**
  * A Program represents and end-to-end Flink program. The Program creates the {@link Plan}, which describes
  * the data flow to be executed.
  */
+@PublicEvolving
 public interface Program extends Serializable {
 	
 	/**

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -29,13 +28,17 @@ import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
 import java.io.IOException;
-import java.net.SocketAddress;
+import java.net.InetSocketAddress;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.flink.util.Preconditions.checkState;
 
 class NettyClient {
 
@@ -43,14 +46,20 @@ class NettyClient {
 
 	private final NettyConfig config;
 
+	private NettyProtocol protocol;
+
 	private Bootstrap bootstrap;
+
+	private SSLContext clientSSLContext = null;
 
 	NettyClient(NettyConfig config) {
 		this.config = config;
 	}
 
-	void init(final NettyProtocol protocol) throws IOException {
+	void init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
 		checkState(bootstrap == null, "Netty client has already been initialized.");
+
+		this.protocol = protocol;
 
 		long start = System.currentTimeMillis();
 
@@ -91,7 +100,7 @@ class NettyClient {
 		bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getClientConnectTimeoutSeconds() * 1000);
 
 		// Pooled allocator for Netty's ByteBuf instances
-		bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+		bootstrap.option(ChannelOption.ALLOCATOR, nettyBufferPool);
 
 		// Receive and send buffer size
 		int receiveAndSendBufferSize = config.getSendAndReceiveBufferSize();
@@ -100,16 +109,11 @@ class NettyClient {
 			bootstrap.option(ChannelOption.SO_RCVBUF, receiveAndSendBufferSize);
 		}
 
-		// --------------------------------------------------------------------
-		// Child channel pipeline for accepted connections
-		// --------------------------------------------------------------------
-
-		bootstrap.handler(new ChannelInitializer<SocketChannel>() {
-			@Override
-			public void initChannel(SocketChannel channel) throws Exception {
-				channel.pipeline().addLast(protocol.getClientChannelHandlers());
-			}
-		});
+		try {
+			clientSSLContext = config.createClientSSLContext();
+		} catch (Exception e) {
+			throw new IOException("Failed to initialize SSL Context for the Netty client", e);
+		}
 
 		long end = System.currentTimeMillis();
 		LOG.info("Successful initialization (took {} ms).", (end - start));
@@ -117,6 +121,10 @@ class NettyClient {
 
 	NettyConfig getConfig() {
 		return config;
+	}
+
+	Bootstrap getBootstrap() {
+		return bootstrap;
 	}
 
 	void shutdown() {
@@ -155,8 +163,36 @@ class NettyClient {
 	// Client connections
 	// ------------------------------------------------------------------------
 
-	ChannelFuture connect(SocketAddress serverSocketAddress) {
+	ChannelFuture connect(final InetSocketAddress serverSocketAddress) {
 		checkState(bootstrap != null, "Client has not been initialized yet.");
+
+		// --------------------------------------------------------------------
+		// Child channel pipeline for accepted connections
+		// --------------------------------------------------------------------
+
+		bootstrap.handler(new ChannelInitializer<SocketChannel>() {
+			@Override
+			public void initChannel(SocketChannel channel) throws Exception {
+
+				// SSL handler should be added first in the pipeline
+				if (clientSSLContext != null) {
+					SSLEngine sslEngine = clientSSLContext.createSSLEngine(
+						serverSocketAddress.getAddress().getHostAddress(),
+						serverSocketAddress.getPort());
+					sslEngine.setUseClientMode(true);
+
+					// Enable hostname verification for remote SSL connections
+					if (!serverSocketAddress.getAddress().isLoopbackAddress()) {
+						SSLParameters newSSLParameters = sslEngine.getSSLParameters();
+						config.setSSLVerifyHostname(newSSLParameters);
+						sslEngine.setSSLParameters(newSSLParameters);
+					}
+
+					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
+				}
+				channel.pipeline().addLast(protocol.getClientChannelHandlers());
+			}
+		});
 
 		try {
 			return bootstrap.connect(serverSocketAddress);

@@ -18,9 +18,14 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Public;
+
+import java.util.Properties;
+
 /**
  * Unmodifiable version of the Configuration class.
  */
+@Public
 public class UnmodifiableConfiguration extends Configuration {
 	
 	private static final long serialVersionUID = -8151292629158972280L;
@@ -38,6 +43,13 @@ public class UnmodifiableConfiguration extends Configuration {
 	// --------------------------------------------------------------------------------------------
 	//  All mutating methods must fail
 	// --------------------------------------------------------------------------------------------
+
+
+	@Override
+	public void addAllToProperties(Properties props) {
+		// override to make the UnmodifiableConfigurationTest happy
+		super.addAllToProperties(props);
+	}
 
 	@Override
 	public final void addAll(Configuration other) {

@@ -19,8 +19,8 @@
 
 package org.apache.flink.types.parser;
 
-
 import org.apache.flink.types.BooleanValue;
+
 
 public class BooleanValueParserTest extends ParserTestBase<BooleanValue> {
 

@@ -18,21 +18,31 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import java.io.Serializable;
-
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedRestoring;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.util.InstantiationUtil;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
@@ -46,7 +56,11 @@ import static java.util.Objects.requireNonNull;
  * @param <F>
  *            The type of the user function
  */
-public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends AbstractStreamOperator<OUT> implements OutputTypeConfigurable<OUT> {
+@PublicEvolving
+public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
+		extends AbstractStreamOperator<OUT>
+		implements OutputTypeConfigurable<OUT>,
+		StreamCheckpointedOperator {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -57,9 +71,9 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	/** Flag to prevent duplicate function.close() calls in close() and dispose() */
 	private transient boolean functionsClosed = false;
 	
-	
 	public AbstractUdfStreamOperator(F userFunction) {
 		this.userFunction = requireNonNull(userFunction);
+		checkUdfCheckpointingPreconditions();
 	}
 
 	/**
@@ -80,12 +94,63 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 		super.setup(containingTask, config, output);
 		
 		FunctionUtils.setFunctionRuntimeContext(userFunction, getRuntimeContext());
+
+	}
+
+	@Override
+	public void snapshotState(StateSnapshotContext context) throws Exception {
+		super.snapshotState(context);
+
+		if (userFunction instanceof CheckpointedFunction) {
+			((CheckpointedFunction) userFunction).snapshotState(context);
+		} else if (userFunction instanceof ListCheckpointed) {
+			@SuppressWarnings("unchecked")
+			List<Serializable> partitionableState = ((ListCheckpointed<Serializable>) userFunction).
+							snapshotState(context.getCheckpointId(), context.getCheckpointTimestamp());
+
+			ListState<Serializable> listState = getOperatorStateBackend().
+					getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
+
+			listState.clear();
+
+			for (Serializable statePartition : partitionableState) {
+				listState.add(statePartition);
+			}
+		}
+
+	}
+
+	@Override
+	public void initializeState(StateInitializationContext context) throws Exception {
+		super.initializeState(context);
+
+		if (userFunction instanceof CheckpointedFunction) {
+			((CheckpointedFunction) userFunction).initializeState(context);
+		} else if (context.isRestored() && userFunction instanceof ListCheckpointed) {
+			@SuppressWarnings("unchecked")
+			ListCheckpointed<Serializable> listCheckpointedFun = (ListCheckpointed<Serializable>) userFunction;
+
+			ListState<Serializable> listState = context.getManagedOperatorStateStore().
+					getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
+
+			List<Serializable> list = new ArrayList<>();
+
+			for (Serializable serializable : listState.get()) {
+				list.add(serializable);
+			}
+
+			try {
+				listCheckpointedFun.restoreState(list);
+			} catch (Exception e) {
+				throw new Exception("Failed to restore state to function: " + e.getMessage(), e);
+			}
+		}
+
 	}
 
 	@Override
 	public void open() throws Exception {
 		super.open();
-		
 		FunctionUtils.openFunction(userFunction, new Configuration());
 	}
 
@@ -97,15 +162,11 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	}
 
 	@Override
-	public void dispose() {
+	public void dispose() throws Exception {
+		super.dispose();
 		if (!functionsClosed) {
 			functionsClosed = true;
-			try {
-				FunctionUtils.closeFunction(userFunction);
-			}
-			catch (Throwable t) {
-				LOG.error("Exception while closing user function while failing or canceling task", t);
-			}
+			FunctionUtils.closeFunction(userFunction);
 		}
 	}
 
@@ -114,55 +175,42 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-		StreamTaskState state = super.snapshotOperatorState(checkpointId, timestamp);
-
+	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
 		if (userFunction instanceof Checkpointed) {
 			@SuppressWarnings("unchecked")
 			Checkpointed<Serializable> chkFunction = (Checkpointed<Serializable>) userFunction;
-			
+
 			Serializable udfState;
 			try {
 				udfState = chkFunction.snapshotState(checkpointId, timestamp);
-			} 
-			catch (Exception e) {
+				if (udfState != null) {
+					out.write(1);
+					InstantiationUtil.serializeObject(out, udfState);
+				} else {
+					out.write(0);
+				}
+			} catch (Exception e) {
 				throw new Exception("Failed to draw state snapshot from function: " + e.getMessage(), e);
 			}
-			
-			if (udfState != null) {
-				try {
-					StateBackend<?> stateBackend = getStateBackend();
-					StateHandle<Serializable> handle = 
-							stateBackend.checkpointStateSerializable(udfState, checkpointId, timestamp);
-					state.setFunctionState(handle);
-				}
-				catch (Exception e) {
-					throw new Exception("Failed to add the state snapshot of the function to the checkpoint: "
-							+ e.getMessage(), e);
-				}
-			}
 		}
-		
-		return state;
 	}
 
 	@Override
-	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
-		super.restoreState(state, recoveryTimestamp);
-		
-		StateHandle<Serializable> stateHandle =  state.getFunctionState();
-		
-		if (userFunction instanceof Checkpointed && stateHandle != null) {
+	public void restoreState(FSDataInputStream in) throws Exception {
+		if (userFunction instanceof CheckpointedRestoring) {
 			@SuppressWarnings("unchecked")
-			Checkpointed<Serializable> chkFunction = (Checkpointed<Serializable>) userFunction;
-			
-			Serializable functionState = stateHandle.getState(getUserCodeClassloader());
-			if (functionState != null) {
-				try {
-					chkFunction.restoreState(functionState);
-				}
-				catch (Exception e) {
-					throw new Exception("Failed to restore state to function: " + e.getMessage(), e);
+			CheckpointedRestoring<Serializable> chkFunction = (CheckpointedRestoring<Serializable>) userFunction;
+
+			int hasUdfState = in.read();
+
+			if (hasUdfState == 1) {
+				Serializable functionState = InstantiationUtil.deserializeObject(in, getUserCodeClassloader());
+				if (functionState != null) {
+					try {
+						chkFunction.restoreState(functionState);
+					} catch (Exception e) {
+						throw new Exception("Failed to restore state to function: " + e.getMessage(), e);
+					}
 				}
 			}
 		}
@@ -172,8 +220,8 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
 		super.notifyOfCompletedCheckpoint(checkpointId);
 
-		if (userFunction instanceof CheckpointNotifier) {
-			((CheckpointNotifier) userFunction).notifyCheckpointComplete(checkpointId);
+		if (userFunction instanceof CheckpointListener) {
+			((CheckpointListener) userFunction).notifyCheckpointComplete(checkpointId);
 		}
 	}
 
@@ -184,8 +232,8 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	@Override
 	public void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig) {
 		if (userFunction instanceof OutputTypeConfigurable) {
+			@SuppressWarnings("unchecked")
 			OutputTypeConfigurable<OUT> outputTypeConfigurable = (OutputTypeConfigurable<OUT>) userFunction;
-
 			outputTypeConfigurable.setOutputType(outTypeInfo, executionConfig);
 		}
 	}
@@ -204,5 +252,27 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	 */
 	public Configuration getUserFunctionParameters() {
 		return new Configuration();
+	}
+
+	private void checkUdfCheckpointingPreconditions() {
+
+		boolean newCheckpointInferface = false;
+
+		if (userFunction instanceof CheckpointedFunction) {
+			newCheckpointInferface = true;
+		}
+
+		if (userFunction instanceof ListCheckpointed) {
+			if (newCheckpointInferface) {
+				throw new IllegalStateException("User functions are not allowed to implement " +
+						"CheckpointedFunction AND ListCheckpointed.");
+			}
+			newCheckpointInferface = true;
+		}
+
+		if (newCheckpointInferface && userFunction instanceof Checkpointed) {
+			throw new IllegalStateException("User functions are not allowed to implement Checkpointed AND " +
+					"CheckpointedFunction/ListCheckpointed.");
+		}
 	}
 }

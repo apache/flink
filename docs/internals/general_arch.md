@@ -1,5 +1,8 @@
 ---
 title:  "General Architecture and Process Model"
+nav-title: Architecture and Process Model
+nav-parent_id: internals
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -35,7 +38,7 @@ into the parallel data flow form that is executed by the JobManager and TaskMana
 illustrates the different actors in the system and their interactions.
 
 <div style="text-align: center;">
-<img src="../fig/process_model.svg" width="100%" alt="Flink Process Model">
+<img src="{{ site.baseurl }}/fig/process_model.svg" width="100%" alt="Flink Process Model">
 </div>
 
 ## Component Stack
@@ -58,38 +61,34 @@ Table for queries on logical tables, FlinkML for Machine Learning, and Gelly for
 
 You can click on the components in the figure to learn more.
 
-<img src="../fig/overview-stack-0.9.png" width="893" height="450" alt="Stack" usemap="#overview-stack">
+<center>
+  <img src="{{ site.baseurl }}/fig/stack.png" width="700px" alt="Apache Flink: Stack" usemap="#overview-stack">
+</center>
 
 <map name="overview-stack">
-  <area shape="rect" coords="188,0,263,200" alt="Graph API: Gelly" href="../libs/gelly_guide.html">
-  <area shape="rect" coords="268,0,343,200" alt="Flink ML" href="../libs/ml/">
-  <area shape="rect" coords="348,0,423,200" alt="Table" href="../libs/table.html">
-
-  <area shape="rect" coords="188,205,538,260" alt="DataSet API (Java/Scala)" href="../apis/programming_guide.html">
-  <area shape="rect" coords="543,205,893,260" alt="DataStream API (Java/Scala)" href="../apis/streaming_guide.html">
-
-  <!-- <area shape="rect" coords="188,275,538,330" alt="Optimizer" href="optimizer.html"> -->
-  <!-- <area shape="rect" coords="543,275,893,330" alt="Stream Builder" href="streambuilder.html"> -->
-
-  <area shape="rect" coords="188,335,893,385" alt="Flink Runtime" href="general_arch.html">
-
-  <area shape="rect" coords="188,405,328,455" alt="Local" href="../apis/local_execution.html">
-  <area shape="rect" coords="333,405,473,455" alt="Remote" href="../apis/cluster_execution.html">
-  <area shape="rect" coords="478,405,638,455" alt="Embedded" href="../apis/local_execution.html">
-  <area shape="rect" coords="643,405,765,455" alt="YARN" href="../setup/yarn_setup.html">
-  <area shape="rect" coords="770,405,893,455" alt="Tez" href="../setup/flink_on_tez.html">
+<area id="lib-datastream-cep" title="CEP: Complex Event Processing" href="{{ site.baseurl }}/dev/libs/cep.html" shape="rect" coords="63,0,143,177" />
+<area id="lib-datastream-table" title="Table: Relational DataStreams" href="{{ site.baseurl }}/dev/table_api.html" shape="rect" coords="143,0,223,177" />
+<area id="lib-dataset-ml" title="FlinkML: Machine Learning" href="{{ site.baseurl }}/dev/libs/ml/index.html" shape="rect" coords="382,2,462,176" />
+<area id="lib-dataset-gelly" title="Gelly: Graph Processing" href="{{ site.baseurl }}/dev/libs/gelly/index.html" shape="rect" coords="461,0,541,177" />
+<area id="lib-dataset-table" title="Table API and SQL" href="{{ site.baseurl }}/dev/table_api.html" shape="rect" coords="544,0,624,177" />
+<area id="datastream" title="DataStream API" href="{{ site.baseurl }}/dev/datastream_api.html" shape="rect" coords="64,177,379,255" />
+<area id="dataset" title="DataSet API" href="{{ site.baseurl }}/dev/batch/index.html" shape="rect" coords="382,177,697,255" />
+<area id="runtime" title="Runtime" href="{{ site.baseurl }}/internals/general_arch.html" shape="rect" coords="63,257,700,335" />
+<area id="local" title="Local" href="{{ site.baseurl }}/setup/local_setup.html" shape="rect" coords="62,337,275,414" />
+<area id="cluster" title="Cluster" href="{{ site.baseurl }}/setup/cluster_setup.html" shape="rect" coords="273,336,486,413" />
+<area id="cloud" title="Cloud" href="{{ site.baseurl }}/setup/gce_setup.html" shape="rect" coords="485,336,700,414" />
 </map>
 
 ## Projects and Dependencies
 
 The Flink system code is divided into multiple sub-projects. The goal is to reduce the number of
-dependencies that a project implementing a Flink progam needs, as well as to faciltate easier testing
+dependencies that a project implementing a Flink program needs, as well as to faciltate easier testing
 of smaller sub-modules.
 
 The individual projects and their dependencies are shown in the figure below.
 
 <div style="text-align: center;">
-<img src="fig/projects_dependencies.svg" alt="The Flink sub-projects and their dependencies" height="600px" style="text-align: center;"/>
+<img src="{{ site.baseurl }}/fig/projects_dependencies.svg" alt="The Flink sub-projects and their dependencies" height="600px" style="text-align: center;"/>
 </div>
 
 In addition to the projects listed in the figure above, Flink currently contains the following sub-projects:
@@ -97,15 +96,6 @@ In addition to the projects listed in the figure above, Flink currently contains
 - `flink-dist`: The *distribution* project. It defines how to assemble the compiled code, scripts, and other resources
 into the final folder structure that is ready to use.
 
-- `flink-staging`: A series of projects that are in an early version. Currently contains
-among other things projects for YARN support, JDBC data sources and sinks, hadoop compatibility,
-graph specific operators, and HBase connectors.
-
 - `flink-quickstart`: Scripts, maven archetypes, and example programs for the quickstarts and tutorials.
 
-- `flink-contrib`: Useful tools contributed by users. The code is maintained mainly by external contributors. The requirements for code being accepted into `flink-contrib` are lower compared to the rest of the code.
-
-
-
-
-
+- `flink-contrib`: A series of projects that are in an early version and useful tools contributed by users. The code for the latter is maintained mainly by external contributors. The requirements for code being accepted into `flink-contrib` are lower compared to the rest of the code.

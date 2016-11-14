@@ -305,7 +305,7 @@ public class DependencyVisitor extends ClassVisitor {
 
 		@Override
 		public void visitClassType(String name) {
-			if (signatureClassName == null || this.newParameter == true) {
+			if (signatureClassName == null || this.newParameter) {
 				signatureClassName = name;
 				newParameter = false;
 			}

@@ -21,6 +21,7 @@ package org.apache.flink.test.failingPrograms;
 import java.util.List;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.test.util.JavaProgramTestBase;
@@ -63,8 +64,7 @@ public class TaskFailureITCase extends JavaProgramTestBase {
 
 	private void executeTask(MapFunction<Long, Long> mapper, int retries) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().setNumberOfExecutionRetries(retries);
-		env.getConfig().setExecutionRetryDelay(0);
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(retries, 0));
 		List<Long> result = env.generateSequence(1, 9)
 				.map(mapper)
 				.collect();

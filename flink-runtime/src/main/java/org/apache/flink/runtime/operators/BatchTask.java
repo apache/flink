@@ -30,7 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
@@ -43,6 +43,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.resettable.SpillingResettableMutableObjectIterator;
@@ -212,18 +213,20 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 * The accumulator map used in the RuntimeContext.
 	 */
 	protected Map<String, Accumulator<?,?>> accumulatorMap;
+	private OperatorMetricGroup metrics;
 
 	// --------------------------------------------------------------------------------------------
 	//                                  Task Interface
 	// --------------------------------------------------------------------------------------------
 
-
 	/**
-	 * Initialization method. Runs in the execution graph setup phase in the JobManager
-	 * and as a setup method on the TaskManager.
+	 * The main work method.
 	 */
 	@Override
-	public void registerInputOutput() throws Exception {
+	public void invoke() throws Exception {
+		// --------------------------------------------------------------------
+		// Initialize
+		// --------------------------------------------------------------------
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Start registering input and output."));
 		}
@@ -236,6 +239,14 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		final Class<? extends Driver<S, OT>> driverClass = this.config.getDriver();
 		this.driver = InstantiationUtil.instantiate(driverClass, Driver.class);
 
+		String headName =  getEnvironment().getTaskInfo().getTaskName().split("->")[0].trim();
+		this.metrics = getEnvironment().getMetricGroup()
+			.addOperator(headName.startsWith("CHAIN") ? headName.substring(6) : headName);
+		this.metrics.getIOMetricGroup().reuseInputMetricsForTask();
+		if (config.getNumberOfChainedStubs() == 0) {
+			this.metrics.getIOMetricGroup().reuseOutputMetricsForTask();
+		}
+
 		// initialize the readers.
 		// this does not yet trigger any stream consuming or processing.
 		initInputReaders();
@@ -247,22 +258,15 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Finished registering input and output."));
 		}
-	}
 
-
-	/**
-	 * The main work method.
-	 */
-	@Override
-	public void invoke() throws Exception {
-
+		// --------------------------------------------------------------------
+		// Invoke
+		// --------------------------------------------------------------------
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Start task code."));
 		}
 
-		Environment env = getEnvironment();
-
-		this.runtimeUdfContext = createRuntimeContext();
+		this.runtimeUdfContext = createRuntimeContext(metrics);
 
 		// whatever happens in this scope, make sure that the local strategies are cleaned up!
 		// note that the initialization of the local strategies is in the try-finally block as well,
@@ -649,9 +653,6 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 		int currentReaderOffset = 0;
 
-		AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
-		AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
-
 		for (int i = 0; i < numInputs; i++) {
 			//  ---------------- create the input readers ---------------------
 			// in case where a logical input unions multiple physical inputs, create a union reader
@@ -659,19 +660,21 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 			if (groupSize == 1) {
 				// non-union case
-				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(getEnvironment().getInputGate(currentReaderOffset));
+				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(
+						getEnvironment().getInputGate(currentReaderOffset),
+						getEnvironment().getTaskManagerInfo().getTmpDirectories());
 			} else if (groupSize > 1){
 				// union case
 				InputGate[] readers = new InputGate[groupSize];
 				for (int j = 0; j < groupSize; ++j) {
 					readers[j] = getEnvironment().getInputGate(currentReaderOffset + j);
 				}
-				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(new UnionInputGate(readers));
+				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(
+						new UnionInputGate(readers),
+						getEnvironment().getTaskManagerInfo().getTmpDirectories());
 			} else {
 				throw new Exception("Illegal input group size in task configuration: " + groupSize);
 			}
-
-			inputReaders[i].setReporter(reporter);
 
 			currentReaderOffset += groupSize;
 		}
@@ -700,14 +703,18 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			final int groupSize = this.config.getBroadcastGroupSize(i);
 			if (groupSize == 1) {
 				// non-union case
-				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(getEnvironment().getInputGate(currentReaderOffset));
+				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(
+						getEnvironment().getInputGate(currentReaderOffset),
+						getEnvironment().getTaskManagerInfo().getTmpDirectories());
 			} else if (groupSize > 1){
 				// union case
 				InputGate[] readers = new InputGate[groupSize];
 				for (int j = 0; j < groupSize; ++j) {
 					readers[j] = getEnvironment().getInputGate(currentReaderOffset + j);
 				}
-				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(new UnionInputGate(readers));
+				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(
+						new UnionInputGate(readers),
+						getEnvironment().getTaskManagerInfo().getTmpDirectories());
 			} else {
 				throw new Exception("Illegal input group size in task configuration: " + groupSize);
 			}
@@ -764,8 +771,6 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 *
 	 * NOTE: This method must be invoked after the invocation of {@code #initInputReaders()} and
 	 * {@code #initInputSerializersAndComparators(int)}!
-	 *
-	 * @param numInputs
 	 */
 	protected void initLocalStrategies(int numInputs) throws Exception {
 
@@ -920,7 +925,8 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				UnilateralSortMerger<?> sorter = new UnilateralSortMerger(getMemoryManager(), getIOManager(),
 					this.inputIterators[inputNum], this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
-					this.config.getSpillingThresholdInput(inputNum), this.getExecutionConfig().isObjectReuseEnabled());
+					this.config.getSpillingThresholdInput(inputNum), this.config.getUseLargeRecordHandler(),
+					this.getExecutionConfig().isObjectReuseEnabled());
 				// set the input to null such that it will be lazily fetched from the input strategy
 				this.inputs[inputNum] = null;
 				this.localStrategies[inputNum] = sorter;
@@ -956,7 +962,8 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 					(GroupCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
 					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
-					this.config.getSpillingThresholdInput(inputNum), this.getExecutionConfig().isObjectReuseEnabled());
+					this.config.getSpillingThresholdInput(inputNum), this.getTaskConfig().getUseLargeRecordHandler(),
+					this.getExecutionConfig().isObjectReuseEnabled());
 				cSorter.setUdfConfiguration(this.config.getStubParameters());
 
 				// set the input to null such that it will be lazily fetched from the input strategy
@@ -1002,20 +1009,17 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
-		AccumulatorRegistry accumulatorRegistry = getEnvironment().getAccumulatorRegistry();
-		AccumulatorRegistry.Reporter reporter = accumulatorRegistry.getReadWriteReporter();
-
-		this.accumulatorMap = accumulatorRegistry.getUserMap();
+		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 
 		this.output = initOutputs(this, userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs,
-				this.getExecutionConfig(), reporter, this.accumulatorMap);
+				this.getExecutionConfig(), this.accumulatorMap);
 	}
 
-	public DistributedRuntimeUDFContext createRuntimeContext() {
+	public DistributedRuntimeUDFContext createRuntimeContext(MetricGroup metrics) {
 		Environment env = getEnvironment();
 
 		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
-				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap);
+				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap, metrics);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1053,13 +1057,18 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	}
 
 	@Override
-	public AbstractInvokable getOwningNepheleTask() {
+	public AbstractInvokable getContainingTask() {
 		return this;
 	}
 
 	@Override
 	public String formatLogString(String message) {
 		return constructLogString(message, getEnvironment().getTaskInfo().getTaskName(), this);
+	}
+
+	@Override
+	public OperatorMetricGroup getMetricGroup() {
+		return metrics;
 	}
 
 	@Override
@@ -1141,7 +1150,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 *
 	 * @param message The main message for the log.
 	 * @param taskName The name of the task.
-	 * @param parent The nephele task that contains the code producing the message.
+	 * @param parent The task that contains the code producing the message.
 	 *
 	 * @return The string for logging.
 	 */
@@ -1197,7 +1206,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 * @return The OutputCollector that data produced in this task is submitted to.
 	 */
 	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl,
-			List<RecordWriter<?>> eventualOutputs, int outputOffset, int numOutputs, AccumulatorRegistry.Reporter reporter) throws Exception
+			List<RecordWriter<?>> eventualOutputs, int outputOffset, int numOutputs) throws Exception
 	{
 		if (numOutputs == 0) {
 			return null;
@@ -1230,8 +1239,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			final RecordWriter<SerializationDelegate<T>> recordWriter =
 					new RecordWriter<SerializationDelegate<T>>(task.getEnvironment().getWriter(outputOffset + i), oe);
 
-			// setup live accumulator counters
-			recordWriter.setReporter(reporter);
+			recordWriter.setMetricGroup(task.getEnvironment().getMetricGroup().getIOMetricGroup());
 
 			writers.add(recordWriter);
 		}
@@ -1246,11 +1254,10 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 * The output collector applies the configured shipping strategy.
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config,
+	public static <T> Collector<T> initOutputs(AbstractInvokable containingTask, ClassLoader cl, TaskConfig config,
 										List<ChainedDriver<?, ?>> chainedTasksTarget,
 										List<RecordWriter<?>> eventualOutputs,
 										ExecutionConfig executionConfig,
-										AccumulatorRegistry.Reporter reporter,
 										Map<String, Accumulator<?,?>> accumulatorMap)
 	throws Exception
 	{
@@ -1285,21 +1292,25 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 				if (i == numChained - 1) {
 					// last in chain, instantiate the output collector for this task
-					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs(), reporter);
+					previous = getOutputCollector(containingTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs());
 				}
 
-				ct.setup(chainedStubConf, taskName, previous, nepheleTask, cl, executionConfig, accumulatorMap);
+				ct.setup(chainedStubConf, taskName, previous, containingTask, cl, executionConfig, accumulatorMap);
 				chainedTasksTarget.add(0, ct);
+
+				if (i == numChained - 1) {
+					ct.getIOMetrics().reuseOutputMetricsForTask();
+				}
 
 				previous = ct;
 			}
-			// the collector of the first in the chain is the collector for the nephele task
+			// the collector of the first in the chain is the collector for the task
 			return (Collector<T>) previous;
 		}
 		// else
 
 		// instantiate the output collector the default way from this configuration
-		return getOutputCollector(nepheleTask , config, cl, eventualOutputs, 0, numOutputs, reporter);
+		return getOutputCollector(containingTask , config, cl, eventualOutputs, 0, numOutputs);
 	}
 	
 	// --------------------------------------------------------------------------------------------

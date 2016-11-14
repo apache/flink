@@ -52,7 +52,9 @@ public class NonReusingBuildSecondHashJoinIterator<V1, V2, O> extends HashJoinIt
 
 	private final MutableObjectIterator<V2> secondInput;
 
-	private final boolean joinWithEmptyBuildSide;
+	private final boolean buildSideOuterJoin;
+
+	private final boolean probeSideOuterJoin;
 
 	private volatile boolean running = true;
 
@@ -69,7 +71,8 @@ public class NonReusingBuildSecondHashJoinIterator<V1, V2, O> extends HashJoinIt
 			MemoryManager memManager, IOManager ioManager,
 			AbstractInvokable ownerTask,
 			double memoryFraction,
-			boolean joinWithEmptyBuildSide,
+			boolean probeSideOuterJoin,
+			boolean buildSideOuterJoin,
 			boolean useBitmapFilters) throws MemoryAllocationException {
 		
 		this.memManager = memManager;
@@ -77,20 +80,21 @@ public class NonReusingBuildSecondHashJoinIterator<V1, V2, O> extends HashJoinIt
 		this.secondInput = secondInput;
 		this.probeSideSerializer = serializer1;
 
-		if(useBitmapFilters && joinWithEmptyBuildSide) {
+		if(useBitmapFilters && probeSideOuterJoin) {
 			throw new IllegalArgumentException("Bitmap filter may not be activated for joining with empty build side");
 		}
-		this.joinWithEmptyBuildSide = joinWithEmptyBuildSide;
+		this.probeSideOuterJoin = probeSideOuterJoin;
+		this.buildSideOuterJoin = buildSideOuterJoin;
 		
 		this.hashJoin = getHashJoin(serializer2, comparator2, serializer1,
 				comparator1, pairComparator, memManager, ioManager, ownerTask, memoryFraction, useBitmapFilters);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
 	public void open() throws IOException, MemoryAllocationException, InterruptedException {
-		this.hashJoin.open(this.secondInput, this.firstInput);
+		this.hashJoin.open(this.secondInput, this.firstInput, buildSideOuterJoin);
 	}
 
 	@Override
@@ -110,14 +114,14 @@ public class NonReusingBuildSecondHashJoinIterator<V1, V2, O> extends HashJoinIt
 		if (this.hashJoin.nextRecord())
 		{
 			// we have a next record, get the iterators to the probe and build side values
-			final MutableHashTable.HashBucketIterator<V2, V1> buildSideIterator = this.hashJoin.getBuildSideIterator();
-			V2 nextBuildSideRecord;
-			
-			// get the first build side value
-			if ((nextBuildSideRecord = buildSideIterator.next()) != null) {
+			final MutableObjectIterator<V2> buildSideIterator = this.hashJoin.getBuildSideIterator();
+
+			final V1 probeRecord = this.hashJoin.getCurrentProbeRecord();
+			V2 nextBuildSideRecord = buildSideIterator.next();
+
+			if (probeRecord != null && nextBuildSideRecord != null) {
 				V2 tmpRec;
-				final V1 probeRecord = this.hashJoin.getCurrentProbeRecord();
-				
+
 				// check if there is another build-side value
 				if ((tmpRec = buildSideIterator.next()) != null) {
 					// more than one build-side value --> copy the probe side
@@ -142,13 +146,22 @@ public class NonReusingBuildSecondHashJoinIterator<V1, V2, O> extends HashJoinIt
 					// only single pair matches
 					matchFunction.join(probeRecord, nextBuildSideRecord, collector);
 				}
-			}
-			else if(joinWithEmptyBuildSide) {
-				// build side is empty, join with null
-				final V1 probeRecord = this.hashJoin.getCurrentProbeRecord();
+			} else {
+				// while probe side outer join, join current probe record with null.
+				if (probeSideOuterJoin && probeRecord != null && nextBuildSideRecord == null) {
+					matchFunction.join(probeRecord, null, collector);
+				}
 
-				matchFunction.join(probeRecord, null, collector);
+				// while build side outer join, iterate all build records which have not been probed before,
+				// and join with null.
+				if (buildSideOuterJoin && probeRecord == null && nextBuildSideRecord != null) {
+					matchFunction.join(null, nextBuildSideRecord, collector);
+					while (this.running && ((nextBuildSideRecord = buildSideIterator.next()) != null)) {
+						matchFunction.join(null, nextBuildSideRecord, collector);
+					}
+				}
 			}
+
 			return true;
 		}
 		else {

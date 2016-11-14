@@ -18,8 +18,9 @@
 package org.apache.flink.api.scala
 
 import com.esotericsoftware.kryo.Serializer
-import com.google.common.base.Preconditions
+import org.apache.flink.annotation.{PublicEvolving, Public}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID}
@@ -32,18 +33,17 @@ import org.apache.flink.api.scala.hadoop.{mapred, mapreduce}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
-import org.apache.flink.util.{NumberSequenceIterator, SplittableIterator}
+import org.apache.flink.util.{NumberSequenceIterator, Preconditions, SplittableIterator}
 import org.apache.hadoop.fs.{Path => HadoopPath}
 import org.apache.hadoop.mapred.{FileInputFormat => MapredFileInputFormat, InputFormat => MapredInputFormat, JobConf}
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => MapreduceFileInputFormat}
 import org.apache.hadoop.mapreduce.{InputFormat => MapreduceInputFormat, Job}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 /**
- * The ExecutionEnviroment is the context in which a program is executed. A local environment will
+ * The ExecutionEnvironment is the context in which a program is executed. A local environment will
  * cause execution in the current JVM, a remote environment will cause execution on a remote
  * cluster installation.
  *
@@ -61,12 +61,14 @@ import scala.reflect.ClassTag
  *  created. If the program is submitted to a cluster a remote execution environment will
  *  be created.
  */
+@Public
 class ExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
    * @return the Java Execution environment.
    */
   def getJavaEnv: JavaEnv = javaEnv
+
   /**
    * Gets the config object.
    */
@@ -91,25 +93,57 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   def getParallelism = javaEnv.getParallelism
 
   /**
-   * Sets the number of times that failed tasks are re-executed. A value of zero
-   * effectively disables fault tolerance. A value of "-1" indicates that the system
-   * default value (as defined in the configuration) should be used.
-   */
+    * Sets the restart strategy configuration. The configuration specifies which restart strategy
+    * will be used for the execution graph in case of a restart.
+    *
+    * @param restartStrategyConfiguration Restart strategy configuration to be set
+    */
+  @PublicEvolving
+  def setRestartStrategy(restartStrategyConfiguration: RestartStrategyConfiguration): Unit = {
+    javaEnv.setRestartStrategy(restartStrategyConfiguration)
+  }
+
+  /**
+    * Returns the specified restart strategy configuration.
+    *
+    * @return The restart strategy configuration to be used
+    */
+  @PublicEvolving
+  def getRestartStrategy: RestartStrategyConfiguration = {
+    javaEnv.getRestartStrategy
+  }
+
+  /**
+    * Sets the number of times that failed tasks are re-executed. A value of zero
+    * effectively disables fault tolerance. A value of "-1" indicates that the system
+    * default value (as defined in the configuration) should be used.
+    *
+    * @deprecated This method will be replaced by [[setRestartStrategy()]]. The
+    *            FixedDelayRestartStrategyConfiguration contains the number of execution retries.
+    */
+  @Deprecated
+  @PublicEvolving
   def setNumberOfExecutionRetries(numRetries: Int): Unit = {
     javaEnv.setNumberOfExecutionRetries(numRetries)
   }
 
   /**
-   * Gets the number of times the system will try to re-execute failed tasks. A value
-   * of "-1" indicates that the system default value (as defined in the configuration)
-   * should be used.
-   */
+    * Gets the number of times the system will try to re-execute failed tasks. A value
+    * of "-1" indicates that the system default value (as defined in the configuration)
+    * should be used.
+    *
+    * @deprecated This method will be replaced by [[getRestartStrategy]]. The
+    *            FixedDelayRestartStrategyConfiguration contains the number of execution retries.
+    */
+  @Deprecated
+  @PublicEvolving
   def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
 
   /**
    * Gets the UUID by which this environment is identified. The UUID sets the execution context
    * in the cluster or local environment.
    */
+  @PublicEvolving
   def getId: JobID = {
     javaEnv.getId
   }
@@ -122,6 +156,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Gets the UUID by which this environment is identified, as a string.
    */
+  @PublicEvolving
   def getIdString: String = {
     javaEnv.getIdString
   }
@@ -129,6 +164,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Starts a new session, discarding all intermediate results.
    */
+  @PublicEvolving
   def startNewSession() {
     javaEnv.startNewSession()
   }
@@ -136,8 +172,10 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Sets the session timeout to hold the intermediate results of a job. This only
    * applies the updated timeout in future executions.
+ *
    * @param timeout The timeout in seconds.
    */
+  @PublicEvolving
   def setSessionTimeout(timeout: Long) {
     javaEnv.setSessionTimeout(timeout)
   }
@@ -149,6 +187,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * @return The session timeout, in seconds.
    */
+  @PublicEvolving
   def getSessionTimeout: Long = {
     javaEnv.getSessionTimeout
   }
@@ -249,7 +288,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * to only read specific fields.
    *
    * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or
-   *                 "hdfs://host:port/file/path").   * @param lineDelimiter
+   *                 "hdfs://host:port/file/path").
    * @param lineDelimiter The string that separates lines, defaults to newline.
    * @param fieldDelimiter The string that separates individual fields, defaults to ",".
    * @param quoteCharacter The character to use for quoted String parsing, disabled by default.
@@ -342,7 +381,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     require(inputFormat != null, "InputFormat must not be null.")
     require(filePath != null, "File path must not be null.")
     inputFormat.setFilePath(new Path(filePath))
-    createInput(inputFormat, implicitly[TypeInformation[T]])
+    createInput(inputFormat, explicitFirst(inputFormat, implicitly[TypeInformation[T]]))
   }
 
   /**
@@ -353,7 +392,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     if (inputFormat == null) {
       throw new IllegalArgumentException("InputFormat must not be null.")
     }
-    createInput(inputFormat, implicitly[TypeInformation[T]])
+    createInput(inputFormat, explicitFirst(inputFormat, implicitly[TypeInformation[T]]))
   }
 
   /**
@@ -373,7 +412,13 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapred.FileInputFormat]]. The
    * given inputName is set on the given job.
+   *
+   * @deprecated Please use
+   *             [[org.apache.flink.hadoopcompatibility.scala.HadoopInputs#readHadoopFile]]
+   * from the flink-hadoop-compatibility module.
    */
+  @Deprecated
+  @PublicEvolving
   def readHadoopFile[K, V](
       mapredInputFormat: MapredFileInputFormat[K, V],
       key: Class[K],
@@ -389,7 +434,13 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapred.FileInputFormat]]. A
    * [[org.apache.hadoop.mapred.JobConf]] with the given inputPath is created.
+   *
+   * @deprecated Please use
+   *             [[org.apache.flink.hadoopcompatibility.scala.HadoopInputs#readHadoopFile]]
+   * from the flink-hadoop-compatibility module.
    */
+  @Deprecated
+  @PublicEvolving
   def readHadoopFile[K, V](
       mapredInputFormat: MapredFileInputFormat[K, V],
       key: Class[K],
@@ -402,7 +453,13 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a [[DataSet]] from [[org.apache.hadoop.mapred.SequenceFileInputFormat]]
    * A [[org.apache.hadoop.mapred.JobConf]] with the given inputPath is created.
+   *
+   * @deprecated Please use
+   *             [[org.apache.flink.hadoopcompatibility.scala.HadoopInputs#readSequenceFile]]
+   * from the flink-hadoop-compatibility module.
    */
+  @Deprecated
+  @PublicEvolving
   def readSequenceFile[K, V](
       key: Class[K],
       value: Class[V],
@@ -414,7 +471,13 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapred.InputFormat]].
+   *
+   * @deprecated Please use
+   *             [[org.apache.flink.hadoopcompatibility.scala.HadoopInputs#createHadoopInput]]
+   * from the flink-hadoop-compatibility module.
    */
+  @Deprecated
+  @PublicEvolving
   def createHadoopInput[K, V](
       mapredInputFormat: MapredInputFormat[K, V],
       key: Class[K],
@@ -428,7 +491,13 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapreduce.lib.input.FileInputFormat]].
    * The given inputName is set on the given job.
+   *
+   * @deprecated Please use
+   *             [[org.apache.flink.hadoopcompatibility.scala.HadoopInputs#readHadoopFile]]
+   * from the flink-hadoop-compatibility module.
    */
+  @Deprecated
+  @PublicEvolving
   def readHadoopFile[K, V](
       mapreduceInputFormat: MapreduceFileInputFormat[K, V],
       key: Class[K],
@@ -445,7 +514,13 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Creates a [[DataSet]] from the given
    * [[org.apache.hadoop.mapreduce.lib.input.FileInputFormat]]. A
    * [[org.apache.hadoop.mapreduce.Job]] with the given inputPath will be created.
+   *
+   * @deprecated Please use
+   *             [[org.apache.flink.hadoopcompatibility.scala.HadoopInputs#readHadoopFile]]
+   * from the flink-hadoop-compatibility module.
    */
+  @Deprecated
+  @PublicEvolving
   def readHadoopFile[K, V](
       mapreduceInputFormat: MapreduceFileInputFormat[K, V],
       key: Class[K],
@@ -457,7 +532,13 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapreduce.InputFormat]].
+   *
+   * @deprecated Please use
+   *             [[org.apache.flink.hadoopcompatibility.scala.HadoopInputs#createHadoopInput]]
+   * from the flink-hadoop-compatibility module.
    */
+  @Deprecated
+  @PublicEvolving
   def createHadoopInput[K, V](
       mapreduceInputFormat: MapreduceInputFormat[K, V],
       key: Class[K],
@@ -630,6 +711,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 }
 
+@Public
 object ExecutionEnvironment {
 
   /**
@@ -669,8 +751,10 @@ object ExecutionEnvironment {
    * Creates an execution environment that uses Java Collections underneath. This will execute in a
    * single thread in the current JVM. It is very fast but will fail if the data does not fit into
    * memory. This is useful during implementation and for debugging.
+ *
    * @return
    */
+  @PublicEvolving
   def createCollectionsEnvironment: ExecutionEnvironment = {
     new ExecutionEnvironment(new CollectionEnvironment)
   }
@@ -726,7 +810,7 @@ object ExecutionEnvironment {
    * configuration parameters for the Client only; Program parallelism can be set via
    * [[ExecutionEnvironment.setParallelism]].
    *
-   * Cluster configuration has to be done in the remotely running Flink instance.
+   * ClusterClient configuration has to be done in the remotely running Flink instance.
    *
    * @param host The host name or address of the master (JobManager), where the program should be
    *             executed.

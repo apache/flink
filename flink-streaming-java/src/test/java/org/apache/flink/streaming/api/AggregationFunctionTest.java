@@ -29,7 +29,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.operators.Keys;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -46,7 +46,7 @@ import org.junit.Test;
 public class AggregationFunctionTest {
 
 	@Test
-	public void groupSumIntegerTest() {
+	public void groupSumIntegerTest() throws Exception {
 
 		// preparing expected outputs
 		List<Tuple2<Integer, Integer>> expectedGroupSumList = new ArrayList<>();
@@ -115,7 +115,7 @@ public class AggregationFunctionTest {
 	}
 
 	@Test
-	public void pojoGroupSumIntegerTest() {
+	public void pojoGroupSumIntegerTest() throws Exception {
 
 		// preparing expected outputs
 		List<MyPojo> expectedGroupSumList = new ArrayList<>();
@@ -183,7 +183,7 @@ public class AggregationFunctionTest {
 	}
 	
 	@Test
-	public void minMaxByTest() {
+	public void minMaxByTest() throws Exception {
 		// Tuples are grouped on field 0, aggregated on field 1
 		
 		// preparing expected outputs
@@ -250,7 +250,7 @@ public class AggregationFunctionTest {
 	}
 
 	@Test
-	public void pojoMinMaxByTest() {
+	public void pojoMinMaxByTest() throws Exception {
 		// Pojos are grouped on field 0, aggregated on field 1
 
 		// preparing expected outputs

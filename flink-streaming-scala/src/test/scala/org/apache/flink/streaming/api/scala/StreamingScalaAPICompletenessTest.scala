@@ -28,7 +28,6 @@ import org.junit.Test
 
 /**
  * This checks whether the streaming Scala API is up to feature parity with the Java API.
- * Implements the {@link ScalaAPICompletenessTest} for streaming.
  */
 class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
 
@@ -37,12 +36,10 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
     val excludedNames = Seq(
       // These are only used internally. Should be internal API but Java doesn't have
       // private[flink].
-      "org.apache.flink.streaming.api.datastream.DataStream.getExecutionEnvironment",
       "org.apache.flink.streaming.api.datastream.DataStream.getType",
       "org.apache.flink.streaming.api.datastream.DataStream.copy",
-      "org.apache.flink.streaming.api.datastream.DataStream.transform",
       "org.apache.flink.streaming.api.datastream.DataStream.getTransformation",
-      "org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator.copy",
+      "org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator.forceNonParallel",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getExecutionEnvironment",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getExecutionEnvironment",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getFirstInput",
@@ -50,7 +47,6 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getType1",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getType2",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.addGeneralWindowCombine",
-      "org.apache.flink.streaming.api.datastream.ConnectedStreams.transform",
 
       "org.apache.flink.streaming.api.datastream.WindowedDataStream.getType",
       "org.apache.flink.streaming.api.datastream.WindowedDataStream.getExecutionConfig",
@@ -60,7 +56,6 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "org.apache.flink.streaming.api.datastream.AllWindowedStream.getExecutionEnvironment",
       "org.apache.flink.streaming.api.datastream.AllWindowedStream.getInputType",
 
-      "org.apache.flink.streaming.api.datastream.KeyedStream.transform",
       "org.apache.flink.streaming.api.datastream.KeyedStream.getKeySelector",
 
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.isChainingEnabled",
@@ -112,7 +107,7 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
 
     checkMethods(
       "SingleOutputStreamOperator", "DataStream",
-      classOf[org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator[_,_]],
+      classOf[org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator[_]],
       classOf[DataStream[_]])
 
     checkMethods(
@@ -143,11 +138,11 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
     checkMethods(
       "JoinedStreams.WithWindow", "JoinedStreams.WithWindow",
       classOf[org.apache.flink.streaming.api.datastream.JoinedStreams.WithWindow[_,_,_,_]],
-      classOf[JoinedStreams.WithWindow[_,_,_,_]])
+      classOf[JoinedStreams[_,_]#Where[_]#EqualTo#WithWindow[_]])
 
     checkMethods(
       "CoGroupedStreams.WithWindow", "CoGroupedStreams.WithWindow",
       classOf[org.apache.flink.streaming.api.datastream.CoGroupedStreams.WithWindow[_,_,_,_]],
-      classOf[CoGroupedStreams.WithWindow[_,_,_,_]])
+      classOf[CoGroupedStreams[_, _]#Where[_]#EqualTo#WithWindow[_]])
   }
 }

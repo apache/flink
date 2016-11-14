@@ -18,6 +18,12 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 /**
  * Tests for basic {@link CompletedCheckpointStore} contract.
  */
@@ -25,9 +31,43 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 
 	@Override
 	protected CompletedCheckpointStore createCompletedCheckpoints(
-			int maxNumberOfCheckpointsToRetain,
-			ClassLoader userClassLoader) throws Exception {
+			int maxNumberOfCheckpointsToRetain) throws Exception {
 
-		return new StandaloneCompletedCheckpointStore(maxNumberOfCheckpointsToRetain, userClassLoader);
+		return new StandaloneCompletedCheckpointStore(maxNumberOfCheckpointsToRetain);
+	}
+
+	/**
+	 * Tests that shutdown discards all checkpoints.
+	 */
+	@Test
+	public void testShutdownDiscardsCheckpoints() throws Exception {
+		CompletedCheckpointStore store = createCompletedCheckpoints(1);
+		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
+
+		store.addCheckpoint(checkpoint);
+		assertEquals(1, store.getNumberOfRetainedCheckpoints());
+
+		store.shutdown(JobStatus.FINISHED);
+
+		assertEquals(0, store.getNumberOfRetainedCheckpoints());
+		assertTrue(checkpoint.isDiscarded());
+	}
+
+	/**
+	 * Tests that suspends discards all checkpoints (as they cannot be
+	 * recovered later in standalone recovery mode).
+	 */
+	@Test
+	public void testSuspendDiscardsCheckpoints() throws Exception {
+		CompletedCheckpointStore store = createCompletedCheckpoints(1);
+		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
+
+		store.addCheckpoint(checkpoint);
+		assertEquals(1, store.getNumberOfRetainedCheckpoints());
+
+		store.shutdown(JobStatus.SUSPENDED);
+
+		assertEquals(0, store.getNumberOfRetainedCheckpoints());
+		assertTrue(checkpoint.isDiscarded());
 	}
 }

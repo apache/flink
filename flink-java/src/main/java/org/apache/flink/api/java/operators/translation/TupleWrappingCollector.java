@@ -18,12 +18,14 @@
 
 package org.apache.flink.api.java.operators.translation;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 
 /**
  * Needed to wrap tuples to {@code Tuple2<key, value>} pairs for combine method of group reduce with key selector function
  */
+@Internal
 public class TupleWrappingCollector<IN, K> implements Collector<IN>, java.io.Serializable {
 	
 	private static final long serialVersionUID = 1L;

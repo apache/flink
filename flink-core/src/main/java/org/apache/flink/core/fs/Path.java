@@ -27,6 +27,7 @@ import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -38,6 +39,7 @@ import org.apache.flink.util.StringUtils;
  *
  * Tailing slashes are removed from the path.
  */
+@Public
 public class Path implements IOReadableWritable, Serializable {
 	
 	private static final long serialVersionUID = 1L;
@@ -143,7 +145,7 @@ public class Path implements IOReadableWritable, Serializable {
 	}
 
 	/**
- 	 * Checks if the provided path string is either null or has zero length and throws
+	 * Checks if the provided path string is either null or has zero length and throws
 	 * a {@link IllegalArgumentException} if any of the two conditions apply.
 	 * In addition, leading and tailing whitespaces are removed.
 	 *
@@ -328,6 +330,14 @@ public class Path implements IOReadableWritable, Serializable {
 		final String path = uri.getPath();
 		final int slash = path.lastIndexOf(SEPARATOR);
 		return path.substring(slash + 1);
+	}
+
+	/**
+	 * Return full path.
+	 * @return full path
+	 */
+	public String getPath() {
+		return uri.getPath();
 	}
 
 	/**

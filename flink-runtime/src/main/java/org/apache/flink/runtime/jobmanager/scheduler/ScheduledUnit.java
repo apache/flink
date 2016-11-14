@@ -20,8 +20,7 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 public class ScheduledUnit {
 	

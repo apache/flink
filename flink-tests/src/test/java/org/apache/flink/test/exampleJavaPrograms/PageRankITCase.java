@@ -22,9 +22,11 @@ import java.io.File;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
-import org.apache.flink.examples.java.graph.PageRankBasic;
+
+import org.apache.flink.examples.java.graph.PageRank;
 import org.apache.flink.test.testdata.PageRankData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -67,14 +69,24 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testPageRankSmallNumberOfIterations() throws Exception{
-		PageRankBasic.main(new String[] {verticesPath, edgesPath, resultPath, PageRankData.NUM_VERTICES+"", "3"});
+	public void testPageRankSmallNumberOfIterations() throws Exception {
+		PageRank.main(new String[]{
+				"--pages", verticesPath,
+				"--links", edgesPath,
+				"--output", resultPath,
+				"--numPages", PageRankData.NUM_VERTICES + "",
+				"--iterations", "3"});
 		expected =  PageRankData.RANKS_AFTER_3_ITERATIONS;
 	}
 
 	@Test
 	public void testPageRankWithConvergenceCriterion() throws Exception {
-		PageRankBasic.main(new String[] {verticesPath, edgesPath, resultPath, PageRankData.NUM_VERTICES+"", "1000"});
+		PageRank.main(new String[]{
+				"--pages", verticesPath,
+				"--links", edgesPath,
+				"--output", resultPath,
+				"--numPages", PageRankData.NUM_VERTICES + "",
+				"--vertices", "1000"});
 		expected = PageRankData.RANKS_AFTER_EPSILON_0_0001_CONVERGENCE;
 	}
 }

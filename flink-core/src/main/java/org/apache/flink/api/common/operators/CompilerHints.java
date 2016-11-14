@@ -22,6 +22,7 @@ package org.apache.flink.api.common.operators;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.util.FieldSet;
 
 /**
@@ -30,6 +31,7 @@ import org.apache.flink.api.common.operators.util.FieldSet;
  * Note that these values are optional hints, the optimizer will always generate a valid plan without
  * them as well. The hints may help, however, to improve the plan choice.
  */
+@Internal
 public class CompilerHints {
 
 	private long outputSize = -1;

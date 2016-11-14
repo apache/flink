@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.io;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.IOException;
 
 /**
@@ -26,6 +28,7 @@ import java.io.IOException;
  * For example, the {@link FileOutputFormat} implements this behavior for distributed file systems and
  * creates/deletes target directories if necessary.
  */
+@Public
 public interface InitializeOnMaster {
 
 	/**

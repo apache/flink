@@ -18,14 +18,16 @@
 
 package org.apache.flink.contrib.streaming;
 
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
-import org.junit.Test;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.junit.Assert;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+
+import org.junit.Test;
 
 import java.util.Iterator;
+
+import static org.junit.Assert.*;
 
 /**
  * This test verifies the behavior of DataStreamUtils.collect.
@@ -33,28 +35,28 @@ import java.util.Iterator;
 public class CollectITCase {
 
 	@Test
-	public void testCollect() {
+	public void testCollect() throws Exception {
+		final LocalFlinkMiniCluster cluster = new LocalFlinkMiniCluster(new Configuration(), false);
+		try {
+			cluster.start();
 
-		Configuration config = new Configuration();
-		ForkableFlinkMiniCluster cluster = new ForkableFlinkMiniCluster(config, false);
-		cluster.start();
-
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
-
-		long N = 10;
-		DataStream<Long> stream = env.generateSequence(1, N);
-
-		long i = 1;
-		for(Iterator it = DataStreamUtils.collect(stream); it.hasNext(); ) {
-			Long x = (Long) it.next();
-			if(x != i) {
-				Assert.fail(String.format("Should have got %d, got %d instead.", i, x));
+			final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
+					"localhost", cluster.getLeaderRPCPort());
+	
+			final long N = 10;
+			DataStream<Long> stream = env.generateSequence(1, N);
+	
+			long i = 1;
+			for (Iterator<Long> it = DataStreamUtils.collect(stream); it.hasNext(); ) {
+				long x = it.next();
+				assertEquals("received wrong element", i, x);
+				i++;
 			}
-			i++;
+			
+			assertEquals("received wrong number of elements", N + 1, i);
 		}
-		if(i != N + 1) {
-			Assert.fail(String.format("Should have collected %d numbers, got %d instead.", N, i - 1));
+		finally {
+			cluster.stop();
 		}
 	}
 }

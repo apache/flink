@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,143 +17,60 @@
  */
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.ClosureCleaner;
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.mockito.stubbing.OngoingStubbing;
 
 import java.util.Collection;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * A test harness for testing a {@link OneInputStreamOperator}.
  *
- * <p>
- * This mock task provides the operator with a basic runtime context and allows pushing elements
+ * <p>This mock task provides the operator with a basic runtime context and allows pushing elements
  * and watermarks into the operator. {@link java.util.Deque}s containing the emitted elements
  * and watermarks can be retrieved. You are free to modify these.
  */
-public class OneInputStreamOperatorTestHarness<IN, OUT> {
+public class OneInputStreamOperatorTestHarness<IN, OUT>
+		extends AbstractStreamOperatorTestHarness<OUT> {
 
-	final OneInputStreamOperator<IN, OUT> operator;
+	private final OneInputStreamOperator<IN, OUT> oneInputOperator;
 
-	final ConcurrentLinkedQueue<Object> outputList;
-
-	final StreamConfig config;
-	
-	final ExecutionConfig executionConfig;
-	
-	final Object checkpointLock;
-	
-	
-	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
-		this.operator = operator;
-		this.outputList = new ConcurrentLinkedQueue<Object>();
-		this.config = new StreamConfig(new Configuration());
-		this.executionConfig = new ExecutionConfig();
-		this.checkpointLock = new Object();
-
-		Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024);
-		StreamTask<?, ?> mockTask = mock(StreamTask.class);
-		when(mockTask.getName()).thenReturn("Mock Task");
-		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
-		when(mockTask.getConfiguration()).thenReturn(config);
-		when(mockTask.getEnvironment()).thenReturn(env);
-		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
-		
-		// ugly Java generic hacks
-		@SuppressWarnings("unchecked")
-		OngoingStubbing<StateBackend<?>> stubbing = 
-				(OngoingStubbing<StateBackend<?>>) (OngoingStubbing<?>) when(mockTask.getStateBackend());
-		stubbing.thenReturn(MemoryStateBackend.defaultInstance());
-
-		operator.setup(mockTask, config, new MockOutput());
+	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) throws Exception {
+		this(operator, 1, 1, 0);
 	}
 
-	public <K> void configureForKeyedStream(KeySelector<IN, K> keySelector, TypeInformation<K> keyType) {
-		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(keySelector);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-	}
-	
-	/**
-	 * Get all the output from the task. This contains StreamRecords and Events interleaved. Use
-	 * {@link org.apache.flink.streaming.util.TestHarnessUtil#getStreamRecordsFromOutput(java.util.List)}
-	 * to extract only the StreamRecords.
-	 */
-	public ConcurrentLinkedQueue<Object> getOutput() {
-		return outputList;
+	public OneInputStreamOperatorTestHarness(
+			OneInputStreamOperator<IN, OUT> operator,
+			int maxParallelism,
+			int numTubtasks,
+			int subtaskIndex) throws Exception {
+		super(operator, maxParallelism, numTubtasks, subtaskIndex);
+
+		this.oneInputOperator = operator;
 	}
 
-	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open()}
-	 */
-	public void open() throws Exception {
-		operator.open();
+	public void processElement(IN value, long timestamp) throws Exception {
+		processElement(new StreamRecord<>(value, timestamp));
 	}
 
-	/**
-	 * Calls close on the operator.
-	 */
-	public void close() throws Exception {
-		operator.close();
-	}
 
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		operator.setKeyContextElement(element);
-		operator.processElement(element);
+		operator.setKeyContextElement1(element);
+		oneInputOperator.processElement(element);
 	}
 
 	public void processElements(Collection<StreamRecord<IN>> elements) throws Exception {
 		for (StreamRecord<IN> element: elements) {
-			operator.setKeyContextElement(element);
-			operator.processElement(element);
+			operator.setKeyContextElement1(element);
+			oneInputOperator.processElement(element);
 		}
+	}
+
+	public void processWatermark(long watermark) throws Exception {
+		oneInputOperator.processWatermark(new Watermark(watermark));
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {
-		operator.processWatermark(mark);
-	}
-
-	private class MockOutput implements Output<StreamRecord<OUT>> {
-
-		private TypeSerializer<OUT> outputSerializer;
-
-		@Override
-		public void emitWatermark(Watermark mark) {
-			outputList.add(mark);
-		}
-
-		@Override
-		public void collect(StreamRecord<OUT> element) {
-			if (outputSerializer == null) {
-				outputSerializer = TypeExtractor.getForObject(element.getValue()).createSerializer(executionConfig);
-			}
-			outputList.add(new StreamRecord<OUT>(outputSerializer.copy(element.getValue()),
-					element.getTimestamp()));
-		}
-
-		@Override
-		public void close() {
-			// ignore
-		}
+		oneInputOperator.processWatermark(mark);
 	}
 }

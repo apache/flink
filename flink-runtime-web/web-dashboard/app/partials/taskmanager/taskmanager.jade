@@ -15,7 +15,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-nav.navbar.navbar-default.navbar-fixed-top.navbar-main(ng-if="metrics.id")
+nav.navbar.navbar-default.navbar-fixed-top.navbar-main
   #fold-button.btn.btn-default.navbar-btn.pull-left(ng-click='showSidebar()')
     i.fa.fa-navicon
 
@@ -26,10 +26,14 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main(ng-if="metrics.id")
   .navbar-info.last.first.hidden-xs.hidden-sm
     | {{metrics.path}}
 
-nav.navbar.navbar-default.navbar-fixed-top.navbar-main-additional(ng-if="metrics.id")
+nav.navbar.navbar-default.navbar-fixed-top.navbar-main-additional
   ul.nav.nav-tabs
     li(ui-sref-active='active')
       a(ui-sref=".metrics") Metrics
+    li(ui-sref-active='active')
+      a(ui-sref=".log") Logs
+    li(ui-sref-active='active')
+      a(ui-sref=".stdout") Stdout
 
 #content-inner.has-navbar-main-additional
   div(ui-view="details")

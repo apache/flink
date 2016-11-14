@@ -1,5 +1,7 @@
 ---
-title: "IDE setup"
+title: "IDE Setup"
+nav-parent_id: internals
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -46,7 +48,7 @@ version for complex projects like Flink. One restriction is, though, that it wor
    Open "Window" -> "Preferences" -> "Scala" -> "Compiler" -> "Advanced" and put into the "Xplugin" field the path to
    the *macroparadise* jar file (typically "/home/*-your-user-*/.m2/repository/org/scalamacros/paradise_2.10.4/2.0.1/paradise_2.10.4-2.0.1.jar").
    Note: If you do not have the jar file, you probably did not ran the command line build.
-3. Import the Flink Maven projects ("File" -> "Import" -> "Maven" -> "Existing Maven Projects") 
+3. Import the Flink Maven projects ("File" -> "Import" -> "Maven" -> "Existing Maven Projects")
 4. During the import, Eclipse will ask to automatically install additional Maven build helper plugins.
 5. Close the "flink-java8" project. Since Eclipse Kepler does not support Java 8, you cannot develop this project.
 
@@ -71,6 +73,10 @@ and manually add the Scala and Maven plugins by plugin site at [http://scala-ide
 * Or download the [zip file](http://download.scala-ide.org/sdk/helium/e38/scala211/stable/update-site.zip), unpack it, and move the contents of the
   "plugins" and "features" folders into the equally named folders of the Eclipse root directory
 
+**NOTE:** It might happen that some modules do not build in Eclipse correctly (even if the maven build succeeds).
+To fix this, right-click in the corresponding Eclipse project and choose "Properties" and than "Maven".
+Uncheck the box labeled "Resolve dependencies from Workspace projects", click "Apply" and then "OK". "
+
 
 ### Eclipse Scala IDE 4.0.0
 
@@ -81,9 +87,9 @@ and manually add the Scala and Maven plugins by plugin site at [http://scala-ide
 (`mvn clean package -DskipTests`)
 
 1. Download the Scala IDE: [http://scala-ide.org/download/sdk.html](http://scala-ide.org/download/sdk.html)
-2. Import the Flink Maven projects (File -> Import -> Maven -> Existing Maven Projects) 
-3. While importing the Flink project, the IDE may ask you to install an additional maven build helper plugin. 
-4. After the import, you need to set the Scala version of your projects to Scala 2.10 (from the default 2.11). 
+2. Import the Flink Maven projects (File -> Import -> Maven -> Existing Maven Projects)
+3. While importing the Flink project, the IDE may ask you to install an additional maven build helper plugin.
+4. After the import, you need to set the Scala version of your projects to Scala 2.10 (from the default 2.11).
    To do that, select all projects that contain Scala code (marked by the small *S* on the project icon),
    right click and select "Scala -> Set the Scala Installation" and pick "2.10.4".
    Currently, the project to which that is relevant are "flink-runtime", "flink-scala", "flink-scala-examples",
@@ -106,12 +112,12 @@ Prior to doing anything, make sure that the Flink project is built at least once
 `mvn clean package -DskipTests`
 
 ### Installing the Scala plugin
-1. Go to IntelliJ plugins settings (File -> Settings -> Plugins) and click on "Install Jetbrains plugin...". 
-2. Select and install the "Scala" plugin. 
+1. Go to IntelliJ plugins settings (File -> Settings -> Plugins) and click on "Install Jetbrains plugin...".
+2. Select and install the "Scala" plugin.
 3. Restart IntelliJ
 
 ### Installing the Scala compiler plugin
-1. Go to IntelliJ scala compiler settings (File -> Settings -> Build, Execution, Deployment -> Compiler -> Scala Compiler) and click on "Install Jetbrains plugin...". 
+1. Go to IntelliJ scala compiler settings (File -> Settings -> Build, Execution, Deployment -> Compiler -> Scala Compiler) and click on "Install Jetbrains plugin...".
 2. Click on the green plus icon on the right to add a compiler plugin
 3. Point to the paradise jar: ~/.m2/repository/org/scalamacros/paradise_2.10.4/2.0.1/paradise_2.10.4-2.0.1.jar If there is no such file, this means that you should build Flink from the terminal as explained above.
 

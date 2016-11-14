@@ -1,5 +1,8 @@
 ---
 title:  "Local Setup"
+nav-title: Local
+nav-parent_id: deployment
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -27,7 +30,9 @@ This documentation is intended to provide instructions on how to run Flink local
 
 ## Download
 
-Go to the [downloads page]({{ site.download_url}}) and get the ready to run package. If you want to interact with Hadoop (e.g. HDFS or HBase), make sure to pick the Flink package **matching your Hadoop version**. When in doubt or you plan to just work with the local file system pick the package for Hadoop 1.2.x.
+Go to the [downloads page]({{ site.download_url }}) and get the ready to run package. If you want to interact with Hadoop (e.g. HDFS or HBase), make sure to pick the Flink package **matching your Hadoop version**. When in doubt or you plan to just work with the local file system pick the package for Hadoop 1.2.x.
+
+{% top %}
 
 ## Requirements
 
@@ -42,16 +47,20 @@ java -version
 The command should output something comparable to the following:
 
 ~~~bash
-java version "1.6.0_22"
-Java(TM) SE Runtime Environment (build 1.6.0_22-b04)
-Java HotSpot(TM) 64-Bit Server VM (build 17.1-b03, mixed mode)
+java version "1.8.0_51"
+Java(TM) SE Runtime Environment (build 1.8.0_51-b16)
+Java HotSpot(TM) 64-Bit Server VM (build 25.51-b03, mixed mode)
 ~~~
+
+{% top %}
 
 ## Configuration
 
 **For local mode Flink is ready to go out of the box and you don't need to change the default configuration.**
 
 The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in `conf/flink-conf.yaml` if you want to manually override the Java runtime to use. Consult the [configuration page](config.html) for further details about configuring Flink.
+
+{% top %}
 
 ## Starting Flink
 
@@ -61,21 +70,22 @@ The out of the box configuration will use your default Java installation. You ca
 $ tar xzf flink-*.tgz
 $ cd flink
 $ bin/start-local.sh
-Starting job manager
+Starting jobmanager.
 ~~~
 
 You can check that the system is running by checking the log files in the `logs` directory:
 
 ~~~bash
 $ tail log/flink-*-jobmanager-*.log
-INFO ... - Initializing memory manager with 409 megabytes of memory
-INFO ... - Trying to load org.apache.flinknephele.jobmanager.scheduler.local.LocalScheduler as scheduler
-INFO ... - Setting up web info server, using web-root directory ...
-INFO ... - Web info server will display information about nephele job-manager on localhost, port 8081.
-INFO ... - Starting web info server for JobManager on port 8081
+INFO ... - Starting JobManager
+INFO ... - Starting JobManager web frontend
+INFO ... - Web frontend listening at 127.0.0.1:8081
+INFO ... - Registered TaskManager at 127.0.0.1 (akka://flink/user/taskmanager)
 ~~~
 
 The JobManager will also start a web frontend on port 8081, which you can check with your browser at `http://localhost:8081`.
+
+{% top %}
 
 ## Flink on Windows
 
@@ -91,11 +101,13 @@ Note: The ``bin`` folder of your Java Runtime Environment must be included in Wi
 $ cd flink
 $ cd bin
 $ start-local.bat
-Starting Flink job manager. Webinterface by default on http://localhost:8081/.
+Starting Flink job manager. Web interface by default on http://localhost:8081/.
 Do not close this batch window. Stop job manager by pressing Ctrl+C.
 ~~~
 
 After that, you need to open a second terminal to run jobs using `flink.bat`.
+
+{% top %}
 
 ### Starting with Cygwin and Unix Scripts
 
@@ -104,8 +116,10 @@ With *Cygwin* you need to start the Cygwin Terminal, navigate to your Flink dire
 ~~~bash
 $ cd flink
 $ bin/start-local.sh
-Starting Nephele job manager
+Starting jobmanager.
 ~~~
+
+{% top %}
 
 ### Installing Flink from Git
 
@@ -136,3 +150,4 @@ set -o igncr
 
 Save the file and open a new bash shell.
 
+{% top %}

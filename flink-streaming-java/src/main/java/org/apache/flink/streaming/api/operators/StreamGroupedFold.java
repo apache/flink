@@ -21,16 +21,18 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+@Internal
 public class StreamGroupedFold<IN, OUT, KEY>
 		extends AbstractUdfStreamOperator<OUT, FoldFunction<IN, OUT>>
 		implements OneInputStreamOperator<IN, OUT>, OutputTypeConfigurable<OUT> {
@@ -40,7 +42,7 @@ public class StreamGroupedFold<IN, OUT, KEY>
 	private static final String STATE_NAME = "_op_state";
 
 	// Grouped values
-	private transient OperatorState<OUT> values;
+	private transient ValueState<OUT> values;
 	
 	private transient OUT initialValue;
 	
@@ -63,10 +65,14 @@ public class StreamGroupedFold<IN, OUT, KEY>
 					"operator. Probably the setOutputType method was not called.");
 		}
 
-		ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
-		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
-		initialValue = outTypeSerializer.deserialize(in);
-		values = createKeyValueState(STATE_NAME, outTypeSerializer, null);
+		try (ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
+			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais))
+		{
+			initialValue = outTypeSerializer.deserialize(in);
+		}
+		
+		ValueStateDescriptor<OUT> stateId = new ValueStateDescriptor<>(STATE_NAME, outTypeSerializer, null);
+		values = getPartitionedState(stateId);
 	}
 
 	@Override
@@ -82,11 +88,6 @@ public class StreamGroupedFold<IN, OUT, KEY>
 			values.update(first);
 			output.collect(element.replace(first));
 		}
-	}
-
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		output.emitWatermark(mark);
 	}
 
 	@Override

@@ -56,28 +56,28 @@ public class CollectionDataSets {
 
 	public static DataSet<Tuple3<Integer, Long, String>> get3TupleDataSet(ExecutionEnvironment env) {
 
-		List<Tuple3<Integer, Long, String>> data = new ArrayList<Tuple3<Integer, Long, String>>();
-		data.add(new Tuple3<Integer, Long, String>(1, 1l, "Hi"));
-		data.add(new Tuple3<Integer, Long, String>(2, 2l, "Hello"));
-		data.add(new Tuple3<Integer, Long, String>(3, 2l, "Hello world"));
-		data.add(new Tuple3<Integer, Long, String>(4, 3l, "Hello world, how are you?"));
-		data.add(new Tuple3<Integer, Long, String>(5, 3l, "I am fine."));
-		data.add(new Tuple3<Integer, Long, String>(6, 3l, "Luke Skywalker"));
-		data.add(new Tuple3<Integer, Long, String>(7, 4l, "Comment#1"));
-		data.add(new Tuple3<Integer, Long, String>(8, 4l, "Comment#2"));
-		data.add(new Tuple3<Integer, Long, String>(9, 4l, "Comment#3"));
-		data.add(new Tuple3<Integer, Long, String>(10, 4l, "Comment#4"));
-		data.add(new Tuple3<Integer, Long, String>(11, 5l, "Comment#5"));
-		data.add(new Tuple3<Integer, Long, String>(12, 5l, "Comment#6"));
-		data.add(new Tuple3<Integer, Long, String>(13, 5l, "Comment#7"));
-		data.add(new Tuple3<Integer, Long, String>(14, 5l, "Comment#8"));
-		data.add(new Tuple3<Integer, Long, String>(15, 5l, "Comment#9"));
-		data.add(new Tuple3<Integer, Long, String>(16, 6l, "Comment#10"));
-		data.add(new Tuple3<Integer, Long, String>(17, 6l, "Comment#11"));
-		data.add(new Tuple3<Integer, Long, String>(18, 6l, "Comment#12"));
-		data.add(new Tuple3<Integer, Long, String>(19, 6l, "Comment#13"));
-		data.add(new Tuple3<Integer, Long, String>(20, 6l, "Comment#14"));
-		data.add(new Tuple3<Integer, Long, String>(21, 6l, "Comment#15"));
+		List<Tuple3<Integer, Long, String>> data = new ArrayList<>();
+		data.add(new Tuple3<>(1, 1L, "Hi"));
+		data.add(new Tuple3<>(2, 2L, "Hello"));
+		data.add(new Tuple3<>(3, 2L, "Hello world"));
+		data.add(new Tuple3<>(4, 3L, "Hello world, how are you?"));
+		data.add(new Tuple3<>(5, 3L, "I am fine."));
+		data.add(new Tuple3<>(6, 3L, "Luke Skywalker"));
+		data.add(new Tuple3<>(7, 4L, "Comment#1"));
+		data.add(new Tuple3<>(8, 4L, "Comment#2"));
+		data.add(new Tuple3<>(9, 4L, "Comment#3"));
+		data.add(new Tuple3<>(10, 4L, "Comment#4"));
+		data.add(new Tuple3<>(11, 5L, "Comment#5"));
+		data.add(new Tuple3<>(12, 5L, "Comment#6"));
+		data.add(new Tuple3<>(13, 5L, "Comment#7"));
+		data.add(new Tuple3<>(14, 5L, "Comment#8"));
+		data.add(new Tuple3<>(15, 5L, "Comment#9"));
+		data.add(new Tuple3<>(16, 6L, "Comment#10"));
+		data.add(new Tuple3<>(17, 6L, "Comment#11"));
+		data.add(new Tuple3<>(18, 6L, "Comment#12"));
+		data.add(new Tuple3<>(19, 6L, "Comment#13"));
+		data.add(new Tuple3<>(20, 6L, "Comment#14"));
+		data.add(new Tuple3<>(21, 6L, "Comment#15"));
 
 		Collections.shuffle(data);
 
@@ -86,10 +86,10 @@ public class CollectionDataSets {
 
 	public static DataSet<Tuple3<Integer, Long, String>> getSmall3TupleDataSet(ExecutionEnvironment env) {
 
-		List<Tuple3<Integer, Long, String>> data = new ArrayList<Tuple3<Integer, Long, String>>();
-		data.add(new Tuple3<Integer, Long, String>(1, 1l, "Hi"));
-		data.add(new Tuple3<Integer, Long, String>(2, 2l, "Hello"));
-		data.add(new Tuple3<Integer, Long, String>(3, 2l, "Hello world"));
+		List<Tuple3<Integer, Long, String>> data = new ArrayList<>();
+		data.add(new Tuple3<>(1, 1L, "Hi"));
+		data.add(new Tuple3<>(2, 2L, "Hello"));
+		data.add(new Tuple3<>(3, 2L, "Hello world"));
 
 		Collections.shuffle(data);
 
@@ -98,27 +98,26 @@ public class CollectionDataSets {
 
 	public static DataSet<Tuple5<Integer, Long, Integer, String, Long>> get5TupleDataSet(ExecutionEnvironment env) {
 
-		List<Tuple5<Integer, Long, Integer, String, Long>> data = new ArrayList<Tuple5<Integer, Long, Integer, String, Long>>();
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(1, 1l, 0, "Hallo", 1l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(2, 2l, 1, "Hallo Welt", 2l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(2, 3l, 2, "Hallo Welt wie", 1l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(3, 4l, 3, "Hallo Welt wie gehts?", 2l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(3, 5l, 4, "ABC", 2l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(3, 6l, 5, "BCD", 3l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(4, 7l, 6, "CDE", 2l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(4, 8l, 7, "DEF", 1l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(4, 9l, 8, "EFG", 1l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(4, 10l, 9, "FGH", 2l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(5, 11l, 10, "GHI", 1l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(5, 12l, 11, "HIJ", 3l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(5, 13l, 12, "IJK", 3l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(5, 14l, 13, "JKL", 2l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(5, 15l, 14, "KLM", 2l));
+		List<Tuple5<Integer, Long, Integer, String, Long>> data = new ArrayList<>();
+		data.add(new Tuple5<>(1, 1L, 0, "Hallo", 1L));
+		data.add(new Tuple5<>(2, 2L, 1, "Hallo Welt", 2L));
+		data.add(new Tuple5<>(2, 3L, 2, "Hallo Welt wie", 1L));
+		data.add(new Tuple5<>(3, 4L, 3, "Hallo Welt wie gehts?", 2L));
+		data.add(new Tuple5<>(3, 5L, 4, "ABC", 2L));
+		data.add(new Tuple5<>(3, 6L, 5, "BCD", 3L));
+		data.add(new Tuple5<>(4, 7L, 6, "CDE", 2L));
+		data.add(new Tuple5<>(4, 8L, 7, "DEF", 1L));
+		data.add(new Tuple5<>(4, 9L, 8, "EFG", 1L));
+		data.add(new Tuple5<>(4, 10L, 9, "FGH", 2L));
+		data.add(new Tuple5<>(5, 11L, 10, "GHI", 1L));
+		data.add(new Tuple5<>(5, 12L, 11, "HIJ", 3L));
+		data.add(new Tuple5<>(5, 13L, 12, "IJK", 3L));
+		data.add(new Tuple5<>(5, 14L, 13, "JKL", 2L));
+		data.add(new Tuple5<>(5, 15L, 14, "KLM", 2L));
 
 		Collections.shuffle(data);
 
-		TupleTypeInfo<Tuple5<Integer, Long, Integer, String, Long>> type = new
-				TupleTypeInfo<Tuple5<Integer, Long, Integer, String, Long>>(
+		TupleTypeInfo<Tuple5<Integer, Long, Integer, String, Long>> type = new TupleTypeInfo<>(
 				BasicTypeInfo.INT_TYPE_INFO,
 				BasicTypeInfo.LONG_TYPE_INFO,
 				BasicTypeInfo.INT_TYPE_INFO,
@@ -131,15 +130,14 @@ public class CollectionDataSets {
 
 	public static DataSet<Tuple5<Integer, Long, Integer, String, Long>> getSmall5TupleDataSet(ExecutionEnvironment env) {
 
-		List<Tuple5<Integer, Long, Integer, String, Long>> data = new ArrayList<Tuple5<Integer, Long, Integer, String, Long>>();
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(1, 1l, 0, "Hallo", 1l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(2, 2l, 1, "Hallo Welt", 2l));
-		data.add(new Tuple5<Integer, Long, Integer, String, Long>(2, 3l, 2, "Hallo Welt wie", 1l));
+		List<Tuple5<Integer, Long, Integer, String, Long>> data = new ArrayList<>();
+		data.add(new Tuple5<>(1, 1L, 0, "Hallo", 1L));
+		data.add(new Tuple5<>(2, 2L, 1, "Hallo Welt", 2L));
+		data.add(new Tuple5<>(2, 3L, 2, "Hallo Welt wie", 1L));
 
 		Collections.shuffle(data);
 
-		TupleTypeInfo<Tuple5<Integer, Long, Integer, String, Long>> type = new
-				TupleTypeInfo<Tuple5<Integer, Long, Integer, String, Long>>(
+		TupleTypeInfo<Tuple5<Integer, Long, Integer, String, Long>> type = new TupleTypeInfo<>(
 				BasicTypeInfo.INT_TYPE_INFO,
 				BasicTypeInfo.LONG_TYPE_INFO,
 				BasicTypeInfo.INT_TYPE_INFO,
@@ -152,13 +150,12 @@ public class CollectionDataSets {
 
 	public static DataSet<Tuple2<Tuple2<Integer, Integer>, String>> getSmallNestedTupleDataSet(ExecutionEnvironment env) {
 
-		List<Tuple2<Tuple2<Integer, Integer>, String>> data = new ArrayList<Tuple2<Tuple2<Integer, Integer>, String>>();
-		data.add(new Tuple2<Tuple2<Integer, Integer>, String>(new Tuple2<Integer, Integer>(1, 1), "one"));
-		data.add(new Tuple2<Tuple2<Integer, Integer>, String>(new Tuple2<Integer, Integer>(2, 2), "two"));
-		data.add(new Tuple2<Tuple2<Integer, Integer>, String>(new Tuple2<Integer, Integer>(3, 3), "three"));
+		List<Tuple2<Tuple2<Integer, Integer>, String>> data = new ArrayList<>();
+		data.add(new Tuple2<>(new Tuple2<>(1, 1), "one"));
+		data.add(new Tuple2<>(new Tuple2<>(2, 2), "two"));
+		data.add(new Tuple2<>(new Tuple2<>(3, 3), "three"));
 
-		TupleTypeInfo<Tuple2<Tuple2<Integer, Integer>, String>> type = new
-				TupleTypeInfo<Tuple2<Tuple2<Integer, Integer>, String>>(
+		TupleTypeInfo<Tuple2<Tuple2<Integer, Integer>, String>> type = new TupleTypeInfo<>(
 				new TupleTypeInfo<Tuple2<Integer, Integer>>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
 				BasicTypeInfo.STRING_TYPE_INFO
 		);
@@ -168,17 +165,16 @@ public class CollectionDataSets {
 
 	public static DataSet<Tuple2<Tuple2<Integer, Integer>, String>> getGroupSortedNestedTupleDataSet(ExecutionEnvironment env) {
 
-		List<Tuple2<Tuple2<Integer, Integer>, String>> data = new ArrayList<Tuple2<Tuple2<Integer, Integer>, String>>();
-		data.add(new Tuple2<Tuple2<Integer, Integer>, String>(new Tuple2<Integer, Integer>(1, 3), "a"));
-		data.add(new Tuple2<Tuple2<Integer, Integer>, String>(new Tuple2<Integer, Integer>(1, 2), "a"));
-		data.add(new Tuple2<Tuple2<Integer, Integer>, String>(new Tuple2<Integer, Integer>(2, 1), "a"));
-		data.add(new Tuple2<Tuple2<Integer, Integer>, String>(new Tuple2<Integer, Integer>(2, 2), "b"));
-		data.add(new Tuple2<Tuple2<Integer, Integer>, String>(new Tuple2<Integer, Integer>(3, 3), "c"));
-		data.add(new Tuple2<Tuple2<Integer, Integer>, String>(new Tuple2<Integer, Integer>(3, 6), "c"));
-		data.add(new Tuple2<Tuple2<Integer, Integer>, String>(new Tuple2<Integer, Integer>(4, 9), "c"));
+		List<Tuple2<Tuple2<Integer, Integer>, String>> data = new ArrayList<>();
+		data.add(new Tuple2<>(new Tuple2<>(1, 3), "a"));
+		data.add(new Tuple2<>(new Tuple2<>(1, 2), "a"));
+		data.add(new Tuple2<>(new Tuple2<>(2, 1), "a"));
+		data.add(new Tuple2<>(new Tuple2<>(2, 2), "b"));
+		data.add(new Tuple2<>(new Tuple2<>(3, 3), "c"));
+		data.add(new Tuple2<>(new Tuple2<>(3, 6), "c"));
+		data.add(new Tuple2<>(new Tuple2<>(4, 9), "c"));
 
-		TupleTypeInfo<Tuple2<Tuple2<Integer, Integer>, String>> type = new
-				TupleTypeInfo<Tuple2<Tuple2<Integer, Integer>, String>>(
+		TupleTypeInfo<Tuple2<Tuple2<Integer, Integer>, String>> type = new TupleTypeInfo<>(
 				new TupleTypeInfo<Tuple2<Integer, Integer>>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
 				BasicTypeInfo.STRING_TYPE_INFO
 		);
@@ -188,17 +184,16 @@ public class CollectionDataSets {
 
 	public static DataSet<Tuple3<Tuple2<Integer, Integer>, String, Integer>> getGroupSortedNestedTupleDataSet2(ExecutionEnvironment env) {
 
-		List<Tuple3<Tuple2<Integer, Integer>, String, Integer>> data = new ArrayList<Tuple3<Tuple2<Integer, Integer>, String, Integer>>();
-		data.add(new Tuple3<Tuple2<Integer, Integer>, String, Integer>(new Tuple2<Integer, Integer>(1, 3), "a", 2));
-		data.add(new Tuple3<Tuple2<Integer, Integer>, String, Integer>(new Tuple2<Integer, Integer>(1, 2), "a", 1));
-		data.add(new Tuple3<Tuple2<Integer, Integer>, String, Integer>(new Tuple2<Integer, Integer>(2, 1), "a", 3));
-		data.add(new Tuple3<Tuple2<Integer, Integer>, String, Integer>(new Tuple2<Integer, Integer>(2, 2), "b", 4));
-		data.add(new Tuple3<Tuple2<Integer, Integer>, String, Integer>(new Tuple2<Integer, Integer>(3, 3), "c", 5));
-		data.add(new Tuple3<Tuple2<Integer, Integer>, String, Integer>(new Tuple2<Integer, Integer>(3, 6), "c", 6));
-		data.add(new Tuple3<Tuple2<Integer, Integer>, String, Integer>(new Tuple2<Integer, Integer>(4, 9), "c", 7));
+		List<Tuple3<Tuple2<Integer, Integer>, String, Integer>> data = new ArrayList<>();
+		data.add(new Tuple3<>(new Tuple2<>(1, 3), "a", 2));
+		data.add(new Tuple3<>(new Tuple2<>(1, 2), "a", 1));
+		data.add(new Tuple3<>(new Tuple2<>(2, 1), "a", 3));
+		data.add(new Tuple3<>(new Tuple2<>(2, 2), "b", 4));
+		data.add(new Tuple3<>(new Tuple2<>(3, 3), "c", 5));
+		data.add(new Tuple3<>(new Tuple2<>(3, 6), "c", 6));
+		data.add(new Tuple3<>(new Tuple2<>(4, 9), "c", 7));
 
-		TupleTypeInfo<Tuple3<Tuple2<Integer, Integer>, String, Integer>> type = new
-				TupleTypeInfo<Tuple3<Tuple2<Integer, Integer>, String, Integer>>(
+		TupleTypeInfo<Tuple3<Tuple2<Integer, Integer>, String, Integer>> type = new TupleTypeInfo<>(
 				new TupleTypeInfo<Tuple2<Integer, Integer>>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.INT_TYPE_INFO
@@ -208,15 +203,15 @@ public class CollectionDataSets {
 	}
 	
 	public static DataSet<Tuple2<byte[], Integer>> getTuple2WithByteArrayDataSet(ExecutionEnvironment env) {
-		List<Tuple2<byte[], Integer>> data = new ArrayList<Tuple2<byte[], Integer>>();
-		data.add(new Tuple2<byte[], Integer>(new byte[]{0, 4}, 1));
-		data.add(new Tuple2<byte[], Integer>(new byte[]{2, 0}, 1));
-		data.add(new Tuple2<byte[], Integer>(new byte[]{2, 0, 4}, 4));
-		data.add(new Tuple2<byte[], Integer>(new byte[]{2, 1}, 3));
-		data.add(new Tuple2<byte[], Integer>(new byte[]{0}, 0));
-		data.add(new Tuple2<byte[], Integer>(new byte[]{2, 0}, 1));
+		List<Tuple2<byte[], Integer>> data = new ArrayList<>();
+		data.add(new Tuple2<>(new byte[]{0, 4}, 1));
+		data.add(new Tuple2<>(new byte[]{2, 0}, 1));
+		data.add(new Tuple2<>(new byte[]{2, 0, 4}, 4));
+		data.add(new Tuple2<>(new byte[]{2, 1}, 3));
+		data.add(new Tuple2<>(new byte[]{0}, 0));
+		data.add(new Tuple2<>(new byte[]{2, 0}, 1));
 				
-		TupleTypeInfo<Tuple2<byte[], Integer>> type = new TupleTypeInfo<Tuple2<byte[], Integer>>(
+		TupleTypeInfo<Tuple2<byte[], Integer>> type = new TupleTypeInfo<>(
 				PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
 				BasicTypeInfo.INT_TYPE_INFO
 		);
@@ -226,7 +221,7 @@ public class CollectionDataSets {
 
 	public static DataSet<String> getStringDataSet(ExecutionEnvironment env) {
 
-		List<String> data = new ArrayList<String>();
+		List<String> data = new ArrayList<>();
 		data.add("Hi");
 		data.add("Hello");
 		data.add("Hello world");
@@ -243,7 +238,7 @@ public class CollectionDataSets {
 
 	public static DataSet<Integer> getIntegerDataSet(ExecutionEnvironment env) {
 
-		List<Integer> data = new ArrayList<Integer>();
+		List<Integer> data = new ArrayList<>();
 		data.add(1);
 		data.add(2);
 		data.add(2);
@@ -267,28 +262,28 @@ public class CollectionDataSets {
 
 	public static DataSet<CustomType> getCustomTypeDataSet(ExecutionEnvironment env) {
 
-		List<CustomType> data = new ArrayList<CustomType>();
-		data.add(new CustomType(1, 0l, "Hi"));
-		data.add(new CustomType(2, 1l, "Hello"));
-		data.add(new CustomType(2, 2l, "Hello world"));
-		data.add(new CustomType(3, 3l, "Hello world, how are you?"));
-		data.add(new CustomType(3, 4l, "I am fine."));
-		data.add(new CustomType(3, 5l, "Luke Skywalker"));
-		data.add(new CustomType(4, 6l, "Comment#1"));
-		data.add(new CustomType(4, 7l, "Comment#2"));
-		data.add(new CustomType(4, 8l, "Comment#3"));
-		data.add(new CustomType(4, 9l, "Comment#4"));
-		data.add(new CustomType(5, 10l, "Comment#5"));
-		data.add(new CustomType(5, 11l, "Comment#6"));
-		data.add(new CustomType(5, 12l, "Comment#7"));
-		data.add(new CustomType(5, 13l, "Comment#8"));
-		data.add(new CustomType(5, 14l, "Comment#9"));
-		data.add(new CustomType(6, 15l, "Comment#10"));
-		data.add(new CustomType(6, 16l, "Comment#11"));
-		data.add(new CustomType(6, 17l, "Comment#12"));
-		data.add(new CustomType(6, 18l, "Comment#13"));
-		data.add(new CustomType(6, 19l, "Comment#14"));
-		data.add(new CustomType(6, 20l, "Comment#15"));
+		List<CustomType> data = new ArrayList<>();
+		data.add(new CustomType(1, 0L, "Hi"));
+		data.add(new CustomType(2, 1L, "Hello"));
+		data.add(new CustomType(2, 2L, "Hello world"));
+		data.add(new CustomType(3, 3L, "Hello world, how are you?"));
+		data.add(new CustomType(3, 4L, "I am fine."));
+		data.add(new CustomType(3, 5L, "Luke Skywalker"));
+		data.add(new CustomType(4, 6L, "Comment#1"));
+		data.add(new CustomType(4, 7L, "Comment#2"));
+		data.add(new CustomType(4, 8L, "Comment#3"));
+		data.add(new CustomType(4, 9L, "Comment#4"));
+		data.add(new CustomType(5, 10L, "Comment#5"));
+		data.add(new CustomType(5, 11L, "Comment#6"));
+		data.add(new CustomType(5, 12L, "Comment#7"));
+		data.add(new CustomType(5, 13L, "Comment#8"));
+		data.add(new CustomType(5, 14L, "Comment#9"));
+		data.add(new CustomType(6, 15L, "Comment#10"));
+		data.add(new CustomType(6, 16L, "Comment#11"));
+		data.add(new CustomType(6, 17L, "Comment#12"));
+		data.add(new CustomType(6, 18L, "Comment#13"));
+		data.add(new CustomType(6, 19L, "Comment#14"));
+		data.add(new CustomType(6, 20L, "Comment#15"));
 
 		Collections.shuffle(data);
 
@@ -298,10 +293,10 @@ public class CollectionDataSets {
 
 	public static DataSet<CustomType> getSmallCustomTypeDataSet(ExecutionEnvironment env) {
 
-		List<CustomType> data = new ArrayList<CustomType>();
-		data.add(new CustomType(1, 0l, "Hi"));
-		data.add(new CustomType(2, 1l, "Hello"));
-		data.add(new CustomType(2, 2l, "Hello world"));
+		List<CustomType> data = new ArrayList<>();
+		data.add(new CustomType(1, 0L, "Hi"));
+		data.add(new CustomType(2, 1L, "Hello"));
+		data.add(new CustomType(2, 2L, "Hello world"));
 
 		Collections.shuffle(data);
 
@@ -346,30 +341,24 @@ public class CollectionDataSets {
 	}
 
 	public static DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> getSmallTuplebasedDataSet(ExecutionEnvironment env) {
-		List<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> data = new ArrayList<Tuple7<Integer, String, Integer, Integer, Long, String, Long>>();
-		data.add(new Tuple7<Integer, String, Integer, Integer, Long, String, Long>(1, "First", 10, 100, 1000L, "One", 10000L));
-		data.add(new Tuple7<Integer, String, Integer, Integer, Long, String, Long>(2, "Second", 20, 200, 2000L, "Two", 20000L));
-		data.add(new Tuple7<Integer, String, Integer, Integer, Long, String, Long>(3, "Third", 30, 300, 3000L, "Three", 30000L));
+		List<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> data = new ArrayList<>();
+		data.add(new Tuple7<>(1, "First", 10, 100, 1000L, "One", 10000L));
+		data.add(new Tuple7<>(2, "Second", 20, 200, 2000L, "Two", 20000L));
+		data.add(new Tuple7<>(3, "Third", 30, 300, 3000L, "Three", 30000L));
 		return env.fromCollection(data);
 	}
 	
 	public static DataSet<Tuple7<Long, Integer, Integer, Long, String, Integer, String>> getSmallTuplebasedDataSetMatchingPojo(ExecutionEnvironment env) {
-		List<Tuple7<Long, Integer, Integer, Long, String, Integer, String>> data = 
-				new ArrayList<Tuple7<Long, Integer, Integer, Long, String, Integer, String>>();
-		data.add(new Tuple7<Long, Integer, Integer, Long, String, Integer, String>
-				(10000L, 10, 100, 1000L, "One", 1, "First"));
-		
-		data.add(new Tuple7<Long, Integer, Integer, Long, String, Integer, String>
-		(20000L, 20, 200, 2000L, "Two", 2, "Second"));
-		
-		data.add(new Tuple7<Long, Integer, Integer, Long, String, Integer, String>
-		(30000L, 30, 300, 3000L, "Three", 3, "Third"));
+		List<Tuple7<Long, Integer, Integer, Long, String, Integer, String>> data = new ArrayList<>();
+		data.add(new Tuple7<>(10000L, 10, 100, 1000L, "One", 1, "First"));
+		data.add(new Tuple7<>(20000L, 20, 200, 2000L, "Two", 2, "Second"));
+		data.add(new Tuple7<>(30000L, 30, 300, 3000L, "Three", 3, "Third"));
 		
 		return env.fromCollection(data);
 	}
 
 	public static DataSet<POJO> getSmallPojoDataSet(ExecutionEnvironment env) {
-		List<POJO> data = new ArrayList<POJO>();
+		List<POJO> data = new ArrayList<>();
 		data.add(new POJO(1 /*number*/, "First" /*str*/, 10 /*f0*/, 100/*f1.myInt*/, 1000L/*f1.myLong*/, "One" /*f1.myString*/, 10000L /*nestedPojo.longNumber*/));
 		data.add(new POJO(2, "Second", 20, 200, 2000L, "Two", 20000L));
 		data.add(new POJO(3, "Third", 30, 300, 3000L, "Three", 30000L));
@@ -377,7 +366,7 @@ public class CollectionDataSets {
 	}
 
 	public static DataSet<POJO> getDuplicatePojoDataSet(ExecutionEnvironment env) {
-		List<POJO> data = new ArrayList<POJO>();
+		List<POJO> data = new ArrayList<>();
 		data.add(new POJO(1, "First", 10, 100, 1000L, "One", 10000L)); // 5x
 		data.add(new POJO(1, "First", 10, 100, 1000L, "One", 10000L));
 		data.add(new POJO(1, "First", 10, 100, 1000L, "One", 10000L));
@@ -390,7 +379,7 @@ public class CollectionDataSets {
 	}
 
 	public static DataSet<POJO> getMixedPojoDataSet(ExecutionEnvironment env) {
-		List<POJO> data = new ArrayList<POJO>();
+		List<POJO> data = new ArrayList<>();
 		data.add(new POJO(1, "First", 10, 100, 1000L, "One", 10100L)); // 5x
 		data.add(new POJO(2, "First_", 10, 105, 1000L, "One", 10200L));
 		data.add(new POJO(3, "First", 11, 102, 3000L, "One", 10200L));
@@ -414,7 +403,7 @@ public class CollectionDataSets {
 					long l1) {
 			this.number = i0;
 			this.str = s0;
-			this.nestedTupleWithCustom = new Tuple2<Integer, CustomType>(i1, new CustomType(i2, l0, s1));
+			this.nestedTupleWithCustom = new Tuple2<>(i1, new CustomType(i2, l0, s1));
 			this.nestedPojo = new NestedPojo();
 			this.nestedPojo.longNumber = l1;
 		}
@@ -437,7 +426,7 @@ public class CollectionDataSets {
 	}
 
 	public static DataSet<CrazyNested> getCrazyNestedDataSet(ExecutionEnvironment env) {
-		List<CrazyNested> data = new ArrayList<CrazyNested>();
+		List<CrazyNested> data = new ArrayList<>();
 		data.add(new CrazyNested("aa"));
 		data.add(new CrazyNested("bb"));
 		data.add(new CrazyNested("bb"));
@@ -506,7 +495,7 @@ public class CollectionDataSets {
 	}
 
 	public static DataSet<FromTupleWithCTor> getPojoExtendingFromTuple(ExecutionEnvironment env) {
-		List<FromTupleWithCTor> data = new ArrayList<FromTupleWithCTor>();
+		List<FromTupleWithCTor> data = new ArrayList<>();
 		data.add(new FromTupleWithCTor(1, 10L)); // 3x
 		data.add(new FromTupleWithCTor(1, 10L));
 		data.add(new FromTupleWithCTor(1, 10L));
@@ -527,12 +516,12 @@ public class CollectionDataSets {
 		public PojoContainingTupleAndWritable(int i, long l1, long l2) {
 			hadoopFan = new IntWritable(i);
 			someInt = i;
-			theTuple = new Tuple2<Long, Long>(l1, l2);
+			theTuple = new Tuple2<>(l1, l2);
 		}
 	}
 
 	public static DataSet<PojoContainingTupleAndWritable> getPojoContainingTupleAndWritable(ExecutionEnvironment env) {
-		List<PojoContainingTupleAndWritable> data = new ArrayList<PojoContainingTupleAndWritable>();
+		List<PojoContainingTupleAndWritable> data = new ArrayList<>();
 		data.add(new PojoContainingTupleAndWritable(1, 10L, 100L)); // 1x
 		data.add(new PojoContainingTupleAndWritable(2, 20L, 200L)); // 5x
 		data.add(new PojoContainingTupleAndWritable(2, 20L, 200L));
@@ -545,7 +534,7 @@ public class CollectionDataSets {
 
 
 	public static DataSet<PojoContainingTupleAndWritable> getGroupSortedPojoContainingTupleAndWritable(ExecutionEnvironment env) {
-		List<PojoContainingTupleAndWritable> data = new ArrayList<PojoContainingTupleAndWritable>();
+		List<PojoContainingTupleAndWritable> data = new ArrayList<>();
 		data.add(new PojoContainingTupleAndWritable(1, 10L, 100L)); // 1x
 		data.add(new PojoContainingTupleAndWritable(2, 20L, 200L)); // 5x
 		data.add(new PojoContainingTupleAndWritable(2, 20L, 201L));
@@ -556,12 +545,12 @@ public class CollectionDataSets {
 	}
 
 	public static DataSet<Tuple3<Integer, CrazyNested, POJO>> getTupleContainingPojos(ExecutionEnvironment env) {
-		List<Tuple3<Integer, CrazyNested, POJO>> data = new ArrayList<Tuple3<Integer, CrazyNested, POJO>>();
-		data.add(new Tuple3<Integer, CrazyNested, POJO>(1, new CrazyNested("one", "uno", 1L), new POJO(1, "First", 10, 100, 1000L, "One", 10000L))); // 3x
-		data.add(new Tuple3<Integer, CrazyNested, POJO>(1, new CrazyNested("one", "uno", 1L), new POJO(1, "First", 10, 100, 1000L, "One", 10000L)));
-		data.add(new Tuple3<Integer, CrazyNested, POJO>(1, new CrazyNested("one", "uno", 1L), new POJO(1, "First", 10, 100, 1000L, "One", 10000L)));
+		List<Tuple3<Integer, CrazyNested, POJO>> data = new ArrayList<>();
+		data.add(new Tuple3<>(1, new CrazyNested("one", "uno", 1L), new POJO(1, "First", 10, 100, 1000L, "One", 10000L))); // 3x
+		data.add(new Tuple3<>(1, new CrazyNested("one", "uno", 1L), new POJO(1, "First", 10, 100, 1000L, "One", 10000L)));
+		data.add(new Tuple3<>(1, new CrazyNested("one", "uno", 1L), new POJO(1, "First", 10, 100, 1000L, "One", 10000L)));
 		// POJO is not initialized according to the first two fields.
-		data.add(new Tuple3<Integer, CrazyNested, POJO>(2, new CrazyNested("two", "duo", 2L), new POJO(1, "First", 10, 100, 1000L, "One", 10000L))); // 1x
+		data.add(new Tuple3<>(2, new CrazyNested("two", "duo", 2L), new POJO(1, "First", 10, 100, 1000L, "One", 10000L))); // 1x
 		return env.fromCollection(data);
 	}
 
@@ -602,7 +591,7 @@ public class CollectionDataSets {
 	}
 
 	public static DataSet<PojoWithMultiplePojos> getPojoWithMultiplePojos(ExecutionEnvironment env) {
-		List<PojoWithMultiplePojos> data = new ArrayList<PojoWithMultiplePojos>();
+		List<PojoWithMultiplePojos> data = new ArrayList<>();
 		data.add(new PojoWithMultiplePojos("a", "aa", "b", "bb", 1));
 		data.add(new PojoWithMultiplePojos("b", "bb", "c", "cc", 2));
 		data.add(new PojoWithMultiplePojos("b", "bb", "c", "cc", 2));
@@ -613,7 +602,7 @@ public class CollectionDataSets {
 	}
 
 	public enum Category {
-		CAT_A, CAT_B;
+		CAT_A, CAT_B
 	}
 
 	public static class PojoWithDateAndEnum {
@@ -623,7 +612,7 @@ public class CollectionDataSets {
 	}
 	
 	public static DataSet<PojoWithDateAndEnum> getPojoWithDateAndEnum(ExecutionEnvironment env) {
-		List<PojoWithDateAndEnum> data = new ArrayList<PojoWithDateAndEnum>();
+		List<PojoWithDateAndEnum> data = new ArrayList<>();
 		
 		PojoWithDateAndEnum one = new PojoWithDateAndEnum();
 		one.group = "a"; one.date = new Date(666); one.cat = Category.CAT_A;
@@ -688,13 +677,13 @@ public class CollectionDataSets {
 	}
 
 	public static DataSet<PojoWithCollection> getPojoWithCollection(ExecutionEnvironment env) {
-		List<PojoWithCollection> data = new ArrayList<PojoWithCollection>();
+		List<PojoWithCollection> data = new ArrayList<>();
 
-		List<Pojo1> pojosList1 = new ArrayList<Pojo1>();
+		List<Pojo1> pojosList1 = new ArrayList<>();
 		pojosList1.add(new Pojo1("a", "aa"));
 		pojosList1.add(new Pojo1("b", "bb"));
 
-		List<Pojo1> pojosList2 = new ArrayList<Pojo1>();
+		List<Pojo1> pojosList2 = new ArrayList<>();
 		pojosList2.add(new Pojo1("a2", "aa2"));
 		pojosList2.add(new Pojo1("b2", "bb2"));
 
@@ -706,10 +695,10 @@ public class CollectionDataSets {
 		pwc1.bigDecimalKeepItNull = null;
 		
 		// use calendar to make it stable across time zones
-		GregorianCalendar gcl1 = new GregorianCalendar(2033, 04, 18);
+		GregorianCalendar gcl1 = new GregorianCalendar(2033, 4, 18);
 		pwc1.sqlDate = new java.sql.Date(gcl1.getTimeInMillis());
-		pwc1.mixed = new ArrayList<Object>();
-		Map<String, Integer> map = new HashMap<String, Integer>();
+		pwc1.mixed = new ArrayList<>();
+		Map<String, Integer> map = new HashMap<>();
 		map.put("someKey", 1); // map.put("anotherKey", 2); map.put("third", 3);
 		pwc1.mixed.add(map);
 		pwc1.mixed.add(new File("/this/is/wrong"));

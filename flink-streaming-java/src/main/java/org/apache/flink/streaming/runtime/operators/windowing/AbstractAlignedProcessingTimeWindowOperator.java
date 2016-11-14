@@ -20,27 +20,28 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.commons.math3.util.ArithmeticUtils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.util.MathUtils;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.util.MathUtils;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
 import static java.util.Objects.requireNonNull;
 
+@Internal
 public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, STATE, F extends Function> 
 		extends AbstractUdfStreamOperator<OUT, F> 
-		implements OneInputStreamOperator<IN, OUT>, Triggerable {
+		implements OneInputStreamOperator<IN, OUT>, ProcessingTimeCallback {
 	
 	private static final long serialVersionUID = 3245500864882459867L;
 	
@@ -123,7 +124,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		
 		// decide when to first compute the window and when to slide it
 		// the values should align with the start of time (that is, the UNIX epoch, not the big bang)
-		final long now = System.currentTimeMillis();
+		final long now = getProcessingTimeService().getCurrentProcessingTime();
 		nextEvaluationTime = now + windowSlide - (now % windowSlide);
 		nextSlideTime = now + paneSize - (now % paneSize);
 
@@ -162,26 +163,21 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 				nextPastTriggerTime = Math.min(nextPastEvaluationTime, nextPastSlideTime);
 			}
 		}
-		
+
 		// make sure the first window happens
-		registerTimer(firstTriggerTime, this);
+		getProcessingTimeService().registerTimer(firstTriggerTime, this);
 	}
 
 	@Override
 	public void close() throws Exception {
 		super.close();
 		
-		final long finalWindowTimestamp = nextEvaluationTime;
-
 		// early stop the triggering thread, so it does not attempt to return any more data
 		stopTriggers();
-
-		// emit the remaining data
-		computeWindow(finalWindowTimestamp);
 	}
 
 	@Override
-	public void dispose() {
+	public void dispose() throws Exception {
 		super.dispose();
 		
 		// acquire the lock during shutdown, to prevent trigger calls at the same time
@@ -211,12 +207,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	}
 
 	@Override
-	public void processWatermark(Watermark mark) {
-		// this operator does not react to watermarks
-	}
-
-	@Override
-	public void trigger(long timestamp) throws Exception {
+	public void onProcessingTime(long timestamp) throws Exception {
 		// first we check if we actually trigger the window function
 		if (timestamp == nextEvaluationTime) {
 			// compute and output the results
@@ -233,13 +224,13 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		}
 
 		long nextTriggerTime = Math.min(nextEvaluationTime, nextSlideTime);
-		registerTimer(nextTriggerTime, this);
+		getProcessingTimeService().registerTimer(nextTriggerTime, this);
 	}
 	
 	private void computeWindow(long timestamp) throws Exception {
-		out.setTimestamp(timestamp);
+		out.setAbsoluteTimestamp(timestamp);
 		panes.truncatePanes(numPanesPerWindow);
-		panes.evaluateWindow(out, new TimeWindow(timestamp, timestamp + windowSize), this);
+		panes.evaluateWindow(out, new TimeWindow(timestamp - windowSize, timestamp), this);
 	}
 
 	// ------------------------------------------------------------------------
@@ -247,36 +238,35 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	// ------------------------------------------------------------------------
 
 	@Override
-	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
-		
+	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
+		super.snapshotState(out, checkpointId, timestamp);
+
 		// we write the panes with the key/value maps into the stream, as well as when this state
 		// should have triggered and slided
-		StateBackend.CheckpointStateOutputView out = 
-				getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
 
-		out.writeLong(nextEvaluationTime);
-		out.writeLong(nextSlideTime);
-		panes.writeToOutput(out, keySerializer, stateTypeSerializer);
-		
-		taskState.setOperatorState(out.closeAndGetHandle());
-		return taskState;
+		DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(out);
+
+		outView.writeLong(nextEvaluationTime);
+		outView.writeLong(nextSlideTime);
+
+		panes.writeToOutput(outView, keySerializer, stateTypeSerializer);
+
+		outView.flush();
 	}
 
 	@Override
-	public void restoreState(StreamTaskState taskState, long recoveryTimestamp) throws Exception {
-		super.restoreState(taskState, recoveryTimestamp);
+	public void restoreState(FSDataInputStream in) throws Exception {
+		super.restoreState(in);
 
-		@SuppressWarnings("unchecked")
-		StateHandle<DataInputView> inputState = (StateHandle<DataInputView>) taskState.getOperatorState();
-		DataInputView in = inputState.getState(getUserCodeClassloader());
-		
-		final long nextEvaluationTime = in.readLong();
-		final long nextSlideTime = in.readLong();
+		DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(in);
+
+		final long nextEvaluationTime = inView.readLong();
+		final long nextSlideTime = inView.readLong();
 
 		AbstractKeyedTimePanes<IN, KEY, STATE, OUT> panes = createPanes(keySelector, function);
-		panes.readFromInput(in, keySerializer, stateTypeSerializer);
-		
+
+		panes.readFromInput(inView, keySerializer, stateTypeSerializer);
+
 		restoredState = new RestoredState<>(panes, nextEvaluationTime, nextSlideTime);
 	}
 

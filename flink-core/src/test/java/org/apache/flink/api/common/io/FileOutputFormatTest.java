@@ -22,13 +22,12 @@ package org.apache.flink.api.common.io;
 import java.io.File;
 import java.io.IOException;
 
-import org.junit.Assert;
-
 import org.apache.flink.api.common.io.FileOutputFormat.OutputDirectoryMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.types.IntValue;
+import org.junit.Assert;
 import org.junit.Test;
 
 import static org.junit.Assert.fail;
@@ -38,11 +37,8 @@ public class FileOutputFormatTest {
 	@Test
 	public void testCreateNonParallelLocalFS() throws IOException {
 
-		File tmpOutPath = null;
-		File tmpOutFile = null;
-
-		tmpOutPath = File.createTempFile("fileOutputFormatTest", "Test1");
-		tmpOutFile = new File(tmpOutPath.getAbsolutePath()+"/1");
+		File tmpOutPath = File.createTempFile("fileOutputFormatTest", "Test1");
+		File tmpOutFile = new File(tmpOutPath.getAbsolutePath()+"/1");
 
 		String tmpFilePath = tmpOutPath.toURI().toString();
 
@@ -652,8 +648,10 @@ public class FileOutputFormatTest {
 	// -------------------------------------------------------------------------------------------
 	
 	public static class DummyFileOutputFormat extends FileOutputFormat<IntValue> {
+
 		private static final long serialVersionUID = 1L;
 		public boolean testFileName = false;
+
 		@Override
 		public void writeRecord(IntValue record) throws IOException {
 			// DO NOTHING

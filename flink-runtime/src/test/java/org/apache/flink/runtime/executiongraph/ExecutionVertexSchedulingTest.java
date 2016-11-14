@@ -18,24 +18,29 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getInstance;
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.junit.Test;
 
+import org.junit.Test;
 import org.mockito.Matchers;
+
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getInstance;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.anyBoolean;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class ExecutionVertexSchedulingTest {
 
@@ -47,14 +52,16 @@ public class ExecutionVertexSchedulingTest {
 					AkkaUtils.getDefaultTimeout());
 
 			// a slot than cannot be deployed to
-			final Instance instance = getInstance(DummyActorGateway.INSTANCE);
+			final Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 			
 			slot.releaseSlot();
 			assertTrue(slot.isReleased());
 
 			Scheduler scheduler = mock(Scheduler.class);
-			when(scheduler.scheduleImmediately(Matchers.any(ScheduledUnit.class))).thenReturn(slot);
+			FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
+			future.complete(slot);
+			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean())).thenReturn(future);
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
@@ -77,16 +84,16 @@ public class ExecutionVertexSchedulingTest {
 					AkkaUtils.getDefaultTimeout());
 
 			// a slot than cannot be deployed to
-			final Instance instance = getInstance(DummyActorGateway.INSTANCE);
+			final Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			slot.releaseSlot();
 			assertTrue(slot.isReleased());
 
-			final SlotAllocationFuture future = new SlotAllocationFuture();
+			final FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
 
 			Scheduler scheduler = mock(Scheduler.class);
-			when(scheduler.scheduleQueued(Matchers.any(ScheduledUnit.class))).thenReturn(future);
+			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean())).thenReturn(future);
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
@@ -95,7 +102,10 @@ public class ExecutionVertexSchedulingTest {
 			// future has not yet a slot
 			assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
 
-			future.setSlot(slot);
+			future.complete(slot);
+
+			// wait a second for future's future action be executed
+			Thread.sleep(1000);
 
 			// will have failed
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
@@ -113,11 +123,14 @@ public class ExecutionVertexSchedulingTest {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
-			final Instance instance = getInstance(new ExecutionGraphTestUtils.SimpleActorGateway(TestingUtils.defaultExecutionContext()));
+			final Instance instance = getInstance(new ActorTaskManagerGateway(
+				new ExecutionGraphTestUtils.SimpleActorGateway(TestingUtils.defaultExecutionContext())));
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			Scheduler scheduler = mock(Scheduler.class);
-			when(scheduler.scheduleImmediately(Matchers.any(ScheduledUnit.class))).thenReturn(slot);
+			FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
+			future.complete(slot);
+			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean())).thenReturn(future);
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.hadoop.mapreduce;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.java.hadoop.common.HadoopOutputFormatCommonBase;
 import org.apache.flink.api.java.hadoop.mapreduce.utils.HadoopUtils;
@@ -45,6 +46,7 @@ import static org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBas
 /**
  * Base class shared between the Java and Scala API of Flink
  */
+@Internal
 public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormatCommonBase<T> implements FinalizeOnMaster {
 
 	private static final long serialVersionUID = 1L;

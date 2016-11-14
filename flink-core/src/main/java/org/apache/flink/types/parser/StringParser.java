@@ -18,11 +18,14 @@
 
 package org.apache.flink.types.parser;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * Converts a variable length field of a byte array into a {@link String}. The byte contents between
  * delimiters is interpreted as an ASCII string. The string may be quoted in double quotes. For quoted
  * strings, whitespaces (space and tab) leading and trailing before and after the quotes are removed.
  */
+@PublicEvolving
 public class StringParser extends FieldParser<String> {
 
 	private boolean quotedStringParsing = false;
@@ -41,14 +44,14 @@ public class StringParser extends FieldParser<String> {
 
 		int i = startPos;
 
-		final int delimLimit = limit-delimiter.length+1;
+		final int delimLimit = limit - delimiter.length + 1;
 
 		if(quotedStringParsing && bytes[i] == quoteCharacter) {
-			// quoted string parsing enabled and first character Vis a quote
+			// quoted string parsing enabled and first character is a quote
 			i++;
 
 			// search for ending quote character, continue when it is escaped
-			while (i < limit && (bytes[i] != quoteCharacter || bytes[i-1] == BACKSLASH)){
+			while (i < limit && (bytes[i] != quoteCharacter || bytes[i - 1] == BACKSLASH)) {
 				i++;
 			}
 
@@ -60,11 +63,11 @@ public class StringParser extends FieldParser<String> {
 				// check for proper termination
 				if (i == limit) {
 					// either by end of line
-					this.result = new String(bytes, startPos+1, i - startPos - 2);
+					this.result = new String(bytes, startPos + 1, i - startPos - 2);
 					return limit;
 				} else if ( i < delimLimit && delimiterNext(bytes, i, delimiter)) {
 					// or following field delimiter
-					this.result = new String(bytes, startPos+1, i - startPos - 2);
+					this.result = new String(bytes, startPos + 1, i - startPos - 2);
 					return i + delimiter.length;
 				} else {
 					// no proper termination
@@ -81,10 +84,16 @@ public class StringParser extends FieldParser<String> {
 
 			if (i >= delimLimit) {
 				// no delimiter found. Take the full string
+				if (limit == startPos) {
+					setErrorState(ParseErrorState.EMPTY_COLUMN); // mark empty column
+				}
 				this.result = new String(bytes, startPos, limit - startPos);
 				return limit;
 			} else {
 				// delimiter found.
+				if (i == startPos) {
+					setErrorState(ParseErrorState.EMPTY_COLUMN); // mark empty column
+				}
 				this.result = new String(bytes, startPos, i - startPos);
 				return i + delimiter.length;
 			}

@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
 import java.util.Collection;
@@ -34,6 +35,7 @@ import java.util.List;
  *
  * @param <T> The type of the elements that result from this {@code SelectTransformation}
  */
+@Internal
 public class SelectTransformation<T> extends StreamTransformation<T> {
 	
 	private final StreamTransformation<T> input;

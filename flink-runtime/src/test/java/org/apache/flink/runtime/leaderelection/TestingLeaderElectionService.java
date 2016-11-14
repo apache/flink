@@ -58,4 +58,9 @@ public class TestingLeaderElectionService implements LeaderElectionService {
 		hasLeadership = false;
 		contender.revokeLeadership();
 	}
+
+	public void reset() {
+		contender = null;
+		hasLeadership  = false;
+	}
 }

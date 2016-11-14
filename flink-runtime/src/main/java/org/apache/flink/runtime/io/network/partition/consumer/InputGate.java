@@ -61,7 +61,9 @@ import java.io.IOException;
  *
  * <p> In the above example, two map subtasks produce the intermediate result in parallel, resulting
  * in two partitions (Partition 1 and 2). Each of these partitions is further partitioned into two
- * subpartitions -- one for each parallel reduce subtask.
+ * subpartitions -- one for each parallel reduce subtask. As shown in the Figure, each reduce task
+ * will have an input gate attached to it. This will provide its input, which will consist of one
+ * subpartition from each partition of the intermediate result.
  */
 public interface InputGate {
 

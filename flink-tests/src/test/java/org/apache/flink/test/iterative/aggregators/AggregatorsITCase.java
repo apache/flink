@@ -91,9 +91,9 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testDistributedCacheWithIterations() throws Exception{
 		File tempFile = new File(testPath);
-		FileWriter writer = new FileWriter(tempFile);
-		writer.write(testString);
-		writer.close();
+		try (FileWriter writer = new FileWriter(tempFile)) {
+			writer.write(testString);
+		}
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.registerCachedFile(resultPath, testName);
@@ -272,6 +272,44 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 				+ "5\n" + "5\n" + "5\n" + "5\n" + "5\n";
 	}
 
+	@Test
+	public void testConvergenceCriterionWithParameterForIterateDelta() throws Exception {
+		/*
+		 * Test convergence criterion with parameter for iterate delta
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(parallelism);
+
+		DataSet<Tuple2<Integer, Integer>> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env).map(new TupleMakerMap());
+
+		DeltaIteration<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> iteration = initialSolutionSet.iterateDelta(
+				initialSolutionSet, MAX_ITERATIONS, 0);
+
+		// register aggregator
+		LongSumAggregator aggr = new LongSumAggregator();
+		iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
+
+		// register convergence criterion
+		iteration.registerAggregationConvergenceCriterion(NEGATIVE_ELEMENTS_AGGR, aggr,
+				new NegativeElementsConvergenceCriterionWithParam(3));
+
+		DataSet<Tuple2<Integer, Integer>> updatedDs = iteration.getWorkset().map(new AggregateAndSubtractOneDelta());
+
+		DataSet<Tuple2<Integer, Integer>> newElements = updatedDs.join(iteration.getSolutionSet())
+				.where(0).equalTo(0).projectFirst(0, 1);
+
+		DataSet<Tuple2<Integer, Integer>> iterationRes = iteration.closeWith(newElements, newElements);
+		DataSet<Integer> result = iterationRes.map(new ProjectSecondMapper());
+		result.writeAsText(resultPath);
+
+		env.execute();
+
+		expected = "-3\n" + "-2\n" + "-2\n" + "-1\n" + "-1\n"
+				+ "-1\n" + "0\n" + "0\n" + "0\n" + "0\n"
+				+ "1\n" + "1\n" + "1\n" + "1\n" + "1\n";
+	}
+
 	@SuppressWarnings("serial")
 	public static final class NegativeElementsConvergenceCriterion implements ConvergenceCriterion<LongValue> {
 
@@ -313,9 +351,9 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public Integer map(Integer value) {
-			Integer newValue = Integer.valueOf(value.intValue() - 1);
+			Integer newValue = value - 1;
 			// count negative numbers
-			if (newValue.intValue() < 0) {
+			if (newValue < 0) {
 				aggr.aggregate(1l);
 			}
 			return newValue;
@@ -334,9 +372,9 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public Integer map(Integer value) {
-			Integer newValue = Integer.valueOf(value.intValue() - 1);
-			// count numbers less then the aggregator parameter
-			if ( newValue.intValue() < aggr.getValue() ) {
+			Integer newValue = value - 1;
+			// count numbers less than the aggregator parameter
+			if ( newValue < aggr.getValue() ) {
 				aggr.aggregate(1l);
 			}
 			return newValue;
@@ -369,8 +407,8 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public Tuple2<Integer, Integer> map(Integer value) {
-			Integer nodeId = Integer.valueOf(rnd.nextInt(100000));
-			return new Tuple2<Integer, Integer>(nodeId, value);
+			Integer nodeId = rnd.nextInt(100000);
+			return new Tuple2<>(nodeId, value);
 		}
 
 	}
@@ -398,7 +436,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		@Override
 		public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) {
 			// count the elements that are equal to the superstep number
-			if (value.f1.intValue() == superstep) {
+			if (value.f1 == superstep) {
 				aggr.aggregate(1l);
 			}
 			return value;
@@ -436,48 +474,32 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class AggregateMapDeltaWithParam extends RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
+	public static final class AggregateAndSubtractOneDelta extends RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
 
-		private LongSumAggregatorWithParameter aggr;
+		private LongSumAggregator aggr;
 		private LongValue previousAggr;
 		private int superstep;
 
 		@Override
 		public void open(Configuration conf) {
-
 			aggr = getIterationRuntimeContext().getIterationAggregator(NEGATIVE_ELEMENTS_AGGR);
 			superstep = getIterationRuntimeContext().getSuperstepNumber();
 
 			if (superstep > 1) {
 				previousAggr = getIterationRuntimeContext().getPreviousIterationAggregate(NEGATIVE_ELEMENTS_AGGR);
-
 				// check previous aggregator value
-				switch(superstep) {
-					case 2: {
-						Assert.assertEquals(6, previousAggr.getValue());
-					}
-					case 3: {
-						Assert.assertEquals(5, previousAggr.getValue());
-					}
-					case 4: {
-						Assert.assertEquals(3, previousAggr.getValue());
-					}
-					case 5: {
-						Assert.assertEquals(0, previousAggr.getValue());
-					}
-					default:
-				}
-				Assert.assertEquals(superstep-1, previousAggr.getValue());
+				Assert.assertEquals(superstep - 1, previousAggr.getValue());
 			}
 
 		}
 
 		@Override
 		public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) {
-			// count the elements that are equal to the superstep number
-			if (value.f1.intValue() < aggr.getValue()) {
+			// count the ones
+			if (value.f1 == 1) {
 				aggr.aggregate(1l);
 			}
+			value.f1--;
 			return value;
 		}
 	}

@@ -37,7 +37,7 @@ import java.nio.charset.Charset;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utilities to extract a redirect address.
@@ -79,11 +79,12 @@ public class HandlerRedirectUtils {
 		return null;
 	}
 
-	public static HttpResponse getRedirectResponse(String redirectAddress, String path) throws Exception {
+	public static HttpResponse getRedirectResponse(String redirectAddress, String path, boolean httpsEnabled) throws Exception {
 		checkNotNull(redirectAddress, "Redirect address");
 		checkNotNull(path, "Path");
 
-		String newLocation = String.format("http://%s%s", redirectAddress, path);
+		String protocol = httpsEnabled ? "https" : "http";
+		String newLocation = String.format("%s://%s%s", protocol, redirectAddress, path);
 
 		HttpResponse redirectResponse = new DefaultFullHttpResponse(
 				HttpVersion.HTTP_1_1, HttpResponseStatus.TEMPORARY_REDIRECT);

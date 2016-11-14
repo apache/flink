@@ -18,15 +18,12 @@
 
 package org.apache.flink.runtime.messages
 
+import org.apache.flink.runtime.instance.InstanceID
+
 /**
  * Generic messages between JobManager, TaskManager, JobClient.
  */
 object Messages {
-
-  /**
-   * Message to signal the successful reception of another message
-   */
-  case object Acknowledge
 
   /**
    * Signals that the receiver (JobManager/TaskManager) shall disconnect the sender.
@@ -37,14 +34,7 @@ object Messages {
    * The JobManager may send this message to its TaskManagers to let them clean up their
    * tasks that depend on the JobManager and go into a clean state.
    *
-   * @param reason The reason for disconnecting, to be displayed in log and error messages.
+   * @param cause The reason for disconnecting, to be displayed in log and error messages.
    */
-  case class Disconnect(reason: String) extends RequiresLeaderSessionID
-
-  /**
-   * Accessor for the case object instance, to simplify Java interoperability.
-   *
-   * @return The Acknowledge case object instance.
-   */
-  def getAcknowledge(): Acknowledge.type = Acknowledge
+  case class Disconnect(instanceId: InstanceID, cause: Exception) extends RequiresLeaderSessionID
 }

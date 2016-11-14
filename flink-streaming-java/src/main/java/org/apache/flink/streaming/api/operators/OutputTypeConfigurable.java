@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
@@ -27,10 +28,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
  * cases where the output type is specified by the returns method and, thus, after the stream
  * operator has been created.
  */
+@PublicEvolving
 public interface OutputTypeConfigurable<OUT> {
 
 	/**
-	 * Is called by the {@link org.apache.flink.streaming.api.graph.StreamGraph#addOperator(Integer, StreamOperator, TypeInformation, TypeInformation, String)}
+	 * Is called by the {@link org.apache.flink.streaming.api.graph.StreamGraph#addOperator(Integer, String, StreamOperator, TypeInformation, TypeInformation, String)}
 	 * method when the {@link org.apache.flink.streaming.api.graph.StreamGraph} is generated. The
 	 * method is called with the output {@link TypeInformation} which is also used for the
 	 * {@link org.apache.flink.streaming.runtime.tasks.StreamTask} output serializer.

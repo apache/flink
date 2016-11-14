@@ -19,6 +19,15 @@
 
 package org.apache.flink.client.program;
 
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.Program;
+import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.dag.DataSinkNode;
+import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.util.InstantiationUtil;
+
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -42,14 +51,6 @@ import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
-
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.Program;
-import org.apache.flink.api.common.ProgramDescription;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.dag.DataSinkNode;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.util.InstantiationUtil;
 
 /**
  * This class encapsulates represents a program, packaged in a jar file. It supplies
@@ -85,6 +86,8 @@ public class PackagedProgram {
 	private ClassLoader userCodeClassLoader;
 	
 	private Plan plan;
+
+	private SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.none();
 
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
@@ -187,7 +190,7 @@ public class PackagedProgram {
 		}
 		
 		// now that we have an entry point, we can extract the nested jar files (if any)
-		this.extractedTempLibraries = extractContainedLibaries(jarFileUrl);
+		this.extractedTempLibraries = extractContainedLibraries(jarFileUrl);
 		this.classpaths = classpaths;
 		this.userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(getAllLibraries(), classpaths, getClass().getClassLoader());
 		
@@ -254,9 +257,15 @@ public class PackagedProgram {
 					Program.class.getName() + " interface.");
 		}
 	}
-	
-	
-	
+
+	public void setSavepointRestoreSettings(SavepointRestoreSettings savepointSettings) {
+		this.savepointSettings = savepointSettings;
+	}
+
+	public SavepointRestoreSettings getSavepointSettings() {
+		return savepointSettings;
+	}
+
 	public String[] getArguments() {
 		return this.args;
 	}
@@ -274,23 +283,38 @@ public class PackagedProgram {
 	}
 
 	/**
+	 * Returns the plan without the required jars when the files are already provided by the cluster.
+	 *
+	 * @return The plan without attached jar files.
+	 * @throws ProgramInvocationException
+	 */
+	public JobWithJars getPlanWithoutJars() throws ProgramInvocationException {
+		if (isUsingProgramEntryPoint()) {
+			return new JobWithJars(getPlan(), Collections.<URL>emptyList(), classpaths, userCodeClassLoader);
+		} else {
+			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() +
+				" for a program that is using the interactive mode.");
+		}
+	}
+
+	/**
 	 * Returns the plan with all required jars.
-	 * 
+	 *
 	 * @return The plan with attached jar files.
-	 * @throws ProgramInvocationException 
+	 * @throws ProgramInvocationException
 	 */
 	public JobWithJars getPlanWithJars() throws ProgramInvocationException {
 		if (isUsingProgramEntryPoint()) {
 			return new JobWithJars(getPlan(), getAllLibraries(), classpaths, userCodeClassLoader);
 		} else {
-			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() + 
+			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() +
 					" for a program that is using the interactive mode.");
 		}
 	}
 
 	/**
 	 * Returns the analyzed plan without any optimizations.
-	 * 
+	 *
 	 * @return
 	 *         the analyzed plan without any optimizations.
 	 * @throws ProgramInvocationException Thrown if an error occurred in the
@@ -300,7 +324,7 @@ public class PackagedProgram {
 	public String getPreviewPlan() throws ProgramInvocationException {
 		Thread.currentThread().setContextClassLoader(this.getUserCodeClassLoader());
 		List<DataSinkNode> previewPlan;
-		
+
 		if (isUsingProgramEntryPoint()) {
 			previewPlan = Optimizer.createPreOptimizedPlan(getPlan());
 		}
@@ -327,7 +351,7 @@ public class PackagedProgram {
 			finally {
 				env.unsetAsContext();
 			}
-			
+
 			if (env.previewPlan != null) {
 				previewPlan =  env.previewPlan;
 			} else {
@@ -351,7 +375,7 @@ public class PackagedProgram {
 	/**
 	 * Returns the description provided by the Program class. This
 	 * may contain a description of the plan itself and its arguments.
-	 * 
+	 *
 	 * @return The description of the PactProgram's input parameters.
 	 * @throws ProgramInvocationException
 	 *         This invocation is thrown if the Program can't be properly loaded. Causes
@@ -359,7 +383,7 @@ public class PackagedProgram {
 	 */
 	public String getDescription() throws ProgramInvocationException {
 		if (ProgramDescription.class.isAssignableFrom(this.mainClass)) {
-			
+
 			ProgramDescription descr;
 			if (this.program != null) {
 				descr = (ProgramDescription) this.program;
@@ -371,22 +395,22 @@ public class PackagedProgram {
 					return null;
 				}
 			}
-			
+
 			try {
 				return descr.getDescription();
 			}
 			catch (Throwable t) {
-				throw new ProgramInvocationException("Error while getting the program description" + 
+				throw new ProgramInvocationException("Error while getting the program description" +
 						(t.getMessage() == null ? "." : ": " + t.getMessage()), t);
 			}
-			
+
 		} else {
 			return null;
 		}
 	}
-	
+
 	/**
-	 * 
+	 *
 	 * This method assumes that the context environment is prepared, or the execution
 	 * will be a local execution by default.
 	 */
@@ -409,13 +433,16 @@ public class PackagedProgram {
 
 	/**
 	 * Gets the {@link java.lang.ClassLoader} that must be used to load user code classes.
-	 * 
+	 *
 	 * @return The user code ClassLoader.
 	 */
 	public ClassLoader getUserCodeClassLoader() {
 		return this.userCodeClassLoader;
 	}
 
+	/**
+	 * Returns all provided libraries needed to run the program.
+	 */
 	public List<URL> getAllLibraries() {
 		List<URL> libs = new ArrayList<URL>(this.extractedTempLibraries.size() + 1);
 
@@ -476,6 +503,10 @@ public class PackagedProgram {
 	
 	private static void callMainMethod(Class<?> entryClass, String[] args) throws ProgramInvocationException {
 		Method mainMethod;
+		if (!Modifier.isPublic(entryClass.getModifiers())) {
+			throw new ProgramInvocationException("The class " + entryClass.getName() + " must be public.");
+		}
+
 		try {
 			mainMethod = entryClass.getMethod("main", String[].class);
 		} catch (NoSuchMethodException e) {
@@ -506,6 +537,8 @@ public class PackagedProgram {
 			Throwable exceptionInMethod = e.getTargetException();
 			if (exceptionInMethod instanceof Error) {
 				throw (Error) exceptionInMethod;
+			} else if (exceptionInMethod instanceof ProgramParametrizationException) {
+				throw (ProgramParametrizationException) exceptionInMethod;
 			} else if (exceptionInMethod instanceof ProgramInvocationException) {
 				throw (ProgramInvocationException) exceptionInMethod;
 			} else {
@@ -630,7 +663,7 @@ public class PackagedProgram {
 	 * @return The file names of the extracted temporary files.
 	 * @throws ProgramInvocationException Thrown, if the extraction process failed.
 	 */
-	private static List<File> extractContainedLibaries(URL jarFile) throws ProgramInvocationException {
+	public static List<File> extractContainedLibraries(URL jarFile) throws ProgramInvocationException {
 		
 		Random rnd = new Random();
 		
@@ -667,7 +700,7 @@ public class PackagedProgram {
 					
 						File tempFile;
 						try {
-							tempFile = File.createTempFile(String.valueOf(Math.abs(rnd.nextInt()) + "_"), name);
+							tempFile = File.createTempFile(rnd.nextInt(Integer.MAX_VALUE) + "_", name);
 							tempFile.deleteOnExit();
 						}
 						catch (IOException e) {
@@ -729,7 +762,7 @@ public class PackagedProgram {
 		}
 	}
 	
-	private static void deleteExtractedLibraries(List<File> tempLibraries) {
+	public static void deleteExtractedLibraries(List<File> tempLibraries) {
 		for (File f : tempLibraries) {
 			f.delete();
 		}

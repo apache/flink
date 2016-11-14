@@ -24,6 +24,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.curator.test.TestingServer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
@@ -50,9 +51,11 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
@@ -144,7 +147,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 		List<LeaderRetrievalService> leaderRetrievalServices = new ArrayList<>();
 
 		try (TestingServer zooKeeper = new TestingServer()) {
-			final Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+			final Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 				zooKeeper.getConnectString(),
 				temporaryFolder.getRoot().getPath());
 
@@ -235,7 +238,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				followingClient.sendGetRequest("index.html", deadline.timeLeft());
 				response = followingClient.getNextResponse(deadline.timeLeft());
 				assertEquals(HttpResponseStatus.TEMPORARY_REDIRECT, response.getStatus());
-				assertTrue(response.getLocation().contains("" + leadingWebMonitor.getServerPort()));
+				assertTrue(response.getLocation().contains(String.valueOf(leadingWebMonitor.getServerPort())));
 
 				// Kill the leader
 				leadingSystem.shutdown();
@@ -294,8 +297,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			final Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
 			config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
-			config.setString(ConfigConstants.RECOVERY_MODE, "ZOOKEEPER");
-			config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, zooKeeper.getConnectString());
+			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+			config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeper.getConnectString());
 
 			actorSystem = AkkaUtils.createDefaultActorSystem();
 
@@ -324,6 +327,164 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 			if (webRuntimeMonitor != null) {
 				webRuntimeMonitor.stop();
+			}
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	// Tests that access outside of the web root is not allowed
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Files are copied from the flink-dist jar to a temporary directory and
+	 * then served from there. Only allow to access files in this temporary
+	 * directory.
+	 */
+	@Test
+	public void testNoEscape() throws Exception {
+		final Deadline deadline = TestTimeout.fromNow();
+
+		TestingCluster flink = null;
+		WebRuntimeMonitor webMonitor = null;
+
+		try {
+			flink = new TestingCluster(new Configuration());
+			flink.start(true);
+
+			ActorSystem jmActorSystem = flink.jobManagerActorSystems().get().head();
+			ActorRef jmActor = flink.jobManagerActors().get().head();
+
+			// Needs to match the leader address from the leader retrieval service
+			String jobManagerAddress = AkkaUtils.getAkkaURL(jmActorSystem, jmActor);
+
+			// Web frontend on random port
+			Configuration config = new Configuration();
+			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
+
+			webMonitor = new WebRuntimeMonitor(
+					config,
+					flink.createLeaderRetrievalService(),
+					jmActorSystem);
+
+			webMonitor.start(jobManagerAddress);
+
+			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
+				String expectedIndex = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
+						.useDelimiter("\\A").next();
+
+				// 1) Request index.html from web server
+				client.sendGetRequest("index.html", deadline.timeLeft());
+
+				HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
+				assertEquals(HttpResponseStatus.OK, response.getStatus());
+				assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("html"));
+				assertEquals(expectedIndex, response.getContent());
+
+				// 2) Request file outside of web root
+				// Create a test file in the web base dir (parent of web root)
+				File illegalFile = new File(webMonitor.getBaseDir(new Configuration()), "test-file-" + UUID.randomUUID());
+				illegalFile.deleteOnExit();
+
+				assertTrue("Failed to create test file", illegalFile.createNewFile());
+
+				// Request the created file from the web server
+				client.sendGetRequest("../" + illegalFile.getName(), deadline.timeLeft());
+				response = client.getNextResponse(deadline.timeLeft());
+				assertEquals(
+						"Unexpected status code " + response.getStatus() + " for file outside of web root.",
+						HttpResponseStatus.NOT_FOUND,
+						response.getStatus());
+
+				// 3) Request non-existing file
+				client.sendGetRequest("not-existing-resource", deadline.timeLeft());
+				response = client.getNextResponse(deadline.timeLeft());
+				assertEquals(
+						"Unexpected status code " + response.getStatus() + " for file outside of web root.",
+						HttpResponseStatus.NOT_FOUND,
+						response.getStatus());
+			}
+		} finally {
+			if (flink != null) {
+				flink.shutdown();
+			}
+
+			if (webMonitor != null) {
+				webMonitor.stop();
+			}
+		}
+	}
+
+	/**
+	 * Files are copied from the flink-dist jar to a temporary directory and
+	 * then served from there. Only allow to copy files from <code>flink-dist.jar:/web</code>
+	 */
+	@Test
+	public void testNoCopyFromJar() throws Exception {
+		final Deadline deadline = TestTimeout.fromNow();
+
+		TestingCluster flink = null;
+		WebRuntimeMonitor webMonitor = null;
+
+		try {
+			flink = new TestingCluster(new Configuration());
+			flink.start(true);
+
+			ActorSystem jmActorSystem = flink.jobManagerActorSystems().get().head();
+			ActorRef jmActor = flink.jobManagerActors().get().head();
+
+			// Needs to match the leader address from the leader retrieval service
+			String jobManagerAddress = AkkaUtils.getAkkaURL(jmActorSystem, jmActor);
+
+			// Web frontend on random port
+			Configuration config = new Configuration();
+			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
+
+			webMonitor = new WebRuntimeMonitor(
+					config,
+					flink.createLeaderRetrievalService(),
+					jmActorSystem);
+
+			webMonitor.start(jobManagerAddress);
+
+			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
+				String expectedIndex = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
+						.useDelimiter("\\A").next();
+
+				// 1) Request index.html from web server
+				client.sendGetRequest("index.html", deadline.timeLeft());
+
+				HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
+				assertEquals(HttpResponseStatus.OK, response.getStatus());
+				assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("html"));
+				assertEquals(expectedIndex, response.getContent());
+
+				// 2) Request file from class loader
+				client.sendGetRequest("../log4j-test.properties", deadline.timeLeft());
+
+				response = client.getNextResponse(deadline.timeLeft());
+				assertEquals(
+						"Returned status code " + response.getStatus() + " for file outside of web root.",
+						HttpResponseStatus.NOT_FOUND,
+						response.getStatus());
+
+				assertFalse("Did not respond with the file, but still copied it from the JAR.",
+						new File(webMonitor.getBaseDir(new Configuration()), "log4j-test.properties").exists());
+
+				// 3) Request non-existing file
+				client.sendGetRequest("not-existing-resource", deadline.timeLeft());
+				response = client.getNextResponse(deadline.timeLeft());
+				assertEquals(
+						"Unexpected status code " + response.getStatus() + " for file outside of web root.",
+						HttpResponseStatus.NOT_FOUND,
+						response.getStatus());
+			}
+		} finally {
+			if (flink != null) {
+				flink.shutdown();
+			}
+
+			if (webMonitor != null) {
+				webMonitor.stop();
 			}
 		}
 	}

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.testutils;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,8 +30,8 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link TaskManager} instance running in a separate JVM.
@@ -95,7 +96,7 @@ public class TaskManagerProcess extends TestJvmProcess {
 
 		/**
 		 * All arguments are parsed to a {@link Configuration} and passed to the Taskmanager,
-		 * for instance: <code>--recovery.mode ZOOKEEPER --recovery.zookeeper.quorum "xyz:123:456"</code>.
+		 * for instance: <code>--high-availability ZOOKEEPER --high-availability.zookeeper.quorum "xyz:123:456"</code>.
 		 */
 		public static void main(String[] args) throws Exception {
 			try {
@@ -113,7 +114,10 @@ public class TaskManagerProcess extends TestJvmProcess {
 				LOG.info("Configuration: {}.", config);
 
 				// Run the TaskManager
-				TaskManager.selectNetworkInterfaceAndRunTaskManager(config, TaskManager.class);
+				TaskManager.selectNetworkInterfaceAndRunTaskManager(
+					config,
+					ResourceID.generate(),
+					TaskManager.class);
 
 				// Run forever
 				new CountDownLatch(1).await();

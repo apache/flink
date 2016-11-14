@@ -21,18 +21,19 @@ package org.apache.flink.runtime.util;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
-import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.lang.ref.WeakReference;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Utility class for dealing with user-defined Throwable types that are serialized (for
  * example during RPC/Actor communication), but cannot be resolved with the default
  * class loader.
- * <p>
- * This exception mimics the original exception with respect to message and stack trace,
+ * 
+ * <p>This exception mimics the original exception with respect to message and stack trace,
  * and contains the original exception in serialized form. The original exception
  * can be re-obtained by supplying the appropriate class loader.
  */
@@ -49,10 +50,6 @@ public class SerializedThrowable extends Exception implements Serializable {
 	/** The original stack trace, to be printed */
 	private final String fullStingifiedStackTrace;
 
-	/** A guaranteed serializable placeholder exception that will be used as
-	 * cause and to capture the original stack trace */
-	private final Exception placeholder;
-	
 	/** The original exception, not transported via serialization, 
 	 * because the class may not be part of the system class loader.
 	 * In addition, we make sure our cached references to not prevent
@@ -66,33 +63,43 @@ public class SerializedThrowable extends Exception implements Serializable {
 	 * @param exception The exception to serialize.
 	 */
 	public SerializedThrowable(Throwable exception) {
+		this(exception, new HashSet<Throwable>());
+	}
+
+	private SerializedThrowable(Throwable exception, Set<Throwable> alreadySeen) {
 		super(getMessageOrError(exception));
 
 		if (!(exception instanceof SerializedThrowable)) {
-			this.cachedException = new WeakReference<Throwable>(exception);
-			
-			this.originalErrorClassName = exception.getClass().getName();
-			this.fullStingifiedStackTrace = ExceptionUtils.stringifyException(exception);
-			this.placeholder = new Exception(
-					"Serialized representation of " + originalErrorClassName + ": " + getMessage());
-			this.placeholder.setStackTrace(exception.getStackTrace());
-			initCause(this.placeholder);
-			
+			// serialize and memoize the original message
 			byte[] serialized;
 			try {
 				serialized = InstantiationUtil.serializeObject(exception);
 			}
 			catch (Throwable t) {
-				// could not serialize exception. send the stringified version instead
-				try {
-					serialized = InstantiationUtil.serializeObject(placeholder);
-				}
-				catch (IOException e) {
-					// this should really never happen, as we only serialize a a standard exception
-					throw new RuntimeException(e.getMessage(), e);
-				}
+				serialized = null;
 			}
 			this.serializedException = serialized;
+			this.cachedException = new WeakReference<Throwable>(exception);
+
+			// record the original exception's properties (name, stack prints)
+			this.originalErrorClassName = exception.getClass().getName();
+			this.fullStingifiedStackTrace = ExceptionUtils.stringifyException(exception);
+
+			// mimic the original exception's stack trace
+			setStackTrace(exception.getStackTrace());
+
+			// mimic the original exception's cause
+			if (exception.getCause() == null) {
+				initCause(null);
+			}
+			else {
+				// exception causes may by cyclic, so we truncate the cycle when we find it 
+				if (alreadySeen.add(exception)) {
+					// we are not in a cycle, yet
+					initCause(new SerializedThrowable(exception.getCause(), alreadySeen));
+				}
+			}
+
 		}
 		else {
 			// copy from that serialized throwable
@@ -100,37 +107,35 @@ public class SerializedThrowable extends Exception implements Serializable {
 			this.serializedException = other.serializedException;
 			this.originalErrorClassName = other.originalErrorClassName;
 			this.fullStingifiedStackTrace = other.fullStingifiedStackTrace;
-			this.placeholder = other.placeholder;
 			this.cachedException = other.cachedException;
 		}
 	}
 
-	public Throwable deserializeError(ClassLoader userCodeClassloader) {
+	public Throwable deserializeError(ClassLoader classloader) {
+		if (serializedException == null) {
+			// failed to serialize the original exception
+			// return this SerializedThrowable as a stand in
+			return this;
+		}
+
 		Throwable cached = cachedException == null ? null : cachedException.get();
 		if (cached == null) {
 			try {
-				cached = (Throwable) InstantiationUtil.deserializeObject(serializedException, userCodeClassloader);
+				cached = InstantiationUtil.deserializeObject(serializedException, classloader);
 				cachedException = new WeakReference<Throwable>(cached);
 			}
-			catch (Exception e) {
-				return placeholder;
+			catch (Throwable t) {
+				// something went wrong
+				// return this SerializedThrowable as a stand in
+				return this;
 			}
 		}
 		return cached;
 	}
-	
-	public String getStrigifiedStackTrace() {
-		return fullStingifiedStackTrace;
-	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Override the behavior of Throwable
 	// ------------------------------------------------------------------------
-
-	@Override
-	public Throwable getCause() {
-		return placeholder;
-	}
 
 	@Override
 	public void printStackTrace(PrintStream s) {
@@ -150,15 +155,10 @@ public class SerializedThrowable extends Exception implements Serializable {
 		return (message != null) ? (originalErrorClassName + ": " + message) : originalErrorClassName;
 	}
 
-	@Override
-	public StackTraceElement[] getStackTrace() {
-		return placeholder.getStackTrace();
-	}
-
 	// ------------------------------------------------------------------------
 	//  Static utilities
 	// ------------------------------------------------------------------------
-	
+
 	public static Throwable get(Throwable serThrowable, ClassLoader loader) {
 		if (serThrowable instanceof SerializedThrowable) {
 			return ((SerializedThrowable)serThrowable).deserializeError(loader);
@@ -166,7 +166,7 @@ public class SerializedThrowable extends Exception implements Serializable {
 			return serThrowable;
 		}
 	}
-	
+
 	private static String getMessageOrError(Throwable error) {
 		try {
 			return error.getMessage();

@@ -23,7 +23,7 @@ import org.apache.flink.api.common.JobID;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An overview of how many jobs are in which status.

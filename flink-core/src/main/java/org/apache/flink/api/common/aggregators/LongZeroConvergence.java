@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.aggregators;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.LongValue;
 
 /**
@@ -25,6 +26,7 @@ import org.apache.flink.types.LongValue;
  * holds the value zero. The aggregated data type is a {@link LongValue}.
  */
 @SuppressWarnings("serial")
+@PublicEvolving
 public class LongZeroConvergence implements ConvergenceCriterion<LongValue> {
 
 	/**

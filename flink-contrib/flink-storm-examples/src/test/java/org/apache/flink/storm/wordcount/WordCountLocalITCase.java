@@ -39,7 +39,7 @@ public class WordCountLocalITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		WordCountLocal.main(new String[]{this.textPath, this.resultPath});
+		WordCountLocal.main(new String[] { this.textPath, this.resultPath });
 	}
 
 }

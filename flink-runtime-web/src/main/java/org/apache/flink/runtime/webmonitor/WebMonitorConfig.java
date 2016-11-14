@@ -61,6 +61,9 @@ public class WebMonitorConfig {
 		this.config = config;
 	}
 
+	public String getWebFrontendAddress() {
+		return config.getValue(ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS);
+	}
 
 	public int getWebFrontendPort() {
 		return config.getInteger(JOB_MANAGER_WEB_PORT_KEY, DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
@@ -68,5 +71,11 @@ public class WebMonitorConfig {
 
 	public long getRefreshInterval() {
 		return config.getLong(JOB_MANAGER_WEB_REFRESH_INTERVAL_KEY, DEFAULT_JOB_MANAGER_WEB_REFRESH_INTERVAL);
+	}
+	
+	public boolean isProgramSubmitEnabled() {
+		return config.getBoolean(
+			ConfigConstants.JOB_MANAGER_WEB_SUBMIT_ENABLED_KEY,
+			ConfigConstants.DEFAULT_JOB_MANAGER_WEB_SUBMIT_ENABLED);
 	}
 }

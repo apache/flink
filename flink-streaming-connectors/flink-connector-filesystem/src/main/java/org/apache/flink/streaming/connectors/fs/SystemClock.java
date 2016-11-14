@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.connectors.fs;
 
+
 /**
  * A {@link Clock} that uses {@code System.currentTimeMillis()} to determine the system time.
  */

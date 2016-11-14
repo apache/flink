@@ -18,12 +18,23 @@
 
 package org.apache.flink.api.scala
 
+import org.apache.flink.annotation.PublicEvolving
+import org.apache.flink.api.common.distributions.DataDistribution
+import org.apache.flink.api.common.operators.Keys
+import org.apache.flink.api.common.operators.base.PartitionOperatorBase
+import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.Utils
+import org.apache.flink.api.java.Utils.ChecksumHashCode
+import org.apache.flink.api.java.functions.KeySelector
+import org.apache.flink.api.java.operators.PartitionOperator
+import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.utils.{DataSetUtils => jutils}
+import org.apache.flink.util.AbstractID
 
 import _root_.scala.language.implicitConversions
 import _root_.scala.reflect.ClassTag
+
 
 package object utils {
 
@@ -33,7 +44,22 @@ package object utils {
    *
    * @param self Data Set
    */
+  @PublicEvolving
   implicit class DataSetUtils[T: TypeInformation : ClassTag](val self: DataSet[T]) {
+
+    /**
+      * Method that goes over all the elements in each partition in order to retrieve
+      * the total number of elements.
+      *
+      * @return a data set of tuple2 consisting of (subtask index, number of elements mappings)
+      */
+    def countElementsPerPartition: DataSet[(Int, Long)] = {
+      implicit val typeInfo = createTuple2TypeInformation[Int, Long](
+        BasicTypeInfo.INT_TYPE_INFO.asInstanceOf[TypeInformation[Int]],
+        BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]]
+      )
+      wrap(jutils.countElementsPerPartition(self.javaSet)).map { t => (t.f0.toInt, t.f1.toLong)}
+    }
 
     /**
      * Method that takes a set of subtask index, total number of elements mappings
@@ -102,6 +128,77 @@ package object utils {
         seed: Long = Utils.RNG.nextLong())
       : DataSet[T] = {
       wrap(jutils.sampleWithSize(self.javaSet, withReplacement, numSamples, seed))
+    }
+
+    // --------------------------------------------------------------------------------------------
+    //  Partitioning
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Range-partitions a DataSet on the specified tuple field positions.
+     */
+    def partitionByRange(distribution: DataDistribution, fields: Int*): DataSet[T] = {
+      val op = new PartitionOperator[T](
+        self.javaSet,
+        PartitionMethod.RANGE,
+        new Keys.ExpressionKeys[T](fields.toArray, self.javaSet.getType),
+        distribution,
+        getCallLocationName())
+      wrap(op)
+    }
+
+    /**
+     * Range-partitions a DataSet on the specified fields.
+     */
+    def partitionByRange(distribution: DataDistribution,
+                         firstField: String,
+                         otherFields: String*): DataSet[T] = {
+      val op = new PartitionOperator[T](
+        self.javaSet,
+        PartitionMethod.RANGE,
+        new Keys.ExpressionKeys[T](firstField +: otherFields.toArray, self.javaSet.getType),
+        distribution,
+        getCallLocationName())
+      wrap(op)
+    }
+
+    /**
+     * Range-partitions a DataSet using the specified key selector function.
+     */
+    def partitionByRange[K: TypeInformation](distribution: DataDistribution,
+                                             fun: T => K): DataSet[T] = {
+      val keyExtractor = new KeySelector[T, K] {
+        val cleanFun = self.javaSet.clean(fun)
+        def getKey(in: T) = cleanFun(in)
+      }
+      val op = new PartitionOperator[T](
+        self.javaSet,
+        PartitionMethod.RANGE,
+        new Keys.SelectorFunctionKeys[T, K](
+          keyExtractor,
+          self.javaSet.getType,
+          implicitly[TypeInformation[K]]),
+        distribution,
+        getCallLocationName())
+      wrap(op)
+    }
+
+    // --------------------------------------------------------------------------------------------
+    //  Checksum
+    // --------------------------------------------------------------------------------------------
+
+    /**
+      * Convenience method to get the count (number of elements) of a DataSet
+      * as well as the checksum (sum over element hashes).
+      *
+      * @return A ChecksumHashCode with the count and checksum of elements in the data set.
+      * @see [[org.apache.flink.api.java.Utils.ChecksumHashCodeHelper]]
+      */
+    def checksumHashCode(): ChecksumHashCode = {
+      val id = new AbstractID().toString
+      self.javaSet.output(new Utils.ChecksumHashCodeHelper[T](id))
+      val res = self.javaSet.getExecutionEnvironment.execute()
+      res.getAccumulatorResult[ChecksumHashCode](id)
     }
   }
 

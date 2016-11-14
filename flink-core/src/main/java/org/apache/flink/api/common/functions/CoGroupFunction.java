@@ -20,6 +20,7 @@ package org.apache.flink.api.common.functions;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 
 /**
@@ -44,6 +45,7 @@ import org.apache.flink.util.Collector;
  * @param <IN2> The data type of the second input data set.
  * @param <O> The data type of the returned elements.
  */
+@Public
 public interface CoGroupFunction<IN1, IN2, O> extends Function, Serializable {
 	
 	/**

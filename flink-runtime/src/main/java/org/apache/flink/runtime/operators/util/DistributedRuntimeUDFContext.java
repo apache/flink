@@ -30,10 +30,10 @@ import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.AbstractRuntimeUDFContext;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.broadcast.InitializationTypeConflictException;
-
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators.
@@ -43,14 +43,18 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 	private final HashMap<String, BroadcastVariableMaterialization<?, ?>> broadcastVars = new HashMap<String, BroadcastVariableMaterialization<?, ?>>();
 	
 	public DistributedRuntimeUDFContext(TaskInfo taskInfo, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
-											Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulators) {
-		super(taskInfo, userCodeClassLoader, executionConfig, accumulators, cpTasks);
+											Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulators, MetricGroup metrics) {
+		super(taskInfo, userCodeClassLoader, executionConfig, accumulators, cpTasks, metrics);
 	}
-	
+
+	@Override
+	public boolean hasBroadcastVariable(String name) {
+		return this.broadcastVars.containsKey(name);
+	}
 
 	@Override
 	public <T> List<T> getBroadcastVariable(String name) {
-		Preconditions.checkNotNull(name);
+		Preconditions.checkNotNull(name, "The broadcast variable name must not be null.");
 		
 		// check if we have an initialized version
 		@SuppressWarnings("unchecked")
@@ -70,13 +74,9 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 	
 	@Override
 	public <T, C> C getBroadcastVariableWithInitializer(String name, BroadcastVariableInitializer<T, C> initializer) {
-		if (name == null) {
-			throw new NullPointerException("Thw broadcast variable name must not be null.");
-		}
-		if (initializer == null) {
-			throw new NullPointerException("Thw broadcast variable initializer must not be null.");
-		}
-		
+		Preconditions.checkNotNull(name, "The broadcast variable name must not be null.");
+		Preconditions.checkNotNull(initializer, "The broadcast variable initializer must not be null.");
+
 		// check if we have an initialized version
 		@SuppressWarnings("unchecked")
 		BroadcastVariableMaterialization<T, C> variable = (BroadcastVariableMaterialization<T, C>) this.broadcastVars.get(name);

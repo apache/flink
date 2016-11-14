@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.hadoop.mapreduce;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -29,6 +30,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -48,11 +50,10 @@ import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 /**
  * Base class shared between the Java and Scala API of Flink
  */
+@Internal
 public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCommonBase<T, HadoopInputSplit> {
 
 	private static final long serialVersionUID = 1L;
@@ -79,10 +80,10 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 	protected boolean hasNext;
 
 	public HadoopInputFormatBase(org.apache.hadoop.mapreduce.InputFormat<K, V> mapreduceInputFormat, Class<K> key, Class<V> value, Job job) {
-		super(checkNotNull(job, "Job can not be null").getCredentials());
-		this.mapreduceInputFormat = checkNotNull(mapreduceInputFormat);
-		this.keyClass = checkNotNull(key);
-		this.valueClass = checkNotNull(value);
+		super(Preconditions.checkNotNull(job, "Job can not be null").getCredentials());
+		this.mapreduceInputFormat = Preconditions.checkNotNull(mapreduceInputFormat);
+		this.keyClass = Preconditions.checkNotNull(key);
+		this.valueClass = Preconditions.checkNotNull(value);
 		this.configuration = job.getConfiguration();
 		HadoopUtils.mergeHadoopConf(configuration);
 	}
@@ -109,7 +110,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 	@Override
 	public BaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
 		// only gather base statistics for FileInputFormats
-		if(!(mapreduceInputFormat instanceof FileInputFormat)) {
+		if (!(mapreduceInputFormat instanceof FileInputFormat)) {
 			return null;
 		}
 
@@ -156,7 +157,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 
 		jobContext.getCredentials().addAll(this.credentials);
 		Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
-		if(currentUserCreds != null) {
+		if (currentUserCreds != null) {
 			jobContext.getCredentials().addAll(currentUserCreds);
 		}
 
@@ -168,7 +169,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 		}
 		HadoopInputSplit[] hadoopInputSplits = new HadoopInputSplit[splits.size()];
 
-		for(int i = 0; i < hadoopInputSplits.length; i++){
+		for (int i = 0; i < hadoopInputSplits.length; i++) {
 			hadoopInputSplits[i] = new HadoopInputSplit(i, splits.get(i), jobContext);
 		}
 		return hadoopInputSplits;
@@ -206,7 +207,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 
 	@Override
 	public boolean reachedEnd() throws IOException {
-		if(!this.fetched) {
+		if (!this.fetched) {
 			fetchNext();
 		}
 		return !this.hasNext;
@@ -241,7 +242,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 		long latestModTime = 0L;
 
 		// get the file info and check whether the cached statistics are still valid.
-		for(org.apache.hadoop.fs.Path hadoopPath : hadoopFilePaths) {
+		for (org.apache.hadoop.fs.Path hadoopPath : hadoopFilePaths) {
 
 			final Path filePath = new Path(hadoopPath.toUri());
 			final FileSystem fs = FileSystem.get(filePath.toUri());
@@ -306,7 +307,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 		org.apache.hadoop.conf.Configuration configuration = new org.apache.hadoop.conf.Configuration();
 		configuration.readFields(in);
 
-		if(this.configuration == null) {
+		if (this.configuration == null) {
 			this.configuration = configuration;
 		}
 

@@ -19,13 +19,16 @@
 package org.apache.flink.runtime.net;
 
 import java.io.IOException;
-import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -37,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import scala.concurrent.duration.FiniteDuration;
+
 
 /**
  * Utilities to determine the network interface and address that should be used to bind the
@@ -111,40 +115,27 @@ public class ConnectionUtils {
 		long currentSleepTime = MIN_SLEEP_TIME;
 		long elapsedTime = 0;
 
+		final List<AddressDetectionState> strategies = Collections.unmodifiableList(
+			Arrays.asList(
+				AddressDetectionState.LOCAL_HOST,
+				AddressDetectionState.ADDRESS,
+				AddressDetectionState.FAST_CONNECT,
+				AddressDetectionState.SLOW_CONNECT));
+
 		// loop while there is time left
 		while (elapsedTime < maxWaitMillis) {
-			AddressDetectionState strategy = AddressDetectionState.LOCAL_HOST;
-
 			boolean logging = elapsedTime >= startLoggingAfter;
 			if (logging) {
 				LOG.info("Trying to connect to " + targetAddress);
 			}
-			// go over the strategies ADDRESS - FAST_CONNECT - SLOW_CONNECT
-			do {
+
+			// Try each strategy in order
+			for (AddressDetectionState strategy : strategies) {
 				InetAddress address = findAddressUsingStrategy(strategy, targetAddress, logging);
 				if (address != null) {
 					return address;
 				}
-
-				// pick the next strategy
-				switch (strategy) {
-					case LOCAL_HOST:
-						strategy = AddressDetectionState.ADDRESS;
-						break;
-					case ADDRESS:
-						strategy = AddressDetectionState.FAST_CONNECT;
-						break;
-					case FAST_CONNECT:
-						strategy = AddressDetectionState.SLOW_CONNECT;
-						break;
-					case SLOW_CONNECT:
-						strategy = null;
-						break;
-					default:
-						throw new RuntimeException("Unsupported strategy: " + strategy);
-				}
 			}
-			while (strategy != null);
 
 			// we have made a pass with all strategies over all interfaces
 			// sleep for a while before we make the next pass
@@ -230,7 +221,13 @@ public class ConnectionUtils {
 	{
 		// try LOCAL_HOST strategy independent of the network interfaces
 		if (strategy == AddressDetectionState.LOCAL_HOST) {
-			InetAddress localhostName = InetAddress.getLocalHost();
+			InetAddress localhostName;
+			try {
+				localhostName = InetAddress.getLocalHost();
+			} catch (UnknownHostException uhe) {
+				LOG.warn("Could not resolve local hostname to an IP address: {}", uhe.getMessage());
+				return null;
+			}
 
 			if (tryToConnect(localhostName, targetAddress, strategy.getTimeout(), logging)) {
 				LOG.debug("Using InetAddress.getLocalHost() immediately for the connecting address");
@@ -241,7 +238,11 @@ public class ConnectionUtils {
 			}
 		}
 
-		final byte[] targetAddressBytes = targetAddress.getAddress().getAddress();
+		final InetAddress address = targetAddress.getAddress();
+		if (address == null) {
+			return null;
+		}
+		final byte[] targetAddressBytes = address.getAddress();
 
 		// for each network interface
 		Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
@@ -278,17 +279,10 @@ public class ConnectionUtils {
 
 					case HEURISTIC:
 						if (LOG.isDebugEnabled()) {
-							LOG.debug("Checking address {} using heuristics: linkLocal: {} loopback: {}",
-									interfaceAddress, interfaceAddress.isLinkLocalAddress(),
-									interfaceAddress.isLoopbackAddress());
+							LOG.debug("Choosing InetAddress.getLocalHost() address as a heuristic.");
 						}
-						// pick a non-loopback non-link-local address
-						if (interfaceAddress instanceof Inet4Address && !interfaceAddress.isLinkLocalAddress() &&
-								!interfaceAddress.isLoopbackAddress())
-						{
-							return tryLocalHostBeforeReturning(interfaceAddress, targetAddress, logging);
-						}
-						break;
+
+						return InetAddress.getLocalHost();
 
 					default:
 						throw new RuntimeException("Unsupported strategy: " + strategy);

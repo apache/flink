@@ -17,11 +17,13 @@
  */
 package org.apache.flink.api.common.operators.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 
 /**
  * Wrapper that is used to store elements for which we have a TypeComparator in a Hash Map.
  */
+@Internal
 public class TypeComparable<T> {
 	private final T elem;
 	private final TypeComparator<T> comparator;

@@ -61,7 +61,8 @@ public class ReOpenableHashPartition<BT, PT> extends HashPartition<BT, PT> {
 
 	@Override
 	public int finalizeProbePhase(List<MemorySegment> freeMemory,
-			List<HashPartition<BT, PT>> spilledPartitions) throws IOException {
+			List<HashPartition<BT, PT>> spilledPartitions,
+			boolean keepUnprobedSpilledPartitions) throws IOException {
 		if ( furtherPartitioning || recursionLevel != 0 || isRestored) {
 			if (isInMemory() && initialBuildSideChannel != null && !isRestored) {
 				// return the overflow segments
@@ -74,22 +75,22 @@ public class ReOpenableHashPartition<BT, PT> extends HashPartition<BT, PT> {
 				// we already returned the partitionBuffers via the returnQueue.
 				return 0; 
 			}
-			return super.finalizeProbePhase(freeMemory, spilledPartitions);
+			return super.finalizeProbePhase(freeMemory, spilledPartitions, keepUnprobedSpilledPartitions);
 		}
-		if (!isInMemory() && this.probeSideRecordCounter == 0) { 
+		if (isInMemory()) {
+			return 0;
+		} else if (this.probeSideRecordCounter == 0 && !keepUnprobedSpilledPartitions) {
 			freeMemory.add(this.probeSideBuffer.getCurrentSegment());
 			// delete the spill files
 			this.probeSideChannel.close();
 			this.probeSideChannel.deleteChannel();
 			return 0;
+		} else {
+			this.probeSideBuffer.close();
+			this.probeSideChannel.close(); // finish pending write requests.
+			spilledPartitions.add(this);
+			return 1;
 		}
-		if (isInMemory()) {
-			return 0;
-		}
-		this.probeSideBuffer.close();
-		this.probeSideChannel.close(); // finish pending write requests.
-		spilledPartitions.add(this);
-		return 1;
 	}
 	
 	/**

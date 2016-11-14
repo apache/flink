@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -44,19 +45,21 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
+import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
+import org.apache.flink.streaming.runtime.tasks.StoppableSourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,13 +68,14 @@ import org.slf4j.LoggerFactory;
  * necessary to build the jobgraph for the execution.
  * 
  */
+@Internal
 public class StreamGraph extends StreamingPlan {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraph.class);
 
 	private String jobName = StreamExecutionEnvironment.DEFAULT_JOB_NAME;
 
-	private final StreamExecutionEnvironment environemnt;
+	private final StreamExecutionEnvironment environment;
 	private final ExecutionConfig executionConfig;
 	private final CheckpointConfig checkpointConfig;
 	
@@ -85,12 +89,12 @@ public class StreamGraph extends StreamingPlan {
 
 	protected Map<Integer, String> vertexIDtoBrokerID;
 	protected Map<Integer, Long> vertexIDtoLoopTimeout;
-	private StateBackend<?> stateBackend;
+	private AbstractStateBackend stateBackend;
 	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
 
 
 	public StreamGraph(StreamExecutionEnvironment environment) {
-		this.environemnt = environment;
+		this.environment = environment;
 		this.executionConfig = environment.getConfig();
 		this.checkpointConfig = environment.getCheckpointConfig();
 
@@ -110,6 +114,11 @@ public class StreamGraph extends StreamingPlan {
 		iterationSourceSinkPairs = new HashSet<>();
 		sources = new HashSet<>();
 		sinks = new HashSet<>();
+	}
+	
+	
+	public StreamExecutionEnvironment getEnvironment() {
+		return environment;
 	}
 
 	public ExecutionConfig getExecutionConfig() {
@@ -132,11 +141,11 @@ public class StreamGraph extends StreamingPlan {
 		this.chaining = chaining;
 	}
 
-	public void setStateBackend(StateBackend<?> backend) {
+	public void setStateBackend(AbstractStateBackend backend) {
 		this.stateBackend = backend;
 	}
 
-	public StateBackend<?> getStateBackend() {
+	public AbstractStateBackend getStateBackend() {
 		return this.stateBackend;
 	}
 
@@ -151,29 +160,40 @@ public class StreamGraph extends StreamingPlan {
 		return!vertexIDtoLoopTimeout.isEmpty();
 	}
 
-	public <IN, OUT> void addSource(Integer vertexID, StreamOperator<OUT> operatorObject,
-			TypeInformation<IN> inTypeInfo, TypeInformation<OUT> outTypeInfo, String operatorName) {
-		addOperator(vertexID, operatorObject, inTypeInfo, outTypeInfo, operatorName);
+	public <IN, OUT> void addSource(Integer vertexID,
+		String slotSharingGroup,
+		StreamOperator<OUT> operatorObject,
+		TypeInformation<IN> inTypeInfo,
+		TypeInformation<OUT> outTypeInfo,
+		String operatorName) {
+		addOperator(vertexID, slotSharingGroup, operatorObject, inTypeInfo, outTypeInfo, operatorName);
 		sources.add(vertexID);
 	}
 
-	public <IN, OUT> void addSink(Integer vertexID, StreamOperator<OUT> operatorObject,
-			TypeInformation<IN> inTypeInfo, TypeInformation<OUT> outTypeInfo, String operatorName) {
-		addOperator(vertexID, operatorObject, inTypeInfo, outTypeInfo, operatorName);
+	public <IN, OUT> void addSink(Integer vertexID,
+		String slotSharingGroup,
+		StreamOperator<OUT> operatorObject,
+		TypeInformation<IN> inTypeInfo,
+		TypeInformation<OUT> outTypeInfo,
+		String operatorName) {
+		addOperator(vertexID, slotSharingGroup, operatorObject, inTypeInfo, outTypeInfo, operatorName);
 		sinks.add(vertexID);
 	}
 
 	public <IN, OUT> void addOperator(
 			Integer vertexID,
+			String slotSharingGroup,
 			StreamOperator<OUT> operatorObject,
 			TypeInformation<IN> inTypeInfo,
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
 
-		if (operatorObject instanceof StreamSource) {
-			addNode(vertexID, SourceStreamTask.class, operatorObject, operatorName);
+		if (operatorObject instanceof StoppableStreamSource) {
+			addNode(vertexID, slotSharingGroup, StoppableSourceStreamTask.class, operatorObject, operatorName);
+		} else if (operatorObject instanceof StreamSource) {
+			addNode(vertexID, slotSharingGroup, SourceStreamTask.class, operatorObject, operatorName);
 		} else {
-			addNode(vertexID, OneInputStreamTask.class, operatorObject, operatorName);
+			addNode(vertexID, slotSharingGroup, OneInputStreamTask.class, operatorObject, operatorName);
 		}
 
 		TypeSerializer<IN> inSerializer = inTypeInfo != null && !(inTypeInfo instanceof MissingTypeInfo) ? inTypeInfo.createSerializer(executionConfig) : null;
@@ -201,13 +221,14 @@ public class StreamGraph extends StreamingPlan {
 
 	public <IN1, IN2, OUT> void addCoOperator(
 			Integer vertexID,
+			String slotSharingGroup,
 			TwoInputStreamOperator<IN1, IN2, OUT> taskOperatorObject,
 			TypeInformation<IN1> in1TypeInfo,
 			TypeInformation<IN2> in2TypeInfo,
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
 
-		addNode(vertexID, TwoInputStreamTask.class, taskOperatorObject, operatorName);
+		addNode(vertexID, slotSharingGroup, TwoInputStreamTask.class, taskOperatorObject, operatorName);
 
 		TypeSerializer<OUT> outSerializer = (outTypeInfo != null) && !(outTypeInfo instanceof MissingTypeInfo) ?
 				outTypeInfo.createSerializer(executionConfig) : null;
@@ -226,15 +247,23 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	protected StreamNode addNode(Integer vertexID, Class<? extends AbstractInvokable> vertexClass,
-			StreamOperator<?> operatorObject, String operatorName) {
+	protected StreamNode addNode(Integer vertexID,
+		String slotSharingGroup,
+		Class<? extends AbstractInvokable> vertexClass,
+		StreamOperator<?> operatorObject,
+		String operatorName) {
 
 		if (streamNodes.containsKey(vertexID)) {
 			throw new RuntimeException("Duplicate vertexID " + vertexID);
 		}
 
-		StreamNode vertex = new StreamNode(environemnt, vertexID, operatorObject, operatorName,
-				new ArrayList<OutputSelector<?>>(), vertexClass);
+		StreamNode vertex = new StreamNode(environment,
+			vertexID,
+			slotSharingGroup,
+			operatorObject,
+			operatorName,
+			new ArrayList<OutputSelector<?>>(),
+			vertexClass);
 
 		streamNodes.put(vertexID, vertex);
 
@@ -283,6 +312,22 @@ public class StreamGraph extends StreamingPlan {
 				new Tuple2<Integer, StreamPartitioner<?>>(originalId, partitioner));
 	}
 
+	/**
+	 * Determines the slot sharing group of an operation across virtual nodes.
+	 */
+	public String getSlotSharingGroup(Integer id) {
+		if (virtualSelectNodes.containsKey(id)) {
+			Integer mappedId = virtualSelectNodes.get(id).f0;
+			return getSlotSharingGroup(mappedId);
+		} else if (virtuaPartitionNodes.containsKey(id)) {
+			Integer mappedId = virtuaPartitionNodes.get(id).f0;
+			return getSlotSharingGroup(mappedId);
+		} else {
+			StreamNode node = getStreamNode(id);
+			return node.getSlotSharingGroup();
+		}
+	}
+
 	public void addEdge(Integer upStreamVertexID, Integer downStreamVertexID, int typeNumber) {
 		addEdgeInternal(upStreamVertexID,
 				downStreamVertexID,
@@ -313,6 +358,18 @@ public class StreamGraph extends StreamingPlan {
 			if (partitioner == null) {
 				partitioner = virtuaPartitionNodes.get(virtualId).f1;
 			}
+
+			if (partitioner instanceof ConfigurableStreamPartitioner) {
+				StreamNode downstreamNode = getStreamNode(downStreamVertexID);
+
+				ConfigurableStreamPartitioner configurableStreamPartitioner = (ConfigurableStreamPartitioner) partitioner;
+
+				// Configure the partitioner with the max parallelism. This is necessary if the
+				// partitioner has been created before the maximum parallelism has been set. The
+				// maximum parallelism is necessary for the key group mapping.
+				configurableStreamPartitioner.configure(downstreamNode.getMaxParallelism());
+			}
+
 			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames);
 		} else {
 			StreamNode upstreamNode = getStreamNode(upStreamVertexID);
@@ -363,9 +420,22 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	public void setKey(Integer vertexID, KeySelector<?, ?> keySelector, TypeSerializer<?> keySerializer) {
+	public void setMaxParallelism(int vertexID, int maxParallelism) {
+		if (getStreamNode(vertexID) != null) {
+			getStreamNode(vertexID).setMaxParallelism(maxParallelism);
+		}
+	}
+
+	public void setOneInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector, TypeSerializer<?> keySerializer) {
 		StreamNode node = getStreamNode(vertexID);
-		node.setStatePartitioner(keySelector);
+		node.setStatePartitioner1(keySelector);
+		node.setStateKeySerializer(keySerializer);
+	}
+
+	public void setTwoInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector1, KeySelector<?, ?> keySelector2, TypeSerializer<?> keySerializer) {
+		StreamNode node = getStreamNode(vertexID);
+		node.setStatePartitioner1(keySelector1);
+		node.setStatePartitioner2(keySelector2);
 		node.setStateKeySerializer(keySerializer);
 	}
 
@@ -402,21 +472,10 @@ public class StreamGraph extends StreamingPlan {
 		getStreamNode(vertexID).setInputFormat(inputFormat);
 	}
 
-	public void setResourceStrategy(Integer vertexID, ResourceStrategy strategy) {
-		StreamNode node = getStreamNode(vertexID);
-		if (node == null) {
-			return;
-		}
-
-		switch (strategy) {
-		case ISOLATE:
-			node.isolateSlot();
-			break;
-		case NEWGROUP:
-			node.startNewSlotSharingGroup();
-			break;
-		default:
-			throw new IllegalArgumentException("Unknown resource strategy");
+	void setTransformationId(Integer nodeId, String transformationId) {
+		StreamNode node = streamNodes.get(nodeId);
+		if (node != null) {
+			node.setTransformationId(transformationId);
 		}
 	}
 
@@ -458,7 +517,7 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public Set<Tuple2<Integer, StreamOperator<?>>> getOperators() {
-		Set<Tuple2<Integer, StreamOperator<?>>> operatorSet = new HashSet<Tuple2<Integer, StreamOperator<?>>>();
+		Set<Tuple2<Integer, StreamOperator<?>>> operatorSet = new HashSet<>();
 		for (StreamNode vertex : streamNodes.values()) {
 			operatorSet.add(new Tuple2<Integer, StreamOperator<?>>(vertex.getId(), vertex
 					.getOperator()));
@@ -474,31 +533,39 @@ public class StreamGraph extends StreamingPlan {
 		return vertexIDtoLoopTimeout.get(vertexID);
 	}
 
-	public Tuple2<StreamNode, StreamNode> createIterationSourceAndSink(int loopId, int sourceId, int sinkId, long timeout, int parallelism) {
+	public Tuple2<StreamNode, StreamNode> createIterationSourceAndSink(
+		int loopId,
+		int sourceId,
+		int sinkId,
+		long timeout,
+		int parallelism,
+		int maxParallelism) {
 		StreamNode source = this.addNode(sourceId,
-				StreamIterationHead.class,
-				null,
-				null);
+			null,
+			StreamIterationHead.class,
+			null,
+			"IterationSource-" + loopId);
 		sources.add(source.getId());
 		setParallelism(source.getId(), parallelism);
+		setMaxParallelism(source.getId(), maxParallelism);
 
 		StreamNode sink = this.addNode(sinkId,
-				StreamIterationTail.class,
-				null,
-				null);
+			null,
+			StreamIterationTail.class,
+			null,
+			"IterationSink-" + loopId);
 		sinks.add(sink.getId());
 		setParallelism(sink.getId(), parallelism);
+		setMaxParallelism(sink.getId(), parallelism);
 
-		iterationSourceSinkPairs.add(new Tuple2<StreamNode, StreamNode>(source, sink));
+		iterationSourceSinkPairs.add(new Tuple2<>(source, sink));
 
-		source.setOperatorName("IterationSource-" + loopId);
-		sink.setOperatorName("IterationSink-" + loopId);
 		this.vertexIDtoBrokerID.put(source.getId(), "broker-" + loopId);
 		this.vertexIDtoBrokerID.put(sink.getId(), "broker-" + loopId);
 		this.vertexIDtoLoopTimeout.put(source.getId(), timeout);
 		this.vertexIDtoLoopTimeout.put(sink.getId(), timeout);
 
-		return new Tuple2<StreamNode, StreamNode>(source, sink);
+		return new Tuple2<>(source, sink);
 	}
 
 	public Set<Tuple2<StreamNode, StreamNode>> getIterationSourceSinkPairs() {
@@ -511,7 +578,7 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	private void removeVertex(StreamNode toRemove) {
-		Set<StreamEdge> edgesToRemove = new HashSet<StreamEdge>();
+		Set<StreamEdge> edgesToRemove = new HashSet<>();
 
 		edgesToRemove.addAll(toRemove.getInEdges());
 		edgesToRemove.addAll(toRemove.getOutEdges());
@@ -537,7 +604,7 @@ public class StreamGraph extends StreamingPlan {
 
 		StreamingJobGraphGenerator jobgraphGenerator = new StreamingJobGraphGenerator(this);
 
-		return jobgraphGenerator.createJobGraph(jobName);
+		return jobgraphGenerator.createJobGraph();
 	}
 
 	@Override
@@ -563,9 +630,5 @@ public class StreamGraph extends StreamingPlan {
 				pw.close();
 			}
 		}
-	}
-
-	public static enum ResourceStrategy {
-		DEFAULT, ISOLATE, NEWGROUP
 	}
 }

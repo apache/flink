@@ -1,5 +1,8 @@
 ---
-title: "Overview"
+title: "Apache Flink Documentation"
+nav-pos: 0
+nav-title: '<i class="fa fa-home" aria-hidden="true"></i> Home'
+nav-parent_id: root
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -20,39 +23,38 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This documentation is for Apache Flink version {{ site.version }}, which is the
-current development version of the next upcoming major release of Apache Flink.
+This documentation is for Apache Flink version {{ site.version }}.
 
-Apache Flink is an open source platform for distributed stream and batch data processing. Flink’s core is
-a streaming dataflow engine that provides data distribution, communication, and fault tolerance for distributed
-computations over data streams. Flink also builds batch processing on top of the streaming engine, overlaying
-native iteration support, managed memory, and program optimization.
+Apache Flink is an open source platform for distributed stream and batch data processing. Flink’s core is a streaming dataflow engine that provides data distribution, communication, and fault tolerance for distributed computations over data streams. Flink also builds batch processing on top of the streaming engine, overlaying native iteration support, managed memory, and program optimization.
 
-If you want to write your first program, look at one of the available quickstarts, and refer to the
-[DataSet API guide](apis/programming_guide.html) or the [DataStream API guide](apis/streaming_guide.html).
+## First Steps
+
+- **Concepts**: Start with the [basic concepts]({{ site.baseurl }}/concepts/index.html) of Flink. This will help you to fully understand the other parts of the documentation, including the setup and programming guides. It is highly recommended to read this first.
+
+- **Quickstarts**: [Run an example program](quickstart/setup_quickstart.html) on your local machine or [write a simple program](quickstart/run_example_quickstart.html) working on live Wikipedia edits.
+
+- **Setup:** The [local]({{ site.baseurl }}/setup/local_setup.html), [cluster](setup/cluster_setup.html), and [cloud](setup/gce_setup.html) setup guides show you how to deploy Flink.
+
+- **Programming Guides**: You can check out our guides about [basic concepts](dev/api_concepts.html) and the [DataStream API](dev/datastream_api.html) or [DataSet API](dev/batch/index.html) to learn how to write your first Flink programs.
 
 ## Stack
 
 This is an overview of Flink's stack. Click on any component to go to the respective documentation page.
 
-<img src="fig/overview-stack-0.9.png" width="893" height="450" alt="Stack" usemap="#overview-stack">
+<center>
+  <img src="{{ site.baseurl }}/fig/stack.png" width="700px" alt="Apache Flink: Stack" usemap="#overview-stack">
+</center>
 
 <map name="overview-stack">
-  <area shape="rect" coords="188,0,263,200" alt="Graph API: Gelly" href="libs/gelly_guide.html">
-  <area shape="rect" coords="268,0,343,200" alt="Flink ML" href="libs/ml/">
-  <area shape="rect" coords="348,0,423,200" alt="Table" href="libs/table.html">
-
-  <area shape="rect" coords="188,205,538,260" alt="DataSet API (Java/Scala)" href="apis/programming_guide.html">
-  <area shape="rect" coords="543,205,893,260" alt="DataStream API (Java/Scala)" href="apis/streaming_guide.html">
-
-  <!-- <area shape="rect" coords="188,275,538,330" alt="Optimizer" href="optimizer.html"> -->
-  <!-- <area shape="rect" coords="543,275,893,330" alt="Stream Builder" href="streambuilder.html"> -->
-
-  <area shape="rect" coords="188,335,893,385" alt="Flink Runtime" href="internals/general_arch.html">
-
-  <area shape="rect" coords="188,405,328,455" alt="Local" href="apis/local_execution.html">
-  <area shape="rect" coords="333,405,473,455" alt="Remote" href="apis/cluster_execution.html">
-  <area shape="rect" coords="478,405,638,455" alt="Embedded" href="apis/local_execution.html">
-  <area shape="rect" coords="643,405,765,455" alt="YARN" href="setup/yarn_setup.html">
-  <area shape="rect" coords="770,405,893,455" alt="Tez" href="setup/flink_on_tez.html">
+<area id="lib-datastream-cep" title="CEP: Complex Event Processing" href="{{ site.baseurl }}/dev/libs/cep.html" shape="rect" coords="63,0,143,177" />
+<area id="lib-datastream-table" title="Table: Relational DataStreams" href="{{ site.baseurl }}/dev/table_api.html" shape="rect" coords="143,0,223,177" />
+<area id="lib-dataset-ml" title="FlinkML: Machine Learning" href="{{ site.baseurl }}/dev/libs/ml/index.html" shape="rect" coords="382,2,462,176" />
+<area id="lib-dataset-gelly" title="Gelly: Graph Processing" href="{{ site.baseurl }}/dev/libs/gelly/index.html" shape="rect" coords="461,0,541,177" />
+<area id="lib-dataset-table" title="Table API and SQL" href="{{ site.baseurl }}/dev/table_api.html" shape="rect" coords="544,0,624,177" />
+<area id="datastream" title="DataStream API" href="{{ site.baseurl }}/dev/datastream_api.html" shape="rect" coords="64,177,379,255" />
+<area id="dataset" title="DataSet API" href="{{ site.baseurl }}/dev/batch/index.html" shape="rect" coords="382,177,697,255" />
+<area id="runtime" title="Runtime" href="{{ site.baseurl }}/internals/general_arch.html" shape="rect" coords="63,257,700,335" />
+<area id="local" title="Local" href="{{ site.baseurl }}/setup/local_setup.html" shape="rect" coords="62,337,275,414" />
+<area id="cluster" title="Cluster" href="{{ site.baseurl }}/setup/cluster_setup.html" shape="rect" coords="273,336,486,413" />
+<area id="cloud" title="Cloud" href="{{ site.baseurl }}/setup/gce_setup.html" shape="rect" coords="485,336,700,414" />
 </map>

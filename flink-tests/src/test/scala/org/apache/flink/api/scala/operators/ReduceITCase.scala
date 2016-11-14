@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.common.functions.RichReduceFunction
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.util.CollectionDataSets.MutableTuple3
 import org.apache.flink.configuration.Configuration
@@ -222,6 +223,19 @@ class ReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
     val ds = CollectionDataSets.get5TupleDataSet(env)
     val reduceDs = ds.groupBy("_5", "_1")
       .reduce { (in1, in2) => (in1._1, in1._2 + in2._2, 0, "P-)", in1._5) }
+    reduceDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expected = "1,1,0,Hallo,1\n" + "2,3,2,Hallo Welt wie,1\n" + "2,2,1,Hallo Welt,2\n" + "3,9,0," +
+      "P-),2\n" + "3,6,5,BCD,3\n" + "4,17,0,P-),1\n" + "4,17,0,P-),2\n" + "5,11,10,GHI," +
+      "1\n" + "5,29,0,P-),2\n" + "5,25,0,P-),3\n"
+  }
+
+  @Test
+  def testReduceOnGroupedDSByExpressionKeyWithHashHint(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get5TupleDataSet(env)
+    val reduceDs = ds.groupBy("_5", "_1")
+      .reduce((in1, in2) => (in1._1, in1._2 + in2._2, 0, "P-)", in1._5), CombineHint.HASH)
     reduceDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "1,1,0,Hallo,1\n" + "2,3,2,Hallo Welt wie,1\n" + "2,2,1,Hallo Welt,2\n" + "3,9,0," +

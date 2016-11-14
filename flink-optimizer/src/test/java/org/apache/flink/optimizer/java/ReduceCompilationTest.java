@@ -19,6 +19,7 @@
 package org.apache.flink.optimizer.java;
 
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.common.functions.RichReduceFunction;
@@ -171,7 +172,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			assertEquals(sourceNode, combineNode.getInput().getSource());
 			assertEquals(reduceNode, sinkNode.getInput().getSource());
 			
-			// check that both reduce and combiner have the same strategy
+			// check the strategies
 			assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
 			assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
 			
@@ -234,8 +235,8 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			// check wiring
 			assertEquals(sourceNode, keyExtractor.getInput().getSource());
 			assertEquals(keyProjector, sinkNode.getInput().getSource());
-			
-			// check that both reduce and combiner have the same strategy
+
+			// check the strategies
 			assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
 			assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
 			
@@ -249,6 +250,73 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			assertEquals(6, keyExtractor.getParallelism());
 			assertEquals(6, combineNode.getParallelism());
 			
+			assertEquals(8, reduceNode.getParallelism());
+			assertEquals(8, keyProjector.getParallelism());
+			assertEquals(8, sinkNode.getParallelism());
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
+		}
+	}
+
+	@Test
+	public void testGroupedReduceWithHint() {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(8);
+
+			DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
+				.name("source").setParallelism(6);
+
+			data
+				.groupBy(new KeySelector<Tuple2<String,Double>, String>() {
+					public String getKey(Tuple2<String, Double> value) { return value.f0; }
+				})
+				.reduce(new RichReduceFunction<Tuple2<String,Double>>() {
+					@Override
+					public Tuple2<String, Double> reduce(Tuple2<String, Double> value1, Tuple2<String, Double> value2){
+						return null;
+					}
+				}).setCombineHint(CombineHint.HASH).name("reducer")
+				.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
+
+			Plan p = env.createProgramPlan();
+			OptimizedPlan op = compileNoStats(p);
+
+			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
+
+			// get the original nodes
+			SourcePlanNode sourceNode = resolver.getNode("source");
+			SingleInputPlanNode reduceNode = resolver.getNode("reducer");
+			SinkPlanNode sinkNode = resolver.getNode("sink");
+
+			// get the combiner
+			SingleInputPlanNode combineNode = (SingleInputPlanNode) reduceNode.getInput().getSource();
+
+			// get the key extractors and projectors
+			SingleInputPlanNode keyExtractor = (SingleInputPlanNode) combineNode.getInput().getSource();
+			SingleInputPlanNode keyProjector = (SingleInputPlanNode) sinkNode.getInput().getSource();
+
+			// check wiring
+			assertEquals(sourceNode, keyExtractor.getInput().getSource());
+			assertEquals(keyProjector, sinkNode.getInput().getSource());
+
+			// check the strategies
+			assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
+			assertEquals(DriverStrategy.HASHED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
+
+			// check the keys
+			assertEquals(new FieldList(0), reduceNode.getKeys(0));
+			assertEquals(new FieldList(0), combineNode.getKeys(0));
+			assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
+
+			// check parallelism
+			assertEquals(6, sourceNode.getParallelism());
+			assertEquals(6, keyExtractor.getParallelism());
+			assertEquals(6, combineNode.getParallelism());
+
 			assertEquals(8, reduceNode.getParallelism());
 			assertEquals(8, keyProjector.getParallelism());
 			assertEquals(8, sinkNode.getParallelism());

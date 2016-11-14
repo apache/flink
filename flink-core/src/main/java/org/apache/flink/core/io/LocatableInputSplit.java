@@ -18,11 +18,14 @@
 
 package org.apache.flink.core.io;
 
+import org.apache.flink.annotation.Public;
+
 import java.util.Arrays;
 
 /**
  * A locatable input split is an input split referring to input data which is located on one or more hosts.
  */
+@Public
 public class LocatableInputSplit implements InputSplit, java.io.Serializable {
 	
 	private static final long serialVersionUID = 1L;

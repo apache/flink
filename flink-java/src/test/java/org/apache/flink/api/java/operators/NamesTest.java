@@ -48,7 +48,7 @@ public class NamesTest implements Serializable {
 	public void testDefaultName() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<String> strs = env.fromCollection(Arrays.asList( new String[] {"a", "b"}));
+		DataSet<String> strs = env.fromCollection(Arrays.asList("a", "b"));
 
 
 		// WARNING: The test will fail if this line is being moved down in the file (the line-number is hard-coded)
@@ -68,7 +68,7 @@ public class NamesTest implements Serializable {
 	public void testGivenName() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<String> strs = env.fromCollection(Arrays.asList( new String[] {"a", "b"}));
+		DataSet<String> strs = env.fromCollection(Arrays.asList("a", "b"));
 		strs.filter(new FilterFunction<String>() {
 			private static final long serialVersionUID = 1L;
 			@Override

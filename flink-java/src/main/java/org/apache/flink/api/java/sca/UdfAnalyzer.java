@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.sca;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -32,8 +33,8 @@ import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
-import org.apache.flink.api.java.operators.Keys;
-import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
+import org.apache.flink.api.common.operators.Keys;
+import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.sca.TaggedValue.Input;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.MethodNode;
@@ -61,6 +62,7 @@ import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.removeUngroupedInpu
  * or bytecode instructions that haven't been considered the analyzer
  * will fallback to the ASM library (which removes TaggedValues).
  */
+@Internal
 public class UdfAnalyzer {
 	// necessary to prevent endless loops and stack overflows
 	private static final int MAX_NESTING = 20;

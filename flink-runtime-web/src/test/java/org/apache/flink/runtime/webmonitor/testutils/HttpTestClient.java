@@ -165,6 +165,25 @@ public class HttpTestClient implements AutoCloseable {
 	}
 
 	/**
+	 * Sends a simple DELETE request to the given path. You only specify the $path part of
+	 * http://$host:$host/$path.
+	 *
+	 * @param path The $path to DELETE (http://$host:$host/$path)
+	 */
+	public void sendDeleteRequest(String path, FiniteDuration timeout) throws TimeoutException, InterruptedException {
+		if (!path.startsWith("/")) {
+			path = "/" + path;
+		}
+
+		HttpRequest getRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
+				HttpMethod.DELETE, path);
+		getRequest.headers().set(HttpHeaders.Names.HOST, host);
+		getRequest.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+
+		sendRequest(getRequest, timeout);
+	}
+
+	/**
 	 * Returns the next available HTTP response. A call to this method blocks until a response
 	 * becomes available.
 	 *

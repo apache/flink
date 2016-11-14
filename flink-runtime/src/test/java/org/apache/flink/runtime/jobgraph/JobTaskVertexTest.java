@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import java.io.IOException;
-
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.InitializeOnMaster;
@@ -32,8 +30,9 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import java.io.IOException;
 
+import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")
 public class JobTaskVertexTest {

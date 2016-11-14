@@ -23,7 +23,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.util.IOUtils;
+import org.apache.flink.util.IOUtils;
 import org.slf4j.Logger;
 
 import java.io.EOFException;
@@ -39,7 +39,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utility class to work with blob data.
@@ -108,7 +108,7 @@ public class BlobUtils {
 	static File getIncomingDirectory(File storageDir) {
 		final File incomingDir = new File(storageDir, "incoming");
 
-		if (!incomingDir.exists() && !incomingDir.mkdirs()) {
+		if (!incomingDir.mkdirs() && !incomingDir.exists()) {
 			throw new RuntimeException("Cannot create directory for incoming files " + incomingDir.getAbsolutePath());
 		}
 
@@ -336,7 +336,8 @@ public class BlobUtils {
 	 *
 	 * <p>The returned path can be used with the state backend for recovery purposes.
 	 *
-	 * <p>This follows the same scheme as {@link #getStorageLocation(File, BlobKey)}.
+	 * <p>This follows the same scheme as {@link #getStorageLocation(File, BlobKey)}
+	 * and is used for HA.
 	 */
 	static String getRecoveryPath(String basePath, BlobKey blobKey) {
 		// format: $base/cache/blob_$key

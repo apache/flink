@@ -17,27 +17,47 @@
  */
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
 
 import scala.collection.JavaConverters._
 
 /**
  * TypeInformation for [[Option]].
  */
+@Public
 class OptionTypeInfo[A, T <: Option[A]](private val elemTypeInfo: TypeInformation[A])
-  extends TypeInformation[T] {
+  extends TypeInformation[T] with AtomicType[T] {
 
+  @PublicEvolving
   override def isBasicType: Boolean = false
+  @PublicEvolving
   override def isTupleType: Boolean = false
-  override def isKeyType: Boolean = false
+  @PublicEvolving
+  override def isKeyType: Boolean = elemTypeInfo.isKeyType
+  @PublicEvolving
   override def getTotalFields: Int = 1
+  @PublicEvolving
   override def getArity: Int = 1
+  @PublicEvolving
   override def getTypeClass = classOf[Option[_]].asInstanceOf[Class[T]]
-  override def getGenericParameters = List[TypeInformation[_]](elemTypeInfo).asJava
+  @PublicEvolving
+  override def getGenericParameters = Map[String, TypeInformation[_]]("A" -> elemTypeInfo).asJava
 
+  @PublicEvolving
+  override def createComparator(ascending: Boolean, executionConfig: ExecutionConfig) = {
+    if (isKeyType) {
+      val elemCompartor = elemTypeInfo.asInstanceOf[AtomicType[A]]
+        .createComparator(ascending, executionConfig)
+      new OptionTypeComparator[A](ascending, elemCompartor).asInstanceOf[TypeComparator[T]]
+    } else {
+      throw new UnsupportedOperationException("Element type that doesn't support ")
+    }
+  }
 
+  @PublicEvolving
   def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
     if (elemTypeInfo == null) {
       // this happens when the type of a DataSet is None, i.e. DataSet[None]

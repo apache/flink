@@ -42,14 +42,16 @@ class SpoutCollector<OUT> extends AbstractStormCollector<OUT> implements ISpoutO
 	 * 
 	 * @param numberOfAttributes
 	 *            The number of attributes of the emitted tuples.
+	 * @param taskId
+	 *            The ID of the producer task (negative value for unknown).
 	 * @param flinkContext
 	 *            The Flink source context to be used.
 	 * @throws UnsupportedOperationException
 	 *             if the specified number of attributes is greater than 25
 	 */
-	SpoutCollector(final HashMap<String, Integer> numberOfAttributes,
+	SpoutCollector(final HashMap<String, Integer> numberOfAttributes, final int taskId,
 			final SourceContext<OUT> flinkContext) throws UnsupportedOperationException {
-		super(numberOfAttributes);
+		super(numberOfAttributes, taskId);
 		assert (flinkContext != null);
 		this.flinkContext = flinkContext;
 	}

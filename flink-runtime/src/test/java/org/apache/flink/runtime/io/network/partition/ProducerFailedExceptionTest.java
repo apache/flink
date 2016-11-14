@@ -19,27 +19,27 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.util.SerializedThrowable;
+
 import org.junit.Test;
 
-import static junit.framework.TestCase.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class ProducerFailedExceptionTest {
 
 	@Test
 	public void testInstanceOfCancelTaskException() throws Exception {
-		ProducerFailedException e = new ProducerFailedException(new Exception());
-		assertTrue(e instanceof CancelTaskException);
+		assertTrue(CancelTaskException.class.isAssignableFrom(ProducerFailedException.class));
 	}
 
 	@Test
-	public void testCauseIsStringified() throws Exception {
+	public void testCauseIsSerialized() throws Exception {
 		// Tests that the cause is stringified, because it might be an instance
 		// of a user level Exception, which can not be deserialized by the
 		// remote receiver's system class loader.
 		ProducerFailedException e = new ProducerFailedException(new Exception());
-		assertNull(e.getCause());
-		assertNotNull(e.getCauseAsString());
+		assertNotNull(e.getCause());
+		assertTrue(e.getCause() instanceof SerializedThrowable);
 	}
 }

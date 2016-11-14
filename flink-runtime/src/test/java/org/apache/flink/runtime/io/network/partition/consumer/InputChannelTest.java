@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.junit.Test;
-import scala.Tuple2;
 
 import java.io.IOException;
 
@@ -102,10 +102,11 @@ public class InputChannelTest {
 
 	private InputChannel createInputChannel(int initialBackoff, int maxBackoff) {
 		return new MockInputChannel(
-				mock(SingleInputGate.class),
-				0,
-				new ResultPartitionID(),
-				new Tuple2<Integer, Integer>(initialBackoff, maxBackoff));
+			mock(SingleInputGate.class),
+			0,
+			new ResultPartitionID(),
+			initialBackoff,
+			maxBackoff);
 	}
 
 	// ---------------------------------------------------------------------------------------------
@@ -116,9 +117,10 @@ public class InputChannelTest {
 				SingleInputGate inputGate,
 				int channelIndex,
 				ResultPartitionID partitionId,
-				Tuple2<Integer, Integer> initialAndMaxBackoff) {
+				int initialBackoff,
+				int maxBackoff) {
 
-			super(inputGate, channelIndex, partitionId, initialAndMaxBackoff);
+			super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, new SimpleCounter());
 		}
 
 		@Override

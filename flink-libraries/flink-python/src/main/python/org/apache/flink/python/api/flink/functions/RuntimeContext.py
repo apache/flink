@@ -18,13 +18,17 @@
 
 
 class RuntimeContext(object):
-    def __init__(self, iterator, collector):
+    def __init__(self, iterator, collector, subtask_index):
         self.iterator = iterator
         self.collector = collector
         self.broadcast_variables = dict()
+        self.subtask_id = subtask_index
 
     def _add_broadcast_variable(self, name, var):
         self.broadcast_variables[name] = var
 
     def get_broadcast_variable(self, name):
         return self.broadcast_variables[name]
+
+    def get_index_of_this_subtask(self):
+        return self.subtask_id

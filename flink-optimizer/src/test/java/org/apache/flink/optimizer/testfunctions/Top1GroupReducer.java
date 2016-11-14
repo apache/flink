@@ -18,18 +18,23 @@
 
 package org.apache.flink.optimizer.testfunctions;
 
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.util.Collector;
 
 
-@Combinable
-public class Top1GroupReducer<T> extends RichGroupReduceFunction<T, T> {
+public class Top1GroupReducer<T>
+	implements GroupReduceFunction<T, T>, GroupCombineFunction<T, T> {
 
 	private static final long serialVersionUID = 1L;
 
 	@Override
 	public void reduce(Iterable<T> values, Collector<T> out) {
+		out.collect(values.iterator().next());
+	}
+
+	@Override
+	public void combine(Iterable<T> values, Collector<T> out) {
 		out.collect(values.iterator().next());
 	}
 }

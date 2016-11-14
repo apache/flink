@@ -17,12 +17,14 @@
  */
 package org.apache.flink.api.java.io;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
 
+@Internal
 public class TupleCsvInputFormat<OUT> extends CsvInputFormat<OUT> {
 
 	private static final long serialVersionUID = 1L;

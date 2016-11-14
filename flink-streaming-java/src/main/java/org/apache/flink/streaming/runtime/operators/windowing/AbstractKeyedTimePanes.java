@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -32,6 +33,7 @@ import java.util.Iterator;
 /**
  * Base class for a multiple key/value maps organized in panes.
  */
+@Internal
 public abstract class AbstractKeyedTimePanes<Type, Key, Aggregate, Result> {
 	
 	private static final int BEGIN_OF_STATE_MAGIC_NUMBER = 0x0FF1CE42;

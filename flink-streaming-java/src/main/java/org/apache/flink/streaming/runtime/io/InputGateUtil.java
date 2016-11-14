@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
  * the single {@link InputGate} that was passed in or create a {@link UnionInputGate} if several
  * {@link InputGate input gates} are given.
  */
+@Internal
 public class InputGateUtil {
 
 	public static InputGate createInputGate(Collection<InputGate> inputGates1, Collection<InputGate> inputGates2) {

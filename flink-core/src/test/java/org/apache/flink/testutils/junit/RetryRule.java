@@ -22,11 +22,12 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A rule to retry failed tests for a fixed number of times.
@@ -113,7 +114,7 @@ public class RetryRule implements TestRule {
 					break; // success
 				}
 				catch (Throwable t) {
-					LOG.debug(String.format("Test run failed (%d/%d).",
+					LOG.warn(String.format("Test run failed (%d/%d).",
 							currentRun, timesOnFailure + 1), t);
 
 					// Throw the failure if retried too often
@@ -156,7 +157,7 @@ public class RetryRule implements TestRule {
 					break; // success
 				}
 				catch (Throwable t) {
-					LOG.debug(String.format("Test run failed (%d/%d).", currentRun, timesOnFailure + 1), t);
+					LOG.warn(String.format("Test run failed (%d/%d).", currentRun, timesOnFailure + 1), t);
 
 					if (!exceptionClass.isAssignableFrom(t.getClass()) || currentRun >= timesOnFailure) {
 						// Throw the failure if retried too often, or if it is the wrong exception

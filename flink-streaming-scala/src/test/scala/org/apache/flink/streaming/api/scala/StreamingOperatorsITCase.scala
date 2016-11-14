@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.util.MathUtils
 import org.junit.rules.TemporaryFolder
 import org.junit.{After, Before, Rule, Test}
 
@@ -57,21 +58,25 @@ class StreamingOperatorsITCase extends ScalaStreamingMultipleProgramsTestBase {
     * The stream is grouped by the first field. For each group, the resulting stream is folded by
     * summing up the second tuple field.
     *
+    * This test relies on the hash function used by the {@link DataStream#keyBy}, which is
+    * assumed to be {@link MathUtils#murmurHash}.
     */
   @Test
-  def testFoldOperator(): Unit = {
+  def testGroupedFoldOperator(): Unit = {
     val numElements = 10
     val numKeys = 2
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     env.setParallelism(2)
+    env.getConfig.setMaxParallelism(2);
 
     val sourceStream = env.addSource(new SourceFunction[(Int, Int)] {
 
       override def run(ctx: SourceContext[(Int, Int)]): Unit = {
         0 until numElements foreach {
-          i => ctx.collect((i % numKeys, i))
+          // keys '1' and '2' hash to different buckets
+          i => ctx.collect((1 + (MathUtils.murmurHash(i)) % numKeys, i))
         }
       }
 
@@ -86,8 +91,12 @@ class StreamingOperatorsITCase extends ScalaStreamingMultipleProgramsTestBase {
         }
       })
       .map(new RichMapFunction[Int, (Int, Int)] {
+        var key: Int = -1
         override def map(value: Int): (Int, Int) = {
-          (getRuntimeContext.getIndexOfThisSubtask, value)
+          if (key == -1) {
+            key = MathUtils.murmurHash(value) % numKeys
+          }
+          (key, value)
         }
       })
       .split{
@@ -98,15 +107,15 @@ class StreamingOperatorsITCase extends ScalaStreamingMultipleProgramsTestBase {
     splittedResult
       .select("0")
       .map(_._2)
-      .getJavaStream
+      .javaStream
       .writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE)
     splittedResult
       .select("1")
       .map(_._2)
-      .getJavaStream
+      .javaStream
       .writeAsText(resultPath2, FileSystem.WriteMode.OVERWRITE)
 
-    val groupedSequence = 0 until numElements groupBy( _ % numKeys)
+    val groupedSequence = 0 until numElements groupBy( MathUtils.murmurHash(_) % numKeys )
 
     expected1 = groupedSequence(0).scanLeft(0)(_ + _).tail.mkString("\n")
     expected2 = groupedSequence(1).scanLeft(0)(_ + _).tail.mkString("\n")

@@ -17,12 +17,15 @@
  */
 package org.apache.flink.api.java.sampling;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * The data structure which is transferred between partitions and the coordinator for distributed
  * random sampling.
  *
  * @param <T> The type of sample data.
  */
+@Internal
 public class IntermediateSampleData<T> implements Comparable<IntermediateSampleData<T>> {
 	private double weight;
 	private T element;

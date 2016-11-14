@@ -31,18 +31,26 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+
 import org.junit.Test;
 
 
 public class RuntimeUDFContextTest {
 
-	private final TaskInfo taskInfo = new TaskInfo("test name", 1, 3, 0);
+	private final TaskInfo taskInfo = new TaskInfo("test name", 3, 1, 3, 0);
 
 	@Test
 	public void testBroadcastVariableNotFound() {
 		try {
-			RuntimeUDFContext ctx = new RuntimeUDFContext(taskInfo, getClass().getClassLoader(), new ExecutionConfig(), new HashMap<String, Future<Path>>(),new HashMap<String, Accumulator<?, ?>>());
-			
+			RuntimeUDFContext ctx = new RuntimeUDFContext(
+					taskInfo, getClass().getClassLoader(), new ExecutionConfig(), 
+					new HashMap<String, Future<Path>>(),
+					new HashMap<String, Accumulator<?, ?>>(),
+					new UnregisteredMetricsGroup());
+
+			assertFalse(ctx.hasBroadcastVariable("some name"));
+
 			try {
 				ctx.getBroadcastVariable("some name");
 				fail("should throw an exception");
@@ -71,11 +79,18 @@ public class RuntimeUDFContextTest {
 	@Test
 	public void testBroadcastVariableSimple() {
 		try {
-			RuntimeUDFContext ctx = new RuntimeUDFContext(taskInfo, getClass().getClassLoader(), new ExecutionConfig(), new HashMap<String, Future<Path>>(), new HashMap<String, Accumulator<?, ?>>());
+			RuntimeUDFContext ctx = new RuntimeUDFContext(
+					taskInfo, getClass().getClassLoader(), new ExecutionConfig(),
+					new HashMap<String, Future<Path>>(),
+					new HashMap<String, Accumulator<?, ?>>(),
+					new UnregisteredMetricsGroup());
 			
 			ctx.setBroadcastVariable("name1", Arrays.asList(1, 2, 3, 4));
 			ctx.setBroadcastVariable("name2", Arrays.asList(1.0, 2.0, 3.0, 4.0));
-			
+
+			assertTrue(ctx.hasBroadcastVariable("name1"));
+			assertTrue(ctx.hasBroadcastVariable("name2"));
+
 			List<Integer> list1 = ctx.getBroadcastVariable("name1");
 			List<Double> list2 = ctx.getBroadcastVariable("name2");
 			
@@ -105,7 +120,11 @@ public class RuntimeUDFContextTest {
 	@Test
 	public void testBroadcastVariableWithInitializer() {
 		try {
-			RuntimeUDFContext ctx = new RuntimeUDFContext(taskInfo, getClass().getClassLoader(), new ExecutionConfig(), new HashMap<String, Future<Path>>(), new HashMap<String, Accumulator<?, ?>>());
+			RuntimeUDFContext ctx = new RuntimeUDFContext(
+					taskInfo, getClass().getClassLoader(), new ExecutionConfig(),
+					new HashMap<String, Future<Path>>(),
+					new HashMap<String, Accumulator<?, ?>>(),
+					new UnregisteredMetricsGroup());
 			
 			ctx.setBroadcastVariable("name", Arrays.asList(1, 2, 3, 4));
 			
@@ -130,7 +149,11 @@ public class RuntimeUDFContextTest {
 	@Test
 	public void testResetBroadcastVariableWithInitializer() {
 		try {
-			RuntimeUDFContext ctx = new RuntimeUDFContext(taskInfo, getClass().getClassLoader(), new ExecutionConfig(), new HashMap<String, Future<Path>>(), new HashMap<String, Accumulator<?, ?>>());
+			RuntimeUDFContext ctx = new RuntimeUDFContext(
+					taskInfo, getClass().getClassLoader(), new ExecutionConfig(),
+					new HashMap<String, Future<Path>>(),
+					new HashMap<String, Accumulator<?, ?>>(),
+					new UnregisteredMetricsGroup());
 			
 			ctx.setBroadcastVariable("name", Arrays.asList(1, 2, 3, 4));
 			
@@ -153,7 +176,11 @@ public class RuntimeUDFContextTest {
 	@Test
 	public void testBroadcastVariableWithInitializerAndMismatch() {
 		try {
-			RuntimeUDFContext ctx = new RuntimeUDFContext(taskInfo, getClass().getClassLoader(), new ExecutionConfig(), new HashMap<String, Future<Path>>(), new HashMap<String, Accumulator<?, ?>>());
+			RuntimeUDFContext ctx = new RuntimeUDFContext(
+					taskInfo, getClass().getClassLoader(), new ExecutionConfig(),
+					new HashMap<String, Future<Path>>(),
+					new HashMap<String, Accumulator<?, ?>>(),
+					new UnregisteredMetricsGroup());
 			
 			ctx.setBroadcastVariable("name", Arrays.asList(1, 2, 3, 4));
 			

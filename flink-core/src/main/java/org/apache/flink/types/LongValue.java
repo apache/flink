@@ -21,6 +21,7 @@ package org.apache.flink.types;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -28,9 +29,8 @@ import org.apache.flink.core.memory.MemorySegment;
 /**
  * Boxed serializable and comparable long integer type, representing the primitive
  * type {@code long}.
- * 
- * @see org.apache.flink.types.Key
  */
+@Public
 public class LongValue implements NormalizableKey<LongValue>, ResettableValue<LongValue>, CopyableValue<LongValue> {
 	private static final long serialVersionUID = 1L;
 

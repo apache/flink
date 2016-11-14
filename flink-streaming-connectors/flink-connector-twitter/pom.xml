@@ -25,36 +25,33 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-streaming-connectors-parent</artifactId>
-		<version>1.0-SNAPSHOT</version>
+		<artifactId>flink-streaming-connectors</artifactId>
+		<version>1.2-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-twitter</artifactId>
+	<artifactId>flink-connector-twitter_2.10</artifactId>
 	<name>flink-connector-twitter</name>
 
 	<packaging>jar</packaging>
 
-	<dependencies>
+	<properties>
+		<hbc-core.version>2.2.0</hbc-core.version>
+	</properties>
 
+
+	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
+			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.twitter</groupId>
 			<artifactId>hbc-core</artifactId>
-			<version>2.2.0</version>
+			<version>${hbc-core.version}</version>
 		</dependency>
-		
-		<dependency>
-			<groupId>org.apache.sling</groupId>
-			<artifactId>org.apache.sling.commons.json</artifactId>
-			<version>2.0.6</version>
-		</dependency>
-
 	</dependencies>
 
 	<build>
@@ -83,6 +80,8 @@ under the License.
 									<!-- We include all dependencies that transitively depend on guava -->
 									<include>com.twitter:hbc-core</include>
 									<include>com.twitter:joauth</include>
+									<include>org.apache.httpcomponents:httpclient</include>
+									<include>org.apache.httpcomponents:httpcore</include>
 								</includes>
 							</artifactSet>
 							<transformers>

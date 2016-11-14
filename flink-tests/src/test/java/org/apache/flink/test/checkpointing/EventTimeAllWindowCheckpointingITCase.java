@@ -18,24 +18,25 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichEventTimeSourceFunction;
+import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
+import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
@@ -45,6 +46,7 @@ import org.junit.Test;
 import java.util.HashMap;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.*;
 
 /**
@@ -58,7 +60,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 
 	private static final int PARALLELISM = 4;
 
-	private static ForkableFlinkMiniCluster cluster;
+	private static LocalFlinkMiniCluster cluster;
 
 
 	@BeforeClass
@@ -67,9 +69,9 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM / 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 48);
-		config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "0 ms");
-
-		cluster = new ForkableFlinkMiniCluster(config, false);
+		config.setString(ConfigConstants.DEFAULT_AKKA_LOOKUP_TIMEOUT, "60 s");
+		config.setString(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT, "60 s");
+		cluster = new LocalFlinkMiniCluster(config, false);
 		cluster.start();
 	}
 
@@ -96,7 +98,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
-			env.setNumberOfExecutionRetries(3);
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 
 			env
@@ -160,7 +162,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
-			env.setNumberOfExecutionRetries(3);
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 			env.getConfig().disableSysoutLogging();
 
 			env
@@ -199,7 +201,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 					.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SLIDE)).setParallelism(1);
 
 
-			tryExecute(env, "Tumbling Window Test");
+			tryExecute(env, "Sliding Window Test");
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -221,7 +223,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
-			env.setNumberOfExecutionRetries(3);
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 
 			env
@@ -231,23 +233,13 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.timeWindowAll(Time.of(WINDOW_SIZE, MILLISECONDS))
 					.apply(
-							new RichReduceFunction<Tuple2<Long, IntType>>() {
-
-								private boolean open = false;
-
-								@Override
-								public void open(Configuration parameters) {
-									assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
-									open = true;
-								}
+							new ReduceFunction<Tuple2<Long, IntType>>() {
 
 								@Override
 								public Tuple2<Long, IntType> reduce(
 										Tuple2<Long, IntType> a,
 										Tuple2<Long, IntType> b) {
 
-									// validate that the function has been opened properly
-									assertTrue(open);
 									return new Tuple2<>(a.f0, new IntType(a.f1.value + b.f1.value));
 								}
 							},
@@ -264,22 +256,91 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 						@Override
 						public void apply(
 								TimeWindow window,
-								Iterable<Tuple2<Long, IntType>> values,
+								Iterable<Tuple2<Long, IntType>> input,
 								Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
 							// validate that the function has been opened properly
 							assertTrue(open);
 
-							int sum = 0;
-							long key = -1;
-
-							for (Tuple2<Long, IntType> value : values) {
-								sum += value.f1.value;
-								key = value.f0;
+							for (Tuple2<Long, IntType> in: input) {
+								out.collect(new Tuple4<>(in.f0,
+										window.getStart(),
+										window.getEnd(),
+										in.f1));
 							}
-							out.collect(new Tuple4<>(key, window.getStart(), window.getEnd(), new IntType(sum)));
 						}
 					})
+					.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SIZE)).setParallelism(1);
+
+
+			tryExecute(env, "Tumbling Window Test");
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testPreAggregatedFoldingTumblingTimeWindow() {
+		final int NUM_ELEMENTS_PER_KEY = 3000;
+		final int WINDOW_SIZE = 100;
+		final int NUM_KEYS = 1;
+		FailingSource.reset();
+
+		try {
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
+					"localhost", cluster.getLeaderRPCPort());
+
+			env.setParallelism(PARALLELISM);
+			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+			env.enableCheckpointing(100);
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+			env.getConfig().disableSysoutLogging();
+
+			env
+					.addSource(new FailingSource(NUM_KEYS,
+							NUM_ELEMENTS_PER_KEY,
+							NUM_ELEMENTS_PER_KEY / 3))
+					.rebalance()
+					.timeWindowAll(Time.of(WINDOW_SIZE, MILLISECONDS))
+					.apply(new Tuple4<>(0L, 0L, 0L, new IntType(0)),
+							new FoldFunction<Tuple2<Long, IntType>, Tuple4<Long, Long, Long, IntType>>() {
+								@Override
+								public Tuple4<Long, Long, Long, IntType> fold(Tuple4<Long, Long, Long, IntType> accumulator,
+										Tuple2<Long, IntType> value) throws Exception {
+									accumulator.f0 = value.f0;
+									accumulator.f3 = new IntType(accumulator.f3.value + value.f1.value);
+									return accumulator;
+								}
+							},
+							new RichAllWindowFunction<Tuple4<Long, Long, Long, IntType>, Tuple4<Long, Long, Long, IntType>, TimeWindow>() {
+
+								private boolean open = false;
+
+								@Override
+								public void open(Configuration parameters) {
+									assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+									open = true;
+								}
+
+								@Override
+								public void apply(
+										TimeWindow window,
+										Iterable<Tuple4<Long, Long, Long, IntType>> input,
+										Collector<Tuple4<Long, Long, Long, IntType>> out) {
+
+									// validate that the function has been opened properly
+									assertTrue(open);
+
+									for (Tuple4<Long, Long, Long, IntType> in: input) {
+										out.collect(new Tuple4<>(in.f0,
+												window.getStart(),
+												window.getEnd(),
+												in.f3));
+									}
+								}
+							})
 					.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SIZE)).setParallelism(1);
 
 
@@ -306,7 +367,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
-			env.setNumberOfExecutionRetries(3);
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 
 			env
@@ -317,23 +378,13 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 					.timeWindowAll(Time.of(WINDOW_SIZE, MILLISECONDS),
 							Time.of(WINDOW_SLIDE, MILLISECONDS))
 					.apply(
-							new RichReduceFunction<Tuple2<Long, IntType>>() {
-
-								private boolean open = false;
-
-								@Override
-								public void open(Configuration parameters) {
-									assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
-									open = true;
-								}
+							new ReduceFunction<Tuple2<Long, IntType>>() {
 
 								@Override
 								public Tuple2<Long, IntType> reduce(
 										Tuple2<Long, IntType> a,
 										Tuple2<Long, IntType> b) {
 
-									// validate that the function has been opened properly
-									assertTrue(open);
 									return new Tuple2<>(a.f0, new IntType(a.f1.value + b.f1.value));
 								}
 							},
@@ -350,20 +401,18 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 						@Override
 						public void apply(
 								TimeWindow window,
-								Iterable<Tuple2<Long, IntType>> values,
+								Iterable<Tuple2<Long, IntType>> input,
 								Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
 							// validate that the function has been opened properly
 							assertTrue(open);
 
-							int sum = 0;
-							long key = -1;
-
-							for (Tuple2<Long, IntType> value : values) {
-								sum += value.f1.value;
-								key = value.f0;
+							for (Tuple2<Long, IntType> in: input) {
+								out.collect(new Tuple4<>(in.f0,
+										window.getStart(),
+										window.getEnd(),
+										in.f1));
 							}
-							out.collect(new Tuple4<>(key, window.getStart(), window.getEnd(), new IntType(sum)));
 						}
 					})
 					.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SLIDE)).setParallelism(1);
@@ -382,8 +431,8 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static class FailingSource extends RichEventTimeSourceFunction<Tuple2<Long, IntType>>
-			implements Checkpointed<Integer>, CheckpointNotifier
+	private static class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
+			implements Checkpointed<Integer>, CheckpointListener
 	{
 		private static volatile boolean failedBefore = false;
 
@@ -577,27 +626,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	public static void tryExecute(StreamExecutionEnvironment env, String jobName) throws Exception {
-		try {
-			env.execute(jobName);
-		}
-		catch (ProgramInvocationException | JobExecutionException root) {
-			Throwable cause = root.getCause();
-
-			// search for nested SuccessExceptions
-			int depth = 0;
-			while (!(cause instanceof SuccessException)) {
-				if (cause == null || depth++ == 20) {
-					root.printStackTrace();
-					fail("Test failed: " + root.getMessage());
-				}
-				else {
-					cause = cause.getCause();
-				}
-			}
-		}
-	}
-
 	public static class IntType {
 
 		public int value;
@@ -605,9 +633,5 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 		public IntType() {}
 
 		public IntType(int value) { this.value = value; }
-	}
-
-	static final class SuccessException extends Exception {
-		private static final long serialVersionUID = -9218191172606739598L;
 	}
 }

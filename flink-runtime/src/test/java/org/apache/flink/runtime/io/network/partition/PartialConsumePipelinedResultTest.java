@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.api.reader.BufferReader;
@@ -88,8 +89,7 @@ public class PartialConsumePipelinedResultTest {
 		receiver.connectNewDataSetAsInput(
 				sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-		final JobGraph jobGraph = new JobGraph(
-				"Partial Consume of Pipelined Result", sender, receiver);
+		final JobGraph jobGraph = new JobGraph("Partial Consume of Pipelined Result", sender, receiver);
 
 		final SlotSharingGroup slotSharingGroup = new SlotSharingGroup(
 				sender.getID(), receiver.getID());
@@ -108,11 +108,6 @@ public class PartialConsumePipelinedResultTest {
 	public static class SlowBufferSender extends AbstractInvokable {
 
 		@Override
-		public void registerInputOutput() {
-			// Nothing to do
-		}
-
-		@Override
 		public void invoke() throws Exception {
 			final ResultPartitionWriter writer = getEnvironment().getWriter(0);
 
@@ -129,11 +124,6 @@ public class PartialConsumePipelinedResultTest {
 	 * Reads a single buffer and recycles it.
 	 */
 	public static class SingleBufferReceiver extends AbstractInvokable {
-
-		@Override
-		public void registerInputOutput() {
-			// Nothing to do
-		}
 
 		@Override
 		public void invoke() throws Exception {

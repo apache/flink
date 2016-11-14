@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.functions.windowing.delta.extractor.Extractor;
 
 /**
@@ -33,6 +34,7 @@ import org.apache.flink.streaming.api.functions.windowing.delta.extractor.Extrac
  *            The type on which the delta function runs. (The type of the delta
  *            function)
  */
+@PublicEvolving
 public abstract class ExtractionAwareDeltaFunction<DATA, TO> implements DeltaFunction<DATA> {
 
 	/**

@@ -20,6 +20,8 @@ package org.apache.flink.api.java.operators;
 
 import java.util.Map;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.configuration.Configuration;
 
@@ -31,6 +33,7 @@ import org.apache.flink.api.java.DataSet;
  * or {@link org.apache.flink.api.common.functions.RichCoGroupFunction}.
  * The UDF operators stand in contrast to operators that execute built-in operations, like aggregations.
  */
+@Public
 public interface UdfOperator<O extends UdfOperator<O>> {
 	
 	// --------------------------------------------------------------------------------------------
@@ -53,6 +56,7 @@ public interface UdfOperator<O extends UdfOperator<O>> {
 	 * 
 	 * @return The broadcast data sets that have been added to this UDF.
 	 */
+	@Internal
 	Map<String, DataSet<?>> getBroadcastSets();
 	
 	/**
@@ -60,6 +64,7 @@ public interface UdfOperator<O extends UdfOperator<O>> {
 	 * 
 	 * @return The semantic properties of the UDF.
 	 */
+	@Internal
 	SemanticProperties getSemanticProperties();
 	
 	// --------------------------------------------------------------------------------------------

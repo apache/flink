@@ -18,9 +18,11 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.Serializable;
 
-
+@Internal
 public class GenericPairComparator<T1, T2> extends TypePairComparator<T1, T2>
 		implements Serializable {
 

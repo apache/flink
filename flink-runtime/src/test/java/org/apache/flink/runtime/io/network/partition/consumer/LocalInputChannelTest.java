@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import com.google.common.collect.Lists;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -29,7 +28,6 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
@@ -42,7 +40,8 @@ import org.apache.flink.runtime.io.network.util.TestPartitionProducer;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-
+import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
+import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -58,8 +57,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode.ASYNC;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -100,6 +99,8 @@ public class LocalInputChannelTest {
 		final ResultPartitionConsumableNotifier partitionConsumableNotifier =
 				mock(ResultPartitionConsumableNotifier.class);
 
+		final TaskActions taskActions = mock(TaskActions.class);
+
 		final IOManager ioManager = mock(IOManager.class);
 
 		final JobID jobId = new JobID();
@@ -114,15 +115,17 @@ public class LocalInputChannelTest {
 			partitionIds[i] = new ResultPartitionID();
 
 			final ResultPartition partition = new ResultPartition(
-					"Test Name",
-					jobId,
-					partitionIds[i],
-					ResultPartitionType.PIPELINED,
-					parallelism,
-					partitionManager,
-					partitionConsumableNotifier,
-					ioManager,
-					ASYNC);
+				"Test Name",
+				taskActions,
+				jobId,
+				partitionIds[i],
+				ResultPartitionType.PIPELINED,
+				parallelism,
+				partitionManager,
+				partitionConsumableNotifier,
+				ioManager,
+				ASYNC,
+				true);
 
 			// Create a buffer pool for this partition
 			partition.registerBufferPool(
@@ -265,12 +268,14 @@ public class LocalInputChannelTest {
 			throws IOException, InterruptedException {
 
 		return new LocalInputChannel(
-				inputGate,
-				0,
-				new ResultPartitionID(),
-				partitionManager,
-				mock(TaskEventDispatcher.class),
-				initialAndMaxRequestBackoff);
+			inputGate,
+			0,
+			new ResultPartitionID(),
+			partitionManager,
+			mock(TaskEventDispatcher.class),
+			initialAndMaxRequestBackoff._1(),
+			initialAndMaxRequestBackoff._2(),
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 	}
 
 	/**
@@ -339,13 +344,14 @@ public class LocalInputChannelTest {
 			checkArgument(numberOfExpectedBuffersPerChannel >= 1);
 
 			this.inputGate = new SingleInputGate(
-					"Test Name",
-					new JobID(),
-					new ExecutionAttemptID(),
-					new IntermediateDataSetID(),
-					subpartitionIndex,
-					numberOfInputChannels,
-					mock(PartitionStateChecker.class));
+				"Test Name",
+				new JobID(),
+				new ExecutionAttemptID(),
+				new IntermediateDataSetID(),
+				subpartitionIndex,
+				numberOfInputChannels,
+				mock(TaskActions.class),
+				new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 
 			// Set buffer pool
 			inputGate.setBufferPool(bufferPool);
@@ -359,7 +365,8 @@ public class LocalInputChannelTest {
 								i,
 								consumedPartitionIds[i],
 								partitionManager,
-								taskEventDispatcher));
+								taskEventDispatcher,
+								new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup()));
 			}
 
 			this.numberOfInputChannels = numberOfInputChannels;

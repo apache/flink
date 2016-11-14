@@ -30,9 +30,10 @@ import org.apache.flink.runtime.util.event.NotificationListener;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * View over a spilled subpartition.
@@ -70,7 +71,7 @@ class SpilledSubpartitionViewAsyncIO implements ResultSubpartitionView {
 	private final ConcurrentLinkedQueue<Buffer> returnedBuffers = new ConcurrentLinkedQueue<Buffer>();
 
 	/** A data availability listener. */
-	private NotificationListener registeredListener;
+	private final AtomicReference<NotificationListener> registeredListener;
 
 	/** Error, which has occurred in the I/O thread. */
 	private volatile IOException errorInIOThread;
@@ -80,6 +81,9 @@ class SpilledSubpartitionViewAsyncIO implements ResultSubpartitionView {
 
 	/** Flag indicating whether we reached EOF at the file reader. */
 	private volatile boolean hasReachedEndOfFile;
+
+	/** Spilled file size */
+	private final long fileSize;
 
 	SpilledSubpartitionViewAsyncIO(
 			ResultSubpartition parent,
@@ -105,7 +109,8 @@ class SpilledSubpartitionViewAsyncIO implements ResultSubpartitionView {
 		this.parent = checkNotNull(parent);
 		this.bufferProvider = checkNotNull(bufferProvider);
 		this.bufferAvailabilityListener = new BufferProviderCallback(this);
-
+		this.registeredListener = new AtomicReference<>();
+		
 		this.asyncFileReader = ioManager.createBufferFileReader(channelId, new IOThreadCallback(this));
 
 		if (initialSeekPosition > 0) {
@@ -113,6 +118,8 @@ class SpilledSubpartitionViewAsyncIO implements ResultSubpartitionView {
 		}
 
 		this.readBatchSize = readBatchSize;
+
+		this.fileSize = asyncFileReader.getSize();
 
 		// Trigger the initial read requests
 		readNextBatchAsync();
@@ -149,14 +156,12 @@ class SpilledSubpartitionViewAsyncIO implements ResultSubpartitionView {
 				return false;
 			}
 
-			if (registeredListener == null) {
-				registeredListener = listener;
-
+			if (registeredListener.compareAndSet(null, listener)) {
 				return true;
+			} else {
+				throw new IllegalStateException("already registered listener");
 			}
 		}
-
-		throw new IllegalStateException("Already registered listener.");
 	}
 
 	@Override
@@ -274,8 +279,8 @@ class SpilledSubpartitionViewAsyncIO implements ResultSubpartitionView {
 
 			returnedBuffers.add(buffer);
 
-			listener = registeredListener;
-			registeredListener = null;
+			// after this, the listener should be null
+			listener = registeredListener.getAndSet(null);
 
 			// If this was the last buffer before we reached EOF, set the corresponding flag to
 			// ensure that further buffers are correctly recycled and eventually no further reads
@@ -298,13 +303,7 @@ class SpilledSubpartitionViewAsyncIO implements ResultSubpartitionView {
 			errorInIOThread = error;
 		}
 
-		final NotificationListener listener;
-
-		synchronized (lock) {
-			listener = registeredListener;
-			registeredListener = null;
-		}
-
+		final NotificationListener listener = registeredListener.getAndSet(null);
 		if (listener != null) {
 			listener.onNotification();
 		}
@@ -345,6 +344,14 @@ class SpilledSubpartitionViewAsyncIO implements ResultSubpartitionView {
 
 			subpartitionView.notifyError(error);
 		}
+	}
+
+	@Override
+	public String toString() {
+		return String.format("SpilledSubpartitionView[async](index: %d, file size: %d bytes) of ResultPartition %s",
+				parent.index,
+				fileSize,
+				parent.parent.getPartitionId());
 	}
 
 	/**

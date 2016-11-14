@@ -23,15 +23,13 @@ import java.util.List;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.NoOpFunction;
-import org.apache.flink.api.common.operators.RecordOperator;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.types.Key;
 
 
-public class NoOpUnaryUdfOp<OUT> extends SingleInputOperator<OUT, OUT, NoOpFunction> implements RecordOperator {
+public class NoOpUnaryUdfOp<OUT> extends SingleInputOperator<OUT, OUT, NoOpFunction> {
 	
 	@SuppressWarnings("rawtypes")
 	public static final NoOpUnaryUdfOp INSTANCE = new NoOpUnaryUdfOp();
@@ -40,12 +38,6 @@ public class NoOpUnaryUdfOp<OUT> extends SingleInputOperator<OUT, OUT, NoOpFunct
 		// pass null here because we override getOutputType to return type
 		// of input operator
 		super(new UserCodeClassWrapper<NoOpFunction>(NoOpFunction.class), null, "");
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public Class<? extends Key<?>>[] getKeyClasses() {
-		return (Class<? extends Key<?>>[]) new Class[0];
 	}
 
 	@Override

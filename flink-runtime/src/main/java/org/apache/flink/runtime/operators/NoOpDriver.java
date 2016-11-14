@@ -21,6 +21,8 @@ package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.slf4j.Logger;
@@ -33,7 +35,7 @@ import org.slf4j.LoggerFactory;
  */
 public class NoOpDriver<T> implements Driver<AbstractRichFunction, T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MapPartitionDriver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(NoOpDriver.class);
 
 	private TaskContext<AbstractRichFunction, T> taskContext;
 	
@@ -75,18 +77,22 @@ public class NoOpDriver<T> implements Driver<AbstractRichFunction, T> {
 	@Override
 	public void run() throws Exception {
 		// cache references on the stack
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 		final MutableObjectIterator<T> input = this.taskContext.getInput(0);
-		final Collector<T> output = this.taskContext.getOutputCollector();
+		final Collector<T> output = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 
 		if (objectReuseEnabled) {
 			T record = this.taskContext.<T>getInputSerializer(0).getSerializer().createInstance();
 
 			while (this.running && ((record = input.next(record)) != null)) {
+				numRecordsIn.inc();
 				output.collect(record);
 			}
 		} else {
 			T record;
 			while (this.running && ((record = input.next()) != null)) {
+				numRecordsIn.inc();
 				output.collect(record);
 			}
 

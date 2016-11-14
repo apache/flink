@@ -21,12 +21,13 @@ package org.apache.flink.runtime.execution.librarycache;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -48,7 +49,7 @@ public class BlobLibraryCacheRecoveryITCase {
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 	/**
-	 * Tests that with {@link RecoveryMode#ZOOKEEPER} distributed JARs are recoverable from any
+	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from any
 	 * participating BlobLibraryCacheManager.
 	 */
 	@Test
@@ -63,9 +64,9 @@ public class BlobLibraryCacheRecoveryITCase {
 
 		try {
 			Configuration config = new Configuration();
-			config.setString(ConfigConstants.RECOVERY_MODE, "ZOOKEEPER");
+			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 			config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
-			config.setString(ConfigConstants.ZOOKEEPER_RECOVERY_PATH, temporaryFolder.getRoot().getAbsolutePath());
+			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getAbsolutePath());
 
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config);
@@ -80,7 +81,7 @@ public class BlobLibraryCacheRecoveryITCase {
 			List<BlobKey> keys = new ArrayList<>(2);
 
 			// Upload some data (libraries)
-			try (BlobClient client = new BlobClient(serverAddress[0])) {
+			try (BlobClient client = new BlobClient(serverAddress[0], config)) {
 				keys.add(client.put(expected)); // Request 1
 				keys.add(client.put(expected, 32, 256)); // Request 2
 			}
@@ -135,6 +136,12 @@ public class BlobLibraryCacheRecoveryITCase {
 				}
 
 				assertEquals(0, fis.available());
+			}
+
+			// Remove blobs again
+			try (BlobClient client = new BlobClient(serverAddress[1], config)) {
+				client.delete(keys.get(0));
+				client.delete(keys.get(1));
 			}
 		}
 		finally {

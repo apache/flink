@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.java.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.java.sampling.BernoulliSampler;
 import org.apache.flink.api.java.sampling.PoissonSampler;
@@ -31,6 +32,7 @@ import java.util.Iterator;
  *
  * @param <T>
  */
+@Internal
 public class SampleWithFraction<T> extends RichMapPartitionFunction<T, T> {
 
 	private boolean withReplacement;

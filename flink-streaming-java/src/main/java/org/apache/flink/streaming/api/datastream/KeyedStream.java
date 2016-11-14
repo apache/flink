@@ -17,34 +17,51 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
+import org.apache.flink.streaming.api.functions.query.QueryableAppendingStateOperator;
+import org.apache.flink.streaming.api.functions.query.QueryableValueStateOperator;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
+import org.apache.flink.streaming.api.operators.StreamTimelyFlatMap;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
-import org.apache.flink.streaming.api.windowing.time.AbstractTime;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.runtime.partitioner.HashPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+
+import java.util.UUID;
 
 /**
  * A {@code KeyedStream} represents a {@link DataStream} on which operator state is
@@ -59,6 +76,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
  * @param <T> The type of the elements in the Keyed Stream.
  * @param <KEY> The type of the key in the Keyed Stream.
  */
+@Public
 public class KeyedStream<T, KEY> extends DataStream<T> {
 
 	/** The key selector that can get the key by which the stream if partitioned from the elements */
@@ -90,8 +108,12 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            Function for determining state partitions
 	 */
 	public KeyedStream(DataStream<T> dataStream, KeySelector<T, KEY> keySelector, TypeInformation<KEY> keyType) {
-		super(dataStream.getExecutionEnvironment(), new PartitionTransformation<>(
-				dataStream.getTransformation(), new HashPartitioner<>(keySelector)));
+		super(
+			dataStream.getExecutionEnvironment(),
+			new PartitionTransformation<>(
+				dataStream.getTransformation(),
+				new KeyGroupStreamPartitioner<>(
+					keySelector, KeyGroupRangeAssignment.DEFAULT_MAX_PARALLELISM)));
 		this.keySelector = keySelector;
 		this.keyType = keyType;
 	}
@@ -104,6 +126,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * Gets the key selector that can get the key by which the stream if partitioned from the elements.
 	 * @return The key selector for the key.
 	 */
+	@Internal
 	public KeySelector<T, KEY> getKeySelector() {
 		return this.keySelector;
 	}
@@ -112,6 +135,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * Gets the type of the key by which the stream is partitioned. 
 	 * @return The type of the key by which the stream is partitioned.
 	 */
+	@Internal
 	public TypeInformation<KEY> getKeyType() {
 		return keyType;
 	}
@@ -126,10 +150,11 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public <R> SingleOutputStreamOperator<R, ?> transform(String operatorName,
+	@PublicEvolving
+	public <R> SingleOutputStreamOperator<R> transform(String operatorName,
 			TypeInformation<R> outTypeInfo, OneInputStreamOperator<T, R> operator) {
 
-		SingleOutputStreamOperator<R, ?> returnStream = super.transform(operatorName, outTypeInfo,operator);
+		SingleOutputStreamOperator<R> returnStream = super.transform(operatorName, outTypeInfo,operator);
 
 		// inject the key selector and key type
 		OneInputTransformation<T, R> transform = (OneInputTransformation<T, R>) returnStream.getTransformation();
@@ -146,7 +171,72 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		result.getTransformation().setStateKeyType(keyType);
 		return result;
 	}
-	
+
+	/**
+	 * Applies the given {@link TimelyFlatMapFunction} on the input stream, thereby
+	 * creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the stream and can produce
+	 * zero or more output. The function can also query the time and set timers. When
+	 * reacting to the firing of set timers the function can emit yet more elements.
+	 *
+	 * <p>A {@link org.apache.flink.streaming.api.functions.RichTimelyFlatMapFunction}
+	 * can be used to gain access to features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 *
+	 * @param flatMapper The {@link TimelyFlatMapFunction} that is called for each element
+	 *                      in the stream.
+	 *
+	 * @param <R> The of elements emitted by the {@code TimelyFlatMapFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	public <R> SingleOutputStreamOperator<R> flatMap(TimelyFlatMapFunction<T, R> flatMapper) {
+
+		TypeInformation<R> outType = TypeExtractor.getUnaryOperatorReturnType(
+				flatMapper,
+				TimelyFlatMapFunction.class,
+				false,
+				true,
+				getType(),
+				Utils.getCallLocationName(),
+				true);
+
+		return flatMap(flatMapper, outType);
+	}
+
+	/**
+	 * Applies the given {@link TimelyFlatMapFunction} on the input stream, thereby
+	 * creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the stream and can produce
+	 * zero or more output. The function can also query the time and set timers. When
+	 * reacting to the firing of set timers the function can emit yet more elements.
+	 *
+	 * <p>A {@link org.apache.flink.streaming.api.functions.RichTimelyFlatMapFunction}
+	 * can be used to gain access to features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 *
+	 * @param flatMapper The {@link TimelyFlatMapFunction} that is called for each element
+	 *                      in the stream.
+	 * @param outputType {@link TypeInformation} for the result type of the function.
+	 *
+	 * @param <R> The of elements emitted by the {@code TimelyFlatMapFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@Internal
+	public <R> SingleOutputStreamOperator<R> flatMap(
+			TimelyFlatMapFunction<T, R> flatMapper,
+			TypeInformation<R> outputType) {
+
+		StreamTimelyFlatMap<KEY, T, R> operator =
+				new StreamTimelyFlatMap<>(clean(flatMapper));
+
+		return transform("Flat Map", outputType, operator);
+	}
+
+
 	// ------------------------------------------------------------------------
 	//  Windowing
 	// ------------------------------------------------------------------------
@@ -155,30 +245,38 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * Windows this {@code KeyedStream} into tumbling time windows.
 	 *
 	 * <p>
-	 * This is a shortcut for either {@code .window(TumblingTimeWindows.of(size))} or
+	 * This is a shortcut for either {@code .window(TumblingEventTimeWindows.of(size))} or
 	 * {@code .window(TumblingProcessingTimeWindows.of(size))} depending on the time characteristic
 	 * set using
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
 	 *
 	 * @param size The size of the window.
 	 */
-	public WindowedStream<T, KEY, TimeWindow> timeWindow(AbstractTime size) {
-		return window(TumblingTimeWindows.of(size));
+	public WindowedStream<T, KEY, TimeWindow> timeWindow(Time size) {
+		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
+			return window(TumblingProcessingTimeWindows.of(size));
+		} else {
+			return window(TumblingEventTimeWindows.of(size));
+		}
 	}
 
 	/**
 	 * Windows this {@code KeyedStream} into sliding time windows.
 	 *
 	 * <p>
-	 * This is a shortcut for either {@code .window(SlidingTimeWindows.of(size, slide))} or
+	 * This is a shortcut for either {@code .window(SlidingEventTimeWindows.of(size, slide))} or
 	 * {@code .window(SlidingProcessingTimeWindows.of(size, slide))} depending on the time characteristic
 	 * set using
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
 	 *
 	 * @param size The size of the window.
 	 */
-	public WindowedStream<T, KEY, TimeWindow> timeWindow(AbstractTime size, AbstractTime slide) {
-		return window(SlidingTimeWindows.of(size, slide));
+	public WindowedStream<T, KEY, TimeWindow> timeWindow(Time size, Time slide) {
+		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
+			return window(SlidingProcessingTimeWindows.of(size, slide));
+		} else {
+			return window(SlidingEventTimeWindows.of(size, slide));
+		}
 	}
 
 	/**
@@ -215,6 +313,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param assigner The {@code WindowAssigner} that assigns elements to windows.
 	 * @return The trigger windows data stream.
 	 */
+	@PublicEvolving
 	public <W extends Window> WindowedStream<T, KEY, W> window(WindowAssigner<? super T, W> assigner) {
 		return new WindowedStream<>(this, assigner);
 	}
@@ -234,7 +333,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            element of the input values with the same key.
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> reduce(ReduceFunction<T> reducer) {
+	public SingleOutputStreamOperator<T> reduce(ReduceFunction<T> reducer) {
 		return transform("Keyed Reduce", getType(), new StreamGroupedReduce<T>(
 				clean(reducer), getType().createSerializer(getExecutionConfig())));
 	}
@@ -252,7 +351,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            The initialValue passed to the folders for each key.
 	 * @return The transformed DataStream.
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> fold(R initialValue, FoldFunction<T, R> folder) {
+	public <R> SingleOutputStreamOperator<R> fold(R initialValue, FoldFunction<T, R> folder) {
 
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(
 				clean(folder), getType(), Utils.getCallLocationName(), true);
@@ -269,7 +368,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            The position in the data point to sum
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> sum(int positionToSum) {
+	public SingleOutputStreamOperator<T> sum(int positionToSum) {
 		return aggregate(new SumAggregator<>(positionToSum, getType(), getExecutionConfig()));
 	}
 
@@ -286,7 +385,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            applied.
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> sum(String field) {
+	public SingleOutputStreamOperator<T> sum(String field) {
 		return aggregate(new SumAggregator<>(field, getType(), getExecutionConfig()));
 	}
 
@@ -299,7 +398,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            The position in the data point to minimize
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> min(int positionToMin) {
+	public SingleOutputStreamOperator<T> min(int positionToMin) {
 		return aggregate(new ComparableAggregator<>(positionToMin, getType(), AggregationFunction.AggregationType.MIN,
 				getExecutionConfig()));
 	}
@@ -317,7 +416,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            applied.
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> min(String field) {
+	public SingleOutputStreamOperator<T> min(String field) {
 		return aggregate(new ComparableAggregator<>(field, getType(), AggregationFunction.AggregationType.MIN,
 				false, getExecutionConfig()));
 	}
@@ -331,7 +430,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            The position in the data point to maximize
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> max(int positionToMax) {
+	public SingleOutputStreamOperator<T> max(int positionToMax) {
 		return aggregate(new ComparableAggregator<>(positionToMax, getType(), AggregationFunction.AggregationType.MAX,
 				getExecutionConfig()));
 	}
@@ -349,7 +448,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            applied.
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> max(String field) {
+	public SingleOutputStreamOperator<T> max(String field) {
 		return aggregate(new ComparableAggregator<>(field, getType(), AggregationFunction.AggregationType.MAX,
 				false, getExecutionConfig()));
 	}
@@ -371,7 +470,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return The transformed DataStream.
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public SingleOutputStreamOperator<T, ?> minBy(String field, boolean first) {
+	public SingleOutputStreamOperator<T> minBy(String field, boolean first) {
 		return aggregate(new ComparableAggregator(field, getType(), AggregationFunction.AggregationType.MINBY,
 				first, getExecutionConfig()));
 	}
@@ -392,7 +491,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            be returned
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> maxBy(String field, boolean first) {
+	public SingleOutputStreamOperator<T> maxBy(String field, boolean first) {
 		return aggregate(new ComparableAggregator<>(field, getType(), AggregationFunction.AggregationType.MAXBY,
 				first, getExecutionConfig()));
 	}
@@ -407,7 +506,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            The position in the data point to minimize
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> minBy(int positionToMinBy) {
+	public SingleOutputStreamOperator<T> minBy(int positionToMinBy) {
 		return this.minBy(positionToMinBy, true);
 	}
 
@@ -421,7 +520,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            The position in the data point to minimize
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> minBy(String positionToMinBy) {
+	public SingleOutputStreamOperator<T> minBy(String positionToMinBy) {
 		return this.minBy(positionToMinBy, true);
 	}
 
@@ -439,7 +538,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            minimal value, otherwise returns the last
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> minBy(int positionToMinBy, boolean first) {
+	public SingleOutputStreamOperator<T> minBy(int positionToMinBy, boolean first) {
 		return aggregate(new ComparableAggregator<T>(positionToMinBy, getType(), AggregationFunction.AggregationType.MINBY, first,
 				getExecutionConfig()));
 	}
@@ -454,7 +553,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            The position in the data point to maximize
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> maxBy(int positionToMaxBy) {
+	public SingleOutputStreamOperator<T> maxBy(int positionToMaxBy) {
 		return this.maxBy(positionToMaxBy, true);
 	}
 
@@ -468,7 +567,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            The position in the data point to maximize
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> maxBy(String positionToMaxBy) {
+	public SingleOutputStreamOperator<T> maxBy(String positionToMaxBy) {
 		return this.maxBy(positionToMaxBy, true);
 	}
 
@@ -486,14 +585,127 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            maximum value, otherwise returns the last
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> maxBy(int positionToMaxBy, boolean first) {
+	public SingleOutputStreamOperator<T> maxBy(int positionToMaxBy, boolean first) {
 		return aggregate(new ComparableAggregator<>(positionToMaxBy, getType(), AggregationFunction.AggregationType.MAXBY, first,
 				getExecutionConfig()));
 	}
 
-	protected SingleOutputStreamOperator<T, ?> aggregate(AggregationFunction<T> aggregate) {
+	protected SingleOutputStreamOperator<T> aggregate(AggregationFunction<T> aggregate) {
 		StreamGroupedReduce<T> operator = new StreamGroupedReduce<T>(
 				clean(aggregate), getType().createSerializer(getExecutionConfig()));
 		return transform("Keyed Aggregation", getType(), operator);
 	}
+
+	/**
+	 * Publishes the keyed stream as queryable ValueState instance.
+	 *
+	 * @param queryableStateName Name under which to the publish the queryable state instance
+	 * @return Queryable state instance
+	 */
+	@PublicEvolving
+	public QueryableStateStream<KEY, T> asQueryableState(String queryableStateName) {
+		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<T>(
+				UUID.randomUUID().toString(),
+				getType(),
+				null);
+
+		return asQueryableState(queryableStateName, valueStateDescriptor);
+	}
+
+	/**
+	 * Publishes the keyed stream as a queryable ValueState instance.
+	 *
+	 * @param queryableStateName Name under which to the publish the queryable state instance
+	 * @param stateDescriptor State descriptor to create state instance from
+	 * @return Queryable state instance
+	 */
+	@PublicEvolving
+	public QueryableStateStream<KEY, T> asQueryableState(
+			String queryableStateName,
+			ValueStateDescriptor<T> stateDescriptor) {
+
+		transform("Queryable state: " + queryableStateName,
+				getType(),
+				new QueryableValueStateOperator<>(queryableStateName, stateDescriptor));
+
+		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
+
+		return new QueryableStateStream<>(
+				queryableStateName,
+				stateDescriptor.getSerializer(),
+				getKeyType().createSerializer(getExecutionConfig()));
+	}
+
+	/**
+	 * Publishes the keyed stream as a queryable ListStance instance.
+	 *
+	 * @param queryableStateName Name under which to the publish the queryable state instance
+	 * @param stateDescriptor State descriptor to create state instance from
+	 * @return Queryable state instance
+	 */
+	@PublicEvolving
+	public QueryableStateStream<KEY, T> asQueryableState(
+			String queryableStateName,
+			ListStateDescriptor<T> stateDescriptor) {
+
+		transform("Queryable state: " + queryableStateName,
+				getType(),
+				new QueryableAppendingStateOperator<>(queryableStateName, stateDescriptor));
+
+		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
+
+		return new QueryableStateStream<>(
+				queryableStateName,
+				getType().createSerializer(getExecutionConfig()),
+				getKeyType().createSerializer(getExecutionConfig()));
+	}
+
+	/**
+	 * Publishes the keyed stream as a queryable FoldingState instance.
+	 *
+	 * @param queryableStateName Name under which to the publish the queryable state instance
+	 * @param stateDescriptor State descriptor to create state instance from
+	 * @return Queryable state instance
+	 */
+	@PublicEvolving
+	public <ACC> QueryableStateStream<KEY, ACC> asQueryableState(
+			String queryableStateName,
+			FoldingStateDescriptor<T, ACC> stateDescriptor) {
+
+		transform("Queryable state: " + queryableStateName,
+				getType(),
+				new QueryableAppendingStateOperator<>(queryableStateName, stateDescriptor));
+
+		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
+
+		return new QueryableStateStream<>(
+				queryableStateName,
+				stateDescriptor.getSerializer(),
+				getKeyType().createSerializer(getExecutionConfig()));
+	}
+
+	/**
+	 * Publishes the keyed stream as a queryable ReducingState instance.
+	 *
+	 * @param queryableStateName Name under which to the publish the queryable state instance
+	 * @param stateDescriptor State descriptor to create state instance from
+	 * @return Queryable state instance
+	 */
+	@PublicEvolving
+	public QueryableStateStream<KEY, T> asQueryableState(
+			String queryableStateName,
+			ReducingStateDescriptor<T> stateDescriptor) {
+
+		transform("Queryable state: " + queryableStateName,
+				getType(),
+				new QueryableAppendingStateOperator<>(queryableStateName, stateDescriptor));
+
+		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
+
+		return new QueryableStateStream<>(
+				queryableStateName,
+				stateDescriptor.getSerializer(),
+				getKeyType().createSerializer(getExecutionConfig()));
+	}
+
 }

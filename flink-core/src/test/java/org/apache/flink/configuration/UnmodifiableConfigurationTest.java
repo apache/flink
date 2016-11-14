@@ -56,6 +56,9 @@ public class UnmodifiableConfigurationTest extends TestLogger {
 	@Test
 	public void testExceptionOnSet() {
 		try {
+			@SuppressWarnings("rawtypes")
+			final ConfigOption rawOption = ConfigOptions.key("testkey").defaultValue("value");
+
 			Map<Class<?>, Object> parameters = new HashMap<Class<?>, Object>();
 			parameters.put(byte[].class, new byte[0]);
 			parameters.put(Class.class, Object.class);
@@ -65,19 +68,22 @@ public class UnmodifiableConfigurationTest extends TestLogger {
 			parameters.put(double.class, 0.0);
 			parameters.put(String.class, "");
 			parameters.put(boolean.class, false);
-					
+
 			Class<UnmodifiableConfiguration> clazz = UnmodifiableConfiguration.class;
 			UnmodifiableConfiguration config = new UnmodifiableConfiguration(new Configuration());
-			
+
 			for (Method m : clazz.getMethods()) {
 				if (m.getName().startsWith("set")) {
-					
+
+					Class<?> keyClass = m.getParameterTypes()[0];
 					Class<?> parameterClass = m.getParameterTypes()[1];
+					Object key = keyClass == String.class ? "key" : rawOption;
+
 					Object parameter = parameters.get(parameterClass);
 					assertNotNull("method " + m + " not covered by test", parameter);
-					
+
 					try {
-						m.invoke(config, "key", parameter);
+						m.invoke(config, key, parameter);
 						fail("should fail with an exception");
 					}
 					catch (InvocationTargetException e) {

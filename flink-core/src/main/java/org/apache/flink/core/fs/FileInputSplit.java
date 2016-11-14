@@ -18,12 +18,14 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.LocatableInputSplit;
 
 /**
  * A file input split provides information on a particular part of a file, possibly
  * hosted on a distributed file system and replicated among several hosts. 
  */
+@Public
 public class FileInputSplit extends LocatableInputSplit {
 
 	private static final long serialVersionUID = 1L;

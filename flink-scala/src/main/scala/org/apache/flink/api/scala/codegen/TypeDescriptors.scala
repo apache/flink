@@ -17,11 +17,15 @@
  */
 package org.apache.flink.api.scala.codegen
 
+import org.apache.flink.annotation.Internal
+
+import scala.collection.Map
 import scala.language.postfixOps
 import scala.reflect.macros.Context
 
 // These are only used internally while analyzing Scala types in TypeAnalyzer and TypeInformationGen
 
+@Internal
 private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C] =>
   import c.universe._
 
@@ -49,6 +53,13 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
   case class EnumValueDescriptor(id: Int, tpe: Type, enum: ModuleSymbol) extends UDTDescriptor
 
   case class TryDescriptor(id: Int, tpe: Type, elem: UDTDescriptor) extends UDTDescriptor
+
+  case class FactoryTypeDescriptor(
+      id: Int,
+      tpe: Type,
+      baseType: Type,
+      params: Seq[UDTDescriptor])
+    extends UDTDescriptor
 
   case class OptionDescriptor(id: Int, tpe: Type, elem: UDTDescriptor) extends UDTDescriptor
 

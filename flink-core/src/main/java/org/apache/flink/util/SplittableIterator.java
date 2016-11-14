@@ -20,6 +20,7 @@ package org.apache.flink.util;
 
 import java.io.Serializable;
 import java.util.Iterator;
+import org.apache.flink.annotation.Public;
 
 /**
  * Abstract base class for iterators that can split themselves into multiple disjoint
@@ -27,6 +28,7 @@ import java.util.Iterator;
  * 
  * @param <T> The type of elements returned by the iterator.
  */
+@Public
 public abstract class SplittableIterator<T> implements Iterator<T>, Serializable {
 
 	private static final long serialVersionUID = 200377674313072307L;

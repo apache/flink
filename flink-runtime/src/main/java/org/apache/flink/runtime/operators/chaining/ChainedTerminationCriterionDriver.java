@@ -59,6 +59,7 @@ public class ChainedTerminationCriterionDriver<IT, OT> extends ChainedDriver<IT,
 
 	@Override
 	public void collect(IT record) {
+		numRecordsIn.inc();
 		agg.aggregate(1);
 	}
 

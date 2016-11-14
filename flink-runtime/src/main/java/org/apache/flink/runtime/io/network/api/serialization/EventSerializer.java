@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.api.serialization;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
@@ -38,7 +39,7 @@ import java.nio.ByteOrder;
  * Utility class to serialize and deserialize task events.
  */
 public class EventSerializer {
-	
+
 	private static final int END_OF_PARTITION_EVENT = 0;
 
 	private static final int CHECKPOINT_BARRIER_EVENT = 1;
@@ -46,17 +47,19 @@ public class EventSerializer {
 	private static final int END_OF_SUPERSTEP_EVENT = 2;
 
 	private static final int OTHER_EVENT = 3;
-	
+
+	private static final int CANCEL_CHECKPOINT_MARKER_EVENT = 4;
+
 	// ------------------------------------------------------------------------
-	
-	public static ByteBuffer toSerializedEvent(AbstractEvent event) {
+
+	public static ByteBuffer toSerializedEvent(AbstractEvent event) throws IOException {
 		final Class<?> eventClass = event.getClass();
 		if (eventClass == EndOfPartitionEvent.class) {
 			return ByteBuffer.wrap(new byte[] { 0, 0, 0, END_OF_PARTITION_EVENT });
 		}
 		else if (eventClass == CheckpointBarrier.class) {
 			CheckpointBarrier barrier = (CheckpointBarrier) event;
-			
+
 			ByteBuffer buf = ByteBuffer.allocate(20);
 			buf.putInt(0, CHECKPOINT_BARRIER_EVENT);
 			buf.putLong(4, barrier.getId());
@@ -66,32 +69,39 @@ public class EventSerializer {
 		else if (eventClass == EndOfSuperstepEvent.class) {
 			return ByteBuffer.wrap(new byte[] { 0, 0, 0, END_OF_SUPERSTEP_EVENT });
 		}
+		else if (eventClass == CancelCheckpointMarker.class) {
+			CancelCheckpointMarker marker = (CancelCheckpointMarker) event;
+
+			ByteBuffer buf = ByteBuffer.allocate(12);
+			buf.putInt(0, CANCEL_CHECKPOINT_MARKER_EVENT);
+			buf.putLong(4, marker.getCheckpointId());
+			return buf;
+		}
 		else {
 			try {
 				final DataOutputSerializer serializer = new DataOutputSerializer(128);
 				serializer.writeInt(OTHER_EVENT);
 				serializer.writeUTF(event.getClass().getName());
 				event.write(serializer);
-	
 				return serializer.wrapAsByteBuffer();
 			}
 			catch (IOException e) {
-				throw new RuntimeException("Error while serializing event.", e);
+				throw new IOException("Error while serializing event.", e);
 			}
 		}
 	}
 
-	public static AbstractEvent fromSerializedEvent(ByteBuffer buffer, ClassLoader classLoader) {
+	public static AbstractEvent fromSerializedEvent(ByteBuffer buffer, ClassLoader classLoader) throws IOException {
 		if (buffer.remaining() < 4) {
-			throw new RuntimeException("Incomplete event");
+			throw new IOException("Incomplete event");
 		}
-		
+
 		final ByteOrder bufferOrder = buffer.order();
 		buffer.order(ByteOrder.BIG_ENDIAN);
-		
+
 		try {
 			int type = buffer.getInt();
-				
+
 			if (type == END_OF_PARTITION_EVENT) {
 				return EndOfPartitionEvent.INSTANCE;
 			}
@@ -103,35 +113,38 @@ public class EventSerializer {
 			else if (type == END_OF_SUPERSTEP_EVENT) {
 				return EndOfSuperstepEvent.INSTANCE;
 			}
+			else if (type == CANCEL_CHECKPOINT_MARKER_EVENT) {
+				long id = buffer.getLong();
+				return new CancelCheckpointMarker(id);
+			}
 			else if (type == OTHER_EVENT) {
 				try {
 					final DataInputDeserializer deserializer = new DataInputDeserializer(buffer);
-		
 					final String className = deserializer.readUTF();
-		
+
 					final Class<? extends AbstractEvent> clazz;
 					try {
 						clazz = classLoader.loadClass(className).asSubclass(AbstractEvent.class);
 					}
 					catch (ClassNotFoundException e) {
-						throw new RuntimeException("Could not load event class '" + className + "'.", e);
+						throw new IOException("Could not load event class '" + className + "'.", e);
 					}
 					catch (ClassCastException e) {
-						throw new RuntimeException("The class '" + className + "' is not a valid subclass of '"
+						throw new IOException("The class '" + className + "' is not a valid subclass of '"
 								+ AbstractEvent.class.getName() + "'.", e);
 					}
-		
+
 					final AbstractEvent event = InstantiationUtil.instantiate(clazz, AbstractEvent.class);
 					event.read(deserializer);
-		
+
 					return event;
 				}
 				catch (Exception e) {
-					throw new RuntimeException("Error while deserializing or instantiating event.", e);
+					throw new IOException("Error while deserializing or instantiating event.", e);
 				}
 			} 
 			else {
-				throw new RuntimeException("Corrupt byte stream for event");
+				throw new IOException("Corrupt byte stream for event");
 			}
 		}
 		finally {
@@ -143,7 +156,7 @@ public class EventSerializer {
 	// Buffer helpers
 	// ------------------------------------------------------------------------
 
-	public static Buffer toBuffer(AbstractEvent event) {
+	public static Buffer toBuffer(AbstractEvent event) throws IOException {
 		final ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(event);
 
 		MemorySegment data = MemorySegmentFactory.wrap(serializedEvent.array());
@@ -154,7 +167,7 @@ public class EventSerializer {
 		return buffer;
 	}
 
-	public static AbstractEvent fromBuffer(Buffer buffer, ClassLoader classLoader) {
+	public static AbstractEvent fromBuffer(Buffer buffer, ClassLoader classLoader) throws IOException {
 		return fromSerializedEvent(buffer.getNioBuffer(), classLoader);
 	}
 }

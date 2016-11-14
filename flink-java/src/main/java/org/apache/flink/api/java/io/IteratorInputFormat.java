@@ -22,12 +22,14 @@ package org.apache.flink.api.java.io;
 import java.io.Serializable;
 import java.util.Iterator;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
 
 /**
  * An input format that returns objects from an iterator.
  */
+@PublicEvolving
 public class IteratorInputFormat<T> extends GenericInputFormat<T> implements NonParallelInput {
 
 	private static final long serialVersionUID = 1L;

@@ -46,6 +46,8 @@ public class WordCountITCase extends JavaProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		WordCount.main(new String[] { textPath, resultPath });
+		WordCount.main(new String[] {
+				"--input", textPath,
+				"--output", resultPath });
 	}
 }

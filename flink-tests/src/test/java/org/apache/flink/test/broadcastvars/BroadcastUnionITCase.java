@@ -44,7 +44,7 @@ public class BroadcastUnionITCase extends JavaProgramTestBase {
 				.reduce(new Reducer())
 				.collect();
 		
-		Assert.assertEquals(result.get(0), Long.valueOf(3025));
+		Assert.assertEquals(Long.valueOf(3025), result.get(0));
 	}
 
 	public static class Mapper extends RichMapFunction<Long, Long> {

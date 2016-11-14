@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.sca;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -46,6 +47,7 @@ import java.util.Set;
 /**
  * Utility class to work with {@link UdfAnalyzer}
  */
+@Internal
 public final class UdfAnalyzerUtils {
 
 	public static TaggedValue convertTypeInfoToTaggedValue(TaggedValue.Input input, TypeInformation<?> typeInfo,
@@ -269,15 +271,15 @@ public final class UdfAnalyzerUtils {
 		}
 
 		// recursively merge contained mappings
-		Iterator<String> it = resultMapping.keySet().iterator();
+		Iterator<Map.Entry<String, TaggedValue>> it = resultMapping.entrySet().iterator();
 		while (it.hasNext()) {
-			String key = it.next();
-			TaggedValue value = mergeReturnValues(Collections.singletonList(resultMapping.get(key)));
+			Map.Entry<String, TaggedValue> entry = it.next();
+			TaggedValue value = mergeReturnValues(Collections.singletonList(entry.getValue()));
 			if (value == null) {
 				it.remove();
 			}
 			else {
-				resultMapping.put(key, value);
+				entry.setValue(value);
 			}
 		}
 

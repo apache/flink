@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * This interface defines the method required by the runtime to use data types in join-like operations.
  * In such operations, instances of different data types are compared for equality with respect to certain
@@ -30,6 +32,7 @@ package org.apache.flink.api.common.typeutils;
  * @param <T1> The class of the first data type.
  * @param <T2> The class of the second data type. 
  */
+@Internal
 public abstract class TypePairComparator<T1, T2> {
 	
 	/**

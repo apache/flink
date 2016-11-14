@@ -78,7 +78,7 @@ public class WordCount {
 
 		// emit result
 		if(fileOutput) {
-			counts.writeAsCsv(outputPath, 1);
+			counts.writeAsCsv(outputPath);
 		} else {
 			counts.print();
 		}
