@@ -30,6 +30,8 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
+import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -49,8 +51,10 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -954,6 +958,118 @@ public class CheckpointCoordinatorTest {
 		}
 	}
 
+	/**
+	 * Tests that late acknowledge checkpoint messages are properly cleaned up. Furthermore it tests
+	 * that unknown checkpoint messages for the same job a are cleaned up as well. In contrast
+	 * checkpointing messages from other jobs should not be touched. A late acknowledge
+	 * message is an acknowledge message which arrives after the checkpoint has been declined.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testStateCleanupForLateOrUnknownMessages() throws Exception {
+		final JobID jobId = new JobID();
+
+		final ExecutionAttemptID triggerAttemptId = new ExecutionAttemptID();
+		final ExecutionVertex triggerVertex = mockExecutionVertex(triggerAttemptId);
+
+		final ExecutionAttemptID ackAttemptId1 = new ExecutionAttemptID();
+		final ExecutionVertex ackVertex1 = mockExecutionVertex(ackAttemptId1);
+
+		final ExecutionAttemptID ackAttemptId2 = new ExecutionAttemptID();
+		final ExecutionVertex ackVertex2 = mockExecutionVertex(ackAttemptId2);
+
+		final long timestamp = 1L;
+
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			jobId,
+			20000L,
+			20000L,
+			42,
+			new ExecutionVertex[] { triggerVertex },
+			new ExecutionVertex[] {triggerVertex, ackVertex1, ackVertex2},
+			new ExecutionVertex[0],
+			cl,
+			new StandaloneCheckpointIDCounter(),
+			new StandaloneCompletedCheckpointStore(2, cl),
+			RecoveryMode.STANDALONE);
+
+		assertTrue(coord.triggerCheckpoint(timestamp));
+
+		assertEquals(1, coord.getNumberOfPendingCheckpoints());
+
+		PendingCheckpoint pendingCheckpoint = coord.getPendingCheckpoints().values().iterator().next();
+
+		long checkpointId = pendingCheckpoint.getCheckpointId();
+
+		StateHandle<?> triggerSubtaskState = mock(StateHandle.class);
+		SerializedValue<StateHandle<?>> triggerSerializedValue = mock(SerializedValue.class);
+		doReturn(triggerSubtaskState).when(triggerSerializedValue).deserializeValue(any(ClassLoader.class));
+
+		// acknowledge the first trigger vertex
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, triggerAttemptId, checkpointId, triggerSerializedValue, 1L));
+
+		StateHandle<?> unknownSubtaskState = mock(StateHandle.class);
+		SerializedValue<StateHandle<?>> unknownSerializedValue = mock(SerializedValue.class);
+		doReturn(unknownSubtaskState).when(unknownSerializedValue).deserializeValue(any(ClassLoader.class));
+
+		// receive an acknowledge message for an unknown vertex
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, new ExecutionAttemptID(), checkpointId, unknownSerializedValue, 1L));
+
+		// we should discard acknowledge messages from an unknown vertex belonging to our job
+		verify(unknownSubtaskState, times(1)).discardState();
+
+		StateHandle<?> differentJobSubtaskState = mock(StateHandle.class);
+		SerializedValue<StateHandle<?>> differentJobSerializedValue = mock(SerializedValue.class);
+		doReturn(differentJobSubtaskState).when(differentJobSerializedValue).deserializeValue(any(ClassLoader.class));
+
+		// receive an acknowledge message from an unknown job
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(new JobID(), new ExecutionAttemptID(), checkpointId, differentJobSerializedValue, 1L));
+
+		// we should not interfere with different jobs
+		verify(differentJobSubtaskState, never()).discardState();
+
+		// duplicate acknowledge message for the trigger vertex
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, triggerAttemptId, checkpointId, triggerSerializedValue, 1L));
+
+		// duplicate acknowledge messages for a known vertex should not trigger discarding the state
+		verify(triggerSubtaskState, never()).discardState();
+
+		// let the checkpoint fail at the first ack vertex
+		coord.receiveDeclineMessage(new DeclineCheckpoint(jobId, ackAttemptId1, checkpointId));
+
+		assertTrue(pendingCheckpoint.isDiscarded());
+
+		// check that we've cleaned up the already acknowledged state
+		verify(triggerSubtaskState, times(1)).discardState();
+
+		StateHandle<?> ackSubtaskState = mock(StateHandle.class);
+		SerializedValue<StateHandle<?>> ackSerializedValue = mock(SerializedValue.class);
+		doReturn(ackSubtaskState).when(ackSerializedValue).deserializeValue(any(ClassLoader.class));
+
+		// late acknowledge message from the second ack vertex
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, ackAttemptId2, checkpointId, ackSerializedValue, 1L));
+
+		// check that we also cleaned up this state
+		verify(ackSubtaskState, times(1)).discardState();
+
+		// receive an acknowledge message from an unknown job
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(new JobID(), new ExecutionAttemptID(), checkpointId, differentJobSerializedValue, 1L));
+
+		// we should not interfere with different jobs
+		verify(differentJobSubtaskState, never()).discardState();
+
+		StateHandle<?> unknownSubtaskState2 = mock(StateHandle.class);
+		SerializedValue<StateHandle<?>> unknownSerializedValue2 = mock(SerializedValue.class);
+		doReturn(unknownSubtaskState2).when(unknownSerializedValue2).deserializeValue(any(ClassLoader.class));
+
+		// receive an acknowledge message for an unknown vertex
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, new ExecutionAttemptID(), checkpointId, unknownSerializedValue2, 1L));
+
+		// we should discard acknowledge messages from an unknown vertex belonging to our job
+		verify(unknownSubtaskState2, times(1)).discardState();
+	}
+
 	@Test
 	public void testPeriodicTriggering() {
 		try {
@@ -1375,18 +1491,32 @@ public class CheckpointCoordinatorTest {
 	// ------------------------------------------------------------------------
 
 	private static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID) {
-		return mockExecutionVertex(attemptID, ExecutionState.RUNNING);
+		return mockExecutionVertex(attemptID, 1);
+	}
+
+	private static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptId, int parallelism) {
+		return mockExecutionVertex(attemptId, ExecutionState.RUNNING, parallelism);
 	}
 
 	private static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID, 
 														ExecutionState state, ExecutionState ... successiveStates) {
+		return mockExecutionVertex(attemptID, state, 1, successiveStates);
+	}
+
+	private static ExecutionVertex mockExecutionVertex(
+			ExecutionAttemptID attemptId,
+			ExecutionState state,
+			int parallelism,
+			ExecutionState ... successiveStates) {
+
 		final Execution exec = mock(Execution.class);
-		when(exec.getAttemptId()).thenReturn(attemptID);
+		when(exec.getAttemptId()).thenReturn(attemptId);
 		when(exec.getState()).thenReturn(state, successiveStates);
 
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		when(vertex.getJobvertexId()).thenReturn(new JobVertexID());
 		when(vertex.getCurrentExecutionAttempt()).thenReturn(exec);
+		when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(parallelism);
 
 		return vertex;
 	}
