@@ -27,6 +27,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.SerializedValue;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * A pending checkpoint is a checkpoint that has been started, but has not been
@@ -50,6 +52,9 @@ public class PendingCheckpoint {
 
 	private final Map<ExecutionAttemptID, ExecutionVertex> notYetAcknowledgedTasks;
 	
+	/** Set of acknowledged tasks */
+	private final Set<ExecutionAttemptID> acknowledgedTasks;
+
 	private int numAcknowledgedTasks;
 	
 	private boolean discarded;
@@ -72,6 +77,8 @@ public class PendingCheckpoint {
 		
 		this.notYetAcknowledgedTasks = verticesToConfirm;
 		this.taskStates = new HashMap<>();
+
+		acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -131,64 +138,81 @@ public class PendingCheckpoint {
 		}
 	}
 	
-	public boolean acknowledgeTask(
-			ExecutionAttemptID attemptID,
+	public TaskAcknowledgeResult acknowledgeTask(
+			ExecutionAttemptID executionAttemptId,
 			SerializedValue<StateHandle<?>> state,
 			long stateSize,
 			Map<Integer, SerializedValue<StateHandle<?>>> kvState) {
 
 		synchronized (lock) {
 			if (discarded) {
-				return false;
+				return TaskAcknowledgeResult.DISCARDED;
 			}
 			
-			ExecutionVertex vertex = notYetAcknowledgedTasks.remove(attemptID);
-			if (vertex != null) {
-				if (state != null || kvState != null) {
+			final ExecutionVertex vertex = notYetAcknowledgedTasks.remove(executionAttemptId);
 
-					JobVertexID jobVertexID = vertex.getJobvertexId();
+			if (vertex == null) {
+				if (acknowledgedTasks.contains(executionAttemptId)) {
+					return TaskAcknowledgeResult.DUPLICATE;
+				} else {
+					return TaskAcknowledgeResult.UNKNOWN;
+				}
+			} else {
+				acknowledgedTasks.add(executionAttemptId);
+			}
 
-					TaskState taskState;
 
-					if (taskStates.containsKey(jobVertexID)) {
-						taskState = taskStates.get(jobVertexID);
-					} else {
-						taskState = new TaskState(jobVertexID, vertex.getTotalNumberOfParallelSubtasks());
-						taskStates.put(jobVertexID, taskState);
-					}
+			if (state != null || kvState != null) {
+				JobVertexID jobVertexID = vertex.getJobvertexId();
 
-					long timestamp = System.currentTimeMillis() - checkpointTimestamp;
+				TaskState taskState;
 
-					if (state != null) {
-						taskState.putState(
-							vertex.getParallelSubtaskIndex(),
-							new SubtaskState(
-								state,
-								stateSize,
+				if (taskStates.containsKey(jobVertexID)) {
+					taskState = taskStates.get(jobVertexID);
+				} else {
+					taskState = new TaskState(jobVertexID, vertex.getTotalNumberOfParallelSubtasks());
+					taskStates.put(jobVertexID, taskState);
+				}
+
+				long timestamp = System.currentTimeMillis() - checkpointTimestamp;
+
+				if (state != null) {
+					taskState.putState(
+						vertex.getParallelSubtaskIndex(),
+						new SubtaskState(
+							state,
+							stateSize,
+							timestamp
+						)
+					);
+				}
+
+				if (kvState != null) {
+					for (Map.Entry<Integer, SerializedValue<StateHandle<?>>> entry : kvState.entrySet()) {
+						taskState.putKvState(
+							entry.getKey(),
+							new KeyGroupState(
+								entry.getValue(),
+								0L,
 								timestamp
-							)
-						);
-					}
+							));
 
-					if (kvState != null) {
-						for (Map.Entry<Integer, SerializedValue<StateHandle<?>>> entry : kvState.entrySet()) {
-							taskState.putKvState(
-								entry.getKey(),
-								new KeyGroupState(
-									entry.getValue(),
-									0L,
-									timestamp
-								));
-						}
 					}
 				}
-				numAcknowledgedTasks++;
-				return true;
 			}
-			else {
-				return false;
-			}
+			numAcknowledgedTasks++;
+			return TaskAcknowledgeResult.SUCCESS;
 		}
+	}
+
+	/**
+	 * Result of the {@link PendingCheckpoint#acknowledgedTasks} method.
+	 */
+	public enum TaskAcknowledgeResult {
+		SUCCESS, // successful acknowledge of the task
+		DUPLICATE, // acknowledge message is a duplicate
+		UNKNOWN, // unknown task acknowledged
+		DISCARDED // pending checkpoint has been discarded
 	}
 	
 	/**
@@ -211,6 +235,7 @@ public class PendingCheckpoint {
 			} finally {
 				taskStates.clear();
 				notYetAcknowledgedTasks.clear();
+				acknowledgedTasks.clear();
 			}
 		}
 	}
