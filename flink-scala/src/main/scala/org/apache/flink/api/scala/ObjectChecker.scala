@@ -27,10 +27,22 @@ import org.apache.flink.api.common.InvalidProgramException
   */
 @Internal
 object ObjectChecker {
-  def isSingleton[A](a: A)(implicit ev: A <:< Singleton = null) =
-    Option(ev).isDefined
+  def isSingleton[A](a: A): Boolean = {
+    val cls = a.getClass
+    val clsName = cls.getName
+    if (clsName.length > 0) {
+      val lastChar = clsName.charAt(clsName.length() - 1);
+      if (lastChar == '$') {
+        true
+      } else {
+        false
+      }
+    } else {
+      false
+    }
+  }
 
-  def assertScalaSingleton[A](a: A) = {
+  def assertScalaSingleton[A](a: A)(implicit ev: A <:< Singleton = null) = {
     if (isSingleton(a)) {
       val msg = "User defined function implemented by class " + a.getClass.getName +
         " might be implemented by a Scala Object,it is forbidden by Flink since concurrent modification risks."
