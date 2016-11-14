@@ -58,7 +58,7 @@ class CrossDataSet[L, R](
   def apply[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] = {
     require(fun != null, "Cross function must not be null.")
     val crosser = new CrossFunction[L, R, O] {
-      val cleanFun = clean(fun)
+      val cleanFun = clean(check(fun))
       def cross(left: L, right: R): O = {
         cleanFun(left, right)
       }

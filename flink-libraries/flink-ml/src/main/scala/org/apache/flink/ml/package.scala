@@ -54,20 +54,20 @@ package object ml {
         broadcastVariable: DataSet[B])(
         fun: (T, B) => O)
       : DataSet[O] = {
-      dataSet.map(new BroadcastSingleElementMapper[T, B, O](dataSet.clean(fun)))
+      dataSet.map(new BroadcastSingleElementMapper[T, B, O](dataSet.clean(dataSet.check(fun))))
         .withBroadcastSet(broadcastVariable, "broadcastVariable")
     }
 
     def filterWithBcVariable[B, O](broadcastVariable: DataSet[B])(fun: (T, B) => Boolean)
       : DataSet[T] = {
-      dataSet.filter(new BroadcastSingleElementFilter[T, B](dataSet.clean(fun)))
+      dataSet.filter(new BroadcastSingleElementFilter[T, B](dataSet.clean(dataSet.check(fun))))
         .withBroadcastSet(broadcastVariable, "broadcastVariable")
     }
 
     def mapWithBcVariableIteration[B, O: TypeInformation: ClassTag](
         broadcastVariable: DataSet[B])(fun: (T, B, Int) => O)
       : DataSet[O] = {
-      dataSet.map(new BroadcastSingleElementMapperWithIteration[T, B, O](dataSet.clean(fun)))
+      dataSet.map(new BroadcastSingleElementMapperWithIteration[T, B, O](dataSet.clean(dataSet.check(fun))))
         .withBroadcastSet(broadcastVariable, "broadcastVariable")
     }
   }

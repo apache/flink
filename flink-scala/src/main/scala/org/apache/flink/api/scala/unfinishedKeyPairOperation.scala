@@ -84,7 +84,7 @@ private[flink] abstract class UnfinishedKeyPairOperation[L, R, O](
   def where[K: TypeInformation](fun: (L) => K) = {
     val keyType = implicitly[TypeInformation[K]]
     val keyExtractor = new KeySelector[L, K] {
-      val cleanFun = leftInput.clean(fun)
+      val cleanFun = leftInput.clean(leftInput.check(fun))
       def getKey(in: L) = cleanFun(in)
     }
     val leftKey = new Keys.SelectorFunctionKeys[L, K](keyExtractor, leftInput.getType, keyType)
@@ -133,7 +133,7 @@ private[flink] class HalfUnfinishedKeyPairOperation[L, R, O](
   def equalTo[K: TypeInformation](fun: (R) => K): O = {
     val keyType = implicitly[TypeInformation[K]]
     val keyExtractor = new KeySelector[R, K] {
-      val cleanFun = unfinished.leftInput.clean(fun)
+      val cleanFun = unfinished.leftInput.clean(unfinished.leftInput.check(fun))
       def getKey(in: R) = cleanFun(in)
     }
     val rightKey = new Keys.SelectorFunctionKeys[R, K](

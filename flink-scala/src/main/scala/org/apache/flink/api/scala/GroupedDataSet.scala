@@ -307,7 +307,7 @@ class GroupedDataSet[T: ClassTag](
                      strategy: CombineHint): DataSet[T] = {
     require(fun != null, "Reduce function must not be null.")
     val reducer = new ReduceFunction[T] {
-      val cleanFun = set.clean(fun)
+      val cleanFun = set.clean(set.check(fun))
       def reduce(v1: T, v2: T) = {
         cleanFun(v1, v2)
       }
@@ -350,7 +350,7 @@ class GroupedDataSet[T: ClassTag](
       fun: (Iterator[T]) => R): DataSet[R] = {
     require(fun != null, "Group reduce function must not be null.")
     val reducer = new GroupReduceFunction[T, R] {
-      val cleanFun = set.clean(fun)
+      val cleanFun = set.clean(set.check(fun))
       def reduce(in: java.lang.Iterable[T], out: Collector[R]) {
         out.collect(cleanFun(in.iterator().asScala))
       }
@@ -369,7 +369,7 @@ class GroupedDataSet[T: ClassTag](
       fun: (Iterator[T], Collector[R]) => Unit): DataSet[R] = {
     require(fun != null, "Group reduce function must not be null.")
     val reducer = new GroupReduceFunction[T, R] {
-      val cleanFun = set.clean(fun)
+      val cleanFun = set.clean(set.check(fun))
       def reduce(in: java.lang.Iterable[T], out: Collector[R]) {
         cleanFun(in.iterator().asScala, out)
       }
@@ -437,7 +437,7 @@ class GroupedDataSet[T: ClassTag](
                                           fun: (Iterator[T], Collector[R]) => Unit): DataSet[R] = {
     require(fun != null, "GroupCombine function must not be null.")
     val combiner = new GroupCombineFunction[T, R] {
-      val cleanFun = set.clean(fun)
+      val cleanFun = set.clean(set.check(fun))
       def combine(in: java.lang.Iterable[T], out: Collector[R]) {
         cleanFun(in.iterator().asScala, out)
       }

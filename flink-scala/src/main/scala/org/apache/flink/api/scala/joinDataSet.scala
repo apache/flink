@@ -75,7 +75,7 @@ class JoinDataSet[L, R](
   def apply[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] = {
     require(fun != null, "Join function must not be null.")
     val joiner = new FlatJoinFunction[L, R, O] {
-      val cleanFun = clean(fun)
+      val cleanFun = clean(check(fun))
       def join(left: L, right: R, out: Collector[O]) = {
         out.collect(cleanFun(left, right))
       }
@@ -106,7 +106,7 @@ class JoinDataSet[L, R](
   def apply[O: TypeInformation: ClassTag](fun: (L, R, Collector[O]) => Unit): DataSet[O] = {
     require(fun != null, "Join function must not be null.")
     val joiner = new FlatJoinFunction[L, R, O] {
-      val cleanFun = clean(fun)
+      val cleanFun = clean(check(fun))
       def join(left: L, right: R, out: Collector[O]) = {
         cleanFun(left, right, out)
       }
