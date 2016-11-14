@@ -42,7 +42,7 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 	protected transient Cluster cluster;
 	protected transient Session session;
 
-	protected transient final AtomicReference<Throwable> exception = new AtomicReference<>();
+	protected transient AtomicReference<Throwable> exception;
 	protected transient FutureCallback<V> callback;
 
 	private final ClusterBuilder builder;
@@ -56,6 +56,7 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 
 	@Override
 	public void open(Configuration configuration) {
+		this.exception = new AtomicReference<>();
 		this.callback = new FutureCallback<V>() {
 			@Override
 			public void onSuccess(V ignored) {
