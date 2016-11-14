@@ -139,7 +139,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	protected OP headOperator;
 
 	/** The chain of operators executed by this task */
-	private OperatorChain<OUT, OP> operatorChain;
+	protected OperatorChain<OUT, OP> operatorChain;
 
 	/** The configuration of this streaming task */
 	private StreamConfig configuration;

@@ -30,13 +30,14 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.collector.selector.CopyingDirectedOutput;
 import org.apache.flink.streaming.api.collector.selector.DirectedOutput;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.StreamRecordWriter;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -60,7 +61,7 @@ import java.util.Random;
  *              head operator.
  */
 @Internal
-public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
+public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements StreamStatusProvider{
 	
 	private static final Logger LOG = LoggerFactory.getLogger(OperatorChain.class);
 	
@@ -71,6 +72,15 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 	private final Output<StreamRecord<OUT>> chainEntryPoint;
 
 	private final OP headOperator;
+
+	/**
+	 * This output keeps track of the current status, in order to block
+	 * any watermarks explicitly generated at concrete implementations
+	 * when the operator is actually idle. This may happen, since
+	 * timestamp assigner / watermark emitting operators will
+	 * completely bypass the valve's watermark output logic.
+	 */
+	private StreamStatus streamStatus = StreamStatus.ACTIVE;
 
 	public OperatorChain(StreamTask<OUT, OP> containingTask) {
 		
@@ -131,6 +141,22 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 			}
 		}
 		
+	}
+
+	@Override
+	public StreamStatus getStreamStatus() {
+		return streamStatus;
+	}
+
+	public void setStreamStatus(StreamStatus status) throws IOException {
+		if (!status.equals(this.streamStatus)) {
+			this.streamStatus = status;
+
+			// try and forward the stream status change to all outgoing connections
+			for (RecordWriterOutput<?> streamOutput : streamOutputs) {
+				streamOutput.emitStreamStatus(status);
+			}
+		}
 	}
 
 
@@ -217,7 +243,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 	//  initialization utilities
 	// ------------------------------------------------------------------------
 	
-	private static <T> Output<StreamRecord<T>> createOutputCollector(
+	private <T> Output<StreamRecord<T>> createOutputCollector(
 			StreamTask<?, ?> containingTask,
 			StreamConfig operatorConfig,
 			Map<Integer, StreamConfig> chainedConfigs,
@@ -268,9 +294,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 				// If the chaining output does not copy we need to copy in the broadcast output,
 				// otherwise multi-chaining would not work correctly.
 				if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-					return new CopyingBroadcastingOutputCollector<>(asArray);
+					return new CopyingBroadcastingOutputCollector<>(asArray, this);
 				} else  {
-					return new BroadcastingOutputCollector<>(asArray);
+					return new BroadcastingOutputCollector<>(asArray, this);
 				}
 			}
 		}
@@ -289,7 +315,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 		}
 	}
 	
-	private static <IN, OUT> Output<StreamRecord<IN>> createChainedOperator(
+	private <IN, OUT> Output<StreamRecord<IN>> createChainedOperator(
 			StreamTask<?, ?> containingTask,
 			StreamConfig operatorConfig,
 			Map<Integer, StreamConfig> chainedConfigs,
@@ -308,15 +334,15 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 		allOperators.add(chainedOperator);
 
 		if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-			return new ChainingOutput<>(chainedOperator);
+			return new ChainingOutput<>(chainedOperator, this);
 		}
 		else {
 			TypeSerializer<IN> inSerializer = operatorConfig.getTypeSerializerIn1(userCodeClassloader);
-			return new CopyingChainingOutput<>(chainedOperator, inSerializer);
+			return new CopyingChainingOutput<>(chainedOperator, inSerializer, this);
 		}
 	}
 	
-	private static <T> RecordWriterOutput<T> createStreamOutput(
+	private <T> RecordWriterOutput<T> createStreamOutput(
 			StreamEdge edge, StreamConfig upStreamConfig, int outputIndex,
 			Environment taskEnvironment,
 			String taskName)
@@ -334,7 +360,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 				new StreamRecordWriter<>(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
 		output.setMetricGroup(taskEnvironment.getMetricGroup().getIOMetricGroup());
 		
-		return new RecordWriterOutput<>(output, outSerializer);
+		return new RecordWriterOutput<>(output, outSerializer, this);
 	}
 	
 	// ------------------------------------------------------------------------
@@ -346,9 +372,12 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 		protected final OneInputStreamOperator<T, ?> operator;
 		protected final Counter numRecordsIn;
 
-		public ChainingOutput(OneInputStreamOperator<T, ?> operator) {
+		protected final StreamStatusProvider streamStatusProvider;
+
+		public ChainingOutput(OneInputStreamOperator<T, ?> operator, StreamStatusProvider streamStatusProvider) {
 			this.operator = operator;
 			this.numRecordsIn = ((OperatorMetricGroup) operator.getMetricGroup()).getIOMetricGroup().getNumRecordsInCounter();
+			this.streamStatusProvider = streamStatusProvider;
 		}
 
 		@Override
@@ -366,7 +395,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 		@Override
 		public void emitWatermark(Watermark mark) {
 			try {
-				operator.processWatermark(mark);
+				if (streamStatusProvider.getStreamStatus().equals(StreamStatus.ACTIVE)) {
+					operator.processWatermark(mark);
+				}
 			}
 			catch (Exception e) {
 				throw new ExceptionInChainedOperatorException(e);
@@ -398,8 +429,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 		
 		private final TypeSerializer<T> serializer;
 		
-		public CopyingChainingOutput(OneInputStreamOperator<T, ?> operator, TypeSerializer<T> serializer) {
-			super(operator);
+		public CopyingChainingOutput(
+				OneInputStreamOperator<T, ?> operator,
+				TypeSerializer<T> serializer,
+				StreamStatusProvider streamStatusProvider) {
+			super(operator, streamStatusProvider);
 			this.serializer = serializer;
 		}
 
@@ -422,15 +456,22 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 		protected final Output<StreamRecord<T>>[] outputs;
 
 		private final Random RNG = new XORShiftRandom();
+
+		private final StreamStatusProvider streamStatusProvider;
 		
-		public BroadcastingOutputCollector(Output<StreamRecord<T>>[] outputs) {
+		public BroadcastingOutputCollector(
+				Output<StreamRecord<T>>[] outputs,
+				StreamStatusProvider streamStatusProvider) {
 			this.outputs = outputs;
+			this.streamStatusProvider = streamStatusProvider;
 		}
 
 		@Override
 		public void emitWatermark(Watermark mark) {
-			for (Output<StreamRecord<T>> output : outputs) {
-				output.emitWatermark(mark);
+			if (streamStatusProvider.getStreamStatus().equals(StreamStatus.ACTIVE)) {
+				for (Output<StreamRecord<T>> output : outputs) {
+					output.emitWatermark(mark);
+				}
 			}
 		}
 
@@ -467,8 +508,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 	 */
 	private static final class CopyingBroadcastingOutputCollector<T> extends BroadcastingOutputCollector<T> {
 
-		public CopyingBroadcastingOutputCollector(Output<StreamRecord<T>>[] outputs) {
-			super(outputs);
+		public CopyingBroadcastingOutputCollector(
+				Output<StreamRecord<T>>[] outputs,
+				StreamStatusProvider streamStatusProvider) {
+			super(outputs, streamStatusProvider);
 		}
 
 		@Override

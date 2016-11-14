@@ -47,6 +47,7 @@ import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
@@ -126,15 +127,19 @@ public class OneInputStreamTaskTest extends TestLogger {
 	}
 
 	/**
-	 * This test verifies that watermarks are correctly forwarded. This also checks whether
+	 * This test verifies that watermarks and stream statuses are correctly forwarded. This also checks whether
 	 * watermarks are forwarded only when we have received watermarks from all inputs. The
-	 * forwarded watermark must be the minimum of the watermarks of all inputs.
+	 * forwarded watermark must be the minimum of the watermarks of all active inputs.
 	 */
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testWatermarkForwarding() throws Exception {
+	public void testWatermarkAndStreamStatusForwarding() throws Exception {
 		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<String, String>();
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(mapTask, 2, 2, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final OneInputStreamTaskTestHarness<String, String> testHarness =
+			new OneInputStreamTaskTestHarness<String, String>(
+				mapTask, 2, 2,
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO);
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamMap<String, String> mapOperator = new StreamMap<String, String>(new IdentityMap());
@@ -181,7 +186,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 
-		// advance watermark from one of the inputs, now we should get a now one since the
+		// advance watermark from one of the inputs, now we should get a new one since the
 		// minimum increases
 		testHarness.processElement(new Watermark(initialTime + 4), 1, 1);
 		testHarness.waitForInputProcessing();
@@ -194,6 +199,31 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.processElement(new Watermark(initialTime + 4), 1, 0);
 		testHarness.waitForInputProcessing();
 		expectedOutput.add(new Watermark(initialTime + 4));
+		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		// test whether idle input channels are acknowledged correctly when forwarding watermarks
+		testHarness.processElement(StreamStatus.IDLE, 0, 1);
+		testHarness.processElement(StreamStatus.IDLE, 1, 0);
+		testHarness.processElement(new Watermark(initialTime + 6), 0, 0);
+		testHarness.processElement(new Watermark(initialTime + 5), 1, 1); // this watermark should be advanced first
+		testHarness.processElement(StreamStatus.IDLE, 1, 1); // once this is acknowledged,
+		                                                     // watermark (initial + 6) should be forwarded
+		testHarness.waitForInputProcessing();
+		expectedOutput.add(new Watermark(initialTime + 5));
+		expectedOutput.add(new Watermark(initialTime + 6));
+		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		// make all input channels idle and check that the operator's idle status is forwarded
+		testHarness.processElement(StreamStatus.IDLE, 0, 0);
+		testHarness.waitForInputProcessing();
+		expectedOutput.add(StreamStatus.IDLE);
+		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		// make some input channels active again and check that the operator's active status is forwarded only once
+		testHarness.processElement(StreamStatus.ACTIVE, 1, 0);
+		testHarness.processElement(StreamStatus.ACTIVE, 0, 1);
+		testHarness.waitForInputProcessing();
+		expectedOutput.add(StreamStatus.ACTIVE);
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.endInput();
