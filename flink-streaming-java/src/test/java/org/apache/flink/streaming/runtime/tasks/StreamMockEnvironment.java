@@ -190,18 +190,6 @@ public class StreamMockEnvironment implements Environment {
 				}
 			}).when(mockWriter).writeBuffer(any(Buffer.class), anyInt());
 
-			// Add events to the output list
-			doAnswer(new Answer<Void>() {
-
-				@Override
-				public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-					AbstractEvent event = (AbstractEvent) invocationOnMock.getArguments()[0];
-
-					outputList.add(event);
-					return null;
-				}
-			}).when(mockWriter).writeEvent(any(AbstractEvent.class), anyInt());
-
 			doAnswer(new Answer<Void>() {
 
 				@Override

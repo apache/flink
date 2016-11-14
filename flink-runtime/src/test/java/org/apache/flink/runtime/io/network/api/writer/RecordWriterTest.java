@@ -435,16 +435,6 @@ public class RecordWriterTest {
 			}
 		}).when(partitionWriter).writeBuffer(any(Buffer.class), anyInt());
 
-		doAnswer(new Answer<Void>() {
-			@Override
-			public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-				AbstractEvent event = (AbstractEvent) invocationOnMock.getArguments()[0];
-				Integer targetChannel = (Integer) invocationOnMock.getArguments()[1];
-				queues[targetChannel].add(new BufferOrEvent(event, targetChannel));
-				return null;
-			}
-		}).when(partitionWriter).writeEvent(any(AbstractEvent.class), anyInt());
-
 		return partitionWriter;
 	}
 

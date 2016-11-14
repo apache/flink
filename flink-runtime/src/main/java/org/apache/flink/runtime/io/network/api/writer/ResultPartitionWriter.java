@@ -71,10 +71,6 @@ public class ResultPartitionWriter implements EventListener<TaskEvent> {
 		partition.add(buffer, targetChannel);
 	}
 
-	public void writeEvent(AbstractEvent event, int targetChannel) throws IOException {
-		partition.add(EventSerializer.toBuffer(event), targetChannel);
-	}
-
 	public void writeEventToAllChannels(AbstractEvent event) throws IOException {
 		for (int i = 0; i < partition.getNumberOfSubpartitions(); i++) {
 			Buffer buffer = EventSerializer.toBuffer(event);
