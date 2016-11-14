@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.TaskEventHandler;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -74,13 +73,6 @@ public class ResultPartitionWriter implements EventListener<TaskEvent> {
 	public void writeEventToAllChannels(AbstractEvent event) throws IOException {
 		for (int i = 0; i < partition.getNumberOfSubpartitions(); i++) {
 			Buffer buffer = EventSerializer.toBuffer(event);
-			partition.add(buffer, i);
-		}
-	}
-
-	public void writeEndOfSuperstep() throws IOException {
-		for (int i = 0; i < partition.getNumberOfSubpartitions(); i++) {
-			Buffer buffer = EventSerializer.toBuffer(EndOfSuperstepEvent.INSTANCE);
 			partition.add(buffer, i);
 		}
 	}

@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.operators.Driver;
@@ -426,7 +427,7 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 		}
 
 		for (RecordWriter<?> eventualOutput : this.eventualOutputs) {
-			eventualOutput.sendEndOfSuperstep();
+			eventualOutput.broadcastEvent(EndOfSuperstepEvent.INSTANCE);
 		}
 	}
 

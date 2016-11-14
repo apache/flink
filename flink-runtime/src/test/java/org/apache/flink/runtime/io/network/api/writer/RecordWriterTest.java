@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.SerializationResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -243,7 +244,7 @@ public class RecordWriterTest {
 			try {
 				// Verify that end of super step correctly clears the buffer.
 				recordWriter.emit(new IntValue(0));
-				recordWriter.sendEndOfSuperstep();
+				recordWriter.broadcastEvent(EndOfSuperstepEvent.INSTANCE);
 
 				Assert.fail("Did not throw expected test Exception");
 			}

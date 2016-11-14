@@ -142,6 +142,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 					if (buffer != null) {
 						writeAndClearBuffer(buffer, targetChannel, serializer);
 					} else if (serializer.hasData()) {
+						// sanity check
 						throw new IllegalStateException("No buffer, but serializer has buffered data.");
 					}
 
@@ -155,21 +156,6 @@ public class RecordWriter<T extends IOReadableWritable> {
 			// (it will be recycled after the last channel stops using it)
 			eventBuffer.recycle();
 		}
-	}
-
-	public void sendEndOfSuperstep() throws IOException, InterruptedException {
-		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
-			RecordSerializer<T> serializer = serializers[targetChannel];
-
-			synchronized (serializer) {
-				Buffer buffer = serializer.getCurrentBuffer();
-				if (buffer != null) {
-					writeAndClearBuffer(buffer, targetChannel, serializer);
-				}
-			}
-		}
-
-		targetPartition.writeEndOfSuperstep();
 	}
 
 	public void flush() throws IOException {
