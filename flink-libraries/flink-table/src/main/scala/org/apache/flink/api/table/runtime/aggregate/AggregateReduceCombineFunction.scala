@@ -45,9 +45,12 @@ class AggregateReduceCombineFunction(
     private val aggregateMapping: Array[(Int, Int)],
     private val intermediateRowArity: Int,
     private val finalRowArity: Int)
-    extends AggregateReduceGroupFunction(aggregates,
-      groupKeysMapping,aggregateMapping,
-      intermediateRowArity,finalRowArity) with CombineFunction[Row, Row] {
+    extends AggregateReduceGroupFunction(
+      aggregates,
+      groupKeysMapping,
+      aggregateMapping,
+      intermediateRowArity,
+      finalRowArity) with CombineFunction[Row, Row] {
 
   /**
    * For sub-grouped intermediate aggregate Rows, merge all of them into aggregate buffer,
@@ -59,7 +62,7 @@ class AggregateReduceCombineFunction(
   override def combine(records: Iterable[Row]): Row = {
 
     // Initiate intermediate aggregate value.
-    aggregates.foreach(_.initiate(this.aggregateBuffer))
+    aggregates.foreach(_.initiate(aggregateBuffer))
 
     // Merge intermediate aggregate value to buffer.
     var last: Row = null

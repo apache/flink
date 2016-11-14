@@ -52,9 +52,10 @@ class IncrementalAggregateAllWindowFunction[W <: Window](
     * Calculate aggregated values output by aggregate buffer, and set them into output
     * Row based on the mapping relation between intermediate aggregate data and output data.
     */
-  override def apply(window: W,
-      records: Iterable[Row],
-      out: Collector[Row]): Unit = {
+  override def apply(
+    window: W,
+    records: Iterable[Row],
+    out: Collector[Row]): Unit = {
 
     val iterator = records.iterator
 

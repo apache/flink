@@ -71,14 +71,16 @@ object AggregateUtil {
     val (aggFieldIndexes, aggregates) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
-        inputType, groupings.length)
+        inputType,
+        groupings.length)
 
     createOperatorFunctionsForAggregates(
       namedAggregates,
       inputType,
       outputType,
       groupings,
-      aggregates, aggFieldIndexes)
+      aggregates,
+      aggFieldIndexes)
   }
 
   def createOperatorFunctionsForAggregates(
@@ -92,7 +94,9 @@ object AggregateUtil {
 
     val mapFunction = createAggregateMapFunction(
       aggregates,
-      aggFieldIndexes, groupings, inputType)
+      aggFieldIndexes,
+      groupings,
+      inputType)
 
     // the mapping relation between field index of intermediate aggregate Row and output Row.
     val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
@@ -108,7 +112,7 @@ object AggregateUtil {
           "or aggregate functions.")
     }
 
-    val allPartialAggregate = aggregates.forall(_.supportPartial)
+    val allPartialAggregate: Boolean = aggregates.forall(_.supportPartial)
 
     val intermediateRowArity = groupings.length +
       aggregates.map(_.intermediateDataType.length).sum
@@ -167,7 +171,7 @@ object AggregateUtil {
       aggregates:Array[Aggregate[_ <: Any]],
       aggFieldIndexes:Array[Int])
     : (MapFunction[Any, Row], ReduceFunction[Row],
-              Array[(Int, Int)],Array[(Int, Int)],Int) = {
+        Array[(Int, Int)],Array[(Int, Int)],Int) = {
 
     val mapFunction = createAggregateMapFunction(aggregates, aggFieldIndexes, groupings, inputType)
 
@@ -184,8 +188,11 @@ object AggregateUtil {
         "or aggregate functions.")
     }
     val intermediateRowArity = groupings.length + aggregates.map(_.intermediateDataType.length).sum
-    val reduceFunction = new IncrementalAggregateReduceFunction(aggregates,
-      groupingOffsetMapping, intermediateRowArity)
+    val reduceFunction = new IncrementalAggregateReduceFunction(
+      aggregates,
+      groupingOffsetMapping,
+      intermediateRowArity)
+
     (mapFunction, reduceFunction, groupingOffsetMapping, aggOffsetMapping, intermediateRowArity)
 
   }
@@ -194,12 +201,16 @@ object AggregateUtil {
       aggregates: Array[Aggregate[_ <: Any]],
       aggFieldIndexes: Array[Int],
       groupings: Array[Int],
-      inputType: RelDataType): MapFunction[Any, Row] = {
+      inputType:
+      RelDataType): MapFunction[Any, Row] = {
 
     val mapReturnType: RowTypeInfo =
       createAggregateBufferDataType(groupings, aggregates, inputType)
+
     val mapFunction = new AggregateMapFunction[Row, Row](
-      aggregates, aggFieldIndexes, groupings,
+      aggregates,
+      aggFieldIndexes,
+      groupings,
       mapReturnType.asInstanceOf[RowTypeInfo]).asInstanceOf[MapFunction[Any, Row]]
 
     mapFunction

@@ -42,7 +42,8 @@ class IncrementalAggregateAllTimeWindowFunction(
   extends IncrementalAggregateAllWindowFunction[TimeWindow](
     aggregates,
     groupKeysMapping,
-    aggregateMapping, finalRowArity) {
+    aggregateMapping,
+    finalRowArity) {
 
   private var collector: TimeWindowPropertyCollector = _
 
@@ -52,9 +53,9 @@ class IncrementalAggregateAllTimeWindowFunction(
   }
 
   override def apply(
-      window: TimeWindow,
-      records: Iterable[Row],
-      out: Collector[Row]): Unit = {
+    window: TimeWindow,
+    records: Iterable[Row],
+    out: Collector[Row]): Unit = {
     // set collector and window
     collector.wrappedCollector = out
     collector.timeWindow = window

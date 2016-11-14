@@ -41,9 +41,10 @@ class IncrementalAggregateTimeWindowFunction(
     private val finalRowArity: Int,
     private val windowStartPos: Option[Int],
     private val windowEndPos: Option[Int])
-  extends IncrementalAggregateWindowFunction[TimeWindow](aggregates,
-     groupKeysMapping,
-     aggregateMapping,finalRowArity) {
+  extends IncrementalAggregateWindowFunction[TimeWindow](
+    aggregates,
+    groupKeysMapping,
+    aggregateMapping, finalRowArity) {
 
   private var collector: TimeWindowPropertyCollector = _
 
@@ -52,10 +53,11 @@ class IncrementalAggregateTimeWindowFunction(
     super.open(parameters)
   }
 
-  override def apply(key: Tuple,
-      window: TimeWindow,
-      records: Iterable[Row],
-      out: Collector[Row]): Unit = {
+  override def apply(
+    key: Tuple,
+    window: TimeWindow,
+    records: Iterable[Row],
+    out: Collector[Row]): Unit = {
 
     // set collector and window
     collector.wrappedCollector = out

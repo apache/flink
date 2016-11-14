@@ -115,8 +115,8 @@ class DataStreamAggregate(
 
     // get the output types
     val fieldTypes: Array[TypeInformation[_]] = getRowType.getFieldList.asScala
-       .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
-       .toArray
+      .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
+      .toArray
 
     val rowTypeInfo = new RowTypeInfo(fieldTypes)
 
@@ -150,7 +150,9 @@ class DataStreamAggregate(
           namedAggregates,
           inputType,
           getRowType,
-          grouping, aggregates, aggFieldIndexes)
+          grouping,
+          aggregates,
+          aggFieldIndexes)
 
         val mappedInput = inputDS
           .map(mapFunction)
@@ -166,7 +168,8 @@ class DataStreamAggregate(
               aggOffsetMapping,
               getRowType.getFieldCount,
               intermediateRowArity,
-              window, namedProperties)
+              window,
+              namedProperties)
 
           val keyedStream = mappedInput.keyBy(groupingKeys: _*)
           val windowedStream = createKeyedWindowedStream(window, keyedStream)
@@ -206,7 +209,10 @@ class DataStreamAggregate(
           namedAggregates,
           inputType,
           getRowType,
-          grouping, aggregates, aggFieldIndexes)
+          grouping,
+          aggregates,
+          aggFieldIndexes)
+
         val mappedInput = inputDS
           .map(mapFunction)
           .name(prepareOpName)
@@ -244,18 +250,17 @@ class DataStreamAggregate(
       case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
         val mapName = s"convert: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
         result.map(getConversionMapper(
-            config = config,
-            nullableInput = false,
-            inputType = rowTypeInfo.asInstanceOf[TypeInformation[Any]],
-            expectedType = expectedType.get,
-            conversionOperatorName = "DataStreamAggregateConversion",
-            fieldNames = getRowType.getFieldNames.asScala
+          config = config,
+          nullableInput = false,
+          inputType = rowTypeInfo.asInstanceOf[TypeInformation[Any]],
+          expectedType = expectedType.get,
+          conversionOperatorName = "DataStreamAggregateConversion",
+          fieldNames = getRowType.getFieldNames.asScala
           ))
         .name(mapName)
       case _ => result
     }
   }
-
 }
 object DataStreamAggregate {
 
@@ -332,7 +337,8 @@ object DataStreamAggregate {
 
     if (isTimeWindow(window)) {
       val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
-      new IncrementalAggregateTimeWindowFunction(aggregates,
+      new IncrementalAggregateTimeWindowFunction(
+        aggregates,
         groupKeysMapping,
         aggregateMapping,
         finalRowArity,
@@ -340,7 +346,8 @@ object DataStreamAggregate {
         endPos)
         .asInstanceOf[WindowFunction[Row, Row, Tuple, DataStreamWindow]]
     } else {
-      new IncrementalAggregateWindowFunction(aggregates,
+      new IncrementalAggregateWindowFunction(
+        aggregates,
         groupKeysMapping,
         aggregateMapping,
         finalRowArity)
