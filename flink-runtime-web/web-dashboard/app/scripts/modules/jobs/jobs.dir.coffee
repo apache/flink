@@ -170,10 +170,7 @@ angular.module('flinkApp')
 # ----------------------------------------------
 .directive 'split', () -> 
   return compile: (tElem, tAttrs) ->
-      getId = (elem) -> "#" + elem.id
-      id1 = getId tElem.children().get(0)
-      id2 = getId tElem.children().get(1)
-      Split([id1, id2], (
+      Split(tElem.children(), (
         sizes: [50, 50]
         direction: 'vertical'
       ))
