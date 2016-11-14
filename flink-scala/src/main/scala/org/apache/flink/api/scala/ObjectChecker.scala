@@ -45,7 +45,8 @@ object ObjectChecker {
   def assertScalaSingleton[A](a: A)(implicit ev: A <:< Singleton = null) = {
     if (isSingleton(a)) {
       val msg = "User defined function implemented by class " + a.getClass.getName +
-        " might be implemented by a Scala Object,it is forbidden by Flink since concurrent modification risks."
+        " might be implemented by a Scala Object," +
+        "it is forbidden by Flink since concurrent modification risks."
       throw new InvalidProgramException(msg)
     }
   }
