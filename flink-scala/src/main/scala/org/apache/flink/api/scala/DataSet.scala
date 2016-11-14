@@ -293,7 +293,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     }
     wrap(new MapOperator[T, R](javaSet,
       implicitly[TypeInformation[R]],
-      mapper,
+      check(mapper),
       getCallLocationName()))
   }
 
@@ -329,7 +329,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     }
     wrap(new MapPartitionOperator[T, R](javaSet,
       implicitly[TypeInformation[R]],
-      partitionMapper,
+      check(partitionMapper),
       getCallLocationName()))
   }
 
@@ -393,7 +393,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     }
     wrap(new FlatMapOperator[T, R](javaSet,
       implicitly[TypeInformation[R]],
-      flatMapper,
+      check(flatMapper),
       getCallLocationName()))
   }
 
@@ -609,7 +609,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     }
     wrap(new GroupReduceOperator[T, R](javaSet,
       implicitly[TypeInformation[R]],
-      reducer,
+      check(reducer),
       getCallLocationName()))
   }
 
@@ -675,7 +675,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     }
     wrap(new GroupCombineOperator[T, R](javaSet,
       implicitly[TypeInformation[R]],
-      combiner,
+      check(combiner),
       getCallLocationName()))
   }
 

@@ -139,7 +139,7 @@ class JoinDataSet[L, R](
    */
   def apply[O: TypeInformation: ClassTag](joiner: FlatJoinFunction[L, R, O]): DataSet[O] = {
     require(joiner != null, "Join function must not be null.")
-
+    check(joiner)
     val joinOperator = new EquiJoin[L, R, O](
       leftInput.javaSet,
       rightInput.javaSet,
@@ -167,7 +167,7 @@ class JoinDataSet[L, R](
    */
   def apply[O: TypeInformation: ClassTag](fun: JoinFunction[L, R, O]): DataSet[O] = {
     require(fun != null, "Join function must not be null.")
-
+    check(fun)
     val generatedFunction: FlatJoinFunction[L, R, O] = new WrappingFlatJoinFunction[L, R, O](fun)
 
     val joinOperator = new EquiJoin[L, R, O](
@@ -193,6 +193,7 @@ class JoinDataSet[L, R](
   // ----------------------------------------------------------------------------------------------
   
   def withPartitioner[K : TypeInformation](partitioner : Partitioner[K]) : JoinDataSet[L, R] = {
+    check(partitioner)
     if (partitioner != null) {
       val typeInfo : TypeInformation[K] = implicitly[TypeInformation[K]]
       

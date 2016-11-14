@@ -83,6 +83,7 @@ class CrossDataSet[L, R](
    */
   def apply[O: TypeInformation: ClassTag](crosser: CrossFunction[L, R, O]): DataSet[O] = {
     require(crosser != null, "Cross function must not be null.")
+    check(crosser)
     val crossOperator = new CrossOperator[L, R, O](
       leftInput.javaSet,
       rightInput.javaSet,

@@ -149,7 +149,7 @@ class CoGroupDataSet[L, R](
       rightInput.javaSet,
       leftKeys,
       rightKeys,
-      coGrouper,
+      check(coGrouper),
       implicitly[TypeInformation[O]],
       buildGroupSortList(leftInput.getType, groupSortKeyPositionsFirst, groupSortOrdersFirst),
       buildGroupSortList(rightInput.getType, groupSortKeyPositionsSecond, groupSortOrdersSecond),
@@ -164,6 +164,7 @@ class CoGroupDataSet[L, R](
   // ----------------------------------------------------------------------------------------------
   
   def withPartitioner[K : TypeInformation](partitioner : Partitioner[K]) : CoGroupDataSet[L, R] = {
+    check(partitioner)
     if (partitioner != null) {
       val typeInfo : TypeInformation[K] = implicitly[TypeInformation[K]]
       

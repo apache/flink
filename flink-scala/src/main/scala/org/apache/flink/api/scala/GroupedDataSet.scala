@@ -320,6 +320,7 @@ class GroupedDataSet[T: ClassTag](
     * using an associative reduce function.
     */
   def reduce(reducer: ReduceFunction[T]): DataSet[T] = {
+    set.check(reducer)
     reduce(getCallLocationName(), reducer, CombineHint.OPTIMIZER_CHOOSES)
   }
 
@@ -330,6 +331,7 @@ class GroupedDataSet[T: ClassTag](
     */
   @PublicEvolving
   def reduce(reducer: ReduceFunction[T], strategy: CombineHint): DataSet[T] = {
+    set.check(reducer)
     reduce(getCallLocationName(), reducer, strategy)
   }
 
@@ -337,6 +339,7 @@ class GroupedDataSet[T: ClassTag](
                      reducer: ReduceFunction[T],
                      strategy: CombineHint): DataSet[T] = {
     require(reducer != null, "Reduce function must not be null.")
+    set.check(reducer)
     wrap(new ReduceOperator[T](createUnsortedGrouping(), reducer, callLocationName).
       setCombineHint(strategy))
   }
@@ -386,6 +389,7 @@ class GroupedDataSet[T: ClassTag](
    */
   def reduceGroup[R: TypeInformation: ClassTag](reducer: GroupReduceFunction[T, R]): DataSet[R] = {
     require(reducer != null, "GroupReduce function must not be null.")
+    set.check(reducer)
     wrap(
       new GroupReduceOperator[T, R](maybeCreateSortedGrouping(),
         implicitly[TypeInformation[R]], reducer, getCallLocationName()))
