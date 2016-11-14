@@ -68,7 +68,9 @@ public class NiFiSink<T> extends RichSinkFunction<T> {
 	@Override
 	public void close() throws Exception {
 		super.close();
-		client.close();
+		if (client != null) {
+			client.close();
+		}
 	}
 
 }

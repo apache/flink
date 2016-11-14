@@ -371,8 +371,10 @@ public class BucketingSink<T>
 
 	@Override
 	public void close() throws Exception {
-		for (Map.Entry<String, BucketState<T>> entry : state.bucketStates.entrySet()) {
-			closeCurrentPartFile(entry.getValue());
+		if (state != null) {
+			for (Map.Entry<String, BucketState<T>> entry : state.bucketStates.entrySet()) {
+				closeCurrentPartFile(entry.getValue());
+			}
 		}
 	}
 
@@ -502,7 +504,7 @@ public class BucketingSink<T>
 	 * of pending files in our bucket state.
 	 */
 	private void closeCurrentPartFile(BucketState<T> bucketState) throws Exception {
-		if (bucketState.isWriterOpen) {
+		if (bucketState.isWriterOpen && bucketState.writer != null) {
 			bucketState.writer.close();
 			bucketState.isWriterOpen = false;
 		}

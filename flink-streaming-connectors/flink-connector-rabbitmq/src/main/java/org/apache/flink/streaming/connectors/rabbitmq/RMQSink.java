@@ -120,13 +120,17 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	public void close() {
 		IOException t = null;
 		try {
-			channel.close();
+			if (channel != null) {
+				channel.close();
+			}
 		} catch (IOException e) {
 			t = e;
 		}
 
 		try {
-			connection.close();
+			if (connection != null) {
+				connection.close();
+			}
 		} catch (IOException e) {
 			if(t != null) {
 				LOG.warn("Both channel and connection closing failed. Logging channel exception and failing with connection exception", t);

@@ -130,7 +130,9 @@ public class FlumeSink<IN> extends RichSinkFunction<IN> {
 
 	@Override
 	public void close() {
-		client.client.close();
+		if (client != null && client.client != null) {
+			client.client.close();
+		}
 	}
 
 	@Override
