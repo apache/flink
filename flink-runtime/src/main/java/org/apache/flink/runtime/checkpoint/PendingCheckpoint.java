@@ -35,7 +35,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -63,6 +65,9 @@ public class PendingCheckpoint {
 	private final Map<JobVertexID, TaskState> taskStates;
 
 	private final Map<ExecutionAttemptID, ExecutionVertex> notYetAcknowledgedTasks;
+
+	/** Set of acknowledged tasks */
+	private final Set<ExecutionAttemptID> acknowledgedTasks;
 
 	/** Flag indicating whether the checkpoint is triggered as part of periodic scheduling. */
 	private final boolean isPeriodic;
@@ -109,6 +114,8 @@ public class PendingCheckpoint {
 
 		checkArgument(verticesToConfirm.size() > 0,
 				"Checkpoint needs at least one vertex that commits the checkpoint");
+
+		acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -228,24 +235,37 @@ public class PendingCheckpoint {
 			}
 		}
 	}
-	
-	public boolean acknowledgeTask(
-			ExecutionAttemptID attemptID,
-			SubtaskState checkpointedSubtaskState) {
+
+	/**
+	 * Acknowledges the task with the given execution attempt id and the given subtask state.
+	 *
+	 * @param executionAttemptId of the acknowledged task
+	 * @param subtaskState of the acknowledged task
+	 * @return TaskAcknowledgeResult of the operation
+	 */
+	public TaskAcknowledgeResult acknowledgeTask(
+			ExecutionAttemptID executionAttemptId,
+			SubtaskState subtaskState) {
 
 		synchronized (lock) {
 
 			if (discarded) {
-				return false;
+				return TaskAcknowledgeResult.DISCARDED;
 			}
 
-			final ExecutionVertex vertex = notYetAcknowledgedTasks.remove(attemptID);
+			final ExecutionVertex vertex = notYetAcknowledgedTasks.remove(executionAttemptId);
 
 			if (vertex == null) {
-				return false;
+				if (acknowledgedTasks.contains(executionAttemptId)) {
+					return TaskAcknowledgeResult.DUPLICATE;
+				} else {
+					return TaskAcknowledgeResult.UNKNOWN;
+				}
+			} else {
+				acknowledgedTasks.add(executionAttemptId);
 			}
 
-			if (null != checkpointedSubtaskState) {
+			if (null != subtaskState) {
 
 				JobVertexID jobVertexID = vertex.getJobvertexId();
 				int subtaskIndex = vertex.getParallelSubtaskIndex();
@@ -253,9 +273,9 @@ public class PendingCheckpoint {
 
 				if (null == taskState) {
 					ChainedStateHandle<StreamStateHandle> nonPartitionedState =
-							checkpointedSubtaskState.getLegacyOperatorState();
+							subtaskState.getLegacyOperatorState();
 					ChainedStateHandle<OperatorStateHandle> partitioneableState =
-							checkpointedSubtaskState.getManagedOperatorState();
+							subtaskState.getManagedOperatorState();
 					//TODO this should go away when we remove chained state, assigning state to operators directly instead
 					int chainLength;
 					if (nonPartitionedState != null) {
@@ -276,15 +296,25 @@ public class PendingCheckpoint {
 				}
 
 				long duration = System.currentTimeMillis() - checkpointTimestamp;
-				checkpointedSubtaskState.setDuration(duration);
+				subtaskState.setDuration(duration);
 
-				taskState.putState(subtaskIndex, checkpointedSubtaskState);
+				taskState.putState(subtaskIndex, subtaskState);
 			}
 
 			++numAcknowledgedTasks;
 
-			return true;
+			return TaskAcknowledgeResult.SUCCESS;
 		}
+	}
+
+	/**
+	 * Result of the {@link PendingCheckpoint#acknowledgedTasks} method.
+	 */
+	public enum TaskAcknowledgeResult {
+		SUCCESS, // successful acknowledge of the task
+		DUPLICATE, // acknowledge message is a duplicate
+		UNKNOWN, // unknown task acknowledged
+		DISCARDED // pending checkpoint has been discarded
 	}
 
 	// ------------------------------------------------------------------------
@@ -350,6 +380,7 @@ public class PendingCheckpoint {
 			} finally {
 				taskStates.clear();
 				notYetAcknowledgedTasks.clear();
+				acknowledgedTasks.clear();
 			}
 		}
 	}

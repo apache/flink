@@ -84,6 +84,7 @@ import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -994,6 +995,112 @@ public class CheckpointCoordinatorTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	/**
+	 * Tests that late acknowledge checkpoint messages are properly cleaned up. Furthermore it tests
+	 * that unknown checkpoint messages for the same job a are cleaned up as well. In contrast
+	 * checkpointing messages from other jobs should not be touched. A late acknowledge
+	 * message is an acknowledge message which arrives after the checkpoint has been declined.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testStateCleanupForLateOrUnknownMessages() throws Exception {
+		final JobID jobId = new JobID();
+
+		final ExecutionAttemptID triggerAttemptId = new ExecutionAttemptID();
+		final ExecutionVertex triggerVertex = mockExecutionVertex(triggerAttemptId);
+
+		final ExecutionAttemptID ackAttemptId1 = new ExecutionAttemptID();
+		final ExecutionVertex ackVertex1 = mockExecutionVertex(ackAttemptId1);
+
+		final ExecutionAttemptID ackAttemptId2 = new ExecutionAttemptID();
+		final ExecutionVertex ackVertex2 = mockExecutionVertex(ackAttemptId2);
+
+		final long timestamp = 1L;
+
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			jobId,
+			20000L,
+			20000L,
+			0L,
+			1,
+			ExternalizedCheckpointSettings.none(),
+			new ExecutionVertex[] { triggerVertex },
+			new ExecutionVertex[] {triggerVertex, ackVertex1, ackVertex2},
+			new ExecutionVertex[0],
+			new StandaloneCheckpointIDCounter(),
+			new StandaloneCompletedCheckpointStore(1),
+			null,
+			new DisabledCheckpointStatsTracker());
+
+		assertTrue(coord.triggerCheckpoint(timestamp, false));
+
+		assertEquals(1, coord.getNumberOfPendingCheckpoints());
+
+		PendingCheckpoint pendingCheckpoint = coord.getPendingCheckpoints().values().iterator().next();
+
+		long checkpointId = pendingCheckpoint.getCheckpointId();
+
+		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, 0L);
+
+		SubtaskState triggerSubtaskState = mock(SubtaskState.class);
+
+		// acknowledge the first trigger vertex
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, triggerAttemptId, checkpointMetaData, triggerSubtaskState));
+
+		SubtaskState unknownSubtaskState = mock(SubtaskState.class);
+
+		// receive an acknowledge message for an unknown vertex
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, new ExecutionAttemptID(), checkpointMetaData, unknownSubtaskState));
+
+		// we should discard acknowledge messages from an unknown vertex belonging to our job
+		verify(unknownSubtaskState, times(1)).discardState();
+
+		SubtaskState differentJobSubtaskState = mock(SubtaskState.class);
+
+		// receive an acknowledge message from an unknown job
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(new JobID(), new ExecutionAttemptID(), checkpointMetaData, differentJobSubtaskState));
+
+		// we should not interfere with different jobs
+		verify(differentJobSubtaskState, never()).discardState();
+
+		// duplicate acknowledge message for the trigger vertex
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, triggerAttemptId, checkpointMetaData, triggerSubtaskState));
+
+		// duplicate acknowledge messages for a known vertex should not trigger discarding the state
+		verify(triggerSubtaskState, never()).discardState();
+
+		// let the checkpoint fail at the first ack vertex
+		coord.receiveDeclineMessage(new DeclineCheckpoint(jobId, ackAttemptId1, checkpointId));
+
+		assertTrue(pendingCheckpoint.isDiscarded());
+
+		// check that we've cleaned up the already acknowledged state
+		verify(triggerSubtaskState, times(1)).discardState();
+
+		SubtaskState ackSubtaskState = mock(SubtaskState.class);
+
+		// late acknowledge message from the second ack vertex
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, ackAttemptId2, checkpointMetaData, ackSubtaskState));
+
+		// check that we also cleaned up this state
+		verify(ackSubtaskState, times(1)).discardState();
+
+		// receive an acknowledge message from an unknown job
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(new JobID(), new ExecutionAttemptID(), checkpointMetaData, differentJobSubtaskState));
+
+		// we should not interfere with different jobs
+		verify(differentJobSubtaskState, never()).discardState();
+
+		SubtaskState unknownSubtaskState2 = mock(SubtaskState.class);
+
+		// receive an acknowledge message for an unknown vertex
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, new ExecutionAttemptID(), checkpointMetaData, unknownSubtaskState2));
+
+		// we should discard acknowledge messages from an unknown vertex belonging to our job
+		verify(unknownSubtaskState2, times(1)).discardState();
 	}
 
 	@Test
