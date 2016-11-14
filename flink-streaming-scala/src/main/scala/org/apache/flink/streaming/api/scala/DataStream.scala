@@ -508,6 +508,8 @@ class DataStream[T](stream: JavaStream[T]) {
       throw new NullPointerException("Map function must not be null.")
     }
 
+    check(mapper)
+
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
     asScalaStream(stream.map(mapper).returns(outType).asInstanceOf[JavaStream[R]])
   }
@@ -520,6 +522,8 @@ class DataStream[T](stream: JavaStream[T]) {
     if (flatMapper == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
+
+    check(flatMapper)
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
     asScalaStream(stream.flatMap(flatMapper).returns(outType).asInstanceOf[JavaStream[R]])
@@ -562,6 +566,9 @@ class DataStream[T](stream: JavaStream[T]) {
     if (filter == null) {
       throw new NullPointerException("Filter function must not be null.")
     }
+
+    check(filter)
+
     asScalaStream(stream.filter(filter))
   }
 

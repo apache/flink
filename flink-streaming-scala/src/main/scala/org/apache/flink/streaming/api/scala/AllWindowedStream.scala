@@ -211,6 +211,8 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
       throw new NullPointerException("Fold function must not be null.")
     }
 
+    check(function)
+
     val resultType : TypeInformation[R] = implicitly[TypeInformation[R]]
     asScalaStream(javaStream.fold(initialValue, function, resultType))
   }

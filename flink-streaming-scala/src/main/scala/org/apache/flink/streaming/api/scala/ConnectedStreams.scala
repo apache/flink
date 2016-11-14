@@ -96,7 +96,9 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
       throw new NullPointerException("Map function must not be null.")
     }
 
-    val outType : TypeInformation[R] = implicitly[TypeInformation[R]]    
+    check(coMapper)
+
+    val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
     asScalaStream(javaStream.map(coMapper).returns(outType).asInstanceOf[JavaStream[R]])
   }
 
@@ -124,6 +126,8 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     if (coProcessFunction == null) {
       throw new NullPointerException("CoProcessFunction function must not be null.")
     }
+
+    check(coFlatMapper)
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
 
@@ -153,8 +157,8 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     if (coFlatMapper == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
-
-    val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
+    check(coFlatMapper)
+    val outType : TypeInformation[R] = implicitly[TypeInformation[R]]    
     asScalaStream(javaStream.flatMap(coFlatMapper).returns(outType).asInstanceOf[JavaStream[R]])
   }
 
