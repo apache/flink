@@ -20,6 +20,8 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
+import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -45,6 +47,8 @@ public class TaskExecutorToResourceManagerConnection
 
 	private final RpcService rpcService;
 
+	private final HeartbeatManagerImpl heartbeatManager;
+
 	private final String taskManagerAddress;
 
 	private final ResourceID taskManagerResourceId;
@@ -58,6 +62,7 @@ public class TaskExecutorToResourceManagerConnection
 	public TaskExecutorToResourceManagerConnection(
 			Logger log,
 			RpcService rpcService,
+			HeartbeatManagerImpl heartbeatManager,
 			String taskManagerAddress,
 			ResourceID taskManagerResourceId,
 			SlotReport slotReport,
@@ -69,6 +74,7 @@ public class TaskExecutorToResourceManagerConnection
 		super(log, resourceManagerAddress, resourceManagerLeaderId, executor);
 
 		this.rpcService = Preconditions.checkNotNull(rpcService);
+		this.heartbeatManager = Preconditions.checkNotNull(heartbeatManager);
 		this.taskManagerAddress = Preconditions.checkNotNull(taskManagerAddress);
 		this.taskManagerResourceId = Preconditions.checkNotNull(taskManagerResourceId);
 		this.slotReport = Preconditions.checkNotNull(slotReport);
@@ -94,6 +100,18 @@ public class TaskExecutorToResourceManagerConnection
 			getTargetAddress(), success.getRegistrationId());
 
 		registrationId = success.getRegistrationId();
+
+		heartbeatManager.monitorTarget(success.getResourceID(), new HeartbeatTarget() {
+			@Override
+			public void sendHeartbeat(ResourceID resourceID, Object payload) {
+				getTargetGateway().sendHeartbeatFromTaskManager(resourceID, payload);
+			}
+
+			@Override
+			public void requestHeartbeat(ResourceID resourceID, Object payload) {
+				throw new UnsupportedOperationException("Should never call requestHeartbeat in task executor.");
+			}
+		});
 	}
 
 	@Override
@@ -119,7 +137,7 @@ public class TaskExecutorToResourceManagerConnection
 			extends RetryingRegistration<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
 
 		private final String taskExecutorAddress;
-		
+
 		private final ResourceID resourceID;
 
 		private final SlotReport slotReport;

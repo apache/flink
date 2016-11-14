@@ -163,6 +163,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 	private volatile UUID leaderSessionID;
 
+	private final ResourceID resourceID;
+
 	// --------- ResourceManager --------
 
 	/** Leader retriever service used to locate ResourceManager's address */
@@ -251,6 +253,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		this.slotPoolGateway = slotPool.getSelf();
 
 		this.registeredTaskManagers = new HashMap<>(4);
+
+		this.resourceID = ResourceID.generate();
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -709,7 +713,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 		if (registeredTaskManagers.containsKey(taskManagerId)) {
 			final RegistrationResponse response = new JMTMRegistrationSuccess(
-					taskManagerId, libraryCacheManager.getBlobServerPort());
+					resourceID, libraryCacheManager.getBlobServerPort());
 			return FlinkCompletableFuture.completed(response);
 		} else {
 			return getRpcService().execute(new Callable<TaskExecutorGateway>() {
@@ -735,7 +739,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 					slotPoolGateway.registerTaskManager(taskManagerId);
 					registeredTaskManagers.put(taskManagerId, Tuple2.of(taskManagerLocation, taskExecutorGateway));
-					return new JMTMRegistrationSuccess(taskManagerId, libraryCacheManager.getBlobServerPort());
+					return new JMTMRegistrationSuccess(resourceID, libraryCacheManager.getBlobServerPort());
 				}
 			}, getMainThreadExecutor());
 		}
@@ -747,6 +751,10 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			final UUID resourceManagerLeaderId,
 			final Exception cause) {
 		// TODO: Implement disconnect behaviour
+	}
+
+	@RpcMethod
+	public void sendHeartbeatFromTaskManager(final ResourceID resourceID, final Object payload) {
 	}
 
 	//----------------------------------------------------------------------------------------------

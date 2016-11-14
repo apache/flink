@@ -229,4 +229,11 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 			final TaskManagerLocation taskManagerLocation,
 			final UUID leaderId,
 			@RpcTimeout final Time timeout);
+
+	/**
+	 * sends the heartbeat to job manager from task manager
+	 * @param resourceID unique id of the task manager
+	 * @param payload the payload information of the task manager
+	 */
+	void sendHeartbeatFromTaskManager(final ResourceID resourceID, final Object payload);
 }

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.filecache.FileCache;
+import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
@@ -79,6 +80,7 @@ public class TaskExecutorITCase {
 		final Configuration configuration = new Configuration();
 		final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
 		final ResourceID taskManagerResourceId = new ResourceID("foobar");
+		final ResourceID jobManagerResourceId = new ResourceID("jm");
 		final UUID rmLeaderId = UUID.randomUUID();
 		final TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
 		final TestingLeaderRetrievalService rmLeaderRetrievalService = new TestingLeaderRetrievalService();
@@ -97,6 +99,8 @@ public class TaskExecutorITCase {
 		SlotManagerFactory slotManagerFactory = new DefaultSlotManager.Factory();
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(testingHAServices);
 		MetricRegistry metricRegistry = mock(MetricRegistry.class);
+		HeartbeatManagerImpl resourceManagerHeartbeatManager = mock(HeartbeatManagerImpl.class);
+		HeartbeatManagerImpl jobManagerHeartbeatManager = mock(HeartbeatManagerImpl.class);
 
 		final TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
 		final TaskManagerLocation taskManagerLocation = new TaskManagerLocation(taskManagerResourceId, InetAddress.getLocalHost(), 1234);
@@ -128,6 +132,8 @@ public class TaskExecutorITCase {
 			networkEnvironment,
 			testingHAServices,
 			metricRegistry,
+			resourceManagerHeartbeatManager,
+			jobManagerHeartbeatManager,
 			taskManagerMetricGroup,
 			broadcastVariableManager,
 			fileCache,
@@ -139,7 +145,7 @@ public class TaskExecutorITCase {
 		JobMasterGateway jmGateway = mock(JobMasterGateway.class);
 
 		when(jmGateway.registerTaskManager(any(String.class), any(TaskManagerLocation.class), eq(jmLeaderId), any(Time.class)))
-			.thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(taskManagerResourceId, 1234)));
+			.thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(jobManagerResourceId, 1234)));
 		when(jmGateway.getAddress()).thenReturn(jmAddress);
 
 

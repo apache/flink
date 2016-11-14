@@ -113,6 +113,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	/** ResourceManager's leader session id which is updated on leader election. */
 	private volatile UUID leaderSessionId;
 
+	/** ResourceID of the resource manager. */
+	private final ResourceID resourceID;
+
 	/** All registered listeners for status updates of the ResourceManager. */
 	private ConcurrentMap<String, InfoMessageListenerRpcGateway> infoMessageListeners;
 
@@ -137,6 +140,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		this.jobManagerRegistrations = new HashMap<>(4);
 		this.taskExecutors = new HashMap<>(8);
 		this.leaderSessionId = null;
+		this.resourceID = ResourceID.generate();
 		infoMessageListeners = new ConcurrentHashMap<>(8);
 	}
 
@@ -340,7 +344,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		final UUID resourceManagerLeaderId,
 		final String taskExecutorAddress,
 		final ResourceID resourceID,
-		final SlotReport slotReport) {
+		final SlotReport slotReport)
+	{
 
 		if (leaderSessionId.equals(resourceManagerLeaderId)) {
 			Future<TaskExecutorGateway> taskExecutorGatewayFuture = getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class);
@@ -366,6 +371,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 						return new TaskExecutorRegistrationSuccess(
 							registration.getInstanceID(),
+							resourceID,
 							resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds());
 					}
 				}
@@ -500,6 +506,17 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	public void shutDownCluster(final ApplicationStatus finalStatus, final String optionalDiagnostics) {
 		log.info("shut down cluster because application is in {}, diagnostics {}", finalStatus, optionalDiagnostics);
 		shutDownApplication(finalStatus, optionalDiagnostics);
+	}
+
+	/**
+	 * Send the heartbeat to this resource manager from task manager
+	 *
+	 * @param resourceID
+	 * @param payload
+	 */
+	@RpcMethod
+	public void sendHeartbeatFromTaskManager(final ResourceID resourceID, final Object payload) {
+
 	}
 
 	// ------------------------------------------------------------------------
@@ -821,4 +838,3 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		}
 	}
 }
-
