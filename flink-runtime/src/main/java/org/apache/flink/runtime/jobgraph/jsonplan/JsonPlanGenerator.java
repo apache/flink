@@ -52,7 +52,7 @@ public class JsonPlanGenerator {
 			for (JobVertex vertex : jg.getVertices()) {
 				
 				String operator = vertex.getOperatorName() != null ? 
-						vertex.getOperatorName() : "";
+						vertex.getOperatorName() : NOT_SET;
 
 				String operatorDescr = vertex.getOperatorDescription() != null ?
 						vertex.getOperatorDescription() : NOT_SET;
