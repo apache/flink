@@ -303,18 +303,21 @@ object TestingUtils {
   /** Creates a testing JobManager using the default recovery mode (standalone)
     *
     * @param actorSystem The ActorSystem to use
-    * @param executor to run the JobManager's futures
+    * @param futureExecutor to run the JobManager's futures
+    * @param ioExecutor to run blocking io operations
     * @param configuration The Flink configuration
     * @return
     */
   def createJobManager(
       actorSystem: ActorSystem,
-      executor: Executor,
+      futureExecutor: Executor,
+      ioExecutor: Executor,
       configuration: Configuration)
     : ActorGateway = {
     createJobManager(
       actorSystem,
-      executor,
+      futureExecutor,
+      ioExecutor,
       configuration,
       classOf[TestingJobManager],
       ""
@@ -325,20 +328,23 @@ object TestingUtils {
     * Additional prefix can be supplied for the Actor system names
     *
     * @param actorSystem The ActorSystem to use
-    * @param executor to run the JobManager's futures
+    * @param futureExecutor to run the JobManager's futures
+    * @param ioExecutor to run blocking io operations
     * @param configuration The Flink configuration
     * @param prefix The prefix for the actor names
     * @return
     */
   def createJobManager(
       actorSystem: ActorSystem,
-      executor: Executor,
+      futureExecutor: Executor,
+      ioExecutor: Executor,
       configuration: Configuration,
       prefix: String)
     : ActorGateway = {
     createJobManager(
       actorSystem,
-      executor,
+      futureExecutor,
+      ioExecutor,
       configuration,
       classOf[TestingJobManager],
       prefix
@@ -349,19 +355,21 @@ object TestingUtils {
     * Creates a JobManager of the given class using the default recovery mode (standalone)
     *
     * @param actorSystem ActorSystem to use
-    * @param executor to run the JobManager's futures
+    * @param futureExecutor to run the JobManager's futures
+    * @param ioExecutor to run blocking io operations
     * @param configuration Configuration to use
     * @param jobManagerClass JobManager class to instantiate
     * @return
     */
   def createJobManager(
       actorSystem: ActorSystem,
-      executor: Executor,
+      futureExecutor: Executor,
+      ioExecutor: Executor,
       configuration: Configuration,
       jobManagerClass: Class[_ <: JobManager])
     : ActorGateway = {
 
-    createJobManager(actorSystem, executor, configuration, jobManagerClass, "")
+    createJobManager(actorSystem, futureExecutor, ioExecutor, configuration, jobManagerClass, "")
   }
 
   /**
@@ -369,7 +377,8 @@ object TestingUtils {
     * Additional prefix for the Actor names can be added.
     *
     * @param actorSystem ActorSystem to use
-    * @param executor to run the JobManager's futures
+    * @param futureExecutor to run the JobManager's futures
+    * @param ioExecutor to run blocking io operations
     * @param configuration Configuration to use
     * @param jobManagerClass JobManager class to instantiate
     * @param prefix The prefix to use for the Actor names
@@ -377,7 +386,8 @@ object TestingUtils {
     */
   def createJobManager(
       actorSystem: ActorSystem,
-      executor: Executor,
+      futureExecutor: Executor,
+      ioExecutor: Executor,
       configuration: Configuration,
       jobManagerClass: Class[_ <: JobManager],
       prefix: String)
@@ -390,7 +400,8 @@ object TestingUtils {
       val (actor, _) = JobManager.startJobManagerActors(
         configuration,
         actorSystem,
-        executor,
+        futureExecutor,
+        ioExecutor,
         Some(prefix + JobManager.JOB_MANAGER_NAME),
         Some(prefix + JobManager.ARCHIVE_NAME),
         jobManagerClass,

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
@@ -68,7 +69,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 			public RetrievableStateHandle<CompletedCheckpoint> store(CompletedCheckpoint state) throws Exception {
 				return new HeapRetrievableStateHandle<CompletedCheckpoint>(state);
 			}
-		});
+		}, Executors.directExecutor());
 	}
 
 	// ---------------------------------------------------------------------------------------------
