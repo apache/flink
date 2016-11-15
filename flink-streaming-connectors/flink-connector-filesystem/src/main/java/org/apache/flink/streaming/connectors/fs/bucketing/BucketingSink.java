@@ -161,9 +161,7 @@ public class BucketingSink<T>
 	// These are initialized with some defaults but are meant to be changeable by the user
 
 	/**
-	 * The default maximum size of part files.
-	 * <p>
-	 * By default, {@code 6 X} the default block size.
+	 * The default maximum size of part files (currently {@code 384 MB}).
 	 */
 	private final long DEFAULT_BATCH_SIZE = 1024L * 1024L * 384L;
 
@@ -245,17 +243,6 @@ public class BucketingSink<T>
 	 */
 	private Writer<T> writerTemplate;
 
-	/**
-	 * If this is true we remove any leftover in-progress/pending files when the sink is opened.
-	 *
-	 * <p>
-	 * This should only be set to false if using the sink without checkpoints, to not remove
-	 * the files already in the directory.
-	 * <p>
-	 */
-	@Deprecated
-	private boolean cleanupOnOpen = true;
-
 	private long batchSize = DEFAULT_BATCH_SIZE;
 	private long inactiveBucketCheckInterval = DEFAULT_INACTIVE_BUCKET_CHECK_INTERVAL_MS;
 	private long inactiveBucketThreshold = DEFAULT_INACTIVE_BUCKET_THRESHOLD_MS;
@@ -288,8 +275,7 @@ public class BucketingSink<T>
 
 	/**
 	 * The state object that is handled by Flink from snapshot/restore. This contains state for
-	 * every open bucket: the current {@code in-progress} part file path, its valid length and
-	 * the {@code pending} part files.
+	 * every open bucket: the current in-progress part file path, its valid length and the pending part files.
 	 */
 	private transient State<T> state;
 
@@ -369,23 +355,16 @@ public class BucketingSink<T>
 
 		int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 		if (context.isRestored()) {
-			LOG.info("Restoring state for the BucketingSink (taskIdx={}).", subtaskIndex);
+			LOG.info("Restoring state for the {} (taskIdx={}).", getClass().getSimpleName(), subtaskIndex);
 
-			for (State<T> bucketEntry : restoredBucketStates.get()) {
+			for (State<T> recoveredState : restoredBucketStates.get()) {
+				handleRestoredBucketState(recoveredState);
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Cleaning Bucketing State in path: {}", bucketEntry);
-				}
-
-				for (BucketState<T> bucketState : bucketEntry.bucketStates.values()) {
-					handleRestoredBucketState(bucketState);
-				}
-
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("BucketingSink idx {} restored {}", subtaskIndex, bucketEntry);
+					LOG.debug("{} idx {} restored {}", getClass().getSimpleName(), subtaskIndex, recoveredState);
 				}
 			}
 		} else {
-			LOG.info("No state to restore for the BucketingSink (taskIdx={}).", subtaskIndex);
+			LOG.info("No state to restore for the {} (taskIdx={}).", getClass().getSimpleName(), subtaskIndex);
 		}
 	}
 
@@ -395,7 +374,8 @@ public class BucketingSink<T>
 
 		state = new State<>();
 
-		processingTimeService = ((StreamingRuntimeContext) getRuntimeContext()).getProcessingTimeService();
+		processingTimeService =
+				((StreamingRuntimeContext) getRuntimeContext()).getProcessingTimeService();
 
 		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 
@@ -494,9 +474,9 @@ public class BucketingSink<T>
 	}
 
 	/**
-	 * Checks for inactive buckets, and closes them. Inactive are buckets that have not been written to
-	 * for a period greater than {@code inactiveBucketThreshold} ms. This enables in-progress files to be
-	 * moved to the pending state and be finalised on the next checkpoint.
+	 * Checks for inactive buckets, and closes them. Buckets are considered inactive if they have not been
+	 * written to for a period greater than {@code inactiveBucketThreshold} ms. This enables in-progress
+	 * files to be moved to the pending state and be finalised on the next checkpoint.
 	 */
 	private void checkForInactiveBuckets(long currentProcessingTime) throws Exception {
 
@@ -646,17 +626,18 @@ public class BucketingSink<T>
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		synchronized (state.bucketStates) {
-			Iterator<Map.Entry<String, BucketState<T>>> stateIt = state.bucketStates.entrySet().iterator();
-			while (stateIt.hasNext()) {
-				BucketState<T> bucketState = stateIt.next().getValue();
+
+			Iterator<Map.Entry<String, BucketState<T>>> bucketStatesIt = state.bucketStates.entrySet().iterator();
+			while (bucketStatesIt.hasNext()) {
+				BucketState<T> bucketState = bucketStatesIt.next().getValue();
 				synchronized (bucketState.pendingFilesPerCheckpoint) {
 
-					Iterator<Map.Entry<Long, List<String>>> pendingIt =
+					Iterator<Map.Entry<Long, List<String>>> pendingCheckpointsIt =
 						bucketState.pendingFilesPerCheckpoint.entrySet().iterator();
 
-					while (pendingIt.hasNext()) {
+					while (pendingCheckpointsIt.hasNext()) {
 
-						Map.Entry<Long, List<String>> entry = pendingIt.next();
+						Map.Entry<Long, List<String>> entry = pendingCheckpointsIt.next();
 						Long pastCheckpointId = entry.getKey();
 						List<String> pendingPaths = entry.getValue();
 
@@ -673,7 +654,7 @@ public class BucketingSink<T>
 									pendingPath,
 									pastCheckpointId);
 							}
-							pendingIt.remove();
+							pendingCheckpointsIt.remove();
 						}
 					}
 
@@ -683,7 +664,7 @@ public class BucketingSink<T>
 
 						// We've dealt with all the pending files and the writer for this bucket is not currently open.
 						// Therefore this bucket is currently inactive and we can remove it from our state.
-						stateIt.remove();
+						bucketStatesIt.remove();
 					}
 				}
 			}
@@ -714,147 +695,151 @@ public class BucketingSink<T>
 			restoredBucketStates.add(state);
 
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("BucketingSink idx {} checkpointed {}.", subtaskIdx, state);
+				LOG.debug("{} idx {} checkpointed {}.", getClass().getSimpleName(), subtaskIdx, state);
 			}
 		}
 	}
 
-	private void handleRestoredBucketState(BucketState<T> bucketState) {
-		// we can clean all the pending files since they were renamed to
-		// final files after this checkpoint was successful
-		// (we re-start from the last **successful** checkpoint)
-		bucketState.pendingFiles.clear();
+	private void handleRestoredBucketState(State<T> restoredState) {
+		Preconditions.checkNotNull(restoredState);
 
-		if (bucketState.currentFile != null) {
+		for (BucketState<T> bucketState : restoredState.bucketStates.values()) {
 
-			// We were writing to a file when the last checkpoint occurred. This file can either
-			// be still in-progress or became a pending file at some point after the checkpoint.
-			// Either way, we have to truncate it back to a valid state (or write a .valid-length
-			// file that specifies up to which length it is valid) and rename it to the final name
-			// before starting a new bucket file.
+			// we can clean all the pending files since they were renamed to
+			// final files after this checkpoint was successful
+			// (we re-start from the last **successful** checkpoint)
+			bucketState.pendingFiles.clear();
 
-			Path partPath = new Path(bucketState.currentFile);
-			try {
-				Path partPendingPath = getPendingPathFor(partPath);
-				Path partInProgressPath = getInProgressPathFor(partPath);
+			if (bucketState.currentFile != null) {
 
-				if (fs.exists(partPendingPath)) {
-					LOG.debug("In-progress file {} has been moved to pending after checkpoint, moving to final location.", partPath);
-					// has been moved to pending in the mean time, rename to final location
-					fs.rename(partPendingPath, partPath);
-				} else if (fs.exists(partInProgressPath)) {
-					LOG.debug("In-progress file {} is still in-progress, moving to final location.", partPath);
-					// it was still in progress, rename to final path
-					fs.rename(partInProgressPath, partPath);
-				} else if (fs.exists(partPath)) {
-					LOG.debug("In-Progress file {} was already moved to final location {}.", bucketState.currentFile, partPath);
-				} else {
-					LOG.debug("In-Progress file {} was neither moved to pending nor is still in progress. Possibly, " +
-						"it was moved to final location by a previous snapshot restore", bucketState.currentFile);
-				}
+				// We were writing to a file when the last checkpoint occurred. This file can either
+				// be still in-progress or became a pending file at some point after the checkpoint.
+				// Either way, we have to truncate it back to a valid state (or write a .valid-length
+				// file that specifies up to which length it is valid) and rename it to the final name
+				// before starting a new bucket file.
 
-				// We use reflection to get the .truncate() method, this
-				// is only available starting with Hadoop 2.7
-				this.refTruncate = reflectTruncate(fs);
-
-				// truncate it or write a ".valid-length" file to specify up to which point it is valid
-				if (refTruncate != null) {
-					LOG.debug("Truncating {} to valid length {}", partPath, bucketState.currentFileValidLength);
-					// some-one else might still hold the lease from a previous try, we are
-					// recovering, after all ...
-					if (fs instanceof DistributedFileSystem) {
-						DistributedFileSystem dfs = (DistributedFileSystem) fs;
-						LOG.debug("Trying to recover file lease {}", partPath);
-						dfs.recoverLease(partPath);
-						boolean isclosed = dfs.isFileClosed(partPath);
-						StopWatch sw = new StopWatch();
-						sw.start();
-						while (!isclosed) {
-							if (sw.getTime() > asyncTimeout) {
-								break;
-							}
-							try {
-								Thread.sleep(500);
-							} catch (InterruptedException e1) {
-								// ignore it
-							}
-							isclosed = dfs.isFileClosed(partPath);
-						}
-					}
-					Boolean truncated = (Boolean) refTruncate.invoke(fs, partPath, bucketState.currentFileValidLength);
-					if (!truncated) {
-						LOG.debug("Truncate did not immediately complete for {}, waiting...", partPath);
-
-						// we must wait for the asynchronous truncate operation to complete
-						StopWatch sw = new StopWatch();
-						sw.start();
-						long newLen = fs.getFileStatus(partPath).getLen();
-						while (newLen != bucketState.currentFileValidLength) {
-							if (sw.getTime() > asyncTimeout) {
-								break;
-							}
-							try {
-								Thread.sleep(500);
-							} catch (InterruptedException e1) {
-								// ignore it
-							}
-							newLen = fs.getFileStatus(partPath).getLen();
-						}
-						if (newLen != bucketState.currentFileValidLength) {
-							throw new RuntimeException("Truncate did not truncate to right length. Should be " + bucketState.currentFileValidLength + " is " + newLen + ".");
-						}
-					}
-
-				} else {
-					LOG.debug("Writing valid-length file for {} to specify valid length {}", partPath, bucketState.currentFileValidLength);
-					Path validLengthFilePath = getValidLengthPathFor(partPath);
-					if (!fs.exists(validLengthFilePath)) {
-						FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath);
-						lengthFileOut.writeUTF(Long.toString(bucketState.currentFileValidLength));
-						lengthFileOut.close();
-					}
-				}
-
-				// Now that we've restored the bucket to a valid state, reset the current file info
-				bucketState.currentFile = null;
-				bucketState.currentFileValidLength = -1;
-				bucketState.isWriterOpen = false;
-			} catch (IOException e) {
-				LOG.error("Error while restoring BucketingSink state.", e);
-				throw new RuntimeException("Error while restoring BucketingSink state.", e);
-			} catch (InvocationTargetException | IllegalAccessException e) {
-				LOG.error("Could not invoke truncate.", e);
-				throw new RuntimeException("Could not invoke truncate.", e);
-			}
-		}
-
-		// Move files that are confirmed by a checkpoint but did not get moved to final location
-		// because the checkpoint notification did not happen before a failure
-
-		LOG.debug("Moving pending files to final location on restore.");
-
-		Set<Long> pastCheckpointIds = bucketState.pendingFilesPerCheckpoint.keySet();
-		for (Long pastCheckpointId : pastCheckpointIds) {
-			// All the pending files are buckets that have been completed but are waiting to be renamed
-			// to their final name
-			for (String filename : bucketState.pendingFilesPerCheckpoint.get(pastCheckpointId)) {
-				Path finalPath = new Path(filename);
-				Path pendingPath = getPendingPathFor(finalPath);
-
+				Path partPath = new Path(bucketState.currentFile);
 				try {
-					if (fs.exists(pendingPath)) {
-						LOG.debug("Restoring BucketingSink State: Moving pending file {} to final location after complete checkpoint {}.", pendingPath, pastCheckpointId);
-						fs.rename(pendingPath, finalPath);
+					Path partPendingPath = getPendingPathFor(partPath);
+					Path partInProgressPath = getInProgressPathFor(partPath);
+
+					if (fs.exists(partPendingPath)) {
+						LOG.debug("In-progress file {} has been moved to pending after checkpoint, moving to final location.", partPath);
+						// has been moved to pending in the mean time, rename to final location
+						fs.rename(partPendingPath, partPath);
+					} else if (fs.exists(partInProgressPath)) {
+						LOG.debug("In-progress file {} is still in-progress, moving to final location.", partPath);
+						// it was still in progress, rename to final path
+						fs.rename(partInProgressPath, partPath);
+					} else if (fs.exists(partPath)) {
+						LOG.debug("In-Progress file {} was already moved to final location {}.", bucketState.currentFile, partPath);
+					} else {
+						LOG.debug("In-Progress file {} was neither moved to pending nor is still in progress. Possibly, " +
+							"it was moved to final location by a previous snapshot restore", bucketState.currentFile);
 					}
+
+					// We use reflection to get the .truncate() method, this
+					// is only available starting with Hadoop 2.7
+					this.refTruncate = reflectTruncate(fs);
+
+					// truncate it or write a ".valid-length" file to specify up to which point it is valid
+					if (refTruncate != null) {
+						LOG.debug("Truncating {} to valid length {}", partPath, bucketState.currentFileValidLength);
+						// some-one else might still hold the lease from a previous try, we are
+						// recovering, after all ...
+						if (fs instanceof DistributedFileSystem) {
+							DistributedFileSystem dfs = (DistributedFileSystem) fs;
+							LOG.debug("Trying to recover file lease {}", partPath);
+							dfs.recoverLease(partPath);
+							boolean isclosed = dfs.isFileClosed(partPath);
+							StopWatch sw = new StopWatch();
+							sw.start();
+							while (!isclosed) {
+								if (sw.getTime() > asyncTimeout) {
+									break;
+								}
+								try {
+									Thread.sleep(500);
+								} catch (InterruptedException e1) {
+									// ignore it
+								}
+								isclosed = dfs.isFileClosed(partPath);
+							}
+						}
+						Boolean truncated = (Boolean) refTruncate.invoke(fs, partPath, bucketState.currentFileValidLength);
+						if (!truncated) {
+							LOG.debug("Truncate did not immediately complete for {}, waiting...", partPath);
+
+							// we must wait for the asynchronous truncate operation to complete
+							StopWatch sw = new StopWatch();
+							sw.start();
+							long newLen = fs.getFileStatus(partPath).getLen();
+							while (newLen != bucketState.currentFileValidLength) {
+								if (sw.getTime() > asyncTimeout) {
+									break;
+								}
+								try {
+									Thread.sleep(500);
+								} catch (InterruptedException e1) {
+									// ignore it
+								}
+								newLen = fs.getFileStatus(partPath).getLen();
+							}
+							if (newLen != bucketState.currentFileValidLength) {
+								throw new RuntimeException("Truncate did not truncate to right length. Should be " + bucketState.currentFileValidLength + " is " + newLen + ".");
+							}
+						}
+					} else {
+						LOG.debug("Writing valid-length file for {} to specify valid length {}", partPath, bucketState.currentFileValidLength);
+						Path validLengthFilePath = getValidLengthPathFor(partPath);
+						if (!fs.exists(validLengthFilePath)) {
+							FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath);
+							lengthFileOut.writeUTF(Long.toString(bucketState.currentFileValidLength));
+							lengthFileOut.close();
+						}
+					}
+
+					// Now that we've restored the bucket to a valid state, reset the current file info
+					bucketState.currentFile = null;
+					bucketState.currentFileValidLength = -1;
+					bucketState.isWriterOpen = false;
 				} catch (IOException e) {
-					LOG.error("Restoring BucketingSink State: Error while renaming pending file {} to final path {}: {}", pendingPath, finalPath, e);
-					throw new RuntimeException("Error while renaming pending file " + pendingPath + " to final path " + finalPath, e);
+					LOG.error("Error while restoring BucketingSink state.", e);
+					throw new RuntimeException("Error while restoring BucketingSink state.", e);
+				} catch (InvocationTargetException | IllegalAccessException e) {
+					LOG.error("Could not invoke truncate.", e);
+					throw new RuntimeException("Could not invoke truncate.", e);
 				}
 			}
-		}
 
-		synchronized (bucketState.pendingFilesPerCheckpoint) {
-			bucketState.pendingFilesPerCheckpoint.clear();
+			// Move files that are confirmed by a checkpoint but did not get moved to final location
+			// because the checkpoint notification did not happen before a failure
+
+			LOG.debug("Moving pending files to final location on restore.");
+
+			Set<Long> pastCheckpointIds = bucketState.pendingFilesPerCheckpoint.keySet();
+			for (Long pastCheckpointId : pastCheckpointIds) {
+				// All the pending files are buckets that have been completed but are waiting to be renamed
+				// to their final name
+				for (String filename : bucketState.pendingFilesPerCheckpoint.get(pastCheckpointId)) {
+					Path finalPath = new Path(filename);
+					Path pendingPath = getPendingPathFor(finalPath);
+
+					try {
+						if (fs.exists(pendingPath)) {
+							LOG.debug("Restoring BucketingSink State: Moving pending file {} to final location after complete checkpoint {}.", pendingPath, pastCheckpointId);
+							fs.rename(pendingPath, finalPath);
+						}
+					} catch (IOException e) {
+						LOG.error("Restoring BucketingSink State: Error while renaming pending file {} to final path {}: {}", pendingPath, finalPath, e);
+						throw new RuntimeException("Error while renaming pending file " + pendingPath + " to final path " + finalPath, e);
+					}
+				}
+			}
+
+			synchronized (bucketState.pendingFilesPerCheckpoint) {
+				bucketState.pendingFilesPerCheckpoint.clear();
+			}
 		}
 	}
 
@@ -986,7 +971,6 @@ public class BucketingSink<T>
 	 */
 	@Deprecated
 	public BucketingSink<T> disableCleanupOnOpen() {
-		this.cleanupOnOpen = false;
 		return this;
 	}
 

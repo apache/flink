@@ -71,6 +71,11 @@ public class BucketingSinkTest {
 	private static org.apache.hadoop.fs.FileSystem dfs;
 	private static String hdfsURI;
 
+	private static final String PART_PREFIX = "part";
+	private static final String PENDING_SUFFIX = ".pending";
+	private static final String IN_PROGRESS_SUFFIX = ".in-progress";
+	private static final String VALID_LENGTH_SUFFIX = ".valid";
+
 	private OneInputStreamOperatorTestHarness<String, Object> createRescalingTestSink(
 		File outDir, int totalParallelism, int taskIdx, long inactivityInterval) throws Exception {
 
@@ -86,13 +91,13 @@ public class BucketingSinkTest {
 			.setWriter(new StringWriter<String>())
 			.setInactiveBucketCheckInterval(inactivityInterval)
 			.setInactiveBucketThreshold(inactivityInterval)
-			.setPartPrefix("part")
+			.setPartPrefix(PART_PREFIX)
 			.setInProgressPrefix("")
 			.setPendingPrefix("")
 			.setValidLengthPrefix("")
-			.setInProgressSuffix(".in-progress")
-			.setPendingSuffix(".pending")
-			.setValidLengthSuffix(".valid");
+			.setInProgressSuffix(IN_PROGRESS_SUFFIX)
+			.setPendingSuffix(PENDING_SUFFIX)
+			.setValidLengthSuffix(VALID_LENGTH_SUFFIX);
 
 		return createTestSink(sink, totalParallelism, taskIdx);
 	}
@@ -108,12 +113,12 @@ public class BucketingSinkTest {
 				}
 			})
 			.setWriter(new StringWriter<String>())
-			.setPartPrefix("part")
+			.setPartPrefix(PART_PREFIX)
 			.setPendingPrefix("")
 			.setInactiveBucketCheckInterval(5*60*1000L)
 			.setInactiveBucketThreshold(5*60*1000L)
-			.setPendingSuffix(".pending")
-			.setInProgressSuffix(".in-progress");
+			.setPendingSuffix(PENDING_SUFFIX)
+			.setInProgressSuffix(IN_PROGRESS_SUFFIX);
 
 		return createTestSink(sink, totalParallelism, taskIdx);
 	}
@@ -387,6 +392,8 @@ public class BucketingSinkTest {
 		testHarness3.initializeState(mergedSnapshot);
 		testHarness3.open();
 
+		checkFs(outDir, 0, 0, 5, 5);
+
 		testHarness1.processElement(new StreamRecord<>("test6", 0));
 		testHarness2.processElement(new StreamRecord<>("test6", 0));
 		testHarness3.processElement(new StreamRecord<>("test6", 0));
@@ -415,13 +422,13 @@ public class BucketingSinkTest {
 				continue;
 			}
 			String path = file.getPath();
-			if (path.endsWith(".in-progress")) {
+			if (path.endsWith(IN_PROGRESS_SUFFIX)) {
 				inProg++;
-			} else if (path.endsWith(".pending")) {
+			} else if (path.endsWith(PENDING_SUFFIX)) {
 				pend++;
-			} else if (path.endsWith(".valid")) {
+			} else if (path.endsWith(VALID_LENGTH_SUFFIX)) {
 				val++;
-			} else if (path.contains("part")) {
+			} else if (path.contains(PART_PREFIX)) {
 				compl++;
 			}
 		}
@@ -444,7 +451,7 @@ public class BucketingSinkTest {
 
 		BucketingSink<String> sink = new BucketingSink<String>(outPath)
 			.setBucketer(new BasePathBucketer<String>())
-			.setPartPrefix("part")
+			.setPartPrefix(PART_PREFIX)
 			.setPendingPrefix("")
 			.setPendingSuffix("");
 
@@ -461,7 +468,7 @@ public class BucketingSinkTest {
 
 		testHarness.close();
 
-		FSDataInputStream inStream = dfs.open(new Path(outPath + "/part-0-0"));
+		FSDataInputStream inStream = dfs.open(new Path(outPath + "/" + PART_PREFIX + "-0-0"));
 
 		BufferedReader br = new BufferedReader(new InputStreamReader(inStream));
 
@@ -486,7 +493,7 @@ public class BucketingSinkTest {
 		BucketingSink<Tuple2<IntWritable, Text>> sink = new BucketingSink<Tuple2<IntWritable, Text>>(outPath)
 			.setWriter(new SequenceFileWriter<IntWritable, Text>())
 			.setBucketer(new BasePathBucketer<Tuple2<IntWritable, Text>>())
-			.setPartPrefix("part")
+			.setPartPrefix(PART_PREFIX)
 			.setPendingPrefix("")
 			.setPendingSuffix("");
 
@@ -509,7 +516,7 @@ public class BucketingSinkTest {
 
 		testHarness.close();
 
-		FSDataInputStream inStream = dfs.open(new Path(outPath + "/part-0-0"));
+		FSDataInputStream inStream = dfs.open(new Path(outPath + "/" + PART_PREFIX + "-0-0"));
 
 		SequenceFile.Reader reader = new SequenceFile.Reader(inStream, 1000, 0, 100000, new Configuration());
 
@@ -547,7 +554,7 @@ public class BucketingSinkTest {
 		BucketingSink<Tuple2<Integer, String>> sink = new BucketingSink<Tuple2<Integer, String>>(outPath)
 			.setWriter(new AvroKeyValueSinkWriter<Integer, String>(properties))
 			.setBucketer(new BasePathBucketer<Tuple2<Integer, String>>())
-			.setPartPrefix("part")
+			.setPartPrefix(PART_PREFIX)
 			.setPendingPrefix("")
 			.setPendingSuffix("");
 
@@ -570,7 +577,7 @@ public class BucketingSinkTest {
 		GenericData.setStringType(valueSchema, GenericData.StringType.String);
 		Schema elementSchema = AvroKeyValueSinkWriter.AvroKeyValue.getSchema(keySchema, valueSchema);
 
-		FSDataInputStream inStream = dfs.open(new Path(outPath + "/part-0-0"));
+		FSDataInputStream inStream = dfs.open(new Path(outPath + "/" + PART_PREFIX + "-0-0"));
 
 		SpecificDatumReader<GenericRecord> elementReader = new SpecificDatumReader<>(elementSchema);
 		DataFileStream<GenericRecord> dataFileStream = new DataFileStream<>(inStream, elementReader);
@@ -600,7 +607,7 @@ public class BucketingSinkTest {
 
 		BucketingSink<String> sink = new BucketingSink<String>(outPath)
 			.setBucketer(new DateTimeBucketer<String>("ss"))
-			.setPartPrefix("part")
+			.setPartPrefix(PART_PREFIX)
 			.setPendingPrefix("")
 			.setPendingSuffix("");
 
@@ -706,7 +713,7 @@ public class BucketingSinkTest {
 		// we should have 4 buckets, with 1 file each
 		int numFiles = 0;
 		for (File file: FileUtils.listFiles(dataDir, null, true)) {
-			if (file.getName().startsWith("part")) {
+			if (file.getName().startsWith(PART_PREFIX)) {
 				numFiles++;
 			}
 		}
@@ -758,7 +765,7 @@ public class BucketingSinkTest {
 			if (file.getAbsolutePath().endsWith("crc")) {
 				continue;
 			}
-			if (file.getPath().contains("in-progress")) {
+			if (file.getPath().endsWith(IN_PROGRESS_SUFFIX)) {
 				numInProgress++;
 			}
 			numFiles++;
@@ -794,7 +801,7 @@ public class BucketingSinkTest {
 			.setFSConfig(conf)
 			.setWriter(new StreamWriterWithConfigCheck<Integer, String>(properties, "io.file.buffer.size", "40960"))
 			.setBucketer(new BasePathBucketer<Tuple2<Integer,String>>())
-			.setPartPrefix("part")
+			.setPartPrefix(PART_PREFIX)
 			.setPendingPrefix("")
 			.setPendingSuffix("");
 
@@ -817,7 +824,7 @@ public class BucketingSinkTest {
 		GenericData.setStringType(valueSchema, GenericData.StringType.String);
 		Schema elementSchema = AvroKeyValueSinkWriter.AvroKeyValue.getSchema(keySchema, valueSchema);
 
-		FSDataInputStream inStream = dfs.open(new Path(outPath + "/part-0-0"));
+		FSDataInputStream inStream = dfs.open(new Path(outPath + "/" + PART_PREFIX + "-0-0"));
 
 		SpecificDatumReader<GenericRecord> elementReader = new SpecificDatumReader<>(elementSchema);
 		DataFileStream<GenericRecord> dataFileStream = new DataFileStream<>(inStream, elementReader);

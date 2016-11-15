@@ -69,6 +69,9 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 
 	private static String outPath;
 
+	private static final String PENDING_SUFFIX = ".pending";
+	private static final String IN_PROGRESS_SUFFIX = ".in-progress";
+
 	@BeforeClass
 	public static void createHDFS() throws IOException {
 		Configuration conf = new Configuration();
@@ -112,7 +115,9 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 				.setBucketer(new BasePathBucketer<String>())
 				.setBatchSize(10000)
 				.setValidLengthPrefix("")
-				.setPendingPrefix("");
+				.setPendingPrefix("")
+				.setPendingSuffix(PENDING_SUFFIX)
+				.setInProgressSuffix(IN_PROGRESS_SUFFIX);
 
 		mapped.addSink(sink);
 
@@ -131,7 +136,6 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 		// elements twice.
 		Set<Integer> readNumbers = Sets.newHashSet();
 
-		int numRead = 0;
 		HashSet<String> uniqMessagesRead = new HashSet<>();
 		HashSet<String> messagesInCommittedFiles = new HashSet<>();
 
@@ -163,11 +167,10 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 				while (line != null) {
 					Matcher matcher = messageRegex.matcher(line);
 					if (matcher.matches()) {
-						numRead++;
 						uniqMessagesRead.add(line);
 
 						// check that in the committed files there are no duplicates
-						if (!file.getPath().toString().endsWith(".in-progress") && !file.getPath().toString().endsWith(".pending")) {
+						if (!file.getPath().toString().endsWith(IN_PROGRESS_SUFFIX) && !file.getPath().toString().endsWith(PENDING_SUFFIX)) {
 							if (!messagesInCommittedFiles.add(line)) {
 								Assert.fail("Duplicate entry in committed bucket.");
 							}
