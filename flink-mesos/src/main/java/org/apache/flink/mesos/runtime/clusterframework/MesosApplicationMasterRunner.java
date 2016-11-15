@@ -174,9 +174,13 @@ public class MesosApplicationMasterRunner {
 
 		int numberProcessors = Hardware.getNumberCPUCores();
 
-		final ExecutorService executor = Executors.newFixedThreadPool(
+		final ExecutorService futureExecutor = Executors.newFixedThreadPool(
 			numberProcessors,
 			new NamedThreadFactory("mesos-jobmanager-future-", "-thread-"));
+
+		final ExecutorService ioExecutor = Executors.newFixedThreadPool(
+			numberProcessors,
+			new NamedThreadFactory("mesos-jobmanager-io-", "-thread-"));
 
 		try {
 			// ------- (1) load and parse / validate all configurations -------
@@ -293,7 +297,8 @@ public class MesosApplicationMasterRunner {
 			ActorRef jobManager = JobManager.startJobManagerActors(
 				config,
 				actorSystem,
-				executor,
+				futureExecutor,
+				ioExecutor,
 				new scala.Some<>(JobManager.JOB_MANAGER_NAME()),
 				scala.Option.<String>empty(),
 				getJobManagerClass(),
@@ -399,7 +404,8 @@ public class MesosApplicationMasterRunner {
 			LOG.error("Failed to stop the artifact server", t);
 		}
 
-		executor.shutdownNow();
+		futureExecutor.shutdownNow();
+		ioExecutor.shutdownNow();
 
 		return 0;
 	}

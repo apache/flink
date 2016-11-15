@@ -105,7 +105,11 @@ abstract class FlinkMiniCluster(
 
   private var isRunning = false
 
-  val executor = Executors.newFixedThreadPool(
+  val futureExecutor = Executors.newFixedThreadPool(
+    Hardware.getNumberCPUCores(),
+    new NamedThreadFactory("mini-cluster-future-", "-thread"))
+
+  val ioExecutor = Executors.newFixedThreadPool(
     Hardware.getNumberCPUCores(),
     new NamedThreadFactory("mini-cluster-future-", "-thread"))
 
@@ -405,7 +409,8 @@ abstract class FlinkMiniCluster(
     jobManagerLeaderRetrievalService.foreach(_.stop())
     isRunning = false
 
-    executor.shutdownNow
+    futureExecutor.shutdownNow()
+    ioExecutor.shutdownNow()
   }
 
   protected def shutdown(): Unit = {

@@ -105,6 +105,7 @@ public class ProcessFailureCancelingITCase {
 				jmConfig,
 				jmActorSystem,
 				jmActorSystem.dispatcher(),
+				jmActorSystem.dispatcher(),
 				JobManager.class,
 				MemoryArchivist.class)._1();
 

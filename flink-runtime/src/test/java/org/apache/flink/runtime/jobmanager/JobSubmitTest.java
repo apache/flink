@@ -83,6 +83,7 @@ public class JobSubmitTest {
 			jmConfig,
 			jobManagerSystem,
 			jobManagerSystem.dispatcher(),
+			jobManagerSystem.dispatcher(),
 			JobManager.class,
 			MemoryArchivist.class)._1();
 

@@ -103,6 +103,7 @@ public abstract class TaskManagerProcessReapingTestBase {
 				new Configuration(),
 				jmActorSystem,
 				jmActorSystem.dispatcher(),
+				jmActorSystem.dispatcher(),
 				JobManager.class,
 				MemoryArchivist.class)._1;
 
