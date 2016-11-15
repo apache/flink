@@ -16,26 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.zookeeper;
+package org.apache.flink.runtime.util;
 
-import org.apache.flink.runtime.state.StateHandle;
+import java.util.concurrent.Executor;
 
-import java.io.Serializable;
+public class TestExecutors {
 
-/**
- * State storage helper which is used by {@link ZooKeeperStateHandleStore} to persist state before
- * the state handle is written to ZooKeeper.
- *
- * @param <T>
- */
-public interface StateStorageHelper<T extends Serializable> {
+	public static Executor directExecutor() {
+		return DirectExecutor.INSTANCE;
+	}
 
-	/**
-	 * Stores the given state and returns a state handle to it.
-	 *
-	 * @param state State to be stored
-	 * @return State handle to the stored state
-	 * @throws Exception
-	 */
-	StateHandle<T> store(T state) throws Exception;
+	private static final class DirectExecutor implements Executor {
+
+		public static final DirectExecutor INSTANCE = new DirectExecutor();
+
+		private DirectExecutor() {}
+
+		@Override
+		public void execute(Runnable command) {
+			command.run();
+		}
+	}
 }
