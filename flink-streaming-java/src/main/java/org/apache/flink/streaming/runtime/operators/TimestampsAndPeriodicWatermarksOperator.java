@@ -100,7 +100,9 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 		if (newWatermark != null && newWatermark.getTimestamp() > currentWatermark) {
 			currentWatermark = newWatermark.getTimestamp();
 			// emit watermark
-			output.emitWatermark(newWatermark);
+			if (output != null) {
+				output.emitWatermark(newWatermark);
+			}
 		}
 	}
 }

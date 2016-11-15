@@ -240,26 +240,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	@Override
 	public final void close() throws Exception {
 		super.close();
-
-		if (nextTimer != null) {
-			nextTimer.cancel(false);
-			nextTimer = null;
-		}
-
-		timestampedCollector = null;
-		watermarkTimers = null;
-		watermarkTimersQueue = null;
-		processingTimeTimers = null;
-		processingTimeTimersQueue = null;
-		context = null;
-		windowAssignerContext = null;
-		mergingWindowsByKey = null;
+		cleanup();
 	}
 
 	@Override
 	public void dispose() throws Exception {
 		super.dispose();
+		cleanup();
+	}
 
+	private void cleanup() {
 		if (nextTimer != null) {
 			nextTimer.cancel(false);
 			nextTimer = null;

@@ -187,7 +187,10 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 			readerContext.emitWatermark(Watermark.MAX_WATERMARK);
 			readerContext.close();
 		}
-		output.close();
+
+		if (output != null) {
+			output.close();
+		}
 	}
 
 	private class SplitReader<S extends Serializable, OT> extends Thread {
