@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.io.Serializable;
 
