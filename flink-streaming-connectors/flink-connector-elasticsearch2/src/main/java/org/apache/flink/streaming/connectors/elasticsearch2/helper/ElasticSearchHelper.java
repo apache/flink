@@ -17,6 +17,7 @@ package org.apache.flink.streaming.connectors.elasticsearch2.helper;
 import com.google.common.collect.ImmutableList;
 
 import org.apache.flink.streaming.connectors.elasticsearch2.ElasticsearchSink;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
@@ -34,22 +35,45 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 
+ * This class manages the creation of index templates and index mapping on elasticsearch.
+ * 
+ * <p>
+ * Example:
+ *
+ * <pre>{@code
+ *				ElasticSearchHelper esHelper = new ElasticSearchHelper(config, transports);
+ *
+ *				//Create an Index Template given a name and the json structure
+ * 				esHelper.initTemplate(templateName, templateRequest);
+ * 
+ * 				//Create an Index Mapping given the Index Name, DocType and the json structure
+ * 				esHelper.initIndexMapping(indexName, docType, mappingsRequest);
+ *
+ * }</pre>
+ * 
+ * <p>
+ * The {@link Map} passed to the constructor is forwarded to Elasticsearch when
+ * creating {@link TransportClient}. The config keys can be found in the
+ * Elasticsearch documentation. An important setting is {@code cluster.name},
+ * this should be set to the name of the cluster that the sink should emit to.
+ *
+ */
 public class ElasticSearchHelper {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSink.class);
 
 	private Client client;
+	
+	private final static int DEFAULT_INDEX_SHARDS = 2;
+	private final static int DEFAULT_INDEX_REPLICAS = 0;
 
 	/**
-	 * Creates a new ElasticSearchHelper that connects to the cluster using a
-	 * TransportClient.
+	 * Creates a new ElasticSearchHelper that connects to the cluster using a TransportClient.
 	 *
-	 * @param userConfig
-	 *            The map of user settings that are passed when constructing the
-	 *            TransportClients
-	 * @param transportAddresses
-	 *            The Elasticsearch Nodes to which to connect using a
-	 *            {@code TransportClient}
+	 * @param userConfig The map of user settings that are passed when constructing the TransportClients
+	 * @param transportAddresses The Elasticsearch Nodes to which to connect using a {@code TransportClient}
 	 */
 	public ElasticSearchHelper(Map<String, String> userConfig, List<InetSocketAddress> transportAddresses) {
 		client = buildElasticsearchClient(userConfig, transportAddresses);
@@ -58,12 +82,8 @@ public class ElasticSearchHelper {
 	/**
 	 * Build a TransportClient to connect to the cluster.
 	 * 
-	 * @param userConfig
-	 *            The map of user settings that are passed when constructing the
-	 *            TransportClients
-	 * @param transportAddresses
-	 *            The Elasticsearch Nodes to which to connect using a
-	 *            {@code TransportClient}
+	 * @param userConfig The map of user settings that are passed when constructing the TransportClients
+	 * @param transportAddresses The Elasticsearch Nodes to which to connect using a {@code TransportClient}
 	 * @return Initialized TransportClient
 	 */
 	public static Client buildElasticsearchClient(Map<String, String> userConfig,
@@ -92,10 +112,8 @@ public class ElasticSearchHelper {
 	/**
 	 * Create a new index template.
 	 * 
-	 * @param templateName
-	 *            Name of the template to create
-	 * @param templateReq
-	 *            Json defining the index template
+	 * @param templateName Name of the template to create
+	 * @param templateReq Json defining the index template
 	 */
 	public void initTemplate(String templateName, String templateReq) throws Exception {
 		// Check if the template is set
@@ -103,37 +121,65 @@ public class ElasticSearchHelper {
 			// Json deserialization
 			PutIndexTemplateRequest request = new PutIndexTemplateRequest(templateName).source(templateReq);
 			// Sending the request to elastic search
-			client.admin().indices().putTemplate(request).get();
+			sendIndexTemplateRequest(request);
+		}
+	}
+
+	/**
+	 * Send the index template request to elasticsearch.
+	 * 
+	 * @param indexTemplateRequest A valid index template request
+	 */
+	public void sendIndexTemplateRequest(PutIndexTemplateRequest indexTemplateRequest) throws Exception {
+		// Check if the template is set
+		if (indexTemplateRequest != null) {
+			// Sending the request to elastic search
+			client.admin().indices().putTemplate(indexTemplateRequest).get();
 		}
 	}
 
 	/**
 	 * Create a new mapping for a document type for an index.
 	 * 
-	 * @param indexName
-	 *            Index name where add the mapping
-	 * @param docType
-	 *            Document type of the mapping
-	 * @param mappingReq
-	 *            Json defining the index mapping
+	 * @param indexName Index name where add the mapping
+	 * @param docType Document type of the mapping
+	 * @param mappingReq Json defining the index mapping
 	 */
-	public void initIndexMapping(String indexName, String docType, String mappingReq) {
-		try {
-			// Check if the index exists
-			SearchResponse response = client.prepareSearch(indexName).setTypes(docType).get();
-			if (response != null) {
-				LOG.debug("Index found, no need to create it...");
-			}
-		} catch (IndexNotFoundException infe) {
-			// If the index does not exist, create it
-			client.admin().indices().prepareCreate(indexName)
-					.setSettings(Settings.builder().put("index.number_of_shards", 3).put("index.number_of_replicas", 2))
-					.execute().actionGet();
-			LOG.info("Index not found, creating it...");
-		}
+	public void initIndexMapping(String indexName, String docType, String mappingReq) throws Exception {
+		PutMappingRequest request=new PutMappingRequest(indexName).source(mappingReq).type(docType);
+		
 		// Put the mapping to the index
-		client.admin().indices().preparePutMapping(indexName).setType(docType).setSource(mappingReq).get();
+		sendIndexMappingRequest(request);
 		LOG.debug("Updating mappings...");
+	}
+	
+	/**
+	 * Send the index mapping request to elasticsearch.
+	 * 
+	 * @param mappingRequest A valid index mapping request
+	 */
+	public void sendIndexMappingRequest(PutMappingRequest mappingRequest) throws Exception {
+		// Check if the template is set
+		if (mappingRequest != null) {
+			try {
+				// Check if the index exists
+				SearchResponse response = client.prepareSearch(mappingRequest.indices())
+						.setTypes(mappingRequest.type()).get();
+				if (response != null) {
+					LOG.debug("Index found, no need to create it...");
+				}
+			} catch (IndexNotFoundException infe) {
+				for (String indexName:mappingRequest.indices()){
+					// If the index does not exist, create it
+					client.admin().indices().prepareCreate(indexName)
+							.setSettings(Settings.builder().put("index.number_of_shards", DEFAULT_INDEX_SHARDS)
+							.put("index.number_of_replicas", DEFAULT_INDEX_REPLICAS)).execute().actionGet();
+					LOG.info("Index "+indexName+" not found, creating it...");
+				}
+			}
+			// Sending the request to elastic search
+			client.admin().indices().putMapping(mappingRequest).get();
+		}
 	}
 
 }
