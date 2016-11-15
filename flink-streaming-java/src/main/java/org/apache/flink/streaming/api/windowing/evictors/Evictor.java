@@ -70,8 +70,7 @@ public interface Evictor<T, W extends Window> extends Serializable {
 	interface EvictorContext {
 
 		/**
-		 * Returns the current processing time, as returned by
-		 * the {@link ProcessingTimeService#getCurrentProcessingTime}.
+		 * Returns the current processing time.
 		 */
 		long getCurrentProcessingTime();
 
@@ -86,6 +85,10 @@ public interface Evictor<T, W extends Window> extends Serializable {
 		 */
 		MetricGroup getMetricGroup();
 
+		/**
+		 * Returns the current watermark time.
+		 */
+		long getCurrentWatermark();
 	}
 }
 

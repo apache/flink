@@ -63,7 +63,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 	private final Evictor<? super IN, ? super W> evictor;
 
-	protected transient EvictorContext evictorContext = new EvictorContext(null, null);
+	private transient EvictorContext evictorContext;
 
 	private final StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> windowStateDescriptor;
 
@@ -348,7 +348,12 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 		@Override
 		public long getCurrentProcessingTime() {
-			return EvictingWindowOperator.this.getProcessingTimeService().getCurrentProcessingTime();
+			return internalTimerService.currentProcessingTime();
+		}
+
+		@Override
+		public long getCurrentWatermark() {
+			return internalTimerService.currentWatermark();
 		}
 
 		@Override

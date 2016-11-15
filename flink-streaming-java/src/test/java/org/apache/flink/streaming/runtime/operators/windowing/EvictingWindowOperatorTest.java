@@ -59,8 +59,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class EvictingWindowOperatorTest {
 
-	// For counting if close() is called the correct number of times on the SumReducer
-
 	/**
 	 * Tests CountEvictor evictAfter behavior
 	 * @throws Exception
