@@ -24,6 +24,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
+import java.util.concurrent.Executor;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -35,9 +37,15 @@ public class ZooKeeperCheckpointRecoveryFactory implements CheckpointRecoveryFac
 
 	private final Configuration config;
 
-	public ZooKeeperCheckpointRecoveryFactory(CuratorFramework client, Configuration config) {
+	private final Executor executor;
+
+	public ZooKeeperCheckpointRecoveryFactory(
+			CuratorFramework client,
+			Configuration config,
+			Executor executor) {
 		this.client = checkNotNull(client, "Curator client");
 		this.config = checkNotNull(config, "Configuration");
+		this.executor = checkNotNull(executor, "Executor");
 	}
 
 	@Override
@@ -55,7 +63,7 @@ public class ZooKeeperCheckpointRecoveryFactory implements CheckpointRecoveryFac
 			throws Exception {
 
 		return ZooKeeperUtils.createCompletedCheckpoints(client, config, jobId,
-				NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN);
+				NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN, executor);
 	}
 
 	@Override
