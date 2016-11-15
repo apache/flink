@@ -140,9 +140,7 @@ class ALS extends Predictor[ALS] {
   // Stores the matrix factorization after the fitting phase
   var factorsOption: Option[(DataSet[Factors], DataSet[Factors])] = None
 
-  /** Sets the number of latent factors/row dimension of the latent model.
-    * We recommend working with highest number of factors feasible within
-    * computational limitations.
+  /** Sets the number of latent factors/row dimension of the latent model
     *
     * @param numFactors
     * @return
@@ -299,7 +297,7 @@ object ALS {
   // ========================================= Parameters ==========================================
 
   case object NumFactors extends Parameter[Int] {
-    val defaultValue: Option[Int] = Some(50)
+    val defaultValue: Option[Int] = Some(10)
   }
 
   case object Lambda extends Parameter[Double] {
