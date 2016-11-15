@@ -2528,8 +2528,8 @@ object JobManager {
           }
 
           (leaderElectionService,
-            ZooKeeperUtils.createSubmittedJobGraphs(client, configuration),
-            new ZooKeeperCheckpointRecoveryFactory(client, configuration))
+            ZooKeeperUtils.createSubmittedJobGraphs(client, configuration, executorService),
+            new ZooKeeperCheckpointRecoveryFactory(client, configuration, executorService))
       }
 
     val savepointStore = SavepointStoreFactory.createFromConfig(configuration)
