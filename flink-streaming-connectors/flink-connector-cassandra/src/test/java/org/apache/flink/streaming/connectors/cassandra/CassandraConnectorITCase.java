@@ -161,7 +161,11 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 		if (EMBEDDED) {
 			if (cassandra != null) {
-				cassandra.destroy();
+				try {
+					cassandra.destroy();
+				} catch (IllegalStateException ignored) {
+					// the process was never started
+				}
 			}
 		}
 	}
