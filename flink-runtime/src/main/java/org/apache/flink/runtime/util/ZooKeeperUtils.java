@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -188,11 +189,13 @@ public class ZooKeeperUtils {
 	 *
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object
+	 * @param executor to run ZooKeeper callbacks
 	 * @return {@link ZooKeeperSubmittedJobGraphStore} instance
 	 */
 	public static ZooKeeperSubmittedJobGraphStore createSubmittedJobGraphs(
 			CuratorFramework client,
-			Configuration configuration) throws Exception {
+			Configuration configuration,
+			Executor executor) throws Exception {
 
 		checkNotNull(configuration, "Configuration");
 
@@ -204,7 +207,7 @@ public class ZooKeeperUtils {
 				ConfigConstants.DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH);
 
 		return new ZooKeeperSubmittedJobGraphStore(
-				client, zooKeeperSubmittedJobsPath, stateStorage);
+				client, zooKeeperSubmittedJobsPath, stateStorage, executor);
 	}
 
 	/**
@@ -215,6 +218,7 @@ public class ZooKeeperUtils {
 	 * @param jobId                          ID of job to create the instance for
 	 * @param maxNumberOfCheckpointsToRetain The maximum number of checkpoints to retain
 	 * @param userClassLoader                User code class loader
+	 * @param executor to run ZooKeeper callbacks
 	 * @return {@link ZooKeeperCompletedCheckpointStore} instance
 	 */
 	public static CompletedCheckpointStore createCompletedCheckpoints(
@@ -222,7 +226,8 @@ public class ZooKeeperUtils {
 			Configuration configuration,
 			JobID jobId,
 			int maxNumberOfCheckpointsToRetain,
-			ClassLoader userClassLoader) throws Exception {
+			ClassLoader userClassLoader,
+			Executor executor) throws Exception {
 
 		checkNotNull(configuration, "Configuration");
 
@@ -237,11 +242,12 @@ public class ZooKeeperUtils {
 		checkpointsPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
 
 		return new ZooKeeperCompletedCheckpointStore(
-				maxNumberOfCheckpointsToRetain,
-				userClassLoader,
-				client,
-				checkpointsPath,
-				stateStorage);
+			maxNumberOfCheckpointsToRetain,
+			userClassLoader,
+			client,
+			checkpointsPath,
+			stateStorage,
+			executor);
 	}
 
 	/**
