@@ -159,6 +159,12 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-python_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-scala-shell_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
@@ -459,6 +465,7 @@ under the License.
 									<exclude>org.apache.flink:flink-examples-streaming</exclude>
 									<exclude>org.apache.flink:flink-examples-table</exclude>
 									<exclude>org.apache.flink:flink-python</exclude>
+									<exclude>org.apache.flink:flink-streaming-python</exclude>
 									<exclude>org.slf4j:slf4j-log4j12</exclude>
 									<exclude>log4j:log4j</exclude>
 								</excludes>
