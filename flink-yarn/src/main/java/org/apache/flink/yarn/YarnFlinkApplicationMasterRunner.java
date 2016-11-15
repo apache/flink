@@ -27,6 +27,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -36,11 +37,10 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
-import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
@@ -53,9 +53,7 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.SignalHandler;
-import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -67,13 +65,15 @@ import scala.concurrent.duration.FiniteDuration;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * This class is the executable entry point for the YARN flink application master.
- * It starts {@link org.apache.flink.runtime.jobmaster.JobMaster}
+ * This class is the executable entry point for the YARN application master.
+ * It starts actor system and the actors for {@link org.apache.flink.runtime.jobmaster.JobMaster}
  * and {@link org.apache.flink.yarn.YarnResourceManager}.
  *
  * The JobMasters handles Flink job execution, while the YarnResourceManager handles container
@@ -90,42 +90,44 @@ public class YarnFlinkApplicationMasterRunner implements LeaderContender, OnComp
 	/** The exit code returned if the initialization of the application master failed */
 	private static final int INIT_ERROR_EXIT_CODE = 31;
 
-    /** The lock to guard startup / shutdown / manipulation methods */
-    private final Object lock = new Object();
+	/** The job graph file path */
+	private static final String JOB_GRAPH_FILE_PATH = "flink.jobgraph.path";
 
-    @GuardedBy("lock")
-    private MetricRegistry metricRegistry;
+	/** The lock to guard startup / shutdown / manipulation methods */
+	private final Object lock = new Object();
 
-    @GuardedBy("lock")
-    private HighAvailabilityServices haServices;
+	@GuardedBy("lock")
+	private MetricRegistry metricRegistry;
 
-    @GuardedBy("lock")
-    private RpcService jobMasterRpcService;
+	@GuardedBy("lock")
+	private HighAvailabilityServices haServices;
 
-    @GuardedBy("lock")
-    private RpcService resourceManagerRpcService;
+	@GuardedBy("lock")
+	private LeaderElectionService jmLeaderElectionService;
 
-    @GuardedBy("lock")
-    private ResourceManager resourceManager;
+	@GuardedBy("lock")
+	private RpcService jobMasterRpcService;
 
-    @GuardedBy("lock")
-    private JobMaster jobMaster;
+	@GuardedBy("lock")
+	private RpcService resourceManagerRpcService;
 
-    @GuardedBy("lock")
-    JobManagerServices jobManagerServices;
+	@GuardedBy("lock")
+	private ResourceManager resourceManager;
 
-    @GuardedBy("lock")
-    JobManagerMetricGroup jobManagerMetrics;
+	@GuardedBy("lock")
+	private JobMaster jobMaster;
 
-    @GuardedBy("lock")
-    private JobGraph jobGraph;
+	@GuardedBy("lock")
+	JobManagerServices jobManagerServices;
 
-    @GuardedBy("lock")
-    WebMonitor webMonitor;
+	@GuardedBy("lock")
+	JobManagerMetricGroup jobManagerMetrics;
 
-    /** Flag marking the app master runner as started/running */
-    @GuardedBy("lock")
-    private boolean running;
+	@GuardedBy("lock")
+	private JobGraph jobGraph;
+
+	/** Flag marking the app master runner as started/running */
+	private volatile boolean running;
 	// ------------------------------------------------------------------------
 	//  Program entry point
 	// ------------------------------------------------------------------------
@@ -142,7 +144,7 @@ public class YarnFlinkApplicationMasterRunner implements LeaderContender, OnComp
 
 		// run and exit with the proper return code
 		int returnCode = new YarnFlinkApplicationMasterRunner().run(args);
-        System.exit(returnCode);
+		System.exit(returnCode);
 	}
 
 	/**
@@ -236,77 +238,63 @@ public class YarnFlinkApplicationMasterRunner implements LeaderContender, OnComp
 	protected int runApplicationMaster(Configuration config) {
 
 		try {
-            // ---- (1) create common services
-            // Note that we use the "appMasterHostname" given by YARN here, to make sure
-            // we use the hostnames given by YARN consistently throughout akka.
-            // for akka "localhost" and "localhost.localdomain" are different actors.
-            final String appMasterHostname = ENV.get(Environment.NM_HOST.key());
-            require(appMasterHostname != null,
-                    "ApplicationMaster hostname variable %s not set", Environment.NM_HOST.key());
-            LOG.info("YARN assigned hostname for application master: {}", appMasterHostname);
+			// ---- (1) create common services
+			// Note that we use the "appMasterHostname" given by YARN here, to make sure
+			// we use the hostnames given by YARN consistently throughout akka.
+			// for akka "localhost" and "localhost.localdomain" are different actors.
+			final String appMasterHostname = ENV.get(Environment.NM_HOST.key());
+			require(appMasterHostname != null,
+					"ApplicationMaster hostname variable %s not set", Environment.NM_HOST.key());
+			LOG.info("YARN assigned hostname for application master: {}", appMasterHostname);
 
-            // try to start the rpc service
-            // using the port range definition from the config.
-            final String amPortRange = config.getString(
-                    ConfigConstants.YARN_APPLICATION_MASTER_PORT,
-                    ConfigConstants.DEFAULT_YARN_JOB_MANAGER_PORT);
+			// try to start the rpc service
+			// using the port range definition from the config.
+			final String amPortRange = config.getString(
+					ConfigConstants.YARN_APPLICATION_MASTER_PORT,
+					ConfigConstants.DEFAULT_YARN_JOB_MANAGER_PORT);
 
-            synchronized (lock) {
-                haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config);
-                metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+			synchronized (lock) {
+				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config);
+				metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
-                // ---- (2) init resource manager -------
-                resourceManagerRpcService = createRpcService(config, appMasterHostname, amPortRange);
-                resourceManager = createResourceManager(config);
+				// ---- (2) init resource manager -------
+				resourceManagerRpcService = createRpcService(config, appMasterHostname, amPortRange);
+				resourceManager = createResourceManager(config);
 
-                // ---- (3) init job master parameters
-                jobMasterRpcService = createRpcService(config, appMasterHostname, amPortRange);
-                jobManagerServices = JobManagerServices.fromConfiguration(config, haServices);
-                jobManagerMetrics = new JobManagerMetricGroup(metricRegistry, jobMasterRpcService.getAddress());
-                jobMaster = createJobMaster(config);
+				// ---- (3) init job master parameters
+				jobMasterRpcService = createRpcService(config, appMasterHostname, amPortRange);
+				jobManagerServices = JobManagerServices.fromConfiguration(config, haServices);
+				jobManagerMetrics = new JobManagerMetricGroup(metricRegistry, jobMasterRpcService.getAddress());
+				jobMaster = createJobMaster(config);
 
-                // ---- (4) start the resource manager  and job master:
-                resourceManager.start();
-                LOG.debug("YARN Flink Resource Manager started");
+				// ---- (4) start the resource manager  and job master:
+				resourceManager.start();
+				LOG.debug("YARN Flink Resource Manager started");
 
-                // mark the job as running in the HA services
-                try {
-                    haServices.getRunningJobsRegistry().setJobRunning(jobGraph.getJobID());
-                }
-                catch (Throwable t) {
-                    throw new JobExecutionException(jobGraph.getJobID(),
-                            "Could not register the job at the high-availability services", t);
-                }
-                jobMaster.start(UUID.randomUUID());
-                LOG.debug("JobMaster started");
+				// mark the job as running in the HA services
+				try {
+					haServices.getRunningJobsRegistry().setJobRunning(jobGraph.getJobID());
+				}
+				catch (Throwable t) {
+					throw new JobExecutionException(jobGraph.getJobID(),
+							"Could not register the job at the high-availability services", t);
+				}
+				jmLeaderElectionService.start(this);
 
-                // ---- (5) start the web monitor
-                /**
-                LOG.debug("Starting Web Frontend");
-
-                webMonitor = BootstrapTools.startWebMonitorIfConfigured(config, actorSystem, jobManager, LOG);
-
-                String protocol = "http://";
-                if (config.getBoolean(ConfigConstants.JOB_MANAGER_WEB_SSL_ENABLED,
-                    ConfigConstants.DEFAULT_JOB_MANAGER_WEB_SSL_ENABLED) && SSLUtils.getSSLEnabled(config)) {
-                    protocol = "https://";
-                }
-                final String webMonitorURL = webMonitor == null ? null :
-                    protocol + appMasterHostname + ":" + webMonitor.getServerPort();
-
-                */
-                running = true;
-            }
-            while (running) {
-                Thread.sleep(100);
-            }
-            // everything started, we can wait until all is done or the process is killed
-            LOG.info("YARN Application Master finished");
+				// ---- (5) start the web monitor
+				// TODO: add web monitor
+			}
+			running = true;
+			while (running) {
+				Thread.sleep(100);
+			}
+			// everything started, we can wait until all is done or the process is killed
+			LOG.info("YARN Application Master finished");
 		}
 		catch (Throwable t) {
 			// make sure that everything whatever ends up in the log
 			LOG.error("YARN Application Master initialization failed", t);
-            shutdown();
+			shutdown(ApplicationStatus.FAILED, t.getMessage());
 			return INIT_ERROR_EXIT_CODE;
 		}
 
@@ -322,7 +310,7 @@ public class YarnFlinkApplicationMasterRunner implements LeaderContender, OnComp
 	 * 
 	 * @param condition The condition.
 	 * @param message The message for the runtime exception, with format variables as defined by
-	 *                {@link String#format(String, Object...)}.
+	 *				{@link String#format(String, Object...)}.
 	 * @param values The format arguments.
 	 */
 	private static void require(boolean condition, String message, Object... values) {
@@ -330,137 +318,155 @@ public class YarnFlinkApplicationMasterRunner implements LeaderContender, OnComp
 			throw new RuntimeException(String.format(message, values));
 		}
 	}
-    protected RpcService createRpcService(
-            Configuration configuration,
-            String bindAddress,
-            String portRange) throws Exception{
-        ActorSystem actorSystem = BootstrapTools.startActorSystem(configuration, bindAddress, portRange, LOG);
-        FiniteDuration duration = AkkaUtils.getTimeout(configuration);
-        return new AkkaRpcService(actorSystem, Time.of(duration.length(), duration.unit()));
-    }
+	protected RpcService createRpcService(
+			Configuration configuration,
+			String bindAddress,
+			String portRange) throws Exception{
+		ActorSystem actorSystem = BootstrapTools.startActorSystem(configuration, bindAddress, portRange, LOG);
+		FiniteDuration duration = AkkaUtils.getTimeout(configuration);
+		return new AkkaRpcService(actorSystem, Time.of(duration.length(), duration.unit()));
+	}
 
-    private ResourceManager createResourceManager(Configuration config) throws ConfigurationException {
-        final ResourceManagerConfiguration resourceManagerConfiguration = ResourceManagerConfiguration.fromConfiguration(config);
-        final SlotManagerFactory slotManagerFactory = new DefaultSlotManager.Factory();
-        final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(haServices);
+	private ResourceManager createResourceManager(Configuration config) throws ConfigurationException {
+		final ResourceManagerConfiguration resourceManagerConfiguration = ResourceManagerConfiguration.fromConfiguration(config);
+		final SlotManagerFactory slotManagerFactory = new DefaultSlotManager.Factory();
+		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(haServices);
 
-        return new YarnResourceManager(config,
-                ENV,
-                resourceManagerRpcService,
-                resourceManagerConfiguration,
-                haServices,
-                slotManagerFactory,
-                metricRegistry,
-                jobLeaderIdService,
-                this);
-    }
+		return new YarnResourceManager(config,
+				ENV,
+				resourceManagerRpcService,
+				resourceManagerConfiguration,
+				haServices,
+				slotManagerFactory,
+				metricRegistry,
+				jobLeaderIdService,
+				this);
+	}
 
-    private JobMaster createJobMaster(Configuration config) throws Exception{
-        // get JobGraph from local resources
-        jobGraph = loadJobGraph();
+	private JobMaster createJobMaster(Configuration config) throws Exception{
+		// get JobGraph from local resources
+		jobGraph = loadJobGraph(config);
+		if (jobGraph == null) {
+			throw new Exception("Fail to load job graph");
+		}
 
-        // libraries and class loader
-        final BlobLibraryCacheManager libraryCacheManager = jobManagerServices.libraryCacheManager;
-        try {
-            libraryCacheManager.registerJob(
-                    jobGraph.getJobID(), jobGraph.getUserJarBlobKeys(), jobGraph.getClasspaths());
-        } catch (IOException e) {
-            throw new Exception("Cannot set up the user code libraries: " + e.getMessage(), e);
-        }
+		// libraries and class loader
+		final BlobLibraryCacheManager libraryCacheManager = jobManagerServices.libraryCacheManager;
+		try {
+			libraryCacheManager.registerJob(
+					jobGraph.getJobID(), jobGraph.getUserJarBlobKeys(), jobGraph.getClasspaths());
+		} catch (IOException e) {
+			throw new Exception("Cannot set up the user code libraries: " + e.getMessage(), e);
+		}
 
-        final ClassLoader userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID());
-        if (userCodeLoader == null) {
-            throw new Exception("The user code class loader could not be initialized.");
-        }
+		final ClassLoader userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID());
+		if (userCodeLoader == null) {
+			throw new Exception("The user code class loader could not be initialized.");
+		}
+		// set self address to ha service for rm to find itself.
+		jmLeaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
-        // now the JobManager
-        return new JobMaster(
-                jobGraph, config,
-                jobMasterRpcService,
-                haServices,
-                jobManagerServices.executorService,
-                jobManagerServices.libraryCacheManager,
-                jobManagerServices.restartStrategyFactory,
-                jobManagerServices.rpcAskTimeout,
-                jobManagerMetrics,
-                this,
-                this,
-                userCodeLoader);
-    }
+		// now the JobManager
+		return new JobMaster(
+				jobGraph, config,
+				jobMasterRpcService,
+				haServices,
+				jobManagerServices.executorService,
+				jobManagerServices.libraryCacheManager,
+				jobManagerServices.restartStrategyFactory,
+				jobManagerServices.rpcAskTimeout,
+				jobManagerMetrics,
+				this,
+				this,
+				userCodeLoader);
+	}
 
-    protected void shutdown() {
-        synchronized (lock) {
-            try {
-                haServices.getRunningJobsRegistry().setJobFinished(jobGraph.getJobID());
-            }
-            catch (Throwable t) {
-                LOG.error("Could not un-register from high-availability services job {} ({}).",
-                        jobGraph.getName(), jobGraph.getJobID(), t);
-            }
-            if (webMonitor != null) {
-                try {
-                    webMonitor.stop();
-                } catch (Throwable ignored) {
-                    LOG.warn("Failed to stop the web frontend", ignored);
-                }
-            }
-            try {
-                jobManagerServices.shutdown();
-            } catch (Throwable tt) {
-                LOG.error("Error while shutting down JobManager services", tt);
-            }
-            if (jobManagerMetrics != null) {
-                jobManagerMetrics.close();
-            }
-            if (jobMaster != null) {
-                try {
-                    jobMaster.shutDown();
-                } catch (Throwable tt) {
-                    LOG.warn("Failed to stop the JobMaster", tt);
-                }
-            }
-            if (resourceManager != null) {
-                try {
-                    resourceManager.shutDown();
-                } catch (Throwable tt) {
-                    LOG.warn("Failed to stop the ResourceManager", tt);
-                }
-            }
-            if (jobMasterRpcService != null) {
-                try {
-                    jobMasterRpcService.stopService();
-                } catch (Throwable tt) {
-                    LOG.error("Error shutting down job master rpc service", tt);
-                }
-            }
-            if (resourceManagerRpcService != null) {
-                try {
-                    resourceManagerRpcService.stopService();
-                } catch (Throwable tt) {
-                    LOG.error("Error shutting down resource manager rpc service", tt);
-                }
-            }
-            if (haServices != null) {
-                try {
-                    haServices.shutdown();
-                } catch (Throwable tt) {
-                    LOG.warn("Failed to stop the HA service", tt);
-                }
-            }
-            if (metricRegistry != null) {
-                try {
-                    metricRegistry.shutdown();
-                } catch (Throwable tt) {
-                    LOG.warn("Failed to stop the metrics registry", tt);
-                }
-            }
-            running = false;
-        }
-    }
+	protected void shutdown(ApplicationStatus status, String msg) {
+		synchronized (lock) {
+			try {
+				haServices.getRunningJobsRegistry().setJobFinished(jobGraph.getJobID());
+			}
+			catch (Throwable t) {
+				LOG.error("Could not un-register from high-availability services job {} ({}).",
+						jobGraph.getName(), jobGraph.getJobID(), t);
+			}
+			try {
+				jobManagerServices.shutdown();
+			} catch (Throwable tt) {
+				LOG.error("Error while shutting down JobManager services", tt);
+			}
+			if (jobManagerMetrics != null) {
+				jobManagerMetrics.close();
+			}
+			if (jmLeaderElectionService != null) {
+				try {
+					jmLeaderElectionService.stop();
+				} catch (Throwable ignored) {
+					LOG.warn("Failed to stop the job master leader election service", ignored);
+				}
+			}
+			if (jobMaster != null) {
+				try {
+					jobMaster.shutDown();
+				} catch (Throwable tt) {
+					LOG.warn("Failed to stop the JobMaster", tt);
+				}
+			}
+			if (resourceManager != null) {
+				try {
+					resourceManager.shutDownCluster(status, msg);
+					resourceManager.shutDown();
+				} catch (Throwable tt) {
+					LOG.warn("Failed to stop the ResourceManager", tt);
+				}
+			}
+			if (resourceManagerRpcService != null) {
+				try {
+					resourceManagerRpcService.stopService();
+				} catch (Throwable tt) {
+					LOG.error("Error shutting down resource manager rpc service", tt);
+				}
+			}
+			if (jobMasterRpcService != null) {
+				try {
+					jobMasterRpcService.stopService();
+				} catch (Throwable tt) {
+					LOG.error("Error shutting down job master rpc service", tt);
+				}
+			}
+			if (haServices != null) {
+				try {
+					haServices.shutdown();
+				} catch (Throwable tt) {
+					LOG.warn("Failed to stop the HA service", tt);
+				}
+			}
+			if (metricRegistry != null) {
+				try {
+					metricRegistry.shutdown();
+				} catch (Throwable tt) {
+					LOG.warn("Failed to stop the metrics registry", tt);
+				}
+			}
+		}
+		running = false;
+	}
 
-    private JobGraph loadJobGraph() {
-        return null;
-    }
+	private static JobGraph loadJobGraph(Configuration config) throws Exception {
+		// TODO:
+		JobGraph jg = null;
+		String jobGraphFile = config.getString(JOB_GRAPH_FILE_PATH, null);
+		if (jobGraphFile != null) {
+			File fp = new File(jobGraphFile);
+			if (fp.isFile()) {
+				FileInputStream input = new FileInputStream(fp);
+				ObjectInputStream obInput = new ObjectInputStream(input);
+				jg = (JobGraph) obInput.readObject();
+				input.close();
+			}
+		}
+		return jg;
+	}
 
 	/**
 	 * 
@@ -517,65 +523,90 @@ public class YarnFlinkApplicationMasterRunner implements LeaderContender, OnComp
 	}
 
 
-    //-------------------------------------------------------------------------------------
-    // Fatal error handler
-    //-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	// Fatal error handler
+	//-------------------------------------------------------------------------------------
 
-    @Override
-    public void onFatalError(Throwable exception) {
-        LOG.error("Encountered fatal error.", exception);
+	@Override
+	public void onFatalError(Throwable exception) {
+		LOG.error("Encountered fatal error.", exception);
 
-        shutdown();
-    }
+		shutdown(ApplicationStatus.FAILED, exception.getMessage());
+	}
 
-    //----------------------------------------------------------------------------------------------
-    // Leadership methods
-    //----------------------------------------------------------------------------------------------
+	//----------------------------------------------------------------------------------------------
+	// Leadership methods
+	//----------------------------------------------------------------------------------------------
 
-    @Override
-    public void grantLeadership(final UUID leaderSessionID) {
-        throw new UnsupportedOperationException("Yarn app master does not need leader select");
-    }
+	@Override
+	public void grantLeadership(final UUID leaderSessionID) {
+		synchronized (lock) {
+			if (!running) {
+				LOG.info("JobManagerRunner already shutdown.");
+				return;
+			}
 
-    @Override
-    public void revokeLeadership() {
-        throw new UnsupportedOperationException("Yarn app master does not need leader select");
-    }
+			LOG.info("JobMaster was granted leadership with session id {}.", leaderSessionID);
 
-    @Override
-    public String getAddress() {
-        throw new UnsupportedOperationException("Yarn app master does not need leader select");
-    }
+			// The operation may be blocking, but since this runner is idle before it been granted the leadership,
+			// it's okay that job manager wait for the operation complete
+			jmLeaderElectionService.confirmLeaderSessionID(leaderSessionID);
 
-    @Override
-    public void handleError(Exception exception) {
-        throw new UnsupportedOperationException("Yarn app master does not need leader select");
-    }
-    //----------------------------------------------------------------------------------------------
-    // Result and error handling methods
-    //----------------------------------------------------------------------------------------------
+			
+			// Double check the leadership in case this one is failed and yarn start another one.
+			if (jmLeaderElectionService.hasLeadership()) {
+				try {
+					jobMaster.start(leaderSessionID);
+					LOG.debug("JobMaster started");
+				} catch (Exception e) {
+					onFatalError(new Exception("Could not start the job manager.", e));
+				}
+			} else {
+				LOG.info("There are another job master ");
+				jobFinishedByOther();
+			}
+		}
+	}
 
-    /**
-     * Job completion notification triggered by JobManager
-     */
-    @Override
-    public void jobFinished(JobExecutionResult result) {
-        shutdown();
-    }
+	@Override
+	public void revokeLeadership() {
+		throw new UnsupportedOperationException("Yarn app master does not need leader select");
+	}
 
-    /**
-     * Job completion notification triggered by JobManager
-     */
-    @Override
-    public void jobFailed(Throwable cause) {
-        shutdown();
-    }
+	@Override
+	public String getAddress() {
+		return jobMaster.getAddress();
+	}
 
-    /**
-     * Job completion notification triggered by self
-     */
-    @Override
-    public void jobFinishedByOther() {
-        shutdown();
-    }
+	@Override
+	public void handleError(Exception exception) {
+		throw new UnsupportedOperationException("Yarn app master does not need leader select");
+	}
+	//----------------------------------------------------------------------------------------------
+	// Result and error handling methods
+	//----------------------------------------------------------------------------------------------
+
+	/**
+	 * Job completion notification triggered by JobManager
+	 */
+	@Override
+	public void jobFinished(JobExecutionResult result) {
+		shutdown(ApplicationStatus.SUCCEEDED, null);
+	}
+
+	/**
+	 * Job completion notification triggered by JobManager
+	 */
+	@Override
+	public void jobFailed(Throwable cause) {
+		shutdown(ApplicationStatus.FAILED, cause.getMessage());
+	}
+
+	/**
+	 * Job completion notification triggered by self
+	 */
+	@Override
+	public void jobFinishedByOther() {
+		shutdown(ApplicationStatus.UNKNOWN, null);
+	}
 }
