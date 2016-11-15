@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -96,6 +97,8 @@ public class CheckpointStateRestoreTest {
 			map.put(statefulId, stateful);
 			map.put(statelessId, stateless);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			CheckpointCoordinator coord = new CheckpointCoordinator(
 				jid,
 				200000L,
@@ -110,7 +113,8 @@ public class CheckpointStateRestoreTest {
 				new StandaloneCompletedCheckpointStore(1),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			// create ourselves a checkpoint with state
 			final long timestamp = 34623786L;
@@ -172,6 +176,8 @@ public class CheckpointStateRestoreTest {
 	@Test
 	public void testNoCheckpointAvailable() {
 		try {
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			CheckpointCoordinator coord = new CheckpointCoordinator(
 				new JobID(),
 				200000L,
@@ -186,7 +192,8 @@ public class CheckpointStateRestoreTest {
 				new StandaloneCompletedCheckpointStore(1),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			try {
 				coord.restoreLatestCheckpointedState(new HashMap<JobVertexID, ExecutionJobVertex>(), true, false);
@@ -228,6 +235,8 @@ public class CheckpointStateRestoreTest {
 		tasks.put(jobVertexId1, jobVertex1);
 		tasks.put(jobVertexId2, jobVertex2);
 
+		MetricGroup metricGroup = mock(MetricGroup.class);
+
 		CheckpointCoordinator coord = new CheckpointCoordinator(
 			new JobID(),
 			Integer.MAX_VALUE,
@@ -242,7 +251,8 @@ public class CheckpointStateRestoreTest {
 			new StandaloneCompletedCheckpointStore(1),
 			null,
 			new DisabledCheckpointStatsTracker(),
-			Executors.directExecutor());
+			Executors.directExecutor(),
+			metricGroup);
 
 		ChainedStateHandle<StreamStateHandle> serializedState = CheckpointCoordinatorTest
 				.generateChainedStateHandle(new SerializableObject());

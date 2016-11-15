@@ -209,7 +209,8 @@ public class ExecutionGraphBuilder {
 					checkpointIdCounter,
 					completedCheckpoints,
 					externalizedCheckpointsDir,
-					checkpointStatsTracker);
+					checkpointStatsTracker,
+					metrics);
 		}
 
 		return executionGraph;

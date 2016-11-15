@@ -25,6 +25,7 @@ import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -61,6 +62,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 public class ArchivedExecutionGraphTest {
 	private static JobVertexID v1ID = new JobVertexID();
@@ -89,6 +91,8 @@ public class ArchivedExecutionGraphTest {
 		List<JobVertex> vertices = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
 		ExecutionConfig config = new ExecutionConfig();
+
+		MetricGroup metricGroup = mock(MetricGroup.class);
 
 		config.setExecutionMode(ExecutionMode.BATCH_FORCED);
 		config.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
@@ -119,7 +123,8 @@ public class ArchivedExecutionGraphTest {
 			new StandaloneCheckpointIDCounter(),
 			new StandaloneCompletedCheckpointStore(1),
 			null,
-			new TestCheckpointStatsTracker());
+			new TestCheckpointStatsTracker(),
+			metricGroup);
 
 		Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<>();
 		userAccumulators.put("userAcc", new LongCounter(64));

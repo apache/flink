@@ -21,6 +21,9 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.checkpoint.stats.PendingCheckpointStats;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
@@ -40,15 +43,21 @@ import org.apache.flink.runtime.state.TaskStateHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.ArrayDeque;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Executor;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -170,7 +179,8 @@ public class CheckpointCoordinator {
 			CompletedCheckpointStore completedCheckpointStore,
 			String checkpointDirectory,
 			CheckpointStatsTracker statsTracker,
-			Executor executor) {
+			Executor executor,
+			MetricGroup metrics) {
 
 		// sanity checks
 		checkArgument(baseInterval > 0, "Checkpoint timeout must be larger than zero");
@@ -213,6 +223,8 @@ public class CheckpointCoordinator {
 		} else {
 			checkpointProperties = CheckpointProperties.forStandardCheckpoint();
 		}
+
+		metrics.gauge("pendingCheckpointStat", new PendingCheckpointStatGauge());
 
 		try {
 			// Make sure the checkpoint ID enumerator is running. Possibly
@@ -956,5 +968,66 @@ public class CheckpointCoordinator {
 				}
 			}
 		});
+	}
+
+	// ------------------------------------------------------------------------
+	//  pending checkpoints stats metrics
+	// ------------------------------------------------------------------------
+	private class PendingCheckpointStatGauge implements Gauge<List<PendingCheckpointStats>> {
+
+		@Override
+		public List<PendingCheckpointStats> getValue() {
+			List<PendingCheckpointStats> pendingCheckpointStatsList = new ArrayList<>();
+
+			for (PendingCheckpoint checkpoint : pendingCheckpoints.values()) {
+				long checkpointId = checkpoint.getCheckpointId();
+				long triggerTime = checkpoint.getCheckpointTimestamp();
+				int numberOfAckTasks = checkpoint.getNumberOfAcknowledgedTasks();
+				int numberOfNonAckTasks = checkpoint.getNumberOfNonAcknowledgedTasks();
+
+				// Acknowledged tasks for double check NonAcknowledged tasks
+				Set<String> ackTasks = new HashSet<>();
+				for (TaskState taskState : checkpoint.getTaskStates().values()) {
+					JobVertexID jobVertexID = taskState.getJobVertexID();
+					for (int subtaskId : taskState.getSubtaskStates().keySet()) {
+						ackTasks.add(jobVertexID + "_" + subtaskId);
+					}
+				}
+
+				// Not yet Acknowledged tasks
+				Map<JobVertexID, Set<Integer>> nonAckTasks = new HashMap<>();
+				for (ExecutionVertex executionVertex : checkpoint.getNotYetAcknowledgedTasks().values()) {
+					JobVertexID jobVertexID = executionVertex.getJobvertexId();
+					int subtaskId = executionVertex.getParallelSubtaskIndex();
+
+					// this task is acknowledged already, skip it
+					if (ackTasks.contains(jobVertexID + "_" + subtaskId)) {
+						numberOfNonAckTasks--;
+						continue;
+					}
+
+					Set<Integer> subtasks = nonAckTasks.get(jobVertexID);
+					if (subtasks == null) {
+						subtasks = new HashSet<>();
+						nonAckTasks.put(jobVertexID, subtasks);
+					}
+					subtasks.add(subtaskId);
+				}
+
+				PendingCheckpointStats pendingCheckpointStats = new PendingCheckpointStats(
+						checkpointId,
+						triggerTime,
+						numberOfAckTasks,
+						numberOfNonAckTasks,
+						nonAckTasks);
+
+				// skip discarded checkpoint stat
+				if (!checkpoint.isDiscarded()) {
+					pendingCheckpointStatsList.add(pendingCheckpointStats);
+				}
+			}
+
+			return pendingCheckpointStatsList;
+		}
 	}
 }
