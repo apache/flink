@@ -312,6 +312,19 @@ public class MiniCluster {
 			resourceManagerRunners = null;
 		}
 
+		if (taskManagerRunners != null) {
+			for (TaskManagerRunner tm : taskManagerRunners) {
+				if (tm != null) {
+					try {
+						tm.shutDown(null);
+					} catch (Throwable t) {
+						exception = firstOrSuppressed(t, exception);
+					}
+				}
+			}
+			taskManagerRunners = null;
+		}
+
 		// shut down the RpcServices
 		exception = shutDownRpc(commonRpcService, exception);
 		exception = shutDownRpcs(jobManagerRpcServices, exception);
