@@ -126,7 +126,8 @@ class LocalFlinkMiniCluster(
     jobRecoveryTimeout,
     metricsRegistry) = JobManager.createJobManagerComponents(
       config,
-      executor,
+      futureExecutor,
+      ioExecutor,
       createLeaderElectionService())
 
     val archive = system.actorOf(
@@ -139,7 +140,7 @@ class LocalFlinkMiniCluster(
       getJobManagerProps(
         jobManagerClass,
         config,
-        executor,
+        futureExecutor,
         instanceManager,
         scheduler,
         libraryCacheManager,

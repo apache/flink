@@ -400,6 +400,7 @@ public class JobManagerTest {
 					config,
 					system,
 					system.dispatcher(),
+					system.dispatcher(),
 					TestingJobManager.class,
 					MemoryArchivist.class)._1(),
 				leaderSessionId);
@@ -607,6 +608,7 @@ public class JobManagerTest {
 				config,
 				actorSystem,
 				actorSystem.dispatcher(),
+				actorSystem.dispatcher(),
 				Option.apply("jm"),
 				Option.apply("arch"),
 				TestingJobManager.class,
@@ -734,6 +736,7 @@ public class JobManagerTest {
 				config,
 				actorSystem,
 				actorSystem.dispatcher(),
+				actorSystem.dispatcher(),
 				Option.apply("jm"),
 				Option.apply("arch"),
 				TestingJobManager.class,
@@ -830,6 +833,7 @@ public class JobManagerTest {
 			Tuple2<ActorRef, ActorRef> master = JobManager.startJobManagerActors(
 				new Configuration(),
 				actorSystem,
+				actorSystem.dispatcher(),
 				actorSystem.dispatcher(),
 				Option.apply("jm"),
 				Option.apply("arch"),
