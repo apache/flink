@@ -122,6 +122,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 	 *
 	 */
 	private static boolean stopProducer = false;
+
 	public void runAutoOffsetResetTest() throws Exception {
 		final String topic = "auto-offset-reset-test";
 
@@ -129,7 +130,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		final int elementsPerPartition = 50000;
 
 		Properties tprops = new Properties();
-		tprops.setProperty("retention.ms", "250");
+		tprops.setProperty("retention.ms", "100");
 		kafkaServer.createTestTopic(topic, parallelism, 1, tprops);
 
 		final StreamExecutionEnvironment env =
@@ -172,8 +173,14 @@ public class KafkaShortRetentionTestBase implements Serializable {
 
 		// ----------- add consumer dataflow ----------
 
+		// the consumer should only poll very small chunks
+		Properties consumerProps = new Properties();
+		consumerProps.putAll(standardProps);
+		consumerProps.putAll(secureProps);
+		consumerProps.setProperty("fetch.message.max.bytes", "100");
+
 		NonContinousOffsetsDeserializationSchema deserSchema = new NonContinousOffsetsDeserializationSchema();
-		FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, deserSchema, props);
+		FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, deserSchema, consumerProps);
 
 		DataStreamSource<String> consuming = env.addSource(source);
 		consuming.addSink(new DiscardingSink<String>());
