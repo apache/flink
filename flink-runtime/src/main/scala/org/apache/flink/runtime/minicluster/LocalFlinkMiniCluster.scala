@@ -114,8 +114,7 @@ class LocalFlinkMiniCluster(
       config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort + index)
     }
 
-    val (executorService,
-    instanceManager,
+    val (instanceManager,
     scheduler,
     libraryCacheManager,
     restartStrategyFactory,
@@ -125,7 +124,10 @@ class LocalFlinkMiniCluster(
     submittedJobGraphStore,
     checkpointRecoveryFactory,
     jobRecoveryTimeout,
-    metricsRegistry) = JobManager.createJobManagerComponents(config, createLeaderElectionService())
+    metricsRegistry) = JobManager.createJobManagerComponents(
+      config,
+      executor,
+      createLeaderElectionService())
 
     val archive = system.actorOf(
       getArchiveProps(
@@ -137,7 +139,7 @@ class LocalFlinkMiniCluster(
       getJobManagerProps(
         jobManagerClass,
         config,
-        executorService,
+        executor,
         instanceManager,
         scheduler,
         libraryCacheManager,
