@@ -80,6 +80,7 @@ public class TaskManagerComponentsStartupShutdownTest {
 			final ActorRef jobManager = JobManager.startJobManagerActors(
 				config,
 				actorSystem,
+				actorSystem.dispatcher(),
 				JobManager.class,
 				MemoryArchivist.class)._1();
 

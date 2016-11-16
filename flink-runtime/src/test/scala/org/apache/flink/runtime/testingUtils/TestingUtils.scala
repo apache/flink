@@ -19,26 +19,25 @@
 package org.apache.flink.runtime.testingUtils
 
 import java.util.UUID
+import java.util.concurrent.Executor
 
-import akka.actor.{Props, Kill, ActorSystem, ActorRef}
+import akka.actor.{ActorRef, ActorSystem, Kill, Props}
 import akka.pattern.ask
 import com.google.common.util.concurrent.MoreExecutors
-
 import com.typesafe.config.ConfigFactory
 import grizzled.slf4j.Logger
 import org.apache.flink.api.common.JobExecutionResult
-
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.client.JobClient
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.jobgraph.JobGraph
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
+import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist}
 import org.apache.flink.runtime.testutils.TestingResourceManager
 import org.apache.flink.runtime.util.LeaderRetrievalUtils
-import org.apache.flink.runtime.{LogMessages, LeaderSessionMessageFilter, FlinkActor}
+import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.instance.{AkkaActorGateway, ActorGateway}
+import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.taskmanager.TaskManager
@@ -304,15 +303,18 @@ object TestingUtils {
   /** Creates a testing JobManager using the default recovery mode (standalone)
     *
     * @param actorSystem The ActorSystem to use
+    * @param executor to run the JobManager's futures
     * @param configuration The Flink configuration
     * @return
     */
   def createJobManager(
       actorSystem: ActorSystem,
+      executor: Executor,
       configuration: Configuration)
     : ActorGateway = {
     createJobManager(
       actorSystem,
+      executor,
       configuration,
       classOf[TestingJobManager],
       ""
@@ -323,86 +325,43 @@ object TestingUtils {
     * Additional prefix can be supplied for the Actor system names
     *
     * @param actorSystem The ActorSystem to use
+    * @param executor to run the JobManager's futures
     * @param configuration The Flink configuration
     * @param prefix The prefix for the actor names
     * @return
     */
   def createJobManager(
       actorSystem: ActorSystem,
+      executor: Executor,
       configuration: Configuration,
       prefix: String)
     : ActorGateway = {
     createJobManager(
       actorSystem,
+      executor,
       configuration,
       classOf[TestingJobManager],
       prefix
     )
   }
 
-  def createJobManager(
-      actorSystem: ActorSystem,
-      configuration: Configuration,
-      executionContext: ExecutionContext)
-    : ActorGateway = {
-
-    val (_,
-    instanceManager,
-    scheduler,
-    libraryCacheManager,
-    restartStrategy,
-    timeout,
-    archiveCount,
-    leaderElectionService,
-    submittedJobGraphs,
-    checkpointRecoveryFactory,
-    savepointStore,
-    jobRecoveryTimeout,
-    metricsRegistry) = JobManager.createJobManagerComponents(
-      configuration,
-      None
-    )
-
-    val archiveProps = Props(classOf[TestingMemoryArchivist], archiveCount)
-
-    val archive: ActorRef = actorSystem.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
-
-    val jobManagerProps = Props(
-      classOf[TestingJobManager],
-      configuration,
-      executionContext,
-      instanceManager,
-      scheduler,
-      libraryCacheManager,
-      archive,
-      restartStrategy,
-      timeout,
-      leaderElectionService,
-      submittedJobGraphs,
-      checkpointRecoveryFactory,
-      jobRecoveryTimeout,
-      metricsRegistry)
-
-    val jobManager: ActorRef = actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
-
-    new AkkaActorGateway(jobManager, null)
-  }
-
   /**
     * Creates a JobManager of the given class using the default recovery mode (standalone)
     *
     * @param actorSystem ActorSystem to use
+    * @param executor to run the JobManager's futures
     * @param configuration Configuration to use
     * @param jobManagerClass JobManager class to instantiate
     * @return
     */
   def createJobManager(
       actorSystem: ActorSystem,
+      executor: Executor,
       configuration: Configuration,
       jobManagerClass: Class[_ <: JobManager])
     : ActorGateway = {
 
-    createJobManager(actorSystem, configuration, jobManagerClass, "")
+    createJobManager(actorSystem, executor, configuration, jobManagerClass, "")
   }
 
   /**
@@ -410,6 +369,7 @@ object TestingUtils {
     * Additional prefix for the Actor names can be added.
     *
     * @param actorSystem ActorSystem to use
+    * @param executor to run the JobManager's futures
     * @param configuration Configuration to use
     * @param jobManagerClass JobManager class to instantiate
     * @param prefix The prefix to use for the Actor names
@@ -418,6 +378,7 @@ object TestingUtils {
     */
   def createJobManager(
       actorSystem: ActorSystem,
+      executor: Executor,
       configuration: Configuration,
       jobManagerClass: Class[_ <: JobManager],
       prefix: String)
@@ -428,6 +389,7 @@ object TestingUtils {
       val (actor, _) = JobManager.startJobManagerActors(
         configuration,
         actorSystem,
+        executor,
         Some(prefix + JobManager.JOB_MANAGER_NAME),
         Some(prefix + JobManager.ARCHIVE_NAME),
         jobManagerClass,
