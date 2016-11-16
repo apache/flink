@@ -180,9 +180,13 @@ public class YarnApplicationMasterRunner {
 
 		int numberProcessors = Hardware.getNumberCPUCores();
 
-		final ExecutorService executor = Executors.newFixedThreadPool(
+		final ExecutorService futureExecutor = Executors.newFixedThreadPool(
 			numberProcessors,
 			new NamedThreadFactory("yarn-jobmanager-future-", "-thread-"));
+
+		final ExecutorService ioExecutor = Executors.newFixedThreadPool(
+			numberProcessors,
+			new NamedThreadFactory("yarn-jobmanager-io-", "-thread-"));
 
 		try {
 			// ------- (1) load and parse / validate all configurations -------
@@ -289,7 +293,8 @@ public class YarnApplicationMasterRunner {
 			ActorRef jobManager = JobManager.startJobManagerActors(
 				config,
 				actorSystem,
-				executor,
+				futureExecutor,
+				ioExecutor,
 				new scala.Some<>(JobManager.JOB_MANAGER_NAME()),
 				scala.Option.<String>empty(),
 				getJobManagerClass(),
@@ -377,7 +382,8 @@ public class YarnApplicationMasterRunner {
 			}
 		}
 
-		executor.shutdownNow();
+		futureExecutor.shutdownNow();
+		ioExecutor.shutdownNow();
 
 		return 0;
 	}

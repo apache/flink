@@ -81,6 +81,7 @@ public class TaskManagerComponentsStartupShutdownTest {
 				config,
 				actorSystem,
 				actorSystem.dispatcher(),
+				actorSystem.dispatcher(),
 				JobManager.class,
 				MemoryArchivist.class)._1();
 

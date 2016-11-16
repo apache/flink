@@ -130,6 +130,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 				jmConfig,
 				jmActorSystem,
 				jmActorSystem.dispatcher(),
+				jmActorSystem.dispatcher(),
 				JobManager.class,
 				MemoryArchivist.class)._1();
 
