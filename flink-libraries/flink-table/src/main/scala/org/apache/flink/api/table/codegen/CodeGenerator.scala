@@ -26,6 +26,7 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, Function, MapFunction}
+import org.apache.flink.api.common.io.GenericInputFormat
 import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfo}
@@ -35,7 +36,7 @@ import org.apache.flink.api.table.codegen.Indenter.toISC
 import org.apache.flink.api.table.codegen.calls.ScalarFunctions
 import org.apache.flink.api.table.codegen.calls.ScalarOperators._
 import org.apache.flink.api.table.functions.UserDefinedFunction
-import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.table.typeutils.{RowTypeInfo, TypeConverter}
 import org.apache.flink.api.table.typeutils.TypeCheckUtils._
 import org.apache.flink.api.table.{FlinkTypeFactory, TableConfig}
 
@@ -98,6 +99,13 @@ class CodeGenerator(
       inputPojoFieldMapping: Array[Int]) =
     this(config, nullableInput, input, None, Some(inputPojoFieldMapping))
 
+  /**
+    * A code generator for generating Flink input formats.
+    *
+    * @param config configuration that determines runtime behavior
+    */
+  def this(config: TableConfig) =
+    this(config, false, TypeConverter.DEFAULT_ROW_TYPE, None, None)
 
   // set of member statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
@@ -254,6 +262,61 @@ class CodeGenerator(
     """.stripMargin
 
     GeneratedFunction(funcName, returnType, funcCode)
+  }
+
+  /**
+    * Generates a values input format that can be passed to Java compiler.
+    *
+    * @param name Class name of the input format. Must not be unique but has to be a
+    *             valid Java class identifier.
+    * @param records code for creating records
+    * @param returnType expected return type
+    * @tparam T Flink Function to be generated.
+    * @return instance of GeneratedFunction
+    */
+  def generateValuesInputFormat[T](
+      name: String,
+      records: Seq[String],
+      returnType: TypeInformation[Any])
+    : GeneratedFunction[GenericInputFormat[T]] = {
+    val funcName = newName(name)
+
+    addReusableOutRecord(returnType)
+
+    val funcCode = j"""
+      public class $funcName extends ${classOf[GenericInputFormat[_]].getCanonicalName} {
+
+        private int nextIdx = 0;
+
+        ${reuseMemberCode()}
+
+        public $funcName() throws Exception {
+          ${reuseInitCode()}
+        }
+
+        @Override
+        public boolean reachedEnd() throws java.io.IOException {
+          return nextIdx >= ${records.length};
+        }
+
+        @Override
+        public Object nextRecord(Object reuse) {
+          switch (nextIdx) {
+            ${records.zipWithIndex.map { case (r, i) =>
+              s"""
+                 |case $i:
+                 |  $r
+                 |break;
+               """.stripMargin
+            }.mkString("\n")}
+          }
+          nextIdx++;
+          return $outRecordTerm;
+        }
+      }
+    """.stripMargin
+
+    GeneratedFunction[GenericInputFormat[T]](funcName, returnType, funcCode)
   }
 
   /**

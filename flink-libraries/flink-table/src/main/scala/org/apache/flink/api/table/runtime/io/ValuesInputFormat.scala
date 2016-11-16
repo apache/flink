@@ -19,25 +19,35 @@
 package org.apache.flink.api.table.runtime.io
 
 import org.apache.flink.api.common.io.{GenericInputFormat, NonParallelInput}
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable
+import org.apache.flink.api.table.runtime.Compiler
+import org.apache.flink.core.io.GenericInputSplit
+import org.slf4j.LoggerFactory
 
-class ValuesInputFormat(val rows: Seq[Row])
-  extends GenericInputFormat[Row]
-    with NonParallelInput {
+class ValuesInputFormat[OUT](
+    name: String,
+    code: String,
+    @transient returnType: TypeInformation[OUT])
+  extends GenericInputFormat[OUT]
+  with NonParallelInput
+  with ResultTypeQueryable[OUT]
+  with Compiler[GenericInputFormat[OUT]] {
 
-  var readIdx = 0
+  val LOG = LoggerFactory.getLogger(this.getClass)
 
-  override def reachedEnd(): Boolean = readIdx == rows.size
+  private var format: GenericInputFormat[OUT] = _
 
-  override def nextRecord(reuse: Row): Row = {
-
-    if (readIdx == rows.size) {
-      return null
-    }
-
-    val outRow = rows(readIdx)
-    readIdx += 1
-
-    outRow
+  override def open(split: GenericInputSplit): Unit = {
+    LOG.debug(s"Compiling GenericInputFormat: $name \n\n Code:\n$code")
+    val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
+    LOG.debug("Instantiating GenericInputFormat.")
+    format = clazz.newInstance()
   }
+
+  override def reachedEnd(): Boolean = format.reachedEnd()
+
+  override def nextRecord(reuse: OUT): OUT = format.nextRecord(reuse)
+
+  override def getProducedType: TypeInformation[OUT] = returnType
 }

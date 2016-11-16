@@ -31,11 +31,11 @@ class FlatMapRunner[IN, OUT](
     @transient returnType: TypeInformation[OUT])
   extends RichFlatMapFunction[IN, OUT]
   with ResultTypeQueryable[OUT]
-  with FunctionCompiler[FlatMapFunction[IN, OUT]] {
+  with Compiler[FlatMapFunction[IN, OUT]] {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
-  private var function: FlatMapFunction[IN, OUT] = null
+  private var function: FlatMapFunction[IN, OUT] = _
 
   override def open(parameters: Configuration): Unit = {
     LOG.debug(s"Compiling FlatMapFunction: $name \n\n Code:\n$code")

@@ -25,13 +25,13 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.StreamTableEnvironment
+import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.runtime.io.ValuesInputFormat
-import org.apache.flink.api.table.{Row, StreamTableEnvironment}
-import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.table.typeutils.TypeConverter._
 import org.apache.flink.streaming.api.datastream.DataStream
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
   * DataStream RelNode for LogicalValues.
@@ -40,7 +40,8 @@ class DataStreamValues(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     rowRelDataType: RelDataType,
-    tuples: ImmutableList[ImmutableList[RexLiteral]])
+    tuples: ImmutableList[ImmutableList[RexLiteral]],
+    ruleDescription: String)
   extends Values(cluster, rowRelDataType, tuples, traitSet)
   with DataStreamRel {
 
@@ -51,13 +52,15 @@ class DataStreamValues(
       cluster,
       traitSet,
       getRowType,
-      getTuples
+      getTuples,
+      ruleDescription
     )
   }
 
   override def translateToPlan(
       tableEnv: StreamTableEnvironment,
-      expectedType: Option[TypeInformation[Any]]) : DataStream[Any] = {
+      expectedType: Option[TypeInformation[Any]])
+    : DataStream[Any] = {
 
     val config = tableEnv.getConfig
 
@@ -65,16 +68,29 @@ class DataStreamValues(
       getRowType,
       expectedType,
       config.getNullCheck,
-      config.getEfficientTypeUsage).asInstanceOf[RowTypeInfo]
+      config.getEfficientTypeUsage)
 
-    // convert List[RexLiteral] to Row
-    val rows: Seq[Row] = getTuples.asList.map { t =>
-      val row = new Row(t.size())
-      t.zipWithIndex.foreach( x => row.setField(x._2, x._1.getValue.asInstanceOf[Any]) )
-      row
+    val generator = new CodeGenerator(config)
+
+    // generate code for every record
+    val generatedRecords = getTuples.asScala.map { r =>
+      generator.generateResultExpression(
+        returnType,
+        getRowType.getFieldNames.asScala,
+        r.asScala)
     }
 
-    val inputFormat = new ValuesInputFormat(rows)
+    // generate input format
+    val generatedFunction = generator.generateValuesInputFormat(
+      ruleDescription,
+      generatedRecords.map(_.code),
+      returnType)
+
+    val inputFormat = new ValuesInputFormat[Any](
+      generatedFunction.name,
+      generatedFunction.code,
+      generatedFunction.returnType)
+
     tableEnv.execEnv.createInput(inputFormat, returnType).asInstanceOf[DataStream[Any]]
   }
 

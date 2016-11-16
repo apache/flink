@@ -42,6 +42,26 @@ public class SqlITCase extends TableProgramsTestBase {
 	}
 
 	@Test
+	public void testValues() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		String sqlQuery = "VALUES (1, 'Test', TRUE, DATE '1944-02-24', 12.4444444444444445)," +
+			"(2, 'Hello', TRUE, DATE '1944-02-24', 12.666666665)," +
+			"(3, 'World', FALSE, DATE '1944-12-24', 12.54444445)";
+		Table result = tableEnv.sql(sqlQuery);
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		resultSet.print();
+		List<Row> results = resultSet.collect();
+		String expected = "3,World,false,1944-12-24,12.5444444500000000\n" +
+			"2,Hello,true,1944-02-24,12.6666666650000000\n" +
+			// Calcite converts to decimals and strings with equal length
+			"1,Test ,true,1944-02-24,12.4444444444444445\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
 	public void testSelectFromTable() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
