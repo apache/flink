@@ -25,7 +25,7 @@ import org.apache.flink.ml.math._
 import org.apache.flink.ml.preprocessing.{PolynomialFeatures, StandardScaler}
 import org.apache.flink.ml.regression.MultipleLinearRegression
 import org.apache.flink.ml.util.FlinkTestBase
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{Matchers, FlatSpec}
 
 class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
   behavior of "Flink's pipelines"
@@ -208,5 +208,4 @@ class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
       svm.predict(doubleData)
     }
   }
-
 }
