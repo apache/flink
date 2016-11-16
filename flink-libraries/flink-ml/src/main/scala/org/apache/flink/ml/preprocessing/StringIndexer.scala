@@ -1,16 +1,19 @@
 package org.apache.flink.ml.preprocessing
 
+import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.extensions.acceptPartialFunctions
-import org.apache.flink.api.scala.utils._
 import org.apache.flink.ml.common.{Parameter, ParameterMap}
 import org.apache.flink.ml.pipeline.{FitOperation, TransformDataSetOperation, Transformer}
 import org.apache.flink.ml.preprocessing.StringIndexer.HandleInvalid
+import org.apache.flink.api.scala.utils._
 
 import scala.collection.immutable.Seq
 
 /**
-  * String Indexer
+  * A label indexer that maps a string label to an index.
+  * The indices are in [0, numLabels), ordered by label frequencies.
+  * The most frequent label gets index 0.
   */
 class StringIndexer extends Transformer[StringIndexer] {
 
@@ -51,26 +54,39 @@ object StringIndexer {
     }
   }
 
+  /**
+    * Sort the labels by frequency and assign an index.
+    *
+    * @param input a dataset containing labels
+    * @return a new dataset with an index for each label
+    */
   private def extractIndices(input: DataSet[String]): DataSet[(String, Long)] = {
 
     val mapping = input
       .mapWith( s => (s, 1) )
       .groupBy( 0 )
-      .reduce( (a, b) => (a._1, a._2 + b._2) )
-      .partitionByRange( 1 )
+      .sum(1)
+      .partitionByRange( x => - x._2 )
+      .sortPartition(1, Order.DESCENDING)
       .zipWithIndex
       .mapWith { case (id, (label, count)) => (label, id) }
+
+    mapping.print()
 
     mapping
   }
 
   /**
-    * [[TransformDataSetOperation]] which returns a new dataset with the index added
+    * [[TransformDataSetOperation]] which returns a new dataset of (label,index)
+    * If "skip" is choosen, unseen labels are ignored and the corresponding lines
+    * are skipped. Otherwise we throw an Exception.
     */
 
   implicit def transformStringDataset ={
     new TransformDataSetOperation[StringIndexer, String, (String, Long)] {
-      def transformDataSet(instance: StringIndexer, transformParameters: ParameterMap, input: DataSet[String]) ={
+      def transformDataSet(instance: StringIndexer,
+                           transformParameters: ParameterMap,
+                           input: DataSet[String]) ={
 
         val resultingParameters = instance.parameters ++ transformParameters
         val handleInvalid = resultingParameters( HandleInvalid )

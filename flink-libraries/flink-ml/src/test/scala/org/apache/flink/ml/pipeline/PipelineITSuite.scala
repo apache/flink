@@ -19,39 +19,16 @@
 package org.apache.flink.ml.pipeline
 
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.common.LabeledVector
-import org.apache.flink.ml.math.DenseVector
-import org.apache.flink.ml.preprocessing.{PolynomialFeatures, StandardScaler, StringIndexer}
+import org.apache.flink.ml.classification.SVM
+import org.apache.flink.ml.common.{ParameterMap, LabeledVector}
+import org.apache.flink.ml.math._
+import org.apache.flink.ml.preprocessing.{PolynomialFeatures, StandardScaler}
+import org.apache.flink.ml.regression.MultipleLinearRegression
 import org.apache.flink.ml.util.FlinkTestBase
-import org.scalatest.{Matchers, FlatSpec}
+import org.scalatest.{FlatSpec, Matchers}
 
 class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
   behavior of "Flink's pipelines"
-
-  it should "fit and transform with StringIndexer" in {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-
-    val fitData = env.fromCollection(List("a", "b","c","a","a","a"))
-    val rawData = env.fromCollection(List("a","a","b","e","d"))
-
-    val stringIndexer = StringIndexer()
-      .setHandleInvalid("skip")
-
-    stringIndexer.fit(fitData)
-
-    val transformedDataFromFitted = stringIndexer.transform(fitData).collect().toList
-    val transformedDataFromRawData = stringIndexer.transform(rawData).collect().toList
-
-    transformedDataFromFitted.size should be (6)
-    transformedDataFromRawData.size should be (3)
-
-    for( (label,count) <- (transformedDataFromFitted ::: transformedDataFromRawData)) {
-      if (label == "a") count should be (2)
-      else if (label == "b") count should be (0)
-      else count should be (1)
-    }
-  }
-
 
   it should "support chaining of compatible transformer" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -98,7 +75,7 @@ class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
       expectedScaledLabeledVectorSet should contain(scaledLabeledVector)
     }
   }
-/*
+
   it should "throw an exception when the pipeline operators are not compatible" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -231,5 +208,5 @@ class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
       svm.predict(doubleData)
     }
   }
-  */
+
 }
