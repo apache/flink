@@ -366,6 +366,8 @@ public class JobManagerTest extends TestLogger {
 	}
 
 	/**
+					system.dispatcher(),
+				actorSystem.dispatcher(),
 	 * Tests that we can trigger a
 	 *
 	 * @throws Exception
@@ -390,6 +392,7 @@ public class JobManagerTest extends TestLogger {
 			Tuple2<ActorRef, ActorRef> master = JobManager.startJobManagerActors(
 				config,
 				actorSystem,
+				actorSystem.dispatcher(),
 				actorSystem.dispatcher(),
 				Option.apply("jm"),
 				Option.apply("arch"),
@@ -484,6 +487,7 @@ public class JobManagerTest extends TestLogger {
 			Tuple2<ActorRef, ActorRef> master = JobManager.startJobManagerActors(
 				new Configuration(),
 				actorSystem,
+				actorSystem.dispatcher(),
 				actorSystem.dispatcher(),
 				Option.apply("jm"),
 				Option.apply("arch"),

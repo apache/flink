@@ -109,7 +109,8 @@ class TestingCluster(
     jobRecoveryTimeout,
     metricRegistry) = JobManager.createJobManagerComponents(
       config,
-      executor,
+      futureExecutor,
+      ioExecutor,
       createLeaderElectionService())
 
     val testArchiveProps = Props(new TestingMemoryArchivist(archiveCount))
@@ -118,7 +119,7 @@ class TestingCluster(
     val jobManagerProps = Props(
       new TestingJobManager(
         configuration,
-        executor,
+        futureExecutor,
         instanceManager,
         scheduler,
         libraryCacheManager,

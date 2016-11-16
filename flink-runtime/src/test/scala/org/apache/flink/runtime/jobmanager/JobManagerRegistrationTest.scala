@@ -169,6 +169,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       new Configuration(),
       _system,
       _system.dispatcher,
+      _system.dispatcher,
       None,
       None,
       classOf[JobManager],
