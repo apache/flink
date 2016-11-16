@@ -45,8 +45,10 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.runtime.util.NamedThreadFactory;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 
@@ -66,6 +68,8 @@ import java.net.URL;
 import java.security.PrivilegedAction;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.mesos.Utils.uri;
@@ -75,7 +79,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This class is the executable entry point for the Mesos Application Master.
- * It starts actor system and the actors for {@link org.apache.flink.runtime.jobmanager.JobManager}
+ * It starts actor system and the actors for {@link JobManager}
  * and {@link MesosFlinkResourceManager}.
  *
  * The JobManager handles Flink job execution, while the MesosFlinkResourceManager handles container
@@ -167,6 +171,12 @@ public class MesosApplicationMasterRunner {
 		ActorSystem actorSystem = null;
 		WebMonitor webMonitor = null;
 		MesosArtifactServer artifactServer = null;
+
+		int numberProcessors = Hardware.getNumberCPUCores();
+
+		final ExecutorService executor = Executors.newFixedThreadPool(
+			numberProcessors,
+			new NamedThreadFactory("mesos-jobmanager-future-", "-thread-"));
 
 		try {
 			// ------- (1) load and parse / validate all configurations -------
@@ -281,7 +291,9 @@ public class MesosApplicationMasterRunner {
 
 			// we start the JobManager with its standard name
 			ActorRef jobManager = JobManager.startJobManagerActors(
-				config, actorSystem,
+				config,
+				actorSystem,
+				executor,
 				new scala.Some<>(JobManager.JOB_MANAGER_NAME()),
 				scala.Option.<String>empty(),
 				getJobManagerClass(),
@@ -386,6 +398,8 @@ public class MesosApplicationMasterRunner {
 		} catch (Throwable t) {
 			LOG.error("Failed to stop the artifact server", t);
 		}
+
+		executor.shutdownNow();
 
 		return 0;
 	}

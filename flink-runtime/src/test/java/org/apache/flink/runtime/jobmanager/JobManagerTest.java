@@ -397,10 +397,11 @@ public class JobManagerTest {
 		UUID leaderSessionId = null;
 		ActorGateway jobManager = new AkkaActorGateway(
 				JobManager.startJobManagerActors(
-						config,
-						system,
-						TestingJobManager.class,
-						MemoryArchivist.class)._1(),
+					config,
+					system,
+					system.dispatcher(),
+					TestingJobManager.class,
+					MemoryArchivist.class)._1(),
 				leaderSessionId);
 
 		LeaderRetrievalService leaderRetrievalService = new StandaloneLeaderRetrievalService(
@@ -603,12 +604,13 @@ public class JobManagerTest {
 			actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
 
 			Tuple2<ActorRef, ActorRef> master = JobManager.startJobManagerActors(
-					config,
-					actorSystem,
-					Option.apply("jm"),
-					Option.apply("arch"),
-					TestingJobManager.class,
-					TestingMemoryArchivist.class);
+				config,
+				actorSystem,
+				actorSystem.dispatcher(),
+				Option.apply("jm"),
+				Option.apply("arch"),
+				TestingJobManager.class,
+				TestingMemoryArchivist.class);
 
 			jobManager = new AkkaActorGateway(master._1(), null);
 			archiver = new AkkaActorGateway(master._2(), null);
@@ -729,12 +731,13 @@ public class JobManagerTest {
 			actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
 
 			Tuple2<ActorRef, ActorRef> master = JobManager.startJobManagerActors(
-					config,
-					actorSystem,
-					Option.apply("jm"),
-					Option.apply("arch"),
-					TestingJobManager.class,
-					TestingMemoryArchivist.class);
+				config,
+				actorSystem,
+				actorSystem.dispatcher(),
+				Option.apply("jm"),
+				Option.apply("arch"),
+				TestingJobManager.class,
+				TestingMemoryArchivist.class);
 
 			jobManager = new AkkaActorGateway(master._1(), null);
 			archiver = new AkkaActorGateway(master._2(), null);
@@ -825,12 +828,13 @@ public class JobManagerTest {
 			actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
 
 			Tuple2<ActorRef, ActorRef> master = JobManager.startJobManagerActors(
-					new Configuration(),
-					actorSystem,
-					Option.apply("jm"),
-					Option.apply("arch"),
-					TestingJobManager.class,
-					TestingMemoryArchivist.class);
+				new Configuration(),
+				actorSystem,
+				actorSystem.dispatcher(),
+				Option.apply("jm"),
+				Option.apply("arch"),
+				TestingJobManager.class,
+				TestingMemoryArchivist.class);
 
 			jobManager = new AkkaActorGateway(master._1(), null);
 			archiver = new AkkaActorGateway(master._2(), null);
