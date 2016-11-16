@@ -30,7 +30,7 @@ class MapRunner[IN, OUT](
     @transient returnType: TypeInformation[OUT])
   extends RichMapFunction[IN, OUT]
   with ResultTypeQueryable[OUT]
-  with FunctionCompiler[MapFunction[IN, OUT]] {
+  with Compiler[MapFunction[IN, OUT]] {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 

@@ -41,7 +41,8 @@ class DataSetValuesRule
       rel.getCluster,
       traitSet,
       rel.getRowType,
-      values.getTuples)
+      values.getTuples,
+      description)
   }
 }
 
