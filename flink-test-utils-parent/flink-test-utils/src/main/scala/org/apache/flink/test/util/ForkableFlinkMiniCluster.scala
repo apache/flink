@@ -103,6 +103,7 @@ class ForkableFlinkMiniCluster(
     val (jobManager, _) = JobManager.startJobManagerActors(
       config,
       actorSystem,
+      executor,
       Some(jobManagerName),
       Some(archiveName),
       classOf[TestingJobManager],
