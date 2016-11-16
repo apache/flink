@@ -129,6 +129,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			ActorRef jmActor = JobManager.startJobManagerActors(
 				jmConfig,
 				jmActorSystem,
+				jmActorSystem.dispatcher(),
 				JobManager.class,
 				MemoryArchivist.class)._1();
 
