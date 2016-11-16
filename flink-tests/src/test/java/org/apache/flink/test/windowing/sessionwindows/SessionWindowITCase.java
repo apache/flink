@@ -31,8 +31,6 @@ import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindow
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
-import org.apache.flink.streaming.api.windowing.triggers.Trigger;
-import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
@@ -122,12 +120,12 @@ public class SessionWindowITCase extends StreamingMultipleProgramsTestBase {
 
 		// check that overall event counts match with our expectations. remember that late events within lateness will
 		// each trigger a window!
-		Assert.assertEquals(Long.valueOf(
-				(LATE_EVENTS_PER_SESSION + 1) * NUMBER_OF_SESSIONS * EVENTS_PER_SESSION),
-				result.getAccumulatorResult(SESSION_COUNTER_ON_TIME_KEY));
-		Assert.assertEquals(Long.valueOf(
-				NUMBER_OF_SESSIONS * (LATE_EVENTS_PER_SESSION * (LATE_EVENTS_PER_SESSION + 1) / 2)),
-				result.getAccumulatorResult(SESSION_COUNTER_LATE_KEY));
+		Assert.assertEquals(
+			(LATE_EVENTS_PER_SESSION + 1) * NUMBER_OF_SESSIONS * EVENTS_PER_SESSION,
+			(long) result.getAccumulatorResult(SESSION_COUNTER_ON_TIME_KEY));
+		Assert.assertEquals(
+			NUMBER_OF_SESSIONS * (LATE_EVENTS_PER_SESSION * (LATE_EVENTS_PER_SESSION + 1) / 2),
+			(long) result.getAccumulatorResult(SESSION_COUNTER_LATE_KEY));
 	}
 
 	/**
