@@ -83,28 +83,28 @@ import scala.util.Random
   *
   * =Parameters=
   *
-  *  - [[org.apache.flink.ml.recommendation.ALS.NumFactors]]:
+  *  - [[org.apache.flink.ml.recommendation.MatrixFactorization.NumFactors]]:
   *  The number of latent factors. It is the dimension of the calculated user and item vectors.
   *  (Default value: '''10''')
   *
-  *  - [[org.apache.flink.ml.recommendation.ALS.Lambda]]:
+  *  - [[org.apache.flink.ml.recommendation.MatrixFactorization.Lambda]]:
   *  Regularization factor. Tune this value in order to avoid overfitting/generalization.
   *  (Default value: '''1''')
   *
   *  - [[org.apache.flink.ml.regression.MultipleLinearRegression.Iterations]]:
   *  The number of iterations to perform. (Default value: '''10''')
   *
-  *  - [[org.apache.flink.ml.recommendation.ALS.Blocks]]:
+  *  - [[org.apache.flink.ml.recommendation.MatrixFactorization.Blocks]]:
   *  The number of blocks into which the user and item matrix a grouped. The fewer
   *  blocks one uses, the less data is sent redundantly. However, bigger blocks entail bigger
   *  update messages which have to be stored on the Heap. If the algorithm fails because of
   *  an OutOfMemoryException, then try to increase the number of blocks. (Default value: '''None''')
   *
-  *  - [[org.apache.flink.ml.recommendation.ALS.Seed]]:
+  *  - [[org.apache.flink.ml.recommendation.MatrixFactorization.Seed]]:
   *  Random seed used to generate the initial item matrix for the algorithm.
   *  (Default value: '''0''')
   *
-  *  - [[org.apache.flink.ml.recommendation.ALS.TemporaryPath]]:
+  *  - [[org.apache.flink.ml.recommendation.MatrixFactorization.TemporaryPath]]:
   *  Path to a temporary directory into which intermediate results are stored. If
   *  this value is set, then the algorithm is split into two preprocessing steps, the ALS iteration
   *  and a post-processing step which calculates a last ALS half-step. The preprocessing steps
@@ -119,171 +119,13 @@ import scala.util.Random
   * [[https://github.com/apache/spark/blob/master/mllib/src/main/scala/org/apache/spark/mllib/
   * recommendation/ALS.scala here]].
   */
-class ALS extends Predictor[ALS] {
+class ALS extends MatrixFactorization[ALS] {
 
-  import ALS._
-
-  // Stores the matrix factorization after the fitting phase
-  var factorsOption: Option[(DataSet[Factors], DataSet[Factors])] = None
-
-  /** Sets the number of latent factors/row dimension of the latent model
-    *
-    * @param numFactors
-    * @return
-    */
-  def setNumFactors(numFactors: Int): ALS = {
-    parameters.add(NumFactors, numFactors)
-    this
-  }
-
-  /** Sets the regularization coefficient lambda
-    *
-    * @param lambda
-    * @return
-    */
-  def setLambda(lambda: Double): ALS = {
-    parameters.add(Lambda, lambda)
-    this
-  }
-
-  /** Sets the number of iterations of the ALS algorithm
-    * 
-    * @param iterations
-    * @return
-    */
-  def setIterations(iterations: Int): ALS = {
-    parameters.add(Iterations, iterations)
-    this
-  }
-
-  /** Sets the number of blocks into which the user and item matrix shall be partitioned
-    * 
-    * @param blocks
-    * @return
-    */
-  def setBlocks(blocks: Int): ALS = {
-    parameters.add(Blocks, blocks)
-    this
-  }
-
-  /** Sets the random seed for the initial item matrix initialization
-    * 
-    * @param seed
-    * @return
-    */
-  def setSeed(seed: Long): ALS = {
-    parameters.add(Seed, seed)
-    this
-  }
-
-  /** Sets the temporary path into which intermediate results are written in order to increase
-    * performance.
-    * 
-    * @param temporaryPath
-    * @return
-    */
-  def setTemporaryPath(temporaryPath: String): ALS = {
-    parameters.add(TemporaryPath, temporaryPath)
-    this
-  }
-
-  /** Empirical risk of the trained model (matrix factorization).
-    *
-    * @param labeledData Reference data
-    * @param riskParameters Additional parameters for the empirical risk calculation
-    * @return
-    */
-  def empiricalRisk(
-      labeledData: DataSet[(Int, Int, Double)],
-      riskParameters: ParameterMap = ParameterMap.Empty)
-    : DataSet[Double] = {
-    val resultingParameters = parameters ++ riskParameters
-
-    val lambda = resultingParameters(Lambda)
-
-    val data = labeledData map {
-      x => (x._1, x._2)
-    }
-
-    factorsOption match {
-      case Some((userFactors, itemFactors)) => {
-        val predictions = data.join(userFactors, JoinHint.REPARTITION_HASH_SECOND).where(0)
-          .equalTo(0).join(itemFactors, JoinHint.REPARTITION_HASH_SECOND).where("_1._2")
-          .equalTo(0).map {
-          triple => {
-            val (((uID, iID), uFactors), iFactors) = triple
-
-            val uFactorsVector = uFactors.factors
-            val iFactorsVector = iFactors.factors
-
-            val squaredUNorm2 = blas.ddot(
-              uFactorsVector.length,
-              uFactorsVector,
-              1,
-              uFactorsVector,
-              1)
-            val squaredINorm2 = blas.ddot(
-              iFactorsVector.length,
-              iFactorsVector,
-              1,
-              iFactorsVector,
-              1)
-
-            val prediction = blas.ddot(uFactorsVector.length, uFactorsVector, 1, iFactorsVector, 1)
-
-            (uID, iID, prediction, squaredUNorm2, squaredINorm2)
-          }
-        }
-
-        labeledData.join(predictions).where(0,1).equalTo(0,1) {
-          (left, right) => {
-            val (_, _, expected) = left
-            val (_, _, predicted, squaredUNorm2, squaredINorm2) = right
-
-            val residual = expected - predicted
-
-            residual * residual + lambda * (squaredUNorm2 + squaredINorm2)
-          }
-        } reduce {
-          _ + _
-        }
-      }
-
-      case None => throw new RuntimeException("The ALS model has not been fitted to data. " +
-        "Prior to predicting values, it has to be trained on data.")
-    }
-  }
 }
 
 object ALS {
-  val USER_FACTORS_FILE = "userFactorsFile"
-  val ITEM_FACTORS_FILE = "itemFactorsFile"
 
-  // ========================================= Parameters ==========================================
-
-  case object NumFactors extends Parameter[Int] {
-    val defaultValue: Option[Int] = Some(10)
-  }
-
-  case object Lambda extends Parameter[Double] {
-    val defaultValue: Option[Double] = Some(1.0)
-  }
-
-  case object Iterations extends Parameter[Int] {
-    val defaultValue: Option[Int] = Some(10)
-  }
-
-  case object Blocks extends Parameter[Int] {
-    val defaultValue: Option[Int] = None
-  }
-
-  case object Seed extends Parameter[Long] {
-    val defaultValue: Option[Long] = Some(0L)
-  }
-
-  case object TemporaryPath extends Parameter[String] {
-    val defaultValue: Option[String] = None
-  }
+  import MatrixFactorization._
 
   // ==================================== ALS type definitions =====================================
 
@@ -294,17 +136,6 @@ object ALS {
     * @param rating Rating value
     */
   case class Rating(user: Int, item: Int, rating: Double)
-
-  /** Latent factor model vector
-    *
-    * @param id
-    * @param factors
-    */
-  case class Factors(id: Int, factors: Array[Double]) {
-    override def toString = s"($id, ${factors.mkString(",")})"
-  }
-
-  case class Factorization(userFactors: DataSet[Factors], itemFactors: DataSet[Factors])
 
   case class OutBlockInformation(elementIDs: Array[Int], outLinks: OutLinks) {
     override def toString: String = {
@@ -388,42 +219,6 @@ object ALS {
   }
 
   // ===================================== Operations ==============================================
-
-  /** Predict operation which calculates the matrix entry for the given indices  */
-  implicit val predictRating = new PredictDataSetOperation[ALS, (Int, Int), (Int ,Int, Double)] {
-    override def predictDataSet(
-        instance: ALS,
-        predictParameters: ParameterMap,
-        input: DataSet[(Int, Int)])
-      : DataSet[(Int, Int, Double)] = {
-
-      instance.factorsOption match {
-        case Some((userFactors, itemFactors)) => {
-          input.join(userFactors, JoinHint.REPARTITION_HASH_SECOND).where(0).equalTo(0)
-            .join(itemFactors, JoinHint.REPARTITION_HASH_SECOND).where("_1._2").equalTo(0).map {
-            triple => {
-              val (((uID, iID), uFactors), iFactors) = triple
-
-              val uFactorsVector = uFactors.factors
-              val iFactorsVector = iFactors.factors
-
-              val prediction = blas.ddot(
-                uFactorsVector.length,
-                uFactorsVector,
-                1,
-                iFactorsVector,
-                1)
-
-              (uID, iID, prediction)
-            }
-          }
-        }
-
-        case None => throw new RuntimeException("The ALS model has not been fitted to data. " +
-          "Prior to predicting values, it has to be trained on data.")
-      }
-    }
-  }
 
   /** Calculates the matrix factorization for the given ratings. A rating is defined as
     * a tuple of user ID, item ID and the corresponding rating.
@@ -1003,7 +798,4 @@ object ALS {
     }
   }
 
-  def randomFactors(factors: Int, random: Random): Array[Double] = {
-    Array.fill(factors)(random.nextDouble())
-  }
 }
