@@ -346,9 +346,9 @@ public class BucketingSink<T>
 
 		initFileSystem();
 
-		// we call this here just to log
-		// if the fs supports truncating
-		reflectTruncate(fs);
+		if (this.refTruncate == null) {
+			this.refTruncate = reflectTruncate(fs);
+		}
 
 		OperatorStateStore stateStore = context.getManagedOperatorStateStore();
 		restoredBucketStates = stateStore.getSerializableListState("bucket-states");
@@ -360,7 +360,7 @@ public class BucketingSink<T>
 			for (State<T> recoveredState : restoredBucketStates.get()) {
 				handleRestoredBucketState(recoveredState);
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("{} idx {} restored {}", getClass().getSimpleName(), subtaskIndex, recoveredState);
+					LOG.debug("{} (taskIdx={}) restored {}", getClass().getSimpleName(), subtaskIndex, recoveredState);
 				}
 			}
 		} else {
@@ -567,48 +567,44 @@ public class BucketingSink<T>
 	 * <b>NOTE:</b> This code comes from Flume.
 	 */
 	private Method reflectTruncate(FileSystem fs) {
-		if (this.refTruncate == null) {
-			Method m = null;
-			if (fs != null) {
-				Class<?> fsClass = fs.getClass();
-				try {
-					m = fsClass.getMethod("truncate", Path.class, long.class);
-				} catch (NoSuchMethodException ex) {
-					LOG.debug("Truncate not found. Will write a file with suffix '{}' " +
-						" and prefix '{}' to specify how many bytes in a bucket are valid.",
-						validLengthSuffix, validLengthPrefix);
-					return null;
-				}
-
-				// verify that truncate actually works
-				FSDataOutputStream outputStream;
-				Path testPath = new Path(UUID.randomUUID().toString());
-				try {
-					outputStream = fs.create(testPath);
-					outputStream.writeUTF("hello");
-					outputStream.close();
-				} catch (IOException e) {
-					LOG.error("Could not create file for checking if truncate works.", e);
-					throw new RuntimeException("Could not create file for checking if truncate works.", e);
-				}
-
-				try {
-					m.invoke(fs, testPath, 2);
-				} catch (IllegalAccessException | InvocationTargetException e) {
-					LOG.debug("Truncate is not supported.", e);
-					m = null;
-				}
-
-				try {
-					fs.delete(testPath, false);
-				} catch (IOException e) {
-					LOG.error("Could not delete truncate test file.", e);
-					throw new RuntimeException("Could not delete truncate test file.", e);
-				}
+		Method m = null;
+		if(fs != null) {
+			Class<?> fsClass = fs.getClass();
+			try {
+				m = fsClass.getMethod("truncate", Path.class, long.class);
+			} catch (NoSuchMethodException ex) {
+				LOG.debug("Truncate not found. Will write a file with suffix '{}' " +
+					" and prefix '{}' to specify how many bytes in a bucket are valid.", validLengthSuffix, validLengthPrefix);
+				return null;
 			}
-			this.refTruncate = m;
+
+			// verify that truncate actually works
+			FSDataOutputStream outputStream;
+			Path testPath = new Path(UUID.randomUUID().toString());
+			try {
+				outputStream = fs.create(testPath);
+				outputStream.writeUTF("hello");
+				outputStream.close();
+			} catch (IOException e) {
+				LOG.error("Could not create file for checking if truncate works.", e);
+				throw new RuntimeException("Could not create file for checking if truncate works.", e);
+			}
+
+			try {
+				m.invoke(fs, testPath, 2);
+			} catch (IllegalAccessException | InvocationTargetException e) {
+				LOG.debug("Truncate is not supported.", e);
+				m = null;
+			}
+
+			try {
+				fs.delete(testPath, false);
+			} catch (IOException e) {
+				LOG.error("Could not delete truncate test file.", e);
+				throw new RuntimeException("Could not delete truncate test file.", e);
+			}
 		}
-		return this.refTruncate;
+		return m;
 	}
 
 	private Path getPendingPathFor(Path path) {
@@ -695,7 +691,7 @@ public class BucketingSink<T>
 			restoredBucketStates.add(state);
 
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("{} idx {} checkpointed {}.", getClass().getSimpleName(), subtaskIdx, state);
+				LOG.debug("{} (taskIdx={}) checkpointed {}.", getClass().getSimpleName(), subtaskIdx, state);
 			}
 		}
 	}
@@ -740,7 +736,9 @@ public class BucketingSink<T>
 
 					// We use reflection to get the .truncate() method, this
 					// is only available starting with Hadoop 2.7
-					this.refTruncate = reflectTruncate(fs);
+					if (this.refTruncate == null) {
+						this.refTruncate = reflectTruncate(fs);
+					}
 
 					// truncate it or write a ".valid-length" file to specify up to which point it is valid
 					if (refTruncate != null) {
@@ -965,8 +963,7 @@ public class BucketingSink<T>
 	 * This should only be disabled if using the sink without checkpoints, to not remove
 	 * the files already in the directory.
 	 *
-	 * <p>
-	 * <b>NOTE: </b> This option is deprecated and remains only for backwards compatibility.
+	 * @deprecated This option is deprecated and remains only for backwards compatibility.
 	 * We do not clean up lingering files anymore.
 	 */
 	@Deprecated
