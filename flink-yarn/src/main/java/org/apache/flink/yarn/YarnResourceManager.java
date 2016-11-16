@@ -155,8 +155,8 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 		resourceManagerClient.init(yarnConfig);
 		resourceManagerClient.start();
 		try {
-            //TODO: change akka address to tcp host and port, the getAddress() interface should return a standard tcp address
-            Tuple2<String, Integer> hostPort = parseHostPort(getAddress());
+			//TODO: change akka address to tcp host and port, the getAddress() interface should return a standard tcp address
+			Tuple2<String, Integer> hostPort = parseHostPort(getAddress());
 			resourceManagerClient.registerApplicationMaster(hostPort.f0, hostPort.f1, getAddress());
 		} catch (Exception e) {
 			LOG.info("registerApplicationMaster fail", e);
@@ -301,10 +301,10 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 		}
 	}
 
-    // parse the host and port from akka address, 
-    // the akka address is like akka.tcp://flink@100.81.153.180:49712/user/$a
+	// parse the host and port from akka address, 
+	// the akka address is like akka.tcp://flink@100.81.153.180:49712/user/$a
 	private static Tuple2<String, Integer> parseHostPort(String address) {
-        String hostPort = address.split("@")[1].split(":");
+		String[] hostPort = address.split("@")[1].split(":");
 		String host = hostPort[0];
 		String port = hostPort[1].split("/")[0];
 		return new Tuple2(host, Integer.valueOf(port));
