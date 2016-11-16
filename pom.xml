@@ -93,7 +93,7 @@ under the License.
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
 		<slf4j.version>1.7.7</slf4j.version>
 		<guava.version>18.0</guava.version>
-		<akka.version>2.3.7</akka.version>
+		<akka.version>2.3-custom</akka.version>
 		<java.version>1.7</java.version>
 		<scala.macros.version>2.0.1</scala.macros.version>
 		<!-- Default scala versions, may be overwritten by build profiles -->
@@ -334,32 +334,32 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>com.typesafe.akka</groupId>
-				<artifactId>akka-actor_${scala.binary.version}</artifactId>
+				<groupId>com.data-artisans</groupId>
+				<artifactId>flakka-actor_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 			</dependency>
 
 			<dependency>
-				<groupId>com.typesafe.akka</groupId>
-				<artifactId>akka-remote_${scala.binary.version}</artifactId>
+				<groupId>com.data-artisans</groupId>
+				<artifactId>flakka-remote_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 			</dependency>
 
 			<dependency>
-				<groupId>com.typesafe.akka</groupId>
-				<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
+				<groupId>com.data-artisans</groupId>
+				<artifactId>flakka-slf4j_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 			</dependency>
 
 			<dependency>
-				<groupId>com.typesafe.akka</groupId>
-				<artifactId>akka-camel_${scala.binary.version}</artifactId>
+				<groupId>com.data-artisans</groupId>
+				<artifactId>flakka-camel_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 			</dependency>
 
 			<dependency>
-				<groupId>com.typesafe.akka</groupId>
-				<artifactId>akka-testkit_${scala.binary.version}</artifactId>
+				<groupId>com.data-artisans</groupId>
+				<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 				<scope>test</scope>
 			</dependency>
@@ -499,8 +499,8 @@ under the License.
 							com.sun.tools.javac.code.Symbol$CompletionFailure:
 								class file for akka.testkit.TestKit not found"
 					-->
-					<groupId>com.typesafe.akka</groupId>
-					<artifactId>akka-testkit_${scala.binary.version}</artifactId>
+					<groupId>com.data-artisans</groupId>
+					<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
 					<version>${akka.version}</version>
 					<scope>provided</scope>
 				</dependency>
@@ -627,8 +627,8 @@ under the License.
 							com.sun.tools.javac.code.Symbol$CompletionFailure:
 								class file for akka.testkit.TestKit not found"
 					-->
-					<groupId>com.typesafe.akka</groupId>
-					<artifactId>akka-testkit_${scala.binary.version}</artifactId>
+					<groupId>com.data-artisans</groupId>
+					<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
 					<version>${akka.version}</version>
 					<scope>provided</scope>
 				</dependency>

@@ -20,8 +20,10 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
 
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.net.util.IPAddressUtil;
 
 import java.io.IOException;
 import java.net.Inet4Address;
@@ -40,6 +42,9 @@ import java.util.Iterator;
 public class NetUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NetUtils.class);
+
+	/** The wildcard address to listen on all interfaces (either 0.0.0.0 or ::) */
+	private static final String WILDCARD_ADDRESS = new InetSocketAddress(0).getAddress().getHostAddress();
 	
 	/**
 	 * Turn a fully qualified domain name (fqdn) into a hostname. If the fqdn has multiple subparts
@@ -111,7 +116,55 @@ public class NetUtils {
 	// ------------------------------------------------------------------------
 	//  Encoding of IP addresses for URLs
 	// ------------------------------------------------------------------------
-	
+
+	/**
+	 * Returns an address in a normalized format for Akka.
+	 * When an IPv6 address is specified, it normalizes the IPv6 address to avoid
+	 * complications with the exact URL match policy of Akka.
+	 * @param host The hostname, IPv4 or IPv6 address
+	 * @return host which will be normalized if it is an IPv6 address
+	 */
+	public static String unresolvedHostToNormalizedString(String host) {
+		// Return loopback interface address if host is null
+		// This represents the behavior of {@code InetAddress.getByName } and RFC 3330
+		if (host == null) {
+			host = InetAddress.getLoopbackAddress().getHostAddress();
+		} else {
+			host = host.trim().toLowerCase();
+		}
+
+		// normalize and valid address
+		if (IPAddressUtil.isIPv6LiteralAddress(host)) {
+			byte[] ipV6Address = IPAddressUtil.textToNumericFormatV6(host);
+			host = getIPv6UrlRepresentation(ipV6Address);
+		} else if (!IPAddressUtil.isIPv4LiteralAddress(host)) {
+			try {
+				// We don't allow these in hostnames
+				Preconditions.checkArgument(!host.startsWith("."));
+				Preconditions.checkArgument(!host.endsWith("."));
+				Preconditions.checkArgument(!host.contains(":"));
+			} catch (Exception e) {
+				throw new IllegalConfigurationException("The configured hostname is not valid", e);
+			}
+		}
+
+		return host;
+	}
+
+	/**
+	 * Returns a valid address for Akka. It returns a String of format 'host:port'.
+	 * When an IPv6 address is specified, it normalizes the IPv6 address to avoid
+	 * complications with the exact URL match policy of Akka.
+	 * @param host The hostname, IPv4 or IPv6 address
+	 * @param port The port
+	 * @return host:port where host will be normalized if it is an IPv6 address
+	 */
+	public static String unresolvedHostAndPortToNormalizedString(String host, int port) {
+		Preconditions.checkArgument(port >= 0 && port < 65536,
+			"Port is not within the valid range,");
+		return unresolvedHostToNormalizedString(host) + ":" + port;
+	}
+
 	/**
 	 * Encodes an IP address properly as a URL string. This method makes sure that IPv6 addresses
 	 * have the proper formatting to be included in URLs.
@@ -137,7 +190,7 @@ public class NetUtils {
 	/**
 	 * Encodes an IP address and port to be included in URL. in particular, this method makes
 	 * sure that IPv6 addresses have the proper formatting to be included in URLs.
-	 * 
+	 *
 	 * @param address The address to be included in the URL.
 	 * @param port The port for the URL address.
 	 * @return The proper URL string encoded IP address and port.
@@ -176,14 +229,24 @@ public class NetUtils {
 
 	/**
 	 * Creates a compressed URL style representation of an Inet6Address.
-	 * 
+	 *
 	 * <p>This method copies and adopts code from Google's Guava library.
 	 * We re-implement this here in order to reduce dependency on Guava.
 	 * The Guava library has frequently caused dependency conflicts in the past.
 	 */
 	private static String getIPv6UrlRepresentation(Inet6Address address) {
+		return getIPv6UrlRepresentation(address.getAddress());
+	}
+
+	/**
+	 * Creates a compressed URL style representation of an Inet6Address.
+	 *
+	 * <p>This method copies and adopts code from Google's Guava library.
+	 * We re-implement this here in order to reduce dependency on Guava.
+	 * The Guava library has frequently caused dependency conflicts in the past.
+	 */
+	private static String getIPv6UrlRepresentation(byte[] addressBytes) {
 		// first, convert bytes to 16 bit chunks
-		byte[] addressBytes = address.getAddress();
 		int[] hextets = new int[8];
 		for (int i = 0; i < hextets.length; i++) {
 			hextets[i] = (addressBytes[2 * i] & 0xFF) << 8 | (addressBytes[2 * i + 1] & 0xFF);
@@ -307,6 +370,14 @@ public class NetUtils {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Returns the wildcard address to listen on all interfaces.
+	 * @return Either 0.0.0.0 or :: depending on the IP setup.
+	 */
+	public static String getWildcardIPAddress() {
+		return WILDCARD_ADDRESS;
 	}
 
 	public interface SocketFactory {

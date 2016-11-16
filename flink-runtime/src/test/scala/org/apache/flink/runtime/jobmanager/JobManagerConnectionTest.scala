@@ -53,7 +53,7 @@ class JobManagerConnectionTest {
         case _ : Throwable => return
       }
 
-      val endpoint = new InetSocketAddress(InetAddress.getByName("127.0.0.1"), freePort)
+      val endpoint = NetUtils.unresolvedHostAndPortToNormalizedString("127.0.0.1", freePort)
       val config = createConfigWithLowTimeout()
 
       mustReturnWithinTimeout(Duration(5*timeout, TimeUnit.MILLISECONDS)) {
@@ -89,7 +89,7 @@ class JobManagerConnectionTest {
 
     try {
       // some address that is not running a JobManager
-      val endpoint = new InetSocketAddress(InetAddress.getByName("10.254.254.254"), 2)
+      val endpoint = NetUtils.unresolvedHostAndPortToNormalizedString("10.254.254.254", 2)
       val config = createConfigWithLowTimeout()
 
       mustReturnWithinTimeout(Duration(5*timeout, TimeUnit.MILLISECONDS)) {

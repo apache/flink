@@ -199,9 +199,9 @@ under the License.
 									<exclude>org.scala-lang:scala-library</exclude>
 									<exclude>org.scala-lang:scala-compiler</exclude>
 									<exclude>org.scala-lang:scala-reflect</exclude>
-									<exclude>com.typesafe.akka:akka-actor_*</exclude>
-									<exclude>com.typesafe.akka:akka-remote_*</exclude>
-									<exclude>com.typesafe.akka:akka-slf4j_*</exclude>
+									<exclude>com.data-artisans:flakka-actor_*</exclude>
+									<exclude>com.data-artisans:flakka-remote_*</exclude>
+									<exclude>com.data-artisans:flakka-slf4j_*</exclude>
 									<exclude>io.netty:netty-all</exclude>
 									<exclude>io.netty:netty</exclude>
 									<exclude>commons-fileupload:commons-fileupload</exclude>

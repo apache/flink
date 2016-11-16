@@ -23,6 +23,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -39,15 +40,17 @@ public class RemoteExecutorHostnameResolutionTest {
 
 	private static final String nonExistingHostname = "foo.bar.com.invalid";
 	private static final int port = 14451;
-	
-	
+
+	@BeforeClass
+	public static void check() {
+		checkPreconditions();
+	}
+
 	@Test
 	public void testUnresolvableHostname1() {
-		
-		checkPreconditions();
-		
+
+		RemoteExecutor exec = new RemoteExecutor(nonExistingHostname, port);
 		try {
-			RemoteExecutor exec = new RemoteExecutor(nonExistingHostname, port);
 			exec.executePlan(getProgram());
 			fail("This should fail with an ProgramInvocationException");
 		}
@@ -65,12 +68,10 @@ public class RemoteExecutorHostnameResolutionTest {
 	@Test
 	public void testUnresolvableHostname2() {
 
-		checkPreconditions();
-		
-		try {
-			InetSocketAddress add = new InetSocketAddress(nonExistingHostname, port);
-			RemoteExecutor exec = new RemoteExecutor(add, new Configuration(),
+		InetSocketAddress add = new InetSocketAddress(nonExistingHostname, port);
+		RemoteExecutor exec = new RemoteExecutor(add, new Configuration(),
 				Collections.<URL>emptyList(), Collections.<URL>emptyList());
+		try {
 			exec.executePlan(getProgram());
 			fail("This should fail with an ProgramInvocationException");
 		}

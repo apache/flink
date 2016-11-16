@@ -61,13 +61,13 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-actor_${scala.binary.version}</artifactId>
+			<groupId>com.data-artisans</groupId>
+			<artifactId>flakka-actor_${scala.binary.version}</artifactId>
 		</dependency>
 
 		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-remote_${scala.binary.version}</artifactId>
+			<groupId>com.data-artisans</groupId>
+			<artifactId>flakka-remote_${scala.binary.version}</artifactId>
 			<exclusions>
 				<!-- exclude protobuf here to allow the mesos library to provide it -->
 				<exclusion>
@@ -78,8 +78,8 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
+			<groupId>com.data-artisans</groupId>
+			<artifactId>flakka-slf4j_${scala.binary.version}</artifactId>
 		</dependency>
 
 		<dependency>
@@ -123,8 +123,8 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-testkit_${scala.binary.version}</artifactId>
+			<groupId>com.data-artisans</groupId>
+			<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
 			<scope>test</scope>
 		</dependency>
 

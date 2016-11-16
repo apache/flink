@@ -625,7 +625,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			}
 			//------------------ ClusterClient deployed, handle connection details
 			String jobManagerAddress =
-				yarnCluster.getJobManagerAddress().getAddress().getHostAddress() +
+				yarnCluster.getJobManagerAddress().getAddress().getHostName() +
 					":" + yarnCluster.getJobManagerAddress().getPort();
 
 			System.out.println("Flink JobManager is now running on " + jobManagerAddress);
