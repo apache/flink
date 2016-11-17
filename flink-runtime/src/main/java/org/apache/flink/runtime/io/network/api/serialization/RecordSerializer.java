@@ -43,30 +43,87 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 			this.isFullRecord = isFullRecord;
 			this.isFullBuffer = isFullBuffer;
 		}
-		
+
+		/**
+		 * Whether the full record was serialized and completely written to
+		 * a target buffer.
+		 *
+		 * @return <tt>true</tt> if the complete record was written
+		 */
 		public boolean isFullRecord() {
 			return this.isFullRecord;
 		}
-		
+
+		/**
+		 * Whether the target buffer is full after the serialization process.
+		 *
+		 * @return <tt>true</tt> if the target buffer is full
+		 */
 		public boolean isFullBuffer() {
 			return this.isFullBuffer;
 		}
 	}
-	
+
+	/**
+	 * Starts serializing and copying the given record to the target buffer
+	 * (if available).
+	 *
+	 * @param record the record to serialize
+	 * @return how much information was written to the target buffer and
+	 *         whether this buffer is full
+	 * @throws IOException
+	 */
 	SerializationResult addRecord(T record) throws IOException;
 
+	/**
+	 * Sets a (next) target buffer to use and continues writing remaining data
+	 * to it until it is full.
+	 *
+	 * @param buffer the new target buffer to use
+	 * @return how much information was written to the target buffer and
+	 *         whether this buffer is full
+	 * @throws IOException
+	 */
 	SerializationResult setNextBuffer(Buffer buffer) throws IOException;
 
+	/**
+	 * Retrieves the current target buffer and sets its size to the actual
+	 * number of written bytes.
+	 *
+	 * After calling this method, a new target buffer is required to continue
+	 * writing (see {@link #setNextBuffer(Buffer)}).
+	 *
+	 * @return the target buffer that was used
+	 */
 	Buffer getCurrentBuffer();
 
+	/**
+	 * Resets the target buffer to <tt>null</tt>.
+	 *
+	 * After calling this method, a new target buffer is required to continue
+	 * writing (see {@link #setNextBuffer(Buffer)}).
+	 */
 	void clearCurrentBuffer();
-	
+
+	/**
+	 * Resets the target buffer to <tt>null</tt> and resets internal state set
+	 * up for the record to serialize.
+	 *
+	 * After calling this method, a new record and a new target buffer is
+	 * required to start writing again (see {@link #setNextBuffer(Buffer)}).
+	 */
 	void clear();
-	
+
+	/**
+	 * Determines whether data is left, either in the current target buffer or
+	 * in any internal state set up for the record to serialize.
+	 *
+	 * @return <tt>true</tt> if some data is present
+	 */
 	boolean hasData();
 
 	/**
-	 * Insantiates all metrics.
+	 * Instantiates all metrics.
 	 *
 	 * @param metrics metric group
 	 */
