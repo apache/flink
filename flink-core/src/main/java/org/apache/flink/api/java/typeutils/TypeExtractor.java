@@ -765,7 +765,7 @@ public class TypeExtractor {
 				
 				Class<OUT> classArray;
 				try {
-					classArray = (Class<OUT>) Class.forName("[" + className);
+					classArray = (Class<OUT>) Class.forName("[" + className, true, Thread.currentThread().getContextClassLoader());
 				} catch (ClassNotFoundException e) {
 					throw new InvalidTypesException("Could not convert GenericArrayType to Class.");
 				}
@@ -789,7 +789,7 @@ public class TypeExtractor {
 					} else {
 						resultingClassName = "[L" + componentClassName + ";";
 					}
-					classArray = (Class<OUT>) Class.forName(resultingClassName);
+					classArray = (Class<OUT>) Class.forName(resultingClassName, true, Thread.currentThread().getContextClassLoader());
 				} catch (ClassNotFoundException e) {
 					throw new InvalidTypesException("Could not convert GenericArrayType to Class.");
 				}
