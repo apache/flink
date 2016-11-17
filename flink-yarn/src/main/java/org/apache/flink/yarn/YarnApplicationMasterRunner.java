@@ -60,6 +60,8 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import scala.Option;
+import scala.Some;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
@@ -339,8 +341,8 @@ public class YarnApplicationMasterRunner {
 				actorSystem,
 				futureExecutor,
 				ioExecutor,
-				new scala.Some<>(JobManager.JOB_MANAGER_NAME()),
-				scala.Option.<String>empty(),
+				new Some<>(JobManager.JOB_MANAGER_NAME()),
+				Option.<String>empty(),
 				getJobManagerClass(),
 				getArchivistClass())._1();
 
@@ -379,7 +381,6 @@ public class YarnApplicationMasterRunner {
 
 			ActorRef resourceMaster = actorSystem.actorOf(resourceMasterProps);
 
-
 			// 4: Process reapers
 			// The process reapers ensure that upon unexpected actor death, the process exits
 			// and does not stay lingering around unresponsive
@@ -414,6 +415,9 @@ public class YarnApplicationMasterRunner {
 				}
 			}
 
+			futureExecutor.shutdownNow();
+			ioExecutor.shutdownNow();
+
 			return INIT_ERROR_EXIT_CODE;
 		}
 
@@ -432,8 +436,11 @@ public class YarnApplicationMasterRunner {
 			}
 		}
 
-		futureExecutor.shutdownNow();
-		ioExecutor.shutdownNow();
+		org.apache.flink.runtime.concurrent.Executors.gracefulShutdown(
+			AkkaUtils.getTimeout(config).toMillis(),
+			TimeUnit.MILLISECONDS,
+			futureExecutor,
+			ioExecutor);
 
 		return 0;
 	}

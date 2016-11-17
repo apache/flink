@@ -147,6 +147,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 			ExecutionGraph executionGraph = new ExecutionGraph(
 				executor,
+				executor,
 				jobGraph.getJobID(),
 				jobGraph.getName(),
 				jobConfig,

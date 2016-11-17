@@ -139,6 +139,7 @@ public class RescalePartitionerTest extends TestLogger {
 
 		ExecutionGraph eg = new ExecutionGraph(
 			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
 			jobId,
 			jobName,
 			cfg,

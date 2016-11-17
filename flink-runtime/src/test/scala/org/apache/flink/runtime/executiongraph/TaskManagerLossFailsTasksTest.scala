@@ -58,6 +58,7 @@ class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
 
         val eg = new ExecutionGraph(
           TestingUtils.defaultExecutionContext,
+          TestingUtils.defaultExecutionContext,
           new JobID(),
           "test job",
           new Configuration(),

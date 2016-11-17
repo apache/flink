@@ -128,7 +128,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		this.priorExecutions = new CopyOnWriteArrayList<Execution>();
 
 		this.currentExecution = new Execution(
-			getExecutionGraph().getExecutor(),
+			getExecutionGraph().getFutureExecutor(),
 			this,
 			0,
 			createTimestamp,
@@ -435,7 +435,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			if (state == FINISHED || state == CANCELED || state == FAILED) {
 				priorExecutions.add(execution);
 				currentExecution = new Execution(
-					getExecutionGraph().getExecutor(),
+					getExecutionGraph().getFutureExecutor(),
 					this,
 					execution.getAttemptNumber()+1,
 					System.currentTimeMillis(),

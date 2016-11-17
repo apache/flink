@@ -44,7 +44,7 @@ import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.concurrent.{AcceptFunction, BiFunction}
+import org.apache.flink.runtime.concurrent.{AcceptFunction, BiFunction, Executors => FlinkExecutors}
 import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
@@ -118,7 +118,8 @@ import scala.language.postfixOps
  */
 class JobManager(
     protected val flinkConfiguration: Configuration,
-    protected val executor: Executor,
+    protected val futureExecutor: Executor,
+    protected val ioExecutor: Executor,
     protected val instanceManager: InstanceManager,
     protected val scheduler: FlinkScheduler,
     protected val libraryCacheManager: BlobLibraryCacheManager,
@@ -1247,7 +1248,8 @@ class JobManager(
           executionGraph,
           jobGraph,
           flinkConfiguration,
-          executor,
+          futureExecutor,
+          ioExecutor,
           userCodeLoader,
           checkpointRecoveryFactory,
           Time.of(timeout.length, timeout.unit),
@@ -1976,8 +1978,9 @@ object JobManager {
 
     val ioExecutor = Executors.newFixedThreadPool(
       numberProcessors,
-      new NamedThreadFactory("jobmanager-io-", "-thread-")
-    )
+      new NamedThreadFactory("jobmanager-io-", "-thread-"))
+
+    val timeout = AkkaUtils.getTimeout(configuration)
 
     val (jobManagerSystem, _, _, webMonitorOption, _) = try {
       startActorSystemAndJobManagerActors(
@@ -1993,7 +1996,8 @@ object JobManager {
       )
     } catch {
       case t: Throwable =>
-          futureExecutor.shutdownNow()
+        futureExecutor.shutdownNow()
+        ioExecutor.shutdownNow()
 
         throw t
     }
@@ -2011,8 +2015,11 @@ object JobManager {
         }
     }
 
-    futureExecutor.shutdownNow()
-    ioExecutor.shutdownNow()
+    FlinkExecutors.gracefulShutdown(
+      timeout.toMillis,
+      TimeUnit.MILLISECONDS,
+      futureExecutor,
+      ioExecutor)
   }
 
   /**
@@ -2620,6 +2627,7 @@ object JobManager {
       jobManagerClass,
       configuration,
       futureExecutor,
+      ioExecutor,
       instanceManager,
       scheduler,
       libraryCacheManager,
@@ -2653,7 +2661,8 @@ object JobManager {
   def getJobManagerProps(
     jobManagerClass: Class[_ <: JobManager],
     configuration: Configuration,
-    executor: Executor,
+    futureExecutor: Executor,
+    ioExecutor: Executor,
     instanceManager: InstanceManager,
     scheduler: FlinkScheduler,
     libraryCacheManager: BlobLibraryCacheManager,
@@ -2669,7 +2678,8 @@ object JobManager {
     Props(
       jobManagerClass,
       configuration,
-      executor,
+      futureExecutor,
+      ioExecutor,
       instanceManager,
       scheduler,
       libraryCacheManager,

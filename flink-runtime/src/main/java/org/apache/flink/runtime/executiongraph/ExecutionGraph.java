@@ -58,6 +58,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -203,7 +204,10 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	private CheckpointStatsTracker checkpointStatsTracker;
 
 	/** The executor which is used to execute futures. */
-	private Executor executor;
+	private final Executor futureExecutor;
+
+	/** The executor which is used to execute blocking io operations */
+	private final Executor ioExecutor;
 
 	/** Registered KvState instances reported by the TaskManagers. */
 	private KvStateLocationRegistry kvStateLocationRegistry;
@@ -219,7 +223,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * This constructor is for tests only, because it does not include class loading information.
 	 */
 	ExecutionGraph(
-			Executor executor,
+			Executor futureExecutor,
+			Executor ioExecutor,
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
@@ -227,7 +232,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			Time timeout,
 			RestartStrategy restartStrategy) throws IOException {
 		this(
-			executor,
+			futureExecutor,
+			ioExecutor,
 			jobId,
 			jobName,
 			jobConfig,
@@ -242,7 +248,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	}
 
 	public ExecutionGraph(
-			Executor executor,
+			Executor futureExecutor,
+			Executor ioExecutor,
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
@@ -254,7 +261,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			ClassLoader userClassLoader,
 			MetricGroup metricGroup) throws IOException {
 
-		checkNotNull(executor);
+		checkNotNull(futureExecutor);
 		checkNotNull(jobId);
 		checkNotNull(jobName);
 		checkNotNull(jobConfig);
@@ -271,7 +278,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		// serialize the job information to do the serialisation work only once
 		this.serializedJobInformation = new SerializedValue<>(jobInformation);
 
-		this.executor = executor;
+		this.futureExecutor = Preconditions.checkNotNull(futureExecutor);
+		this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
 
 		this.userClassLoader = userClassLoader;
 
@@ -365,19 +373,20 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 		// create the coordinator that triggers and commits checkpoints and holds the state
 		checkpointCoordinator = new CheckpointCoordinator(
-				jobInformation.getJobId(),
-				interval,
-				checkpointTimeout,
-				minPauseBetweenCheckpoints,
-				maxConcurrentCheckpoints,
-				externalizeSettings,
-				tasksToTrigger,
-				tasksToWaitFor,
-				tasksToCommitTo,
-				checkpointIDCounter,
-				checkpointStore,
-				checkpointDir,
-				checkpointStatsTracker);
+			jobInformation.getJobId(),
+			interval,
+			checkpointTimeout,
+			minPauseBetweenCheckpoints,
+			maxConcurrentCheckpoints,
+			externalizeSettings,
+			tasksToTrigger,
+			tasksToWaitFor,
+			tasksToCommitTo,
+			checkpointIDCounter,
+			checkpointStore,
+			checkpointDir,
+			checkpointStatsTracker,
+			ioExecutor);
 
 		// interval of max long value indicates disable periodic checkpoint,
 		// the CheckpointActivatorDeactivator should be created only if the interval is not max value
@@ -589,8 +598,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 *
 	 * @return ExecutionContext associated with this ExecutionGraph
 	 */
-	public Executor getExecutor() {
-		return executor;
+	public Executor getFutureExecutor() {
+		return futureExecutor;
 	}
 
 	/**

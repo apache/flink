@@ -65,6 +65,7 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.net.InetAddress;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.security.PrivilegedAction;
 import java.util.Map;
 import java.util.UUID;
@@ -172,6 +173,40 @@ public class MesosApplicationMasterRunner {
 		WebMonitor webMonitor = null;
 		MesosArtifactServer artifactServer = null;
 
+		// ------- (1) load and parse / validate all configurations -------
+
+		// loading all config values here has the advantage that the program fails fast, if any
+		// configuration problem occurs
+
+		final String workingDir = ENV.get(MesosConfigKeys.ENV_MESOS_SANDBOX);
+		checkState(workingDir != null, "Sandbox directory variable (%s) not set", MesosConfigKeys.ENV_MESOS_SANDBOX);
+
+		final String sessionID = ENV.get(MesosConfigKeys.ENV_SESSION_ID);
+		checkState(sessionID != null, "Session ID (%s) not set", MesosConfigKeys.ENV_SESSION_ID);
+
+		// Note that we use the "appMasterHostname" given by the system, to make sure
+		// we use the hostnames consistently throughout akka.
+		// for akka "localhost" and "localhost.localdomain" are different actors.
+		final String appMasterHostname;
+
+		try {
+			appMasterHostname = InetAddress.getLocalHost().getHostName();
+		} catch (UnknownHostException uhe) {
+			LOG.error("Could not retrieve the local hostname.", uhe);
+
+			return INIT_ERROR_EXIT_CODE;
+		}
+
+		// Flink configuration
+		final Configuration dynamicProperties =
+			FlinkMesosSessionCli.decodeDynamicProperties(ENV.get(MesosConfigKeys.ENV_DYNAMIC_PROPERTIES));
+		LOG.debug("Mesos dynamic properties: {}", dynamicProperties);
+
+		final Configuration config = createConfiguration(workingDir, dynamicProperties);
+
+		// Mesos configuration
+		final MesosConfiguration mesosConfig = createMesosConfig(config, appMasterHostname);
+
 		int numberProcessors = Hardware.getNumberCPUCores();
 
 		final ExecutorService futureExecutor = Executors.newFixedThreadPool(
@@ -183,32 +218,6 @@ public class MesosApplicationMasterRunner {
 			new NamedThreadFactory("mesos-jobmanager-io-", "-thread-"));
 
 		try {
-			// ------- (1) load and parse / validate all configurations -------
-
-			// loading all config values here has the advantage that the program fails fast, if any
-			// configuration problem occurs
-
-			final String workingDir = ENV.get(MesosConfigKeys.ENV_MESOS_SANDBOX);
-			checkState(workingDir != null, "Sandbox directory variable (%s) not set", MesosConfigKeys.ENV_MESOS_SANDBOX);
-
-			final String sessionID = ENV.get(MesosConfigKeys.ENV_SESSION_ID);
-			checkState(sessionID != null, "Session ID (%s) not set", MesosConfigKeys.ENV_SESSION_ID);
-
-			// Note that we use the "appMasterHostname" given by the system, to make sure
-			// we use the hostnames consistently throughout akka.
-			// for akka "localhost" and "localhost.localdomain" are different actors.
-			final String appMasterHostname = InetAddress.getLocalHost().getHostName();
-
-			// Flink configuration
-			final Configuration dynamicProperties =
-				FlinkMesosSessionCli.decodeDynamicProperties(ENV.get(MesosConfigKeys.ENV_DYNAMIC_PROPERTIES));
-			LOG.debug("Mesos dynamic properties: {}", dynamicProperties);
-
-			final Configuration config = createConfiguration(workingDir, dynamicProperties);
-
-			// Mesos configuration
-			final MesosConfiguration mesosConfig = createMesosConfig(config, appMasterHostname);
-
 			// environment values related to TM
 			final int taskManagerContainerMemory;
 			final int numInitialTaskManagers;
@@ -380,6 +389,9 @@ public class MesosApplicationMasterRunner {
 				}
 			}
 
+			futureExecutor.shutdownNow();
+			ioExecutor.shutdownNow();
+
 			return INIT_ERROR_EXIT_CODE;
 		}
 
@@ -404,8 +416,11 @@ public class MesosApplicationMasterRunner {
 			LOG.error("Failed to stop the artifact server", t);
 		}
 
-		futureExecutor.shutdownNow();
-		ioExecutor.shutdownNow();
+		org.apache.flink.runtime.concurrent.Executors.gracefulShutdown(
+			AkkaUtils.getTimeout(config).toMillis(),
+			TimeUnit.MILLISECONDS,
+			futureExecutor,
+			ioExecutor);
 
 		return 0;
 	}

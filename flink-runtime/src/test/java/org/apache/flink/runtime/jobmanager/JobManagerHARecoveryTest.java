@@ -90,6 +90,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
@@ -135,6 +136,8 @@ public class JobManagerHARecoveryTest {
 		flinkConfiguration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().toString());
 		flinkConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slots);
 
+		ExecutorService executor = null;
+
 		try {
 			Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 
@@ -152,21 +155,24 @@ public class JobManagerHARecoveryTest {
 					MemoryArchivist.class,
 					10), "archive");
 
+			executor = new ForkJoinPool();
+
 			Props jobManagerProps = Props.create(
-					TestingJobManager.class,
-					flinkConfiguration,
-					new ForkJoinPool(),
-					instanceManager,
-					scheduler,
-					new BlobLibraryCacheManager(new BlobServer(flinkConfiguration), 3600000),
-					archive,
-					new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(Int.MaxValue(), 100),
-					timeout,
-					myLeaderElectionService,
-					mySubmittedJobGraphStore,
-					checkpointStateFactory,
-					jobRecoveryTimeout,
-					Option.apply(null));
+				TestingJobManager.class,
+				flinkConfiguration,
+				executor,
+				executor,
+				instanceManager,
+				scheduler,
+				new BlobLibraryCacheManager(new BlobServer(flinkConfiguration), 3600000),
+				archive,
+				new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(Int.MaxValue(), 100),
+				timeout,
+				myLeaderElectionService,
+				mySubmittedJobGraphStore,
+				checkpointStateFactory,
+				jobRecoveryTimeout,
+				Option.apply(null));
 
 			jobManager = system.actorOf(jobManagerProps, "jobmanager");
 			ActorGateway gateway = new AkkaActorGateway(jobManager, leaderSessionID);
@@ -281,6 +287,10 @@ public class JobManagerHARecoveryTest {
 
 			if (taskManager != null) {
 				taskManager.tell(PoisonPill.getInstance(), ActorRef.noSender());
+			}
+
+			if (executor != null) {
+				executor.shutdownNow();
 			}
 		}
 	}

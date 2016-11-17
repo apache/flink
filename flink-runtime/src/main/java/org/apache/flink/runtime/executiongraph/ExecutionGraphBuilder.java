@@ -53,7 +53,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Utility class to encapsulate the logic of building an {@link ExecutionGraph} from a {@link JobGraph}.
  */
 public class ExecutionGraphBuilder {
-		/**
+	/**
 	 * Builds the ExecutionGraph from the JobGraph.
 	 * If a prior execution graph exists, the JobGraph will be attached. If no prior execution
 	 * graph exists, then the JobGraph will become attach to a new emoty execution graph.
@@ -62,7 +62,8 @@ public class ExecutionGraphBuilder {
 			@Nullable ExecutionGraph prior,
 			JobGraph jobGraph,
 			Configuration jobManagerConfig,
-			Executor executor,
+			Executor futureExecutor,
+			Executor ioExecutor,
 			ClassLoader classLoader,
 			CheckpointRecoveryFactory recoveryFactory,
 			Time timeout,
@@ -83,17 +84,18 @@ public class ExecutionGraphBuilder {
 		try {
 			executionGraph = (prior != null) ? prior :
 					new ExecutionGraph(
-							executor,
-							jobId,
-							jobName,
-							jobGraph.getJobConfiguration(),
-							jobGraph.getSerializedExecutionConfig(),
-							timeout,
-							restartStrategy,
-							jobGraph.getUserJarBlobKeys(),
-							jobGraph.getClasspaths(),
-							classLoader,
-							metrics);
+						futureExecutor,
+						ioExecutor,
+						jobId,
+						jobName,
+						jobGraph.getJobConfiguration(),
+						jobGraph.getSerializedExecutionConfig(),
+						timeout,
+						restartStrategy,
+						jobGraph.getUserJarBlobKeys(),
+						jobGraph.getClasspaths(),
+						classLoader,
+						metrics);
 		} catch (IOException e) {
 			throw new JobException("Could not create the execution graph.", e);
 		}

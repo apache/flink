@@ -232,6 +232,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		// Blocking program
 		ExecutionGraph executionGraph = new ExecutionGraph(
 			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
 			new JobID(),
 			"TestJob",
 			new Configuration(),
@@ -547,6 +548,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		ExecutionGraph eg = new ExecutionGraph(
 			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
 			new JobID(),
 			"Test job",
 			new Configuration(),
@@ -679,13 +681,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	private static ExecutionGraph newExecutionGraph(RestartStrategy restartStrategy) throws IOException {
 		return new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				new JobID(),
-				"Test job",
-				new Configuration(),
-				new SerializedValue<>(new ExecutionConfig()),
-				AkkaUtils.getDefaultTimeout(),
-				restartStrategy);
+			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
+			new JobID(),
+			"Test job",
+			new Configuration(),
+			new SerializedValue<>(new ExecutionConfig()),
+			AkkaUtils.getDefaultTimeout(),
+			restartStrategy);
 	}
 
 	private static void restartAfterFailure(ExecutionGraph eg, FiniteDuration timeout, boolean haltAfterRestart) throws InterruptedException {
