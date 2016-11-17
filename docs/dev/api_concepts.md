@@ -272,7 +272,7 @@ We will now give an overview of each of those steps, please refer to the respect
 more details. Note that all core classes of the Scala DataSet API are found in the package
 {% gh_link /flink-scala/src/main/scala/org/apache/flink/api/scala "org.apache.flink.api.scala" %}
 while the classes of the Scala DataStream API can be found in
-{% gh_link /flink-streaming-scala/src/main/java/org/apache/flink/streaming/api/scala "org.apache.flink.streaming.api.scala" %}.
+{% gh_link /flink-streaming-scala/src/main/scala/org/apache/flink/streaming/api/scala "org.apache.flink.streaming.api.scala" %}.
 
 The `StreamExecutionEnvironment` is the basis for all Flink programs. You can
 obtain one using these static methods on `StreamExecutionEnvironment`:
