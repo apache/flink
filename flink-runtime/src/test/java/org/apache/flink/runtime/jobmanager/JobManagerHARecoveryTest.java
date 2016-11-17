@@ -82,6 +82,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
@@ -127,6 +128,8 @@ public class JobManagerHARecoveryTest {
 		flinkConfiguration.setString(ConfigConstants.ZOOKEEPER_RECOVERY_PATH, temporaryFolder.newFolder().toString());
 		flinkConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slots);
 
+		ExecutorService executor = null;
+
 		try {
 			Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 
@@ -144,10 +147,13 @@ public class JobManagerHARecoveryTest {
 				MemoryArchivist.class,
 				10), "archive");
 
+			executor = new ForkJoinPool();
+
 			Props jobManagerProps = Props.create(
 				TestingJobManager.class,
 				flinkConfiguration,
-				new ForkJoinPool(),
+				executor,
+				executor,
 				instanceManager,
 				scheduler,
 				new BlobLibraryCacheManager(new BlobServer(flinkConfiguration), 3600000),
@@ -273,6 +279,10 @@ public class JobManagerHARecoveryTest {
 
 			if (taskManager != null) {
 				taskManager.tell(PoisonPill.getInstance(), ActorRef.noSender());
+			}
+
+			if (executor != null) {
+				executor.shutdownNow();
 			}
 		}
 	}

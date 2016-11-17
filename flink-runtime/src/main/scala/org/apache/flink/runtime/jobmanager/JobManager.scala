@@ -114,7 +114,8 @@ import scala.language.postfixOps
  */
 class JobManager(
     protected val flinkConfiguration: Configuration,
-    protected val executor: Executor,
+    protected val futureExecutor: Executor,
+    protected val ioExecutor: Executor,
     protected val instanceManager: InstanceManager,
     protected val scheduler: FlinkScheduler,
     protected val libraryCacheManager: BlobLibraryCacheManager,
@@ -137,7 +138,7 @@ class JobManager(
 
   /** The extra execution context, for futures, with a custom logging reporter */
   protected val executionContext: ExecutionContext = ExecutionContext.fromExecutor(
-    executor,
+    futureExecutor,
     (t: Throwable) => {
       if (!context.system.isTerminated) {
         log.error("Executor could not execute task", t)
@@ -1106,7 +1107,8 @@ class JobManager(
             graph
           case None =>
             val graph = new ExecutionGraph(
-              executionContext,
+              futureExecutor,
+              ioExecutor,
               jobGraph.getJobID,
               jobGraph.getName,
               jobGraph.getJobConfiguration,
@@ -2018,8 +2020,9 @@ object JobManager {
 
     val ioExecutor = Executors.newFixedThreadPool(
       numberProcessors,
-      new NamedThreadFactory("jobmanager-io-", "-thread-")
-    )
+      new NamedThreadFactory("jobmanager-io-", "-thread-"))
+
+    val timeout = AkkaUtils.getTimeout(configuration)
 
     val (jobManagerSystem, _, _, webMonitorOption, _) = try {
       startActorSystemAndJobManagerActors(
@@ -2035,7 +2038,8 @@ object JobManager {
       )
     } catch {
       case t: Throwable =>
-          futureExecutor.shutdownNow()
+        futureExecutor.shutdownNow()
+        ioExecutor.shutdownNow()
 
         throw t
     }
@@ -2053,8 +2057,11 @@ object JobManager {
         }
     }
 
-    futureExecutor.shutdownNow()
-    ioExecutor.shutdownNow()
+    ExecutorUtils.gracefulShutdown(
+      timeout.toMillis,
+      TimeUnit.MILLISECONDS,
+      futureExecutor,
+      ioExecutor)
   }
 
   /**
@@ -2670,6 +2677,7 @@ object JobManager {
       jobManagerClass,
       configuration,
       futureExecutor,
+      ioExecutor,
       instanceManager,
       scheduler,
       libraryCacheManager,

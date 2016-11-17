@@ -35,6 +35,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.ExecutorUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.NamedThreadFactory;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -56,6 +57,8 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import scala.Option;
+import scala.Some;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
@@ -188,33 +191,34 @@ public class YarnApplicationMasterRunner {
 			numberProcessors,
 			new NamedThreadFactory("yarn-jobmanager-io-", "-thread-"));
 
+		// ------- (1) load and parse / validate all configurations -------
+
+		// loading all config values here has the advantage that the program fails fast, if any
+		// configuration problem occurs
+
+		final String currDir = ENV.get(Environment.PWD.key());
+		require(currDir != null, "Current working directory variable (%s) not set", Environment.PWD.key());
+
+		// Note that we use the "appMasterHostname" given by YARN here, to make sure
+		// we use the hostnames given by YARN consistently throughout akka.
+		// for akka "localhost" and "localhost.localdomain" are different actors.
+		final String appMasterHostname = ENV.get(Environment.NM_HOST.key());
+		require(appMasterHostname != null,
+			"ApplicationMaster hostname variable %s not set", Environment.NM_HOST.key());
+
+		LOG.info("YARN assigned hostname for application master: {}", appMasterHostname);
+
+		// Flink configuration
+		final Map<String, String> dynamicProperties =
+			FlinkYarnSessionCli.getDynamicProperties(ENV.get(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES));
+		LOG.debug("YARN dynamic properties: {}", dynamicProperties);
+
+		final Configuration config = createConfiguration(currDir, dynamicProperties);
+
+		// Hadoop/Yarn configuration (loads config data automatically from classpath files)
+		final YarnConfiguration yarnConfig = new YarnConfiguration();
+
 		try {
-			// ------- (1) load and parse / validate all configurations -------
-
-			// loading all config values here has the advantage that the program fails fast, if any
-			// configuration problem occurs
-
-			final String currDir = ENV.get(Environment.PWD.key());
-			require(currDir != null, "Current working directory variable (%s) not set", Environment.PWD.key());
-
-			// Note that we use the "appMasterHostname" given by YARN here, to make sure
-			// we use the hostnames given by YARN consistently throughout akka.
-			// for akka "localhost" and "localhost.localdomain" are different actors.
-			final String appMasterHostname = ENV.get(Environment.NM_HOST.key());
-			require(appMasterHostname != null,
-				"ApplicationMaster hostname variable %s not set", Environment.NM_HOST.key());
-
-			LOG.info("YARN assigned hostname for application master: {}", appMasterHostname);
-
-			// Flink configuration
-			final Map<String, String> dynamicProperties =
-				FlinkYarnSessionCli.getDynamicProperties(ENV.get(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES));
-			LOG.debug("YARN dynamic properties: {}", dynamicProperties);
-
-			final Configuration config = createConfiguration(currDir, dynamicProperties);
-
-			// Hadoop/Yarn configuration (loads config data automatically from classpath files)
-			final YarnConfiguration yarnConfig = new YarnConfiguration();
 
 			final int taskManagerContainerMemory;
 			final int numInitialTaskManagers;
@@ -295,8 +299,8 @@ public class YarnApplicationMasterRunner {
 				actorSystem,
 				futureExecutor,
 				ioExecutor,
-				new scala.Some<>(JobManager.JOB_MANAGER_NAME()),
-				scala.Option.<String>empty(),
+				new Some<>(JobManager.JOB_MANAGER_NAME()),
+				Option.<String>empty(),
 				getJobManagerClass(),
 				getArchivistClass())._1();
 
@@ -328,7 +332,6 @@ public class YarnApplicationMasterRunner {
 				LOG);
 
 			ActorRef resourceMaster = actorSystem.actorOf(resourceMasterProps);
-
 
 			// 4: Process reapers
 			// The process reapers ensure that upon unexpected actor death, the process exits
@@ -364,6 +367,9 @@ public class YarnApplicationMasterRunner {
 				}
 			}
 
+			futureExecutor.shutdownNow();
+			ioExecutor.shutdownNow();
+
 			return INIT_ERROR_EXIT_CODE;
 		}
 
@@ -382,8 +388,11 @@ public class YarnApplicationMasterRunner {
 			}
 		}
 
-		futureExecutor.shutdownNow();
-		ioExecutor.shutdownNow();
+		ExecutorUtils.gracefulShutdown(
+			AkkaUtils.getTimeout(config).toMillis(),
+			TimeUnit.MILLISECONDS,
+			futureExecutor,
+			ioExecutor);
 
 		return 0;
 	}

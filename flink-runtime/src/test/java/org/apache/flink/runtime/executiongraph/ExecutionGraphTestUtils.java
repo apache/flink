@@ -24,6 +24,7 @@ import static org.mockito.Mockito.spy;
 
 import java.lang.reflect.Field;
 import java.net.InetAddress;
+import java.util.concurrent.Executor;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
@@ -167,12 +168,13 @@ public class ExecutionGraphTestUtils {
 
 	public static final String ERROR_MESSAGE = "test_failure_error_message";
 
-	public static ExecutionJobVertex getExecutionVertex(JobVertexID id, ExecutionContext executionContext) throws Exception {
+	public static ExecutionJobVertex getExecutionVertex(JobVertexID id, Executor executor) throws Exception {
 		JobVertex ajv = new JobVertex("TestVertex", id);
 		ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
 
 		ExecutionGraph graph = new ExecutionGraph(
-			executionContext, 
+			executor,
+			executor,
 			new JobID(), 
 			"test job", 
 			new Configuration(),

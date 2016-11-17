@@ -21,8 +21,8 @@ package org.apache.flink.runtime.executiongraph.restart;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.google.common.util.concurrent.MoreExecutors;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.util.TestExecutors;
 import org.junit.Test;
 import org.mockito.Mockito;
 import scala.concurrent.ExecutionContext$;
@@ -39,8 +39,8 @@ public class FixedDelayRestartStrategyTest {
 			restartDelay);
 
 		ExecutionGraph executionGraph = mock(ExecutionGraph.class);
-		when(executionGraph.getExecutionContext())
-			.thenReturn(ExecutionContext$.MODULE$.fromExecutor(MoreExecutors.directExecutor()));
+		when(executionGraph.getFutureExecutionContext())
+			.thenReturn(ExecutionContext$.MODULE$.fromExecutor(TestExecutors.directExecutor()));
 
 		while(fixedDelayRestartStrategy.canRestart()) {
 			fixedDelayRestartStrategy.restart(executionGraph);

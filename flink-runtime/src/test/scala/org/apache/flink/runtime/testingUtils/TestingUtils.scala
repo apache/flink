@@ -43,7 +43,7 @@ import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegistere
 import org.apache.flink.runtime.taskmanager.TaskManager
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
 import scala.language.postfixOps
 
 /**
@@ -112,7 +112,7 @@ object TestingUtils {
     * @param actionQueue
     */
   class QueuedActionExecutionContext private[testingUtils] (val actionQueue: ActionQueue)
-    extends ExecutionContext {
+    extends ExecutionContextExecutor {
 
     var automaticExecution = false
 

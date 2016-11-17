@@ -186,21 +186,22 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 		SavepointStore savepointStore = SavepointStoreFactory.createFromConfig(configuration);
 
 		return Props.create(
-				TestingJobManager.class,
-				configuration,
-				executor,
-				new InstanceManager(),
-				new Scheduler(TestingUtils.defaultExecutionContext()),
-				new BlobLibraryCacheManager(new BlobServer(configuration), 10L),
-				ActorRef.noSender(),
-				new NoRestartStrategy.NoRestartStrategyFactory(),
-				AkkaUtils.getDefaultTimeout(),
-				leaderElectionService,
-				submittedJobGraphStore,
-				checkpointRecoveryFactory,
-				savepointStore,
-				AkkaUtils.getDefaultTimeout(),
-				Option.apply(null)
+			TestingJobManager.class,
+			configuration,
+			executor,
+			executor,
+			new InstanceManager(),
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			new BlobLibraryCacheManager(new BlobServer(configuration), 10L),
+			ActorRef.noSender(),
+			new NoRestartStrategy.NoRestartStrategyFactory(),
+			AkkaUtils.getDefaultTimeout(),
+			leaderElectionService,
+			submittedJobGraphStore,
+			checkpointRecoveryFactory,
+			savepointStore,
+			AkkaUtils.getDefaultTimeout(),
+			Option.apply(null)
 		);
 	}
 }

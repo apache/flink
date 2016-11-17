@@ -81,13 +81,14 @@ public class VertexLocationConstraintTest {
 			JobGraph jg = new JobGraph("test job", jobVertex);
 			
 			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jg.getJobID(),
-					jg.getName(),
-					jg.getJobConfiguration(),
-					new SerializedValue<>(new ExecutionConfig()),
-					timeout,
-					new NoRestartStrategy());
+				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutionContext(),
+				jg.getJobID(),
+				jg.getName(),
+				jg.getJobConfiguration(),
+				new SerializedValue<>(new ExecutionConfig()),
+				timeout,
+				new NoRestartStrategy());
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
@@ -154,6 +155,7 @@ public class VertexLocationConstraintTest {
 			JobGraph jg = new JobGraph("test job", jobVertex);
 			
 			ExecutionGraph eg = new ExecutionGraph(
+					TestingUtils.defaultExecutionContext(),
 					TestingUtils.defaultExecutionContext(),
 					jg.getJobID(),
 					jg.getName(),
@@ -232,6 +234,7 @@ public class VertexLocationConstraintTest {
 			
 			ExecutionGraph eg = new ExecutionGraph(
 					TestingUtils.defaultExecutionContext(),
+					TestingUtils.defaultExecutionContext(),
 					jg.getJobID(),
 					jg.getName(),
 					jg.getJobConfiguration(),
@@ -299,6 +302,7 @@ public class VertexLocationConstraintTest {
 			JobGraph jg = new JobGraph("test job", jobVertex);
 			
 			ExecutionGraph eg = new ExecutionGraph(
+					TestingUtils.defaultExecutionContext(),
 					TestingUtils.defaultExecutionContext(),
 					jg.getJobID(),
 					jg.getName(),
@@ -370,6 +374,7 @@ public class VertexLocationConstraintTest {
 			
 			ExecutionGraph eg = new ExecutionGraph(
 					TestingUtils.defaultExecutionContext(),
+					TestingUtils.defaultExecutionContext(),
 					jg.getJobID(),
 					jg.getName(),
 					jg.getJobConfiguration(),
@@ -410,6 +415,7 @@ public class VertexLocationConstraintTest {
 			JobGraph jg = new JobGraph("test job", vertex);
 			
 			ExecutionGraph eg = new ExecutionGraph(
+					TestingUtils.defaultExecutionContext(),
 					TestingUtils.defaultExecutionContext(),
 					jg.getJobID(),
 					jg.getName(),

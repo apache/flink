@@ -71,7 +71,7 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 			restartTimestampsDeque.remove();
 		}
 		restartTimestampsDeque.add(System.currentTimeMillis());
-		future(ExecutionGraphRestarter.restartWithDelay(executionGraph, delayInterval.toMilliseconds()), executionGraph.getExecutionContext());
+		future(ExecutionGraphRestarter.restartWithDelay(executionGraph, delayInterval.toMilliseconds()), executionGraph.getFutureExecutionContext());
 	}
 
 	private boolean isRestartTimestampsQueueFull() {

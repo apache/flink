@@ -38,6 +38,7 @@ import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
 import org.apache.flink.runtime.state.LocalStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.util.TestExecutors;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -878,17 +879,18 @@ public class SavepointCoordinatorTest extends TestLogger {
 		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
 		return new SavepointCoordinator(
-				jobId,
-				checkpointTimeout,
-				checkpointTimeout,
-				42,
-				triggerVertices,
-				ackVertices,
-				commitVertices,
-				classLoader,
-				checkpointIdCounter,
-				savepointStore,
-				new DisabledCheckpointStatsTracker());
+			jobId,
+			checkpointTimeout,
+			checkpointTimeout,
+			42,
+			triggerVertices,
+			ackVertices,
+			commitVertices,
+			classLoader,
+			checkpointIdCounter,
+			savepointStore,
+			new DisabledCheckpointStatsTracker(),
+			TestExecutors.directExecutor());
 	}
 
 	private static Map<JobVertexID, ExecutionJobVertex> createExecutionJobVertexMap(

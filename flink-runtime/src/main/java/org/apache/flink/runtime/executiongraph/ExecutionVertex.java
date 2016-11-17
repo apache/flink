@@ -129,7 +129,7 @@ public class ExecutionVertex implements Serializable {
 		this.priorExecutions = new CopyOnWriteArrayList<Execution>();
 
 		this.currentExecution = new Execution(
-			getExecutionGraph().getExecutionContext(),
+			getExecutionGraph().getFutureExecutionContext(),
 			this,
 			0,
 			createTimestamp,
@@ -430,7 +430,7 @@ public class ExecutionVertex implements Serializable {
 			if (state == FINISHED || state == CANCELED || state == FAILED) {
 				priorExecutions.add(execution);
 				currentExecution = new Execution(
-					getExecutionGraph().getExecutionContext(),
+					getExecutionGraph().getFutureExecutionContext(),
 					this,
 					execution.getAttemptNumber()+1,
 					System.currentTimeMillis(),

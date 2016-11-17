@@ -40,7 +40,6 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;
@@ -67,7 +66,7 @@ public class BackPressureStatsTrackerTest {
 		when(graph.getState()).thenReturn(JobStatus.RUNNING);
 
 		// Same Thread execution context
-		when(graph.getExecutionContext()).thenReturn(new ExecutionContext() {
+		when(graph.getFutureExecutionContext()).thenReturn(new ExecutionContext() {
 
 			@Override
 			public void execute(Runnable runnable) {
@@ -76,7 +75,7 @@ public class BackPressureStatsTrackerTest {
 
 			@Override
 			public void reportFailure(Throwable t) {
-				fail();
+				// do nothing
 			}
 
 			@Override
