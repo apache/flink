@@ -19,21 +19,30 @@ package org.apache.flink.streaming.api.functions.windowing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
+import java.util.Collections;
+
 @Internal
-public class ReduceIterableWindowFunction<K, W extends Window, T> implements WindowFunction<T, T, K, W> {
+public class ReduceApplyProcessWindowFunction<K, W extends Window, T, R>
+	extends RichProcessWindowFunction<T, R, K, W> {
+
 	private static final long serialVersionUID = 1L;
 
 	private final ReduceFunction<T> reduceFunction;
+	private final ProcessWindowFunction<T, R, K, W> windowFunction;
 
-	public ReduceIterableWindowFunction(ReduceFunction<T> reduceFunction) {
+	public ReduceApplyProcessWindowFunction(ReduceFunction<T> reduceFunction, ProcessWindowFunction<T, R, K, W> windowFunction) {
+		this.windowFunction = windowFunction;
 		this.reduceFunction = reduceFunction;
 	}
 
 	@Override
-	public void apply(K k, W window, Iterable<T> input, Collector<T> out) throws Exception {
+	public void process(K k, final Context context, Iterable<T> input, Collector<R> out) throws Exception {
 
 		T curr = null;
 		for (T val: input) {
@@ -43,6 +52,29 @@ public class ReduceIterableWindowFunction<K, W extends Window, T> implements Win
 				curr = reduceFunction.reduce(curr, val);
 			}
 		}
-		out.collect(curr);
+		windowFunction.process(k, windowFunction.new Context() {
+			@Override
+			public W window() {
+				return context.window();
+			}
+		}, Collections.singletonList(curr), out);
 	}
+
+	@Override
+	public void open(Configuration configuration) throws Exception {
+		FunctionUtils.openFunction(this.windowFunction, configuration);
+	}
+
+	@Override
+	public void close() throws Exception {
+		FunctionUtils.closeFunction(this.windowFunction);
+	}
+
+	@Override
+	public void setRuntimeContext(RuntimeContext t) {
+		super.setRuntimeContext(t);
+
+		FunctionUtils.setFunctionRuntimeContext(this.windowFunction, t);
+	}
+
 }

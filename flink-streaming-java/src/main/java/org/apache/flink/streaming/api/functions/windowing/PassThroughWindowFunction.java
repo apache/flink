@@ -22,13 +22,13 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
 @Internal
-public class PassThroughWindowFunction<K, W extends Window, T> extends ProcessWindowFunction<T, T, K, W> {
+public class PassThroughWindowFunction<K, W extends Window, T> implements WindowFunction<T, T, K, W> {
 
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void process(K k, Context context, Iterable<T> input, Collector<T> out) throws Exception {
-		for (T in: input) {
+	public void apply(K k, W window, Iterable<T> input, Collector<T> out) throws Exception {
+		for (T in : input) {
 			out.collect(in);
 		}
 	}

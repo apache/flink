@@ -24,13 +24,12 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
-import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
-import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
+import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableProcessWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -73,7 +72,7 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 				keySelector,
 				keyType.createSerializer(new ExecutionConfig()),
 				windowStateDesc,
-				new InternalIterableWindowFunction<>(new PassThroughFunction()),
+				new InternalIterableProcessWindowFunction<>(new PassThroughFunction()),
 				trigger,
 				allowedLateness);
 

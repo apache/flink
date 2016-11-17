@@ -24,7 +24,6 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
@@ -33,16 +32,16 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
+import org.apache.flink.streaming.api.functions.windowing.FoldApplyProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.FoldApplyWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ReduceApplyProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyWindowFunction;
-import org.apache.flink.streaming.api.functions.windowing.RichProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
@@ -58,12 +57,14 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.AccumulatingProcessingTimeWindowOperator;
 import org.apache.flink.streaming.runtime.operators.windowing.AggregatingProcessingTimeWindowOperator;
 import org.apache.flink.streaming.runtime.operators.windowing.EvictingWindowOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableProcessWindowFunction;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
+import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalSingleValueProcessWindowFunction;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalSingleValueWindowFunction;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.Collector;
 
 /**
  * A {@code WindowedStream} represents a data stream where elements are grouped by
@@ -276,9 +277,9 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
 	public <R> SingleOutputStreamOperator<R> apply(WindowFunction<T, R, K, W> function, TypeInformation<R> resultType) {
-		final WindowFunction<T, R, K, W> cleanedFunction = input.getExecutionEnvironment().clean(function);
-		final ProcessWindowFunction<T, R, K, W> wrapper = wrapWindowFunction(cleanedFunction);
-		return apply(wrapper, resultType);
+		String callLocation = Utils.getCallLocationName();
+		function = input.getExecutionEnvironment().clean(function);
+		return apply(new InternalIterableWindowFunction<>(function), resultType, callLocation);
 	}
 
 	/**
@@ -314,18 +315,19 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
 	public <R> SingleOutputStreamOperator<R> apply(ProcessWindowFunction<T, R, K, W> function, TypeInformation<R> resultType) {
-
-		//clean the closure
-		function = input.getExecutionEnvironment().clean(function);
-
 		String callLocation = Utils.getCallLocationName();
+		function = input.getExecutionEnvironment().clean(function);
+		return apply(new InternalIterableProcessWindowFunction<>(function), resultType, callLocation);
+	}
+
+	private <R> SingleOutputStreamOperator<R> apply(InternalWindowFunction<Iterable<T>, R, K, W> function, TypeInformation<R> resultType, String callLocation) {
+
 		String udfName = "WindowedStream." + callLocation;
 
 		SingleOutputStreamOperator<R> result = createFastTimeOperatorIfValid(function, resultType, udfName);
 		if (result != null) {
 			return result;
 		}
-
 
 		String opName;
 		KeySelector<T, K> keySel = input.getKeySelector();
@@ -348,7 +350,7 @@ public class WindowedStream<T, K, W extends Window> {
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
-					new InternalIterableWindowFunction<>(function),
+					function,
 					trigger,
 					evictor,
 					allowedLateness);
@@ -365,12 +367,33 @@ public class WindowedStream<T, K, W extends Window> {
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
-					new InternalIterableWindowFunction<>(function),
+					function,
 					trigger,
 					allowedLateness);
 		}
 
 		return input.transform(opName, resultType, operator);
+	}
+
+	/**
+	 * Applies the given window function to each window. The window function is called for each
+	 * evaluation of the window for each key individually. The output of the window function is
+	 * interpreted as a regular non-windowed stream.
+	 *
+	 * <p>
+	 * Arriving data is incrementally aggregated using the given reducer.
+	 *
+	 * @param reduceFunction The reduce function that is used for incremental aggregation.
+	 * @param function The window function.
+	 * @return The data stream that is the result of applying the window function to the window.
+	 */
+
+	public <R> SingleOutputStreamOperator<R> apply(ReduceFunction<T> reduceFunction, ProcessWindowFunction<T, R, K, W> function) {
+		TypeInformation<T> inType = input.getType();
+		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
+			function, WindowFunction.class, true, true, inType, null, false);
+
+		return reduce(reduceFunction, function, resultType);
 	}
 
 	/**
@@ -404,37 +427,11 @@ public class WindowedStream<T, K, W extends Window> {
 	 *
 	 * @param reduceFunction The reduce function that is used for incremental aggregation.
 	 * @param function The window function.
-	 * @return The data stream that is the result of applying the window function to the window.
-	 */
-
-	public <R> SingleOutputStreamOperator<R> apply(ReduceFunction<T> reduceFunction, ProcessWindowFunction<T, R, K, W> function) {
-		TypeInformation<T> inType = input.getType();
-		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
-			function, ProcessWindowFunction.class, true, true, inType, null, false);
-
-		return apply(reduceFunction, function, resultType);
-	}
-
-
-	/**
-	 * Applies the given window function to each window. The window function is called for each
-	 * evaluation of the window for each key individually. The output of the window function is
-	 * interpreted as a regular non-windowed stream.
-	 *
-	 * <p>
-	 * Arriving data is incrementally aggregated using the given reducer.
-	 *
-	 * @param reduceFunction The reduce function that is used for incremental aggregation.
-	 * @param function The window function.
 	 * @param resultType Type information for the result type of the window function
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
-	public <R> SingleOutputStreamOperator<R> apply(ReduceFunction<T> reduceFunction,
-													final WindowFunction<T, R, K, W> function,
-													TypeInformation<R> resultType) {
-		final WindowFunction<T, R, K, W> cleanedFunction = input.getExecutionEnvironment().clean(function);
-		final ProcessWindowFunction<T, R, K, W> wrapper = wrapWindowFunction(cleanedFunction);
-		return apply(reduceFunction, wrapper, resultType);
+	public <R> SingleOutputStreamOperator<R> apply(ReduceFunction<T> reduceFunction, ProcessWindowFunction<T, R, K, W> function, TypeInformation<R> resultType) {
+		return reduce(reduceFunction, function, resultType);
 	}
 
 	/**
@@ -450,9 +447,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param resultType Type information for the result type of the window function
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
-	public <R> SingleOutputStreamOperator<R> apply(ReduceFunction<T> reduceFunction,
-													ProcessWindowFunction<T, R, K, W> function,
-													TypeInformation<R> resultType) {
+	public <R> SingleOutputStreamOperator<R> apply(ReduceFunction<T> reduceFunction, WindowFunction<T, R, K, W> function, TypeInformation<R> resultType) {
 		if (reduceFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("ReduceFunction of apply can not be a RichFunction.");
 		}
@@ -523,6 +518,23 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param function The window function.
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
+	public <R> SingleOutputStreamOperator<R> apply(R initialValue, FoldFunction<T, R> foldFunction, ProcessWindowFunction<R, R, K, W> function) {
+		return fold(initialValue, foldFunction, function);
+	}
+
+	/**
+	 * Applies the given window function to each window. The window function is called for each
+	 * evaluation of the window for each key individually. The output of the window function is
+	 * interpreted as a regular non-windowed stream.
+	 *
+	 * <p>
+	 * Arriving data is incrementally aggregated using the given fold function.
+	 *
+	 * @param initialValue The initial value of the fold.
+	 * @param foldFunction The fold function that is used for incremental aggregation.
+	 * @param function The window function.
+	 * @return The data stream that is the result of applying the window function to the window.
+	 */
 	public <R> SingleOutputStreamOperator<R> apply(R initialValue, FoldFunction<T, R> foldFunction, WindowFunction<R, R, K, W> function) {
 
 		TypeInformation<R> resultType = TypeExtractor.getFoldReturnTypes(foldFunction, input.getType(),
@@ -545,12 +557,10 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param resultType Type information for the result type of the window function
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
-	public <R> SingleOutputStreamOperator<R> apply(R initialValue, FoldFunction<T, R> foldFunction,
-													WindowFunction<R, R, K, W> function, TypeInformation<R> resultType) {
-		final WindowFunction<R, R, K, W> cleanedFunction = input.getExecutionEnvironment().clean(function);
-		final ProcessWindowFunction<R, R, K, W> wrapper = wrapWindowFunction(cleanedFunction);
-		return apply(initialValue, foldFunction, wrapper, resultType);
+	public <R> SingleOutputStreamOperator<R> apply(R initialValue, FoldFunction<T, R> foldFunction, ProcessWindowFunction<R, R, K, W> function, TypeInformation<R> resultType) {
+		return fold(initialValue, foldFunction, resultType, function, resultType);
 	}
+
 
 	/**
 	 * Applies the given window function to each window. The window function is called for each
@@ -566,7 +576,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param resultType Type information for the result type of the window function
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
-	public <R> SingleOutputStreamOperator<R> apply(R initialValue, FoldFunction<T, R> foldFunction, ProcessWindowFunction<R, R, K, W> function, TypeInformation<R> resultType) {
+	public <R> SingleOutputStreamOperator<R> apply(R initialValue, FoldFunction<T, R> foldFunction, WindowFunction<R, R, K, W> function, TypeInformation<R> resultType) {
 		if (foldFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("FoldFunction of apply can not be a RichFunction.");
 		}
@@ -596,15 +606,16 @@ public class WindowedStream<T, K, W extends Window> {
 
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
-			operator = new EvictingWindowOperator<>(windowAssigner,
-				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-				keySel,
-				input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
-				stateDesc,
-				new InternalIterableWindowFunction<>(new FoldApplyWindowFunction<>(initialValue, foldFunction, function)),
-				trigger,
-				evictor,
-				allowedLateness);
+			operator =
+				new EvictingWindowOperator<>(windowAssigner,
+					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					keySel,
+					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+					stateDesc,
+					new InternalIterableWindowFunction<>(new FoldApplyWindowFunction<>(initialValue, foldFunction, function)),
+					trigger,
+					evictor,
+					allowedLateness);
 
 		} else {
 			FoldingStateDescriptor<T, R> stateDesc = new FoldingStateDescriptor<>("window-contents",
@@ -612,18 +623,207 @@ public class WindowedStream<T, K, W extends Window> {
 
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 
-			operator = new WindowOperator<>(windowAssigner,
-				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-				keySel,
-				input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
-				stateDesc,
-				new InternalSingleValueWindowFunction<>(function),
-				trigger,
-				allowedLateness);
+			operator =
+				new WindowOperator<>(windowAssigner,
+					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					keySel,
+					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+					stateDesc,
+					new InternalSingleValueWindowFunction<>(function),
+					trigger,
+					allowedLateness);
 		}
 
 		return input.transform(opName, resultType, operator);
 	}
+
+	/**
+	 * Applies the given fold function to each window. The window folded value is then passed as input
+	 * of the window function.
+	 *
+	 * @param foldFunction The fold function.
+	 * @param windowFunction The window function.
+	 * @return The data stream that is the result of applying the fold function to the window.
+	 */
+	public <R, ACC> SingleOutputStreamOperator<R> fold(ACC initialValue, FoldFunction<T, ACC> foldFunction, ProcessWindowFunction<ACC, R, K, W> windowFunction) {
+		if (foldFunction instanceof RichFunction) {
+			throw new UnsupportedOperationException("FoldFunction can not be a RichFunction.");
+		}
+
+		TypeInformation<ACC> foldResultType = TypeExtractor.getFoldReturnTypes(foldFunction, input.getType(),
+			Utils.getCallLocationName(), true);
+
+		TypeInformation<R> windowResultType = TypeExtractor.getUnaryOperatorReturnType(
+			windowFunction, ProcessWindowFunction.class, true, true, foldResultType, Utils.getCallLocationName(), false);
+
+		return fold(initialValue, foldFunction, foldResultType, windowFunction, windowResultType);
+	}
+
+	/**
+	 * Applies the given fold function to each window. The window folded value is then passed as input
+	 * of the process window function. The output of the process window function is
+	 * interpreted as a regular non-windowed stream.
+	 *
+	 * @param initialValue the initial value to be passed to the first invocation of the fold function
+	 * @param foldFunction The fold function.
+	 * @param foldResultType The result type of the fold function.
+	 * @param windowFunction The process window function.
+	 * @param windowResultType The process window function result type.
+	 * @return The data stream that is the result of applying the fold function to the window.
+	 */
+	public <R, ACC> SingleOutputStreamOperator<R> fold(ACC initialValue, FoldFunction<T, ACC> foldFunction,
+														TypeInformation<ACC> foldResultType, ProcessWindowFunction<ACC, R, K, W> windowFunction,
+														TypeInformation<R> windowResultType) {
+		if (foldFunction instanceof RichFunction) {
+			throw new UnsupportedOperationException("FoldFunction can not be a RichFunction.");
+		}
+		if (windowAssigner instanceof MergingWindowAssigner) {
+			throw new UnsupportedOperationException("Fold cannot be used with a merging WindowAssigner.");
+		}
+
+		//clean the closures
+		windowFunction = input.getExecutionEnvironment().clean(windowFunction);
+		foldFunction = input.getExecutionEnvironment().clean(foldFunction);
+
+		String callLocation = Utils.getCallLocationName();
+		String udfName = "WindowedStream." + callLocation;
+
+		String opName;
+		KeySelector<T, K> keySel = input.getKeySelector();
+
+		OneInputStreamOperator<T, R> operator;
+
+		if (evictor != null) {
+			@SuppressWarnings({"unchecked", "rawtypes"})
+			TypeSerializer<StreamRecord<T>> streamRecordSerializer =
+				(TypeSerializer<StreamRecord<T>>) new StreamElementSerializer(input.getType().createSerializer(getExecutionEnvironment().getConfig()));
+
+			ListStateDescriptor<StreamRecord<T>> stateDesc =
+				new ListStateDescriptor<>("window-contents", streamRecordSerializer);
+
+			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
+
+			operator =
+				new EvictingWindowOperator<>(windowAssigner,
+					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					keySel,
+					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+					stateDesc,
+					new InternalIterableProcessWindowFunction<>(new FoldApplyProcessWindowFunction<>(initialValue, foldFunction, windowFunction, foldResultType)),
+					trigger,
+					evictor,
+					allowedLateness);
+
+		} else {
+			FoldingStateDescriptor<T, ACC> stateDesc = new FoldingStateDescriptor<>("window-contents",
+					initialValue,
+					foldFunction,
+					foldResultType.createSerializer(getExecutionEnvironment().getConfig()));
+
+			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
+
+			operator =
+				new WindowOperator<>(windowAssigner,
+					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					keySel,
+					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+					stateDesc,
+					new InternalSingleValueProcessWindowFunction<>(windowFunction),
+					trigger,
+					allowedLateness);
+		}
+
+		return input.transform(opName, windowResultType, operator);
+
+	}
+
+
+	/**
+	 * Applies the given reduce function to each window. The window reduced value is then passed as input
+	 * of the window function. The output of the window function is
+	 * interpreted as a regular non-windowed stream.
+	 *
+	 * @param reduceFunction The reduce function that is used for incremental aggregation.
+	 * @param function The process window function.
+	 * @return The data stream that is the result of applying the window function to the window.
+	 */
+
+	public <R> SingleOutputStreamOperator<R> reduce(ReduceFunction<T> reduceFunction, ProcessWindowFunction<T, R, K, W> function) {
+		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
+			function, WindowFunction.class, true, true, input.getType(), null, false);
+
+		return reduce(reduceFunction, function, resultType);
+	}
+
+
+	/**
+	 * Applies the given reduce function to each window. The window reduced value is then passed as input
+	 * of the window function. The output of the window function is
+	 * interpreted as a regular non-windowed stream.
+	 *
+	 * @param reduceFunction The reduce function that is used for incremental aggregation.
+	 * @param function The process window function.
+	 * @param resultType Type information for the result type of the window function
+	 * @return The data stream that is the result of applying the window function to the window.
+	 */
+	public <R> SingleOutputStreamOperator<R> reduce(ReduceFunction<T> reduceFunction, ProcessWindowFunction<T, R, K, W> function, TypeInformation<R> resultType) {
+		if (reduceFunction instanceof RichFunction) {
+			throw new UnsupportedOperationException("ReduceFunction of apply can not be a RichFunction.");
+		}
+		//clean the closures
+		function = input.getExecutionEnvironment().clean(function);
+		reduceFunction = input.getExecutionEnvironment().clean(reduceFunction);
+
+		String callLocation = Utils.getCallLocationName();
+		String udfName = "WindowedStream." + callLocation;
+
+		String opName;
+		KeySelector<T, K> keySel = input.getKeySelector();
+
+		OneInputStreamOperator<T, R> operator;
+
+		if (evictor != null) {
+			@SuppressWarnings({"unchecked", "rawtypes"})
+			TypeSerializer<StreamRecord<T>> streamRecordSerializer =
+				(TypeSerializer<StreamRecord<T>>) new StreamElementSerializer(input.getType().createSerializer(getExecutionEnvironment().getConfig()));
+
+			ListStateDescriptor<StreamRecord<T>> stateDesc =
+				new ListStateDescriptor<>("window-contents", streamRecordSerializer);
+
+			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
+
+			operator =
+				new EvictingWindowOperator<>(windowAssigner,
+					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					keySel,
+					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+					stateDesc,
+					new InternalIterableProcessWindowFunction<>(new ReduceApplyProcessWindowFunction<>(reduceFunction, function)),
+					trigger,
+					evictor,
+					allowedLateness);
+
+		} else {
+			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>("window-contents",
+				reduceFunction,
+				input.getType().createSerializer(getExecutionEnvironment().getConfig()));
+
+			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
+
+			operator =
+				new WindowOperator<>(windowAssigner,
+					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					keySel,
+					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+					stateDesc,
+					new InternalSingleValueProcessWindowFunction<>(function),
+					trigger,
+					allowedLateness);
+		}
+
+		return input.transform(opName, resultType, operator);
+	}
+
 
 	// ------------------------------------------------------------------------
 	//  Aggregations on the keyed windows
@@ -851,10 +1051,9 @@ public class WindowedStream<T, K, W extends Window> {
 						input.getType().createSerializer(getExecutionEnvironment().getConfig()),
 						windowLength, windowSlide);
 				return input.transform(opName, resultType, op);
-			}
-			else if (function instanceof ProcessWindowFunction) {
+			} else if (function instanceof InternalWindowFunction) {
 				@SuppressWarnings("unchecked")
-				ProcessWindowFunction<T, R, K, TimeWindow> wf = (ProcessWindowFunction<T, R, K, TimeWindow>) function;
+				InternalWindowFunction<Iterable<T>, R, K, TimeWindow> wf = (InternalWindowFunction<Iterable<T>, R, K, TimeWindow>) function;
 
 				OneInputStreamOperator<T, R> op = new AccumulatingProcessingTimeWindowOperator<>(
 					wf, input.getKeySelector(),
@@ -883,10 +1082,9 @@ public class WindowedStream<T, K, W extends Window> {
 						input.getType().createSerializer(getExecutionEnvironment().getConfig()),
 						windowLength, windowSlide);
 				return input.transform(opName, resultType, op);
-			}
-			else if (function instanceof ProcessWindowFunction) {
+			} else if (function instanceof InternalWindowFunction) {
 				@SuppressWarnings("unchecked")
-				ProcessWindowFunction<T, R, K, TimeWindow> wf = (ProcessWindowFunction<T, R, K, TimeWindow>) function;
+				InternalWindowFunction<Iterable<T>, R, K, TimeWindow> wf = (InternalWindowFunction<Iterable<T>, R, K, TimeWindow>) function;
 
 				OneInputStreamOperator<T, R> op = new AccumulatingProcessingTimeWindowOperator<>(
 					wf, input.getKeySelector(),
@@ -908,38 +1106,4 @@ public class WindowedStream<T, K, W extends Window> {
 		return input.getType();
 	}
 
-	private static <T, R, K, W extends Window> ProcessWindowFunction<T, R, K, W> wrapWindowFunction(final WindowFunction<T, R, K, W> cleanedFunction) {
-		if (cleanedFunction instanceof RichFunction) {
-			final RichFunction richFunction = (RichFunction) cleanedFunction;
-			return new RichProcessWindowFunction<T, R, K, W>() {
-				@Override
-				public void process(K k, Context context, Iterable<T> elements, Collector<R> out) throws Exception {
-					cleanedFunction.apply(k, context.window(), elements, out);
-				}
-
-				@Override
-				public void open(Configuration parameters) throws Exception {
-					richFunction.open(parameters);
-				}
-
-				@Override
-				public void close() throws Exception {
-					richFunction.close();
-				}
-
-				@Override
-				public void setRuntimeContext(RuntimeContext t) {
-					super.setRuntimeContext(t);
-					richFunction.setRuntimeContext(t);
-				}
-			};
-		} else {
-			return new ProcessWindowFunction<T, R, K, W>() {
-				@Override
-				public void process(K k, Context context, Iterable<T> elements, Collector<R> out) throws Exception {
-					cleanedFunction.apply(k, context.window(), elements, out);
-				}
-			};
-		}
-	}
 }
