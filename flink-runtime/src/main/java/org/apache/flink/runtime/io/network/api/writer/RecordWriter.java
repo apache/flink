@@ -208,9 +208,10 @@ public class RecordWriter<T extends IOReadableWritable> {
 	}
 
 	/**
-	 * Writes the buffer to the {@link ResultPartitionWriter}.
+	 * Writes the buffer to the {@link ResultPartitionWriter} and removes the
+	 * buffer from the serializer state.
 	 *
-	 * <p> The buffer is cleared from the serializer state after a call to this method.
+	 * Needs to be synchronized on the serializer!
 	 */
 	private void writeAndClearBuffer(
 			Buffer buffer,
