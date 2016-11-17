@@ -34,7 +34,9 @@ import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Map;
@@ -212,7 +214,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public GetShardListResult getShardList(Map<String,String> streamNamesWithLastSeenShardIds) throws InterruptedException {
+	public GetShardListResult getShardList(Map<String, String> streamNamesWithLastSeenShardIds) throws InterruptedException {
 		GetShardListResult result = new GetShardListResult();
 
 		for (Map.Entry<String,String> streamNameWithLastSeenShardId : streamNamesWithLastSeenShardIds.entrySet()) {
@@ -227,7 +229,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) throws InterruptedException {
+	public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nullable String startingSeqNum) throws InterruptedException {
 		GetShardIteratorResult getShardIteratorResult = null;
 
 		int attempt = 0;
@@ -251,7 +253,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 		return getShardIteratorResult.getShardIterator();
 	}
 
-	private List<KinesisStreamShard> getShardsOfStream(String streamName, String lastSeenShardId) throws InterruptedException {
+	private List<KinesisStreamShard> getShardsOfStream(String streamName, @Nullable String lastSeenShardId) throws InterruptedException {
 		List<KinesisStreamShard> shardsOfStream = new ArrayList<>();
 
 		DescribeStreamResult describeStreamResult;
@@ -283,7 +285,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 	 * @param startShardId which shard to start with for this describe operation (earlier shard's infos will not appear in result)
 	 * @return the result of the describe stream operation
 	 */
-	private DescribeStreamResult describeStream(String streamName, String startShardId) throws InterruptedException {
+	private DescribeStreamResult describeStream(String streamName, @Nullable String startShardId) throws InterruptedException {
 		final DescribeStreamRequest describeStreamRequest = new DescribeStreamRequest();
 		describeStreamRequest.setStreamName(streamName);
 		describeStreamRequest.setExclusiveStartShardId(startShardId);
@@ -311,6 +313,18 @@ public class KinesisProxy implements KinesisProxyInterface {
 			if (LOG.isWarnEnabled()) {
 				LOG.warn("The status of stream " + streamName + " is " + streamStatus + "; result of the current " +
 					"describeStream operation will not contain any shard information.");
+			}
+		}
+
+		// Kinesalite (mock implementation of Kinesis) does not correctly exclude shards before the exclusive
+		// start shard id in the returned shards list; check if we need to remove these erroneously returned shards
+		if (startShardId != null) {
+			List<Shard> shards = describeStreamResult.getStreamDescription().getShards();
+			Iterator<Shard> shardItr = shards.iterator();
+			while (shardItr.hasNext()) {
+				if (KinesisStreamShard.compareShardIds(shardItr.next().getShardId(), startShardId) <= 0) {
+					shardItr.remove();
+				}
 			}
 		}
 
