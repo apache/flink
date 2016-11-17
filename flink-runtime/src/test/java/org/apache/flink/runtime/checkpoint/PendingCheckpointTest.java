@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -210,7 +211,15 @@ public class PendingCheckpointTest {
 
 	private static PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, String targetDirectory) {
 		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(ACK_TASKS);
-		return new PendingCheckpoint(new JobID(), 0, 1, ackTasks, false, props, targetDirectory);
+		return new PendingCheckpoint(
+			new JobID(),
+			0,
+			1,
+			ackTasks,
+			false,
+			props,
+			targetDirectory,
+			Executors.directExecutor());
 	}
 
 	@SuppressWarnings("unchecked")

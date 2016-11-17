@@ -35,6 +35,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -150,6 +152,8 @@ public class CheckpointCoordinator {
 	/** Default checkpoint properties **/
 	private final CheckpointProperties checkpointProperties;
 
+	private final Executor executor;
+
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
@@ -165,7 +169,8 @@ public class CheckpointCoordinator {
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
 			String checkpointDirectory,
-			CheckpointStatsTracker statsTracker) {
+			CheckpointStatsTracker statsTracker,
+			Executor executor) {
 
 		// sanity checks
 		checkArgument(baseInterval > 0, "Checkpoint timeout must be larger than zero");
@@ -216,6 +221,8 @@ public class CheckpointCoordinator {
 		} catch (Throwable t) {
 			throw new RuntimeException("Failed to start checkpoint ID counter: " + t.getMessage(), t);
 		}
+
+		this.executor = checkNotNull(executor);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -296,7 +303,7 @@ public class CheckpointCoordinator {
 	 * the checkpoint will be declined.
 	 * @return <code>true</code> if triggering the checkpoint succeeded.
 	 */
-	public boolean triggerCheckpoint(long timestamp, boolean isPeriodic) throws Exception {
+	public boolean triggerCheckpoint(long timestamp, boolean isPeriodic) {
 		return triggerCheckpoint(timestamp, checkpointProperties, checkpointDirectory, isPeriodic).isSuccess();
 	}
 
@@ -305,7 +312,7 @@ public class CheckpointCoordinator {
 			long timestamp,
 			CheckpointProperties props,
 			String targetDirectory,
-			boolean isPeriodic) throws Exception {
+			boolean isPeriodic) {
 
 		// Sanity check
 		if (props.externalizeCheckpoint() && targetDirectory == null) {
@@ -415,35 +422,31 @@ public class CheckpointCoordinator {
 			}
 
 			final PendingCheckpoint checkpoint = new PendingCheckpoint(
-					job,
-					checkpointID,
-					timestamp,
-					ackTasks,
-					isPeriodic,
-					props,
-					targetDirectory);
+				job,
+				checkpointID,
+				timestamp,
+				ackTasks,
+				isPeriodic,
+				props,
+				targetDirectory,
+				executor);
 
 			// schedule the timer that will clean up the expired checkpoints
 			TimerTask canceller = new TimerTask() {
 				@Override
 				public void run() {
-					try {
-						synchronized (lock) {
-							// only do the work if the checkpoint is not discarded anyways
-							// note that checkpoint completion discards the pending checkpoint object
-							if (!checkpoint.isDiscarded()) {
-								LOG.info("Checkpoint " + checkpointID + " expired before completing.");
+					synchronized (lock) {
+						// only do the work if the checkpoint is not discarded anyways
+						// note that checkpoint completion discards the pending checkpoint object
+						if (!checkpoint.isDiscarded()) {
+							LOG.info("Checkpoint " + checkpointID + " expired before completing.");
 
-								checkpoint.abortExpired();
-								pendingCheckpoints.remove(checkpointID);
-								rememberRecentCheckpointId(checkpointID);
+							checkpoint.abortExpired();
+							pendingCheckpoints.remove(checkpointID);
+							rememberRecentCheckpointId(checkpointID);
 
-								triggerQueuedRequests();
-							}
+							triggerQueuedRequests();
 						}
-					}
-					catch (Throwable t) {
-						LOG.error("Exception while handling checkpoint timeout", t);
 					}
 				}
 			};
@@ -531,7 +534,7 @@ public class CheckpointCoordinator {
 	 *
 	 * @param message Checkpoint decline from the task manager
 	 */
-	public void receiveDeclineMessage(DeclineCheckpoint message) throws Exception {
+	public void receiveDeclineMessage(DeclineCheckpoint message) {
 		if (shutdown || message == null) {
 			return;
 		}
@@ -675,12 +678,8 @@ public class CheckpointCoordinator {
 								"the state handle to avoid lingering state.", message.getCheckpointId(),
 							message.getTaskExecutionId(), message.getJob());
 
-						try {
-							message.getSubtaskState().discardState();
-						} catch (Exception e) {
-							LOG.warn("Could not properly discard state for checkpoint {} of task {} of job {}.",
-								message.getCheckpointId(), message.getTaskExecutionId(), message.getJob(), e);
-						}
+						discardState(message.getSubtaskState());
+
 						break;
 					case DISCARDED:
 						LOG.warn("Could not acknowledge the checkpoint {} for task {} of job {}, " +
@@ -688,12 +687,7 @@ public class CheckpointCoordinator {
 								"state handle tp avoid lingering state.",
 							message.getCheckpointId(), message.getTaskExecutionId(), message.getJob());
 
-						try {
-							message.getSubtaskState().discardState();
-						} catch (Exception e) {
-							LOG.warn("Could not properly discard state for checkpoint {} of task {} of job {}.",
-								message.getCheckpointId(), message.getTaskExecutionId(), message.getJob(), e);
-						}
+						discardState(message.getSubtaskState());
 				}
 			}
 			else if (checkpoint != null) {
@@ -712,13 +706,8 @@ public class CheckpointCoordinator {
 					isPendingCheckpoint = false;
 				}
 
-				try {
-					// try to discard the state so that we don't have lingering state lying around
-					message.getSubtaskState().discardState();
-				} catch (Exception e) {
-					LOG.warn("Could not properly discard state for checkpoint {} of task {} of job {}.",
-						message.getCheckpointId(), message.getTaskExecutionId(), message.getJob(), e);
-				}
+				// try to discard the state so that we don't have lingering state lying around
+				discardState(message.getSubtaskState());
 			}
 		}
 
@@ -747,7 +736,7 @@ public class CheckpointCoordinator {
 		recentPendingCheckpoints.addLast(id);
 	}
 
-	private void dropSubsumedCheckpoints(long checkpointId) throws Exception {
+	private void dropSubsumedCheckpoints(long checkpointId) {
 		Iterator<Map.Entry<Long, PendingCheckpoint>> entries = pendingCheckpoints.entrySet().iterator();
 
 		while (entries.hasNext()) {
@@ -766,7 +755,7 @@ public class CheckpointCoordinator {
 	 *
 	 * <p>NOTE: The caller of this method must hold the lock when invoking the method!
 	 */
-	private void triggerQueuedRequests() throws Exception {
+	private void triggerQueuedRequests() {
 		if (triggerRequestQueued) {
 			triggerRequestQueued = false;
 
@@ -915,11 +904,7 @@ public class CheckpointCoordinator {
 			}
 
 			for (PendingCheckpoint p : pendingCheckpoints.values()) {
-				try {
-					p.abortError(new Exception("Checkpoint Coordinator is suspending."));
-				} catch (Throwable t) {
-					LOG.error("Error while disposing pending checkpoint", t);
-				}
+				p.abortError(new Exception("Checkpoint Coordinator is suspending."));
 			}
 
 			pendingCheckpoints.clear();
@@ -958,5 +943,18 @@ public class CheckpointCoordinator {
 				LOG.error("Exception while triggering checkpoint", e);
 			}
 		}
+	}
+
+	private void discardState(final StateObject stateObject) {
+		executor.execute(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					stateObject.discardState();
+				} catch (Exception e) {
+					LOG.warn("Could not properly discard state object.", e);
+				}
+			}
+		});
 	}
 }

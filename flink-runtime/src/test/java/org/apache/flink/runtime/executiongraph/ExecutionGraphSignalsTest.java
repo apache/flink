@@ -133,6 +133,7 @@ public class ExecutionGraphSignalsTest {
 
 		eg = new ExecutionGraph(
 			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
 			jobId,
 			jobName,
 			cfg,
