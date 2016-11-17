@@ -171,7 +171,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 					Buffer buffer = serializer.getCurrentBuffer();
 
 					if (buffer != null) {
-						writeAndClearBuffer(buffer, targetChannel, serializer);
+						targetPartition.writeBuffer(buffer, targetChannel);
 					}
 				} finally {
 					serializer.clear();
