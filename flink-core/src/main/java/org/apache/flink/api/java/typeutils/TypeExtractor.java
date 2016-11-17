@@ -751,24 +751,9 @@ public class TypeExtractor {
 			
 			// due to a Java 6 bug, it is possible that the JVM classifies e.g. String[] or int[] as GenericArrayType instead of Class
 			if (componentType instanceof Class) {
-				
 				Class<?> componentClass = (Class<?>) componentType;
-				String className;
-				// for int[], double[] etc.
-				if(componentClass.isPrimitive()) {
-					className = encodePrimitiveClass(componentClass);
-				}
-				// for String[], Integer[] etc.
-				else {
-					className = "L" + componentClass.getName() + ";";
-				}
-				
-				Class<OUT> classArray;
-				try {
-					classArray = (Class<OUT>) Class.forName("[" + className);
-				} catch (ClassNotFoundException e) {
-					throw new InvalidTypesException("Could not convert GenericArrayType to Class.");
-				}
+
+				Class<OUT> classArray = (Class<OUT>) (java.lang.reflect.Array.newInstance(componentClass, 0).getClass());
 
 				return getForClass(classArray);
 			} else {
@@ -778,21 +763,8 @@ public class TypeExtractor {
 					in1Type,
 					in2Type);
 
-				Class<OUT> classArray;
-
-				try {
-					String componentClassName = componentInfo.getTypeClass().getName();
-					String resultingClassName;
-
-					if (componentClassName.startsWith("[")) {
-						resultingClassName = "[" + componentClassName;
-					} else {
-						resultingClassName = "[L" + componentClassName + ";";
-					}
-					classArray = (Class<OUT>) Class.forName(resultingClassName);
-				} catch (ClassNotFoundException e) {
-					throw new InvalidTypesException("Could not convert GenericArrayType to Class.");
-				}
+				Class<?> componentClass = componentInfo.getTypeClass();
+				Class<OUT> classArray = (Class<OUT>) (java.lang.reflect.Array.newInstance(componentClass, 0).getClass());
 
 				return ObjectArrayTypeInfo.getInfoFor(classArray, componentInfo);
 			}
@@ -1558,34 +1530,6 @@ public class TypeExtractor {
 					+ "Currently, only the Eclipse JDT compiler preserves the type information necessary to use the lambdas feature type-safely. \n"
 					+ "See the documentation for more information about how to compile jobs containing lambda expressions.");
 		}
-	}
-	
-	private static String encodePrimitiveClass(Class<?> primitiveClass) {
-		if (primitiveClass == boolean.class) {
-			return "Z";
-		}
-		else if (primitiveClass == byte.class) {
-			return "B";
-		}
-		else if (primitiveClass == char.class) {
-			return "C";
-		}
-		else if (primitiveClass == double.class) {
-			return "D";
-		}
-		else if (primitiveClass == float.class) {
-			return "F";
-		}
-		else if (primitiveClass == int.class) {
-			return "I";
-		}
-		else if (primitiveClass == long.class) {
-			return "J";
-		}
-		else if (primitiveClass == short.class) {
-			return "S";
-		}
-		throw new InvalidTypesException();
 	}
 
 	/**
