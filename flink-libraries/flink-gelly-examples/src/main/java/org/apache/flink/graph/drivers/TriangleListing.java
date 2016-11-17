@@ -30,8 +30,8 @@ import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphAnalytic;
 import org.apache.flink.graph.GraphCsvReader;
-import org.apache.flink.graph.asm.simple.undirected.Simplify;
 import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
 import org.apache.flink.graph.generator.RMatGraph;
@@ -62,6 +62,8 @@ public class TriangleListing {
 
 	private static final int DEFAULT_EDGE_FACTOR = 16;
 
+	private static final boolean DEFAULT_TRIADIC_CENSUS = true;
+
 	private static final boolean DEFAULT_CLIP_AND_FLIP = true;
 
 	private static String getUsage(String message) {
@@ -72,7 +74,7 @@ public class TriangleListing {
 			.appendln(WordUtils.wrap("This algorithm returns tuples containing the vertex IDs for each triangle and" +
 				" for directed graphs a bitmask indicating the presence of the six potential connecting edges.", 80))
 			.appendNewLine()
-			.appendln("usage: TriangleListing --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]>")
+			.appendln("usage: TriangleListing --directed <true | false> [--triadic_census <true | false>] --input <csv | rmat> --output <print | hash | csv>")
 			.appendNewLine()
 			.appendln("options:")
 			.appendln("  --input csv --type <integer | string> [--simplify <true | false>] --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]")
@@ -100,7 +102,9 @@ public class TriangleListing {
 		boolean directedAlgorithm = parameters.getBoolean("directed");
 
 		int little_parallelism = parameters.getInt("little_parallelism", PARALLELISM_DEFAULT);
+		boolean triadic_census = parameters.getBoolean("triadic_census", DEFAULT_TRIADIC_CENSUS);
 
+		GraphAnalytic tc = null;
 		DataSet tl;
 
 		switch (parameters.get("input", "")) {
@@ -129,6 +133,11 @@ public class TriangleListing {
 										.setParallelism(little_parallelism));
 							}
 
+							if (triadic_census) {
+								tc = graph
+									.run(new org.apache.flink.graph.library.clustering.directed.TriadicCensus<LongValue, NullValue, NullValue>()
+										.setLittleParallelism(little_parallelism));
+							}
 							tl = graph
 								.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
@@ -139,6 +148,11 @@ public class TriangleListing {
 										.setParallelism(little_parallelism));
 							}
 
+							if (triadic_census) {
+								tc = graph
+									.run(new org.apache.flink.graph.library.clustering.undirected.TriadicCensus<LongValue, NullValue, NullValue>()
+										.setLittleParallelism(little_parallelism));
+							}
 							tl = graph
 								.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
@@ -156,6 +170,11 @@ public class TriangleListing {
 										.setParallelism(little_parallelism));
 							}
 
+							if (triadic_census) {
+								tc = graph
+									.run(new org.apache.flink.graph.library.clustering.directed.TriadicCensus<StringValue, NullValue, NullValue>()
+										.setLittleParallelism(little_parallelism));
+							}
 							tl = graph
 								.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<StringValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
@@ -166,6 +185,11 @@ public class TriangleListing {
 										.setParallelism(little_parallelism));
 							}
 
+							if (triadic_census) {
+								tc = graph
+									.run(new org.apache.flink.graph.library.clustering.undirected.TriadicCensus<StringValue, NullValue, NullValue>()
+										.setLittleParallelism(little_parallelism));
+							}
 							tl = graph
 								.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<StringValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
@@ -193,38 +217,61 @@ public class TriangleListing {
 
 				if (directedAlgorithm) {
 					if (scale > 32) {
-						tl = graph
+						Graph<LongValue, NullValue, NullValue> simpleGraph = graph
 							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>()
-								.setParallelism(little_parallelism))
+								.setParallelism(little_parallelism));
+
+						if (triadic_census) {
+							tc = simpleGraph
+								.run(new org.apache.flink.graph.library.clustering.directed.TriadicCensus<LongValue, NullValue, NullValue>()
+									.setLittleParallelism(little_parallelism));
+						}
+						tl = simpleGraph
 							.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>()
 								.setLittleParallelism(little_parallelism));
 					} else {
-						tl = graph
-							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToUnsignedIntValue())
-								.setParallelism(little_parallelism))
-							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<IntValue, NullValue, NullValue>()
-								.setParallelism(little_parallelism))
-							.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<IntValue, NullValue, NullValue>()
+						Graph<LongValue, NullValue, NullValue> simpleGraph = graph
+							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>()
+								.setParallelism(little_parallelism));
+
+						if (triadic_census) {
+							tc = simpleGraph
+								.run(new org.apache.flink.graph.library.clustering.directed.TriadicCensus<LongValue, NullValue, NullValue>()
+									.setLittleParallelism(little_parallelism));
+						}
+						tl = simpleGraph
+							.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>()
 								.setLittleParallelism(little_parallelism));
 					}
 				} else {
 					boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
 
-					graph = graph
-						.run(new Simplify<LongValue, NullValue, NullValue>(clipAndFlip));
-
 					if (scale > 32) {
-						tl = graph
+						Graph<LongValue, NullValue, NullValue> simpleGraph = graph
 							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(clipAndFlip)
-								.setParallelism(little_parallelism))
+								.setParallelism(little_parallelism));
+
+						if (triadic_census) {
+							tc = simpleGraph
+								.run(new org.apache.flink.graph.library.clustering.undirected.TriadicCensus<LongValue, NullValue, NullValue>()
+									.setLittleParallelism(little_parallelism));
+						}
+						tl = simpleGraph
 							.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>()
 								.setLittleParallelism(little_parallelism));
 					} else {
-						tl = graph
+						Graph<IntValue, NullValue, NullValue> simpleGraph = graph
 							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToUnsignedIntValue())
 								.setParallelism(little_parallelism))
 							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<IntValue, NullValue, NullValue>(clipAndFlip)
-								.setParallelism(little_parallelism))
+								.setParallelism(little_parallelism));
+
+						if (triadic_census) {
+							tc = simpleGraph
+								.run(new org.apache.flink.graph.library.clustering.undirected.TriadicCensus<IntValue, NullValue, NullValue>()
+									.setLittleParallelism(little_parallelism));
+						}
+						tl = simpleGraph
 							.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<IntValue, NullValue, NullValue>()
 								.setLittleParallelism(little_parallelism));
 					}
@@ -267,6 +314,11 @@ public class TriangleListing {
 				break;
 			default:
 				throw new ProgramParametrizationException(getUsage("invalid output type"));
+		}
+
+		if (tc != null) {
+			System.out.print("Triadic census:\n  ");
+			System.out.println(tc.getResult().toString().replace(";", "\n "));
 		}
 
 		JobExecutionResult result = env.getLastJobExecutionResult();

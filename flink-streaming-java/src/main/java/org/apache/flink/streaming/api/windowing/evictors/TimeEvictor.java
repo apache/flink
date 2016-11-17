@@ -17,16 +17,18 @@
  */
 package org.apache.flink.streaming.api.windowing.evictors;
 
-import com.google.common.collect.Iterables;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
+
+import java.util.Iterator;
 
 /**
  * An {@link Evictor} that keeps elements for a certain amount of time. Elements older
- * than {@code current_time - keep_time} are evicted.
+ * than {@code current_time - keep_time} are evicted. The current_time is time associated
+ * with {@link TimestampedValue}
  *
  * @param <W> The type of {@link Window Windows} on which this {@code Evictor} can operate.
  */
@@ -35,23 +37,71 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 	private static final long serialVersionUID = 1L;
 
 	private final long windowSize;
+	private final boolean doEvictAfter;
 
 	public TimeEvictor(long windowSize) {
 		this.windowSize = windowSize;
+		this.doEvictAfter = false;
+	}
+
+	public TimeEvictor(long windowSize, boolean doEvictAfter) {
+		this.windowSize = windowSize;
+		this.doEvictAfter = doEvictAfter;
+	}
+
+
+	@Override
+	public void evictBefore(Iterable<TimestampedValue<Object>> elements, int size, W window, EvictorContext ctx) {
+		if(!doEvictAfter) {
+			evict(elements,size,ctx);
+		}
 	}
 
 	@Override
-	public int evict(Iterable<StreamRecord<Object>> elements, int size, W window) {
-		int toEvict = 0;
-		long currentTime = Iterables.getLast(elements).getTimestamp();
-		long evictCutoff = currentTime - windowSize;
-		for (StreamRecord<Object> record: elements) {
-			if (record.getTimestamp() > evictCutoff) {
-				break;
-			}
-			toEvict++;
+	public void evictAfter(Iterable<TimestampedValue<Object>> elements, int size, W window, EvictorContext ctx) {
+		if(doEvictAfter) {
+			evict(elements,size,ctx);
 		}
-		return toEvict;
+	}
+
+	private void evict(Iterable<TimestampedValue<Object>> elements, int size, EvictorContext ctx) {
+		if (!hasTimestamp(elements)) {
+			return;
+		}
+
+		long currentTime = getMaxTimestamp(elements);
+		long evictCutoff = currentTime - windowSize;
+
+		for (Iterator<TimestampedValue<Object>> iterator = elements.iterator(); iterator.hasNext(); ) {
+			TimestampedValue<Object> record = iterator.next();
+			if (record.getTimestamp() <= evictCutoff) {
+				iterator.remove();
+			}
+		}
+	}
+
+	/**
+	 * Returns true if the first element in the Iterable of {@link TimestampedValue} has a timestamp.
+     */
+	private boolean hasTimestamp(Iterable<TimestampedValue<Object>> elements) {
+		Iterator<TimestampedValue<Object>> it = elements.iterator();
+		if (it.hasNext()) {
+			return it.next().hasTimestamp();
+		}
+		return false;
+	}
+
+	/**
+	 * @param elements The elements currently in the pane.
+	 * @return The maximum value of timestamp among the elements.
+     */
+	private long getMaxTimestamp(Iterable<TimestampedValue<Object>> elements) {
+		long currentTime = Long.MIN_VALUE;
+		for (Iterator<TimestampedValue<Object>> iterator = elements.iterator(); iterator.hasNext();){
+			TimestampedValue<Object> record = iterator.next();
+			currentTime = Math.max(currentTime, record.getTimestamp());
+		}
+		return currentTime;
 	}
 
 	@Override
@@ -66,10 +116,22 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 
 	/**
 	 * Creates a {@code TimeEvictor} that keeps the given number of elements.
+	 * Eviction is done before the window function.
 	 *
 	 * @param windowSize The amount of time for which to keep elements.
 	 */
 	public static <W extends Window> TimeEvictor<W> of(Time windowSize) {
 		return new TimeEvictor<>(windowSize.toMilliseconds());
+	}
+
+	/**
+	 * Creates a {@code TimeEvictor} that keeps the given number of elements.
+	 * Eviction is done before/after the window function based on the value of doEvictAfter.
+	 *
+	 * @param windowSize The amount of time for which to keep elements.
+	 * @param doEvictAfter Whether eviction is done after window function.
+     */
+	public static <W extends Window> TimeEvictor<W> of(Time windowSize, boolean doEvictAfter) {
+		return new TimeEvictor<>(windowSize.toMilliseconds(),doEvictAfter);
 	}
 }

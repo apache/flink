@@ -45,8 +45,8 @@ extends AsmTestBase {
 				.setSortTriangleVertices(true));
 
 		String expectedResult =
-			"(0,1,2,22)\n" +
-			"(1,2,3,41)";
+			"(0,1,2,41)\n" +
+			"(1,2,3,22)";
 
 		TestBaseUtils.compareResultAsText(tl.collect(), expectedResult);
 	}
@@ -79,6 +79,6 @@ extends AsmTestBase {
 		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(tl);
 
 		assertEquals(75049, checksum.getCount());
-		assertEquals(0x00000033111f1054L, checksum.getChecksum());
+		assertEquals(0x00000033111f11baL, checksum.getChecksum());
 	}
 }

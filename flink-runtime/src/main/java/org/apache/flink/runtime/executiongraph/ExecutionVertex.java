@@ -19,11 +19,9 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.Archiveable;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
@@ -47,7 +45,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -571,21 +568,24 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			ExecutionAttemptID executionId,
 			SimpleSlot targetSlot,
 			TaskStateHandles taskStateHandles,
-			int attemptNumber) {
-
+			int attemptNumber) throws ExecutionGraphException {
+		
 		// Produced intermediate results
-		List<ResultPartitionDeploymentDescriptor> producedPartitions = new ArrayList<ResultPartitionDeploymentDescriptor>(resultPartitions.size());
+		List<ResultPartitionDeploymentDescriptor> producedPartitions = new ArrayList<>(resultPartitions.size());
+		
+		// Consumed intermediate results
+		List<InputGateDeploymentDescriptor> consumedPartitions = new ArrayList<>(inputEdges.length);
+		
+		boolean lazyScheduling = getExecutionGraph().getScheduleMode().allowLazyDeployment();
 
 		for (IntermediateResultPartition partition : resultPartitions.values()) {
-			producedPartitions.add(ResultPartitionDeploymentDescriptor.from(partition));
+			producedPartitions.add(ResultPartitionDeploymentDescriptor.from(partition, lazyScheduling));
 		}
-
-		// Consumed intermediate results
-		List<InputGateDeploymentDescriptor> consumedPartitions = new ArrayList<InputGateDeploymentDescriptor>();
-
+		
+		
 		for (ExecutionEdge[] edges : inputEdges) {
 			InputChannelDeploymentDescriptor[] partitions = InputChannelDeploymentDescriptor
-					.fromEdges(edges, targetSlot);
+					.fromEdges(edges, targetSlot, lazyScheduling);
 
 			// If the produced partition has multiple consumers registered, we
 			// need to request the one matching our sub task index.
@@ -599,30 +599,19 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			consumedPartitions.add(new InputGateDeploymentDescriptor(resultId, queueToRequest, partitions));
 		}
 
-		SerializedValue<ExecutionConfig> serializedConfig = getExecutionGraph().getSerializedExecutionConfig();
-		List<BlobKey> jarFiles = getExecutionGraph().getRequiredJarFiles();
-		List<URL> classpaths = getExecutionGraph().getRequiredClasspaths();
+		SerializedValue<JobInformation> serializedJobInformation = getExecutionGraph().getSerializedJobInformation();
+		SerializedValue<TaskInformation> serializedJobVertexInformation = jobVertex.getSerializedTaskInformation();
 
 		return new TaskDeploymentDescriptor(
-			getJobId(),
-			getExecutionGraph().getJobName(),
-			getJobvertexId(),
+			serializedJobInformation,
+			serializedJobVertexInformation,
 			executionId,
-			serializedConfig,
-			getTaskName(),
-			getMaxParallelism(),
 			subTaskIndex,
-			getTotalNumberOfParallelSubtasks(),
 			attemptNumber,
-			getExecutionGraph().getJobConfiguration(),
-			jobVertex.getJobVertex().getConfiguration(),
-			jobVertex.getJobVertex().getInvokableClassName(),
-			producedPartitions,
-			consumedPartitions,
-			jarFiles,
-			classpaths,
 			targetSlot.getRoot().getSlotNumber(),
-			taskStateHandles);
+			taskStateHandles,
+			producedPartitions,
+			consumedPartitions);
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -22,9 +22,9 @@ import java.lang
 
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.streaming.api.{TimeDomain, TimerService}
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction
+import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction.{Context, OnTimerContext}
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
 import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamOperator, StreamTimelyFlatMap}
@@ -327,11 +327,10 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val src = env.generateSequence(0, 0)
 
     val timelyFlatMapFunction = new TimelyFlatMapFunction[Long, Int] {
-      override def flatMap(value: Long, timerService: TimerService, out: Collector[Int]): Unit = ???
+      override def flatMap(value: Long, ctx: Context, out: Collector[Int]): Unit = ???
       override def onTimer(
           timestamp: Long,
-          timeDomain: TimeDomain,
-          timerService: TimerService,
+          ctx: OnTimerContext,
           out: Collector[Int]): Unit = ???
     }
 

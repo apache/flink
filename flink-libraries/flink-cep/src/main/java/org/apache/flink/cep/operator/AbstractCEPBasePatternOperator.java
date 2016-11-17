@@ -96,4 +96,13 @@ public abstract class AbstractCEPBasePatternOperator<IN, OUT>
 	 * @param timestamp The timestamp of the event
 	 */
 	protected abstract void processEvent(NFA<IN> nfa, IN event, long timestamp);
+
+	/**
+	 * Advances the time for the given NFA to the given timestamp. This can lead to pruning and
+	 * timeouts.
+	 *
+	 * @param nfa to advance the time for
+	 * @param timestamp to advance the time to
+	 */
+	protected abstract void advanceTime(NFA<IN> nfa, long timestamp);
 }

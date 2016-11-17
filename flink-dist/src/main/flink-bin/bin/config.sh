@@ -19,13 +19,13 @@
 
 constructFlinkClassPath() {
 
-    for jarfile in "$FLINK_LIB_DIR"/*.jar ; do
+    while read -d '' -r jarfile ; do
         if [[ $FLINK_CLASSPATH = "" ]]; then
-            FLINK_CLASSPATH=$jarfile;
+            FLINK_CLASSPATH="$jarfile";
         else
-            FLINK_CLASSPATH=$FLINK_CLASSPATH:$jarfile
+            FLINK_CLASSPATH="$FLINK_CLASSPATH":"$jarfile"
         fi
-    done
+    done < <(find "$FLINK_LIB_DIR" ! -type d -name '*.jar' -print0)
 
     echo $FLINK_CLASSPATH
 }

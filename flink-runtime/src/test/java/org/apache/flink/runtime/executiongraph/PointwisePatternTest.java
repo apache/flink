@@ -25,6 +25,7 @@ import static org.junit.Assert.fail;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 
@@ -56,6 +57,9 @@ public class PointwisePatternTest {
 	
 		v1.setParallelism(N);
 		v2.setParallelism(N);
+
+		v1.setInvokableClass(AbstractInvokable.class);
+		v2.setInvokableClass(AbstractInvokable.class);
 	
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
 	
@@ -98,6 +102,9 @@ public class PointwisePatternTest {
 	
 		v1.setParallelism(2 * N);
 		v2.setParallelism(N);
+
+		v1.setInvokableClass(AbstractInvokable.class);
+		v2.setInvokableClass(AbstractInvokable.class);
 	
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
 	
@@ -141,6 +148,9 @@ public class PointwisePatternTest {
 	
 		v1.setParallelism(3 * N);
 		v2.setParallelism(N);
+
+		v1.setInvokableClass(AbstractInvokable.class);
+		v2.setInvokableClass(AbstractInvokable.class);
 	
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
 	
@@ -185,6 +195,9 @@ public class PointwisePatternTest {
 	
 		v1.setParallelism(N);
 		v2.setParallelism(2 * N);
+
+		v1.setInvokableClass(AbstractInvokable.class);
+		v2.setInvokableClass(AbstractInvokable.class);
 	
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
 	
@@ -227,6 +240,9 @@ public class PointwisePatternTest {
 	
 		v1.setParallelism(N);
 		v2.setParallelism(7 * N);
+
+		v1.setInvokableClass(AbstractInvokable.class);
+		v2.setInvokableClass(AbstractInvokable.class);
 	
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
 	
@@ -289,6 +305,9 @@ public class PointwisePatternTest {
 	
 		v1.setParallelism(lowDop);
 		v2.setParallelism(highDop);
+
+		v1.setInvokableClass(AbstractInvokable.class);
+		v2.setInvokableClass(AbstractInvokable.class);
 	
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
 	
@@ -342,6 +361,9 @@ public class PointwisePatternTest {
 	
 		v1.setParallelism(highDop);
 		v2.setParallelism(lowDop);
+
+		v1.setInvokableClass(AbstractInvokable.class);
+		v2.setInvokableClass(AbstractInvokable.class);
 	
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
 	

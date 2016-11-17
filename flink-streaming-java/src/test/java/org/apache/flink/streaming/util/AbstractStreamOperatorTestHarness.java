@@ -232,8 +232,16 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	 * Calls
 	 * {@link StreamOperator#setup(StreamTask, StreamConfig, Output)} ()}
 	 */
-	public void setup() throws Exception {
-		operator.setup(mockTask, config, new MockOutput());
+	public void setup() {
+		setup(null);
+	}
+
+	/**
+	 * Calls
+	 * {@link StreamOperator#setup(StreamTask, StreamConfig, Output)} ()}
+	 */
+	public void setup(TypeSerializer<OUT> outputSerializer) {
+		operator.setup(mockTask, config, new MockOutput(outputSerializer));
 		setupCalled = true;
 	}
 
@@ -492,6 +500,14 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	private class MockOutput implements Output<StreamRecord<OUT>> {
 
 		private TypeSerializer<OUT> outputSerializer;
+
+		MockOutput() {
+			this(null);
+		}
+
+		MockOutput(TypeSerializer<OUT> outputSerializer) {
+			this.outputSerializer = outputSerializer;
+		}
 
 		@Override
 		public void emitWatermark(Watermark mark) {

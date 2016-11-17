@@ -47,21 +47,16 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 
 	/** The number of subpartitions. */
 	private final int numberOfSubpartitions;
-
-	/**
-	 * Flag indicating whether to eagerly deploy consumers.
-	 *
-	 * <p>If <code>true</code>, the consumers are deployed as soon as the
-	 * runtime result is registered at the result manager of the task manager.
-	 */
-	private final boolean eagerlyDeployConsumers;
+	
+	/** Flag whether the result partition should send scheduleOrUpdateConsumer messages. */
+	private final boolean sendScheduleOrUpdateConsumersMessage;
 
 	public ResultPartitionDeploymentDescriptor(
 			IntermediateDataSetID resultId,
 			IntermediateResultPartitionID partitionId,
 			ResultPartitionType partitionType,
 			int numberOfSubpartitions,
-			boolean eagerlyDeployConsumers) {
+			boolean lazyScheduling) {
 
 		this.resultId = checkNotNull(resultId);
 		this.partitionId = checkNotNull(partitionId);
@@ -69,7 +64,7 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 
 		checkArgument(numberOfSubpartitions >= 1);
 		this.numberOfSubpartitions = numberOfSubpartitions;
-		this.eagerlyDeployConsumers = eagerlyDeployConsumers;
+		this.sendScheduleOrUpdateConsumersMessage = lazyScheduling;
 	}
 
 	public IntermediateDataSetID getResultId() {
@@ -88,14 +83,8 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 		return numberOfSubpartitions;
 	}
 
-	/**
-	 * Returns whether consumers should be deployed eagerly (as soon as they
-	 * are registered at the result manager of the task manager).
-	 *
-	 * @return Whether consumers should be deployed eagerly
-	 */
-	public boolean getEagerlyDeployConsumers() {
-		return eagerlyDeployConsumers;
+	public boolean sendScheduleOrUpdateConsumersMessage() {
+		return sendScheduleOrUpdateConsumersMessage;
 	}
 
 	@Override
@@ -107,7 +96,7 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 
 	// ------------------------------------------------------------------------
 
-	public static ResultPartitionDeploymentDescriptor from(IntermediateResultPartition partition) {
+	public static ResultPartitionDeploymentDescriptor from(IntermediateResultPartition partition, boolean lazyScheduling) {
 
 		final IntermediateDataSetID resultId = partition.getIntermediateResult().getId();
 		final IntermediateResultPartitionID partitionId = partition.getPartitionId();
@@ -122,14 +111,13 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 		if (!partition.getConsumers().isEmpty() && !partition.getConsumers().get(0).isEmpty()) {
 
 			if (partition.getConsumers().size() > 1) {
-				new IllegalStateException("Currently, only a single consumer group per partition is supported.");
+				throw new IllegalStateException("Currently, only a single consumer group per partition is supported.");
 			}
 
 			numberOfSubpartitions = partition.getConsumers().get(0).size();
 		}
 
 		return new ResultPartitionDeploymentDescriptor(
-				resultId, partitionId, partitionType, numberOfSubpartitions,
-				partition.getIntermediateResult().getEagerlyDeployConsumers());
+				resultId, partitionId, partitionType, numberOfSubpartitions, lazyScheduling);
 	}
 }

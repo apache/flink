@@ -560,7 +560,7 @@ public class DataStreamTest {
 			@Override
 			public void flatMap(
 					Long value,
-					TimerService timerService,
+					Context ctx,
 					Collector<Integer> out) throws Exception {
 
 			}
@@ -568,8 +568,7 @@ public class DataStreamTest {
 			@Override
 			public void onTimer(
 					long timestamp,
-					TimeDomain timeDomain,
-					TimerService timerService,
+					OnTimerContext ctx,
 					Collector<Integer> out) throws Exception {
 
 			}

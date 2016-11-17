@@ -22,12 +22,12 @@ package org.apache.flink.metrics;
  * 
  * The primary advantage of this class is that the rate is neither updated by the computing thread nor for every event.
  * Instead, a history of counts is maintained that is updated in regular intervals by a background thread. From this
- * history a rate is derived on demand, which represents the average rate of events over the given time span. If the
- * rate is never requested there is thus no overhead for the computation of the rate.
+ * history a rate is derived on demand, which represents the average rate of events over the given time span.
  * 
  * Setting the time span to a low value reduces memory-consumption and will more accurately report short-term changes.
  * The minimum value possible is {@link View#UPDATE_INTERVAL_SECONDS}.
- * A high value in turn increases memory-consumption since a longer history has to be maintained.
+ * A high value in turn increases memory-consumption, since a longer history has to be maintained, but will result in
+ * smoother transitions between rates.
  * 
  * The events are counted by a {@link Counter}.
  */
@@ -40,9 +40,6 @@ public class MeterView implements Meter, View {
 	private final long[] values;
 	/** The index in the array for the current time */
 	private int time = 0;
-
-	/** Signals whether a rate was already calculated for the current time-frame */
-	private boolean updateRate = false;
 	/** The last rate we computed */
 	private double currentRate = 0;
 
@@ -73,11 +70,6 @@ public class MeterView implements Meter, View {
 
 	@Override
 	public double getRate() {
-		if (updateRate) {
-			final int time = this.time;
-			currentRate =  ((double) (values[time] - values[(time + 1) % values.length]) / timeSpanInSeconds);
-			updateRate = false;
-		}
 		return currentRate;
 	}
 
@@ -85,6 +77,6 @@ public class MeterView implements Meter, View {
 	public void update() {
 		time = (time + 1) % values.length;
 		values[time] = counter.getCount();
-		updateRate = true;
+		currentRate =  ((double) (values[time] - values[(time + 1) % values.length]) / timeSpanInSeconds);
 	}
 }

@@ -638,35 +638,62 @@ public class CheckpointCoordinator {
 			if (checkpoint != null && !checkpoint.isDiscarded()) {
 				isPendingCheckpoint = true;
 
-				if (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getSubtaskState())) {
-					if (checkpoint.isFullyAcknowledged()) {
-						completed = checkpoint.finalizeCheckpoint();
+				switch (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getSubtaskState())) {
+					case SUCCESS:
+						if (checkpoint.isFullyAcknowledged()) {
+							completed = checkpoint.finalizeCheckpoint();
 
-						completedCheckpointStore.addCheckpoint(completed);
+							completedCheckpointStore.addCheckpoint(completed);
 
-						LOG.info("Completed checkpoint " + checkpointId + " (in " +
+							LOG.info("Completed checkpoint " + checkpointId + " (in " +
 								completed.getDuration() + " ms)");
 
-						if (LOG.isDebugEnabled()) {
-							StringBuilder builder = new StringBuilder();
-							for (Map.Entry<JobVertexID, TaskState> entry : completed.getTaskStates().entrySet()) {
-								builder.append("JobVertexID: ").append(entry.getKey()).append(" {").append(entry.getValue()).append("}");
+							if (LOG.isDebugEnabled()) {
+								StringBuilder builder = new StringBuilder();
+								for (Map.Entry<JobVertexID, TaskState> entry : completed.getTaskStates().entrySet()) {
+									builder.append("JobVertexID: ").append(entry.getKey()).append(" {").append(entry.getValue()).append("}");
+								}
+
+								LOG.debug(builder.toString());
 							}
 
-							LOG.debug(builder.toString());
+							pendingCheckpoints.remove(checkpointId);
+							rememberRecentCheckpointId(checkpointId);
+
+							dropSubsumedCheckpoints(completed.getCheckpointID());
+
+							triggerQueuedRequests();
 						}
+						break;
+					case DUPLICATE:
+						LOG.debug("Received a duplicate acknowledge message for checkpoint {}, task {}, job {}.",
+							message.getCheckpointId(), message.getTaskExecutionId(), message.getJob());
+						break;
+					case UNKNOWN:
+						LOG.warn("Could not acknowledge the checkpoint {} for task {} of job {}, " +
+								"because the task's execution attempt id was unknown. Discarding " +
+								"the state handle to avoid lingering state.", message.getCheckpointId(),
+							message.getTaskExecutionId(), message.getJob());
 
-						pendingCheckpoints.remove(checkpointId);
-						rememberRecentCheckpointId(checkpointId);
+						try {
+							message.getSubtaskState().discardState();
+						} catch (Exception e) {
+							LOG.warn("Could not properly discard state for checkpoint {} of task {} of job {}.",
+								message.getCheckpointId(), message.getTaskExecutionId(), message.getJob(), e);
+						}
+						break;
+					case DISCARDED:
+						LOG.warn("Could not acknowledge the checkpoint {} for task {} of job {}, " +
+							"because the pending checkpoint had been discarded. Discarding the " +
+								"state handle tp avoid lingering state.",
+							message.getCheckpointId(), message.getTaskExecutionId(), message.getJob());
 
-						dropSubsumedCheckpoints(completed.getCheckpointID());
-
-						triggerQueuedRequests();
-					}
-				} else {
-					// checkpoint did not accept message
-					LOG.error("Received duplicate or invalid acknowledge message for checkpoint {} , task {}",
-							checkpointId, message.getTaskExecutionId());
+						try {
+							message.getSubtaskState().discardState();
+						} catch (Exception e) {
+							LOG.warn("Could not properly discard state for checkpoint {} of task {} of job {}.",
+								message.getCheckpointId(), message.getTaskExecutionId(), message.getJob(), e);
+						}
 				}
 			}
 			else if (checkpoint != null) {
@@ -678,10 +705,19 @@ public class CheckpointCoordinator {
 				// message is for an unknown checkpoint, or comes too late (checkpoint disposed)
 				if (recentPendingCheckpoints.contains(checkpointId)) {
 					isPendingCheckpoint = true;
-					LOG.warn("Received late message for now expired checkpoint attempt " + checkpointId);
+					LOG.warn("Received late message for now expired checkpoint attempt {}.", checkpointId);
 				}
 				else {
+					LOG.debug("Received message for an unknown checkpoint {}.", checkpointId);
 					isPendingCheckpoint = false;
+				}
+
+				try {
+					// try to discard the state so that we don't have lingering state lying around
+					message.getSubtaskState().discardState();
+				} catch (Exception e) {
+					LOG.warn("Could not properly discard state for checkpoint {} of task {} of job {}.",
+						message.getCheckpointId(), message.getTaskExecutionId(), message.getJob(), e);
 				}
 			}
 		}

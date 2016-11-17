@@ -35,6 +35,20 @@ public class TaskManagerOptions {
 	// @TODO Migrate 'taskmanager.*' config options from ConfigConstants
 
 	// ------------------------------------------------------------------------
+	//  Network Options
+	// ------------------------------------------------------------------------
+
+	/** Minimum backoff for partition requests of input channels. */
+	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_INITIAL =
+			key("taskmanager.net.request-backoff.initial")
+			.defaultValue(100);
+
+	/** Maximum backoff for partition requests of input channels. */
+	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_MAX =
+			key("taskmanager.net.request-backoff.max")
+			.defaultValue(10000);
+
+	// ------------------------------------------------------------------------
 	//  Task Options
 	// ------------------------------------------------------------------------
 
@@ -44,8 +58,8 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Long> TASK_CANCELLATION_INTERVAL =
 			key("task.cancellation.interval")
-					.defaultValue(30000L)
-					.withDeprecatedKeys("task.cancellation-interval");
+			.defaultValue(30000L)
+			.withDeprecatedKeys("task.cancellation-interval");
 
 	/**
 	 * Timeout in milliseconds after which a task cancellation times out and
@@ -54,19 +68,19 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Long> TASK_CANCELLATION_TIMEOUT =
 			key("task.cancellation.timeout")
-					.defaultValue(180000L);
+			.defaultValue(180000L);
 
 	/**
 	 * The maximum number of bytes that a checkpoint alignment may buffer.
 	 * If the checkpoint alignment buffers more than the configured amount of
 	 * data, the checkpoint is aborted (skipped).
-	 * 
+	 *
 	 * <p>The default value of {@code -1} indicates that there is no limit.
 	 */
 	public static final ConfigOption<Long> TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT =
 			key("task.checkpoint.alignment.max-size")
 			.defaultValue(-1L);
-	
+
 	// ------------------------------------------------------------------------
 
 	/** Not intended to be instantiated */

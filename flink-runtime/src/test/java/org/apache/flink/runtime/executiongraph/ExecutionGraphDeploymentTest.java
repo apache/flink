@@ -25,8 +25,10 @@ import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -117,22 +119,28 @@ public class ExecutionGraphDeploymentTest {
 			TaskDeploymentDescriptor descr = instanceGateway.lastTDD;
 			assertNotNull(descr);
 
-			assertEquals(jobId, descr.getJobID());
-			assertEquals(jid2, descr.getVertexID());
-			assertEquals(3, descr.getIndexInSubtaskGroup());
-			assertEquals(10, descr.getNumberOfSubtasks());
-			assertEquals(BatchTask.class.getName(), descr.getInvokableClassName());
-			assertEquals("v2", descr.getTaskName());
+			JobInformation jobInformation = descr.getSerializedJobInformation().deserializeValue(getClass().getClassLoader());
+			TaskInformation taskInformation = descr.getSerializedTaskInformation().deserializeValue(getClass().getClassLoader());
 
-			List<ResultPartitionDeploymentDescriptor> producedPartitions = descr.getProducedPartitions();
-			List<InputGateDeploymentDescriptor> consumedPartitions = descr.getInputGates();
+			assertEquals(jobId, jobInformation.getJobId());
+			assertEquals(jid2, taskInformation.getJobVertexId());
+			assertEquals(3, descr.getSubtaskIndex());
+			assertEquals(10, taskInformation.getNumberOfSubtasks());
+			assertEquals(BatchTask.class.getName(), taskInformation.getInvokableClassName());
+			assertEquals("v2", taskInformation.getTaskName());
+
+			Collection<ResultPartitionDeploymentDescriptor> producedPartitions = descr.getProducedPartitions();
+			Collection<InputGateDeploymentDescriptor> consumedPartitions = descr.getInputGates();
 
 			assertEquals(2, producedPartitions.size());
 			assertEquals(1, consumedPartitions.size());
 
-			assertEquals(10, producedPartitions.get(0).getNumberOfSubpartitions());
-			assertEquals(10, producedPartitions.get(1).getNumberOfSubpartitions());
-			assertEquals(10, consumedPartitions.get(0).getInputChannelDeploymentDescriptors().length);
+			Iterator<ResultPartitionDeploymentDescriptor> iteratorProducedPartitions = producedPartitions.iterator();
+			Iterator<InputGateDeploymentDescriptor> iteratorConsumedPartitions = consumedPartitions.iterator();
+
+			assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
+			assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
+			assertEquals(10, iteratorConsumedPartitions.next().getInputChannelDeploymentDescriptors().length);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -300,7 +308,7 @@ public class ExecutionGraphDeploymentTest {
 		v1.setInvokableClass(BatchTask.class);
 		v2.setInvokableClass(BatchTask.class);
 
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING, false);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(

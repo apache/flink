@@ -29,12 +29,11 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.AbstractGraphAnalytic;
+import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeDegreePair;
 import org.apache.flink.graph.library.metric.undirected.EdgeMetrics.Result;
-import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
 
 import java.io.IOException;
@@ -53,7 +52,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
-public class EdgeMetrics<K extends Comparable<K> & CopyableValue<K>, VV, EV>
+public class EdgeMetrics<K extends Comparable<K>, VV, EV>
 extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 	private static final String TRIANGLE_TRIPLET_COUNT = "triangleTripletCount";

@@ -842,10 +842,6 @@ class JobManager(
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
 
-          log.info(
-            s"Status of job $jobID (${executionGraph.getJobName}) changed to $newJobStatus.",
-            error)
-
           if (newJobStatus.isGloballyTerminalState()) {
             jobInfo.end = timeStamp
 
@@ -952,7 +948,7 @@ class JobManager(
           if (execution != null) execution.getState else null
         case None =>
           // Nothing to do. This is not an error, because the request is received when a sending
-          // task fails during a remote partition request.
+          // task fails or is not yet available during a remote partition request.
           log.debug(s"Cannot find execution graph for job $jobId.")
 
           null

@@ -1013,8 +1013,8 @@ Group-windows are defined using the `window(w: GroupWindow)` clause. The followi
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-val table = input
-  .window(w: GroupWindow) // define window
+Table table = input
+  .window(GroupWindow w)  // define window
   .select("b.sum")        // aggregate
 {% endhighlight %}
 </div>
@@ -1033,9 +1033,9 @@ In streaming environments, group-window aggregates can only be computed in paral
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-val table = input
+Table table = input
   .groupBy("a")
-  .window(w: GroupWindow) // define window
+  .window(GroupWindow w)  // define window
   .select("a, b.sum")     // aggregate
 {% endhighlight %}
 </div>
@@ -1056,7 +1056,7 @@ By assigning the group-window an alias using `as`, properties such as the start 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-val table = input
+Table table = input
   .groupBy("a")
   .window(XXX.as("myWin"))                      // define window alias
   .select("a, myWin.start, myWin.end, b.count") // aggregate
@@ -1481,8 +1481,6 @@ Both the Table API and SQL come with a set of built-in functions for data transf
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-
-<br/>
 
 <table class="table table-bordered">
   <thead>
@@ -2011,7 +2009,6 @@ NUMERIC.rows
 
 </div>
 <div data-lang="scala" markdown="1">
-<br />
 
 <table class="table table-bordered">
   <thead>
@@ -2548,7 +2545,6 @@ The documentation is split up and ordered like the tests in SqlExpressionTest.
 
 The Flink SQL functions (including their syntax) are a subset of Apache Calcite's built-in functions. Most of the documentation has been adopted from the [Calcite SQL reference](https://calcite.apache.org/docs/reference.html).
 
-<br />
 
 <table class="table table-bordered">
   <thead>

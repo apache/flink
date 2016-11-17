@@ -212,13 +212,6 @@ public class SubtaskState implements StateObject {
 
 	}
 
-	public boolean hasState() {
-		return (null != legacyOperatorState && !legacyOperatorState.isEmpty())
-				|| (null != managedOperatorState && !managedOperatorState.isEmpty())
-				|| null != managedKeyedState
-				|| null != rawKeyedState;
-	}
-
 	@Override
 	public int hashCode() {
 		int result = legacyOperatorState != null ? legacyOperatorState.hashCode() : 0;

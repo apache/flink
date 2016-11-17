@@ -351,8 +351,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	public final void cancel() throws Exception {
 		isRunning = false;
 		canceled = true;
-		cancelTask();
-		cancelables.close();
+
+		// the "cancel task" call must come first, but the cancelables must be
+		// closed no matter what
+		try {
+			cancelTask();
+		}
+		finally {
+			cancelables.close();
+		}
 	}
 
 	public final boolean isRunning() {
@@ -916,11 +923,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						keyedStateHandleBackend,
 						keyedStateHandleStream);
 
-				if (subtaskState.hasState()) {
-					owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData, subtaskState);
-				} else {
-					owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData);
-				}
+				owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData, subtaskState);
 
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("{} - finished asynchronous part of checkpoint {}. Asynchronous duration: {} ms",

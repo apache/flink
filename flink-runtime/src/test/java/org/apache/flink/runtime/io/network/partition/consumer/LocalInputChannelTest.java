@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import com.google.common.collect.Lists;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -41,7 +40,6 @@ import org.apache.flink.runtime.io.network.util.TestPartitionProducer;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.junit.Test;
@@ -122,12 +120,12 @@ public class LocalInputChannelTest {
 				jobId,
 				partitionIds[i],
 				ResultPartitionType.PIPELINED,
-				false,
 				parallelism,
 				partitionManager,
 				partitionConsumableNotifier,
 				ioManager,
-				ASYNC);
+				ASYNC,
+				true);
 
 			// Create a buffer pool for this partition
 			partition.registerBufferPool(

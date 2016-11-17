@@ -32,6 +32,9 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
+
 @Internal
 public class CoStreamTimelyFlatMap<K, IN1, IN2, OUT>
 		extends AbstractUdfStreamOperator<OUT, TimelyCoFlatMapFunction<IN1, IN2, OUT>>
@@ -42,6 +45,10 @@ public class CoStreamTimelyFlatMap<K, IN1, IN2, OUT>
 	private transient TimestampedCollector<OUT> collector;
 
 	private transient TimerService timerService;
+
+	private transient ContextImpl context;
+
+	private transient OnTimerContextImpl onTimerContext;
 
 	public CoStreamTimelyFlatMap(TimelyCoFlatMapFunction<IN1, IN2, OUT> flatMapper) {
 		super(flatMapper);
@@ -56,34 +63,105 @@ public class CoStreamTimelyFlatMap<K, IN1, IN2, OUT>
 				getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
 
 		this.timerService = new SimpleTimerService(internalTimerService);
+
+		context = new ContextImpl(timerService);
+		onTimerContext = new OnTimerContextImpl(timerService);
 	}
 
 	@Override
 	public void processElement1(StreamRecord<IN1> element) throws Exception {
 		collector.setTimestamp(element);
-		userFunction.flatMap1(element.getValue(), timerService, collector);
-
+		context.element = element;
+		userFunction.flatMap1(element.getValue(), context, collector);
+		context.element = null;
 	}
 
 	@Override
 	public void processElement2(StreamRecord<IN2> element) throws Exception {
 		collector.setTimestamp(element);
-		userFunction.flatMap2(element.getValue(), timerService, collector);
+		context.element = element;
+		userFunction.flatMap2(element.getValue(), context, collector);
+		context.element = null;
 	}
 
 	@Override
 	public void onEventTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
 		collector.setAbsoluteTimestamp(timer.getTimestamp());
-		userFunction.onTimer(timer.getTimestamp(), TimeDomain.EVENT_TIME, timerService, collector);
+		onTimerContext.timeDomain = TimeDomain.EVENT_TIME;
+		onTimerContext.timer = timer;
+		userFunction.onTimer(timer.getTimestamp(), onTimerContext, collector);
+		onTimerContext.timeDomain = null;
+		onTimerContext.timer = null;
 	}
 
 	@Override
 	public void onProcessingTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
 		collector.setAbsoluteTimestamp(timer.getTimestamp());
-		userFunction.onTimer(timer.getTimestamp(), TimeDomain.PROCESSING_TIME, timerService, collector);
+		onTimerContext.timeDomain = TimeDomain.PROCESSING_TIME;
+		onTimerContext.timer = timer;
+		userFunction.onTimer(timer.getTimestamp(), onTimerContext, collector);
+		onTimerContext.timeDomain = null;
+		onTimerContext.timer = null;
 	}
 
 	protected TimestampedCollector<OUT> getCollector() {
 		return collector;
+	}
+
+	private static class ContextImpl implements TimelyCoFlatMapFunction.Context {
+
+		private final TimerService timerService;
+
+		private StreamRecord<?> element;
+
+		ContextImpl(TimerService timerService) {
+			this.timerService = checkNotNull(timerService);
+		}
+
+		@Override
+		public Long timestamp() {
+			checkState(element != null);
+
+			if (element.hasTimestamp()) {
+				return element.getTimestamp();
+			} else {
+				return null;
+			}
+		}
+
+		@Override
+		public TimerService timerService() {
+			return timerService;
+		}
+	}
+
+	private static class OnTimerContextImpl implements TimelyCoFlatMapFunction.OnTimerContext {
+
+		private final TimerService timerService;
+
+		private TimeDomain timeDomain;
+
+		private InternalTimer<?, VoidNamespace> timer;
+
+		OnTimerContextImpl(TimerService timerService) {
+			this.timerService = checkNotNull(timerService);
+		}
+
+		@Override
+		public TimeDomain timeDomain() {
+			checkState(timeDomain != null);
+			return timeDomain;
+		}
+
+		@Override
+		public Long timestamp() {
+			checkState(timer != null);
+			return timer.getTimestamp();
+		}
+
+		@Override
+		public TimerService timerService() {
+			return timerService;
+		}
 	}
 }
