@@ -165,7 +165,7 @@ public class BackPressureStatsTracker {
 			if (!pendingStats.contains(vertex) &&
 					!vertex.getGraph().getState().isGloballyTerminalState()) {
 
-				ExecutionContext executionContext = vertex.getGraph().getExecutionContext();
+				ExecutionContext executionContext = vertex.getGraph().getFutureExecutionContext();
 
 				// Only trigger if still active job
 				if (executionContext != null) {

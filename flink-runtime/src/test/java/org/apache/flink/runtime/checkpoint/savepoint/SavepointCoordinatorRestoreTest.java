@@ -29,6 +29,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.util.TestExecutors;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -72,17 +73,18 @@ public class SavepointCoordinatorRestoreTest {
 		SavepointStore store = new HeapSavepointStore();
 
 		SavepointCoordinator coord = new SavepointCoordinator(
-				new JobID(),
-				Integer.MAX_VALUE,
-				Integer.MAX_VALUE,
-				0,
-				new ExecutionVertex[] {},
-				new ExecutionVertex[] {},
-				new ExecutionVertex[] {},
-				getClass().getClassLoader(),
-				new StandaloneCheckpointIDCounter(),
-				store,
-				new DisabledCheckpointStatsTracker());
+			new JobID(),
+			Integer.MAX_VALUE,
+			Integer.MAX_VALUE,
+			0,
+			new ExecutionVertex[] {},
+			new ExecutionVertex[] {},
+			new ExecutionVertex[] {},
+			getClass().getClassLoader(),
+			new StandaloneCheckpointIDCounter(),
+			store,
+			new DisabledCheckpointStatsTracker(),
+			TestExecutors.directExecutor());
 
 		// --- (2) Checkpoint misses state for a jobVertex (should work) ---
 		Map<JobVertexID, TaskState> checkpointTaskStates = new HashMap<>();

@@ -30,6 +30,7 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.LocalStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.util.SerializableObject;
+import org.apache.flink.runtime.util.TestExecutors;
 import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -91,7 +92,8 @@ public class CheckpointStateRestoreTest {
 				cl,
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+				RecoveryMode.STANDALONE,
+				TestExecutors.directExecutor());
 
 			// create ourselves a checkpoint with state
 			final long timestamp = 34623786L;
@@ -168,7 +170,8 @@ public class CheckpointStateRestoreTest {
 				cl,
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+				RecoveryMode.STANDALONE,
+				TestExecutors.directExecutor());
 
 			// create ourselves a checkpoint with state
 			final long timestamp = 34623786L;
@@ -206,15 +209,16 @@ public class CheckpointStateRestoreTest {
 	public void testNoCheckpointAvailable() {
 		try {
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				new JobID(),
+			new JobID(),
 				200000L,
 				200000L,
 				42,
 				new ExecutionVertex[] { mock(ExecutionVertex.class) },
 				new ExecutionVertex[] { mock(ExecutionVertex.class) },
 				new ExecutionVertex[0], cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(1, cl), RecoveryMode.STANDALONE);
+			new StandaloneCheckpointIDCounter(),
+				new StandaloneCompletedCheckpointStore(1, cl), RecoveryMode.STANDALONE,
+			TestExecutors.directExecutor());
 
 			try {
 				coord.restoreLatestCheckpointedState(new HashMap<JobVertexID, ExecutionJobVertex>(), true, false);

@@ -119,7 +119,8 @@ class TestingCluster(
     val jobManagerProps = Props(
       new TestingJobManager(
         configuration,
-        futureExecutor,
+      futureExecutor,
+      ioExecutor,
         instanceManager,
         scheduler,
         libraryCacheManager,

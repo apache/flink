@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -96,22 +97,24 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 			ClassLoader userClassLoader,
 			CheckpointIDCounter checkpointIDCounter,
 			SavepointStore savepointStore,
-			CheckpointStatsTracker statsTracker) throws Exception {
+			CheckpointStatsTracker statsTracker,
+			Executor executor) {
 
 		super(jobId,
-				baseInterval,
-				checkpointTimeout,
-				0L,
-				Integer.MAX_VALUE,
-				numberKeyGroups,
-				tasksToTrigger,
-				tasksToWaitFor,
-				tasksToCommitTo,
-				userClassLoader,
-				checkpointIDCounter,
-				IgnoreCheckpointsStore.INSTANCE,
-				RecoveryMode.STANDALONE,
-				statsTracker);
+			baseInterval,
+			checkpointTimeout,
+			0L,
+			Integer.MAX_VALUE,
+			numberKeyGroups,
+			tasksToTrigger,
+			tasksToWaitFor,
+			tasksToCommitTo,
+			userClassLoader,
+			checkpointIDCounter,
+			IgnoreCheckpointsStore.INSTANCE,
+			RecoveryMode.STANDALONE,
+			statsTracker,
+			executor);
 
 		this.savepointStore = checkNotNull(savepointStore);
 		this.savepointPromises = new ConcurrentHashMap<>();

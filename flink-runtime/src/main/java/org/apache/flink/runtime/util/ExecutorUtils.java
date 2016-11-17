@@ -21,29 +21,12 @@ package org.apache.flink.runtime.util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class TestExecutors {
+public class ExecutorUtils {
 
-	private static final Logger LOG = LoggerFactory.getLogger(TestExecutors.class);
-
-	public static Executor directExecutor() {
-		return DirectExecutor.INSTANCE;
-	}
-
-	private static final class DirectExecutor implements Executor {
-
-		public static final DirectExecutor INSTANCE = new DirectExecutor();
-
-		private DirectExecutor() {}
-
-		@Override
-		public void execute(Runnable command) {
-			command.run();
-		}
-	}
+	private static final Logger LOG = LoggerFactory.getLogger(ExecutorUtils.class);
 
 	/**
 	 * Gracefully shutdown the given {@link ExecutorService}. The call waits the given timeout that
@@ -55,7 +38,7 @@ public class TestExecutors {
 	 * @param executorServices to shut down
 	 */
 	public static void gracefulShutdown(long timeout, TimeUnit unit, ExecutorService... executorServices) {
-		for (ExecutorService executorService: executorServices) {
+		for (ExecutorService executorService : executorServices) {
 			executorService.shutdown();
 		}
 
@@ -64,7 +47,7 @@ public class TestExecutors {
 		long timeLeft = unit.toMillis(timeout);
 		boolean hasTimeLeft = timeLeft > 0L;
 
-		for (ExecutorService executorService: executorServices) {
+		for (ExecutorService executorService : executorServices) {
 			if (wasInterrupted || !hasTimeLeft) {
 				executorService.shutdownNow();
 			} else {

@@ -59,10 +59,12 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.ExecutionContext;
+import scala.concurrent.ExecutionContext$;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -82,6 +84,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -221,8 +224,12 @@ public class ExecutionGraph implements Serializable {
 	private CheckpointStatsTracker checkpointStatsTracker;
 
 	/** The execution context which is used to execute futures. */
-	@SuppressWarnings("NonSerializableFieldInSerializableClass")
-	private ExecutionContext executionContext;
+	private final transient Executor futureExecutor;
+
+	private final transient ExecutionContext futureExecutionContext;
+
+	/** The executor which is used to execute blocking io operations */
+	private final transient Executor ioExecutor;
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private String jsonPlan;
@@ -238,7 +245,8 @@ public class ExecutionGraph implements Serializable {
 	 * This constructor is for tests only, because it does not include class loading information.
 	 */
 	ExecutionGraph(
-			ExecutionContext executionContext,
+			Executor futureExecutor,
+			Executor ioExecutor,
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
@@ -246,7 +254,8 @@ public class ExecutionGraph implements Serializable {
 			FiniteDuration timeout,
 			RestartStrategy restartStrategy) throws IOException {
 		this(
-			executionContext,
+			futureExecutor,
+			ioExecutor,
 			jobId,
 			jobName,
 			jobConfig,
@@ -261,7 +270,8 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	public ExecutionGraph(
-			ExecutionContext executionContext,
+			Executor futureExecutor,
+			Executor ioExecutor,
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
@@ -289,6 +299,9 @@ public class ExecutionGraph implements Serializable {
 		// serialize the job information to do the serialisation work only once
 		this.serializedJobInformation = new SerializedValue<>(jobInformation);
 
+		this.futureExecutor = Preconditions.checkNotNull(futureExecutor);
+		this.futureExecutionContext = ExecutionContext$.MODULE$.fromExecutor(futureExecutor);
+		this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
 
 		this.userClassLoader = userClassLoader;
 
@@ -308,8 +321,6 @@ public class ExecutionGraph implements Serializable {
 		this.restartStrategy = restartStrategy;
 
 		metricGroup.gauge(RESTARTING_TIME_METRIC_NAME, new RestartTimeGauge());
-
-		this.executionContext = checkNotNull(executionContext);
 
 		// create a summary of all relevant data accessed in the web interface's JobConfigHandler
 		try {
@@ -393,20 +404,21 @@ public class ExecutionGraph implements Serializable {
 		if (interval != Long.MAX_VALUE) {
 			// create the coordinator that triggers and commits checkpoints and holds the state
 			checkpointCoordinator = new CheckpointCoordinator(
-				jobInformation.getJobId(),
-				interval,
-				checkpointTimeout,
-				minPauseBetweenCheckpoints,
-				maxConcurrentCheckpoints,
-				numberKeyGroups,
-				tasksToTrigger,
-				tasksToWaitFor,
-				tasksToCommitTo,
-				userClassLoader,
-				checkpointIDCounter,
-				checkpointStore,
-				recoveryMode,
-				checkpointStatsTracker);
+			jobInformation.getJobId(),
+			interval,
+			checkpointTimeout,
+			minPauseBetweenCheckpoints,
+			maxConcurrentCheckpoints,
+			numberKeyGroups,
+			tasksToTrigger,
+			tasksToWaitFor,
+			tasksToCommitTo,
+			userClassLoader,
+			checkpointIDCounter,
+			checkpointStore,
+			recoveryMode,
+			checkpointStatsTracker,
+			ioExecutor);
 
 			// the periodic checkpoint scheduler is activated and deactivated as a result of
 			// job status changes (running -> on, all other states -> off)
@@ -428,7 +440,8 @@ public class ExecutionGraph implements Serializable {
 			// checkpoint coordinator.
 			checkpointIDCounter,
 			savepointStore,
-			checkpointStatsTracker);
+			checkpointStatsTracker,
+			ioExecutor);
 
 		registerJobStatusListener(savepointCoordinator
 			.createActivatorDeactivator(actorSystem, leaderSessionID));
@@ -623,8 +636,12 @@ public class ExecutionGraph implements Serializable {
 	 *
 	 * @return ExecutionContext associated with this ExecutionGraph
 	 */
-	public ExecutionContext getExecutionContext() {
-		return executionContext;
+	public Executor getFutureExecutor() {
+		return futureExecutor;
+	}
+
+	public ExecutionContext getFutureExecutionContext() {
+		return futureExecutionContext;
 	}
 
 	/**
@@ -1020,7 +1037,6 @@ public class ExecutionGraph implements Serializable {
 		restartStrategy = null;
 		scheduler = null;
 		checkpointCoordinator = null;
-		executionContext = null;
 
 		for (ExecutionJobVertex vertex : verticesInCreationOrder) {
 			vertex.prepareForArchiving();

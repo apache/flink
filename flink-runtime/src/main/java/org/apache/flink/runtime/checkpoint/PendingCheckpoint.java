@@ -27,8 +27,13 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.Executor;
 
 /**
  * A pending checkpoint is a checkpoint that has been started, but has not been
@@ -39,6 +44,8 @@ import java.util.Set;
  * state handles always as serialized values, never as actual values.</p>
  */
 public class PendingCheckpoint {
+
+	private static final Logger LOG = LoggerFactory.getLogger(PendingCheckpoint.class);
 		
 	private final Object lock = new Object();
 	
@@ -55,15 +62,20 @@ public class PendingCheckpoint {
 	/** Set of acknowledged tasks */
 	private final Set<ExecutionAttemptID> acknowledgedTasks;
 
+	private final Executor executor;
+
 	private int numAcknowledgedTasks;
 	
 	private boolean discarded;
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public PendingCheckpoint(JobID jobId, long checkpointId, long checkpointTimestamp,
-							Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm)
-	{
+	public PendingCheckpoint(
+			JobID jobId,
+			long checkpointId,
+			long checkpointTimestamp,
+			Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm,
+			Executor executor) {
 		if (jobId == null || verticesToConfirm == null) {
 			throw new NullPointerException();
 		}
@@ -74,6 +86,7 @@ public class PendingCheckpoint {
 		this.jobId = jobId;
 		this.checkpointId = checkpointId;
 		this.checkpointTimestamp = checkpointTimestamp;
+		this.executor = Preconditions.checkNotNull(executor);
 		
 		this.notYetAcknowledgedTasks = verticesToConfirm;
 		this.taskStates = new HashMap<>();
@@ -218,19 +231,30 @@ public class PendingCheckpoint {
 	/**
 	 * Discards the pending checkpoint, releasing all held resources.
 	 */
-	public void discard(ClassLoader userClassLoader) throws Exception {
+	public void discard(ClassLoader userClassLoader) {
 		dispose(userClassLoader, true);
 	}
 
-	private void dispose(ClassLoader userClassLoader, boolean releaseState) throws Exception {
+	private void dispose(final ClassLoader userClassLoader, boolean releaseState) {
 		synchronized (lock) {
 			discarded = true;
 			numAcknowledgedTasks = -1;
 			try {
 				if (releaseState) {
-					for (TaskState taskState : taskStates.values()) {
-						taskState.discard(userClassLoader);
-					}
+					executor.execute(new Runnable() {
+						@Override
+						public void run() {
+							try {
+								for (TaskState taskState: taskStates.values()) {
+									taskState.discard(userClassLoader);
+								}
+							} catch (Exception e) {
+								LOG.warn("Could not properly dispose the pending checkpoint " +
+									"{} of job {}.", checkpointId, jobId, e);
+							}
+						}
+					});
+
 				}
 			} finally {
 				taskStates.clear();

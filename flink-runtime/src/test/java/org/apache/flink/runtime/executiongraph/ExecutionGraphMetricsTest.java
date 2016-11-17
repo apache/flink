@@ -46,11 +46,11 @@ import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.mockito.Matchers;
-import scala.concurrent.ExecutionContext$;
 import scala.concurrent.Future$;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -61,7 +61,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -135,7 +134,8 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 		TestingRestartStrategy testingRestartStrategy = new TestingRestartStrategy();
 
 		ExecutionGraph executionGraph = new ExecutionGraph(
-			ExecutionContext$.MODULE$.fromExecutor(new ForkJoinPool()),
+			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
 			jobGraph.getJobID(),
 			jobGraph.getName(),
 			jobConfig,

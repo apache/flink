@@ -31,6 +31,7 @@ import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.util.TestExecutors;
 import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -94,7 +95,8 @@ public class CheckpointCoordinatorTest {
 				cl,
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+				RecoveryMode.STANDALONE,
+				TestExecutors.directExecutor());
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -145,7 +147,8 @@ public class CheckpointCoordinatorTest {
 				cl,
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+				RecoveryMode.STANDALONE,
+				TestExecutors.directExecutor());
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -194,7 +197,8 @@ public class CheckpointCoordinatorTest {
 				cl,
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+				RecoveryMode.STANDALONE,
+				TestExecutors.directExecutor());
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -244,7 +248,8 @@ public class CheckpointCoordinatorTest {
 				cl,
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+				RecoveryMode.STANDALONE,
+				TestExecutors.directExecutor());
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -342,7 +347,8 @@ public class CheckpointCoordinatorTest {
 				cl,
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+				RecoveryMode.STANDALONE,
+				TestExecutors.directExecutor());
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -461,7 +467,8 @@ public class CheckpointCoordinatorTest {
 				cl,
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+				RecoveryMode.STANDALONE,
+				TestExecutors.directExecutor());
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -610,7 +617,8 @@ public class CheckpointCoordinatorTest {
 				cl,
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(2, cl),
-				RecoveryMode.STANDALONE);
+				RecoveryMode.STANDALONE,
+				TestExecutors.directExecutor());
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -744,7 +752,8 @@ public class CheckpointCoordinatorTest {
 				cl,
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(10, cl),
-				RecoveryMode.STANDALONE);
+				RecoveryMode.STANDALONE,
+				TestExecutors.directExecutor());
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -864,7 +873,8 @@ public class CheckpointCoordinatorTest {
 				cl,
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(2, cl),
-				RecoveryMode.STANDALONE);
+				RecoveryMode.STANDALONE,
+				TestExecutors.directExecutor());
 
 			// trigger a checkpoint, partially acknowledged
 			assertTrue(coord.triggerCheckpoint(timestamp));
@@ -931,7 +941,8 @@ public class CheckpointCoordinatorTest {
 				cl,
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(2, cl),
-				RecoveryMode.STANDALONE);
+				RecoveryMode.STANDALONE,
+				TestExecutors.directExecutor());
 
 			assertTrue(coord.triggerCheckpoint(timestamp));
 
@@ -992,7 +1003,8 @@ public class CheckpointCoordinatorTest {
 			cl,
 			new StandaloneCheckpointIDCounter(),
 			new StandaloneCompletedCheckpointStore(2, cl),
-			RecoveryMode.STANDALONE);
+			RecoveryMode.STANDALONE,
+			TestExecutors.directExecutor());
 
 		assertTrue(coord.triggerCheckpoint(timestamp));
 
@@ -1121,7 +1133,8 @@ public class CheckpointCoordinatorTest {
 				cl,
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(2, cl),
-				RecoveryMode.STANDALONE);
+				RecoveryMode.STANDALONE,
+				TestExecutors.directExecutor());
 
 			
 			coord.startCheckpointScheduler();
@@ -1214,7 +1227,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(2, cl),
 				RecoveryMode.STANDALONE,
-				new DisabledCheckpointStatsTracker());
+				new DisabledCheckpointStatsTracker(),
+				TestExecutors.directExecutor());
 
 			coord.startCheckpointScheduler();
 
@@ -1308,7 +1322,8 @@ public class CheckpointCoordinatorTest {
 				new ExecutionVertex[] { ackVertex },
 				new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter
 				(), new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE,
-				new DisabledCheckpointStatsTracker());
+				new DisabledCheckpointStatsTracker(),
+				TestExecutors.directExecutor());
 
 			coord.startCheckpointScheduler();
 
@@ -1379,7 +1394,8 @@ public class CheckpointCoordinatorTest {
 				new ExecutionVertex[] { ackVertex },
 				new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter
 				(), new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE,
-				new DisabledCheckpointStatsTracker());
+				new DisabledCheckpointStatsTracker(),
+				TestExecutors.directExecutor());
 
 			coord.startCheckpointScheduler();
 
@@ -1459,7 +1475,8 @@ public class CheckpointCoordinatorTest {
 				new ExecutionVertex[] { ackVertex },
 				new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE,
-				new DisabledCheckpointStatsTracker());
+				new DisabledCheckpointStatsTracker(),
+				TestExecutors.directExecutor());
 			
 			coord.startCheckpointScheduler();
 

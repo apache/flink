@@ -270,7 +270,8 @@ public class LocalInputSplitsTest {
 			JobGraph jobGraph = new JobGraph("test job", vertex);
 			
 			ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(), 
+				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutionContext(),
 				jobGraph.getJobID(),
 				jobGraph.getName(),  
 				jobGraph.getJobConfiguration(),
@@ -335,6 +336,7 @@ public class LocalInputSplitsTest {
 		JobGraph jobGraph = new JobGraph("test job", vertex);
 		
 		ExecutionGraph eg = new ExecutionGraph(
+			TestingUtils.defaultExecutionContext(),
 			TestingUtils.defaultExecutionContext(),
 			jobGraph.getJobID(),
 			jobGraph.getName(),  
