@@ -124,7 +124,7 @@ public class ContinuousFileProcessingITCase extends StreamingProgramTestBase {
 		env.setParallelism(PARALLELISM);
 
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
+			new ContinuousFileMonitoringFunction<>(format,
 				FileProcessingMode.PROCESS_CONTINUOUSLY,
 				env.getParallelism(), INTERVAL);
 

@@ -17,14 +17,20 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +64,7 @@ import java.util.TreeMap;
  */
 @Internal
 public class ContinuousFileMonitoringFunction<OUT>
-	extends RichSourceFunction<TimestampedFileInputSplit> implements Checkpointed<Long> {
+	extends RichSourceFunction<TimestampedFileInputSplit> implements CheckpointedFunction {
 
 	private static final long serialVersionUID = 1L;
 
@@ -92,10 +98,13 @@ public class ContinuousFileMonitoringFunction<OUT>
 
 	private volatile boolean isRunning = true;
 
+	private transient ListState<Long> checkpointedState;
+
 	public ContinuousFileMonitoringFunction(
-		FileInputFormat<OUT> format, String path,
+		FileInputFormat<OUT> format,
 		FileProcessingMode watchType,
-		int readerParallelism, long interval) {
+		int readerParallelism,
+		long interval) {
 
 		Preconditions.checkArgument(
 			watchType == FileProcessingMode.PROCESS_ONCE || interval >= MIN_MONITORING_INTERVAL,
@@ -104,12 +113,54 @@ public class ContinuousFileMonitoringFunction<OUT>
 		);
 
 		this.format = Preconditions.checkNotNull(format, "Unspecified File Input Format.");
-		this.path = Preconditions.checkNotNull(path, "Unspecified Path.");
+		this.path = Preconditions.checkNotNull(format.getFilePath().toString(), "Unspecified Path.");
 
 		this.interval = interval;
 		this.watchType = watchType;
 		this.readerParallelism = Math.max(readerParallelism, 1);
 		this.globalModificationTime = Long.MIN_VALUE;
+	}
+
+	@VisibleForTesting
+	public long getGlobalModificationTime() {
+		return this.globalModificationTime;
+	}
+
+	@Override
+	public void initializeState(FunctionInitializationContext context) throws Exception {
+
+		Preconditions.checkState(this.checkpointedState == null,
+			"The " + getClass().getSimpleName() + " has already been initialized.");
+
+		this.checkpointedState = context.getOperatorStateStore().getOperatorState(
+			new ListStateDescriptor<>(
+				"file-monitoring-state",
+				LongSerializer.INSTANCE
+			)
+		);
+
+		if (context.isRestored()) {
+			LOG.info("Restoring state for the {}.", getClass().getSimpleName());
+
+			List<Long> retrievedStates = new ArrayList<>();
+			for (Long entry : this.checkpointedState.get()) {
+				retrievedStates.add(entry);
+			}
+
+			// given that the parallelism of the function is 1, we can only have 1 state
+			Preconditions.checkArgument(retrievedStates.size() == 1,
+				getClass().getSimpleName() + " retrieved invalid state.");
+
+			this.globalModificationTime = retrievedStates.get(0);
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("{} retrieved a global mod time of {}.",
+					getClass().getSimpleName(), globalModificationTime);
+			}
+
+		} else {
+			LOG.info("No state to restore for the {}.", getClass().getSimpleName());
+		}
 	}
 
 	@Override
@@ -118,7 +169,8 @@ public class ContinuousFileMonitoringFunction<OUT>
 		format.configure(parameters);
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Opened File Monitoring Source for path: " + path + ".");
+			LOG.debug("Opened {} (taskIdx= {}) for path: {}",
+				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), path);
 		}
 	}
 
@@ -294,12 +346,15 @@ public class ContinuousFileMonitoringFunction<OUT>
 	//	---------------------			Checkpointing			--------------------------
 
 	@Override
-	public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-		return this.globalModificationTime;
-	}
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
+		Preconditions.checkState(this.checkpointedState != null,
+			"The " + getClass().getSimpleName() + " state has not been properly initialized.");
 
-	@Override
-	public void restoreState(Long state) throws Exception {
-		this.globalModificationTime = state;
+		this.checkpointedState.clear();
+		this.checkpointedState.add(this.globalModificationTime);
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("{} checkpointed {}.", getClass().getSimpleName(), globalModificationTime);
+		}
 	}
 }
