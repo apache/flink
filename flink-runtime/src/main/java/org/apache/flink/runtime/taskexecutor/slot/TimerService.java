@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor.slot;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
@@ -60,9 +61,7 @@ public class TimerService<K> {
 	}
 
 	public void stop() {
-		for (K key: timeouts.keySet()) {
-			unregisterTimeout(key);
-		}
+		unregisterAllTimeouts();
 
 		timeoutListener = null;
 
@@ -98,6 +97,18 @@ public class TimerService<K> {
 		if (timeout != null) {
 			timeout.cancel();
 		}
+	}
+
+	/**
+	 * Unregister all timeouts.
+	 */
+	protected void unregisterAllTimeouts() {
+		for (Timeout<K> timeout : timeouts.values()) {
+			if (timeout != null) {
+				timeout.cancel();
+			}
+		}
+		timeouts.clear();
 	}
 
 	/**
