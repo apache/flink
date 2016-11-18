@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -328,6 +329,34 @@ public class LocalBufferPoolTest {
 		}
 	}
 
+	@Test
+	public void testBestEffortGetNumOfUsedBuffersReturnPositive() throws Exception {
+		int numBuffers = 10;
+		localBufferPool.setNumBuffers(numBuffers);
+
+		AtomicInteger errorCounter = new AtomicInteger(0);
+
+		Thread methodRequester = new Thread(new BestEffortGetNumOfUsedBuffersRequesterTask(localBufferPool, errorCounter));
+		executor.submit(methodRequester);
+
+		List<Buffer> buffers = Lists.newArrayList();
+		for (int i = 0; i < numBuffers; i++) {
+			buffers.add(localBufferPool.requestBuffer());
+		}
+
+		localBufferPool.setNumBuffers(numBuffers / 2);
+
+		for (Buffer buffer : buffers) {
+			buffer.recycle();
+		}
+
+		localBufferPool.lazyDestroy();
+
+		methodRequester.interrupt();
+
+		assertEquals("bestEffortGetNumOfUsedBuffers() returned a negative value", 0, errorCounter.get());
+	}
+
 	// ------------------------------------------------------------------------
 	// Helpers
 	// ------------------------------------------------------------------------
@@ -360,6 +389,29 @@ public class LocalBufferPoolTest {
 			}
 
 			return true;
+		}
+	}
+
+	private static class BestEffortGetNumOfUsedBuffersRequesterTask implements Runnable {
+
+		private final AtomicInteger errorCounter;
+
+		private final BufferPool localBufferPool;
+
+		private BestEffortGetNumOfUsedBuffersRequesterTask(BufferPool localBufferPool, AtomicInteger errorCounter) {
+
+			this.localBufferPool = localBufferPool;
+			this.errorCounter = errorCounter;
+		}
+
+		@Override
+		public void run() {
+
+			while (!Thread.interrupted()) {
+				if(localBufferPool.bestEffortGetNumOfUsedBuffers() < 0){
+					errorCounter.incrementAndGet();
+				}
+			}
 		}
 	}
 }

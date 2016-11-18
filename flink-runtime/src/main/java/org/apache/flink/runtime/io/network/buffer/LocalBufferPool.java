@@ -111,7 +111,7 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Override
-	public int getNumberOfUsedBuffers() {
+	public int bestEffortGetNumOfUsedBuffers() {
 		return numberOfRequestedMemorySegments - availableMemorySegments.size();
 	}
 
