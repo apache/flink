@@ -36,12 +36,14 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.JobManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 
@@ -56,7 +58,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
 import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
@@ -84,7 +85,7 @@ public class ExecutionVertex implements Serializable {
 
 	private final int subTaskIndex;
 
-	private final List<Execution> priorExecutions;
+	private final EvictingBoundedList<Execution> priorExecutions;
 
 	private final FiniteDuration timeout;
 
@@ -103,7 +104,13 @@ public class ExecutionVertex implements Serializable {
 			int subTaskIndex,
 			IntermediateResult[] producedDataSets,
 			FiniteDuration timeout) {
-		this(jobVertex, subTaskIndex, producedDataSets, timeout, System.currentTimeMillis());
+		this(
+				jobVertex,
+				subTaskIndex,
+				producedDataSets,
+				timeout,
+				System.currentTimeMillis(),
+				JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue());
 	}
 
 	public ExecutionVertex(
@@ -111,7 +118,17 @@ public class ExecutionVertex implements Serializable {
 			int subTaskIndex,
 			IntermediateResult[] producedDataSets,
 			FiniteDuration timeout,
-			long createTimestamp) {
+			int maxPriorExecutionHistoryLength) {
+		this(jobVertex, subTaskIndex, producedDataSets, timeout, System.currentTimeMillis(), maxPriorExecutionHistoryLength);
+	}
+
+	public ExecutionVertex(
+			ExecutionJobVertex jobVertex,
+			int subTaskIndex,
+			IntermediateResult[] producedDataSets,
+			Time timeout,
+			long createTimestamp,
+			int maxPriorExecutionHistoryLength) {
 		this.jobVertex = jobVertex;
 		this.subTaskIndex = subTaskIndex;
 
@@ -126,7 +143,7 @@ public class ExecutionVertex implements Serializable {
 
 		this.inputEdges = new ExecutionEdge[jobVertex.getJobVertex().getInputs().size()][];
 
-		this.priorExecutions = new CopyOnWriteArrayList<Execution>();
+		this.priorExecutions = new EvictingBoundedList<>(maxPriorExecutionHistoryLength);
 
 		this.currentExecution = new Execution(
 			getExecutionGraph().getFutureExecutionContext(),
@@ -224,14 +241,19 @@ public class ExecutionVertex implements Serializable {
 	}
 	
 	public Execution getPriorExecutionAttempt(int attemptNumber) {
-		if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
-			return priorExecutions.get(attemptNumber);
-		}
-		else {
-			throw new IllegalArgumentException("attempt does not exist");
+		synchronized (priorExecutions) {
+			if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
+				return priorExecutions.get(attemptNumber);
+			} else {
+				throw new IllegalArgumentException("attempt does not exist");
+			}
 		}
 	}
 	
+	EvictingBoundedList<Execution> getCopyOfPriorExecutionsList() {
+		synchronized (priorExecutions) {
+			return new EvictingBoundedList<>(priorExecutions);
+		}
 	public ExecutionGraph getExecutionGraph() {
 		return this.jobVertex.getGraph();
 	}
