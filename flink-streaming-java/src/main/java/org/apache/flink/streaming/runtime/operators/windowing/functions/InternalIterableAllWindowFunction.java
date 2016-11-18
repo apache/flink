@@ -46,7 +46,7 @@ public final class InternalIterableAllWindowFunction<IN, OUT, W extends Window>
 	}
 
 	@Override
-	public void apply(Byte key, W window, Iterable<IN> input, Collector<OUT> out) throws Exception {
+	public void process(Byte key, W window, Iterable<IN> input, Collector<OUT> out) throws Exception {
 		wrappedFunction.apply(window, input, out);
 	}
 

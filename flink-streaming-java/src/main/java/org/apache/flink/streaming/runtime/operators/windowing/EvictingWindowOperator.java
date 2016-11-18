@@ -317,7 +317,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 				}
 			});
 
-		userFunction.apply(context.key, context.window, projectedContents, timestampedCollector);
+		userFunction.process(context.key, context.window, projectedContents, timestampedCollector);
 		evictorContext.evictAfter(recordsWithTimestamp, Iterables.size(recordsWithTimestamp));
 
 

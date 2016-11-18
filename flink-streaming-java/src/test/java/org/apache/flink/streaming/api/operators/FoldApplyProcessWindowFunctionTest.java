@@ -23,9 +23,12 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.windowing.FoldApplyProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.FoldApplyWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
@@ -36,7 +39,7 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.windowing.AccumulatingProcessingTimeWindowOperator;
-import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
+import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableProcessWindowFunction;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 import org.junit.Assert;
@@ -44,7 +47,7 @@ import org.junit.Assert;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FoldApplyWindowFunctionTest {
+public class FoldApplyProcessWindowFunctionTest {
 
 	/**
 	 * Tests that the FoldWindowFunction gets the output type serializer set by the
@@ -58,31 +61,31 @@ public class FoldApplyWindowFunctionTest {
 
 		int initValue = 1;
 
-		FoldApplyWindowFunction<Integer, TimeWindow, Integer, Integer> foldWindowFunction = new FoldApplyWindowFunction<>(
+		FoldApplyProcessWindowFunction<Integer, TimeWindow, Integer, Integer, Integer> foldWindowFunction = new FoldApplyProcessWindowFunction<>(
 			initValue,
 			new FoldFunction<Integer, Integer>() {
-				private static final long serialVersionUID = -4849549768529720587L;
-
 				@Override
 				public Integer fold(Integer accumulator, Integer value) throws Exception {
 					return accumulator + value;
 				}
+
 			},
-			new WindowFunction<Integer, Integer, Integer, TimeWindow>() {
+			new ProcessWindowFunction<Integer, Integer, Integer, TimeWindow>() {
 				@Override
-				public void apply(Integer integer,
-					TimeWindow w,
-					Iterable<Integer> input,
-					Collector<Integer> out) throws Exception {
+				public void process(Integer integer,
+									Context context,
+									Iterable<Integer> input,
+									Collector<Integer> out) throws Exception {
 					for (Integer in: input) {
 						out.collect(in);
 					}
 				}
-			}
+			},
+			BasicTypeInfo.INT_TYPE_INFO
 		);
 
 		AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> windowOperator = new AccumulatingProcessingTimeWindowOperator<>(
-			new InternalIterableWindowFunction<>(foldWindowFunction),
+			new InternalIterableProcessWindowFunction<>(foldWindowFunction),
 			new KeySelector<Integer, Integer>() {
 				private static final long serialVersionUID = -7951310554369722809L;
 
@@ -132,7 +135,12 @@ public class FoldApplyWindowFunctionTest {
 
 		expected.add(initValue);
 
-		foldWindowFunction.apply(0, new TimeWindow(0, 1), input, new ListCollector<>(result));
+		foldWindowFunction.process(0, foldWindowFunction.new Context() {
+			@Override
+			public TimeWindow window() {
+				return new TimeWindow(0, 1);
+			}
+		}, input, new ListCollector<>(result));
 
 		Assert.assertEquals(expected, result);
 	}

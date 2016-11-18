@@ -28,7 +28,7 @@ public class PassThroughWindowFunction<K, W extends Window, T> implements Window
 
 	@Override
 	public void apply(K k, W window, Iterable<T> input, Collector<T> out) throws Exception {
-		for (T in: input) {
+		for (T in : input) {
 			out.collect(in);
 		}
 	}

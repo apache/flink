@@ -293,16 +293,19 @@ The *window function* is used to process the elements of each window (and key) o
 determines that a window is ready for processing (see [triggers](#triggers) for how the system
 determines when a window is ready).
 
-The window function can be one of `ReduceFunction`, `FoldFunction` or `WindowFunction`. The first
-two can be executed more efficiently because Flink can incrementally aggregate the elements for each
-window as they arrive. A `WindowFunction` gets an `Iterable` for all the elements contained in a
-window and additional meta information about the window to which the elements belong.
+The window function can be one of `ReduceFunction`, `FoldFunction`, `WindowFunction` or `ProcessWindowFunction`.
+The first two can be executed more efficiently because Flink can incrementally aggregate the elements for each
+window as they arrive. Meanwhile, `WindowFunction` and `ProcessWindowFunction` get an `Iterable` 
+for all the elements contained in a window and additional meta information about the window to which the elements belong.
+`WindowFunction` and `ProcessWindowFunction` are similar, the only difference deals with the meta-information about the window
+they can access. Indeed, the former access only the window on which the function is evaluated whereas the latter
+is able to retrieve more information besides the window about the context in which the function is evaluated.
 
-A windowed transformation with a `WindowFunction` cannot be executed as efficiently as the other
-cases because Flink has to buffer *all* elements for a window internally before invoking the function.
-This can be mitigated by combining a `WindowFunction` with a `ReduceFunction` or `FoldFunction` to
-get both incremental aggregation of window elements and the additional information that the
-`WindowFunction` receives. We will look at examples for each of these variants.
+A windowed transformation with a `WindowFunction` (or `ProcessWindowFunction`) cannot be executed as efficiently
+as the other cases because Flink has to buffer *all* elements for a window internally before invoking the function.
+This can be mitigated by combining a `WindowFunction` (or `ProcessWindowFunction`) with a `ReduceFunction` 
+or `FoldFunction` to get both incremental aggregation of window elements and the additional information that the
+`WindowFunction` (or `ProcessWindowFunction`) receives. We will look at examples for each of these variants.
 
 ### ReduceFunction
 
@@ -381,11 +384,11 @@ a concatenation of all the `Long` fields of the input.
 
 ### WindowFunction - The Generic Case
 
-Using a `WindowFunction` provides the most flexibility, at the cost of performance. The reason for this
-is that elements cannot be incrementally aggregated for a window and instead need to be buffered
-internally until the window is considered ready for processing. A `WindowFunction` gets an
-`Iterable` containing all the elements of the window being processed. The signature of
-`WindowFunction` is this:
+Using a `WindowFunction` or `ProcessWindowFunction` provide the most flexibility, at the cost of performance. 
+The reason for this is that elements cannot be incrementally aggregated for a window and instead need to be buffered
+internally until the window is considered ready for processing. Both `WindowFunction` and `ProcessWindowFunction` 
+get an `Iterable` containing all the elements of the window being processed. 
+The signature of `WindowFunction` is this:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -484,6 +487,43 @@ class MyWindowFunction extends WindowFunction[(String, Long), String, String, Ti
 </div>
 </div>
 
+Vice versa, the signature of `ProcessWindowFunction` is:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+    public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> implements Function {
+        /**
+         * Evaluates the window and outputs none or several elements.
+         *
+         * @param key The key for which this window is evaluated.
+         * @param context The context in which the window is being evaluated.
+         * @param elements The elements in the window being evaluated.
+         * @param out A collector for emitting elements.
+         *
+         * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
+         */
+        public abstract void process(KEY key, Context context, Iterable<IN> elements, Collector<OUT> out) throws Exception;
+        
+        /**
+         * The context holding window metadata
+         */
+        public abstract class Context {
+            /**
+             * @return The window that is being evaluated.
+             */
+            public abstract W window();
+        }
+    }
+    
+{% endhighlight %}
+</div>
+</div>
+
+`ProcessWindowFunction` and `WindowFunction` can be used in a exchangeable way.
+
+
 ### WindowFunction with Incremental Aggregation
 
 A `WindowFunction` can be combined with either a `ReduceFunction` or a `FoldFunction` to 
@@ -491,6 +531,7 @@ incrementally aggregate elements as they arrive in the window.
 When the window is closed, the `WindowFunction` will be provided with the aggregated result. 
 This allows to incrementally compute windows while having access to the 
 additional window meta information of the `WindowFunction`.
+The above mechanism applies to `ProcessWindowFunction` as well.
 
 #### Incremental Window Aggregation with FoldFunction
 
@@ -563,6 +604,73 @@ input
 </div>
 </div>
 
+#### Incremental Window Aggregation with FoldFunction and ProcessWindowFunction
+
+On the other hand, `ProcessWindowFunction` is less constrained when combined with a `FoldFunction`. 
+As a matter of facts, only the `Iterable` argument in `ProcessWindowFunction` must correspond to the type of the
+accumulator in the `FoldFunction`. This feature is only available when using the fold method with a `ProcessWindowFunction`
+as third argument, as showed below:
+ 
+ <div class="codetabs" markdown="1">
+ <div data-lang="java" markdown="1">
+ {% highlight java %}
+ DataStream<SensorReading> input = ...;
+ 
+ input
+   .keyBy(<key selector>)
+   .timeWindow(<window assigner>)
+   .fold(new Tuple2<String, Integer>("", 0), new MyFoldFunction(), new MyProcessWindowFunction())
+ 
+ // Function definitions
+ 
+ private static class MyFoldFunction
+     implements FoldFunction<SensorReading, Tuple2<String, Integer>> {
+ 
+   public Tuple2<String, Integer> fold(Tuple2<String, Integer> acc, SensorReading s) {
+       Integer cur = acc.getField(1);
+       acc.setField(1, cur + 1);
+       return acc;
+   }
+ }
+ 
+ private static class MyWindowFunction 
+     extends ProcessWindowFunction<Tuple2<String, Integer>, Tuple3<String, Long, Integer>, String, TimeWindow> {
+   
+   public void apply(String key,
+                     Context context,
+                     Iterable<Tuple2<String, Integer>> counts,
+                     Collector<Tuple3<String, Long, Integer>> out) {
+     Integer count = counts.iterator().next().getField(1);
+     out.collect(new Tuple3<String, Long, Integer>(key, window.getEnd(), count));
+   }
+ }
+ 
+ {% endhighlight %}
+ </div>
+ <div data-lang="scala" markdown="1">
+ {% highlight scala %}
+ 
+ val input: DataStream[SensorReading] = ...
+ 
+ input
+  .keyBy(<key selector>)
+  .timeWindow(<window assigner>)
+  .fold (
+     ("", 0), 
+     (acc: (String, Int), r: SensorReading) => { ("", acc._1 + 1) },
+     new ProcessWindowFunction[(String, Int), (String, Long, Int), String, TimeWindow] () {
+         override def process(key: String, window: TimeWindow, 
+           counts: Iterable[(String, Int)], out: Collector[(String, Long, Int)] ) => {
+             val count = counts.iterator.next()
+             out.collect((key, window.getEnd, count._1))
+           }
+      }
+   )
+ 
+ {% endhighlight %}
+ </div>
+ </div>
+
 #### Incremental Window Aggregation with ReduceFunction
 
 The following example shows how an incremental `ReduceFunction` can be combined with
@@ -617,6 +725,67 @@ input
       minReadings: Iterable[SensorReading], 
       out: Collector[(Long, SensorReading)] ) => 
       {
+        val min = minReadings.iterator.next()
+        out.collect((window.getStart, min))
+      }
+  )
+  
+{% endhighlight %}
+</div>
+</div>
+
+#### Incremental Window Aggregation with ReduceFunction and ProcessWindowFunction
+
+The following example shows how an incremental `ReduceFunction` can be combined with
+a `ProcessWindowFunction` to return the smallest event in a window along 
+with the start time of the window.  
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<SensorReading> input = ...;
+
+input
+  .keyBy(<key selector>)
+  .timeWindow(<window assigner>)
+  .reduce(new MyReduceFunction(), new MyWindowFunction());
+
+// Function definitions
+
+private static class MyReduceFunction implements ReduceFunction<SensorReading> {
+
+  public SensorReading reduce(SensorReading r1, SensorReading r2) {
+      return r1.value() > r2.value() ? r2 : r1;
+  }
+}
+
+private static class MyWindowFunction 
+    extends ProcessWindowFunction<SensorReading, Tuple2<Long, SensorReading>, String, TimeWindow> {
+  
+  public void process(String key,
+                    Context context,
+                    Iterable<SensorReading> minReadings,
+                    Collector<Tuple2<Long, SensorReading>> out) {
+      SensorReading min = minReadings.iterator().next();
+      out.collect(new Tuple2<Long, SensorReading>(window.getStart(), min));
+  }
+}
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+
+val input: DataStream[SensorReading] = ...
+
+input
+  .keyBy(<key selector>)
+  .timeWindow(<window assigner>)
+  .reduce(
+    (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
+    new ProcessWindowFunction[SensorReading, (Long, SensorReading), String, TimeWindow] () {
+    override def process(key: String, window: TimeWindow, 
+        minReadings: Iterable[SensorReading], out: Collector[(Long, SensorReading)] ) => {
         val min = minReadings.iterator.next()
         out.collect((window.getStart, min))
       }
