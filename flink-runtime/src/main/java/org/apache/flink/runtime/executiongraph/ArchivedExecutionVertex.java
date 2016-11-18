@@ -19,17 +19,16 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.EvictingBoundedList;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 
 public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializable {
 
 	private static final long serialVersionUID = -6708241535015028576L;
 	private final int subTaskIndex;
 
-	private final List<ArchivedExecution> priorExecutions;
+	private final EvictingBoundedList<ArchivedExecution> priorExecutions;
 
 	/** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations */
 	private final String taskNameWithSubtask;
@@ -38,9 +37,10 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 
 	public ArchivedExecutionVertex(ExecutionVertex vertex) {
 		this.subTaskIndex = vertex.getParallelSubtaskIndex();
-		this.priorExecutions = new ArrayList<>();
-		for (Execution priorExecution : vertex.getPriorExecutions()) {
-			priorExecutions.add(priorExecution.archive());
+		EvictingBoundedList<Execution> copyOfPriorExecutionsList = vertex.getCopyOfPriorExecutionsList();
+		priorExecutions = new EvictingBoundedList<>(copyOfPriorExecutionsList.getSizeLimit());
+		for (Execution priorExecution : copyOfPriorExecutionsList) {
+			priorExecutions.add(priorExecution != null ? priorExecution.archive() : null);
 		}
 		this.taskNameWithSubtask = vertex.getTaskNameWithSubtaskIndex();
 		this.currentExecution = vertex.getCurrentExecutionAttempt().archive();

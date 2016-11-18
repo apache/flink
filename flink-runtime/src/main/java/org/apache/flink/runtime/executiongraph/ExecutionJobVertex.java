@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.JobManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -163,9 +165,16 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 					result.getResultType());
 		}
 
+		Configuration jobConfiguration = graph.getJobConfiguration();
+		int maxPriorAttemptsHistoryLength = jobConfiguration != null ?
+				jobConfiguration.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE) :
+				JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue();
+
 		// create all task vertices
 		for (int i = 0; i < numTaskVertices; i++) {
-			ExecutionVertex vertex = new ExecutionVertex(this, i, this.producedDataSets, timeout, createTimestamp);
+			ExecutionVertex vertex = new ExecutionVertex(
+					this, i, this.producedDataSets, timeout, createTimestamp, maxPriorAttemptsHistoryLength);
+
 			this.taskVertices[i] = vertex;
 		}
 		
