@@ -21,7 +21,6 @@ package org.apache.flink.runtime.taskexecutor.slot;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
