@@ -60,9 +60,7 @@ public class TimerService<K> {
 	}
 
 	public void stop() {
-		for (K key: timeouts.keySet()) {
-			unregisterTimeout(key);
-		}
+		unregisterAllTimeouts();
 
 		timeoutListener = null;
 
@@ -98,6 +96,18 @@ public class TimerService<K> {
 		if (timeout != null) {
 			timeout.cancel();
 		}
+	}
+
+	/**
+	 * Unregister all timeouts.
+	 */
+	protected void unregisterAllTimeouts() {
+		for (Timeout<K> timeout : timeouts.values()) {
+			if (timeout != null) {
+				timeout.cancel();
+			}
+		}
+		timeouts.clear();
 	}
 
 	/**
