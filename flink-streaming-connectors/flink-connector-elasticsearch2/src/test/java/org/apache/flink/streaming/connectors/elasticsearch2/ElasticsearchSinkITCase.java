@@ -34,8 +34,8 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
+import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.index.mapper.MapperParsingException;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeBuilder;
 import org.junit.Assert;
@@ -79,7 +79,7 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 		Map<String, String> config = new HashMap<>();
 		// This instructs the sink to emit after every element, otherwise they would be buffered
 		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		config.put("cluster.name", "my-transport-client-cluster");
+		config.put(ClusterName.SETTING, "my-transport-client-cluster");
 
 		// Can't use {@link TransportAddress} as its not Serializable in Elasticsearch 2.x
 		List<InetSocketAddress> transports = new ArrayList<>();
@@ -121,7 +121,7 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 	Map<String, String> config = new HashMap<>();
 	// This instructs the sink to emit after every element, otherwise they would be buffered
 	config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-	config.put("cluster.name", "my-transport-client-cluster");
+	config.put(ClusterName.SETTING, "my-transport-client-cluster");
 
 	source.addSink(new ElasticsearchSink<>(config, null, new TestElasticsearchSinkFunction()));
 
@@ -159,7 +159,7 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 	Map<String, String> config = new HashMap<>();
 	// This instructs the sink to emit after every element, otherwise they would be buffered
 	config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-	config.put("cluster.name", "my-transport-client-cluster");
+	config.put(ClusterName.SETTING, "my-transport-client-cluster");
 
 	source.addSink(new ElasticsearchSink<>(config, new ArrayList<InetSocketAddress>(), new TestElasticsearchSinkFunction()));
 
@@ -189,7 +189,7 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 		Map<String, String> config = new HashMap<>();
 		// This instructs the sink to emit after every element, otherwise they would be buffered
 		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		config.put("cluster.name", "my-node-client-cluster");
+		config.put(ClusterName.SETTING, "my-node-client-cluster");
 
 		List<InetSocketAddress> transports = new ArrayList<>();
 		transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
@@ -225,7 +225,7 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 		// This instructs the sink to emit after every element, otherwise they
 		// would be buffered
 		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		config.put("cluster.name", "my-transport-client-cluster");
+		config.put(ClusterName.SETTING, "my-transport-client-cluster");
 
 		File dataDir = tempFolder.newFolder();
 		Node node = NodeBuilder.nodeBuilder()
@@ -265,7 +265,7 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 		// This instructs the sink to emit after every element, otherwise they
 		// would be buffered
 		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		config.put("cluster.name", "my-transport-client-cluster");
+		config.put(ClusterName.SETTING, "my-transport-client-cluster");
 
 		File dataDir = tempFolder.newFolder();
 		Node node = NodeBuilder.nodeBuilder()
@@ -303,7 +303,7 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 		// This instructs the sink to emit after every element, otherwise they
 		// would be buffered
 		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		config.put("cluster.name", "my-transport-client-cluster");
+		config.put(ClusterName.SETTING, "my-transport-client-cluster");
 		
 		File dataDir = tempFolder.newFolder();
 		Node node = NodeBuilder.nodeBuilder()

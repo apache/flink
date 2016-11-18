@@ -22,6 +22,7 @@ import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateReque
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
@@ -46,10 +47,10 @@ import java.util.Map;
  *				ElasticSearchHelper esHelper = new ElasticSearchHelper(config, transports);
  *
  *				//Create an Index Template given a name and the json structure
- * 				esHelper.initTemplate(templateName, templateRequest);
+ *				esHelper.initTemplate(templateName, templateRequest);
  * 
- * 				//Create an Index Mapping given the Index Name, DocType and the json structure
- * 				esHelper.initIndexMapping(indexName, docType, mappingsRequest);
+ *				//Create an Index Mapping given the Index Name, DocType and the json structure
+ *				esHelper.initIndexMapping(indexName, docType, mappingsRequest);
  *
  * }</pre>
  * 
@@ -172,8 +173,8 @@ public class ElasticSearchHelper {
 				for (String indexName:mappingRequest.indices()){
 					// If the index does not exist, create it
 					client.admin().indices().prepareCreate(indexName)
-							.setSettings(Settings.builder().put("index.number_of_shards", DEFAULT_INDEX_SHARDS)
-							.put("index.number_of_replicas", DEFAULT_INDEX_REPLICAS)).execute().actionGet();
+							.setSettings(Settings.builder().put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, DEFAULT_INDEX_SHARDS)
+							.put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, DEFAULT_INDEX_REPLICAS)).execute().actionGet();
 					LOG.info("Index "+indexName+" not found, creating it...");
 				}
 			}
