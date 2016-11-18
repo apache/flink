@@ -405,6 +405,35 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     * @return The data stream that is the result of applying the window function to the window.
     */
   def fold[R: TypeInformation, ACC: TypeInformation](
+      initialValue: ACC,
+      foldFunction: (ACC, T) => ACC,
+      function: ProcessWindowFunction[ACC, R, K, W]): DataStream[R] = {
+
+    val cleanedFunction = clean(function)
+    val cleanedFoldFunction = clean(foldFunction)
+
+    val folder = new ScalaFoldFunction[T, ACC](cleanedFoldFunction)
+    val applyFunction = new ScalaProcessWindowFunctionWrapper[ACC, R, K, W](cleanedFunction)
+
+    asScalaStream(javaStream.fold(
+      initialValue,
+      folder,
+      implicitly[TypeInformation[ACC]],
+      applyFunction,
+      implicitly[TypeInformation[R]]))
+  }
+
+  /**
+    * Applies the given fold function to each window. The window folded value is
+    * then passed as input of the process window function.
+    * The output of the process window function is interpreted as a regular non-windowed stream.
+    *
+    * @param initialValue The initial value of the fold
+    * @param foldFunction The fold function that is used for incremental aggregation
+    * @param function The process window function.
+    * @return The data stream that is the result of applying the window function to the window.
+    */
+  def fold[R: TypeInformation, ACC: TypeInformation](
        initialValue: ACC,
        foldFunction: FoldFunction[T, ACC],
        function: ProcessWindowFunction[ACC, R, K, W]): DataStream[R] = {
@@ -420,6 +449,29 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
       implicitly[TypeInformation[ACC]],
       applyFunction,
       implicitly[TypeInformation[R]]))
+  }
+
+  /**
+    * Applies the given reduce function to each window. The window reduced value is
+    * then passed as input of the window function. The output of the window function
+    * is interpreted as a regular non-windowed stream.
+    *
+    * @param preAggregator The reduce function that is used for pre-aggregation
+    * @param function The process window function.
+    * @return The data stream that is the result of applying the window function to the window.
+    */
+  def reduce[R: TypeInformation](
+      preAggregator: (T, T) => T,
+      function: ProcessWindowFunction[T, R, K, W]): DataStream[R] = {
+
+    val cleanedPreAggregator = clean(preAggregator)
+    val cleanedWindowFunction = clean(function)
+
+    val reducer = new ScalaReduceFunction[T](cleanedPreAggregator)
+    val applyFunction = new ScalaProcessWindowFunctionWrapper[T, R, K, W](cleanedWindowFunction)
+
+    val resultType: TypeInformation[R] = implicitly[TypeInformation[R]]
+    asScalaStream(javaStream.reduce(reducer, applyFunction, resultType))
   }
 
   /**
