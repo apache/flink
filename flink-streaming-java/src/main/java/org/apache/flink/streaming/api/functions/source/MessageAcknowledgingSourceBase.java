@@ -27,14 +27,17 @@ import java.util.Set;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.SerializedCheckpointData;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,14 +76,16 @@ import org.slf4j.LoggerFactory;
  *     }
  * }
  * }</pre>
- * 
+ *
+ * <b>NOTE:</b> This source has a parallelism of {@code 1}.
+ *
  * @param <Type> The type of the messages created by the source.
  * @param <UId> The type of unique IDs which may be used to acknowledge elements.
  */
 @PublicEvolving
 public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	extends RichSourceFunction<Type>
-	implements Checkpointed<SerializedCheckpointData[]>, CheckpointListener {
+	implements CheckpointedFunction, CheckpointListener {
 
 	private static final long serialVersionUID = -8689291992192955579L;
 
@@ -93,7 +98,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	private transient List<UId> idsForCurrentCheckpoint;
 
 	/** The list with IDs from checkpoints that were triggered, but not yet completed or notified of completion */
-	private transient ArrayDeque<Tuple2<Long, List<UId>>> pendingCheckpoints;
+	protected transient ArrayDeque<Tuple2<Long, List<UId>>> pendingCheckpoints;
 
 	/**
 	 * Set which contain all processed ids. Ids are acknowledged after checkpoints. When restoring
@@ -101,6 +106,8 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	 * ids for a checkpoint haven't been acknowledged yet.
 	 */
 	private transient Set<UId> idsProcessedButNotAcknowledged;
+
+	private transient ListState<SerializedCheckpointData[]> checkpointedState;
 
 	// ------------------------------------------------------------------------
 
@@ -123,13 +130,38 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	}
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
-		idsForCurrentCheckpoint = new ArrayList<>(64);
-		if (pendingCheckpoints == null) {
-			pendingCheckpoints = new ArrayDeque<>();
-		}
-		if (idsProcessedButNotAcknowledged == null) {
-			idsProcessedButNotAcknowledged = new HashSet<>();
+	public void initializeState(FunctionInitializationContext context) throws Exception {
+		Preconditions.checkState(this.checkpointedState == null,
+			"The " + getClass().getSimpleName() + " has already been initialized.");
+
+		this.checkpointedState = context
+			.getOperatorStateStore()
+			.getSerializableListState("message-acknowledging-source-state");
+
+		this.idsForCurrentCheckpoint = new ArrayList<>(64);
+		this.pendingCheckpoints = new ArrayDeque<>();
+		this.idsProcessedButNotAcknowledged = new HashSet<>();
+
+		if (context.isRestored()) {
+			LOG.info("Restoring state for the {}.", getClass().getSimpleName());
+
+			List<SerializedCheckpointData[]> retrievedStates = new ArrayList<>();
+			for (SerializedCheckpointData[] entry : this.checkpointedState.get()) {
+				retrievedStates.add(entry);
+			}
+
+			// given that the parallelism of the function is 1, we can only have at most 1 state
+			Preconditions.checkArgument(retrievedStates.size() == 1,
+				getClass().getSimpleName() + " retrieved invalid state.");
+
+			pendingCheckpoints = SerializedCheckpointData.toDeque(retrievedStates.get(0), idSerializer);
+			// build a set which contains all processed ids. It may be used to check if we have
+			// already processed an incoming message.
+			for (Tuple2<Long, List<UId>> checkpoint : pendingCheckpoints) {
+				idsProcessedButNotAcknowledged.addAll(checkpoint.f1);
+			}
+		} else {
+			LOG.info("No state to restore for the {}.", getClass().getSimpleName());
 		}
 	}
 
@@ -166,26 +198,20 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public SerializedCheckpointData[] snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-		LOG.debug("Snapshotting state. Messages: {}, checkpoint id: {}, timestamp: {}",
-					idsForCurrentCheckpoint, checkpointId, checkpointTimestamp);
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
+		Preconditions.checkState(this.checkpointedState != null,
+			"The " + getClass().getSimpleName() + " has not been properly initialized.");
 
-		pendingCheckpoints.addLast(new Tuple2<>(checkpointId, idsForCurrentCheckpoint));
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("{} checkpointing: Messages: {}, checkpoint id: {}, timestamp: {}",
+				idsForCurrentCheckpoint, context.getCheckpointId(), context.getCheckpointTimestamp());
+		}
 
+		pendingCheckpoints.addLast(new Tuple2<>(context.getCheckpointId(), idsForCurrentCheckpoint));
 		idsForCurrentCheckpoint = new ArrayList<>(64);
 
-		return SerializedCheckpointData.fromDeque(pendingCheckpoints, idSerializer);
-	}
-
-	@Override
-	public void restoreState(SerializedCheckpointData[] state) throws Exception {
-		idsProcessedButNotAcknowledged = new HashSet<>();
-		pendingCheckpoints = SerializedCheckpointData.toDeque(state, idSerializer);
-		// build a set which contains all processed ids. It may be used to check if we have
-		// already processed an incoming message.
-		for (Tuple2<Long, List<UId>> checkpoint : pendingCheckpoints) {
-			idsProcessedButNotAcknowledged.addAll(checkpoint.f1);
-		}
+		this.checkpointedState.clear();
+		this.checkpointedState.add(SerializedCheckpointData.fromDeque(pendingCheckpoints, idSerializer));
 	}
 
 	@Override

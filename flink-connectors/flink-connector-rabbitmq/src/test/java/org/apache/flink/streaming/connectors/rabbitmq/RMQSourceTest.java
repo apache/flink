@@ -23,16 +23,19 @@ import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.QueueingConsumer;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.SerializedCheckpointData;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.junit.After;
 import org.junit.Before;
@@ -53,6 +56,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 
 
 /**
@@ -83,7 +87,13 @@ public class RMQSourceTest {
 	@Before
 	public void beforeTest() throws Exception {
 
+		OperatorStateStore mockStore = Mockito.mock(OperatorStateStore.class);
+		FunctionInitializationContext mockContext = Mockito.mock(FunctionInitializationContext.class);
+		Mockito.when(mockContext.getOperatorStateStore()).thenReturn(mockStore);
+		Mockito.when(mockStore.getSerializableListState(any(String.class))).thenReturn(null);
+
 		source = new RMQTestSource();
+		source.initializeState(mockContext);
 		source.open(config);
 
 		messageId = 0;
@@ -128,6 +138,12 @@ public class RMQSourceTest {
 	@Test
 	public void testCheckpointing() throws Exception {
 		source.autoAck = false;
+
+		StreamSource<String, RMQSource<String>> src = new StreamSource<>(source);
+		AbstractStreamOperatorTestHarness<String> testHarness =
+			new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
+		testHarness.open();
+
 		sourceThread.start();
 
 		Thread.sleep(5);
@@ -141,10 +157,10 @@ public class RMQSourceTest {
 
 		for (int i=0; i < numSnapshots; i++) {
 			long snapshotId = random.nextLong();
-			SerializedCheckpointData[] data;
+			OperatorStateHandles data;
 
 			synchronized (DummySourceContext.lock) {
-				data = source.snapshotState(snapshotId, System.currentTimeMillis());
+				data = testHarness.snapshot(snapshotId, System.currentTimeMillis());
 				previousSnapshotId = lastSnapshotId;
 				lastSnapshotId = messageId;
 			}
@@ -153,15 +169,25 @@ public class RMQSourceTest {
 
 			// check if the correct number of messages have been snapshotted
 			final long numIds = lastSnapshotId - previousSnapshotId;
-			assertEquals(numIds, data[0].getNumIds());
-			// deserialize and check if the last id equals the last snapshotted id
-			ArrayDeque<Tuple2<Long, List<String>>> deque = SerializedCheckpointData.toDeque(data, new StringSerializer());
+
+			RMQTestSource sourceCopy = new RMQTestSource();
+			StreamSource<String, RMQTestSource> srcCopy = new StreamSource<>(sourceCopy);
+			AbstractStreamOperatorTestHarness<String> testHarnessCopy =
+				new AbstractStreamOperatorTestHarness<>(srcCopy, 1, 1, 0);
+
+			testHarnessCopy.setup();
+			testHarnessCopy.initializeState(data);
+			testHarnessCopy.open();
+
+			ArrayDeque<Tuple2<Long, List<String>>> deque = sourceCopy.getRestoredState();
 			List<String> messageIds = deque.getLast().f1;
+
+			assertEquals(numIds, messageIds.size());
 			if (messageIds.size() > 0) {
 				assertEquals(lastSnapshotId, (long) Long.valueOf(messageIds.get(messageIds.size() - 1)));
 			}
 
-			// check if the messages are being acknowledged and the transaction comitted
+			// check if the messages are being acknowledged and the transaction committed
 			synchronized (DummySourceContext.lock) {
 				source.notifyCheckpointComplete(snapshotId);
 			}
@@ -313,10 +339,22 @@ public class RMQSourceTest {
 
 	private class RMQTestSource extends RMQSource<String> {
 
+		private ArrayDeque<Tuple2<Long, List<String>>> restoredState;
+
 		public RMQTestSource() {
 			super(new RMQConnectionConfig.Builder().setHost("hostTest")
 					.setPort(999).setUserName("userTest").setPassword("passTest").setVirtualHost("/").build()
 				, "queueDummy", true, new StringDeserializationScheme());
+		}
+
+		@Override
+		public void initializeState(FunctionInitializationContext context) throws Exception {
+			super.initializeState(context);
+			this.restoredState = this.pendingCheckpoints;
+		}
+
+		public ArrayDeque<Tuple2<Long, List<String>>> getRestoredState() {
+			return this.restoredState;
 		}
 
 		@Override
