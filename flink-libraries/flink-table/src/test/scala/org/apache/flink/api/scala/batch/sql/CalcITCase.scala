@@ -279,13 +279,13 @@ class CalcITCase(
     val ds = CollectionDataSets.getSmall3TupleDataSet(env)
     val table = ds.toTable(tEnv).as('a1, 'a2, 'a3)
     tEnv.registerTable("A", table)
-    val excludedVal = 1
-    val sqlQuery = s"SELECT a1 FROM A WHERE a1 NOT IN (SELECT a1 FROM A WHERE a1 = $excludedVal)"
+    val sqlQuery = s"SELECT * FROM A WHERE a1 NOT IN (SELECT a1 FROM A WHERE a1 = 1)"
 
-    val expectedCnt = ds.collect.count(_._1 != excludedVal)
-    val rowsCnt = tEnv.sql(sqlQuery).count
+    val expected = "2,2,Hello\n" +
+                   "3,2,Hello world"
+    val results = tEnv.sql(sqlQuery).collect()
 
-    assertEquals(expectedCnt, rowsCnt)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
