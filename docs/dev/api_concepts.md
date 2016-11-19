@@ -407,7 +407,7 @@ fields of the Tuple:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 DataStream<Tuple3<Integer,String,Long>> input = // [...]
-KeyedStream<Tuple3<Integer,String,Long> keyed = input.keyBy(0)
+KeyedStream<Tuple3<Integer,String,Long>,Tuple> keyed = input.keyBy(0)
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -425,7 +425,7 @@ Integer type).
 <div data-lang="java" markdown="1">
 {% highlight java %}
 DataStream<Tuple3<Integer,String,Long>> input = // [...]
-KeyedStream<Tuple3<Integer,String,Long> keyed = input.keyBy(0,1)
+KeyedStream<Tuple3<Integer,String,Long>,Tuple> keyed = input.keyBy(0,1)
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
