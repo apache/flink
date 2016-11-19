@@ -206,7 +206,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
         Time.of(1, TimeUnit.SECONDS),
         Time.of(100, TimeUnit.MILLISECONDS)))
       .trigger(CountTrigger.of(100))
-      .apply(reducer, new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
+      .reduce(reducer, new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
         def apply(
                    tuple: Tuple,
                    window: TimeWindow,
@@ -231,7 +231,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
       .keyBy(0)
       .window(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
       .trigger(CountTrigger.of(100))
-      .apply(reducer, new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
+      .reduce(reducer, new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
         def apply(
                    tuple: Tuple,
                    window: TimeWindow,
