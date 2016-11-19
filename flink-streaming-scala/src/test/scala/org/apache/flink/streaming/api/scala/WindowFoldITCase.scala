@@ -127,7 +127,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
     source1
       .keyBy(0)
       .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
-      .apply(
+      .fold(
         ("R:", 0),
         foldFunc,
         new CheckingIdentityRichWindowFunction[(String, Int), Tuple, TimeWindow]())
@@ -230,7 +230,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 
     source1
       .windowAll(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
-      .apply(
+      .fold(
         ("R:", 0),
         foldFunc,
         new CheckingIdentityRichAllWindowFunction[(String, Int), TimeWindow]())
