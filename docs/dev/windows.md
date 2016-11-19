@@ -631,8 +631,8 @@ input
 When working with event-time windowing it can happen that elements arrive late, i.e the
 watermark that Flink uses to keep track of the progress of event-time is already past the
 end timestamp of a window to which an element belongs. Please
-see [event time](/apis/streaming/event_time.html) and especially
-[late elements](/apis/streaming/event_time.html#late-elements) for a more thorough discussion of
+see [event time](./event_time.html) and especially
+[late elements](./event_time.html#late-elements) for a more thorough discussion of
 how Flink deals with event time.
 
 You can specify how a windowed transformation should deal with late elements and how much lateness
