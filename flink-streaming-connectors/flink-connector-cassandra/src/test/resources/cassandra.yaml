@@ -15,40 +15,29 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
-auto_snapshot: false
-
 cluster_name: 'Test Cluster'
+commitlog_sync: 'periodic'
+commitlog_sync_period_in_ms: 10000
+commitlog_segment_size_in_mb: 16
+partitioner: 'org.apache.cassandra.dht.RandomPartitioner'
+endpoint_snitch: 'org.apache.cassandra.locator.SimpleSnitch'
 commitlog_directory: $PATH/commit'
-commitlog_sync: periodic
-commitlog_sync_period_in_ms: 5000
-
 data_file_directories:
     - $PATH/data'
-disk_access_mode: mmap
-
-endpoint_snitch: 'org.apache.cassandra.locator.SimpleSnitch'
-
-listen_address: '127.0.0.1'
-
-memtable_allocation_type: offheap_objects
-
-native_transport_port: 9042
-
-partitioner: org.apache.cassandra.dht.Murmur3Partitioner
-
-read_request_timeout_in_ms: 15000
-request_scheduler: org.apache.cassandra.scheduler.RoundRobinScheduler
-request_scheduler_id: keyspace
-rpc_port: 9170
-
 saved_caches_directory: $PATH/cache'
+listen_address: '127.0.0.1'
 seed_provider:
     - class_name: 'org.apache.cassandra.locator.SimpleSeedProvider'
       parameters:
           - seeds: '127.0.0.1'
+native_transport_port: 9042
+
+concurrent_reads: 8
+concurrent_writes: 8
+
+auto_bootstrap: false
+auto_snapshot: false
+
 start_rpc: false
 start_native_transport: true
-storage_port: 7010
-
-write_request_timeout_in_ms: 15000
+native_transport_max_threads: 8

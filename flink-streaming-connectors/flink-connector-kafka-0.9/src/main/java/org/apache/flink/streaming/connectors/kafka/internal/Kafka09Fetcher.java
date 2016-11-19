@@ -23,10 +23,8 @@ import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
-import org.apache.flink.streaming.connectors.kafka.internals.ExceptionProxy;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
-import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
@@ -34,30 +32,23 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.clients.consumer.OffsetCommitCallback;
-import org.apache.kafka.common.Metric;
-import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.errors.WakeupException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A fetcher that fetches data from Kafka brokers via the Kafka 0.9 consumer API.
  * 
  * @param <T> The type of elements produced by the fetcher.
  */
-public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implements Runnable {
+public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Kafka09Fetcher.class);
 
@@ -66,35 +57,14 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 	/** The schema to convert between Kafka's byte messages, and Flink's objects */
 	private final KeyedDeserializationSchema<T> deserializer;
 
-	/** The configuration for the Kafka consumer */
-	private final Properties kafkaProperties;
+	/** The handover of data and exceptions between the consumer thread and the task thread */
+	private final Handover handover;
 
-	/** The maximum number of milliseconds to wait for a fetch batch */
-	private final long pollTimeout;
-
-	/** The next offsets that the main thread should commit */
-	private final AtomicReference<Map<TopicPartition, OffsetAndMetadata>> nextOffsetsToCommit;
-	
-	/** The callback invoked by Kafka once an offset commit is complete */
-	private final OffsetCommitCallback offsetCommitCallback;
-
-	/** Reference to the Kafka consumer, once it is created */
-	private volatile KafkaConsumer<byte[], byte[]> consumer;
-	
-	/** Reference to the proxy, forwarding exceptions from the fetch thread to the main thread */
-	private volatile ExceptionProxy errorHandler;
+	/** The thread that runs the actual KafkaConsumer and hand the record batches to this fetcher */
+	private final KafkaConsumerThread consumerThread;
 
 	/** Flag to mark the main work loop as alive */
 	private volatile boolean running = true;
-
-	/** Flag tracking whether the latest commit request has completed */
-	private volatile boolean commitInProgress;
-
-	/** For Debug output **/
-	private String taskNameWithSubtasks;
-
-	/** We get this from the outside to publish metrics. **/
-	private MetricGroup metricGroup;
 
 	// ------------------------------------------------------------------------
 
@@ -125,16 +95,26 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 				useMetrics);
 
 		this.deserializer = deserializer;
-		this.kafkaProperties = kafkaProperties;
-		this.pollTimeout = pollTimeout;
-		this.nextOffsetsToCommit = new AtomicReference<>();
-		this.offsetCommitCallback = new CommitCallback();
-		this.taskNameWithSubtasks = taskNameWithSubtasks;
-		this.metricGroup = metricGroup;
+		this.handover = new Handover();
+
+		final MetricGroup kafkaMetricGroup = metricGroup.addGroup("KafkaConsumer");
+		addOffsetStateGauge(kafkaMetricGroup);
 
 		// if checkpointing is enabled, we are not automatically committing to Kafka.
-		kafkaProperties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+		kafkaProperties.setProperty(
+				ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
 				Boolean.toString(!enableCheckpointing));
+		
+		this.consumerThread = new KafkaConsumerThread(
+				LOG,
+				handover,
+				kafkaProperties,
+				subscribedPartitions(),
+				kafkaMetricGroup,
+				createCallBridge(),
+				getFetcherName() + " for " + taskNameWithSubtasks,
+				pollTimeout,
+				useMetrics);
 	}
 
 	// ------------------------------------------------------------------------
@@ -143,134 +123,26 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 
 	@Override
 	public void runFetchLoop() throws Exception {
-		this.errorHandler = new ExceptionProxy(Thread.currentThread());
-
-		// rather than running the main fetch loop directly here, we spawn a dedicated thread
-		// this makes sure that no interrupt() call upon canceling reaches the Kafka consumer code
-		Thread runner = new Thread(this, getFetcherName() + " for " + taskNameWithSubtasks);
-		runner.setDaemon(true);
-		runner.start();
-
 		try {
-			runner.join();
-		} catch (InterruptedException e) {
-			// may be the result of a wake-up after an exception. we ignore this here and only
-			// restore the interruption state
-			Thread.currentThread().interrupt();
-		}
+			final Handover handover = this.handover;
 
-		// make sure we propagate any exception that occurred in the concurrent fetch thread,
-		// before leaving this method
-		this.errorHandler.checkAndThrowException();
-	}
+			// kick off the actual Kafka consumer
+			consumerThread.start();
 
-	@Override
-	public void cancel() {
-		// flag the main thread to exit
-		running = false;
-
-		// NOTE:
-		//   - We cannot interrupt the runner thread, because the Kafka consumer may
-		//     deadlock when the thread is interrupted while in certain methods
-		//   - We cannot call close() on the consumer, because it will actually throw
-		//     an exception if a concurrent call is in progress
-
-		// make sure the consumer finds out faster that we are shutting down 
-		if (consumer != null) {
-			consumer.wakeup();
-		}
-	}
-
-	@Override
-	public void run() {
-		// This method initializes the KafkaConsumer and guarantees it is torn down properly.
-		// This is important, because the consumer has multi-threading issues,
-		// including concurrent 'close()' calls.
-
-		final KafkaConsumer<byte[], byte[]> consumer;
-		try {
-			consumer = new KafkaConsumer<>(kafkaProperties);
-		}
-		catch (Throwable t) {
-			running = false;
-			errorHandler.reportError(t);
-			return;
-		}
-
-		// from here on, the consumer will be closed properly
-		try {
-			assignPartitionsToConsumer(consumer, convertKafkaPartitions(subscribedPartitions()));
-
-
-			if (useMetrics) {
-				final MetricGroup kafkaMetricGroup = metricGroup.addGroup("KafkaConsumer");
-				addOffsetStateGauge(kafkaMetricGroup);
-				// register Kafka metrics to Flink
-				Map<MetricName, ? extends Metric> metrics = consumer.metrics();
-				if (metrics == null) {
-					// MapR's Kafka implementation returns null here.
-					LOG.info("Consumer implementation does not support metrics");
-				} else {
-					// we have Kafka metrics, register them
-					for (Map.Entry<MetricName, ? extends Metric> metric: metrics.entrySet()) {
-						kafkaMetricGroup.gauge(metric.getKey().name(), new KafkaMetricWrapper(metric.getValue()));
-					}
-				}
-			}
-
-			// seek the consumer to the initial offsets
-			for (KafkaTopicPartitionState<TopicPartition> partition : subscribedPartitions()) {
-				if (partition.isOffsetDefined()) {
-					LOG.info("Partition {} has restored initial offsets {} from checkpoint / savepoint; seeking the consumer " +
-						"to position {}", partition.getKafkaPartitionHandle(), partition.getOffset(), partition.getOffset() + 1);
-
-					consumer.seek(partition.getKafkaPartitionHandle(), partition.getOffset() + 1);
-				} else {
-					// for partitions that do not have offsets restored from a checkpoint/savepoint,
-					// we need to define our internal offset state for them using the initial offsets retrieved from Kafka
-					// by the KafkaConsumer, so that they are correctly checkpointed and committed on the next checkpoint
-
-					long fetchedOffset = consumer.position(partition.getKafkaPartitionHandle());
-
-					LOG.info("Partition {} has no initial offset; the consumer has position {}, so the initial offset " +
-						"will be set to {}", partition.getKafkaPartitionHandle(), fetchedOffset, fetchedOffset - 1);
-
-					// the fetched offset represents the next record to process, so we need to subtract it by 1
-					partition.setOffset(fetchedOffset - 1);
-				}
-			}
-
-			// from now on, external operations may call the consumer
-			this.consumer = consumer;
-
-			// main fetch loop
 			while (running) {
-
-				// check if there is something to commit
-				final Map<TopicPartition, OffsetAndMetadata> toCommit = nextOffsetsToCommit.getAndSet(null);
-				if (toCommit != null && !commitInProgress) {
-					// reset the work-to-be committed, so we don't repeatedly commit the same
-					// also record that a commit is already in progress
-					commitInProgress = true;
-					consumer.commitAsync(toCommit, offsetCommitCallback);
-				}
-
-				// get the next batch of records
-				final ConsumerRecords<byte[], byte[]> records;
-				try {
-					records = consumer.poll(pollTimeout);
-				}
-				catch (WakeupException we) {
-					continue;
-				}
+				// this blocks until we get the next records
+				// it automatically re-throws exceptions encountered in the fetcher thread
+				final ConsumerRecords<byte[], byte[]> records = handover.pollNext();
 
 				// get the records for each topic partition
 				for (KafkaTopicPartitionState<TopicPartition> partition : subscribedPartitions()) {
-					
-					List<ConsumerRecord<byte[], byte[]>> partitionRecords = records.records(partition.getKafkaPartitionHandle());
+
+					List<ConsumerRecord<byte[], byte[]>> partitionRecords =
+							records.records(partition.getKafkaPartitionHandle());
 
 					for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
-						T value = deserializer.deserialize(
+
+						final T value = deserializer.deserialize(
 								record.key(), record.value(),
 								record.topic(), record.partition(), record.offset());
 
@@ -280,49 +152,65 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 							break;
 						}
 
-						// emit the actual record. this also update offset state atomically
+						// emit the actual record. this also updates offset state atomically
 						// and deals with timestamps and watermark generation
 						emitRecord(value, partition, record.offset(), record);
 					}
 				}
 			}
-			// end main fetch loop
-		}
-		catch (Throwable t) {
-			if (running) {
-				running = false;
-				errorHandler.reportError(t);
-			} else {
-				LOG.debug("Stopped ConsumerThread threw exception", t);
-			}
 		}
 		finally {
-			try {
-				consumer.close();
-			}
-			catch (Throwable t) {
-				LOG.warn("Error while closing Kafka 0.9 consumer", t);
-			}
+			// this signals the consumer thread that no more work is to be done
+			consumerThread.shutdown();
+		}
+
+		// on a clean exit, wait for the runner thread
+		try {
+			consumerThread.join();
+		}
+		catch (InterruptedException e) {
+			// may be the result of a wake-up interruption after an exception.
+			// we ignore this here and only restore the interruption state
+			Thread.currentThread().interrupt();
 		}
 	}
 
-	// Kafka09Fetcher ignores the timestamp, Kafka010Fetcher is extracting the timestamp and passing it to the emitRecord() method.
-	protected void emitRecord(T record, KafkaTopicPartitionState<TopicPartition> partition, long offset, ConsumerRecord consumerRecord) throws Exception {
-		emitRecord(record, partition, offset, Long.MIN_VALUE);
-	}
-	/**
-	 * Protected method to make the partition assignment pluggable, for different Kafka versions.
-	 */
-	protected void assignPartitionsToConsumer(KafkaConsumer<byte[], byte[]> consumer, List<TopicPartition> topicPartitions) {
-		consumer.assign(topicPartitions);
+	@Override
+	public void cancel() {
+		// flag the main thread to exit. A thread interrupt will come anyways.
+		running = false;
+		handover.close();
+		consumerThread.shutdown();
 	}
 
+	// ------------------------------------------------------------------------
+	//  The below methods are overridden in the 0.10 fetcher, which otherwise
+	//   reuses most of the 0.9 fetcher behavior
+	// ------------------------------------------------------------------------
+
+	protected void emitRecord(
+			T record,
+			KafkaTopicPartitionState<TopicPartition> partition,
+			long offset,
+			@SuppressWarnings("UnusedParameters") ConsumerRecord<?, ?> consumerRecord) throws Exception {
+
+		// the 0.9 Fetcher does not try to extract a timestamp
+		emitRecord(record, partition, offset);
+	}
+
+	/**
+	 * Gets the name of this fetcher, for thread naming and logging purposes.
+	 */
 	protected String getFetcherName() {
 		return "Kafka 0.9 Fetcher";
 	}
 
+	protected KafkaConsumerCallBridge createCallBridge() {
+		return new KafkaConsumerCallBridge();
+	}
+
 	// ------------------------------------------------------------------------
-	//  Kafka 0.9 specific fetcher behavior
+	//  Implement Methods of the AbstractFetcher
 	// ------------------------------------------------------------------------
 
 	@Override
@@ -348,37 +236,6 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 		}
 
 		// record the work to be committed by the main consumer thread and make sure the consumer notices that
-		if (nextOffsetsToCommit.getAndSet(offsetsToCommit) != null) {
-			LOG.warn("Committing offsets to Kafka takes longer than the checkpoint interval. " +
-					"Skipping commit of previous offsets because newer complete checkpoint offsets are available. " +
-					"This does not compromise Flink's checkpoint integrity.");
-		}
-		if (consumer != null) {
-			consumer.wakeup();
-		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
-
-	public static List<TopicPartition> convertKafkaPartitions(KafkaTopicPartitionState<TopicPartition>[] partitions) {
-		ArrayList<TopicPartition> result = new ArrayList<>(partitions.length);
-		for (KafkaTopicPartitionState<TopicPartition> p : partitions) {
-			result.add(p.getKafkaPartitionHandle());
-		}
-		return result;
-	}
-
-	private class CommitCallback implements OffsetCommitCallback {
-
-		@Override
-		public void onComplete(Map<TopicPartition, OffsetAndMetadata> offsets, Exception ex) {
-			commitInProgress = false;
-
-			if (ex != null) {
-				LOG.warn("Committing offsets to Kafka failed. This does not compromise Flink's checkpoints.", ex);
-			}
-		}
+		consumerThread.setOffsetsToCommit(offsetsToCommit);
 	}
 }

@@ -29,10 +29,13 @@ import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.ReduceIterableWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
+import org.apache.flink.streaming.api.windowing.evictors.DeltaEvictor;
+import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
@@ -56,7 +59,463 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class EvictingWindowOperatorTest {
 
-	// For counting if close() is called the correct number of times on the SumReducer
+	/**
+	 * Tests CountEvictor evictAfter behavior
+	 * @throws Exception
+     */
+	@Test
+	public void testCountEvictorEvictAfter() throws Exception {
+		AtomicInteger closeCalled = new AtomicInteger(0);
+		final int WINDOW_SIZE = 4;
+		final int TRIGGER_COUNT = 2;
+		final boolean EVICT_AFTER = true;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
+			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+
+		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
+			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
+
+
+		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingWindowOperator<>(
+			GlobalWindows.create(),
+			new GlobalWindow.Serializer(),
+			new TupleKeySelector(),
+			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+			stateDesc,
+			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
+			CountTrigger.of(TRIGGER_COUNT),
+			CountEvictor.of(WINDOW_SIZE,EVICT_AFTER),
+			0);
+
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+
+
+		long initialTime = 0L;
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 3000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 3999));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 20));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 999));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1998));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1999));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1000));
+
+
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), Long.MAX_VALUE));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 4), Long.MAX_VALUE));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), Long.MAX_VALUE));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 10999));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1000));
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 4), Long.MAX_VALUE));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 6), Long.MAX_VALUE));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1000));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 6), Long.MAX_VALUE));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+
+		testHarness.close();
+
+		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+
+	}
+
+	/**
+	 * Tests TimeEvictor evictAfter behavior
+	 * @throws Exception
+	 */
+	@Test
+	public void testTimeEvictorEvictAfter() throws Exception {
+		AtomicInteger closeCalled = new AtomicInteger(0);
+		final int TRIGGER_COUNT = 2;
+		final boolean EVICT_AFTER = true;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
+			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+
+		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
+			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
+
+
+		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingWindowOperator<>(
+			GlobalWindows.create(),
+			new GlobalWindow.Serializer(),
+			new TupleKeySelector(),
+			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+			stateDesc,
+			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
+			CountTrigger.of(TRIGGER_COUNT),
+			TimeEvictor.of(Time.seconds(2), EVICT_AFTER),
+			0);
+
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+
+		long initialTime = 0L;
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 4000));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 20));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 999));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 3500));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2001));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1001));
+
+
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), Long.MAX_VALUE));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), Long.MAX_VALUE));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), Long.MAX_VALUE));
+
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 10999));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1002));
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 4), Long.MAX_VALUE));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 5), Long.MAX_VALUE));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+
+		testHarness.close();
+
+		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+
+	}
+
+	/**
+	 * Tests TimeEvictor evictBefore behavior
+	 * @throws Exception
+	 */
+	@Test
+	public void testTimeEvictorEvictBefore() throws Exception {
+		AtomicInteger closeCalled = new AtomicInteger(0);
+		final int TRIGGER_COUNT = 2;
+		final int WINDOW_SIZE = 4;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
+			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+
+		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
+			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
+
+
+		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new EvictingWindowOperator<>(
+			TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+			new TimeWindow.Serializer(),
+			new TupleKeySelector(),
+			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+			stateDesc,
+			new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>(closeCalled)),
+			CountTrigger.of(TRIGGER_COUNT),
+			TimeEvictor.of(Time.seconds(2)),
+			0);
+
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+
+		long initialTime = 0L;
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 3999));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 20));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 999));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 5999));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 3500));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2001));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1001));
+
+
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 1), 3999));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), 3999));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 3999));
+
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 6500));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1002));
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), 7999));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 3999));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+
+		testHarness.close();
+
+		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+
+	}
+
+	/**
+	 * Tests time evictor, if no timestamp information in the StreamRecord
+	 * No element will be evicted from the window
+	 * @throws Exception
+	 */
+	@Test
+	public void testTimeEvictorNoTimestamp() throws Exception {
+		AtomicInteger closeCalled = new AtomicInteger(0);
+		final int TRIGGER_COUNT = 2;
+		final boolean EVICT_AFTER = true;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
+			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+
+		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
+			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
+
+
+		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingWindowOperator<>(
+			GlobalWindows.create(),
+			new GlobalWindow.Serializer(),
+			new TupleKeySelector(),
+			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+			stateDesc,
+			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
+			CountTrigger.of(TRIGGER_COUNT),
+			TimeEvictor.of(Time.seconds(2), EVICT_AFTER),
+			0);
+
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1)));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1)));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1)));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1)));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1)));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1)));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1)));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1)));
+
+
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), Long.MAX_VALUE));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), Long.MAX_VALUE));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 4), Long.MAX_VALUE));
+
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1)));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1)));
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 4), Long.MAX_VALUE));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 6), Long.MAX_VALUE));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+
+		testHarness.close();
+
+		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+
+	}
+
+	/**
+	 * Tests DeltaEvictor, evictBefore behavior
+	 * @throws Exception
+	 */
+	@Test
+	public void testDeltaEvictorEvictBefore() throws Exception {
+		AtomicInteger closeCalled = new AtomicInteger(0);
+		final int TRIGGER_COUNT = 2;
+		final boolean EVICT_AFTER = false;
+		final int THRESHOLD = 2;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
+			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+
+		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
+			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
+
+
+		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingWindowOperator<>(
+			GlobalWindows.create(),
+			new GlobalWindow.Serializer(),
+			new TupleKeySelector(),
+			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+			stateDesc,
+			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
+			CountTrigger.of(TRIGGER_COUNT),
+			DeltaEvictor.of(THRESHOLD, new DeltaFunction<Tuple2<String, Integer>>() {
+				@Override
+				public double getDelta(Tuple2<String, Integer> oldDataPoint, Tuple2<String, Integer> newDataPoint) {
+					return newDataPoint.f1 - oldDataPoint.f1;
+				}
+			}, EVICT_AFTER),
+			0);
+
+
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+
+		long initialTime = 0L;
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 3000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 4), initialTime + 3999));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 20));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 5), initialTime + 999));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 5), initialTime + 1998));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 6), initialTime + 1999));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1000));
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 4), Long.MAX_VALUE));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 11), Long.MAX_VALUE));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), Long.MAX_VALUE));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 3), initialTime + 10999));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 10), initialTime + 1000));
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 8), Long.MAX_VALUE));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 10), Long.MAX_VALUE));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+
+		testHarness.close();
+
+		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+	}
+
+	/**
+	 * Tests DeltaEvictor, evictAfter behavior
+	 * @throws Exception
+	 */
+	@Test
+	public void testDeltaEvictorEvictAfter() throws Exception {
+		AtomicInteger closeCalled = new AtomicInteger(0);
+		final int TRIGGER_COUNT = 2;
+		final boolean EVICT_AFTER = true;
+		final int THRESHOLD = 2;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
+			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+
+		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
+			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
+
+
+		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingWindowOperator<>(
+			GlobalWindows.create(),
+			new GlobalWindow.Serializer(),
+			new TupleKeySelector(),
+			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+			stateDesc,
+			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
+			CountTrigger.of(TRIGGER_COUNT),
+			DeltaEvictor.of(THRESHOLD, new DeltaFunction<Tuple2<String, Integer>>() {
+				@Override
+				public double getDelta(Tuple2<String, Integer> oldDataPoint, Tuple2<String, Integer> newDataPoint) {
+					return newDataPoint.f1 - oldDataPoint.f1;
+				}
+			}, EVICT_AFTER),
+			0);
+
+
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+
+		long initialTime = 0L;
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 3000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 4), initialTime + 3999));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 20));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 5), initialTime + 999));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 5), initialTime + 1998));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 6), initialTime + 1999));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1000));
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 5), Long.MAX_VALUE));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 15), Long.MAX_VALUE));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), Long.MAX_VALUE));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 9), initialTime + 10999));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 10), initialTime + 1000));
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 16), Long.MAX_VALUE));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 22), Long.MAX_VALUE));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+
+		testHarness.close();
+
+		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+	}
 
 	@Test
 	@SuppressWarnings("unchecked")
@@ -316,6 +775,7 @@ public class EvictingWindowOperatorTest {
 			for (Tuple2<String, Integer> t: input) {
 				sum += t.f1;
 			}
+
 			out.collect(new Tuple2<>(key, sum));
 
 		}

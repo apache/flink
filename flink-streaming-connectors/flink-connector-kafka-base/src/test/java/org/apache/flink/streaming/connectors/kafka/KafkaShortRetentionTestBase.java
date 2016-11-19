@@ -122,6 +122,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 	 *
 	 */
 	private static boolean stopProducer = false;
+
 	public void runAutoOffsetResetTest() throws Exception {
 		final String topic = "auto-offset-reset-test";
 

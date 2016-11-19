@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.Function
 import org.codehaus.commons.compiler.CompileException
 import org.codehaus.janino.SimpleCompiler
 
-trait FunctionCompiler[T <: Function] {
+trait Compiler[T] {
 
   @throws(classOf[CompileException])
   def compile(cl: ClassLoader, name: String, code: String): Class[T] = {

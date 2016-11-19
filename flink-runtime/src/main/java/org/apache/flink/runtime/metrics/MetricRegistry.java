@@ -326,7 +326,7 @@ public class MetricRegistry {
 		}
 
 		public Thread newThread(Runnable r) {
-			Thread t = new Thread(group, r, "Flink-MetricRegistry-" + threadNumber.incrementAndGet(), 0);
+			Thread t = new Thread(group, r, "Flink-MetricRegistry-" + threadNumber.getAndIncrement(), 0);
 			if (t.isDaemon()) {
 				t.setDaemon(false);
 			}

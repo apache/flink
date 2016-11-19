@@ -139,7 +139,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	// State that needs to be checkpointed
 	// ------------------------------------------------------------------------
 
-	private transient InternalTimerService<W> internalTimerService;
+	protected transient InternalTimerService<W> internalTimerService;
 
 	/**
 	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
@@ -181,7 +181,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	@Override
-	public final void open() throws Exception {
+	public void open() throws Exception {
 		super.open();
 
 		timestampedCollector = new TimestampedCollector<>(output);
@@ -200,7 +200,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	@Override
-	public final void close() throws Exception {
+	public void close() throws Exception {
 		super.close();
 		timestampedCollector = null;
 		context = null;

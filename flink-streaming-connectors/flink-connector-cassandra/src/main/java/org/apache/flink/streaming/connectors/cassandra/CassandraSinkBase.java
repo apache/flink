@@ -29,8 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * CassandraSinkBase is the common abstract class of {@link CassandraPojoSink} and {@link CassandraTupleSink}.
@@ -42,12 +40,10 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 	protected transient Cluster cluster;
 	protected transient Session session;
 
-	protected transient AtomicReference<Throwable> exception;
+	protected transient Throwable exception = null;
 	protected transient FutureCallback<V> callback;
 
 	private final ClusterBuilder builder;
-
-	protected final AtomicInteger updatesPending = new AtomicInteger();
 
 	protected CassandraSinkBase(ClusterBuilder builder) {
 		this.builder = builder;
@@ -56,28 +52,14 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 
 	@Override
 	public void open(Configuration configuration) {
-		this.exception = new AtomicReference<>();
 		this.callback = new FutureCallback<V>() {
 			@Override
 			public void onSuccess(V ignored) {
-				int pending = updatesPending.decrementAndGet();
-				if (pending == 0) {
-					synchronized (updatesPending) {
-						updatesPending.notifyAll();
-					}
-				}
 			}
 
 			@Override
 			public void onFailure(Throwable t) {
-				int pending = updatesPending.decrementAndGet();
-				if (pending == 0) {
-					synchronized (updatesPending) {
-						updatesPending.notifyAll();
-					}
-				}
-				exception.set(t);
-				
+				exception = t;
 				LOG.error("Error while sending value.", t);
 			}
 		};
@@ -87,12 +69,10 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 
 	@Override
 	public void invoke(IN value) throws Exception {
-		Throwable e = exception.get();
-		if (e != null) {
-			throw new IOException("Error while sending value.", e);
+		if (exception != null) {
+			throw new IOException("invoke() failed", exception);
 		}
 		ListenableFuture<V> result = send(value);
-		updatesPending.incrementAndGet();
 		Futures.addCallback(result, callback);
 	}
 
@@ -100,14 +80,6 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 
 	@Override
 	public void close() {
-		while (updatesPending.get() > 0) {
-			synchronized (updatesPending) {
-				try {
-					updatesPending.wait();
-				} catch (InterruptedException e) {
-				}
-			}
-		}
 		try {
 			if (session != null) {
 				session.close();
@@ -121,10 +93,6 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 			}
 		} catch (Exception e) {
 			LOG.error("Error while closing cluster.", e);
-		}
-		Throwable e = exception.get();
-		if (e != null) {
-			LOG.error("Error while sending value.", e);
 		}
 	}
 }
