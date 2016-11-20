@@ -21,7 +21,6 @@ package org.apache.flink.api.java.batch.sql;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.BatchTableEnvironment;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase;
@@ -137,41 +136,6 @@ public class SqlITCase extends TableProgramsTestBase {
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
 		String expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n";
-		compareResultAsText(results, expected);
-	}
-
-
-	@Test
-	public void testLikeWithEscapeFromDataSet() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
-
-		DataSet<Tuple1<String>> ds = CollectionDataSets.getTupleDateSet(env);
-		tableEnv.registerDataSet("DataSetTable", ds, "x");
-
-		String sqlQuery = "SELECT x FROM DataSetTable WHERE x LIKE '&%%' ESCAPE '&'";
-		Table result = tableEnv.sql(sqlQuery);
-
-		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = resultSet.collect();
-		String expected = "%leo*\n" + "%deng*\n" + "%hello*\n";;
-		compareResultAsText(results, expected);
-	}
-
-	@Test
-	public void testSimilarWithEscapeFromDataSet() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
-
-		DataSet<Tuple1<String>> ds = CollectionDataSets.getTupleDateSet(env);
-		tableEnv.registerDataSet("DataSetTable", ds, "x");
-
-		String sqlQuery = "SELECT x FROM DataSetTable WHERE x SIMILAR TO '&%(leo|deng|hello)&*' ESCAPE '&'";
-		Table result = tableEnv.sql(sqlQuery);
-
-		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = resultSet.collect();
-		String expected = "%leo*\n" + "%deng*\n" + "%hello*\n";;
 		compareResultAsText(results, expected);
 	}
 }

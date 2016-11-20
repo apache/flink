@@ -33,7 +33,10 @@ import java.util.Map;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
-import org.apache.flink.api.java.tuple.*;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -50,18 +53,6 @@ import scala.math.BigInt;
  * #######################################################################################################
  */
 public class CollectionDataSets {
-
-	public static DataSet<Tuple1<String>> getTupleDateSet(ExecutionEnvironment env) {
-
-		List<Tuple1<String>> data = new ArrayList<>();
-		data.add(new Tuple1<String>("%leo*"));
-		data.add(new Tuple1<String>(("%deng*")));
-		data.add(new Tuple1<String>("%hello*"));
-
-		Collections.shuffle(data);
-
-		return env.fromCollection(data);
-	}
 
 	public static DataSet<Tuple3<Integer, Long, String>> get3TupleDataSet(ExecutionEnvironment env) {
 
