@@ -30,6 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.validation.BipartiteGraphValidator;
 import org.apache.flink.util.Collector;
 
 /**
@@ -315,5 +316,15 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 				out.collect(edge);
 			}
 		}
+	}
+
+	/**
+	 * Function that checks whether a Graph is a valid Graph,
+	 * as defined by the given {@link BipartiteGraphValidator}.
+	 *
+	 * @return true if the Graph is valid.
+	 */
+	public boolean validate(BipartiteGraphValidator<KT, KB, VVT, VVB, EV> validator) throws Exception {
+		return validator.validate(this);
 	}
 }

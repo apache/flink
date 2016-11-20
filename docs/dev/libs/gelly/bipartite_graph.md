@@ -183,3 +183,41 @@ Graph<String, String, Projection<Long, String, String, String>> graph bipartiteG
 {% endhighlight %}
 </div>
 </div>
+
+Graph Validation
+----------------
+
+As for the regular graphs Gelly provides an utility for performing validation checks on input graphs. It has an interface `BipartiteGraphValidator` that can be implemented by a user to implement a specific use-case. Gelly also provides a built-in validator that verifies that all IDs specified in edges are valid vertices IDs.
+
+Here is an example for using the built-in validator:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+// create a dataset of top vertices with IDs = {1, 3, 5}
+DataSet<Vertex<String, Long>> topVertices = ...
+
+// create a dataset of bottom vertices with IDs = {2, 4, 6}
+DataSet<Vertex<String, Long>> bottomVertices = ...
+
+// create a list of edges with IDs = {(1, 2) (1, 4), (3, 6), (5, 8)}
+DataSet<Edge<String, String, Double>> edges = ...
+
+Graph<String, String, Long, Long, Double> graph = BipartiteGraph.fromDataSet(topVertices, bottomVertices, edges, env);
+
+// will return false: 8 is an invalid ID
+graph.validate(new InvalidBipartiteVertexIdsValidator<Long, Long, Long>());
+
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// TODO: Should be added when Scala interface is implemented
+{% endhighlight %}
+</div>
+</div>
+
+{% top %}
