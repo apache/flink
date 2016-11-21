@@ -17,6 +17,7 @@
  */
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.hadoop.fs.Path;
@@ -47,7 +48,6 @@ public class YarnClusterDescriptorTest {
 	@Test
 	public void testFailIfTaskSlotsHigherThanMaxVcores() {
 
-
 		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor();
 
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
@@ -65,5 +65,28 @@ public class YarnClusterDescriptorTest {
 		}
 	}
 
+	@Test
+	public void testConfigOverwrite() {
 
+		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor();
+
+		Configuration configuration = new Configuration();
+		// overwrite vcores in config
+		configuration.setInteger(ConfigConstants.YARN_VCORES, Integer.MAX_VALUE);
+
+		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
+		clusterDescriptor.setFlinkConfiguration(configuration);
+		clusterDescriptor.setConfigurationDirectory(temporaryFolder.getRoot().getAbsolutePath());
+		clusterDescriptor.setConfigurationFilePath(new Path(flinkConf.getPath()));
+
+		// configure slots
+		clusterDescriptor.setTaskManagerSlots(1);
+
+		try {
+			clusterDescriptor.deploy();
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.assertTrue(e.getCause() instanceof IllegalConfigurationException);
+		}
+	}
 }
