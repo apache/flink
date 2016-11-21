@@ -204,7 +204,7 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T> {
 				if (response.hasFailures()) {
 					for (BulkItemResponse itemResp : response.getItems()) {
 						if (itemResp.isFailed()) {
-							LOG.error("Failed to index document in Elasticsearch: " + itemResp.getFailureMessage()+" "+request.requests().size());
+							LOG.error("Failed to index document in Elasticsearch: " + itemResp.getFailureMessage());
 							failureThrowable.compareAndSet(null, new RuntimeException(itemResp.getFailureMessage()));
 						}
 					}
@@ -245,11 +245,7 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T> {
 
 	@Override
 	public void invoke(T element) {
-		try {
-			elasticsearchSinkFunction.process(element, getRuntimeContext(), requestIndexer);
-		} catch (Exception ex) {
-			ex.printStackTrace();
-		}
+		elasticsearchSinkFunction.process(element, getRuntimeContext(), requestIndexer);
 	}
 
 	@Override
