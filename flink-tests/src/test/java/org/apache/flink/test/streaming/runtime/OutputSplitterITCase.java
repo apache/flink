@@ -19,6 +19,7 @@ package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
@@ -140,5 +141,53 @@ public class OutputSplitterITCase extends StreamingMultipleProgramsTestBase {
 		expectedSplitterResult.clear();
 		expectedSplitterResult.addAll(Arrays.asList(0, 4, 8));
 		assertEquals(expectedSplitterResult, splitterResultSink2.getSortedResult());
+	}
+
+	@Test
+	public void testOnConsecutiveSplit() throws Exception {
+		TestListResultSink<Long> smallOddSink = new TestListResultSink<Long>();
+		TestListResultSink<Long> smallEvenSink = new TestListResultSink<Long>();
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+		env.setBufferTimeout(1);
+
+		DataStream<Long> ds = env.generateSequence(0,11);
+
+		SplitStream<Long> consecutiveSplit = ds.split(new OutputSelector<Long>() {
+			@Override
+			public Iterable<String> select(Long value) {
+				List<String> s = new ArrayList<String>();
+				if (value <= 5) {
+					s.add("Less");
+				} else {
+					s.add("GreaterEqual");
+				}
+				return s;
+			}
+		}).select("Less")
+			.split(new OutputSelector<Long>() {
+
+				@Override
+				public Iterable<String> select(Long value) {
+					List<String> s = new ArrayList<String>();
+					if (value % 2 == 0) {
+						s.add("Even");
+					} else {
+						s.add("Odd");
+					}
+					return s;
+				}
+			});
+
+		consecutiveSplit.select("Even").addSink(smallEvenSink);
+		consecutiveSplit.select("Odd").addSink(smallOddSink);
+		env.execute();
+
+		List<Long> expectSmallEvenResult = Arrays.asList(2L,4L);
+		assertEquals(expectSmallEvenResult, smallEvenSink.getSortedResult());
+
+		List<Long> expectSmallOddResult = Arrays.asList(1L,3L,5L);
+		assertEquals(expectSmallOddResult,smallOddSink.getSortedResult());
 	}
 }
