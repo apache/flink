@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.runtime.state.LocalStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.util.TestExecutors;
 import org.apache.flink.runtime.zookeeper.StateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.junit.AfterClass;
@@ -66,7 +67,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 			public StateHandle<CompletedCheckpoint> store(CompletedCheckpoint state) throws Exception {
 				return new LocalStateHandle<>(state);
 			}
-		});
+		}, TestExecutors.directExecutor());
 	}
 
 	// ---------------------------------------------------------------------------------------------

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.ActorRef
-
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
@@ -33,15 +32,14 @@ import org.apache.flink.runtime.metrics.MetricRegistry
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
-import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executor
 
 /** JobManager implementation extended by testing messages
   *
   */
 class TestingJobManager(
     flinkConfiguration: Configuration,
-    executorService: ExecutorService,
+    executor: Executor,
     instanceManager: InstanceManager,
     scheduler: Scheduler,
     libraryCacheManager: BlobLibraryCacheManager,
@@ -56,7 +54,7 @@ class TestingJobManager(
     metricRegistry : Option[MetricRegistry])
   extends JobManager(
     flinkConfiguration,
-      executorService,
+    executor,
     instanceManager,
     scheduler,
     libraryCacheManager,

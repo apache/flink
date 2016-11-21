@@ -96,8 +96,7 @@ class TestingCluster(
       config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort + index)
     }
 
-    val (executionContext,
-    instanceManager,
+    val (instanceManager,
     scheduler,
     libraryCacheManager,
     restartStrategyFactory,
@@ -110,6 +109,8 @@ class TestingCluster(
     jobRecoveryTimeout,
     metricRegistry) = JobManager.createJobManagerComponents(
       config,
+      futureExecutor,
+      ioExecutor,
       createLeaderElectionService())
 
     val testArchiveProps = Props(new TestingMemoryArchivist(archiveCount))
@@ -118,7 +119,7 @@ class TestingCluster(
     val jobManagerProps = Props(
       new TestingJobManager(
         configuration,
-        executionContext,
+        futureExecutor,
         instanceManager,
         scheduler,
         libraryCacheManager,

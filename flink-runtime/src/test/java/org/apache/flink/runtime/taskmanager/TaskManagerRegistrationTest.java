@@ -112,7 +112,11 @@ public class TaskManagerRegistrationTest extends TestLogger {
 
 			try {
 				// a simple JobManager
-				jobManager = createJobManager(actorSystem, config);
+				jobManager = createJobManager(
+					actorSystem,
+					actorSystem.dispatcher(),
+					actorSystem.dispatcher(),
+					config);
 				startResourceManager(config, jobManager.actor());
 
 				// start two TaskManagers. it will automatically try to register
@@ -193,8 +197,10 @@ public class TaskManagerRegistrationTest extends TestLogger {
 
 				// now start the JobManager, with the regular akka URL
 				jobManager = createJobManager(
-						actorSystem,
-						new Configuration());
+					actorSystem,
+					actorSystem.dispatcher(),
+					actorSystem.dispatcher(),
+					new Configuration());
 
 				startResourceManager(config, jobManager.actor());
 
@@ -698,6 +704,8 @@ public class TaskManagerRegistrationTest extends TestLogger {
 		return JobManager.startJobManagerActors(
 			configuration,
 			actorSystem,
+			actorSystem.dispatcher(),
+			actorSystem.dispatcher(),
 			NONE_STRING,
 			NONE_STRING,
 			JobManager.class,

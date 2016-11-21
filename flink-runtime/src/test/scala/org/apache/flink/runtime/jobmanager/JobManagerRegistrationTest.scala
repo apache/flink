@@ -168,6 +168,8 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
     val (jm: ActorRef, _) = JobManager.startJobManagerActors(
       new Configuration(),
       _system,
+      _system.dispatcher,
+      _system.dispatcher,
       None,
       None,
       classOf[JobManager],

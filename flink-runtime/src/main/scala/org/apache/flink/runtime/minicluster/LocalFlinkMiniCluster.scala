@@ -82,6 +82,8 @@ class LocalFlinkMiniCluster(
     val (jobManager, _) = JobManager.startJobManagerActors(
       config,
       system,
+      futureExecutor,
+      ioExecutor,
       Some(jobManagerName),
       Some(archiveName),
       classOf[JobManager],

@@ -79,9 +79,11 @@ public class JobSubmitTest {
 		// only start JobManager (no ResourceManager)
 		JobManager.startJobManagerActors(
 				config,
-				jobManagerSystem,
-				JobManager.class,
-				MemoryArchivist.class)._1();
+			jobManagerSystem,
+			jobManagerSystem.dispatcher(),
+			jobManagerSystem.dispatcher(),
+			JobManager.class,
+			MemoryArchivist.class)._1();
 
 		try {
 			LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config);
