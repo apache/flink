@@ -70,18 +70,23 @@ object TableTestUtil {
   def unaryNode(node: String, input: String, term: String*): String = {
     s"""$node(${term.mkString(", ")})
        |$input
-       |""".stripMargin
+       |""".stripMargin.stripLineEnd
   }
 
   def binaryNode(node: String, left: String, right: String, term: String*): String = {
     s"""$node(${term.mkString(", ")})
        |$left
        |$right
-       |""".stripMargin
+       |""".stripMargin.stripLineEnd
   }
 
   def term(term: AnyRef, value: AnyRef*): String = {
     s"$term=[${value.mkString(", ")}]"
+  }
+
+  def tuples(value:List[AnyRef]*): String={
+    val listValues = value.map( listValue => s"{ ${listValue.mkString(", ")} }")
+    term("tuples","[" + listValues.mkString(", ") + "]")
   }
 
   def batchTableNode(idx: Int): String = {
