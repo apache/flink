@@ -647,14 +647,14 @@ public class DataStreamTest {
 
 		SplitStream<Integer> split = unionFilter.split(outputSelector);
 		split.select("dummy").addSink(new DiscardingSink<Integer>());
-		List<OutputSelector<?>> outputSelectors = env.getStreamGraph().getStreamNode(unionFilter.getId()).getOutputSelectors();
+		List<OutputSelector<?>> outputSelectors = env.getStreamGraph().getStreamNode(split.getId()).getOutputSelectors();
 		assertEquals(1, outputSelectors.size());
 		assertEquals(outputSelector, outputSelectors.get(0));
 
 		DataStream<Integer> select = split.select("a");
 		DataStreamSink<Integer> sink = select.print();
 
-		StreamEdge splitEdge = env.getStreamGraph().getStreamEdges(unionFilter.getId(), sink.getTransformation().getId()).get(0);
+		StreamEdge splitEdge = env.getStreamGraph().getStreamEdges(split.getId(), sink.getTransformation().getId()).get(0);
 		assertEquals("a", splitEdge.getSelectedNames().get(0));
 
 		ConnectedStreams<Integer, Integer> connect = map.connect(flatMap);

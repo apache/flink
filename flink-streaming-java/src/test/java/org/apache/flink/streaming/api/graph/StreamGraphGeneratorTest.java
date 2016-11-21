@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
@@ -92,25 +93,23 @@ public class StreamGraphGeneratorTest {
 		DataStream<Integer> map1Operator = rebalanceMap
 				.map(new NoOpIntMap());
 
-		DataStream<Integer> map1 = map1Operator
-				.broadcast()
-				.split(selector1)
+		SplitStream<Integer> split1 = map1Operator.broadcast().split(selector1);
+		DataStream<Integer> map1 = split1
 				.select("even");
 
 		DataStream<Integer> map2Operator = rebalanceMap
 				.map(new NoOpIntMap());
 
-		DataStream<Integer> map2 = map2Operator
-				.split(selector2)
+		SplitStream<Integer> split2 = map2Operator.split(selector2);
+			DataStream<Integer> map2 = split2
 				.select("odd")
 				.global();
 
 		DataStream<Integer> map3Operator = rebalanceMap
 				.map(new NoOpIntMap());
 
-		DataStream<Integer> map3 = map3Operator
-				.global()
-				.split(selector3)
+		SplitStream<Integer> split3 = map3Operator.global().split(selector3);
+		DataStream<Integer> map3 = split3
 				.select("even")
 				.shuffle();
 
@@ -131,16 +130,16 @@ public class StreamGraphGeneratorTest {
 
 		// verify that partitioning in unions is preserved and that it works across split/select
 		assertTrue(graph.getStreamNode(map1Operator.getId()).getOutEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
-		assertTrue(graph.getStreamNode(map1Operator.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("even"));
-		assertTrue(graph.getStreamNode(map1Operator.getId()).getOutputSelectors().contains(selector1));
+		assertTrue(graph.getStreamNode(split1.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("even"));
+		assertTrue(graph.getStreamNode(split1.getId()).getOutputSelectors().contains(selector1));
 
-		assertTrue(graph.getStreamNode(map2Operator.getId()).getOutEdges().get(0).getPartitioner() instanceof GlobalPartitioner);
-		assertTrue(graph.getStreamNode(map2Operator.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("odd"));
-		assertTrue(graph.getStreamNode(map2Operator.getId()).getOutputSelectors().contains(selector2));
+		assertTrue(graph.getStreamNode(split2.getId()).getOutEdges().get(0).getPartitioner() instanceof GlobalPartitioner);
+		assertTrue(graph.getStreamNode(split2.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("odd"));
+		assertTrue(graph.getStreamNode(split2.getId()).getOutputSelectors().contains(selector2));
 
-		assertTrue(graph.getStreamNode(map3Operator.getId()).getOutEdges().get(0).getPartitioner() instanceof ShufflePartitioner);
-		assertTrue(graph.getStreamNode(map3Operator.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("even"));
-		assertTrue(graph.getStreamNode(map3Operator.getId()).getOutputSelectors().contains(selector3));
+		assertTrue(graph.getStreamNode(split3.getId()).getOutEdges().get(0).getPartitioner() instanceof ShufflePartitioner);
+		assertTrue(graph.getStreamNode(split3.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("even"));
+		assertTrue(graph.getStreamNode(split3.getId()).getOutputSelectors().contains(selector3));
 	}
 
 	/**
