@@ -52,12 +52,4 @@ public class SourceFunctionTest {
 						Arrays.asList(1, 2, 3))));
 		assertEquals(expectedList, actualList);
 	}
-
-	@Test
-	public void generateSequenceTest() throws Exception {
-		List<Long> expectedList = Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L);
-		List<Long> actualList = SourceFunctionUtil.runSourceFunction(new StatefulSequenceSource(1,
-				7));
-		assertEquals(expectedList, actualList);
-	}
 }
