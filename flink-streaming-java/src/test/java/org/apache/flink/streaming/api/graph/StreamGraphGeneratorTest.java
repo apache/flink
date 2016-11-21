@@ -167,9 +167,11 @@ public class StreamGraphGeneratorTest {
 
 		EvenOddOutputSelector selector = new EvenOddOutputSelector();
 
-		SingleOutputStreamOperator<Integer> unionedMap = map1.union(map2).union(map3)
-				.broadcast()
-				.split(selector)
+		SplitStream<Integer> split1 = map1.union(map2).union(map3)
+			.broadcast()
+			.split(selector);
+
+		SingleOutputStreamOperator<Integer> unionedMap = split1
 				.select("foo")
 				.map(new NoOpIntMap());
 
@@ -179,17 +181,12 @@ public class StreamGraphGeneratorTest {
 
 		// verify that the properties are correctly set on all input operators
 		assertTrue(graph.getStreamNode(map1.getId()).getOutEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
-		assertTrue(graph.getStreamNode(map1.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("foo"));
-		assertTrue(graph.getStreamNode(map1.getId()).getOutputSelectors().contains(selector));
+		assertTrue(graph.getStreamNode(split1.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("foo"));
+		assertTrue(graph.getStreamNode(split1.getId()).getOutputSelectors().contains(selector));
 
 		assertTrue(graph.getStreamNode(map2.getId()).getOutEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
-		assertTrue(graph.getStreamNode(map2.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("foo"));
-		assertTrue(graph.getStreamNode(map2.getId()).getOutputSelectors().contains(selector));
 
 		assertTrue(graph.getStreamNode(map3.getId()).getOutEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
-		assertTrue(graph.getStreamNode(map3.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("foo"));
-		assertTrue(graph.getStreamNode(map3.getId()).getOutputSelectors().contains(selector));
-
 	}
 
 	/**
