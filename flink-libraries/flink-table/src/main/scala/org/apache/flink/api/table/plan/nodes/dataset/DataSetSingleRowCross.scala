@@ -22,11 +22,11 @@ import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
-import org.apache.flink.api.common.functions.CrossFunction
+import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.codegen.CodeGenerator
-import org.apache.flink.api.table.runtime.CrossJoinRunner
+import org.apache.flink.api.table.runtime.RichMapRunner
 import org.apache.flink.api.table.typeutils.TypeConverter.determineReturnType
 import org.apache.flink.api.table.{BatchTableEnvironment, TableConfig}
 
@@ -86,31 +86,33 @@ class DataSetSingleRowCross(
 
     val multiRowDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
     val singleRowDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
-
-    val crossFunction = generateCrossFunction(
+    val broadcastSetName = "joinSet"
+    val mapSideJoin = generateMapFunction(
       tableEnv.getConfig,
       multiRowDataSet.getType,
       singleRowDataSet.getType,
+      broadcastSetName,
       expectedType)
 
     multiRowDataSet
-      .cross(singleRowDataSet)
-      .`with`(crossFunction)
-      .name(getCrossOperatorName)
+      .map(mapSideJoin)
+      .withBroadcastSet(singleRowDataSet, broadcastSetName)
+      .name(getMapOperatorName)
       .asInstanceOf[DataSet[Any]]
   }
 
-  private def generateCrossFunction(
+  private def generateMapFunction(
       config: TableConfig,
-      leftInputType: TypeInformation[Any],
-      rightInputType: TypeInformation[Any],
-      expectedType: Option[TypeInformation[Any]]): CrossFunction[Any, Any, Any] = {
+      inputType1: TypeInformation[Any],
+      inputType2: TypeInformation[Any],
+      broadcastInputSetName: String,
+      expectedType: Option[TypeInformation[Any]]): MapFunction[Any, Any] = {
 
     val codeGenerator = new CodeGenerator(
       config,
       false,
-      leftInputType,
-      Some(rightInputType))
+      inputType1,
+      Some(inputType2))
 
     val returnType = determineReturnType(
       getRowType,
@@ -122,24 +124,32 @@ class DataSetSingleRowCross(
       returnType,
       joinRowType.getFieldNames)
 
-    val bodyCode = s"""
+    val mapMethodBody = s"""
                   |${conversion.code}
                   |return ${conversion.resultTerm};
                   |""".stripMargin
 
-    val genFunction = codeGenerator.generateFunction(
-      ruleDescription,
-      classOf[CrossFunction[Any, Any, Any]],
-      bodyCode,
-      returnType)
+    val broadcastInput = codeGenerator.generateInstanceFieldForSecondInput()
+    val openMethodBody = s"""
+                  |${broadcastInput.fieldName} = (${broadcastInput.fieldType})
+                  |  getRuntimeContext().getBroadcastVariable("$broadcastInputSetName").get(0);
+                  |""".stripMargin
 
-    new CrossJoinRunner[Any, Any, Any](
+
+    val genFunction = codeGenerator.generateRichFunction(
+      ruleDescription,
+      classOf[RichMapFunction[Any, Any]],
+      mapMethodBody,
+      returnType,
+      openMethodBody)
+
+    new RichMapRunner[Any, Any](
       genFunction.name,
       genFunction.code,
       genFunction.returnType)
   }
 
-  private def getCrossOperatorName: String = {
+  private def getMapOperatorName: String = {
     s"where: ($joinConditionToString), join: ($joinSelectionToString)"
   }
 

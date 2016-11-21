@@ -18,34 +18,35 @@
 
 package org.apache.flink.api.table.runtime
 
-import org.apache.flink.api.common.functions.{CrossFunction, FlatJoinFunction, RichCrossFunction}
+import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.util.Collector
 import org.slf4j.LoggerFactory
 
-class CrossJoinRunner[IN1, IN2, OUT](
+class RichMapRunner[IN, OUT](
     name: String,
     code: String,
     @transient returnType: TypeInformation[OUT])
-  extends RichCrossFunction[IN1, IN2, OUT]
+  extends RichMapFunction[IN, OUT]
   with ResultTypeQueryable[OUT]
-  with FunctionCompiler[CrossFunction[IN1, IN2, OUT]] {
+  with FunctionCompiler[RichMapFunction[IN, OUT]] {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
-  private var function: CrossFunction[IN1, IN2, OUT] = null
+  private var function: RichMapFunction[IN, OUT] = null
 
   override def open(parameters: Configuration): Unit = {
-    LOG.debug(s"Compiling CrossFunction: $name \n\n Code:\n$code")
+    LOG.debug(s"Compiling MapFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
-    LOG.debug("Instantiating CrossFunction.")
+    LOG.debug("Instantiating MapFunction.")
     function = clazz.newInstance()
+    function.setRuntimeContext(getRuntimeContext)
+    function.open(parameters)
   }
 
-  override def cross(first: IN1, second: IN2): OUT =
-    function.cross(first, second)
+  override def map(in: IN): OUT =
+    function.map(in)
 
   override def getProducedType: TypeInformation[OUT] = returnType
 }
