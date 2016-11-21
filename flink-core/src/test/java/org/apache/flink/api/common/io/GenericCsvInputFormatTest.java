@@ -486,7 +486,7 @@ public class GenericCsvInputFormatTest {
 				fail("Input format accepted on invalid input.");
 			}
 			catch (ParseException e) {
-				; // all good
+				// all good
 			}
 		}
 		catch (Exception ex) {
@@ -552,7 +552,7 @@ public class GenericCsvInputFormatTest {
 	@Test
 	public void testReadWithCharset() throws IOException {
 		try {
-			final String fileContent = "abc|def|ghijk";
+			final String fileContent = "\u00bf|Flink|\u00f1";
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final Configuration parameters = new Configuration();
@@ -568,9 +568,9 @@ public class GenericCsvInputFormatTest {
 
 			values = format.nextRecord(values);
 			assertNotNull(values);
-			assertEquals("abc", ((StringValue) values[0]).getValue());
-			assertEquals("def", ((StringValue) values[1]).getValue());
-			assertEquals("ghijk", ((StringValue) values[2]).getValue());
+			assertEquals("\u00bf", ((StringValue) values[0]).getValue());
+			assertEquals("Flink", ((StringValue) values[1]).getValue());
+			assertEquals("\u00f1", ((StringValue) values[2]).getValue());
 
 			assertNull(format.nextRecord(values));
 			assertTrue(format.reachedEnd());
@@ -579,7 +579,7 @@ public class GenericCsvInputFormatTest {
 			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void readWithEmptyField() {
 		try {
@@ -754,7 +754,7 @@ public class GenericCsvInputFormatTest {
 		return new FileInputSplit(0, new Path(this.tempFile.toURI().toString()), 0, this.tempFile.length(), new String[] {"localhost"});
 	}
 	
-	private final Value[] createIntValues(int num) {
+	private Value[] createIntValues(int num) {
 		Value[] v = new Value[num];
 		
 		for (int i = 0; i < num; i++) {
@@ -764,7 +764,7 @@ public class GenericCsvInputFormatTest {
 		return v;
 	}
 	
-	private final Value[] createLongValues(int num) {
+	private Value[] createLongValues(int num) {
 		Value[] v = new Value[num];
 		
 		for (int i = 0; i < num; i++) {

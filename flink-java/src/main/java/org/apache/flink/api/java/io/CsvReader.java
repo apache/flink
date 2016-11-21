@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.io;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -64,6 +65,8 @@ public class CsvReader {
 	protected boolean skipFirstLineAsHeader = false;
 	
 	protected boolean ignoreInvalidLines = false;
+
+	private Charset charset = Charset.forName("UTF-8");
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -157,7 +160,25 @@ public class CsvReader {
 		this.commentPrefix = commentPrefix;
 		return this;
 	}
-	
+
+	/**
+	 * Gets the character set for the reader. Default is set to UTF-8.
+	 *
+	 * @return The charset for the reader.
+	 */
+	public Charset getCharset() {
+		return this.charset;
+	}
+
+	/**
+	 * Sets the charset of the reader
+	 *
+	 * @param charset The character set to set.
+	 */
+	public void setCharset(Charset charset) {
+		this.charset = Preconditions.checkNotNull(charset);
+	}
+
 	/**
 	 * Configures which fields of the CSV file should be included and which should be skipped. The
 	 * parser will look at the first {@code n} fields, where {@code n} is the length of the boolean
@@ -340,6 +361,7 @@ public class CsvReader {
 		format.setCommentPrefix(this.commentPrefix);
 		format.setSkipFirstLineAsHeader(skipFirstLineAsHeader);
 		format.setLenient(ignoreInvalidLines);
+		format.setCharset(this.charset);
 		if (this.parseQuotedStrings) {
 			format.enableQuotedStringParsing(this.quoteCharacter);
 		}

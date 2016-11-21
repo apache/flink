@@ -32,8 +32,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.nio.charset.IllegalCharsetNameException;
-import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.TreeMap;
@@ -127,32 +125,11 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		return commentPrefix;
 	}
 
-	public void setCommentPrefix(byte[] commentPrefix) {
-		this.commentPrefix = commentPrefix;
-	}
-
-	public void setCommentPrefix(char commentPrefix) {
-		setCommentPrefix(String.valueOf(commentPrefix));
-	}
-
 	public void setCommentPrefix(String commentPrefix) {
 		setCommentPrefix(commentPrefix, charset);
 	}
 
-	public void setCommentPrefix(String commentPrefix, String charsetName) throws IllegalCharsetNameException, UnsupportedCharsetException {
-		if (charsetName == null) {
-			throw new IllegalArgumentException("Charset name must not be null");
-		}
-
-		if (commentPrefix != null) {
-			Charset charset = Charset.forName(charsetName);
-			setCommentPrefix(commentPrefix, charset);
-		} else {
-			this.commentPrefix = null;
-		}
-	}
-
-	public void setCommentPrefix(String commentPrefix, Charset charset) {
+	private void setCommentPrefix(String commentPrefix, Charset charset) {
 		if (charset == null) {
 			throw new IllegalArgumentException("Charset must not be null");
 		}
@@ -325,7 +302,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	 *
 	 * @return The charset for the parser.
 	 */
-	public Charset getCharset() {
+	Charset getCharset() {
 		return this.charset;
 	}
 
@@ -335,7 +312,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	 *
 	 * @param charset The character set to set.
 	 */
-	protected void setCharset(Charset charset) {
+	public void setCharset(Charset charset) {
 		this.charset = Preconditions.checkNotNull(charset);
 	}
 
