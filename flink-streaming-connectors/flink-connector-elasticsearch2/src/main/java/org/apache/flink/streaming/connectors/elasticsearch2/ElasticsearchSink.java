@@ -50,38 +50,41 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * <p>
  * When using the second constructor
- * {@link #ElasticsearchSink(java.util.Map, java.util.List, ElasticsearchSinkFunction)} a {@link TransportClient} will
- * be used.
+ * {@link #ElasticsearchSink(java.util.Map, java.util.List, ElasticsearchSinkFunction)}
+ * a {@link TransportClient} will be used.
  *
  * <p>
- * <b>Attention: </b> When using the {@code TransportClient} the sink will fail if no cluster
- * can be connected to.
+ * <b>Attention: </b> When using the {@code TransportClient} the sink will fail
+ * if no cluster can be connected to.
  *
  * <p>
- * The {@link Map} passed to the constructor is forwarded to Elasticsearch when creating
- * {@link TransportClient}. The config keys can be found in the Elasticsearch
- * documentation. An important setting is {@code cluster.name}, this should be set to the name
- * of the cluster that the sink should emit to.
+ * The {@link Map} passed to the constructor is forwarded to Elasticsearch when
+ * creating {@link TransportClient}. The config keys can be found in the
+ * Elasticsearch documentation. An important setting is {@code cluster.name},
+ * this should be set to the name of the cluster that the sink should emit to.
  *
  * <p>
- * Internally, the sink will use a {@link BulkProcessor} to send {@link IndexRequest IndexRequests}.
- * This will buffer elements before sending a request to the cluster. The behaviour of the
- * {@code BulkProcessor} can be configured using these config keys:
+ * Internally, the sink will use a {@link BulkProcessor} to send
+ * {@link IndexRequest IndexRequests}. This will buffer elements before sending
+ * a request to the cluster. The behaviour of the {@code BulkProcessor} can be
+ * configured using these config keys:
  * <ul>
- *   <li> {@code bulk.flush.max.actions}: Maximum amount of elements to buffer
- *   <li> {@code bulk.flush.max.size.mb}: Maximum amount of data (in megabytes) to buffer
- *   <li> {@code bulk.flush.interval.ms}: Interval at which to flush data regardless of the other two
- *   settings in milliseconds
+ * <li>{@code bulk.flush.max.actions}: Maximum amount of elements to buffer
+ * <li>{@code bulk.flush.max.size.mb}: Maximum amount of data (in megabytes) to
+ * buffer
+ * <li>{@code bulk.flush.interval.ms}: Interval at which to flush data
+ * regardless of the other two settings in milliseconds
  * </ul>
  *
  * <p>
  * You also have to provide an {@link RequestIndexer}. This is used to create an
- * {@link IndexRequest} from an element that needs to be added to Elasticsearch. See
- * {@link RequestIndexer} for an example.
+ * {@link IndexRequest} from an element that needs to be added to Elasticsearch.
+ * See {@link RequestIndexer} for an example.
  *
- * @param <T> Type of the elements emitted by this sink
+ * @param <T>
+ *            Type of the elements emitted by this sink
  */
-public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
+public class ElasticsearchSink<T> extends RichSinkFunction<T> {
 
 	public static final String CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS = "bulk.flush.max.actions";
 	public static final String CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB = "bulk.flush.max.size.mb";
@@ -92,18 +95,20 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSink.class);
 
 	/**
-	 * The user specified config map that we forward to Elasticsearch when we create the Client.
+	 * The user specified config map that we forward to Elasticsearch when we
+	 * create the Client.
 	 */
 	private final Map<String, String> userConfig;
 
 	/**
-	 * The list of nodes that the TransportClient should connect to. This is null if we are using
-	 * an embedded Node to get a Client.
+	 * The list of nodes that the TransportClient should connect to. This is
+	 * null if we are using an embedded Node to get a Client.
 	 */
 	private final List<InetSocketAddress> transportAddresses;
 
 	/**
-	 * The builder that is used to construct an {@link IndexRequest} from the incoming element.
+	 * The builder that is used to construct an {@link IndexRequest} from the
+	 * incoming element.
 	 */
 	private final ElasticsearchSinkFunction<T> elasticsearchSinkFunction;
 
@@ -123,24 +128,34 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 	private transient RequestIndexer requestIndexer;
 
 	/**
-	 * This is set from inside the BulkProcessor listener if there where failures in processing.
+	 * This is set from inside the BulkProcessor listener if there where
+	 * failures in processing.
 	 */
 	private final AtomicBoolean hasFailure = new AtomicBoolean(false);
 
 	/**
-	 * This is set from inside the BulkProcessor listener if a Throwable was thrown during processing.
+	 * This is set from inside the BulkProcessor listener if a Throwable was
+	 * thrown during processing.
 	 */
 	private final AtomicReference<Throwable> failureThrowable = new AtomicReference<>();
 
 	/**
-	 * Creates a new ElasticsearchSink that connects to the cluster using a TransportClient.
+	 * Creates a new ElasticsearchSink that connects to the cluster using a
+	 * TransportClient.
 	 *
-	 * @param userConfig The map of user settings that are passed when constructing the TransportClient and BulkProcessor
-	 * @param transportAddresses The Elasticsearch Nodes to which to connect using a {@code TransportClient}
-	 * @param elasticsearchSinkFunction This is used to generate the ActionRequest from the incoming element
+	 * @param userConfig
+	 *            The map of user settings that are passed when constructing the
+	 *            TransportClient and BulkProcessor
+	 * @param transportAddresses
+	 *            The Elasticsearch Nodes to which to connect using a
+	 *            {@code TransportClient}
+	 * @param elasticsearchSinkFunction
+	 *            This is used to generate the ActionRequest from the incoming
+	 *            element
 	 *
 	 */
-	public ElasticsearchSink(Map<String, String> userConfig, List<InetSocketAddress> transportAddresses, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
+	public ElasticsearchSink(Map<String, String> userConfig, List<InetSocketAddress> transportAddresses,
+			ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
 		this.userConfig = userConfig;
 		this.elasticsearchSinkFunction = elasticsearchSinkFunction;
 		Preconditions.checkArgument(transportAddresses != null && transportAddresses.size() > 0);
@@ -162,7 +177,7 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 		Settings settings = Settings.settingsBuilder().put(userConfig).build();
 
 		TransportClient transportClient = TransportClient.builder().settings(settings).build();
-		for (TransportAddress transport: transportNodes) {
+		for (TransportAddress transport : transportNodes) {
 			transportClient.addTransportAddress(transport);
 		}
 
@@ -189,7 +204,7 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 				if (response.hasFailures()) {
 					for (BulkItemResponse itemResp : response.getItems()) {
 						if (itemResp.isFailed()) {
-							LOG.error("Failed to index document in Elasticsearch: " + itemResp.getFailureMessage());
+							LOG.error("Failed to index document in Elasticsearch: " + itemResp.getFailureMessage()+" "+request.requests().size());
 							failureThrowable.compareAndSet(null, new RuntimeException(itemResp.getFailureMessage()));
 						}
 					}
@@ -215,12 +230,13 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 		}
 
 		if (params.has(CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB)) {
-			bulkProcessorBuilder.setBulkSize(new ByteSizeValue(params.getInt(
-					CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB), ByteSizeUnit.MB));
+			bulkProcessorBuilder
+					.setBulkSize(new ByteSizeValue(params.getInt(CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB), ByteSizeUnit.MB));
 		}
 
 		if (params.has(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS)) {
-			bulkProcessorBuilder.setFlushInterval(TimeValue.timeValueMillis(params.getInt(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS)));
+			bulkProcessorBuilder
+					.setFlushInterval(TimeValue.timeValueMillis(params.getInt(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS)));
 		}
 
 		bulkProcessor = bulkProcessorBuilder.build();
@@ -229,7 +245,11 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 
 	@Override
 	public void invoke(T element) {
-		elasticsearchSinkFunction.process(element, getRuntimeContext(), requestIndexer);
+		try {
+			elasticsearchSinkFunction.process(element, getRuntimeContext(), requestIndexer);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
 	}
 
 	@Override
@@ -244,12 +264,7 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 		}
 
 		if (hasFailure.get()) {
-			Throwable cause = failureThrowable.get();
-			if (cause != null) {
-				throw new RuntimeException("An error occured in ElasticsearchSink.", cause);
-			} else {
-				throw new RuntimeException("An error occured in ElasticsearchSink.");
-			}
+			LOG.error("Some documents failed while indexing to Elasticsearch: " + failureThrowable.get());
 		}
 
 	}
