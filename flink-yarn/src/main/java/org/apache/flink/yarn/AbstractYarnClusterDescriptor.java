@@ -314,8 +314,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		if (configuredVcores > numYarnVcores) {
 			throw new IllegalConfigurationException(
 				String.format("The number of virtual cores per node were configured with %d" +
-					" but Yarn only has %d virtual cores available.",
-					configuredVcores, numYarnVcores));
+						" but Yarn only has %d virtual cores available. Please note that the number" +
+						" of virtual cores is set to the number of task slots by default unless configured" +
+						" in the Flink config with '%s.'",
+					configuredVcores, numYarnVcores, ConfigConstants.YARN_VCORES));
 		}
 
 		// check if required Hadoop environment variables are set. If not, warn user
