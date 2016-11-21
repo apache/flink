@@ -15,31 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{RelOptRuleCall, Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan._
+import scala.collection.JavaConversions._
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalAggregate
-import org.apache.flink.api.table.TableException
+import org.apache.calcite.rel.logical.{LogicalValues, LogicalUnion, LogicalAggregate}
+import org.apache.calcite.rex.RexLiteral
+import org.apache.flink.api.table._
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetAggregate, DataSetConvention}
-import scala.collection.JavaConversions._
 
-class DataSetAggregateRule
+/**
+  * Rule for insert [[Row]] with null records into a [[DataSetAggregate]]
+  * Rule apply for non grouped aggregate query
+  */
+class DataSetAggregateWithNullValuesRule
   extends ConverterRule(
-      classOf[LogicalAggregate],
-      Convention.NONE,
-      DataSetConvention.INSTANCE,
-      "DataSetAggregateRule")
-  {
+    classOf[LogicalAggregate],
+    Convention.NONE,
+    DataSetConvention.INSTANCE,
+    "DataSetAggregateWithNullValuesRule")
+{
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: LogicalAggregate = call.rel(0).asInstanceOf[LogicalAggregate]
 
-    //for non grouped agg sets should attach null row to source data
-    //need apply DataSetAggregateWithNullValuesRule
-    if (agg.getGroupSet.isEmpty) {
+    //for grouped agg sets shouldn't attach of null row
+    //need apply other rules. e.g. [[DataSetAggregateRule]]
+    if (!agg.getGroupSet.isEmpty) {
       return false
     }
 
@@ -50,30 +55,42 @@ class DataSetAggregateRule
     }
 
     // check if we have grouping sets
-    val groupSets = agg.getGroupSets.size() != 1 || agg.getGroupSets.get(0) != agg.getGroupSet
+    val groupSets = agg.getGroupSets.size() == 0 || agg.getGroupSets.get(0) != agg.getGroupSet
     if (groupSets || agg.indicator) {
       throw TableException("GROUPING SETS are currently not supported.")
     }
-
     !distinctAggs && !groupSets && !agg.indicator
   }
 
   override def convert(rel: RelNode): RelNode = {
     val agg: LogicalAggregate = rel.asInstanceOf[LogicalAggregate]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-    val convInput: RelNode = RelOptRule.convert(agg.getInput, DataSetConvention.INSTANCE)
+    val cluster: RelOptCluster = rel.getCluster
+
+    val fieldTypes = agg.getInput.getRowType.getFieldList.map(_.getType)
+    val nullLiterals: ImmutableList[ImmutableList[RexLiteral]] =
+      ImmutableList.of(ImmutableList.copyOf[RexLiteral](
+        for (fieldType <- fieldTypes)
+          yield {
+            cluster.getRexBuilder.
+              makeLiteral(null, fieldType, false).asInstanceOf[RexLiteral]
+          }))
+
+    val logicalValues = LogicalValues.create(cluster, agg.getInput.getRowType, nullLiterals)
+    val logicalUnion = LogicalUnion.create(List(logicalValues, agg.getInput), true)
 
     new DataSetAggregate(
-      rel.getCluster,
+      cluster,
       traitSet,
-      convInput,
+      RelOptRule.convert(logicalUnion, DataSetConvention.INSTANCE),
       agg.getNamedAggCalls,
       rel.getRowType,
       agg.getInput.getRowType,
-      agg.getGroupSet.toArray)
-    }
+      agg.getGroupSet.toArray
+    )
   }
+}
 
-object DataSetAggregateRule {
-  val INSTANCE: RelOptRule = new DataSetAggregateRule
+object DataSetAggregateWithNullValuesRule {
+  val INSTANCE: RelOptRule = new DataSetAggregateWithNullValuesRule
 }
