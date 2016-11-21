@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.streaming.runtime.util;
+package org.apache.flink.streaming.util;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
