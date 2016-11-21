@@ -400,5 +400,36 @@ class AggregationsITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testDummyRecords(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val t =  env.fromElements(
+      (1: Byte, 1: Short),
+      (2: Byte, 2: Short))
+      .toTable(tEnv, 'a, 'b)
+
+    val result = t.groupBy('a)
+      .select('a, 'a.avg, 'a.sum, 'b.count)
+      .where('a === 4)
+
+    val result2 = t.select('a,'b).where('a === 4)
+      .select('a.avg,'a.sum,'b.count)
+    val result3 = t.select('a.avg,'a.sum,'b.count)
+
+    val results = result.toDataSet[Row].collect()
+    val expected = Seq.empty
+    val results2 = result2.toDataSet[Row].collect()
+    val expected2 = "null,null,0"
+    val results3 = result3.toDataSet[Row].collect()
+    val expected3 = "1,3,2"
+
+    assert(results.equals(expected),"Empty result is expected for grouped set, but actual: "+results)
+    TestBaseUtils.compareResultAsText(results2.asJava, expected2)
+    TestBaseUtils.compareResultAsText(results3.asJava, expected3)
+  }
+
 }
 
