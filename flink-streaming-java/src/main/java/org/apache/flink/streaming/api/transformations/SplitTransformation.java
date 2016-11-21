@@ -19,8 +19,10 @@ package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.StreamMap;
 
 import java.util.Collection;
 import java.util.List;
@@ -81,6 +83,22 @@ public class SplitTransformation<T> extends StreamTransformation<T> {
 	@Override
 	public final void setChainingStrategy(ChainingStrategy strategy) {
 		throw new UnsupportedOperationException("Cannot set chaining strategy on Split Transformation.");
+	}
+
+	public static class IdentityOperator<OUT> extends StreamMap<OUT,OUT> {
+
+		public IdentityOperator() {
+			super(new MapFunction<OUT, OUT>() {
+				@Override
+				public OUT map(OUT value) throws Exception {
+					return value;
+				}
+			});
+		}
+	}
+
+	public IdentityOperator<T> generateIdentityOperator() {
+		return new IdentityOperator();
 	}
 }
 

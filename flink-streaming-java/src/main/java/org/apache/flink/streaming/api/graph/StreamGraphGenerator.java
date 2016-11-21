@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -261,20 +262,31 @@ public class StreamGraphGenerator {
 	 */
 	private <T> Collection<Integer> transformSplit(SplitTransformation<T> split) {
 
-		StreamTransformation<T> input = split.getInput();
-		Collection<Integer> resultIds = transform(input);
+		Collection<Integer> inputIds = transform(split.getInput());
 
-		// the recursive transform call might have transformed this already
+		// the recursive call might have already transformed this
 		if (alreadyTransformed.containsKey(split)) {
 			return alreadyTransformed.get(split);
 		}
 
-		for (int inputId : resultIds) {
-			streamGraph.addOutputSelector(inputId, split.getOutputSelector());
+		String slotSharingGroup = determineSlotSharingGroup(split.getSlotSharingGroup(), inputIds);
+		TypeInformation<T> inputType = split.getOutputType();
+		streamGraph.addOperator(split.getId(),
+			slotSharingGroup,
+			split.generateIdentityOperator(),
+			inputType,
+			split.getOutputType(),
+			split.getName());
+
+		streamGraph.setParallelism(split.getId(), split.getParallelism());
+		streamGraph.setMaxParallelism(split.getId(), split.getMaxParallelism());
+
+		for (Integer inputId: inputIds) {
+			streamGraph.addEdge(inputId, split.getId(), 0);
 		}
 
-
-		return resultIds;
+		streamGraph.addOutputSelector(split.getId(),split.getOutputSelector());
+		return Collections.singleton(split.getId());
 	}
 
 	/**

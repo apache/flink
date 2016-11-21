@@ -62,4 +62,18 @@ public class SplitStream<OUT> extends DataStream<OUT> {
 		return new DataStream<OUT>(this.getExecutionEnvironment(), selectTransform);
 	}
 
+	/**
+	 * Changes the name of this {@code StreamTransformation}.
+	 */
+	public SplitStream<OUT> setName(String name) {
+		this.transformation.setName(name);
+		return this;
+	}
+
+	/**
+	 * Returns the name of this {@code StreamTransformation}.
+	 */
+	public String getName() {
+		return this.transformation.getName();
+	}
 }
