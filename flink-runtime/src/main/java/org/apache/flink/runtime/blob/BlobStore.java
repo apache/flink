@@ -21,6 +21,7 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.api.common.JobID;
 
 import java.io.File;
+import java.io.IOException;
 
 /**
  * A blob store.
@@ -32,9 +33,9 @@ public interface BlobStore {
 	 *
 	 * @param localFile The file to copy
 	 * @param blobKey   The ID for the file in the blob store
-	 * @throws Exception If the copy fails
+	 * @throws IOException If the copy fails
 	 */
-	void put(File localFile, BlobKey blobKey) throws Exception;
+	void put(File localFile, BlobKey blobKey) throws IOException;
 
 	/**
 	 * Copies a local file to the blob store.
@@ -44,18 +45,18 @@ public interface BlobStore {
 	 * @param localFile The file to copy
 	 * @param jobId     The JobID part of ID for the file in the blob store
 	 * @param key       The String part of ID for the file in the blob store
-	 * @throws Exception If the copy fails
+	 * @throws IOException If the copy fails
 	 */
-	void put(File localFile, JobID jobId, String key) throws Exception;
+	void put(File localFile, JobID jobId, String key) throws IOException;
 
 	/**
 	 * Copies a blob to a local file.
 	 *
 	 * @param blobKey   The blob ID
 	 * @param localFile The local file to copy to
-	 * @throws Exception If the copy fails
+	 * @throws IOException If the copy fails
 	 */
-	void get(BlobKey blobKey, File localFile) throws Exception;
+	void get(BlobKey blobKey, File localFile) throws IOException;
 
 	/**
 	 * Copies a blob to a local file.
@@ -63,19 +64,23 @@ public interface BlobStore {
 	 * @param jobId     The JobID part of ID for the blob
 	 * @param key       The String part of ID for the blob
 	 * @param localFile The local file to copy to
-	 * @throws Exception If the copy fails
+	 * @throws IOException If the copy fails
 	 */
-	void get(JobID jobId, String key, File localFile) throws Exception;
+	void get(JobID jobId, String key, File localFile) throws IOException;
 
 	/**
-	 * Deletes a blob.
+	 * Tries to delete a blob from storage.
+	 *
+	 * <p>NOTE: This also tries to delete any created directories if empty.</p>
 	 *
 	 * @param blobKey The blob ID
 	 */
 	void delete(BlobKey blobKey);
 
 	/**
-	 * Deletes a blob.
+	 * Tries to delete a blob from storage.
+	 *
+	 * <p>NOTE: This also tries to delete any created directories if empty.</p>
 	 *
 	 * @param jobId The JobID part of ID for the blob
 	 * @param key   The String part of ID for the blob
@@ -83,7 +88,9 @@ public interface BlobStore {
 	void delete(JobID jobId, String key);
 
 	/**
-	 * Deletes blobs.
+	 * Tries to delete all blobs for the given job from storage.
+	 *
+	 * <p>NOTE: This also tries to delete any created directories if empty.</p>
 	 *
 	 * @param jobId The JobID part of all blobs to delete
 	 */

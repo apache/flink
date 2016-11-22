@@ -21,6 +21,7 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.api.common.JobID;
 
 import java.io.File;
+import java.io.IOException;
 
 /**
  * A blob store doing nothing.
@@ -28,19 +29,19 @@ import java.io.File;
 public class VoidBlobStore implements BlobStore {
 
 	@Override
-	public void put(File localFile, BlobKey blobKey) throws Exception {
+	public void put(File localFile, BlobKey blobKey) throws IOException {
 	}
 
 	@Override
-	public void put(File localFile, JobID jobId, String key) throws Exception {
+	public void put(File localFile, JobID jobId, String key) throws IOException {
 	}
 
 	@Override
-	public void get(BlobKey blobKey, File localFile) throws Exception {
+	public void get(BlobKey blobKey, File localFile) throws IOException {
 	}
 
 	@Override
-	public void get(JobID jobId, String key, File localFile) throws Exception {
+	public void get(JobID jobId, String key, File localFile) throws IOException {
 	}
 
 	@Override

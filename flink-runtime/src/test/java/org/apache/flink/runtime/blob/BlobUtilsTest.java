@@ -30,6 +30,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
 
 public class BlobUtilsTest {
 
@@ -55,8 +56,9 @@ public class BlobUtilsTest {
 		assertTrue(blobUtilsTestDirectory.delete());
 	}
 
-	@Test(expected = Exception.class)
-	public void testExceptionOnCreateStorageDirectoryFailure() {
+	@Test(expected = IOException.class)
+	public void testExceptionOnCreateStorageDirectoryFailure() throws
+		IOException {
 		// Should throw an Exception
 		BlobUtils.initStorageDirectory(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS).getAbsolutePath());
 	}
