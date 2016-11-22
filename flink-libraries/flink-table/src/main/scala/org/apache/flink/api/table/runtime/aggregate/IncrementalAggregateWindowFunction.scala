@@ -34,8 +34,9 @@ import org.apache.flink.util.{Collector, Preconditions}
   *                         and output Row.
   * @param aggregateMapping The index mapping between aggregate function list and aggregated value
   *                         index in output Row.
+  * @param finalRowArity  The arity of the final output row.
   */
-class IncrementalAggregateWindowFunction[W <:Window ](
+class IncrementalAggregateWindowFunction[W <: Window](
     private val aggregates: Array[Aggregate[_ <: Any]],
     private val groupKeysMapping: Array[(Int, Int)],
     private val aggregateMapping: Array[(Int, Int)],

@@ -42,8 +42,7 @@ class AggregateReduceGroupFunction(
     private val aggregateMapping: Array[(Int, Int)],
     private val intermediateRowArity: Int,
     private val finalRowArity: Int)
-    extends RichGroupReduceFunction[Row, Row] {
-
+  extends RichGroupReduceFunction[Row, Row] {
 
   protected var aggregateBuffer: Row = _
   private var output: Row = _

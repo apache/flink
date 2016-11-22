@@ -33,6 +33,7 @@ import org.apache.flink.util.Collector
   *                         and output Row.
   * @param aggregateMapping The index mapping between aggregate function list and aggregated value
   *                         index in output Row.
+  * @param finalRowArity  The arity of the final output row.
   */
 class IncrementalAggregateTimeWindowFunction(
     private val aggregates: Array[Aggregate[_ <: Any]],
@@ -63,6 +64,6 @@ class IncrementalAggregateTimeWindowFunction(
     collector.wrappedCollector = out
     collector.timeWindow = window
 
-    super.apply(key,window,records,collector)
+    super.apply(key, window, records, collector)
   }
 }

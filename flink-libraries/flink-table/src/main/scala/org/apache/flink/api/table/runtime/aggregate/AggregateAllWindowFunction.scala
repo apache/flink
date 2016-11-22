@@ -29,7 +29,7 @@ import org.apache.flink.util.Collector
 
 class AggregateAllWindowFunction[W <: Window](
     groupReduceFunction: RichGroupReduceFunction[Row, Row])
-    extends RichAllWindowFunction[Row, Row, W] {
+  extends RichAllWindowFunction[Row, Row, W] {
 
   override def open(parameters: Configuration): Unit = {
     groupReduceFunction.open(parameters)

@@ -31,7 +31,6 @@ class AggregateAllTimeWindowFunction(
     groupReduceFunction: RichGroupReduceFunction[Row, Row],
     windowStartPos: Option[Int],
     windowEndPos: Option[Int])
-
   extends AggregateAllWindowFunction[TimeWindow](groupReduceFunction) {
 
   private var collector: TimeWindowPropertyCollector = _
@@ -48,6 +47,6 @@ class AggregateAllTimeWindowFunction(
     collector.timeWindow = window
 
     // call wrapped reduce function with property collector
-    super.apply(window,input,collector)
+    super.apply(window, input, collector)
   }
 }

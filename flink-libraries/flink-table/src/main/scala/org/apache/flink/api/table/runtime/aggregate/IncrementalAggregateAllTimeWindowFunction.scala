@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.windowing.windows.{TimeWindow, Window}
 import org.apache.flink.util.Collector
 /**
+  *
   * It Evaluate final aggregate value.
   *
   * @param aggregates   The aggregate functions.
@@ -31,6 +32,7 @@ import org.apache.flink.util.Collector
   *                         and output Row.
   * @param aggregateMapping The index mapping between aggregate function list and aggregated value
   *                         index in output Row.
+  * @param finalRowArity  The arity of the final output row.
   */
 class IncrementalAggregateAllTimeWindowFunction(
     private val aggregates: Array[Aggregate[_ <: Any]],

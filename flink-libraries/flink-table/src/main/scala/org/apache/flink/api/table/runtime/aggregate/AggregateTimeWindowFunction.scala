@@ -42,16 +42,16 @@ class AggregateTimeWindowFunction(
   }
 
   override def apply(
-      key: Tuple,
-      window: TimeWindow,
-      input: Iterable[Row],
-      out: Collector[Row]) : Unit = {
+    key: Tuple,
+    window: TimeWindow,
+    input: Iterable[Row],
+    out: Collector[Row]): Unit = {
 
     // set collector and window
     collector.wrappedCollector = out
     collector.timeWindow = window
 
     // call wrapped reduce function with property collector
-    super.apply(key,window,input,collector)
+    super.apply(key, window, input, collector)
   }
 }

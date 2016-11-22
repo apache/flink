@@ -31,11 +31,11 @@ import org.apache.flink.util.Preconditions
 class IncrementalAggregateReduceFunction(
     private val aggregates: Array[Aggregate[_]],
     private val groupKeysMapping: Array[(Int, Int)],
-    private val intermediateRowArity: Int)extends ReduceFunction[Row] {
+    private val intermediateRowArity: Int)
+  extends ReduceFunction[Row] {
 
   Preconditions.checkNotNull(aggregates)
   Preconditions.checkNotNull(groupKeysMapping)
-  @transient var accumulatorRow:Row = _
 
   /**
     * For Incremental intermediate aggregate Rows, merge value1 and value2
@@ -43,27 +43,18 @@ class IncrementalAggregateReduceFunction(
     *
     * @param value1 The first value to combined.
     * @param value2 The second value to combined.
-    * @return The combined value of both input values.
+    * @return  accumulatorRow A resulting row that combines two input values.
     *
     */
   override def reduce(value1: Row, value2: Row): Row = {
-
-    if(null == accumulatorRow){
-      accumulatorRow = new Row(intermediateRowArity)
-    }
-
-    // Initiate intermediate aggregate value.
-    aggregates.foreach(_.initiate(accumulatorRow))
-
-    //merge value1 to accumulatorRow
-    aggregates.foreach(_.merge(value1, accumulatorRow))
-    //merge value2 to accumulatorRow
+    // TODO this can be deleted if FLINK-5105 is solved
+    val accumulatorRow = new Row(intermediateRowArity)
+    // copy all fields of value1 into accumulatorRow
+    (0 until intermediateRowArity)
+    .foreach(i => accumulatorRow.setField(i, value1.productElement(i)))
+    // merge value2 to accumulatorRow
     aggregates.foreach(_.merge(value2, accumulatorRow))
 
-    // Set group keys value to accumulator
-    for (i <- groupKeysMapping.indices) {
-      accumulatorRow.setField(i, value2.productElement(i))
-    }
     accumulatorRow
   }
 }

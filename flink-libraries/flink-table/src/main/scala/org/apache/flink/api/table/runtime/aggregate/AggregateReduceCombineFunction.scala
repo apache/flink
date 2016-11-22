@@ -45,12 +45,13 @@ class AggregateReduceCombineFunction(
     private val aggregateMapping: Array[(Int, Int)],
     private val intermediateRowArity: Int,
     private val finalRowArity: Int)
-    extends AggregateReduceGroupFunction(
-      aggregates,
-      groupKeysMapping,
-      aggregateMapping,
-      intermediateRowArity,
-      finalRowArity) with CombineFunction[Row, Row] {
+  extends AggregateReduceGroupFunction(
+    aggregates,
+    groupKeysMapping,
+    aggregateMapping,
+    intermediateRowArity,
+    finalRowArity)
+  with CombineFunction[Row, Row] {
 
   /**
    * For sub-grouped intermediate aggregate Rows, merge all of them into aggregate buffer,
