@@ -656,19 +656,33 @@ object ScalarOperators {
       right: GeneratedExpression)
     : GeneratedExpression = {
 
-    val operator = if (plus) "+" else "-"
+    val op = if (plus) "+" else "-"
 
     (left.resultType, right.resultType) match {
       case (l: TimeIntervalTypeInfo[_], r: TimeIntervalTypeInfo[_]) if l == r =>
-        generateArithmeticOperator(operator, nullCheck, l, left, right)
+        generateArithmeticOperator(op, nullCheck, l, left, right)
 
       case (SqlTimeTypeInfo.DATE, TimeIntervalTypeInfo.INTERVAL_MILLIS) |
            (TimeIntervalTypeInfo.INTERVAL_MILLIS, SqlTimeTypeInfo.DATE) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
           if (isTimePoint(left.resultType)) {
-            (leftTerm, rightTerm) => s"$leftTerm + ((int) ($rightTerm / ${MILLIS_PER_DAY}L))"
+            (leftTerm, rightTerm) =>
+              s"$leftTerm $op ((int) ($rightTerm / ${MILLIS_PER_DAY}L))"
           } else {
-            (leftTerm, rightTerm) => s"((int) ($leftTerm / ${MILLIS_PER_DAY}L)) + $rightTerm"
+            (leftTerm, rightTerm) =>
+              s"((int) ($leftTerm / ${MILLIS_PER_DAY}L)) $op $rightTerm"
+          }
+        }
+
+      case (SqlTimeTypeInfo.DATE, TimeIntervalTypeInfo.INTERVAL_MONTHS) |
+           (TimeIntervalTypeInfo.INTERVAL_MONTHS, SqlTimeTypeInfo.DATE) =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
+          if (isTimePoint(left.resultType)) {
+            (leftTerm, rightTerm) =>
+              s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($leftTerm, $op($rightTerm))"
+          } else {
+            (leftTerm, rightTerm) =>
+              s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($rightTerm, $op($leftTerm))"
           }
         }
 
@@ -676,18 +690,22 @@ object ScalarOperators {
            (TimeIntervalTypeInfo.INTERVAL_MILLIS, SqlTimeTypeInfo.TIME) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIME, left, right) {
           if (isTimePoint(left.resultType)) {
-            (leftTerm, rightTerm) => s"$leftTerm + ((int) ($rightTerm))"
+            (leftTerm, rightTerm) => s"$leftTerm $op ((int) ($rightTerm))"
           } else {
-            (leftTerm, rightTerm) => s"((int) ($leftTerm)) + $rightTerm"
+            (leftTerm, rightTerm) => s"((int) ($leftTerm)) $op $rightTerm"
           }
         }
 
       case (SqlTimeTypeInfo.TIMESTAMP, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
-          (leftTerm, rightTerm) => s"$leftTerm + $rightTerm"
+          (leftTerm, rightTerm) => s"$leftTerm $op $rightTerm"
         }
 
-      // TODO more operations when CALCITE-308 is fixed
+      case (SqlTimeTypeInfo.TIMESTAMP, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
+          (leftTerm, rightTerm) =>
+            s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($leftTerm, $op($rightTerm))"
+        }
 
       case _ =>
         throw new CodeGenException("Unsupported temporal arithmetic.")
