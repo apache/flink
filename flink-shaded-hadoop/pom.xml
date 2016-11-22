@@ -35,7 +35,7 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>${shading-artifact.name}</module>
+		<module>flink-shaded-hadoop2</module>
 	</modules>
 
 	<dependencies>
@@ -50,12 +50,6 @@ under the License.
 	<profiles>
 		<profile>
 			<id>include-yarn-tests</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop2--><name>!hadoop.profile</name>
-				</property>
-			</activation>
 			<modules>
 				<module>flink-shaded-include-yarn-tests</module>
 			</modules>

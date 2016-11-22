@@ -34,8 +34,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<hbase.hadoop1.version>0.98.22-hadoop1</hbase.hadoop1.version>
-		<hbase.hadoop2.version>1.2.3</hbase.hadoop2.version>
+		<hbase.version>1.2.3</hbase.version>
 	</properties>
 
 	<build>
@@ -85,7 +84,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>${shading-artifact.name}</artifactId>
+			<artifactId>flink-shaded-hadoop2</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -198,100 +197,51 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Test dependencies are only available for Hadoop-2. -->
+		<dependency>
+			<groupId>org.apache.hbase</groupId>
+			<artifactId>hbase-server</artifactId>
+			<version>${hbase.version}</version>
+			<classifier>tests</classifier>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-minicluster</artifactId>
+			<version>${hadoop.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hbase</groupId>
+			<artifactId>hbase-hadoop-compat</artifactId>
+			<version>${hbase.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
+			<version>${hadoop.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hbase</groupId>
+			<artifactId>hbase-hadoop2-compat</artifactId>
+			<version>${hbase.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
 	</dependencies>
 
 	<profiles>
 		<profile>
-			<id>hadoop-1</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop1--><name>hadoop.profile</name><value>1</value>
-				</property>
-			</activation>
-			<properties>
-				<hbase.version>${hbase.hadoop1.version}</hbase.version>
-				<!--
-				Required test dependencies are only available for Hadoop-2.
-				Disabling tests for Hadoop-1 profile.
-				-->
-				<maven.test.skip>true</maven.test.skip>
-			</properties>
-
-		</profile>
-
-		<profile>
-			<id>hadoop-2</id>
-			<repositories>
-				<repository>
-					<id>hadoop-2-repo2</id>
-					<url>https://repo.maven.apache.org/maven2</url>
-					<releases>
-						<enabled>true</enabled>
-					</releases>
-					<snapshots>
-						<enabled>false</enabled>
-					</snapshots>
-				</repository>
-			</repositories>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop2--><name>!hadoop.profile</name>
-				</property>
-			</activation>
-			<properties>
-				<hbase.version>${hbase.hadoop2.version}</hbase.version>
-			</properties>
-
-			<dependencies>
-				<!-- Test dependencies are only available for Hadoop-2. -->
-				<dependency>
-					<groupId>org.apache.hbase</groupId>
-					<artifactId>hbase-server</artifactId>
-					<version>${hbase.version}</version>
-					<classifier>tests</classifier>
-					<scope>test</scope>
-				</dependency>
-
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-minicluster</artifactId>
-					<version>${hadoop.version}</version>
-					<scope>test</scope>
-				</dependency>
-
-				<dependency>
-					<groupId>org.apache.hbase</groupId>
-					<artifactId>hbase-hadoop-compat</artifactId>
-					<version>${hbase.version}</version>
-					<scope>test</scope>
-					<type>test-jar</type>
-				</dependency>
-
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-hdfs</artifactId>
-					<version>${hadoop.version}</version>
-					<type>test-jar</type>
-					<scope>test</scope>
-				</dependency>
-
-				<dependency>
-					<groupId>org.apache.hbase</groupId>
-					<artifactId>hbase-hadoop2-compat</artifactId>
-					<version>${hbase.version}</version>
-					<scope>test</scope>
-					<type>test-jar</type>
-				</dependency>
-			</dependencies>
-
-		</profile>
-
-		<profile>
 			<id>cdh5.1.3</id>
 			<properties>
-				<hadoop.profile>2</hadoop.profile>
 				<hbase.version>0.98.1-cdh5.1.3</hbase.version>
 				<hadoop.version>2.3.0-cdh5.1.3</hadoop.version>
 				<!-- Cloudera use different versions for hadoop core and commons-->

@@ -76,17 +76,16 @@ under the License.
 		<module>flink-dist</module>
 		<module>flink-mesos</module>
 		<module>flink-metrics</module>
+		<module>flink-yarn</module>
+		<module>flink-fs-tests</module>
 	</modules>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<!-- Mutable name of the hadoop shading artifact. The module name can contain a scala version suffix. -->
-		<shading-artifact.name>error</shading-artifact.name>
 		<!-- Internal property to reduce build times on TravisCi -->
 		<flink-fast-tests-pattern>never-match-me</flink-fast-tests-pattern>
-		<hadoop-one.version>1.2.1</hadoop-one.version>
-		<hadoop-two.version>2.3.0</hadoop-two.version>
+		<hadoop.version>2.3.0</hadoop.version>
 		<!-- Need to use a user property here because the surefire
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
@@ -439,43 +438,6 @@ under the License.
 				<scala.version>2.11.7</scala.version>
 				<scala.binary.version>2.11</scala.binary.version>
 			</properties>
-		</profile>
-
-		<!-- Profile to switch to Hadoop 1 -->
-		<profile>
-			<id>hadoop-1</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop1--><name>hadoop.profile</name><value>1</value>
-				</property>
-			</activation>
-			<properties>
-				<hadoop.version>${hadoop-one.version}</hadoop.version>
-				<shading-artifact.name>flink-shaded-hadoop1</shading-artifact.name>
-			</properties>
-		</profile>
-
-		<!-- Default profile, which builds for Hadoop 2 -->
-		<profile>
-			<id>hadoop-2</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop2--><name>!hadoop.profile</name>
-				</property>
-			</activation>
-			<properties>
-				<hadoop.version>${hadoop-two.version}</hadoop.version>
-				<shading-artifact.name>flink-shaded-hadoop2</shading-artifact.name>
-			</properties>
-			<modules>
-				<module>flink-yarn</module>
-				<!-- Include the flink-fs-tests project only for HD2.
-				 	The HDFS minicluster interfaces changed between the two versions.
-				 -->
-				<module>flink-fs-tests</module>
-			</modules>
 		</profile>
 
 		<!-- Profile to deactivate the YARN tests -->
