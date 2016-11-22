@@ -49,7 +49,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
 import org.apache.flink.runtime.io.disk.iomanager.{IOManager, IOManagerAsync}
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool
 import org.apache.flink.runtime.io.network.{LocalConnectionManager, NetworkEnvironment, TaskEventDispatcher}
-import org.apache.flink.runtime.io.network.netty.{NettyConfig, NettyConnectionManager, PartitionStateChecker}
+import org.apache.flink.runtime.io.network.netty.{NettyConfig, NettyConnectionManager, PartitionProducerStateChecker}
 import org.apache.flink.runtime.io.network.partition.{ResultPartitionConsumableNotifier, ResultPartitionManager}
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.memory.MemoryManager
@@ -181,7 +181,7 @@ class TaskManager(
 
   private var connectionUtils: Option[(
     CheckpointResponder,
-    PartitionStateChecker,
+    PartitionProducerStateChecker,
     ResultPartitionConsumableNotifier,
     TaskManagerConnection)] = None
 
@@ -916,7 +916,7 @@ class TaskManager(
 
     val taskManagerConnection = new ActorGatewayTaskManagerConnection(taskManagerGateway)
 
-    val partitionStateChecker = new ActorGatewayPartitionStateChecker(
+    val partitionStateChecker = new ActorGatewayPartitionProducerStateChecker(
       jobManagerGateway,
       config.timeout)
 

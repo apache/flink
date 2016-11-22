@@ -22,7 +22,6 @@ import com.google.common.collect.Lists;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -283,7 +282,6 @@ public class LocalInputChannelTest {
 		final SingleInputGate gate = new SingleInputGate(
 			"test task name",
 			new JobID(),
-			new ExecutionAttemptID(),
 			new IntermediateDataSetID(),
 			0,
 			1,
@@ -481,7 +479,6 @@ public class LocalInputChannelTest {
 			this.inputGate = new SingleInputGate(
 					"Test Name",
 					new JobID(),
-					new ExecutionAttemptID(),
 					new IntermediateDataSetID(),
 					subpartitionIndex,
 					numberOfInputChannels,

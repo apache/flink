@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -60,7 +59,6 @@ public class InputGateConcurrentTest {
 		final SingleInputGate gate = new SingleInputGate(
 				"Test Task Name",
 				new JobID(),
-				new ExecutionAttemptID(),
 				new IntermediateDataSetID(),
 				0, numChannels,
 				mock(TaskActions.class),
@@ -96,7 +94,6 @@ public class InputGateConcurrentTest {
 		final SingleInputGate gate = new SingleInputGate(
 				"Test Task Name",
 				new JobID(),
-				new ExecutionAttemptID(),
 				new IntermediateDataSetID(),
 				0,
 				numChannels,
@@ -146,7 +143,6 @@ public class InputGateConcurrentTest {
 		final SingleInputGate gate = new SingleInputGate(
 				"Test Task Name",
 				new JobID(),
-				new ExecutionAttemptID(),
 				new IntermediateDataSetID(),
 				0,
 				numChannels,

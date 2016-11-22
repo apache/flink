@@ -16,34 +16,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 /**
- * Actions which can be performed on a {@link Task}.
+ * Intermediate partition state checker to query the JobManager about the state
+ * of the producer of a result partition.
+ *
+ * <p>These checks are triggered when a partition request is answered with a
+ * PartitionNotFound event. This usually happens when the producer of that
+ * partition has not registered itself with the network stack or terminated.
  */
-public interface TaskActions {
+public interface PartitionProducerStateChecker {
 
 	/**
-	 * Check the execution state of the execution producing a result partition.
+	 * Requests the execution state of the execution producing a result partition.
 	 *
 	 * @param jobId ID of the job the partition belongs to.
 	 * @param intermediateDataSetId ID of the parent intermediate data set.
 	 * @param resultPartitionId ID of the result partition to check. This
 	 * identifies the producing execution and partition.
-	 */
-	void triggerPartitionProducerStateCheck(
-		JobID jobId,
-		IntermediateDataSetID intermediateDataSetId,
-		ResultPartitionID resultPartitionId);
-
-	/**
-	 * Fail the owning task with the given throwable.
 	 *
-	 * @param cause of the failure
+	 * @return Future holding the execution state of the producing execution.
 	 */
-	void failExternally(Throwable cause);
+	Future<ExecutionState> requestPartitionProducerState(
+			JobID jobId,
+			IntermediateDataSetID intermediateDataSetId,
+			ResultPartitionID resultPartitionId);
+
 }

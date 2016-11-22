@@ -16,20 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.netty;
+package org.apache.flink.runtime.jobmanager;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.PartitionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionProducerState;
 
-public interface PartitionStateChecker {
-	Future<PartitionState> requestPartitionState(
-			JobID jobId,
-			ExecutionAttemptID executionId,
-			IntermediateDataSetID resultId,
-			ResultPartitionID partitionId);
+/**
+ * Exception returned to a TaskManager on {@link RequestPartitionProducerState}
+ * if the producer of a partition has been disposed.
+ */
+public class PartitionProducerDisposedException extends Exception {
+
+	public PartitionProducerDisposedException(ResultPartitionID resultPartitionID) {
+		super(String.format("Execution %s producing partition %s has already been disposed.",
+			resultPartitionID.getProducerId(),
+			resultPartitionID.getPartitionId()));
+	}
 
 }

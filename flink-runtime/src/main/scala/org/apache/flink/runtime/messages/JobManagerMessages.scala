@@ -157,20 +157,18 @@ object JobManagerMessages {
   case class NextInputSplit(splitData: Array[Byte])
 
   /**
-   * Requests the current state of the partition.
-   *
-   * The state of a partition is currently bound to the state of the producing execution.
-   *
-   * @param jobId The job ID of the job, which produces the partition.
-   * @param partitionId The partition ID of the partition to request the state of.
-   * @param taskExecutionId The execution attempt ID of the task requesting the partition state.
-   * @param taskResultId The input gate ID of the task requesting the partition state.
-   */
-  case class RequestPartitionState(
+    * Requests the execution state of the execution producing a result partition.
+    *
+    * @param jobId                 ID of the job the partition belongs to.
+    * @param intermediateDataSetId ID of the parent intermediate data set.
+    * @param resultPartitionId     ID of the result partition to check. This
+    *                              identifies the producing execution and
+    *                              partition.
+    */
+  case class RequestPartitionProducerState(
       jobId: JobID,
-      partitionId: ResultPartitionID,
-      taskExecutionId: ExecutionAttemptID,
-      taskResultId: IntermediateDataSetID)
+      intermediateDataSetId: IntermediateDataSetID,
+      resultPartitionId: ResultPartitionID)
     extends RequiresLeaderSessionID
 
   /**
