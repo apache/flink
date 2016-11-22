@@ -412,14 +412,15 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     assert(1 == outputSelectors.size)
     assert(outputSelector == outputSelectors.get(0))
 
-    unionFilter.split(x => List("a")).print()
-    val moreOutputSelectors = env.getStreamGraph.getStreamNode(unionFilter.getId).getOutputSelectors
-    assert(2 == moreOutputSelectors.size)
+    val split2 = unionFilter.split(x => List("a"))
+    split2.print()
+    val moreOutputSelectors = env.getStreamGraph.getStreamNode(split2.getId).getOutputSelectors
+    assert(1 == moreOutputSelectors.size)
 
     val select = split.select("a")
     val sink = select.print()
     val splitEdge =
-      env.getStreamGraph.getStreamEdges(unionFilter.getId, sink.getTransformation.getId)
+      env.getStreamGraph.getStreamEdges(split.getId, sink.getTransformation.getId)
     assert("a" == splitEdge.get(0).getSelectedNames.get(0))
 
     val foldFunction = new FoldFunction[Int, String] {
