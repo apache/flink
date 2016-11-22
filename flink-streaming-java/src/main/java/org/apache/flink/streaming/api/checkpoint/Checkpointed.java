@@ -31,8 +31,7 @@ import java.io.Serializable;
  * state is written, the function is not called, so the function needs not return a
  * copy of its state, but may return a reference to its state. Functions that can
  * continue to work and mutate the state, even while the state snapshot is being accessed,
- * can implement the {@link org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously}
- * interface.</p>
+ * can implement the {@link CheckpointedAsynchronously} interface.</p>
  * 
  * @param <T> The type of the operator state.
  */

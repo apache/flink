@@ -19,15 +19,17 @@
 package org.apache.flink.streaming.connectors.kafka.testutils;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.test.util.SuccessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.BitSet;
+import java.util.Collections;
+import java.util.List;
 
-public class ValidatingExactlyOnceSink extends RichSinkFunction<Integer> implements Checkpointed<Tuple2<Integer, BitSet>> {
+public class ValidatingExactlyOnceSink extends RichSinkFunction<Integer> implements ListCheckpointed<Tuple2<Integer, BitSet>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ValidatingExactlyOnceSink.class);
 
@@ -39,7 +41,6 @@ public class ValidatingExactlyOnceSink extends RichSinkFunction<Integer> impleme
 
 	private int numElements; // this is checkpointed
 
-	
 	public ValidatingExactlyOnceSink(int numElementsTotal) {
 		this.numElementsTotal = numElementsTotal;
 	}
@@ -68,15 +69,20 @@ public class ValidatingExactlyOnceSink extends RichSinkFunction<Integer> impleme
 	}
 
 	@Override
-	public Tuple2<Integer, BitSet> snapshotState(long checkpointId, long checkpointTimestamp) {
-		LOG.info("Snapshot of counter "+numElements+" at checkpoint "+checkpointId);
-		return new Tuple2<>(numElements, duplicateChecker);
+	public List<Tuple2<Integer, BitSet>> snapshotState(long checkpointId, long timestamp) throws Exception {
+		LOG.info("Snapshot of counter " + numElements + " at checkpoint " + checkpointId);
+		return Collections.singletonList(new Tuple2<>(numElements, duplicateChecker));
 	}
 
 	@Override
-	public void restoreState(Tuple2<Integer, BitSet> state) {
-		LOG.info("restoring num elements to {}", state.f0);
-		this.numElements = state.f0;
-		this.duplicateChecker = state.f1;
+	public void restoreState(List<Tuple2<Integer, BitSet>> state) throws Exception {
+		if (state.isEmpty() || state.size() > 1) {
+			throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+		}
+
+		Tuple2<Integer, BitSet> s = state.get(0);
+		LOG.info("restoring num elements to {}", s.f0);
+		this.numElements = s.f0;
+		this.duplicateChecker = s.f1;
 	}
 }

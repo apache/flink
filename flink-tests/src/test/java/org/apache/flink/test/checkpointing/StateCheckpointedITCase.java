@@ -24,8 +24,7 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -34,9 +33,10 @@ import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
@@ -47,7 +47,7 @@ import static org.junit.Assert.assertTrue;
  * A simple test that runs a streaming topology with checkpointing enabled.
  *
  * The test triggers a failure after a while and verifies that, after completion, the
- * state defined with either the {@link ValueState} or the {@link Checkpointed}
+ * state defined with either the {@link ValueState} or the {@link ListCheckpointed}
  * interface reflects the "exactly once" semantics.
  * 
  * The test throttles the input until at least two checkpoints are completed, to make sure that
@@ -139,15 +139,14 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 	// --------------------------------------------------------------------------------------------
 	
 	private static class StringGeneratingSourceFunction extends RichParallelSourceFunction<String> 
-			implements CheckpointedAsynchronously<Integer>
+			implements ListCheckpointed<Integer>
 	{
 		private final long numElements;
 
 		private int index;
 
 		private volatile boolean isRunning = true;
-		
-		
+
 		StringGeneratingSourceFunction(long numElements) {
 			this.numElements = numElements;
 		}
@@ -197,23 +196,26 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
-			return index;
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.index);
 		}
 
 		@Override
-		public void restoreState(Integer state) {
-			index = state;
+		public void restoreState(List<Integer> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.index = state.get(0);
 		}
 	}
 
 	private static class StringRichFilterFunction extends RichFilterFunction<String> 
-			implements Checkpointed<Long> {
+			implements ListCheckpointed<Long> {
 
 		static final long[] counts = new long[PARALLELISM];
 		
 		private long count;
-		
+
 		@Override
 		public boolean filter(String value) throws Exception {
 			count++;
@@ -226,23 +228,26 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 		}
 
 		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
-			return count;
+		public List<Long> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.count);
 		}
 
 		@Override
-		public void restoreState(Long state) {
-			count = state;
+		public void restoreState(List<Long> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.count = state.get(0);
 		}
 	}
 
 	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount> 
-			implements CheckpointedAsynchronously<Long> {
+			implements ListCheckpointed<Long> {
 		
 		static final long[] counts = new long[PARALLELISM];
 
 		private long count;
-		
+
 		@Override
 		public PrefixCount map(String value) {
 			count++;
@@ -255,18 +260,21 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 		}
 
 		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
-			return count;
+		public List<Long> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.count);
 		}
 
 		@Override
-		public void restoreState(Long state) {
-			count = state;
+		public void restoreState(List<Long> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.count = state.get(0);
 		}
 	}
 	
 	private static class StatefulCounterFunction extends RichMapFunction<PrefixCount, PrefixCount> 
-		implements Checkpointed<Long> {
+		implements ListCheckpointed<Long> {
 
 		static final long[] counts = new long[PARALLELISM];
 		
@@ -284,18 +292,21 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 		}
 
 		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
-			return count;
+		public List<Long> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.count);
 		}
 
 		@Override
-		public void restoreState(Long state) {
-			count = state;
+		public void restoreState(List<Long> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.count = state.get(0);
 		}
 	}
 	
 	private static class OnceFailingAggregator extends RichFlatMapFunction<PrefixCount, PrefixCount> 
-		implements Checkpointed<HashMap<String, PrefixCount>>, CheckpointListener {
+		implements ListCheckpointed<HashMap<String, PrefixCount>>, CheckpointListener {
 
 		static boolean wasCheckpointedBeforeFailure = false;
 		
@@ -307,7 +318,6 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 		private long count;
 		
 		private boolean wasCheckpointed;
-		
 
 		OnceFailingAggregator(long failurePos) {
 			this.failurePos = failurePos;
@@ -339,13 +349,16 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 		}
 
 		@Override
-		public HashMap<String, PrefixCount> snapshotState(long checkpointId, long checkpointTimestamp) {
-			return aggregationMap;
+		public List<HashMap<String, PrefixCount>> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.aggregationMap);
 		}
 
 		@Override
-		public void restoreState(HashMap<String, PrefixCount> state) {
-			aggregationMap.putAll(state);
+		public void restoreState(List<HashMap<String, PrefixCount>> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.aggregationMap.putAll(state.get(0));
 		}
 
 		@Override
@@ -355,7 +368,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 	}
 
 	private static class ValidatingSink extends RichSinkFunction<PrefixCount> 
-			implements Checkpointed<HashMap<Character, Long>> {
+			implements ListCheckpointed<HashMap<Character, Long>> {
 
 		@SuppressWarnings("unchecked")
 		private static Map<Character, Long>[] maps = (Map<Character, Long>[]) new Map<?, ?>[PARALLELISM];
@@ -379,13 +392,16 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 		}
 
 		@Override
-		public HashMap<Character, Long> snapshotState(long checkpointId, long checkpointTimestamp) {
-			return counts;
+		public List<HashMap<Character, Long>> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.counts);
 		}
 
 		@Override
-		public void restoreState(HashMap<Character, Long> state) {
-			counts.putAll(state);
+		public void restoreState(List<HashMap<Character, Long>> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.counts.putAll(state.get(0));
 		}
 	}
 }

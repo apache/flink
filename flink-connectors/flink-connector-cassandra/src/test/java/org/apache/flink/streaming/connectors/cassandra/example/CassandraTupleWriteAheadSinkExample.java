@@ -21,12 +21,14 @@ import com.datastax.driver.core.Cluster;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.cassandra.CassandraSink;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -50,6 +52,9 @@ public class CassandraTupleWriteAheadSinkExample {
 			.setQuery("INSERT INTO example.values (id, counter) values (?, ?);")
 			.enableWriteAheadLog()
 			.setClusterBuilder(new ClusterBuilder() {
+
+				private static final long serialVersionUID = 2793938419775311824L;
+
 				@Override
 				public Cluster buildCluster(Cluster.Builder builder) {
 					return builder.addContactPoint("127.0.0.1").build();
@@ -62,7 +67,9 @@ public class CassandraTupleWriteAheadSinkExample {
 		env.execute();
 	}
 
-	public static class MySource implements SourceFunction<Tuple2<String, Integer>>, Checkpointed<Integer> {
+	public static class MySource implements SourceFunction<Tuple2<String, Integer>>, ListCheckpointed<Integer> {
+		private static final long serialVersionUID = 4022367939215095610L;
+
 		private int counter = 0;
 		private boolean stop = false;
 
@@ -84,13 +91,16 @@ public class CassandraTupleWriteAheadSinkExample {
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return counter;
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.counter);
 		}
 
 		@Override
-		public void restoreState(Integer state) throws Exception {
-			this.counter = state;
+		public void restoreState(List<Integer> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.counter = state.get(0);
 		}
 	}
 }
