@@ -62,7 +62,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>${shading-artifact.name}</artifactId>
+			<artifactId>flink-shaded-hadoop2</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 

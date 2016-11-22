@@ -35,11 +35,6 @@ matrix:
     - jdk: "oraclejdk7"
       env: PROFILE="-Dhadoop.version=2.3.0 -Pflink-fast-tests-b,include-kinesis"
 
-    - jdk: "openjdk7" 
-      env: PROFILE="-Dhadoop.profile=1 -Pflink-fast-tests-a,include-kinesis"
-    - jdk: "openjdk7" 
-      env: PROFILE="-Dhadoop.profile=1 -Pflink-fast-tests-b,include-kinesis"
-
 
 git:
   depth: 100

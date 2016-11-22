@@ -27,7 +27,6 @@
 # we change the version for the complete docs when forking of a release branch
 # etc.
 version: "1.2-SNAPSHOT"
-version_hadoop1: "1.2-hadoop1-SNAPSHOT"
 version_short: "1.2" # Used for the top navbar w/o snapshot suffix
 is_snapshot_version: true
 
