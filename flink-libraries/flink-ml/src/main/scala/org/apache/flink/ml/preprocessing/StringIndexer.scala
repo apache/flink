@@ -28,16 +28,45 @@ import org.apache.flink.api.scala.utils._
 
 import scala.collection.immutable.Seq
 
-/**
-  * A label indexer that maps a string label to an index.
-  * The indices are in [0, numLabels), ordered by label frequencies.
-  * The most frequent label gets index 0.
+
+/** Encodes a DataSet[String] of labels to a Dataset[(String,Long)] of (labels,indices).
+  *
+  * StringIndexer is the same than Spark's StringIndexer.
+  * It takes a label of type String and maps it to a a tuple of type (String,Long),
+  * where the first element is the label and the second element is the index of this label.
+  * These indices are in [0,numLabels), ordered by label frequencies so that
+  * the most frequent label has index 0.
+  *
+  * This transformer can only be used to map a DataSet[String] to a DataSet[(String,Double)].
+  *
+  * After fitting a Dataset[String], StringIndexer manages unseen labels with 2 strategies:
+  * - if HandleInvalid has argument "skip", unseen labels are skipped
+  * - otherwise, an error is thrown
+  *
+  * By default, HandleInvalid has value "skip".
+  *
+  * @example
+  * {{{
+  *                  val trainingDS: DataSet[Vector] = env.fromCollection(data)
+  *                  val transformer = StringIndexer().setHandleInvalid("skip")
+  *
+  *                  transformer.fit(trainingDS)
+  *                  val transformedDS = transformer.transform(trainingDS)
+  * }}}
+  *
+  * =Parameters=
+  *
+  * - [[HandleInvalid]]: If "skip",unseen labels are skipped during transformation phase.
+  *
   */
+
 class StringIndexer extends Transformer[StringIndexer] {
 
   private[preprocessing] var metricsOption: Option[DataSet[(String, Long)]] = None
 
-
+  /**
+    * Sets the value of HandleInvalid - Default value is "skip".
+    */
   def setHandleInvalid(value: String): this.type ={
     parameters.add( HandleInvalid, value )
     this
@@ -60,12 +89,12 @@ object StringIndexer {
   // ====================================== Operations =============================================
 
   /**
-    * Trains [[StringIndexer]] by learning the count of each string in the input DataSet.
+    * Trains [[StringIndexer]] ordering labels by frequencies in the input DataSet
+    * @return [[FitOperation]] training the [[StringIndexer]] on [[String]]
     */
-
   implicit def fitStringIndexer ={
     new FitOperation[StringIndexer, String] {
-      def fit(instance: StringIndexer, fitParameters: ParameterMap, input: DataSet[String]):Unit ={
+      def fit(instance: StringIndexer, fitParameters: ParameterMap, input: DataSet[String]): Unit ={
         val metrics = extractIndices( input )
         instance.metricsOption = Some( metrics )
       }
@@ -73,31 +102,30 @@ object StringIndexer {
   }
 
   /**
-    * Sort the labels by frequency and assign an index.
-    *
-    * @param input a dataset containing labels
-    * @return a new dataset with an index for each label
+    * Sort labels by frequencies and assign an index
+    * @param input Dataset[String] containing labels
+    * @return Dataset[(String,Long)] where each label is associated with an index
     */
-  private def extractIndices(input: DataSet[String]): DataSet[(String, Long)] = {
+  private def extractIndices(input: DataSet[String]): DataSet[(String, Long)] ={
 
     val mapping = input
       .mapWith( s => (s, 1) )
       .groupBy( 0 )
-      .sum(1)
-      .partitionByRange( x => - x._2 )
-      .sortPartition(1, Order.DESCENDING)
+      .sum( 1 )
+      .partitionByRange( x => -x._2 )
+      .sortPartition( 1, Order.DESCENDING )
       .zipWithIndex
       .mapWith { case (id, (label, count)) => (label, id) }
 
-    mapping.print()
+    mapping.print( )
 
     mapping
   }
 
   /**
-    * [[TransformDataSetOperation]] which returns a new dataset of (label,index)
-    * If "skip" is choosen, unseen labels are ignored and the corresponding lines
-    * are skipped. Otherwise we throw an Exception.
+    * [[TransformDataSetOperation]] returns a Dataset[(String,Long)]
+    * If HandleInvalid has value "skip", unseen labels are ignored and the corresponding
+    * lines are skipped. Otherwise an Exception is thrown
     */
 
   implicit def transformStringDataset ={
@@ -110,24 +138,24 @@ object StringIndexer {
         val handleInvalid = resultingParameters( HandleInvalid )
 
         def toHandle(label: String) = handleInvalid match {
-          case "skip"  => Seq.empty[(String,Long)]
-          case _ => throw new Exception(s"label ${label} has not be fitted during the fit phase - " +
+          case "skip" => Seq.empty[(String, Long)]
+          case _ => throw new Exception( s"label ${label} has not be fitted during the fit phase - " +
             s"Use setHandleInvalid with skip parameter to filter non fitted labels, or fit your data with " +
-            s"label ${label}")
+            s"label ${label}" )
         }
 
         instance.metricsOption match {
-          case Some(metrics) => {
+          case Some( metrics ) => {
             input
-              .leftOuterJoin(metrics).where("*").equalTo(0) {
-              (left,right) =>
-                val joinIndex = if(right == null) None else Some(right._2)
-                (left,joinIndex)
+              .leftOuterJoin( metrics ).where( "*" ).equalTo( 0 ) {
+              (left, right) =>
+                val joinIndex = if (right == null) None else Some( right._2 )
+                (left, joinIndex)
             }
-              .flatMapWith{ case(label, index) =>
+              .flatMapWith { case (label, index) =>
                 index match {
-                  case Some(value) => Seq((label,value))
-                  case _ => toHandle(label)
+                  case Some( value ) => Seq( (label, value) )
+                  case _ => toHandle( label )
                 }
               }
           }
