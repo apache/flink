@@ -21,7 +21,6 @@ package org.apache.flink.ml.math
 import com.github.fommil.netlib.{BLAS => NetlibBLAS, F2jBLAS}
 import com.github.fommil.netlib.BLAS.{getInstance => NativeBLAS}
 
-
 /**
  * BLAS routines for vectors and matrices.
  *

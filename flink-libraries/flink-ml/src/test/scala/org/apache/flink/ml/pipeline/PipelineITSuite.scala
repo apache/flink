@@ -21,14 +21,13 @@ package org.apache.flink.ml.pipeline
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.classification.SVM
 import org.apache.flink.ml.common.{ParameterMap, LabeledVector}
-import org.apache.flink.ml.math.DenseVector
-import org.apache.flink.ml.preprocessing.{PolynomialFeatures, StandardScaler, StringIndexer}
+import org.apache.flink.ml.math._
+import org.apache.flink.ml.preprocessing.{PolynomialFeatures, StandardScaler}
 import org.apache.flink.ml.regression.MultipleLinearRegression
 import org.apache.flink.ml.util.FlinkTestBase
 import org.scalatest.{Matchers, FlatSpec}
 
 class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
-
   behavior of "Flink's pipelines"
 
   it should "support chaining of compatible transformer" in {
@@ -209,5 +208,4 @@ class PipelineITSuite extends FlatSpec with Matchers with FlinkTestBase {
       svm.predict(doubleData)
     }
   }
-
 }
