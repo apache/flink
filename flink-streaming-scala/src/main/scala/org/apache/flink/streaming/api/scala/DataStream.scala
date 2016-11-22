@@ -29,7 +29,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
-import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream, DataStream => JavaStream, KeyedStream => JavaKeyedStream, _}
+import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream, DataStream => JavaStream, KeyedStream => JavaKeyedStream,SplitStream => SplitJavaStream, _}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks, TimestampExtractor}
@@ -152,6 +152,7 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   def name: String = stream match {
     case stream : SingleOutputStreamOperator[T] => stream.getName
+    case split  : SplitJavaStream[T] => split.getName
     case _ => throw new
         UnsupportedOperationException("Only supported for operators.")
   }
@@ -177,6 +178,7 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   def name(name: String) : DataStream[T] = stream match {
     case stream : SingleOutputStreamOperator[T] => asScalaStream(stream.name(name))
+    case split  : SplitJavaStream[T] => asScalaStream(split.name(name))
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
     this
   }
