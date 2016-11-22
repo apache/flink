@@ -18,7 +18,7 @@
 
 package org.apache.flink.mesos.runtime.clusterframework
 
-import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executor
 
 import akka.actor.ActorRef
 import org.apache.flink.configuration.{Configuration => FlinkConfiguration}
@@ -37,7 +37,7 @@ import scala.concurrent.duration._
 /** JobManager actor for execution on Mesos. .
   *
   * @param flinkConfiguration Configuration object for the actor
-  * @param executorService Execution context which is used to execute concurrent tasks in the
+  * @param executor Execution context which is used to execute concurrent tasks in the
   *                         [[org.apache.flink.runtime.executiongraph.ExecutionGraph]]
   * @param instanceManager Instance manager to manage the registered
   *                        [[org.apache.flink.runtime.taskmanager.TaskManager]]
@@ -49,7 +49,7 @@ import scala.concurrent.duration._
   * @param leaderElectionService LeaderElectionService to participate in the leader election
   */
 class MesosJobManager(flinkConfiguration: FlinkConfiguration,
-                      executorService: ExecutorService,
+                      executor: Executor,
                       instanceManager: InstanceManager,
                       scheduler: FlinkScheduler,
                       libraryCacheManager: BlobLibraryCacheManager,
@@ -63,7 +63,7 @@ class MesosJobManager(flinkConfiguration: FlinkConfiguration,
                       metricsRegistry: Option[FlinkMetricRegistry])
   extends ContaineredJobManager(
     flinkConfiguration,
-    executorService,
+    executor,
     instanceManager,
     scheduler,
     libraryCacheManager,

@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -216,12 +217,14 @@ public class ZooKeeperUtils {
 	 *
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object
+	 * @param executor to run ZooKeeper callbacks
 	 * @return {@link ZooKeeperSubmittedJobGraphStore} instance
 	 * @throws Exception if the submitted job graph store cannot be created
 	 */
 	public static ZooKeeperSubmittedJobGraphStore createSubmittedJobGraphs(
 			CuratorFramework client,
-			Configuration configuration) throws Exception {
+			Configuration configuration,
+			Executor executor) throws Exception {
 
 		checkNotNull(configuration, "Configuration");
 
@@ -235,7 +238,7 @@ public class ZooKeeperUtils {
 				ConfigConstants.ZOOKEEPER_JOBGRAPHS_PATH);
 
 		return new ZooKeeperSubmittedJobGraphStore(
-				client, zooKeeperSubmittedJobsPath, stateStorage);
+				client, zooKeeperSubmittedJobsPath, stateStorage, executor);
 	}
 
 	/**
@@ -245,6 +248,7 @@ public class ZooKeeperUtils {
 	 * @param configuration                  {@link Configuration} object
 	 * @param jobId                          ID of job to create the instance for
 	 * @param maxNumberOfCheckpointsToRetain The maximum number of checkpoints to retain
+	 * @param executor to run ZooKeeper callbacks
 	 * @return {@link ZooKeeperCompletedCheckpointStore} instance
 	 * @throws Exception if the completed checkpoint store cannot be created
 	 */
@@ -252,7 +256,8 @@ public class ZooKeeperUtils {
 			CuratorFramework client,
 			Configuration configuration,
 			JobID jobId,
-			int maxNumberOfCheckpointsToRetain) throws Exception {
+			int maxNumberOfCheckpointsToRetain,
+			Executor executor) throws Exception {
 
 		checkNotNull(configuration, "Configuration");
 
@@ -269,10 +274,11 @@ public class ZooKeeperUtils {
 		checkpointsPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
 
 		return new ZooKeeperCompletedCheckpointStore(
-				maxNumberOfCheckpointsToRetain,
-				client,
-				checkpointsPath,
-				stateStorage);
+			maxNumberOfCheckpointsToRetain,
+			client,
+			checkpointsPath,
+			stateStorage,
+			executor);
 	}
 
 	/**

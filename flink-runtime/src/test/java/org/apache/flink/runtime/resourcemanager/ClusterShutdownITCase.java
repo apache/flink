@@ -72,7 +72,12 @@ public class ClusterShutdownITCase extends TestLogger {
 
 			// start job manager which doesn't shutdown the actor system
 			ActorGateway jobManager =
-				TestingUtils.createJobManager(system, config, "jobmanager1");
+				TestingUtils.createJobManager(
+					system,
+					system.dispatcher(),
+					system.dispatcher(),
+					config,
+					"jobmanager1");
 
 			// Tell the JobManager to inform us of shutdown actions
 			jobManager.tell(TestingMessages.getNotifyOfComponentShutdown(), me);
@@ -114,7 +119,12 @@ public class ClusterShutdownITCase extends TestLogger {
 
 			// start job manager which doesn't shutdown the actor system
 			ActorGateway jobManager =
-				TestingUtils.createJobManager(system, config, "jobmanager2");
+				TestingUtils.createJobManager(
+					system,
+					system.dispatcher(),
+					system.dispatcher(),
+					config,
+					"jobmanager2");
 
 			// Tell the JobManager to inform us of shutdown actions
 			jobManager.tell(TestingMessages.getNotifyOfComponentShutdown(), me);
