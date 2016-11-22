@@ -28,7 +28,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.fs.AvroKeyValueSinkWriter;
 import org.apache.flink.streaming.connectors.fs.Clock;
@@ -36,6 +35,8 @@ import org.apache.flink.streaming.connectors.fs.SequenceFileWriter;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.connectors.fs.Writer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.NetUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -70,7 +71,38 @@ public class BucketingSinkTest {
 	private static org.apache.hadoop.fs.FileSystem dfs;
 	private static String hdfsURI;
 
-	private OneInputStreamOperatorTestHarness<String, Object> createTestSink(File dataDir) throws Exception {
+	private static final String PART_PREFIX = "part";
+	private static final String PENDING_SUFFIX = ".pending";
+	private static final String IN_PROGRESS_SUFFIX = ".in-progress";
+	private static final String VALID_LENGTH_SUFFIX = ".valid";
+
+	private OneInputStreamOperatorTestHarness<String, Object> createRescalingTestSink(
+		File outDir, int totalParallelism, int taskIdx, long inactivityInterval) throws Exception {
+
+		BucketingSink<String> sink = new BucketingSink<String>(outDir.getAbsolutePath())
+			.setBucketer(new Bucketer<String>() {
+				private static final long serialVersionUID = 1L;
+
+				@Override
+				public Path getBucketPath(Clock clock, Path basePath, String element) {
+					return new Path(basePath, element);
+				}
+			})
+			.setWriter(new StringWriter<String>())
+			.setInactiveBucketCheckInterval(inactivityInterval)
+			.setInactiveBucketThreshold(inactivityInterval)
+			.setPartPrefix(PART_PREFIX)
+			.setInProgressPrefix("")
+			.setPendingPrefix("")
+			.setValidLengthPrefix("")
+			.setInProgressSuffix(IN_PROGRESS_SUFFIX)
+			.setPendingSuffix(PENDING_SUFFIX)
+			.setValidLengthSuffix(VALID_LENGTH_SUFFIX);
+
+		return createTestSink(sink, totalParallelism, taskIdx);
+	}
+
+	private OneInputStreamOperatorTestHarness<String, Object> createTestSink(File dataDir, int totalParallelism, int taskIdx) throws Exception {
 		BucketingSink<String> sink = new BucketingSink<String>(dataDir.getAbsolutePath())
 			.setBucketer(new Bucketer<String>() {
 				private static final long serialVersionUID = 1L;
@@ -81,18 +113,19 @@ public class BucketingSinkTest {
 				}
 			})
 			.setWriter(new StringWriter<String>())
-			.setPartPrefix("part")
+			.setPartPrefix(PART_PREFIX)
 			.setPendingPrefix("")
 			.setInactiveBucketCheckInterval(5*60*1000L)
 			.setInactiveBucketThreshold(5*60*1000L)
-			.setPendingSuffix(".pending");
+			.setPendingSuffix(PENDING_SUFFIX)
+			.setInProgressSuffix(IN_PROGRESS_SUFFIX);
 
-		return createTestSink(sink);
+		return createTestSink(sink, totalParallelism, taskIdx);
 	}
 
 	private <T> OneInputStreamOperatorTestHarness<T, Object> createTestSink(
-			BucketingSink<T> sink) throws Exception {
-		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
+			BucketingSink<T> sink, int totalParallelism, int taskIdx) throws Exception {
+		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), 10, totalParallelism, taskIdx);
 	}
 
 	@BeforeClass
@@ -118,48 +151,292 @@ public class BucketingSinkTest {
 	}
 
 	@Test
-	public void testCheckpointWithoutNotify() throws Exception {
-		File dataDir = tempFolder.newFolder();
+	public void testInactivityPeriodWithLateNotify() throws Exception {
+		final File outDir = tempFolder.newFolder();
 
-		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(dataDir);
-
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createRescalingTestSink(outDir, 1, 0, 100);
 		testHarness.setup();
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>("Hello"));
-		testHarness.processElement(new StreamRecord<>("Hello"));
-		testHarness.processElement(new StreamRecord<>("Hello"));
+		testHarness.setProcessingTime(0L);
 
-		testHarness.setProcessingTime(10000L);
+		testHarness.processElement(new StreamRecord<>("test1", 1L));
+		testHarness.processElement(new StreamRecord<>("test2", 1L));
+		checkFs(outDir, 2, 0 ,0, 0);
 
-		// snapshot but don't call notify to simulate a notify that never
-		// arrives, the sink should move pending files in restore() in that case
-		StreamStateHandle snapshot1 = testHarness.snapshotLegacy(0, 0);
+		testHarness.setProcessingTime(101L);	// put some in pending
+		checkFs(outDir, 0, 2, 0, 0);
 
-		testHarness = createTestSink(dataDir);
+		testHarness.snapshot(0, 0);				// put them in pending for 0
+		checkFs(outDir, 0, 2, 0, 0);
+
+		testHarness.processElement(new StreamRecord<>("test3", 1L));
+		testHarness.processElement(new StreamRecord<>("test4", 1L));
+
+		testHarness.setProcessingTime(202L);	// put some in pending
+
+		testHarness.snapshot(1, 0);				// put them in pending for 1
+		checkFs(outDir, 0, 4, 0, 0);
+
+		testHarness.notifyOfCompletedCheckpoint(0);	// put the pending for 0 to the "committed" state
+		checkFs(outDir, 0, 2, 2, 0);
+
+		testHarness.notifyOfCompletedCheckpoint(1); // put the pending for 1 to the "committed" state
+		checkFs(outDir, 0, 0, 4, 0);
+	}
+
+	@Test
+	public void testBucketStateTransitions() throws Exception {
+		final File outDir = tempFolder.newFolder();
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createRescalingTestSink(outDir, 1, 0, 100);
 		testHarness.setup();
-		testHarness.restore(snapshot1);
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>("Hello"));
+		testHarness.setProcessingTime(0L);
+
+		testHarness.processElement(new StreamRecord<>("test1", 1L));
+		testHarness.processElement(new StreamRecord<>("test2", 1L));
+		checkFs(outDir, 2, 0 ,0, 0);
+
+		// this is to check the inactivity threshold
+		testHarness.setProcessingTime(101L);
+		checkFs(outDir, 0, 2, 0, 0);
+
+		testHarness.processElement(new StreamRecord<>("test3", 1L));
+		checkFs(outDir, 1, 2, 0, 0);
+
+		testHarness.snapshot(0, 0);
+		checkFs(outDir, 1, 2, 0, 0);
+
+		testHarness.notifyOfCompletedCheckpoint(0);
+		checkFs(outDir, 1, 0, 2, 0);
+
+		OperatorStateHandles snapshot = testHarness.snapshot(1, 0);
+
+		testHarness.close();
+		checkFs(outDir, 0, 1, 2, 0);
+
+		testHarness = createRescalingTestSink(outDir, 1, 0, 100);
+		testHarness.setup();
+		testHarness.initializeState(snapshot);
+		testHarness.open();
+		checkFs(outDir, 0, 0, 3, 1);
+
+		snapshot = testHarness.snapshot(2, 0);
+
+		testHarness.processElement(new StreamRecord<>("test4", 10));
+		checkFs(outDir, 1, 0, 3, 1);
+
+		testHarness = createRescalingTestSink(outDir, 1, 0, 100);
+		testHarness.setup();
+		testHarness.initializeState(snapshot);
+		testHarness.open();
+
+		// the in-progress file remains as we do not clean up now
+		checkFs(outDir, 1, 0, 3, 1);
 
 		testHarness.close();
 
-		int numComplete = 0;
-		int numPending = 0;
-		for (File file: FileUtils.listFiles(dataDir, null, true)) {
+		// at close it is not moved to final because it is not part
+		// of the current task's state, it was just a not cleaned up leftover.
+		checkFs(outDir, 1, 0, 3, 1);
+	}
+
+	@Test
+	public void testSameParallelismWithShufflingStates() throws Exception {
+		final File outDir = tempFolder.newFolder();
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness1 = createRescalingTestSink(outDir, 2, 0, 100);
+		testHarness1.setup();
+		testHarness1.open();
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness2 = createRescalingTestSink(outDir, 2, 1, 100);
+		testHarness2.setup();
+		testHarness2.open();
+
+		testHarness1.processElement(new StreamRecord<>("test1", 0L));
+		checkFs(outDir, 1, 0, 0, 0);
+
+		testHarness2.processElement(new StreamRecord<>("test2", 0L));
+		checkFs(outDir, 2, 0, 0, 0);
+
+		// intentionally we snapshot them in the reverse order so that the states are shuffled
+		OperatorStateHandles mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
+			testHarness2.snapshot(0, 0),
+			testHarness1.snapshot(0, 0)
+		);
+
+		checkFs(outDir, 2, 0, 0, 0);
+
+		// this will not be included in any checkpoint so it can be cleaned up (although we do not)
+		testHarness2.processElement(new StreamRecord<>("test3", 0L));
+		checkFs(outDir, 3, 0, 0, 0);
+
+		testHarness1 = createRescalingTestSink(outDir, 2, 0, 100);
+		testHarness1.setup();
+		testHarness1.initializeState(mergedSnapshot);
+		testHarness1.open();
+
+		// the one in-progress will be the one assigned to the next instance,
+		// the other is the test3 which is just not cleaned up
+		checkFs(outDir, 2, 0, 1, 1);
+
+		testHarness2 = createRescalingTestSink(outDir, 2, 1, 100);
+		testHarness2.setup();
+		testHarness2.initializeState(mergedSnapshot);
+		testHarness2.open();
+
+		checkFs(outDir, 1, 0, 2, 2);
+
+		testHarness1.close();
+		testHarness2.close();
+
+		// the 1 in-progress can be discarded.
+		checkFs(outDir, 1, 0, 2, 2);
+	}
+
+	@Test
+	public void testScalingDown() throws Exception {
+		final File outDir = tempFolder.newFolder();
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness1 = createRescalingTestSink(outDir, 3, 0, 100);
+		testHarness1.setup();
+		testHarness1.open();
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness2 = createRescalingTestSink(outDir, 3, 1, 100);
+		testHarness2.setup();
+		testHarness2.open();
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness3 = createRescalingTestSink(outDir, 3, 2, 100);
+		testHarness3.setup();
+		testHarness3.open();
+
+		testHarness1.processElement(new StreamRecord<>("test1", 0L));
+		checkFs(outDir, 1, 0, 0, 0);
+
+		testHarness2.processElement(new StreamRecord<>("test2", 0L));
+		checkFs(outDir, 2, 0, 0, 0);
+
+		testHarness3.processElement(new StreamRecord<>("test3", 0L));
+		testHarness3.processElement(new StreamRecord<>("test4", 0L));
+		checkFs(outDir, 4, 0, 0, 0);
+
+		// intentionally we snapshot them in the reverse order so that the states are shuffled
+		OperatorStateHandles mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
+			testHarness3.snapshot(0, 0),
+			testHarness1.snapshot(0, 0),
+			testHarness2.snapshot(0, 0)
+		);
+
+		testHarness1 = createRescalingTestSink(outDir, 2, 0, 100);
+		testHarness1.setup();
+		testHarness1.initializeState(mergedSnapshot);
+		testHarness1.open();
+
+		checkFs(outDir, 1, 0, 3, 3);
+
+		testHarness2 = createRescalingTestSink(outDir, 2, 1, 100);
+		testHarness2.setup();
+		testHarness2.initializeState(mergedSnapshot);
+		testHarness2.open();
+
+		checkFs(outDir, 0, 0, 4, 4);
+	}
+
+	@Test
+	public void testScalingUp() throws Exception {
+		final File outDir = tempFolder.newFolder();
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness1 = createRescalingTestSink(outDir, 2, 0, 100);
+		testHarness1.setup();
+		testHarness1.open();
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness2 = createRescalingTestSink(outDir, 2, 0, 100);
+		testHarness2.setup();
+		testHarness2.open();
+
+		testHarness1.processElement(new StreamRecord<>("test1", 1L));
+		testHarness1.processElement(new StreamRecord<>("test2", 1L));
+
+		checkFs(outDir, 2, 0, 0, 0);
+
+		testHarness2.processElement(new StreamRecord<>("test3", 1L));
+		testHarness2.processElement(new StreamRecord<>("test4", 1L));
+		testHarness2.processElement(new StreamRecord<>("test5", 1L));
+
+		checkFs(outDir, 5, 0, 0, 0);
+
+		// intentionally we snapshot them in the reverse order so that the states are shuffled
+		OperatorStateHandles mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
+			testHarness2.snapshot(0, 0),
+			testHarness1.snapshot(0, 0)
+		);
+
+		testHarness1 = createRescalingTestSink(outDir, 3, 0, 100);
+		testHarness1.setup();
+		testHarness1.initializeState(mergedSnapshot);
+		testHarness1.open();
+
+		checkFs(outDir, 2, 0, 3, 3);
+
+		testHarness2 = createRescalingTestSink(outDir, 3, 1, 100);
+		testHarness2.setup();
+		testHarness2.initializeState(mergedSnapshot);
+		testHarness2.open();
+
+		checkFs(outDir, 0, 0, 5, 5);
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness3 = createRescalingTestSink(outDir, 3, 2, 100);
+		testHarness3.setup();
+		testHarness3.initializeState(mergedSnapshot);
+		testHarness3.open();
+
+		checkFs(outDir, 0, 0, 5, 5);
+
+		testHarness1.processElement(new StreamRecord<>("test6", 0));
+		testHarness2.processElement(new StreamRecord<>("test6", 0));
+		testHarness3.processElement(new StreamRecord<>("test6", 0));
+
+		checkFs(outDir, 3, 0, 5, 5);
+
+		testHarness1.snapshot(1, 0);
+		testHarness2.snapshot(1, 0);
+		testHarness3.snapshot(1, 0);
+
+		testHarness1.close();
+		testHarness2.close();
+		testHarness3.close();
+
+		checkFs(outDir, 0, 3, 5, 5);
+	}
+
+	private void checkFs(File outDir, int inprogress, int pending, int completed, int valid) throws IOException {
+		int inProg = 0;
+		int pend = 0;
+		int compl = 0;
+		int val = 0;
+
+		for (File file: FileUtils.listFiles(outDir, null, true)) {
 			if (file.getAbsolutePath().endsWith("crc")) {
 				continue;
 			}
-			if (file.getPath().contains("pending")) {
-				numPending++;
-			} else if (file.getName().startsWith("part")) {
-				numComplete++;
+			String path = file.getPath();
+			if (path.endsWith(IN_PROGRESS_SUFFIX)) {
+				inProg++;
+			} else if (path.endsWith(PENDING_SUFFIX)) {
+				pend++;
+			} else if (path.endsWith(VALID_LENGTH_SUFFIX)) {
+				val++;
+			} else if (path.contains(PART_PREFIX)) {
+				compl++;
 			}
 		}
 
-		Assert.assertEquals(1, numComplete);
-		Assert.assertEquals(1, numPending);
+		Assert.assertEquals(inprogress, inProg);
+		Assert.assertEquals(pending, pend);
+		Assert.assertEquals(completed, compl);
+		Assert.assertEquals(valid, val);
 	}
 
 	/**
@@ -174,11 +451,11 @@ public class BucketingSinkTest {
 
 		BucketingSink<String> sink = new BucketingSink<String>(outPath)
 			.setBucketer(new BasePathBucketer<String>())
-			.setPartPrefix("part")
+			.setPartPrefix(PART_PREFIX)
 			.setPendingPrefix("")
 			.setPendingSuffix("");
 
-		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(sink);
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(sink, 1, 0);
 
 		testHarness.setProcessingTime(0L);
 
@@ -191,7 +468,7 @@ public class BucketingSinkTest {
 
 		testHarness.close();
 
-		FSDataInputStream inStream = dfs.open(new Path(outPath + "/part-0-0"));
+		FSDataInputStream inStream = dfs.open(new Path(outPath + "/" + PART_PREFIX + "-0-0"));
 
 		BufferedReader br = new BufferedReader(new InputStreamReader(inStream));
 
@@ -216,14 +493,14 @@ public class BucketingSinkTest {
 		BucketingSink<Tuple2<IntWritable, Text>> sink = new BucketingSink<Tuple2<IntWritable, Text>>(outPath)
 			.setWriter(new SequenceFileWriter<IntWritable, Text>())
 			.setBucketer(new BasePathBucketer<Tuple2<IntWritable, Text>>())
-			.setPartPrefix("part")
+			.setPartPrefix(PART_PREFIX)
 			.setPendingPrefix("")
 			.setPendingSuffix("");
 
 		sink.setInputType(TypeInformation.of(new TypeHint<Tuple2<IntWritable, Text>>(){}), new ExecutionConfig());
 
 		OneInputStreamOperatorTestHarness<Tuple2<IntWritable, Text>, Object> testHarness =
-			createTestSink(sink);
+			createTestSink(sink, 1, 0);
 
 		testHarness.setProcessingTime(0L);
 
@@ -239,7 +516,7 @@ public class BucketingSinkTest {
 
 		testHarness.close();
 
-		FSDataInputStream inStream = dfs.open(new Path(outPath + "/part-0-0"));
+		FSDataInputStream inStream = dfs.open(new Path(outPath + "/" + PART_PREFIX + "-0-0"));
 
 		SequenceFile.Reader reader = new SequenceFile.Reader(inStream, 1000, 0, 100000, new Configuration());
 
@@ -277,12 +554,12 @@ public class BucketingSinkTest {
 		BucketingSink<Tuple2<Integer, String>> sink = new BucketingSink<Tuple2<Integer, String>>(outPath)
 			.setWriter(new AvroKeyValueSinkWriter<Integer, String>(properties))
 			.setBucketer(new BasePathBucketer<Tuple2<Integer, String>>())
-			.setPartPrefix("part")
+			.setPartPrefix(PART_PREFIX)
 			.setPendingPrefix("")
 			.setPendingSuffix("");
 
 		OneInputStreamOperatorTestHarness<Tuple2<Integer, String>, Object> testHarness =
-			createTestSink(sink);
+			createTestSink(sink, 1, 0);
 
 		testHarness.setProcessingTime(0L);
 
@@ -300,7 +577,7 @@ public class BucketingSinkTest {
 		GenericData.setStringType(valueSchema, GenericData.StringType.String);
 		Schema elementSchema = AvroKeyValueSinkWriter.AvroKeyValue.getSchema(keySchema, valueSchema);
 
-		FSDataInputStream inStream = dfs.open(new Path(outPath + "/part-0-0"));
+		FSDataInputStream inStream = dfs.open(new Path(outPath + "/" + PART_PREFIX + "-0-0"));
 
 		SpecificDatumReader<GenericRecord> elementReader = new SpecificDatumReader<>(elementSchema);
 		DataFileStream<GenericRecord> dataFileStream = new DataFileStream<>(inStream, elementReader);
@@ -330,11 +607,11 @@ public class BucketingSinkTest {
 
 		BucketingSink<String> sink = new BucketingSink<String>(outPath)
 			.setBucketer(new DateTimeBucketer<String>("ss"))
-			.setPartPrefix("part")
+			.setPartPrefix(PART_PREFIX)
 			.setPendingPrefix("")
 			.setPendingSuffix("");
 
-		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(sink);
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(sink, 1, 0);
 
 		testHarness.setProcessingTime(0L);
 
@@ -420,7 +697,7 @@ public class BucketingSinkTest {
 		final int numIds = 4;
 		final int numElements = 20;
 
-		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(dataDir);
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(dataDir, 1, 0);
 
 		testHarness.setProcessingTime(0L);
 
@@ -436,7 +713,7 @@ public class BucketingSinkTest {
 		// we should have 4 buckets, with 1 file each
 		int numFiles = 0;
 		for (File file: FileUtils.listFiles(dataDir, null, true)) {
-			if (file.getName().startsWith("part")) {
+			if (file.getName().startsWith(PART_PREFIX)) {
 				numFiles++;
 			}
 		}
@@ -457,7 +734,7 @@ public class BucketingSinkTest {
 		final int step2NumIds = 2;
 		final int numElementsPerStep = 20;
 
-		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(dataDir);
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(dataDir, 1, 0);
 
 		testHarness.setProcessingTime(0L);
 
@@ -488,7 +765,7 @@ public class BucketingSinkTest {
 			if (file.getAbsolutePath().endsWith("crc")) {
 				continue;
 			}
-			if (file.getPath().contains("in-progress")) {
+			if (file.getPath().endsWith(IN_PROGRESS_SUFFIX)) {
 				numInProgress++;
 			}
 			numFiles++;
@@ -524,12 +801,12 @@ public class BucketingSinkTest {
 			.setFSConfig(conf)
 			.setWriter(new StreamWriterWithConfigCheck<Integer, String>(properties, "io.file.buffer.size", "40960"))
 			.setBucketer(new BasePathBucketer<Tuple2<Integer,String>>())
-			.setPartPrefix("part")
+			.setPartPrefix(PART_PREFIX)
 			.setPendingPrefix("")
 			.setPendingSuffix("");
 
 		OneInputStreamOperatorTestHarness<Tuple2<Integer, String>, Object> testHarness =
-			createTestSink(sink);
+			createTestSink(sink, 1, 0);
 
 		testHarness.setProcessingTime(0L);
 
@@ -547,7 +824,7 @@ public class BucketingSinkTest {
 		GenericData.setStringType(valueSchema, GenericData.StringType.String);
 		Schema elementSchema = AvroKeyValueSinkWriter.AvroKeyValue.getSchema(keySchema, valueSchema);
 
-		FSDataInputStream inStream = dfs.open(new Path(outPath + "/part-0-0"));
+		FSDataInputStream inStream = dfs.open(new Path(outPath + "/" + PART_PREFIX + "-0-0"));
 
 		SpecificDatumReader<GenericRecord> elementReader = new SpecificDatumReader<>(elementSchema);
 		DataFileStream<GenericRecord> dataFileStream = new DataFileStream<>(inStream, elementReader);

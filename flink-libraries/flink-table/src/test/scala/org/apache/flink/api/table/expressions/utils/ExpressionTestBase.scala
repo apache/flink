@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.table.expressions.utils
 
-import org.apache.calcite.rel.logical.LogicalProject
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql2rel.RelDecorrelator
@@ -34,7 +33,7 @@ import org.apache.flink.api.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.api.table.functions.UserDefinedFunction
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetCalc, DataSetConvention}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
-import org.apache.flink.api.table.runtime.FunctionCompiler
+import org.apache.flink.api.table.runtime.Compiler
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.junit.Assert._
 import org.junit.{After, Before}
@@ -211,7 +210,7 @@ abstract class ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   // TestCompiler that uses current class loader
-  class TestCompiler[T <: Function] extends FunctionCompiler[T] {
+  class TestCompiler[T <: Function] extends Compiler[T] {
     def compile(genFunc: GeneratedFunction[T]): Class[T] =
       compile(getClass.getClassLoader, genFunc.name, genFunc.code)
   }

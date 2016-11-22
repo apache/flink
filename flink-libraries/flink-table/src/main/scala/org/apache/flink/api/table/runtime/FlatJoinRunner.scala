@@ -31,7 +31,7 @@ class FlatJoinRunner[IN1, IN2, OUT](
     @transient returnType: TypeInformation[OUT])
   extends RichFlatJoinFunction[IN1, IN2, OUT]
   with ResultTypeQueryable[OUT]
-  with FunctionCompiler[FlatJoinFunction[IN1, IN2, OUT]] {
+  with Compiler[FlatJoinFunction[IN1, IN2, OUT]] {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 

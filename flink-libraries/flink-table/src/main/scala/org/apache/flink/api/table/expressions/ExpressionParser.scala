@@ -84,6 +84,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val MILLI: Keyword = Keyword("milli")
   lazy val ROWS: Keyword = Keyword("rows")
   lazy val STAR: Keyword = Keyword("*")
+  lazy val GET: Keyword = Keyword("get")
+  lazy val FLATTEN: Keyword = Keyword("flatten")
 
   def functionIdent: ExpressionParser.Parser[String] =
     not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
@@ -277,11 +279,21 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val suffixRowInterval : PackratParser[Expression] =
     composite <~ "." ~ ROWS ^^ { e => ExpressionUtils.toRowInterval(e) }
 
+  lazy val suffixGet: PackratParser[Expression] =
+    composite ~ "." ~ GET ~ "(" ~ literalExpr ~ ")" ^^ {
+      case e ~ _ ~ _ ~ _ ~ index ~ _ =>
+        GetCompositeField(e, index.asInstanceOf[Literal].value)
+  }
+
+  lazy val suffixFlattening: PackratParser[Expression] =
+    composite <~ "." ~ FLATTEN ~ opt("()") ^^ { e => Flattening(e) }
+
   lazy val suffixed: PackratParser[Expression] =
     suffixTimeInterval | suffixRowInterval | suffixSum | suffixMin | suffixMax | suffixStart |
       suffixEnd | suffixCount | suffixAvg | suffixCast | suffixAs | suffixTrim |
       suffixTrimWithoutArgs | suffixIf | suffixAsc | suffixDesc | suffixToDate |
       suffixToTimestamp | suffixToTime | suffixExtract | suffixFloor | suffixCeil |
+      suffixGet | suffixFlattening |
       suffixFunctionCall | suffixFunctionCallOneArg // function call must always be at the end
 
   // prefix operators
@@ -350,10 +362,19 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case _ ~ _ ~ operand ~ _ ~ unit ~ _ => TemporalCeil(unit, operand)
   }
 
+  lazy val prefixGet: PackratParser[Expression] =
+    GET ~ "(" ~ composite ~ ","  ~ literalExpr ~ ")" ^^ {
+      case _ ~ _ ~ e ~ _ ~ index ~ _ =>
+        GetCompositeField(e, index.asInstanceOf[Literal].value)
+  }
+
+  lazy val prefixFlattening: PackratParser[Expression] =
+    FLATTEN ~ "(" ~> composite <~ ")" ^^ { e => Flattening(e) }
+
   lazy val prefixed: PackratParser[Expression] =
     prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg | prefixStart | prefixEnd |
       prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs | prefixIf | prefixExtract |
-      prefixFloor | prefixCeil |
+      prefixFloor | prefixCeil | prefixGet | prefixFlattening |
       prefixFunctionCall | prefixFunctionCallOneArg // function call must always be at the end
 
   // suffix/prefix composite

@@ -103,13 +103,13 @@ case class Alias(child: Expression, name: String)
 case class UnresolvedAlias(child: Expression) extends UnaryExpression with NamedExpression {
 
   override private[flink] def name: String =
-    throw new UnresolvedException("Invalid call to name on UnresolvedAlias")
+    throw UnresolvedException("Invalid call to name on UnresolvedAlias")
 
   override private[flink] def toAttribute: Attribute =
-    throw new UnresolvedException("Invalid call to toAttribute on UnresolvedAlias")
+    throw UnresolvedException("Invalid call to toAttribute on UnresolvedAlias")
 
   override private[flink] def resultType: TypeInformation[_] =
-    throw new UnresolvedException("Invalid call to resultType on UnresolvedAlias")
+    throw UnresolvedException("Invalid call to resultType on UnresolvedAlias")
 
   override private[flink] lazy val valid = false
 }
