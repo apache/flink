@@ -20,6 +20,8 @@ package org.apache.flink.test.recovery;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 import org.apache.commons.io.FileUtils;
@@ -29,7 +31,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -106,7 +108,7 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 	}
 
 	public static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long> 
-			implements Checkpointed<Long> {
+			implements ListCheckpointed<Long> {
 
 		private static final long SLEEP_TIME = 50;
 
@@ -160,13 +162,16 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 		}
 
 		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
-			return collected;
+		public List<Long> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.collected);
 		}
 
 		@Override
-		public void restoreState(Long state) {
-			collected = state;
+		public void restoreState(List<Long> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.collected = state.get(0);
 		}
 	}
 
@@ -189,7 +194,7 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 		}
 	}
 
-	private static class CheckpointedSink extends RichSinkFunction<Long> implements Checkpointed<Long> {
+	private static class CheckpointedSink extends RichSinkFunction<Long> implements ListCheckpointed<Long> {
 
 		private long stepSize;
 		private long congruence;
@@ -223,13 +228,16 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 		}
 
 		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return collected;
+		public List<Long> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.collected);
 		}
 
 		@Override
-		public void restoreState(Long state) {
-			collected = state;
+		public void restoreState(List<Long> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.collected = state.get(0);
 		}
 	}
 }

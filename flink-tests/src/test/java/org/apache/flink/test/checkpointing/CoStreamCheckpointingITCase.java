@@ -24,7 +24,7 @@ import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
@@ -38,6 +38,8 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
@@ -142,11 +144,11 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 	/**
 	 * A generating source that is slow before the first two checkpoints went through
 	 * and will indefinitely stall at a certain point to allow the checkpoint to complete.
-	 * 
+	 *
 	 * After the checkpoints are through, it continues with full speed.
 	 */
 	private static class StringGeneratingSourceFunction extends RichParallelSourceFunction<String>
-			implements Checkpointed<Integer>, CheckpointListener {
+			implements ListCheckpointed<Integer>, CheckpointListener {
 
 		private static volatile int numCompletedCheckpoints = 0;
 
@@ -210,13 +212,16 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
-			return index;
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.index);
 		}
 
 		@Override
-		public void restoreState(Integer state) {
-			index = state;
+		public void restoreState(List<Integer> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.index = state.get(0);
 		}
 
 		@Override
@@ -239,12 +244,11 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 	}
 
 	private static class StatefulCounterFunction extends RichMapFunction<PrefixCount, PrefixCount> 
-			implements Checkpointed<Long> {
+			implements ListCheckpointed<Long> {
 
 		static final long[] counts = new long[PARALLELISM];
 		
 		private long count;
-		
 
 		@Override
 		public PrefixCount map(PrefixCount value) throws Exception {
@@ -258,13 +262,16 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 		}
 
 		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
-			return count;
+		public List<Long> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.count);
 		}
 
 		@Override
-		public void restoreState(Long state) {
-			count = state;
+		public void restoreState(List<Long> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.count = state.get(0);
 		}
 	}
 
@@ -303,7 +310,7 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 		}
 	}
 
-	private static class StringRichFilterFunction extends RichFilterFunction<String> implements Checkpointed<Long> {
+	private static class StringRichFilterFunction extends RichFilterFunction<String> implements ListCheckpointed<Long> {
 
 		static final long[] counts = new long[PARALLELISM];
 
@@ -321,18 +328,21 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 		}
 
 		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return count;
+		public List<Long> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.count);
 		}
 
 		@Override
-		public void restoreState(Long state) {
-			count = state;
+		public void restoreState(List<Long> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.count = state.get(0);
 		}
 	}
 
-	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount> implements Checkpointed<Long> {
-
+	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount> implements ListCheckpointed<Long> {
+		
 		static final long[] counts = new long[PARALLELISM];
 
 		private long count;
@@ -344,13 +354,16 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 		}
 
 		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
-			return count;
+		public List<Long> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.count);
 		}
 
 		@Override
-		public void restoreState(Long state) {
-			count = state;
+		public void restoreState(List<Long> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.count = state.get(0);
 		}
 
 		@Override
@@ -359,7 +372,7 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 		}
 	}
 
-	private static class LeftIdentityCoRichFlatMapFunction extends RichCoFlatMapFunction<String, String, String> implements Checkpointed<Long> {
+	private static class LeftIdentityCoRichFlatMapFunction extends RichCoFlatMapFunction<String, String, String> implements ListCheckpointed<Long> {
 
 		static final long[] counts = new long[PARALLELISM];
 
@@ -378,13 +391,16 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 		}
 
 		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
-			return count;
+		public List<Long> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.count);
 		}
 
 		@Override
-		public void restoreState(Long state) {
-			count = state;
+		public void restoreState(List<Long> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.count = state.get(0);
 		}
 
 		@Override
