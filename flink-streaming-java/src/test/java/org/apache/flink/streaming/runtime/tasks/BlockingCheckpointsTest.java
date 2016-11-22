@@ -39,7 +39,7 @@ import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
-import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
+import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -157,9 +157,8 @@ public class BlockingCheckpointsTest {
 						"localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
 				new UnregisteredTaskMetricsGroup(),
 				mock(ResultPartitionConsumableNotifier.class),
-				mock(PartitionStateChecker.class),
+				mock(PartitionProducerStateChecker.class),
 				Executors.directExecutor());
-
 	}
 
 	// ------------------------------------------------------------------------

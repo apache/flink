@@ -50,8 +50,7 @@ import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.executiongraph._
 import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceID, InstanceManager}
-import org.apache.flink.runtime.io.network.PartitionState
-import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus}
+import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertexID}
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGraphListener
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway
@@ -78,7 +77,7 @@ import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
-import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
+import org.apache.flink.runtime.{FlinkActor, JobException, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.util.{ConfigurationUtil, InstantiationUtil, NetUtils}
 import org.jboss.netty.channel.ChannelException
 
@@ -935,26 +934,57 @@ class JobManager(
           )
       }
 
-    case RequestPartitionState(jobId, partitionId, taskExecutionId, taskResultId) =>
-      val state = currentJobs.get(jobId) match {
+    case RequestPartitionProducerState(jobId, intermediateDataSetId, resultPartitionId) =>
+      currentJobs.get(jobId) match {
         case Some((executionGraph, _)) =>
-          val execution = executionGraph.getRegisteredExecutions.get(partitionId.getProducerId)
+          try {
+            // Find the execution attempt producing the intermediate result partition.
+            val execution = executionGraph
+              .getRegisteredExecutions
+              .get(resultPartitionId.getProducerId)
 
-          if (execution != null) execution.getState else null
+            if (execution != null) {
+              // Common case for pipelined exchanges => producing execution is
+              // still active.
+              sender ! decorateMessage(execution.getState)
+            } else {
+              // The producing execution might have terminated and been
+              // unregistered. We now look for the producing execution via the
+              // intermediate result itself.
+              val intermediateResult = executionGraph
+                .getAllIntermediateResults.get(intermediateDataSetId)
+
+              if (intermediateResult != null) {
+                // Try to find the producing execution
+                val producerExecution = intermediateResult
+                  .getPartitionById(resultPartitionId.getPartitionId)
+                  .getProducer
+                  .getCurrentExecutionAttempt
+
+                if (producerExecution.getAttemptId() == resultPartitionId.getProducerId()) {
+                  sender ! decorateMessage(producerExecution.getState)
+                } else {
+                  val cause = new PartitionProducerDisposedException(resultPartitionId)
+                  sender ! decorateMessage(Status.Failure(cause))
+                }
+              } else {
+                val cause = new IllegalArgumentException(
+                  s"Intermediate data set with ID $intermediateDataSetId not found.")
+                sender ! decorateMessage(Status.Failure(cause))
+              }
+            }
+          } catch {
+            case e: Exception =>
+              sender ! decorateMessage(
+                Status.Failure(new RuntimeException("Failed to look up execution state of " +
+                  s"producer with ID ${resultPartitionId.getProducerId}.", e)))
+          }
+
         case None =>
-          // Nothing to do. This is not an error, because the request is received when a sending
-          // task fails or is not yet available during a remote partition request.
-          log.debug(s"Cannot find execution graph for job $jobId.")
+          sender ! decorateMessage(
+            Status.Failure(new IllegalArgumentException(s"Job with ID $jobId not found.")))
 
-          null
       }
-
-      sender ! decorateMessage(
-        new PartitionState(
-          taskResultId,
-          partitionId.getPartitionId,
-          state)
-      )
 
     case RequestJobStatus(jobID) =>
       currentJobs.get(jobID) match {
@@ -1059,7 +1089,7 @@ class JobManager(
       taskManagerMap.get(taskManagerActorRef) match {
         case Some(instanceId) => handleTaskManagerTerminated(taskManagerActorRef, instanceId)
         case None =>  log.debug("Received terminated message for task manager " +
-                                  s"${taskManagerActorRef} which is not " +
+                                  s"$taskManagerActorRef which is not " +
                                   "connected to this job manager.")
       }
 
@@ -2092,7 +2122,7 @@ object JobManager {
     def sleepBeforeRetry() : Unit = {
       if (maxSleepBetweenRetries > 0) {
         val sleepTime = (Math.random() * maxSleepBetweenRetries).asInstanceOf[Long]
-        LOG.info(s"Retrying after bind exception. Sleeping for ${sleepTime} ms.")
+        LOG.info(s"Retrying after bind exception. Sleeping for $sleepTime ms.")
         Thread.sleep(sleepTime)
       }
     }

@@ -108,9 +108,6 @@ public class SingleInputGate implements InputGate {
 	/** The job ID of the owning task. */
 	private final JobID jobId;
 
-	/** The execution attempt ID of the owning task. */
-	private final ExecutionAttemptID executionId;
-
 	/**
 	 * The ID of the consumed intermediate result. Each input gate consumes partitions of the
 	 * intermediate result specified by this ID. This ID also identifies the input gate at the
@@ -168,7 +165,6 @@ public class SingleInputGate implements InputGate {
 	public SingleInputGate(
 		String owningTaskName,
 		JobID jobId,
-		ExecutionAttemptID executionId,
 		IntermediateDataSetID consumedResultId,
 		int consumedSubpartitionIndex,
 		int numberOfInputChannels,
@@ -177,7 +173,6 @@ public class SingleInputGate implements InputGate {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		this.jobId = checkNotNull(jobId);
-		this.executionId = checkNotNull(executionId);
 
 		this.consumedResultId = checkNotNull(consumedResultId);
 
@@ -530,11 +525,7 @@ public class SingleInputGate implements InputGate {
 	}
 
 	void triggerPartitionStateCheck(ResultPartitionID partitionId) {
-		taskActions.triggerPartitionStateCheck(
-			jobId,
-			executionId,
-			consumedResultId,
-			partitionId);
+		taskActions.triggerPartitionProducerStateCheck(jobId, consumedResultId, partitionId);
 	}
 
 	private void queueChannel(InputChannel channel) {
@@ -587,7 +578,7 @@ public class SingleInputGate implements InputGate {
 		final InputChannelDeploymentDescriptor[] icdd = checkNotNull(igdd.getInputChannelDeploymentDescriptors());
 
 		final SingleInputGate inputGate = new SingleInputGate(
-			owningTaskName, jobId, executionId, consumedResultId, consumedSubpartitionIndex,
+			owningTaskName, jobId, consumedResultId, consumedSubpartitionIndex,
 			icdd.length, taskActions, metrics);
 
 		// Create the input channels. There is one input channel for each consumed partition.
