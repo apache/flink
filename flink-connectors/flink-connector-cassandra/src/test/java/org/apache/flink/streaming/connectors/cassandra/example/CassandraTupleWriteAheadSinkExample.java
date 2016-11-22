@@ -21,12 +21,14 @@ import com.datastax.driver.core.Cluster;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.cassandra.CassandraSink;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -62,7 +64,7 @@ public class CassandraTupleWriteAheadSinkExample {
 		env.execute();
 	}
 
-	public static class MySource implements SourceFunction<Tuple2<String, Integer>>, Checkpointed<Integer> {
+	public static class MySource implements SourceFunction<Tuple2<String, Integer>>, ListCheckpointed<Integer> {
 		private int counter = 0;
 		private boolean stop = false;
 
@@ -84,13 +86,15 @@ public class CassandraTupleWriteAheadSinkExample {
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return counter;
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.counter);
 		}
 
 		@Override
-		public void restoreState(Integer state) throws Exception {
-			this.counter = state;
+		public void restoreState(List<Integer> state) throws Exception {
+			if (!state.isEmpty()) {
+				this.counter = state.get(0);
+			}
 		}
 	}
 }

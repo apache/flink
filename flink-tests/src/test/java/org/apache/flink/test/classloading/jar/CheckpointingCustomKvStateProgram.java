@@ -34,7 +34,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
@@ -42,6 +42,8 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class CheckpointingCustomKvStateProgram {
@@ -84,7 +86,7 @@ public class CheckpointingCustomKvStateProgram {
 		env.execute();
 	}
 
-	private static class InfiniteIntegerSource implements ParallelSourceFunction<Integer>, Checkpointed<Integer> {
+	private static class InfiniteIntegerSource implements ParallelSourceFunction<Integer>, ListCheckpointed<Integer> {
 		private static final long serialVersionUID = -7517574288730066280L;
 		private volatile boolean running = true;
 
@@ -104,17 +106,18 @@ public class CheckpointingCustomKvStateProgram {
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return 0;
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(0);
 		}
 
 		@Override
-		public void restoreState(Integer state) throws Exception {
+		public void restoreState(List<Integer> state) throws Exception {
 
 		}
 	}
 
-	private static class ReducingStateFlatMap extends RichFlatMapFunction<Tuple2<Integer, Integer>, Integer> implements Checkpointed<ReducingStateFlatMap>, CheckpointListener {
+	private static class ReducingStateFlatMap extends RichFlatMapFunction<Tuple2<Integer, Integer>, Integer>
+			implements ListCheckpointed<ReducingStateFlatMap>, CheckpointListener {
 
 		private static final long serialVersionUID = -5939722892793950253L;
 		private transient ReducingState<Integer> kvState;
@@ -148,12 +151,12 @@ public class CheckpointingCustomKvStateProgram {
 		}
 
 		@Override
-		public ReducingStateFlatMap snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return this;
+		public List<ReducingStateFlatMap> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this);
 		}
 
 		@Override
-		public void restoreState(ReducingStateFlatMap state) throws Exception {
+		public void restoreState(List<ReducingStateFlatMap> state) throws Exception {
 			restored = true;
 			atLeastOneSnapshotComplete = true;
 		}

@@ -28,7 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
@@ -46,7 +46,9 @@ import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -310,7 +312,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private static class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
-			implements Checkpointed<Integer>, CheckpointListener
+			implements ListCheckpointed<Integer>, CheckpointListener
 	{
 		private static volatile boolean failedBefore = false;
 
@@ -373,13 +375,15 @@ public class WindowCheckpointingITCase extends TestLogger {
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
-			return numElementsEmitted;
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.numElementsEmitted);
 		}
 
 		@Override
-		public void restoreState(Integer state) {
-			numElementsEmitted = state;
+		public void restoreState(List<Integer> state) throws Exception {
+			if (!state.isEmpty()) {
+				this.numElementsEmitted = state.get(0);
+			}
 		}
 
 		public static void reset() {
@@ -388,7 +392,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 	}
 
 	private static class ValidatingSink extends RichSinkFunction<Tuple2<Long, IntType>>
-			implements Checkpointed<HashMap<Long, Integer>> {
+			implements ListCheckpointed<HashMap<Long, Integer>> {
 
 		private final HashMap<Long, Integer> counts = new HashMap<>();
 
@@ -439,18 +443,19 @@ public class WindowCheckpointingITCase extends TestLogger {
 		}
 
 		@Override
-		public HashMap<Long, Integer> snapshotState(long checkpointId, long checkpointTimestamp) {
-			return this.counts;
+		public List<HashMap<Long, Integer>> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.counts);
 		}
 
 		@Override
-		public void restoreState(HashMap<Long, Integer> state) {
-			this.counts.putAll(state);
+		public void restoreState(List<HashMap<Long, Integer>> state) throws Exception {
+			if (!state.isEmpty()) {
+				this.counts.putAll(state.get(0));
 
-			for (Integer i : state.values()) {
-				this.aggCount += i;
+				for (Integer i : state.get(0).values()) {
+					this.aggCount += i;
+				}
 			}
-
 		}
 	}
 
