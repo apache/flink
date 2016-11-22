@@ -408,7 +408,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
     val split = unionFilter.split(outputSelector)
     split.print()
-    val outputSelectors = env.getStreamGraph.getStreamNode(unionFilter.getId).getOutputSelectors
+    val outputSelectors = env.getStreamGraph.getStreamNode(split.getId).getOutputSelectors
     assert(1 == outputSelectors.size)
     assert(outputSelector == outputSelectors.get(0))
 
