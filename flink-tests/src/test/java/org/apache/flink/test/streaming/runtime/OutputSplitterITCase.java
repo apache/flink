@@ -184,7 +184,7 @@ public class OutputSplitterITCase extends StreamingMultipleProgramsTestBase {
 		consecutiveSplit.select("Odd").addSink(smallOddSink);
 		env.execute();
 
-		List<Long> expectSmallEvenResult = Arrays.asList(2L,4L);
+		List<Long> expectSmallEvenResult = Arrays.asList(0L,2L,4L);
 		assertEquals(expectSmallEvenResult, smallEvenSink.getSortedResult());
 
 		List<Long> expectSmallOddResult = Arrays.asList(1L,3L,5L);
