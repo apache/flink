@@ -21,19 +21,14 @@ package org.apache.flink.runtime.blob;
 import com.google.common.io.BaseEncoding;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.util.IOUtils;
 import org.slf4j.Logger;
 
 import java.io.EOFException;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.net.URI;
 import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -364,32 +359,6 @@ public class BlobUtils {
 	 */
 	static String getRecoveryPath(String basePath, JobID jobId) {
 		return String.format("%s/%s", basePath, JOB_DIR_PREFIX + jobId.toString());
-	}
-
-	/**
-	 * Copies the file from the recovery path to the local file.
-	 */
-	static void copyFromRecoveryPath(String recoveryPath, File localBlobFile) throws Exception {
-		if (recoveryPath == null) {
-			throw new IllegalStateException("Failed to determine recovery path.");
-		}
-
-		if (!localBlobFile.createNewFile()) {
-			throw new IllegalStateException("Failed to create new local file to copy to");
-		}
-
-		URI uri = new URI(recoveryPath);
-		Path path = new Path(recoveryPath);
-
-		if (FileSystem.get(uri).exists(path)) {
-			try (InputStream is = FileSystem.get(uri).open(path)) {
-				FileOutputStream fos = new FileOutputStream(localBlobFile);
-				IOUtils.copyBytes(is, fos); // closes the streams
-			}
-		}
-		else {
-			throw new IOException("Cannot find required BLOB at '" + recoveryPath + "' for recovery.");
-		}
 	}
 
 	/**
