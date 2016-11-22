@@ -22,6 +22,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.io.StrictlyLocalAssignment;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -38,7 +39,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.JobManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
@@ -154,8 +154,10 @@ public class ExecutionJobVertex implements Serializable {
 
 		Configuration jobConfiguration = graph.getJobConfiguration();
 		int maxPriorAttemptsHistoryLength = jobConfiguration != null ?
-				jobConfiguration.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE) :
-				JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue();
+				jobConfiguration.getInteger(
+					ConfigConstants.JOB_MANAGER_MAX_ATTEMPTS_HISTORY_SIZE,
+					ConfigConstants.DEFAULT_JOB_MANAGER_MAX_ATTEMPTS_HISTORY_SIZE)
+			: ConfigConstants.DEFAULT_JOB_MANAGER_MAX_ATTEMPTS_HISTORY_SIZE;
 
 		// create all task vertices
 		for (int i = 0; i < numTaskVertices; i++) {

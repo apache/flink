@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -36,7 +37,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.JobManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -105,12 +105,12 @@ public class ExecutionVertex implements Serializable {
 			IntermediateResult[] producedDataSets,
 			FiniteDuration timeout) {
 		this(
-				jobVertex,
-				subTaskIndex,
-				producedDataSets,
-				timeout,
-				System.currentTimeMillis(),
-				JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue());
+			jobVertex,
+			subTaskIndex,
+			producedDataSets,
+			timeout,
+			System.currentTimeMillis(),
+			ConfigConstants.DEFAULT_JOB_MANAGER_MAX_ATTEMPTS_HISTORY_SIZE);
 	}
 
 	public ExecutionVertex(
@@ -126,7 +126,7 @@ public class ExecutionVertex implements Serializable {
 			ExecutionJobVertex jobVertex,
 			int subTaskIndex,
 			IntermediateResult[] producedDataSets,
-			Time timeout,
+			FiniteDuration timeout,
 			long createTimestamp,
 			int maxPriorExecutionHistoryLength) {
 		this.jobVertex = jobVertex;
@@ -254,6 +254,8 @@ public class ExecutionVertex implements Serializable {
 		synchronized (priorExecutions) {
 			return new EvictingBoundedList<>(priorExecutions);
 		}
+	}
+
 	public ExecutionGraph getExecutionGraph() {
 		return this.jobVertex.getGraph();
 	}

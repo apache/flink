@@ -38,12 +38,6 @@ public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskA
 
 	@Override
 	public String handleRequest(Execution execAttempt, Map<String, String> params) throws Exception {
-
-		// return empty string for pruned (== null) execution attempts
-		if (null == execAttempt) {
-			return "";
-		}
-
 		final StringifiedAccumulatorResult[] accs = execAttempt.getUserAccumulatorsStringified();
 		
 		StringWriter writer = new StringWriter();

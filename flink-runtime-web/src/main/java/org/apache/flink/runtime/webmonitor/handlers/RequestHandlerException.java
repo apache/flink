@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,23 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.ConfigOption;
+/**
+ * Base class for request handler exceptions.
+ */
+public class RequestHandlerException extends Exception {
 
-import static org.apache.flink.configuration.ConfigOptions.key;
+	private static final long serialVersionUID = 7570352908725875886L;
 
-@PublicEvolving
-public class JobManagerOptions {
-
-	/**
-	 * The maximum number of prior execution attempts kept in history.
-	 */
-	public static final ConfigOption<Integer> MAX_ATTEMPTS_HISTORY_SIZE =
-			key("job-manager.max-attempts-history-size").defaultValue(16);
-
-	private JobManagerOptions() {
-		throw new IllegalAccessError();
+	public RequestHandlerException(String message) {
+		super(message);
 	}
 }

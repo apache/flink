@@ -122,6 +122,13 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_IPC_PORT_KEY = "jobmanager.rpc.port";
 
 	/**
+	 * The config parameter defining the number of prior execution attempt information being stored
+	 * on the job manager before the oldest execution attempt information is deleted.
+	 */
+	@PublicEvolving
+	public static final String JOB_MANAGER_MAX_ATTEMPTS_HISTORY_SIZE = "jobmanager.max-attempts-history-size";
+
+	/**
 	 * The config parameter defining the network port to connect to
 	 * for communication with the resource manager.
 	 */
@@ -775,6 +782,12 @@ public final class ConfigConstants {
 	 * The default network port to connect to for communication with the job manager.
 	 */
 	public static final int DEFAULT_JOB_MANAGER_IPC_PORT = 6123;
+
+	/**
+	 * The default number of prior execution attempt information being stored on
+	 * the job manager before the oldest information is deleted.
+	 */
+	public static final int DEFAULT_JOB_MANAGER_MAX_ATTEMPTS_HISTORY_SIZE = 16;
 
 	/**
 	 * The default network port of the resource manager.
