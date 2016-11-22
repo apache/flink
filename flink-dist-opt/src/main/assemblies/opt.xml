@@ -137,6 +137,9 @@ under the License.
 			<useTransitiveFiltering>true</useTransitiveFiltering>
 			<includes>
 				<include>org.apache.flink:flink-connector-kafka-0.10_2.10</include>
+				<!-- Flink's Kafka 0.10 connector depends on the 0.9 connector -->
+				<include>org.apache.flink:flink-connector-kafka-0.9_2.10</include>
+				<include>org.apache.flink:flink-connector-kafka-base_2.10</include>
 			</includes>
 		</dependencySet>
 
