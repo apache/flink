@@ -792,7 +792,7 @@ class CodeGenerator(
         requireNumeric(right)
         generateArithmeticOperator("-", nullCheck, resultType, left, right)
 
-      case MINUS if isTemporal(resultType) =>
+      case MINUS | MINUS_DATE if isTemporal(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireTemporal(left)
