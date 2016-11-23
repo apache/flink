@@ -39,12 +39,13 @@ import scala.collection.JavaConverters._
 class DataSetSingleRowCross(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    multiRowNode: RelNode,
-    singleRowNode: RelNode,
+    leftNode: RelNode,
+    rightNode: RelNode,
+    leftIsSingle: Boolean,
     rowRelDataType: RelDataType,
     joinRowType: RelDataType,
     ruleDescription: String)
-  extends BiRel(cluster, traitSet, multiRowNode, singleRowNode)
+  extends BiRel(cluster, traitSet, leftNode, rightNode)
   with DataSetRel {
 
   override def deriveRowType() = rowRelDataType
@@ -55,6 +56,7 @@ class DataSetSingleRowCross(
       traitSet,
       inputs.get(0),
       inputs.get(1),
+      leftIsSingle,
       getRowType,
       joinRowType,
       ruleDescription)
@@ -84,15 +86,23 @@ class DataSetSingleRowCross(
       tableEnv: BatchTableEnvironment,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
-    val multiRowDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
-    val singleRowDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
     val broadcastSetName = "joinSet"
     val mapSideJoin = generateMapFunction(
       tableEnv.getConfig,
-      multiRowDataSet.getType,
-      singleRowDataSet.getType,
+      leftDataSet.getType,
+      rightDataSet.getType,
+      leftIsSingle,
       broadcastSetName,
       expectedType)
+
+    val (multiRowDataSet, singleRowDataSet) =
+      if (leftIsSingle) {
+        (rightDataSet, leftDataSet)
+      } else {
+        (leftDataSet, rightDataSet)
+      }
 
     multiRowDataSet
       .map(mapSideJoin)
@@ -105,6 +115,7 @@ class DataSetSingleRowCross(
       config: TableConfig,
       inputType1: TypeInformation[Any],
       inputType2: TypeInformation[Any],
+      firstIsSingle: Boolean,
       broadcastInputSetName: String,
       expectedType: Option[TypeInformation[Any]]): MapFunction[Any, Any] = {
 
@@ -122,14 +133,15 @@ class DataSetSingleRowCross(
 
     val conversion = codeGenerator.generateConverterResultExpression(
       returnType,
-      joinRowType.getFieldNames)
+      joinRowType.getFieldNames,
+      firstIsSingle)
 
     val mapMethodBody = s"""
                   |${conversion.code}
                   |return ${conversion.resultTerm};
                   |""".stripMargin
 
-    val broadcastInput = codeGenerator.generateInstanceFieldForSecondInput()
+    val broadcastInput = codeGenerator.generateInputInstanceField()
     val openMethodBody = s"""
                   |${broadcastInput.fieldName} = (${broadcastInput.fieldType})
                   |  getRuntimeContext().getBroadcastVariable("$broadcastInputSetName").get(0);

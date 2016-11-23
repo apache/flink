@@ -212,7 +212,7 @@ class CodeGenerator(
       samMethodCode: String,
       returnType: TypeInformation[Any],
       openMethodCode: String): GeneratedFunction[T] = {
-    addOpenMethod(openMethodCode);
+    addOpenMethod(openMethodCode)
     generateFunction(name, clazz, samMethodCode, returnType)
   }
 
@@ -302,21 +302,30 @@ class CodeGenerator(
     *
     * @param returnType conversion target type. Inputs and output must have the same arity.
     * @param resultFieldNames result field names necessary for a mapping to POJO fields.
+    * @param switchInputs change order of storing inputs in global result variable. If true then the
+    *                     second input will be added first.
     * @return instance of GeneratedExpression
     */
   def generateConverterResultExpression(
       returnType: TypeInformation[_ <: Any],
-      resultFieldNames: Seq[String])
+      resultFieldNames: Seq[String],
+      switchInputs: Boolean = false)
     : GeneratedExpression = {
+    val (firstPlaceInputTerm, secondPlaceInputTerm) =
+      if (switchInputs) {
+        (input2Term, input1Term)
+      } else {
+        (input1Term, input2Term)
+      }
+
     val input1AccessExprs = for (i <- 0 until input1.getArity)
-      yield generateInputAccess(input1, input1Term, i)
+      yield generateInputAccess(input1, firstPlaceInputTerm, i)
 
     val input2AccessExprs = input2 match {
       case Some(ti) => for (i <- 0 until ti.getArity)
-        yield generateInputAccess(ti, input2Term, i)
+        yield generateInputAccess(ti, secondPlaceInputTerm, i)
       case None => Seq() // add nothing
     }
-
     generateResultExpression(input1AccessExprs ++ input2AccessExprs, returnType, resultFieldNames)
   }
 
@@ -1201,11 +1210,11 @@ class CodeGenerator(
 
   /**
     * Generates an instance field for the second input. It may be used for storing a broadcast set
-    * in single input [[org.apache.flink.api.common.functions.Function]]
+    * in single input [[org.apache.flink.api.common.functions.RichFunction]]
     *
     * @return instance of GeneratedField
     */
-  def generateInstanceFieldForSecondInput(): GeneratedField = {
+  def generateInputInstanceField(): GeneratedField = {
     val inputTypeTerm = boxedTypeTermForTypeInfo(input2.getOrElse(
         throw new CodeGenException("Input 2 should not be null to generate instance input field")))
     addInstanceInputField(input2Term, inputTypeTerm)
