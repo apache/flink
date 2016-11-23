@@ -112,7 +112,7 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 
 	@Override
 	public String toString() {
-		return "ContinuousProcessingTimeTrigger(" + interval + ")";
+		return "ContinuousEventTimeTrigger(" + interval + ")";
 	}
 
 	@VisibleForTesting
