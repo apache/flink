@@ -792,7 +792,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 				fail("should recognize wrong serializers");
 			} catch (RuntimeException e) {
-				if (!e.getMessage().contains("Trying to access state using wrong StateDescriptor")) {
+				if (!e.getMessage().contains("Trying to access state using wrong")) {
 					fail("wrong exception " + e);
 				}
 				// expected
@@ -843,7 +843,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 				fail("should recognize wrong serializers");
 			} catch (RuntimeException e) {
-				if (!e.getMessage().contains("Trying to access state using wrong StateDescriptor")) {
+				if (!e.getMessage().contains("Trying to access state using wrong")) {
 					fail("wrong exception " + e);
 				}
 				// expected
@@ -896,7 +896,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 				fail("should recognize wrong serializers");
 			} catch (RuntimeException e) {
-				if (!e.getMessage().contains("Trying to access state using wrong StateDescriptor")) {
+				if (!e.getMessage().contains("Trying to access state using wrong")) {
 					fail("wrong exception " + e);
 				}
 				// expected

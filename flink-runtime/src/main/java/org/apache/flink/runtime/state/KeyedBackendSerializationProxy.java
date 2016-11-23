@@ -29,17 +29,41 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ *
+ */
 public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable {
 
 	private static final long VERSION = 1L;
 
 	private TypeSerializer<?> keySerializer;
-	private List<MetaData> namedStateSerializationProxies;
+
+	private List<StateMetaInfo> namedStateSerializationProxies;
+
 	private ClassLoader userCodeClassLoader;
+
+	public KeyedBackendSerializationProxy(ClassLoader userCodeClassLoader) {
+		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
+	}
+
+	public KeyedBackendSerializationProxy(TypeSerializer<?> keySerializer, List<StateMetaInfo> namedStateSerializationProxies) {
+		this.keySerializer = Preconditions.checkNotNull(keySerializer);
+		this.namedStateSerializationProxies = Preconditions.checkNotNull(namedStateSerializationProxies);
+		Preconditions.checkArgument(namedStateSerializationProxies.size() <= Short.MAX_VALUE);
+	}
+
+	public List<StateMetaInfo> getNamedStateSerializationProxies() {
+		return namedStateSerializationProxies;
+	}
+
+	public TypeSerializer<?> getKeySerializer() {
+		return keySerializer;
+	}
 
 	@Override
 	public long getVersion() {
@@ -51,23 +75,62 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		return VERSION == version;
 	}
 
-	static class MetaData implements IOReadableWritable {
+	@Override
+	public void write(DataOutputView out) throws IOException {
+		super.write(out);
 
-		String name;
-		TypeSerializer<?> namespaceSerializer;
-		TypeSerializer<?> stateSerializer;
-		ClassLoader userClassLoader;
+		DataOutputViewStream dos = new DataOutputViewStream(out);
+		InstantiationUtil.serializeObject(dos, keySerializer);
 
-		public MetaData(ClassLoader userClassLoader) {
-			this.userClassLoader = userClassLoader;
+		out.writeShort(namedStateSerializationProxies.size());
+		Map<String, Integer> kVStateToId = new HashMap<>(namedStateSerializationProxies.size());
+
+		for (StateMetaInfo kvState : namedStateSerializationProxies) {
+			kvState.write(out);
+			kVStateToId.put(kvState.getName(), kVStateToId.size());
+		}
+	}
+
+	@Override
+	public void read(DataInputView inView) throws IOException {
+		super.read(inView);
+
+		DataInputViewStream dis = new DataInputViewStream(inView);
+
+		try {
+			keySerializer = InstantiationUtil.deserializeObject(dis, userCodeClassLoader);
+		} catch (ClassNotFoundException e) {
+			throw new IOException(e);
 		}
 
-		public MetaData(
+		int numKvStates = inView.readShort();
+		namedStateSerializationProxies = new ArrayList<>(numKvStates);
+		for (int i = 0; i < numKvStates; ++i) {
+			StateMetaInfo stateSerializationProxy = new StateMetaInfo(userCodeClassLoader);
+			stateSerializationProxy.read(inView);
+			namedStateSerializationProxies.add(stateSerializationProxy);
+		}
+	}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+	public static class StateMetaInfo implements IOReadableWritable {
+
+		private String name;
+		private TypeSerializer<?> namespaceSerializer;
+		private TypeSerializer<?> stateSerializer;
+		private ClassLoader userClassLoader;
+
+		public StateMetaInfo(ClassLoader userClassLoader) {
+			this.userClassLoader = Preconditions.checkNotNull(userClassLoader);
+		}
+
+		public StateMetaInfo(
 				String name, TypeSerializer<?> namespaceSerializer, TypeSerializer<?> stateSerializer) {
 
-			this.name = name;
-			this.namespaceSerializer = namespaceSerializer;
-			this.stateSerializer = stateSerializer;
+			this.name = Preconditions.checkNotNull(name);
+			this.namespaceSerializer = Preconditions.checkNotNull(namespaceSerializer);
+			this.stateSerializer = Preconditions.checkNotNull(stateSerializer);
 		}
 
 		public String getName() {
@@ -117,33 +180,4 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		}
 	}
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		Preconditions.checkArgument(namedStateSerializationProxies.size() < Short.MAX_VALUE);
-		super.write(out);
-
-		DataOutputViewStream dos = new DataOutputViewStream(out);
-		InstantiationUtil.serializeObject(dos, keySerializer);
-
-		out.writeShort(namedStateSerializationProxies.size());
-		Map<String, Integer> kVStateToId = new HashMap<>(namedStateSerializationProxies.size());
-
-		for (MetaData kvState : namedStateSerializationProxies) {
-			kvState.write(out);
-			kVStateToId.put(kvState.getName(), kVStateToId.size());
-		}
-	}
-
-	@Override
-	public void read(DataInputView inView) throws IOException {
-		super.read(inView);
-
-		int numKvStates = inView.readShort();
-
-		for (int i = 0; i < numKvStates; ++i) {
-			MetaData stateSerializationProxy = new MetaData(userCodeClassLoader);
-			stateSerializationProxy.read(inView);
-			namedStateSerializationProxies.add(stateSerializationProxy);
-		}
-	}
 }
