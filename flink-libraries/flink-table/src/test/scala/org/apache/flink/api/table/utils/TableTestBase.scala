@@ -56,6 +56,10 @@ abstract class TableTestUtil {
   def addTable[T: TypeInformation](name: String, fields: Expression*): Table
   def verifySql(query: String, expected: String): Unit
   def verifyTable(resultTable: Table, expected: String): Unit
+
+  // the print methods are for debugging purposes only
+  def printTable(resultTable: Table): Unit
+  def printSql(query: String): Unit
 }
 
 object TableTestUtil {
@@ -87,6 +91,7 @@ object TableTestUtil {
   def streamTableNode(idx: Int): String = {
     s"DataStreamScan(table=[[_DataStreamTable_$idx]])"
   }
+
 }
 
 case class BatchTableTestUtil() extends TableTestUtil {
@@ -120,6 +125,16 @@ case class BatchTableTestUtil() extends TableTestUtil {
     assertEquals(
       expected.split("\n").map(_.trim).mkString("\n"),
       actual.split("\n").map(_.trim).mkString("\n"))
+  }
+
+  def printTable(resultTable: Table): Unit = {
+    val relNode = resultTable.getRelNode
+    val optimized = tEnv.optimize(relNode)
+    println(RelOptUtil.toString(optimized))
+  }
+
+  def printSql(query: String): Unit = {
+    printTable(tEnv.sql(query))
   }
 }
 
@@ -155,5 +170,16 @@ case class StreamTableTestUtil() extends TableTestUtil {
     assertEquals(
       expected.split("\n").map(_.trim).mkString("\n"),
       actual.split("\n").map(_.trim).mkString("\n"))
+  }
+
+  // the print methods are for debugging purposes only
+  def printTable(resultTable: Table): Unit = {
+    val relNode = resultTable.getRelNode
+    val optimized = tEnv.optimize(relNode)
+    println(RelOptUtil.toString(optimized))
+  }
+
+  def printSql(query: String): Unit = {
+    printTable(tEnv.sql(query))
   }
 }
