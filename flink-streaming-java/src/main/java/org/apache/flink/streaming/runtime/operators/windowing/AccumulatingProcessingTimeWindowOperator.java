@@ -23,22 +23,22 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.ArrayListSerializer;
-import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 
 import java.util.ArrayList;
 
 @Internal
 @Deprecated
 public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
-		extends AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, ArrayList<IN>, WindowFunction<IN, OUT, KEY, TimeWindow>> {
+		extends AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, ArrayList<IN>, InternalWindowFunction<Iterable<IN>, OUT, KEY, TimeWindow>> {
 
 	private static final long serialVersionUID = 7305948082830843475L;
 
-
+	
 	public AccumulatingProcessingTimeWindowOperator(
-			WindowFunction<IN, OUT, KEY, TimeWindow> function,
+			InternalWindowFunction<Iterable<IN>, OUT, KEY, TimeWindow> function,
 			KeySelector<IN, KEY> keySelector,
 			TypeSerializer<KEY> keySerializer,
 			TypeSerializer<IN> valueSerializer,
@@ -46,14 +46,14 @@ public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
 			long windowSlide)
 	{
 		super(function, keySelector, keySerializer,
-				new ArrayListSerializer<IN>(valueSerializer), windowLength, windowSlide);
+				new ArrayListSerializer<>(valueSerializer), windowLength, windowSlide);
 	}
 
 	@Override
 	protected AccumulatingKeyedTimePanes<IN, KEY, OUT> createPanes(KeySelector<IN, KEY> keySelector, Function function) {
 		@SuppressWarnings("unchecked")
-		WindowFunction<IN, OUT, KEY, Window> windowFunction = (WindowFunction<IN, OUT, KEY, Window>) function;
-
+		InternalWindowFunction<Iterable<IN>, OUT, KEY, Window> windowFunction = (InternalWindowFunction<Iterable<IN>, OUT, KEY, Window>) function;
+		
 		return new AccumulatingKeyedTimePanes<>(keySelector, windowFunction);
 	}
 }
