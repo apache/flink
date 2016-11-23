@@ -44,8 +44,8 @@ class DataSetSingleRowCrossRule
   }
 
   private def isCrossJoin(join: LogicalJoin) = {
-    val joinCondition = join.analyzeCondition.pairs()
-    joinCondition.isEmpty
+    val joinCondition = join.analyzeCondition
+    joinCondition.isEqui && joinCondition.pairs().isEmpty
   }
 
   private def isGlobalAggregation(node: RelNode) = {
@@ -54,32 +54,27 @@ class DataSetSingleRowCrossRule
   }
 
   private def isSingleLine(agg: LogicalAggregate) = {
+    agg.getGroupSets.size() == 1 &&
+    agg.getGroupSets.get(0).isEmpty &&
     agg.getGroupSet.isEmpty
   }
 
   override def convert(rel: RelNode): RelNode = {
     val join = rel.asInstanceOf[LogicalJoin]
     val traitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-    val (singleRowNode, multiRowNode) = placeSingleRowNodeFirst(join.getLeft, join.getRight)
-    val dataSetSingleNode = RelOptRule.convert(singleRowNode, DataSetConvention.INSTANCE)
-    val dataSetMultiNode = RelOptRule.convert(multiRowNode, DataSetConvention.INSTANCE)
+    val dataSetLeftNode = RelOptRule.convert(join.getLeft, DataSetConvention.INSTANCE)
+    val dataSetRightNode = RelOptRule.convert(join.getRight, DataSetConvention.INSTANCE)
+    val leftIsSingle = isGlobalAggregation(join.getLeft.asInstanceOf[RelSubset].getOriginal)
 
     new DataSetSingleRowCross(
       rel.getCluster,
       traitSet,
-      dataSetMultiNode,
-      dataSetSingleNode,
+      dataSetLeftNode,
+      dataSetRightNode,
+      leftIsSingle,
       rel.getRowType,
       join.getRowType,
       description)
-  }
-
-  private def placeSingleRowNodeFirst(firstNode: RelNode, secondNode: RelNode) = {
-    if (isGlobalAggregation(firstNode.asInstanceOf[RelSubset].getOriginal)) {
-      (firstNode, secondNode)
-    } else {
-      (secondNode, firstNode)
-    }
   }
 }
 
