@@ -130,7 +130,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 			@SuppressWarnings("unchecked")
 			ListCheckpointed<Serializable> listCheckpointedFun = (ListCheckpointed<Serializable>) userFunction;
 
-			ListState<Serializable> listState = context.getManagedOperatorStateStore().
+			ListState<Serializable> listState = context.getOperatorStateStore().
 					getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
 
 			List<Serializable> list = new ArrayList<>();

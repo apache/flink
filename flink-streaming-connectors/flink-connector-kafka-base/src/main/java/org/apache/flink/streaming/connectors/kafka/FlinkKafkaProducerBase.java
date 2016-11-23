@@ -343,7 +343,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
-		this.stateStore = context.getManagedOperatorStateStore();
+		this.stateStore = context.getOperatorStateStore();
 	}
 
 	@Override

@@ -350,7 +350,7 @@ public class BucketingSink<T>
 			this.refTruncate = reflectTruncate(fs);
 		}
 
-		OperatorStateStore stateStore = context.getManagedOperatorStateStore();
+		OperatorStateStore stateStore = context.getOperatorStateStore();
 		restoredBucketStates = stateStore.getSerializableListState("bucket-states");
 
 		int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();

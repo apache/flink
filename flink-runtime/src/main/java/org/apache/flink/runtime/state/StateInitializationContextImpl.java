@@ -122,12 +122,12 @@ public class StateInitializationContextImpl implements StateInitializationContex
 	}
 
 	@Override
-	public OperatorStateStore getManagedOperatorStateStore() {
+	public OperatorStateStore getOperatorStateStore() {
 		return operatorStateStore;
 	}
 
 	@Override
-	public KeyedStateStore getManagedKeyedStateStore() {
+	public KeyedStateStore getKeyedStateStore() {
 		return keyedStateStore;
 	}
 
