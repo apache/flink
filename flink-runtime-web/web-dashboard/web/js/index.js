@@ -1569,24 +1569,22 @@ angular.module('flinkApp').service('MetricsService', ["$http", "$q", "flinkConfi
   };
   this.refresh = $interval((function(_this) {
     return function() {
-      return angular.forEach(_this.watched, function(v, jobid) {
-        return angular.forEach(v, function(nodeid, nk) {
-          return _this.getAllAvailableMetrics(jobid, nodeid).then(function(data) {
-            var names;
-            names = [];
-            angular.forEach(data, function(metric, mk) {
-              return names.push(metric.id);
-            });
-            if (names.length > 0) {
-              return _this.getMetrics(jobid, nodeid, names).then(function(values) {
-                if (jobid === _this.observer.jobid && nodeid === _this.observer.nodeid) {
-                  if (_this.observer.callback) {
-                    return _this.observer.callback(values);
-                  }
-                }
-              });
-            }
+      return angular.forEach(_this.metrics, function(vertices, jobid) {
+        return angular.forEach(vertices, function(metrics, nodeid) {
+          var names;
+          names = [];
+          angular.forEach(metrics, function(metric, index) {
+            return names.push(metric.id);
           });
+          if (names.length > 0) {
+            return _this.getMetrics(jobid, nodeid, names).then(function(values) {
+              if (jobid === _this.observer.jobid && nodeid === _this.observer.nodeid) {
+                if (_this.observer.callback) {
+                  return _this.observer.callback(values);
+                }
+              }
+            });
+          }
         });
       });
     };
