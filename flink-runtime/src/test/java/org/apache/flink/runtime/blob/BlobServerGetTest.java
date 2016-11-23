@@ -32,7 +32,7 @@ import static org.junit.Assert.*;
 
 /**
  * Tests how failing GET requests behave in the presence of failures.
- * Successful GET requests are tested in conjunction wit the PUT
+ * Successful GET requests are tested in conjunction with the PUT
  * requests.
  */
 public class BlobServerGetTest {
@@ -59,8 +59,7 @@ public class BlobServerGetTest {
 			assertNotNull(key);
 
 			// delete all files to make sure that GET requests fail
-			File blobFile = server.getStorageLocation(key);
-			assertTrue(blobFile.delete());
+			assertTrue(server.getBlobStore().delete(key));
 
 			// issue a GET request that fails
 			try {

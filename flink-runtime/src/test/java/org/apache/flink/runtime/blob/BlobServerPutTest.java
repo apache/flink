@@ -20,6 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Test;
 
@@ -222,7 +223,8 @@ public class BlobServerPutTest {
 			server = new BlobServer(config);
 
 			// make sure the blob server cannot create any files in its storage dir
-			tempFileDir = server.createTemporaryFilename().getParentFile().getParentFile();
+			// assume a local file system here:
+			tempFileDir = new File(new Path(server.getBlobStore().getBasePath()).getPath());
 			assertTrue(tempFileDir.setExecutable(true, false));
 			assertTrue(tempFileDir.setReadable(true, false));
 			assertTrue(tempFileDir.setWritable(false, false));
@@ -286,7 +288,8 @@ public class BlobServerPutTest {
 			server = new BlobServer(config);
 
 			// make sure the blob server cannot create any files in its storage dir
-			tempFileDir = server.createTemporaryFilename().getParentFile().getParentFile();
+			// assume a local file system here:
+			tempFileDir = new File(new Path(server.getBlobStore().getBasePath()).getPath());
 			assertTrue(tempFileDir.setExecutable(true, false));
 			assertTrue(tempFileDir.setReadable(true, false));
 			assertTrue(tempFileDir.setWritable(false, false));

@@ -128,6 +128,7 @@ public final class BlobCache implements BlobService {
 					try {
 						bc = new BlobClient(serverAddress, blobClientConfig);
 						is = bc.get(requiredBlob);
+						// TODO: write to temp file instead and only move upon completion?!
 						os = new FileOutputStream(localJarFile);
 
 						while (true) {
