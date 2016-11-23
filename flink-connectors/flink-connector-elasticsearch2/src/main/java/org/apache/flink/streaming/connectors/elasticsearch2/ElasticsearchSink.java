@@ -17,10 +17,14 @@
 package org.apache.flink.streaming.connectors.elasticsearch2;
 
 import com.google.common.collect.ImmutableList;
+
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.util.Preconditions;
+import org.elasticsearch.ElasticsearchTimeoutException;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -28,6 +32,7 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
@@ -186,22 +191,44 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 
 			@Override
 			public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
+				boolean allRequestsRepeatable = true;
 				if (response.hasFailures()) {
 					for (BulkItemResponse itemResp : response.getItems()) {
 						if (itemResp.isFailed()) {
-							LOG.error("Failed to index document in Elasticsearch: " + itemResp.getFailureMessage());
-							failureThrowable.compareAndSet(null, new RuntimeException(itemResp.getFailureMessage()));
+							// Check if index request can be retried
+							String failureMessageLowercase = itemResp.getFailureMessage().toLowerCase();
+							if (failureMessageLowercase.contains("timeout") || failureMessageLowercase.contains("timed out") // Generic timeout errors
+									|| failureMessageLowercase.contains("UnavailableShardsException".toLowerCase()) // Shard not available due to rebalancing or node down
+									|| (failureMessageLowercase.contains("data/write/bulk") && failureMessageLowercase.contains("bulk")) // Bulk index queue on node full 
+								) {
+								LOG.debug("Retry batch: " + itemResp.getFailureMessage());
+								reAddBulkRequest(request);
+							} else { // Cannot retry action
+								allRequestsRepeatable = false;
+								LOG.error("Failed to index document in Elasticsearch: " + itemResp.getFailureMessage());
+								failureThrowable.compareAndSet(null, new RuntimeException(itemResp.getFailureMessage()));	
+							}
 						}
 					}
-					hasFailure.set(true);
+					if (!allRequestsRepeatable) {
+						hasFailure.set(true);
+					}
 				}
 			}
 
 			@Override
 			public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
-				LOG.error(failure.getMessage());
-				failureThrowable.compareAndSet(null, failure);
-				hasFailure.set(true);
+				if (failure instanceof ClusterBlockException // Examples: "no master"
+						|| failure instanceof ElasticsearchTimeoutException // ElasticsearchTimeoutException sounded good, not seen in stress tests yet
+						) 
+				{
+					LOG.debug("Retry batch on throwable: " + failure.getMessage());
+					reAddBulkRequest(request);
+				} else { 
+					LOG.error("Failed to index bulk in Elasticsearch. " + failure.getMessage());
+					failureThrowable.compareAndSet(null, failure);
+					hasFailure.set(true);
+				}
 			}
 		});
 
@@ -225,6 +252,21 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 
 		bulkProcessor = bulkProcessorBuilder.build();
 		requestIndexer = new BulkProcessorIndexer(bulkProcessor);
+	}
+
+	/**
+	 * Adds all requests of the bulk to the BulkProcessor. Used when trying again.
+	 * @param bulkRequest
+	 */
+	public void reAddBulkRequest(BulkRequest bulkRequest) {
+		//TODO Check what happens when bulk contains a DeleteAction and IndexActions and the DeleteAction fails because the document already has been deleted. This may not happen in typical Flink jobs.
+
+		for (IndicesRequest req : bulkRequest.subRequests()) {
+			if (req instanceof ActionRequest) {
+				// There is no waiting time between index requests, so this may produce additional pressure on cluster
+				bulkProcessor.add((ActionRequest<?>) req);
+			}
+		}
 	}
 
 	@Override
