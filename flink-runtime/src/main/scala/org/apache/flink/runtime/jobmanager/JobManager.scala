@@ -181,7 +181,7 @@ class JobManager(
 
   val taskManagerMap = mutable.Map[ActorRef, InstanceID]()
 
-  private val executionContext = ExecutionContext.fromExecutorService(executorService)
+  private val executionContext = ExecutionContext.fromExecutor(futureExecutor)
 
   /**
    * Run when the job manager is started. Simply logs an informational message.
