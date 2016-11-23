@@ -46,7 +46,32 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 	}
 
 	public boolean isCompatibleWith(RegisteredBackendStateMetaInfo<?, ?> other) {
-		return equals(other); //TODO implement compatibility check in serializers and use it here instead
+
+		if (this == other) {
+			return true;
+		}
+
+		if (null == other) {
+			return false;
+		}
+
+		if (!name.equals(other.getName())) {
+			return false;
+		}
+
+		if (namespaceSerializer != other.namespaceSerializer) {
+			if(namespaceSerializer == null || !namespaceSerializer.isCompatibleWith(other.namespaceSerializer)) {
+				return false;
+			}
+		}
+
+		if (stateSerializer != other.stateSerializer) {
+			if(stateSerializer == null || !stateSerializer.isCompatibleWith(other.stateSerializer)) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	@Override

@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import java.io.IOException;
-import java.io.Serializable;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
+import java.io.Serializable;
 
 /**
  * This interface describes the methods that are required for a data type to be handled by the pact
@@ -160,4 +160,17 @@ public abstract class TypeSerializer<T> implements Serializable {
 	public abstract boolean canEqual(Object obj);
 
 	public abstract int hashCode();
+
+	/**
+	 * Checks if this is compatible with the given {@link TypeSerializer}. This returns true, in case this can read
+	 * all serialized objects written trough the given serializer. This relationship is between two
+	 * {@link TypeSerializer} is not  required to be commutative or transitive.
+	 *
+	 * @param other the type serializer to check for compatibility
+	 * @return true iff this can read serialized objects written through the passed argument
+	 */
+	public boolean isCompatibleWith(TypeSerializer<?> other) {
+		// base implementation assumes compatibility only on equal serializers
+		return equals(other);
+	}
 }
