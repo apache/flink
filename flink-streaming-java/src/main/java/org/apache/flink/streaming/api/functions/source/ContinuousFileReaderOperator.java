@@ -92,7 +92,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 		checkState(this.checkpointedState == null && this.restoredReaderState == null,
 			"The reader state has already been initialized.");
 
-		checkpointedState = context.getManagedOperatorStateStore().getSerializableListState("splits");
+		checkpointedState = context.getOperatorStateStore().getSerializableListState("splits");
 
 		int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
 		if (context.isRestored()) {
