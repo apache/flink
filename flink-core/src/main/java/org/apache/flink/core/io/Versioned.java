@@ -20,7 +20,5 @@ package org.apache.flink.core.io;
 
 public interface Versioned {
 
-	long getVersion();
-
-	boolean isCompatibleVersion(long version);
+	int getVersion();
 }

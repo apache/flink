@@ -39,7 +39,7 @@ import java.util.Map;
  */
 public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable {
 
-	private static final long VERSION = 1L;
+	private static final int VERSION = 1;
 
 	private TypeSerializer<?> keySerializer;
 
@@ -65,15 +65,15 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		return keySerializer;
 	}
 
-	@Override
-	public long getVersion() {
-		return VERSION;
+	public boolean isCompatibleVersion(int version) {
+		return VERSION == version;
 	}
 
 	@Override
-	public boolean isCompatibleVersion(long version) {
-		return VERSION == version;
+	public int getVersion() {
+		return VERSION;
 	}
+
 
 	@Override
 	public void write(DataOutputView out) throws IOException {

@@ -18,29 +18,14 @@
 
 package org.apache.flink.core.io;
 
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
+public interface Compatible<T> {
 
-import java.io.IOException;
-
-public abstract class VersionedIOReadableWritable implements IOReadableWritable, Versioned {
-
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeInt(getVersion());
-	}
-
-	@Override
-	public void read(DataInputView in) throws IOException {
-		checkFoundVersion(in.readInt());
-	}
-
-	protected void checkFoundVersion(int foundVersion) throws IOException {
-		if (!isCompatibleVersion(foundVersion)) {
-			long expectedVersion = getVersion();
-			throw new IOException("Incompatible version: found " + foundVersion + ", required " + expectedVersion);
-		}
-	}
-
-	public abstract boolean isCompatibleVersion(int version);
+	/**
+	 * Checks if this is compatible with the given argument. This relationship is between two objects is (in general)
+	 * not commutative or transitive.
+	 *
+	 * @param other the object to check for compatibility with
+	 * @return true iff this is compatible with the passed argument
+	 */
+	boolean isCompatibleWith(T other);
 }

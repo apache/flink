@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.core.io.Compatible;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -36,7 +37,7 @@ import java.io.Serializable;
  * @param <T> The data type that the serializer serializes.
  */
 @PublicEvolving
-public abstract class TypeSerializer<T> implements Serializable {
+public abstract class TypeSerializer<T> implements Serializable, Compatible<TypeSerializer<?>> {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -169,6 +170,7 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * @param other the type serializer to check for compatibility
 	 * @return true iff this can read serialized objects written through the passed argument
 	 */
+	@Override
 	public boolean isCompatibleWith(TypeSerializer<?> other) {
 		// base implementation assumes compatibility only on equal serializers
 		return equals(other);
