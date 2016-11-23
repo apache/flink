@@ -184,8 +184,13 @@ public class LocalFileSystem extends FileSystem {
 		final File file = pathToFile(f);
 		if (file.isFile()) {
 			return file.delete();
-		} else if ((!recursive) && file.isDirectory() && (file.listFiles().length != 0)) {
-			throw new IOException("Directory " + file.toString() + " is not empty");
+		} else if ((!recursive) && file.isDirectory()) {
+			File[] containedFiles = file.listFiles();
+			if (containedFiles == null) {
+				throw new IOException("Directory " + file.toString() + " does not exist or an I/O error occurred");
+			} else if (containedFiles.length != 0) {
+				throw new IOException("Directory " + file.toString() + " is not empty");
+			}
 		}
 
 		return delete(file);
