@@ -2800,6 +2800,18 @@ value NOT IN (value [, value]* )
         <p>Whether <i>value</i> is not equal to every value in a list.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+EXISTS (sub-query)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Whether <i>sub-query</i> returns at least one row. Only supported if the operation can be rewritten in a join and group operation.</p>
+      </td>
+    </tr>
+
 <!-- NOT SUPPORTED SO FAR
     <tr>
       <td>
@@ -2822,17 +2834,7 @@ value NOT IN (sub-query)
         <p>Whether <i>value</i> is not equal to every row returned by sub-query.</p>
       </td>
     </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-EXISTS (sub-query)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Whether sub-query returns at least one row.</p>
-      </td>
-    </tr>-->
+    -->
 
   </tbody>
 </table>
