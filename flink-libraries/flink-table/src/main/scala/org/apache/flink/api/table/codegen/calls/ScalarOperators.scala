@@ -662,49 +662,29 @@ object ScalarOperators {
       case (l: TimeIntervalTypeInfo[_], r: TimeIntervalTypeInfo[_]) if l == r =>
         generateArithmeticOperator(op, nullCheck, l, left, right)
 
-      case (SqlTimeTypeInfo.DATE, TimeIntervalTypeInfo.INTERVAL_MILLIS) |
-           (TimeIntervalTypeInfo.INTERVAL_MILLIS, SqlTimeTypeInfo.DATE) =>
+      case (SqlTimeTypeInfo.DATE, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
-          if (isTimePoint(left.resultType)) {
-            (leftTerm, rightTerm) =>
-              s"$leftTerm $op ((int) ($rightTerm / ${MILLIS_PER_DAY}L))"
-          } else {
-            (leftTerm, rightTerm) =>
-              s"((int) ($leftTerm / ${MILLIS_PER_DAY}L)) $op $rightTerm"
-          }
+            (l, r) => s"$l $op ((int) ($r / ${MILLIS_PER_DAY}L))"
         }
 
-      case (SqlTimeTypeInfo.DATE, TimeIntervalTypeInfo.INTERVAL_MONTHS) |
-           (TimeIntervalTypeInfo.INTERVAL_MONTHS, SqlTimeTypeInfo.DATE) =>
+      case (SqlTimeTypeInfo.DATE, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
-          if (isTimePoint(left.resultType)) {
-            (leftTerm, rightTerm) =>
-              s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($leftTerm, $op($rightTerm))"
-          } else {
-            (leftTerm, rightTerm) =>
-              s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($rightTerm, $op($leftTerm))"
-          }
+            (l, r) => s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($l, $op($r))"
         }
 
-      case (SqlTimeTypeInfo.TIME, TimeIntervalTypeInfo.INTERVAL_MILLIS) |
-           (TimeIntervalTypeInfo.INTERVAL_MILLIS, SqlTimeTypeInfo.TIME) =>
+      case (SqlTimeTypeInfo.TIME, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIME, left, right) {
-          if (isTimePoint(left.resultType)) {
-            (leftTerm, rightTerm) => s"$leftTerm $op ((int) ($rightTerm))"
-          } else {
-            (leftTerm, rightTerm) => s"((int) ($leftTerm)) $op $rightTerm"
-          }
+            (l, r) => s"$l $op ((int) ($r))"
         }
 
       case (SqlTimeTypeInfo.TIMESTAMP, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
-          (leftTerm, rightTerm) => s"$leftTerm $op $rightTerm"
+          (l, r) => s"$l $op $r"
         }
 
       case (SqlTimeTypeInfo.TIMESTAMP, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
-          (leftTerm, rightTerm) =>
-            s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($leftTerm, $op($rightTerm))"
+          (l, r) => s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($l, $op($r))"
         }
 
       case _ =>
