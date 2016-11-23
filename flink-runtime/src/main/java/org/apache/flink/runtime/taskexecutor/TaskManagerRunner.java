@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -149,6 +150,11 @@ public class TaskManagerRunner implements FatalErrorHandler {
 				LOG.error("Could not properly shut down the task manager.", e);
 			}
 		}
+	}
+
+	// export the termination future for caller to know it is terminated
+	public Future<Void> getTerminationFuture() {
+		return taskManager.getTerminationFuture();
 	}
 
 	// --------------------------------------------------------------------------------------------
