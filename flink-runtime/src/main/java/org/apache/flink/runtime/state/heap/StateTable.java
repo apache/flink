@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.BackendStateMetaInfo;
 import org.apache.flink.runtime.state.KeyGroupRange;
 
 import java.util.Arrays;
@@ -25,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 
 public class StateTable<K, N, ST> {
+
+	protected BackendStateMetaInfo<N, ST> metaInfo;
 
 	/** Serializer for the state value. The state value could be a List<V>, for example. */
 	protected final TypeSerializer<ST> stateSerializer;
