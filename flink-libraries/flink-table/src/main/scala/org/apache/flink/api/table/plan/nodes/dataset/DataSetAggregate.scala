@@ -92,15 +92,8 @@ class DataSetAggregate(
 
     val groupingKeys = grouping.indices.toArray
 
-    val (aggFieldIndexes, aggregates) =
-      AggregateUtil.transformToAggregateFunctions(
-        namedAggregates.map(_.getKey),
-        inputType,
-        grouping.length)
-
     val mapFunction = AggregateUtil.createPrepareMapFunction(
-      aggregates,
-      aggFieldIndexes,
+      namedAggregates,
       grouping,
       inputType)
 
@@ -108,8 +101,7 @@ class DataSetAggregate(
       namedAggregates,
       inputType,
       rowRelDataType,
-      grouping,
-      aggregates)
+      grouping)
 
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(
       tableEnv,

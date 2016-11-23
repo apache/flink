@@ -64,11 +64,14 @@ object AggregateUtil {
     *
     */
   private[flink] def createPrepareMapFunction(
-    aggregates: Array[Aggregate[_ <: Any]],
-    aggFieldIndexes: Array[Int],
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     groupings: Array[Int],
-    inputType:
-    RelDataType): MapFunction[Any, Row] = {
+    inputType: RelDataType): MapFunction[Any, Row] = {
+
+    val (aggFieldIndexes,aggregates) = transformToAggregateFunctions(
+      namedAggregates.map(_.getKey),
+      inputType,
+      groupings.length)
 
     val mapReturnType: RowTypeInfo =
       createAggregateBufferDataType(groupings, aggregates, inputType)
@@ -84,19 +87,23 @@ object AggregateUtil {
 
   /**
     * Create AggregateGroupReduceFunction for aggregates. It implement
-    * [[org.apache.flink.api.common.functions.GroupReduceFunction]](if it's partial aggregate,
+    * [[org.apache.flink.api.common.functions.GroupReduceFunction]] (if it's partial aggregate,
     * should also implement [[org.apache.flink.api.common.functions.CombineFunction]] as well).
     *
     */
-  def createAggregateGroupReduceFunction(
+  private[flink] def createAggregateGroupReduceFunction(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
     outputType: RelDataType,
-    groupings: Array[Int],
-    aggregates: Array[Aggregate[_ <: Any]]): RichGroupReduceFunction[Row, Row] = {
+    groupings: Array[Int]): RichGroupReduceFunction[Row, Row] = {
+
+    val aggregates = transformToAggregateFunctions(
+      namedAggregates.map(_.getKey),
+      inputType,
+      groupings.length)._2
 
     val (groupingOffsetMapping, aggOffsetMapping) =
-      getGroupingOffsetAndaggOffsetMapping(
+      getGroupingOffsetAndAggOffsetMapping(
         namedAggregates,
         inputType,
         outputType,
@@ -133,17 +140,21 @@ object AggregateUtil {
     *
     */
   private[flink] def createIncrementalAggregateReduceFunction(
-    aggregates: Array[Aggregate[_ <: Any]],
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
     outputType: RelDataType,
     groupings: Array[Int]): IncrementalAggregateReduceFunction = {
+
+    val aggregates = transformToAggregateFunctions(
+      namedAggregates.map(_.getKey),inputType,groupings.length)._2
+
     val groupingOffsetMapping =
-      getGroupingOffsetAndaggOffsetMapping(
+      getGroupingOffsetAndAggOffsetMapping(
         namedAggregates,
         inputType,
         outputType,
         groupings)._1
+
     val intermediateRowArity = groupings.length + aggregates.map(_.intermediateDataType.length).sum
     val reduceFunction = new IncrementalAggregateReduceFunction(
       aggregates,
@@ -152,40 +163,21 @@ object AggregateUtil {
     reduceFunction
   }
 
-  /**
-    * @return groupingOffsetMapping (mapping relation between field index of intermediate
-    *         aggregate Row and output Row.)
-    *         and aggOffsetMapping (the mapping relation between aggregate function index in list
-    *         and its corresponding field index in output Row.)
-    */
-  def getGroupingOffsetAndaggOffsetMapping(
+  private[flink] def createAllWindowAggregationFunction(
+    window: LogicalWindow,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
     outputType: RelDataType,
-    groupings: Array[Int]): (Array[(Int, Int)], Array[(Int, Int)]) = {
-
-    // the mapping relation between field index of intermediate aggregate Row and output Row.
-    val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
-
-    // the mapping relation between aggregate function index in list and its corresponding
-    // field index in output Row.
-    val aggOffsetMapping = getAggregateMapping(namedAggregates, outputType)
-
-    if (groupingOffsetMapping.length != groupings.length ||
-      aggOffsetMapping.length != namedAggregates.length) {
-      throw new TableException(
-        "Could not find output field in input data type " +
-          "or aggregate functions.")
-    }
-    (groupingOffsetMapping, aggOffsetMapping)
-  }
-
-
-  private[flink] def createAllWindowAggregationFunction(
-    window: LogicalWindow,
-    properties: Seq[NamedWindowProperty],
-    aggFunction: RichGroupReduceFunction[Row, Row])
+    groupings: Array[Int],
+    properties: Seq[NamedWindowProperty])
   : AllWindowFunction[Row, Row, DataStreamWindow] = {
+
+    val aggFunction =
+      createAggregateGroupReduceFunction(
+        namedAggregates,
+        inputType,
+        outputType,
+        groupings)
 
     if (isTimeWindow(window)) {
       val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
@@ -194,15 +186,23 @@ object AggregateUtil {
     } else {
       new AggregateAllWindowFunction(aggFunction)
     }
-
   }
-
 
   private[flink] def createWindowAggregationFunction(
     window: LogicalWindow,
-    properties: Seq[NamedWindowProperty],
-    aggFunction: RichGroupReduceFunction[Row, Row])
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    outputType: RelDataType,
+    groupings: Array[Int],
+    properties: Seq[NamedWindowProperty])
   : WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
+
+    val aggFunction =
+      createAggregateGroupReduceFunction(
+        namedAggregates,
+        inputType,
+        outputType,
+        groupings)
 
     if (isTimeWindow(window)) {
       val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
@@ -211,21 +211,21 @@ object AggregateUtil {
     } else {
       new AggregateWindowFunction(aggFunction)
     }
-
   }
 
   private[flink] def createAllWindowIncrementalAggregationFunction(
     window: LogicalWindow,
-    aggregates: Array[Aggregate[_ <: Any]],
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
     outputType: RelDataType,
     groupings: Array[Int],
-    properties: Seq[NamedWindowProperty])
-  : AllWindowFunction[Row, Row, DataStreamWindow] = {
+    properties: Seq[NamedWindowProperty]): AllWindowFunction[Row, Row, DataStreamWindow] = {
+
+    val aggregates = transformToAggregateFunctions(
+      namedAggregates.map(_.getKey),inputType,groupings.length)._2
 
     val (groupingOffsetMapping, aggOffsetMapping) =
-      getGroupingOffsetAndaggOffsetMapping(
+      getGroupingOffsetAndAggOffsetMapping(
       namedAggregates,
       inputType,
       outputType,
@@ -250,21 +250,21 @@ object AggregateUtil {
         aggOffsetMapping,
         finalRowArity)
     }
-
   }
 
   private[flink] def createWindowIncrementalAggregationFunction(
     window: LogicalWindow,
-    aggregates: Array[Aggregate[_ <: Any]],
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
     outputType: RelDataType,
     groupings: Array[Int],
-    properties: Seq[NamedWindowProperty])
-  : WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
+    properties: Seq[NamedWindowProperty]): WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
+
+    val aggregates = transformToAggregateFunctions(
+      namedAggregates.map(_.getKey),inputType,groupings.length)._2
 
     val (groupingOffsetMapping, aggOffsetMapping) =
-      getGroupingOffsetAndaggOffsetMapping(
+      getGroupingOffsetAndAggOffsetMapping(
         namedAggregates,
         inputType,
         outputType,
@@ -289,10 +289,47 @@ object AggregateUtil {
         aggOffsetMapping,
         finalRowArity)
     }
-
   }
 
-  private[flink] def isTimeWindow(window: LogicalWindow) = {
+  private[flink] def doAllSupportPartialAggregation(
+    aggregateCalls: Seq[AggregateCall],
+    inputType: RelDataType,
+    groupKeysCount: Int): Boolean = {
+    transformToAggregateFunctions(
+      aggregateCalls,
+      inputType,
+      groupKeysCount)._2.forall(_.supportPartial)
+  }
+
+  /**
+    * @return groupingOffsetMapping (mapping relation between field index of intermediate
+    *         aggregate Row and output Row.)
+    *         and aggOffsetMapping (the mapping relation between aggregate function index in list
+    *         and its corresponding field index in output Row.)
+    */
+  private def getGroupingOffsetAndAggOffsetMapping(
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    outputType: RelDataType,
+    groupings: Array[Int]): (Array[(Int, Int)], Array[(Int, Int)]) = {
+
+    // the mapping relation between field index of intermediate aggregate Row and output Row.
+    val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
+
+    // the mapping relation between aggregate function index in list and its corresponding
+    // field index in output Row.
+    val aggOffsetMapping = getAggregateMapping(namedAggregates, outputType)
+
+    if (groupingOffsetMapping.length != groupings.length ||
+      aggOffsetMapping.length != namedAggregates.length) {
+      throw new TableException(
+        "Could not find output field in input data type " +
+          "or aggregate functions.")
+    }
+    (groupingOffsetMapping, aggOffsetMapping)
+  }
+
+  private def isTimeWindow(window: LogicalWindow) = {
     window match {
       case ProcessingTimeTumblingGroupWindow(_, size) => isTimeInterval(size.resultType)
       case ProcessingTimeSlidingGroupWindow(_, size, _) => isTimeInterval(size.resultType)
@@ -303,8 +340,8 @@ object AggregateUtil {
     }
   }
 
-  private[flink] def computeWindowStartEndPropertyPos(properties: Seq[NamedWindowProperty])
-  : (Option[Int], Option[Int]) = {
+  private def computeWindowStartEndPropertyPos(
+    properties: Seq[NamedWindowProperty]): (Option[Int], Option[Int]) = {
 
     val propPos = properties.foldRight((None: Option[Int], None: Option[Int], 0)) {
       (p, x) => p match {
@@ -324,7 +361,7 @@ object AggregateUtil {
     (propPos._1, propPos._2)
   }
 
-  private[flink] def transformToAggregateFunctions(
+  private def transformToAggregateFunctions(
     aggregateCalls: Seq[AggregateCall],
     inputType: RelDataType,
     groupKeysCount: Int): (Array[Int], Array[Aggregate[_ <: Any]]) = {
