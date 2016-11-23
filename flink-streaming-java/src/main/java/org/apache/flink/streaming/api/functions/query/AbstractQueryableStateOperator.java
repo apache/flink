@@ -28,12 +28,11 @@ import org.apache.flink.util.Preconditions;
 /**
  * Internal operator handling queryable state instances (setup and update).
  *
- * @param <V>  Value type
  * @param <S>  State type
  * @param <IN> Input type
  */
 @Internal
-abstract class AbstractQueryableStateOperator<V, S extends State<V>, IN>
+abstract class AbstractQueryableStateOperator<S extends State<?>, IN>
 		extends AbstractStreamOperator<IN>
 		implements OneInputStreamOperator<IN, IN> {
 

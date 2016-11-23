@@ -643,7 +643,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		@SuppressWarnings("unchecked")
-		public <V, S extends State<V>> S getPartitionedState(StateDescriptor<S> stateDescriptor) {
+		public <S extends State<?>> S getPartitionedState(StateDescriptor<S> stateDescriptor) {
 			try {
 				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateDescriptor);
 			} catch (Exception e) {
@@ -652,7 +652,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		@Override
-		public <V, S extends MergingState<?, V>> void mergePartitionedState(StateDescriptor<S> stateDescriptor) {
+		public <S extends MergingState<?, ?>> void mergePartitionedState(StateDescriptor<S> stateDescriptor) {
 			if (mergedWindows != null && mergedWindows.size() > 0) {
 				try {
 					WindowOperator.this.getKeyedStateBackend().mergePartitionedStates(window,

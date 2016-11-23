@@ -214,7 +214,7 @@ public abstract class AbstractKeyedStateBackend<K>
 	 */
 	@Override
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	public <N, V, S extends State<V>> S getPartitionedState(final N namespace, final TypeSerializer<N> namespaceSerializer, final StateDescriptor<S> stateDescriptor) throws Exception {
+	public <N, S extends State<?>> S getPartitionedState(final N namespace, final TypeSerializer<N> namespaceSerializer, final StateDescriptor<S> stateDescriptor) throws Exception {
 		Preconditions.checkNotNull(namespace, "Namespace");
 		Preconditions.checkNotNull(namespaceSerializer, "Namespace serializer");
 
@@ -292,7 +292,7 @@ public abstract class AbstractKeyedStateBackend<K>
 
 	@Override
 	@SuppressWarnings("unchecked,rawtypes")
-	public <N, V, S extends MergingState<?, V>> void mergePartitionedStates(final N target, Collection<N> sources, final TypeSerializer<N> namespaceSerializer, final StateDescriptor<S> stateDescriptor) throws Exception {
+	public <N, S extends MergingState<?, ?>> void mergePartitionedStates(final N target, Collection<N> sources, final TypeSerializer<N> namespaceSerializer, final StateDescriptor<S> stateDescriptor) throws Exception {
 		if (stateDescriptor instanceof ReducingStateDescriptor) {
 			ReducingStateDescriptor reducingStateDescriptor = (ReducingStateDescriptor) stateDescriptor;
 			ReduceFunction reduceFn = reducingStateDescriptor.getReduceFunction();

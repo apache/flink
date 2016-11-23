@@ -179,13 +179,12 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 *
 		 * @param stateDescriptor The StateDescriptor that contains the name and type of the
 		 *                        state that is being accessed.
-		 * @param <V>             The type of the values in the state.
 		 * @param <S>             The type of the state.
 		 * @return The partitioned state object.
 		 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
 		 *                                       function (function is not part os a KeyedStream).
 		 */
-		<V, S extends State<V>> S getPartitionedState(StateDescriptor<S> stateDescriptor);
+		<S extends State<?>> S getPartitionedState(StateDescriptor<S> stateDescriptor);
 	
 		/**
 		 * Retrieves a {@link ValueState} object that can be used to interact with
@@ -232,6 +231,6 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	 * {@link Trigger#onMerge(Window, OnMergeContext)}.
 	 */
 	public interface OnMergeContext extends TriggerContext {
-		<V, S extends MergingState<?, V>> void mergePartitionedState(StateDescriptor<S> stateDescriptor);
+		<S extends MergingState<?, ?>> void mergePartitionedState(StateDescriptor<S> stateDescriptor);
 	}
 }

@@ -39,7 +39,7 @@ public interface State<T> {
 	 * partitioned the returned value is the same for all inputs in a given
 	 * operator instance. If state partitioning is applied, the value returned
 	 * depends on the current operator input, as the operator maintains an
-	 * independent state for each partition.
+	 * independent state for each key.
 	 *
 	 * @return The operator state value corresponding to the current input.
 	 *

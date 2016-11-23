@@ -29,7 +29,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * @param <IN> Input type
  */
 @Internal
-public class QueryableAppendingStateOperator<IN, OUT> extends AbstractQueryableStateOperator<OUT, AppendingState<IN, OUT>, IN> {
+public class QueryableAppendingStateOperator<IN, OUT> extends AbstractQueryableStateOperator<AppendingState<IN, OUT>, IN> {
 
 	public QueryableAppendingStateOperator(
 			String registrationName,

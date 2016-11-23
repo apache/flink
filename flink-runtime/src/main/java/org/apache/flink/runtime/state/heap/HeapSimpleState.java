@@ -29,7 +29,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.Map;
 
 /**
- * Heap-backed partitioned states whose values are not composited and is snapshotted into files.
+ * Heap-backed partitioned states whose values are not composited.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.

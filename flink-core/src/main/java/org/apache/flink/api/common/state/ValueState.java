@@ -39,8 +39,10 @@ import java.io.IOException;
 @PublicEvolving
 public interface ValueState<T> extends UpdatableState<T> {
 	/**
+	 * @deprecated Replaced by {@link State#get()}.
+	 *
 	 * Returns the current value for the state. The method performs the same
-	 * functionality as {@link State#get()}.
+	 * functionality as {@link State#get()}, and is kept for compatibility.
 	 *
 	 * <p>If you didn't specify a default value when creating the {@link ValueStateDescriptor}
 	 * this will return {@code null} when to value was previously set using {@link #update(Object)}.
