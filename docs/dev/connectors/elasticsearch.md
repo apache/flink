@@ -272,6 +272,11 @@ input.addSink(new ElasticsearchSink(config, new ElasticsearchSinkFunction[String
 The difference is that now we do not need to provide a list of addresses
 of Elasticsearch nodes.
 
+Optionally, the sink can try to re-execute the bulk request when the error
+message matches certain patterns indicating a timeout or a overloaded cluster.
+This behaviour is disabled by default and can be enabled by setting `checkErrorAndRetryBulk(true)`.
+
+
 More information about Elasticsearch can be found [here](https://elastic.co).
 
 #### Packaging the Elasticsearch Connector into an Uber-Jar
