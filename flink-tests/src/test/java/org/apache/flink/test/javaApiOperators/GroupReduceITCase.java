@@ -998,44 +998,6 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		compareResultAsText(result, expected);
 	}
 
-	@Test
-	public void testJavaArraysAsListCollectionsWithinPojos() throws Exception {
-		/*
-		 * Test Java collections created via Arrays.asList() method within pojos ( == test kryo)
-		 */
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-
-		DataSet<CollectionDataSets.PojoWithCollection> ds = CollectionDataSets.getPojoWithArraysAsListCollection(env);
-		// f0.f0 is first integer
-		DataSet<String> reduceDs = ds.groupBy("key")
-				.reduceGroup(new GroupReducer7());
-		List<String> result = reduceDs.collect();
-
-		String expected = "callFor key 0 we got: pojo.a=apojo.a=bFor key 0 we got: pojo.a=a2pojo.a=b2\n";
-
-		compareResultAsText(result, expected);
-	}
-
-	@Test
-	public void testJavaUnmodifiableCollectionsWithinPojos() throws Exception {
-		/*
-		 * Test Java collections created via Collections.unmodifiable...() methods within pojos ( == test kryo)
-		 */
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-
-		DataSet<CollectionDataSets.PojoWithCollection> ds = CollectionDataSets.getPojoWithUnmodifiableCollection(env);
-		// f0.f0 is first integer
-		DataSet<String> reduceDs = ds.groupBy("key")
-				.reduceGroup(new GroupReducer7());
-		List<String> result = reduceDs.collect();
-
-		String expected = "callFor key 0 we got: pojo.a=apojo.a=bFor key 0 we got: pojo.a=a2pojo.a=b2\n";
-
-		compareResultAsText(result, expected);
-	}
-
 	public static class GroupReducer7 implements GroupReduceFunction<CollectionDataSets.PojoWithCollection, String> {
 		
 		@Override
