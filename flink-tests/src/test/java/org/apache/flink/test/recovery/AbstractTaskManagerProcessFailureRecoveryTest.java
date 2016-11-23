@@ -273,25 +273,25 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 	public abstract void testTaskManagerFailure(int jobManagerPort, File coordinateDir) throws Exception;
 
 
-	protected void waitUntilNumTaskManagersAreRegistered(ActorRef jobManager, int numExpected, long maxDelay)
+	protected void waitUntilNumTaskManagersAreRegistered(ActorRef jobManager, int numExpected, long maxDelayMillis)
 			throws Exception
 	{
-		final long deadline = System.currentTimeMillis() + maxDelay;
-		while (true) {
-			long remaining = deadline - System.currentTimeMillis();
-			if (remaining <= 0) {
-				fail("The TaskManagers did not register within the expected time (" + maxDelay + "msecs)");
-			}
+		final long interval = maxDelayMillis * 1_000_000;
+		final long deadline = System.nanoTime() + interval;
+		long remaining = interval;
 
-			FiniteDuration timeout = new FiniteDuration(remaining, TimeUnit.MILLISECONDS);
+		while (remaining > 0) {
+			FiniteDuration timeout = new FiniteDuration(remaining, TimeUnit.NANOSECONDS);
 
 			try {
 				Future<?> result = Patterns.ask(jobManager,
 						JobManagerMessages.getRequestNumberRegisteredTaskManager(),
 						new Timeout(timeout));
-				Integer numTMs = (Integer) Await.result(result, timeout);
+
+				int numTMs = (Integer) Await.result(result, timeout);
+
 				if (numTMs == numExpected) {
-					break;
+					return;
 				}
 			}
 			catch (TimeoutException e) {
@@ -300,7 +300,11 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			catch (ClassCastException e) {
 				fail("Wrong response: " + e.getMessage());
 			}
+
+			remaining = deadline - System.nanoTime();
 		}
+
+		fail("The TaskManagers did not register within the expected time (" + maxDelayMillis + "msecs)");
 	}
 
 	protected static void printProcessLog(String processName, String log) {
