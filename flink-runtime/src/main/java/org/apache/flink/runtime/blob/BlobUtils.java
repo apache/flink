@@ -336,7 +336,7 @@ public class BlobUtils {
 	 */
 	static String getRecoveryPath(String basePath, BlobKey blobKey) {
 		// format: $base/cache/blob_$key
-		return String.format("%s/cache/%s", basePath, BLOB_FILE_PREFIX + blobKey.toString());
+		return String.format("%s/cache/%s%s", basePath, BLOB_FILE_PREFIX, blobKey.toString());
 	}
 
 	/**
@@ -348,8 +348,8 @@ public class BlobUtils {
 	 */
 	static String getRecoveryPath(String basePath, JobID jobId, String key) {
 		// format: $base/job_$id/blob_$key
-		return String.format("%s/%s/%s", basePath, JOB_DIR_PREFIX + jobId.toString(),
-				BLOB_FILE_PREFIX + encodeKey(key));
+		return String.format("%s/%s%s/%s%s", basePath, JOB_DIR_PREFIX, jobId.toString(),
+				BLOB_FILE_PREFIX, encodeKey(key));
 	}
 
 	/**
@@ -358,7 +358,7 @@ public class BlobUtils {
 	 * <p>The returned path can be used with the state backend for recovery purposes.
 	 */
 	static String getRecoveryPath(String basePath, JobID jobId) {
-		return String.format("%s/%s", basePath, JOB_DIR_PREFIX + jobId.toString());
+		return String.format("%s/%s%s", basePath, JOB_DIR_PREFIX, jobId.toString());
 	}
 
 	/**
