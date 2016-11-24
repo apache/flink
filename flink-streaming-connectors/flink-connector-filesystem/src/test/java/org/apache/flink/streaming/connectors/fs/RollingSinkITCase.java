@@ -659,7 +659,10 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 
 		testHarness.setProcessingTime(0L);
 
-		testHarness.processElement(new StreamRecord<>("test1", 1L)); // we have a bucket size of 5 bytes
+		// we have a bucket size of 5 bytes, so each record will get its own bucket,
+		// i.e. the bucket should roll after every record.
+
+		testHarness.processElement(new StreamRecord<>("test1", 1L));
 		testHarness.processElement(new StreamRecord<>("test2", 1L));
 		checkFs(outDir, 1, 1 ,0, 0);
 
@@ -729,19 +732,24 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		testHarness3.processElement(new StreamRecord<>("test4", 0L));
 		checkFs(outDir, 3, 1, 0, 0);
 
-		// intentionally we snapshot them in the reverse order so that the states are shuffled
+		// intentionally we snapshot them in a not ascending order so that the states are shuffled
 		OperatorStateHandles mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
 			testHarness3.snapshot(0, 0),
 			testHarness1.snapshot(0, 0),
 			testHarness2.snapshot(0, 0)
 		);
 
+		//with the above state reshuffling, we expect the new testHarness1
+		// to take the state of the previous testHarness3 and testHarness2
+		// while the new testHarness2 will take that of the previous testHarness1
+
 		testHarness1 = createRescalingTestSink(outDir, 2, 0);
 		testHarness1.setup();
 		testHarness1.initializeState(mergedSnapshot);
 		testHarness1.open();
 
-		// because we do not have a pending for part-2-0
+		// we do not have a length file for part-2-0 because bucket part-2-0
+		// was not "in-progress", but "pending" (its full content is valid).
 		checkFs(outDir, 1, 0, 3, 2);
 
 		testHarness2 = createRescalingTestSink(outDir, 2, 1);
@@ -764,14 +772,14 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		testHarness2.setup();
 		testHarness2.open();
 
-		testHarness1.processElement(new StreamRecord<>("test1", 1L));
-		testHarness1.processElement(new StreamRecord<>("test2", 1L));
+		testHarness1.processElement(new StreamRecord<>("test1", 0L));
+		testHarness1.processElement(new StreamRecord<>("test2", 0L));
 
 		checkFs(outDir, 1, 1, 0, 0);
 
-		testHarness2.processElement(new StreamRecord<>("test3", 1L));
-		testHarness2.processElement(new StreamRecord<>("test4", 1L));
-		testHarness2.processElement(new StreamRecord<>("test5", 1L));
+		testHarness2.processElement(new StreamRecord<>("test3", 0L));
+		testHarness2.processElement(new StreamRecord<>("test4", 0L));
+		testHarness2.processElement(new StreamRecord<>("test5", 0L));
 
 		checkFs(outDir, 2, 3, 0, 0);
 

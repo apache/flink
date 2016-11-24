@@ -342,7 +342,7 @@ public class RollingSink<T> extends RichSinkFunction<T>
 			this.refTruncate = reflectTruncate(fs);
 		}
 
-		OperatorStateStore stateStore = context.getManagedOperatorStateStore();
+		OperatorStateStore stateStore = context.getOperatorStateStore();
 		restoredBucketStates = stateStore.getSerializableListState("rolling-states");
 
 		int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
