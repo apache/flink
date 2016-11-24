@@ -35,7 +35,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- *
+ * Serialization proxy for all meta data in keyed state backends. In the future we might also migrate the actual state
+ * serialization logic here.
  */
 public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable {
 
@@ -65,6 +66,7 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		return keySerializer;
 	}
 
+	@Override
 	public boolean isCompatibleVersion(int version) {
 		return VERSION == version;
 	}
@@ -114,6 +116,10 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 
 //----------------------------------------------------------------------------------------------------------------------
 
+	/**
+	 * This is the serialization proxy for {@link RegisteredBackendStateMetaInfo} for a single registered state in a
+	 * keyed backend.
+	 */
 	public static class StateMetaInfo implements IOReadableWritable {
 
 		private String name;
@@ -121,7 +127,7 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		private TypeSerializer<?> stateSerializer;
 		private ClassLoader userClassLoader;
 
-		public StateMetaInfo(ClassLoader userClassLoader) {
+		private StateMetaInfo(ClassLoader userClassLoader) {
 			this.userClassLoader = Preconditions.checkNotNull(userClassLoader);
 		}
 
@@ -179,5 +185,4 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 			}
 		}
 	}
-
 }

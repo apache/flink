@@ -27,6 +27,7 @@ import java.util.Map;
 
 public class StateTable<K, N, ST> {
 
+	/** Combined meta information such as name and serializers for this state */
 	protected RegisteredBackendStateMetaInfo<N, ST> metaInfo;
 
 	/** Map for holding the actual state objects. */

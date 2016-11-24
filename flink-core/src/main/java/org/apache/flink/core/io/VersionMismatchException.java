@@ -18,22 +18,27 @@
 
 package org.apache.flink.core.io;
 
-/**
- * This interface is implemented that allows for general compatibility checks between objects. For example, this can
- * be used to check if different versions of serializers are compatible with each other.
- * <p>
- * Notice that the relation isCompatible between two objects is (in general) not commutative and not transitive.
- *
- * @param <T> type of other instance that we want to check against for compatibility
- */
-public interface Compatible<T> {
+import java.io.IOException;
 
-	/**
-	 * Checks if this is compatible with the given argument. This relationship is between two objects is (in general)
-	 * not commutative and not transitive.
-	 *
-	 * @param other the object to check for compatibility with
-	 * @return true iff this is compatible with the passed argument
-	 */
-	boolean isCompatibleWith(T other);
+/**
+ * This exception signals that incompatible versions have been found during serialization.
+ */
+public class VersionMismatchException extends IOException {
+
+	private static final long serialVersionUID = 7024258967585372438L;
+
+	public VersionMismatchException() {
+	}
+
+	public VersionMismatchException(String message) {
+		super(message);
+	}
+
+	public VersionMismatchException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public VersionMismatchException(Throwable cause) {
+		super(cause);
+	}
 }

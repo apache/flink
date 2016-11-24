@@ -21,6 +21,13 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.Preconditions;
 
+/**
+ * Compound meta information for a registered state in a keyed state backend. This combines all serializers and the
+ * state name.
+ *
+ * @param <N> Type of namespace
+ * @param <S> Type of state value
+ */
 public class RegisteredBackendStateMetaInfo<N, S> {
 
 	private final String name;
@@ -60,13 +67,13 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 		}
 
 		if (namespaceSerializer != other.namespaceSerializer) {
-			if(namespaceSerializer == null || !namespaceSerializer.isCompatibleWith(other.namespaceSerializer)) {
+			if (namespaceSerializer == null || !namespaceSerializer.isCompatibleWith(other.namespaceSerializer)) {
 				return false;
 			}
 		}
 
 		if (stateSerializer != other.stateSerializer) {
-			if(stateSerializer == null || !stateSerializer.isCompatibleWith(other.stateSerializer)) {
+			if (stateSerializer == null || !stateSerializer.isCompatibleWith(other.stateSerializer)) {
 				return false;
 			}
 		}
@@ -79,6 +86,7 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 		if (this == o) {
 			return true;
 		}
+
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}

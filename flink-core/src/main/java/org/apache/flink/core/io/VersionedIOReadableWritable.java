@@ -23,6 +23,10 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
+/**
+ * This is the abstract base class for {@link IOReadableWritable} which allows to differentiate between serialization
+ * versions.
+ */
 public abstract class VersionedIOReadableWritable implements IOReadableWritable, Versioned {
 
 	@Override
@@ -35,12 +39,25 @@ public abstract class VersionedIOReadableWritable implements IOReadableWritable,
 		checkFoundVersion(in.readInt());
 	}
 
-	protected void checkFoundVersion(int foundVersion) throws IOException {
+	/**
+	 * Checks the compatibility of a version number against the own version.
+	 *
+	 * @param foundVersion the version found from reading the input stream
+	 * @throws VersionMismatchException thrown when serialization versions mismatch
+	 */
+	protected void checkFoundVersion(int foundVersion) throws VersionMismatchException {
 		if (!isCompatibleVersion(foundVersion)) {
 			long expectedVersion = getVersion();
-			throw new IOException("Incompatible version: found " + foundVersion + ", required " + expectedVersion);
+			throw new VersionMismatchException(
+					"Incompatible version: found " + foundVersion + ", required " + expectedVersion);
 		}
 	}
 
+	/**
+	 * Checks for compatibility between this and the found version.
+	 *
+	 * @param version version number to compare against.
+	 * @return true, iff this is compatible to the passed version.
+	 */
 	public abstract boolean isCompatibleVersion(int version);
 }
