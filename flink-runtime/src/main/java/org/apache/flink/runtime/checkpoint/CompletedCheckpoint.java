@@ -151,7 +151,7 @@ public class CompletedCheckpoint implements Serializable {
 		}
 	}
 
-	private void discard() throws Exception {
+	void discard() throws Exception {
 		try {
 			if (externalPath != null) {
 				SavepointStore.removeSavepoint(externalPath);
