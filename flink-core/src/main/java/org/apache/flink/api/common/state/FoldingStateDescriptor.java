@@ -37,7 +37,7 @@ import static java.util.Objects.requireNonNull;
 public class FoldingStateDescriptor<T, ACC> extends SimpleStateDescriptor<ACC, FoldingState<T, ACC>> {
 	private static final long serialVersionUID = 1L;
 
-
+	private final ACC initialValue;
 	private final FoldFunction<T, ACC> foldFunction;
 
 	/**
@@ -52,12 +52,14 @@ public class FoldingStateDescriptor<T, ACC> extends SimpleStateDescriptor<ACC, F
 	 * @param typeClass The type of the values in the state.
 	 */
 	public FoldingStateDescriptor(String name, ACC initialValue, FoldFunction<T, ACC> foldFunction, Class<ACC> typeClass) {
-		super(name, typeClass, initialValue);
-		this.foldFunction = requireNonNull(foldFunction);
+		super(name, typeClass, null);
 
 		if (foldFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("FoldFunction of FoldingState can not be a RichFunction.");
 		}
+
+		this.initialValue = initialValue;
+		this.foldFunction = requireNonNull(foldFunction);
 	}
 
 	/**
@@ -69,12 +71,14 @@ public class FoldingStateDescriptor<T, ACC> extends SimpleStateDescriptor<ACC, F
 	 * @param typeInfo The type of the values in the state.
 	 */
 	public FoldingStateDescriptor(String name, ACC initialValue, FoldFunction<T, ACC> foldFunction, TypeInformation<ACC> typeInfo) {
-		super(name, typeInfo, initialValue);
-		this.foldFunction = requireNonNull(foldFunction);
+		super(name, typeInfo, null);
 
 		if (foldFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("FoldFunction of FoldingState can not be a RichFunction.");
 		}
+
+		this.initialValue = initialValue;
+		this.foldFunction = requireNonNull(foldFunction);
 	}
 
 	/**
@@ -86,12 +90,14 @@ public class FoldingStateDescriptor<T, ACC> extends SimpleStateDescriptor<ACC, F
 	 * @param typeSerializer The type serializer of the values in the state.
 	 */
 	public FoldingStateDescriptor(String name, ACC initialValue, FoldFunction<T, ACC> foldFunction, TypeSerializer<ACC> typeSerializer) {
-		super(name, typeSerializer, initialValue);
-		this.foldFunction = requireNonNull(foldFunction);
+		super(name, typeSerializer, null);
 
 		if (foldFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("FoldFunction of FoldingState can not be a RichFunction.");
 		}
+
+		this.initialValue = initialValue;
+		this.foldFunction = requireNonNull(foldFunction);
 	}
 
 	// ------------------------------------------------------------------------
@@ -106,6 +112,13 @@ public class FoldingStateDescriptor<T, ACC> extends SimpleStateDescriptor<ACC, F
 	 */
 	public FoldFunction<T, ACC> getFoldFunction() {
 		return foldFunction;
+	}
+
+	/**
+	 * Returns the initial value used in the folding.
+	 */
+	public ACC getInitialValue() {
+		return initialValue;
 	}
 
 	@Override

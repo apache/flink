@@ -63,7 +63,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 	private transient EvictorContext evictorContext;
 
-	private final StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> windowStateDescriptor;
+	private final StateDescriptor<? extends ListState<StreamRecord<IN>>> windowStateDescriptor;
 
 	public EvictingWindowOperator(WindowAssigner<? super IN, W> windowAssigner,
 		TypeSerializer<W> windowSerializer,
