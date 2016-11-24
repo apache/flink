@@ -124,6 +124,7 @@ public class Kafka09FetcherTest {
 		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
 				sourceContext,
 				topics,
+				null, /* no restored state */
 				null, /* periodic watermark extractor */
 				null, /* punctuated watermark extractor */
 				new TestProcessingTimeService(),
@@ -261,6 +262,7 @@ public class Kafka09FetcherTest {
 		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
 				sourceContext,
 				topics,
+				null, /* no restored state */
 				null, /* periodic watermark extractor */
 				null, /* punctuated watermark extractor */
 				new TestProcessingTimeService(),
@@ -376,6 +378,7 @@ public class Kafka09FetcherTest {
 		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
 				sourceContext,
 				topics,
+				null, /* no restored state */
 				null, /* periodic watermark extractor */
 				null, /* punctuated watermark extractor */
 				new TestProcessingTimeService(),

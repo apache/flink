@@ -51,7 +51,6 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 	//  Suite of Tests
 	// ------------------------------------------------------------------------
 
-
 	@Test(timeout = 60000)
 	public void testFailOnNoBroker() throws Exception {
 		runFailOnNoBrokerTest();
@@ -133,11 +132,10 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 
 	// --- startup mode ---
 
-	// TODO not passing due to Kafka Consumer config error
-//	@Test(timeout = 60000)
-//	public void testStartFromEarliestOffsets() throws Exception {
-//		runStartFromEarliestOffsets();
-//	}
+	@Test(timeout = 60000)
+	public void testStartFromEarliestOffsets() throws Exception {
+		runStartFromEarliestOffsets();
+	}
 
 	@Test(timeout = 60000)
 	public void testStartFromLatestOffsets() throws Exception {

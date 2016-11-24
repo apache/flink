@@ -68,11 +68,14 @@ public abstract class AbstractFetcher<T, KPH> {
 	/** The mode describing whether the fetcher also generates timestamps and watermarks */
 	protected final int timestampWatermarkMode;
 
-	/** The startup mode for the consumer */
+	/** The startup mode for the consumer (only relevant if the consumer wasn't restored) */
 	protected final StartupMode startupMode;
 
 	/** Flag whether to register metrics for the fetcher */
 	protected final boolean useMetrics;
+
+	/** Flag whether or not the consumer state was restored from a checkpoint / savepoint */
+	protected final boolean isRestored;
 
 	/** Only relevant for punctuated watermarks: The current cross partition watermark */
 	private volatile long maxWatermarkSoFar = Long.MIN_VALUE;
@@ -82,6 +85,7 @@ public abstract class AbstractFetcher<T, KPH> {
 	protected AbstractFetcher(
 			SourceContext<T> sourceContext,
 			List<KafkaTopicPartition> assignedPartitions,
+			HashMap<KafkaTopicPartition, Long> restoredSnapshotState,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			ProcessingTimeService processingTimeProvider,
@@ -118,6 +122,18 @@ public abstract class AbstractFetcher<T, KPH> {
 				timestampWatermarkMode,
 				watermarksPeriodic, watermarksPunctuated,
 				userCodeClassLoader);
+
+		if (restoredSnapshotState != null) {
+			for (KafkaTopicPartitionState<?> partition : allPartitions) {
+				Long offset = restoredSnapshotState.get(partition.getKafkaTopicPartition());
+				if (offset != null) {
+					partition.setOffset(offset);
+				}
+			}
+			this.isRestored = true;
+		} else {
+			this.isRestored = false;
+		}
 		
 		// if we have periodic watermarks, kick off the interval scheduler
 		if (timestampWatermarkMode == PERIODIC_WATERMARKS) {

@@ -72,6 +72,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	public Kafka09Fetcher(
 			SourceContext<T> sourceContext,
 			List<KafkaTopicPartition> assignedPartitions,
+			HashMap<KafkaTopicPartition, Long> restoredSnapshotState,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			ProcessingTimeService processingTimeProvider,
@@ -89,6 +90,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		super(
 				sourceContext,
 				assignedPartitions,
+				restoredSnapshotState,
 				watermarksPeriodic,
 				watermarksPunctuated,
 				processingTimeProvider,
@@ -118,6 +120,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 				getFetcherName() + " for " + taskNameWithSubtasks,
 				pollTimeout,
 				startupMode,
+				isRestored,
 				useMetrics);
 	}
 
@@ -145,7 +148,6 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 							records.records(partition.getKafkaPartitionHandle());
 
 					for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
-
 						final T value = deserializer.deserialize(
 								record.key(), record.value(),
 								record.topic(), record.partition(), record.offset());

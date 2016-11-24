@@ -92,6 +92,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	public Kafka08Fetcher(
 			SourceContext<T> sourceContext,
 			List<KafkaTopicPartition> assignedPartitions,
+			HashMap<KafkaTopicPartition, Long> restoredSnapshotState,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext,
@@ -104,6 +105,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 		super(
 				sourceContext,
 				assignedPartitions,
+				restoredSnapshotState,
 				watermarksPeriodic,
 				watermarksPunctuated,
 				runtimeContext.getProcessingTimeService(),
@@ -143,36 +145,29 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 
 		PeriodicOffsetCommitter periodicCommitter = null;
 		try {
-			List<KafkaTopicPartition> partitionsWithNoOffset = new ArrayList<>();
-			for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
-				if (!partition.isOffsetDefined()) {
-					partitionsWithNoOffset.add(partition.getKafkaTopicPartition());
-				}
-			}
 
-			if (partitionsWithNoOffset.size() == subscribedPartitions().length) {
-				// if all partitions have no initial offsets, that means we're starting fresh without any restored state
+			// if we're not restored from a checkpoint, all partitions will not have their offset set;
+			// depending on the configured startup mode, accordingly set the starting offsets
+			if (!isRestored) {
 				switch (startupMode) {
 					case EARLIEST:
-						LOG.info("Setting starting point as earliest offset for partitions {}", partitionsWithNoOffset);
-
 						for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
 							partition.setOffset(OffsetRequest.EarliestTime());
 						}
 						break;
 					case LATEST:
-						LOG.info("Setting starting point as latest offset for partitions {}", partitionsWithNoOffset);
-
 						for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
 							partition.setOffset(OffsetRequest.LatestTime());
 						}
 						break;
 					default:
 					case GROUP_OFFSETS:
-						LOG.info("Using group offsets in Zookeeper of group.id {} as starting point for partitions {}",
-							kafkaConfig.getProperty("group.id"), partitionsWithNoOffset);
+						List<KafkaTopicPartition> partitions = new ArrayList<>(subscribedPartitions().length);
+						for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
+							partitions.add(partition.getKafkaTopicPartition());
+						}
 
-						Map<KafkaTopicPartition, Long> zkOffsets = zookeeperOffsetHandler.getCommittedOffsets(partitionsWithNoOffset);
+						Map<KafkaTopicPartition, Long> zkOffsets = zookeeperOffsetHandler.getCommittedOffsets(partitions);
 						for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
 							Long offset = zkOffsets.get(partition.getKafkaTopicPartition());
 							if (offset != null) {
@@ -189,19 +184,6 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 							}
 						}
 				}
-			} else if (partitionsWithNoOffset.size() > 0 && partitionsWithNoOffset.size() < subscribedPartitions().length) {
-				// we are restoring from a checkpoint/savepoint, but there are some new partitions that weren't
-				// subscribed by the consumer on the previous execution; in this case, we set the starting offset
-				// of all new partitions to the earliest offset
-				LOG.info("Setting starting point as earliest offset for newly created partitions after startup: {}", partitionsWithNoOffset);
-
-				for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
-					if (partitionsWithNoOffset.contains(partition.getKafkaTopicPartition())) {
-						partition.setOffset(OffsetRequest.EarliestTime());
-					}
-				}
-			} else {
-				// restored from a checkpoint/savepoint, and all partitions have starting offsets; don't need to do anything
 			}
 
 			// start the periodic offset committer thread, if necessary

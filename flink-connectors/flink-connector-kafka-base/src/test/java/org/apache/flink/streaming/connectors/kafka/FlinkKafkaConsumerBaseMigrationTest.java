@@ -382,7 +382,13 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		}
 
 		@Override
-		protected AbstractFetcher<T, ?> createFetcher(SourceContext<T> sourceContext, List<KafkaTopicPartition> thisSubtaskPartitions, SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic, SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated, StreamingRuntimeContext runtimeContext) throws Exception {
+		protected AbstractFetcher<T, ?> createFetcher(
+				SourceContext<T> sourceContext,
+				List<KafkaTopicPartition> thisSubtaskPartitions,
+				HashMap<KafkaTopicPartition, Long> restoredSnapshotState,
+				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
+				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
+				StreamingRuntimeContext runtimeContext) throws Exception {
 			return fetcherFactory.createFetcher();
 		}
 

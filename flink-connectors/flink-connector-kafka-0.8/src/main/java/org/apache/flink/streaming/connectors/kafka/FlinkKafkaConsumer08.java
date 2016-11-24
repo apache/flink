@@ -48,6 +48,7 @@ import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.HashMap;
 import java.util.Properties;
 import java.util.Random;
 
@@ -194,13 +195,15 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	protected AbstractFetcher<T, ?> createFetcher(
 			SourceContext<T> sourceContext,
 			List<KafkaTopicPartition> thisSubtaskPartitions,
+			HashMap<KafkaTopicPartition, Long> restoredSnapshotState,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext) throws Exception {
 
 		boolean useMetrics = !Boolean.valueOf(kafkaProperties.getProperty(KEY_DISABLE_METRICS, "false"));
 
-		return new Kafka08Fetcher<>(sourceContext, thisSubtaskPartitions,
+		return new Kafka08Fetcher<>(sourceContext,
+				thisSubtaskPartitions, restoredSnapshotState,
 				watermarksPeriodic, watermarksPunctuated,
 				runtimeContext, deserializer, kafkaProperties,
 				autoCommitInterval, startupMode, useMetrics);

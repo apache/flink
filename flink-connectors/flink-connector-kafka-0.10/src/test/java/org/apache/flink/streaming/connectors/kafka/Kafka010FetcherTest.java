@@ -22,7 +22,6 @@ import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.internal.Handover;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
@@ -123,21 +122,22 @@ public class Kafka010FetcherTest {
         KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
 
         final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
-                sourceContext,
-                topics,
-                null, /* periodic assigner */
-                null, /* punctuated assigner */
-                new TestProcessingTimeService(),
-                10,
-                getClass().getClassLoader(),
-                false, /* checkpointing */
-                "taskname-with-subtask",
-                new UnregisteredMetricsGroup(),
-                schema,
-                new Properties(),
-                0L,
+        		sourceContext,
+				topics,
+				null, /* no restored state */
+				null, /* periodic assigner */
+				null, /* punctuated assigner */
+				new TestProcessingTimeService(),
+				10,
+				getClass().getClassLoader(),
+				false, /* checkpointing */
+				"taskname-with-subtask",
+				new UnregisteredMetricsGroup(),
+				schema,
+				new Properties(),
+				0L,
 				StartupMode.GROUP_OFFSETS,
-                false);
+				false);
 
         // ----- run the fetcher -----
 
@@ -258,24 +258,24 @@ public class Kafka010FetcherTest {
         SourceContext<String> sourceContext = mock(SourceContext.class);
         List<KafkaTopicPartition> topics = Collections.singletonList(new KafkaTopicPartition("test", 42));
         KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
-        StreamingRuntimeContext context = mock(StreamingRuntimeContext.class);
 
         final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
-                sourceContext,
-                topics,
-                null, /* periodic assigner */
-                null, /* punctuated assigner */
-                new TestProcessingTimeService(),
-                10,
-                getClass().getClassLoader(),
-                false, /* checkpointing */
-                "taskname-with-subtask",
-                new UnregisteredMetricsGroup(),
-                schema,
-                new Properties(),
-                0L,
+        		sourceContext,
+				topics,
+				null, /* no restored state */
+				null, /* periodic assigner */
+				null, /* punctuated assigner */
+				new TestProcessingTimeService(),
+				10,
+				getClass().getClassLoader(),
+				false, /* checkpointing */
+				"taskname-with-subtask",
+				new UnregisteredMetricsGroup(),
+				schema,
+				new Properties(),
+				0L,
 				StartupMode.GROUP_OFFSETS,
-                false);
+				false);
 
 
         // ----- run the fetcher -----
@@ -377,21 +377,22 @@ public class Kafka010FetcherTest {
         KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
 
         final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
-                sourceContext,
-                topics,
-                null, /* periodic watermark extractor */
-                null, /* punctuated watermark extractor */
-                new TestProcessingTimeService(),
-                10, /* watermark interval */
-                this.getClass().getClassLoader(),
-                true, /* checkpointing */
-                "task_name",
-                new UnregisteredMetricsGroup(),
-                schema,
-                new Properties(),
-                0L,
+				sourceContext,
+				topics,
+				null, /* no restored state */
+				null, /* periodic watermark extractor */
+				null, /* punctuated watermark extractor */
+				new TestProcessingTimeService(),
+				10, /* watermark interval */
+				this.getClass().getClassLoader(),
+				true, /* checkpointing */
+				"task_name",
+				new UnregisteredMetricsGroup(),
+				schema,
+				new Properties(),
+				0L,
 				StartupMode.GROUP_OFFSETS,
-                false);
+				false);
 
 
         // ----- run the fetcher -----

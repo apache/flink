@@ -82,9 +82,9 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 
 	@Test(timeout = 60000)
 	public void testInvalidOffset() throws Exception {
-		
+
 		final int parallelism = 1;
-		
+
 		// write 20 messages into topic:
 		final String topic = writeSequence("invalidOffsetTopic", 20, parallelism, 1);
 
@@ -99,7 +99,7 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env.getConfig().disableSysoutLogging();
-		
+
 		readSequence(env, StartupMode.GROUP_OFFSETS, standardProps, parallelism, topic, valuesCount, startFrom);
 
 		deleteTestTopic(topic);

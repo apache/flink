@@ -44,7 +44,7 @@ public class KafkaConsumerCallBridge010 extends KafkaConsumerCallBridge {
 	}
 
 	@Override
-	public void seekPartitionsToEnd(KafkaConsumer consumer, List<TopicPartition> partitions) {
+	public void seekPartitionsToEnd(KafkaConsumer<?, ?> consumer, List<TopicPartition> partitions) {
 		consumer.seekToEnd(partitions);
 	}
 }

@@ -112,11 +112,10 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 
 	// --- startup mode ---
 
-	// TODO not passing due to Kafka Consumer config error
-//	@Test(timeout = 60000)
-//	public void testStartFromEarliestOffsets() throws Exception {
-//		runStartFromEarliestOffsets();
-//	}
+	@Test(timeout = 60000)
+	public void testStartFromEarliestOffsets() throws Exception {
+		runStartFromEarliestOffsets();
+	}
 
 	@Test(timeout = 60000)
 	public void testStartFromLatestOffsets() throws Exception {

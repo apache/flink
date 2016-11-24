@@ -270,16 +270,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		// we need only do work, if we actually have partitions assigned
 		if (!subscribedPartitions.isEmpty()) {
 
-			// (1) create the fetcher that will communicate with the Kafka brokers
+			// create the fetcher that will communicate with the Kafka brokers
 			final AbstractFetcher<T, ?> fetcher = createFetcher(
-					sourceContext, subscribedPartitions,
+					sourceContext, subscribedPartitions, restoreToOffset,
 					periodicWatermarkAssigner, punctuatedWatermarkAssigner,
 					(StreamingRuntimeContext) getRuntimeContext());
-
-			// (2) set the fetcher to the restored checkpoint offsets
-			if (restoreToOffset != null) {
-				fetcher.restoreOffsets(restoreToOffset);
-			}
 
 			// publish the reference, for snapshot-, commit-, and cancel calls
 			// IMPORTANT: We can only do that now, because only now will calls to
@@ -509,6 +504,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	protected abstract AbstractFetcher<T, ?> createFetcher(
 			SourceContext<T> sourceContext,
 			List<KafkaTopicPartition> thisSubtaskPartitions,
+			HashMap<KafkaTopicPartition, Long> restoredSnapshotState,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext) throws Exception;

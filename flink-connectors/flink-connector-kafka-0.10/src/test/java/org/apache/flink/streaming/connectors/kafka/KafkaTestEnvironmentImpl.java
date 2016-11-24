@@ -45,7 +45,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.BindException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Properties;
+import java.util.UUID;
 
 import static org.apache.flink.util.NetUtils.hostAndPortToUrlString;
 import static org.junit.Assert.assertTrue;
@@ -226,6 +231,8 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		standardProps.setProperty("zookeeper.connect", zookeeperConnectionString);
 		standardProps.setProperty("bootstrap.servers", brokerConnectionString);
 		standardProps.setProperty("group.id", "flink-tests");
+		standardProps.setProperty("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+		standardProps.setProperty("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
 		standardProps.setProperty("enable.auto.commit", "false");
 		standardProps.setProperty("zookeeper.session.timeout.ms", String.valueOf(zkTimeout));
 		standardProps.setProperty("zookeeper.connection.timeout.ms", String.valueOf(zkTimeout));

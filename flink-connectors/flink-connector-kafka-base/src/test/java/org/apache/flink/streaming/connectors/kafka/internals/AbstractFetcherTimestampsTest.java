@@ -32,6 +32,7 @@ import org.junit.Test;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -55,6 +56,7 @@ public class AbstractFetcherTimestampsTest {
 		TestFetcher<Long> fetcher = new TestFetcher<>(
 				sourceContext,
 				originalPartitions,
+				null,
 				null, /* periodic watermark assigner */
 				new SerializedValue<AssignerWithPunctuatedWatermarks<Long>>(new PunctuatedTestExtractor()),
 				processingTimeProvider,
@@ -129,6 +131,7 @@ public class AbstractFetcherTimestampsTest {
 		TestFetcher<Long> fetcher = new TestFetcher<>(
 				sourceContext,
 				originalPartitions,
+				null,
 				new SerializedValue<AssignerWithPeriodicWatermarks<Long>>(new PeriodicTestExtractor()),
 				null, /* punctuated watermarks assigner*/
 				processingTimeService,
@@ -200,6 +203,7 @@ public class AbstractFetcherTimestampsTest {
 		protected TestFetcher(
 				SourceContext<T> sourceContext,
 				List<KafkaTopicPartition> assignedPartitions,
+				HashMap<KafkaTopicPartition, Long> restoredSnapshotState,
 				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 				ProcessingTimeService processingTimeProvider,
@@ -208,6 +212,7 @@ public class AbstractFetcherTimestampsTest {
 			super(
 				sourceContext,
 				assignedPartitions,
+				restoredSnapshotState,
 				watermarksPeriodic,
 				watermarksPunctuated,
 				processingTimeProvider,
