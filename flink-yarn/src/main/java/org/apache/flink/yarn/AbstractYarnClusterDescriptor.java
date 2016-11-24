@@ -690,6 +690,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				localResources.put("job.graph", jobgraph);
 				paths.add(remoteJobGraph);
 				classPathBuilder.append("job.graph").append(File.pathSeparator);
+				fp.delete();
 			} catch (Exception e) {
 				LOG.warn("Add job graph to local resource fail");
 				throw e;
