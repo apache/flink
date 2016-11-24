@@ -17,6 +17,7 @@
  */
 package org.apache.flink.runtime.security;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.Test;
 
@@ -26,15 +27,15 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link SecurityContext}.
+ * Tests for the {@link SecurityUtils}.
  */
-public class SecurityContextTest {
+public class SecurityUtilsTest {
 
 	@Test
 	public void testCreateInsecureHadoopCtx() {
-		SecurityContext.SecurityConfiguration sc = new SecurityContext.SecurityConfiguration();
+		SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(new Configuration());
 		try {
-			SecurityContext.install(sc);
+			SecurityUtils.install(sc);
 			assertEquals(UserGroupInformation.getLoginUser().getUserName(), getOSUserName());
 		} catch (Exception e) {
 			fail(e.getMessage());
@@ -44,7 +45,7 @@ public class SecurityContextTest {
 	@Test
 	public void testInvalidUGIContext() {
 		try {
-			new SecurityContext(null);
+			new HadoopSecurityContext(null);
 		} catch (RuntimeException re) {
 			assertEquals("UGI passed cannot be null",re.getMessage());
 		}

@@ -22,6 +22,7 @@ import java.io.{File, FileInputStream, IOException}
 import java.lang.management.ManagementFactory
 import java.net.{InetAddress, InetSocketAddress}
 import java.util
+import java.util.concurrent.Callable
 import java.util.{Collections, UUID}
 
 import _root_.akka.actor._
@@ -65,8 +66,8 @@ import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.query.KvStateRegistry
 import org.apache.flink.runtime.query.netty.{DisabledKvStateRequestStats, KvStateServer}
-import org.apache.flink.runtime.security.SecurityContext.{FlinkSecuredRunner, SecurityConfiguration}
-import org.apache.flink.runtime.security.SecurityContext
+import org.apache.flink.runtime.security.SecurityUtils
+import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.util.{MathUtils, NetUtils}
@@ -1532,11 +1533,11 @@ object TaskManager {
     val resourceId = ResourceID.generate()
 
     // run the TaskManager (if requested in an authentication enabled context)
-    SecurityContext.install(new SecurityConfiguration().setFlinkConfiguration(configuration))
+    SecurityUtils.install(new SecurityConfiguration(configuration))
 
     try {
-      SecurityContext.getInstalled.runSecured(new FlinkSecuredRunner[Unit] {
-        override def run(): Unit = {
+      SecurityUtils.getInstalledContext.runSecured(new Callable[Unit] {
+        override def call(): Unit = {
           selectNetworkInterfaceAndRunTaskManager(configuration, resourceId, classOf[TaskManager])
         }
       })

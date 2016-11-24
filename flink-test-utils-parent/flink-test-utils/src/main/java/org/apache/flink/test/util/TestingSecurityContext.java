@@ -19,7 +19,7 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.runtime.security.SecurityUtils;
 
 import java.util.Map;
 
@@ -30,11 +30,11 @@ import java.util.Map;
 @Internal
 public class TestingSecurityContext {
 
-	public static void install(SecurityContext.SecurityConfiguration config,
+	public static void install(SecurityUtils.SecurityConfiguration config,
 						Map<String, ClientSecurityConfiguration> clientSecurityConfigurationMap)
 			throws Exception {
 
-		SecurityContext.install(config);
+		SecurityUtils.install(config);
 
 		// establish the JAAS config for Test environment
 		TestingJaasConfiguration jaasConfig = new TestingJaasConfiguration(config.getKeytab(),
