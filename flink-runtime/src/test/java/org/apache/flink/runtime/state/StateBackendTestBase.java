@@ -585,11 +585,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			// some modifications to the state
 			backend.setCurrentKey(1);
-			assertEquals("Fold-Initial:", state.get());
+			assertEquals(null, state.get());
 			assertEquals(null, getSerializedValue(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 			state.add(1);
 			backend.setCurrentKey(2);
-			assertEquals("Fold-Initial:", state.get());
+			assertEquals(null, state.get());
 			assertEquals(null, getSerializedValue(kvState, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 			state.add(2);
 			backend.setCurrentKey(1);
