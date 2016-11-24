@@ -52,6 +52,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	private final Collection<OperatorStateHandle> restoreSnapshots;
 	private final CloseableRegistry closeStreamOnCancelRegistry;
 	private final JavaSerializer<Serializable> javaSerializer;
+	private final ClassLoader userClassloader;
 
 	/**
 	 * Restores a OperatorStateStore (lazily) using the provided snapshots.
@@ -62,7 +63,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			ClassLoader userClassLoader,
 			Collection<OperatorStateHandle> restoreSnapshots) {
 
-		Preconditions.checkNotNull(userClassLoader);
+		this.userClassloader = Preconditions.checkNotNull(userClassLoader);
 		this.javaSerializer = new JavaSerializer<>(userClassLoader);
 		this.restoreSnapshots = restoreSnapshots;
 		this.registeredStates = new HashMap<>();
@@ -95,14 +96,14 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 		if (null == partitionableListState) {
 
-			partitionableListState = new PartitionableListState<>(partitionStateSerializer);
+			partitionableListState = new PartitionableListState<>(name, partitionStateSerializer);
 
 			registeredStates.put(name, partitionableListState);
 
 			// Try to restore previous state if state handles to snapshots are provided
 			if (restoreSnapshots != null) {
 				for (OperatorStateHandle stateHandle : restoreSnapshots) {
-					//TODO we coud be even more gc friendly be removing handles from the collections one the map is empty
+					//TODO we could be even more gc friendly be removing handles from the collections one the map is empty
 					// search and remove to be gc friendly
 					long[] offsets = stateHandle.getStateNameToPartitionOffsets().remove(name);
 
@@ -140,6 +141,19 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			return new DoneFuture<>(null);
 		}
 
+		List<OperatorBackendSerializationProxy.StateMetaInfo> metaInfoList = new ArrayList<>(registeredStates.size());
+		OperatorBackendSerializationProxy backendSerializationProxy =
+				new OperatorBackendSerializationProxy(metaInfoList);
+
+		for (Map.Entry<String, PartitionableListState<?>> entry : registeredStates.entrySet()) {
+			PartitionableListState<?> state = entry.getValue();
+			OperatorBackendSerializationProxy.StateMetaInfo metaInfo =
+					new OperatorBackendSerializationProxy.StateMetaInfo(
+							state.getName(),
+							state.getPartitionStateSerializer());
+			metaInfoList.add(metaInfo);
+		}
+
 		Map<String, long[]> writtenStatesMetaData = new HashMap<>(registeredStates.size());
 
 		CheckpointStreamFactory.CheckpointStateOutputStream out = streamFactory.
@@ -171,29 +185,26 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		registeredStates.clear();
 	}
 
+	@Override
+	public Set<String> getRegisteredStateNames() {
+		return registeredStates.keySet();
+	}
+
+	@Override
+	public void close() throws IOException {
+		closeStreamOnCancelRegistry.close();
+	}
+
 	static final class PartitionableListState<S> implements ListState<S> {
 
 		private final List<S> internalList;
+		private final String name;
 		private final TypeSerializer<S> partitionStateSerializer;
 
-		public PartitionableListState(TypeSerializer<S> partitionStateSerializer) {
+		public PartitionableListState(String name, TypeSerializer<S> partitionStateSerializer) {
 			this.internalList = new ArrayList<>();
 			this.partitionStateSerializer = Preconditions.checkNotNull(partitionStateSerializer);
-		}
-
-		@Override
-		public void clear() {
-			internalList.clear();
-		}
-
-		@Override
-		public Iterable<S> get() {
-			return internalList;
-		}
-
-		@Override
-		public void add(S value) {
-			internalList.add(value);
+			this.name = Preconditions.checkNotNull(name);
 		}
 
 		public long[] write(FSDataOutputStream out) throws IOException {
@@ -215,6 +226,29 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			return internalList;
 		}
 
+		public String getName() {
+			return name;
+		}
+
+		public TypeSerializer<S> getPartitionStateSerializer() {
+			return partitionStateSerializer;
+		}
+
+		@Override
+		public void clear() {
+			internalList.clear();
+		}
+
+		@Override
+		public Iterable<S> get() {
+			return internalList;
+		}
+
+		@Override
+		public void add(S value) {
+			internalList.add(value);
+		}
+
 		@Override
 		public String toString() {
 			return "PartitionableListState{" +
@@ -222,16 +256,5 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 					'}';
 		}
 	}
-
-	@Override
-	public Set<String> getRegisteredStateNames() {
-		return registeredStates.keySet();
-	}
-
-	@Override
-	public void close() throws IOException {
-		closeStreamOnCancelRegistry.close();
-	}
-
 }
 
