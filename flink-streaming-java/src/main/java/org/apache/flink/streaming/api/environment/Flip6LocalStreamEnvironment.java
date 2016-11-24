@@ -34,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The MiniStreamEnvironment is a StreamExecutionEnvironment that runs the program locally,
+ * The Flip6LocalStreamEnvironment is a StreamExecutionEnvironment that runs the program locally,
  * multi-threaded, in the JVM where the environment is instantiated. It spawns an embedded
  * Flink cluster in the background and executes the program on that cluster.
  *
@@ -42,9 +42,9 @@ import org.slf4j.LoggerFactory;
  * parallelism can be set via {@link #setParallelism(int)}.
  */
 @Public
-public class MiniClusterStreamEnvironment extends StreamExecutionEnvironment {
+public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MiniClusterStreamEnvironment.class);
+	private static final Logger LOG = LoggerFactory.getLogger(Flip6LocalStreamEnvironment.class);
 
 	/** The configuration to use for the mini cluster */
 	private final Configuration conf;
@@ -52,7 +52,7 @@ public class MiniClusterStreamEnvironment extends StreamExecutionEnvironment {
 	/**
 	 * Creates a new mini cluster stream environment that uses the default configuration.
 	 */
-	public MiniClusterStreamEnvironment() {
+	public Flip6LocalStreamEnvironment() {
 		this(null);
 	}
 
@@ -61,10 +61,10 @@ public class MiniClusterStreamEnvironment extends StreamExecutionEnvironment {
 	 *
 	 * @param config The configuration used to configure the local executor.
 	 */
-	public MiniClusterStreamEnvironment(Configuration config) {
+	public Flip6LocalStreamEnvironment(Configuration config) {
 		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
 			throw new InvalidProgramException(
-					"The MiniStreamEnvironment cannot be used when submitting a program through a client, " +
+					"The Flip6LocalStreamEnvironment cannot be used when submitting a program through a client, " +
 							"or running in a TestEnvironment context.");
 		}
 		
@@ -111,10 +111,6 @@ public class MiniClusterStreamEnvironment extends StreamExecutionEnvironment {
 			slotsCount += jobVertex.getParallelism();
 		}
 		cfg.setNumTaskManagerSlots(slotsCount);
-
-		// should be the default, but set anyways to make sure the test
-		// stays valid when the default changes
-		cfg.setUseSingleRpcService();
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running job on local embedded Flink mini cluster");
