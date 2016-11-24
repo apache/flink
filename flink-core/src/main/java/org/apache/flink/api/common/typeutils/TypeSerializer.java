@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import java.io.IOException;
-import java.io.Serializable;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
+import java.io.Serializable;
 
 /**
  * This interface describes the methods that are required for a data type to be handled by the Flink
@@ -160,4 +160,8 @@ public abstract class TypeSerializer<T> implements Serializable {
 	public abstract boolean canEqual(Object obj);
 
 	public abstract int hashCode();
+
+	public boolean isCompatibleWith(TypeSerializer<?> other) {
+		return equals(other);
+	}
 }

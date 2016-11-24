@@ -114,4 +114,8 @@ public class ByteArrayOutputStreamWithPos extends OutputStream {
 	@Override
 	public void close() throws IOException {
 	}
+
+	public byte[] getBuf() {
+		return buffer;
+	}
 }

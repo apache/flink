@@ -50,6 +50,8 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
+import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.util.InstantiationUtil;
@@ -123,7 +125,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * Information about the k/v states as we create them. This is used to retrieve the
 	 * column family that is used for a state and also for sanity checks when restoring.
 	 */
-	private Map<String, Tuple2<ColumnFamilyHandle, StateDescriptor<?, ?>>> kvStateInformation;
+	private Map<String, Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>>> kvStateInformation;
 
 	/** Number of bytes required to prefix the key groups. */
 	private final int keyGroupPrefixBytes;
@@ -237,7 +239,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			// and access it in a synchronized block that locks on #dbDisposeLock.
 			if (db != null) {
 
-				for (Tuple2<ColumnFamilyHandle, StateDescriptor<?, ?>> column : kvStateInformation.values()) {
+				for (Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>> column :
+						kvStateInformation.values()) {
+
 					column.f0.close();
 				}
 
@@ -492,18 +496,24 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		private void writeKVStateMetaData() throws IOException, InterruptedException {
-			//write number of k/v states
-			outputView.writeInt(stateBackend.kvStateInformation.size());
+
+			List<KeyedBackendSerializationProxy.StateMetaInfo<?, ?>> metaInfoList =
+					new ArrayList<>(stateBackend.kvStateInformation.size());
 
 			int kvStateId = 0;
-			//iterate all column families, where each column family holds one k/v state, to write the metadata
-			for (Map.Entry<String, Tuple2<ColumnFamilyHandle, StateDescriptor<?, ?>>> column : stateBackend.kvStateInformation.entrySet()) {
+			for (Map.Entry<String, Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>>> column :
+					stateBackend.kvStateInformation.entrySet()) {
 
-				//be cooperative and check for interruption from time to time in the hot loop
-				checkInterrupted();
+				RegisteredBackendStateMetaInfo<?, ?> metaInfo = column.getValue().f1;
 
-				//write StateDescriptor for this k/v state
-				InstantiationUtil.serializeObject(outStream, column.getValue().f1);
+				KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoProxy =
+						new KeyedBackendSerializationProxy.StateMetaInfo<>(
+								metaInfo.getStateType(),
+								metaInfo.getName(),
+								metaInfo.getNamespaceSerializer(),
+								metaInfo.getStateSerializer());
+
+				metaInfoList.add(metaInfoProxy);
 
 				//retrieve iterator for this k/v states
 				readOptions = new ReadOptions();
@@ -512,6 +522,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				kvStateIterators.add(new Tuple2<>(iterator, kvStateId));
 				++kvStateId;
 			}
+
+			KeyedBackendSerializationProxy serializationProxy =
+					new KeyedBackendSerializationProxy(stateBackend.getKeySerializer(), metaInfoList);
+
+			serializationProxy.write(outputView);
 		}
 
 		private void writeKVStateData() throws IOException, InterruptedException {
@@ -691,30 +706,35 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 * @throws RocksDBException
 		 */
 		private void restoreKVStateMetaData() throws IOException, ClassNotFoundException, RocksDBException {
-			//read number of k/v states
-			int numColumns = currentStateHandleInView.readInt();
 
-			//those two lists are aligned and should later have the same size!
-			currentStateHandleKVStateColumnFamilies = new ArrayList<>(numColumns);
+			KeyedBackendSerializationProxy serializationProxy =
+					new KeyedBackendSerializationProxy(rocksDBKeyedStateBackend.userCodeClassLoader);
 
-			//restore the empty columns for the k/v states through the metadata
-			for (int i = 0; i < numColumns; i++) {
+			serializationProxy.read(currentStateHandleInView);
 
-				StateDescriptor<?, ?> stateDescriptor = InstantiationUtil.deserializeObject(
-						currentStateHandleInStream,
-						rocksDBKeyedStateBackend.userCodeClassLoader);
+			List<KeyedBackendSerializationProxy.StateMetaInfo<?, ?>> metaInfoProxyList =
+					serializationProxy.getNamedStateSerializationProxies();
 
-				Tuple2<ColumnFamilyHandle, StateDescriptor<?, ?>> columnFamily = rocksDBKeyedStateBackend.
-						kvStateInformation.get(stateDescriptor.getName());
+			currentStateHandleKVStateColumnFamilies = new ArrayList<>(metaInfoProxyList.size());
+
+			for (KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoProxy : metaInfoProxyList) {
+				Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>> columnFamily =
+						rocksDBKeyedStateBackend.kvStateInformation.get(metaInfoProxy.getStateName());
 
 				if (null == columnFamily) {
 					ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(
-							stateDescriptor.getName().getBytes(), rocksDBKeyedStateBackend.columnOptions);
+							metaInfoProxy.getStateName().getBytes(), rocksDBKeyedStateBackend.columnOptions);
 
-					columnFamily = new Tuple2<ColumnFamilyHandle, StateDescriptor<?, ?>>(
-							rocksDBKeyedStateBackend.db.createColumnFamily(columnFamilyDescriptor), stateDescriptor);
+					RegisteredBackendStateMetaInfo<?, ?> stateMetaInfo =
+							new RegisteredBackendStateMetaInfo<>(metaInfoProxy);
 
-					rocksDBKeyedStateBackend.kvStateInformation.put(stateDescriptor.getName(), columnFamily);
+					columnFamily = new Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>>(
+							rocksDBKeyedStateBackend.db.createColumnFamily(columnFamilyDescriptor),
+							stateMetaInfo);
+
+					rocksDBKeyedStateBackend.kvStateInformation.put(stateMetaInfo.getName(), columnFamily);
+				} else {
+					//TODO we could check here for incompatible serializer versions between previous tasks
 				}
 
 				currentStateHandleKVStateColumnFamilies.add(columnFamily.f0);
@@ -776,15 +796,24 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * <p>This also checks whether the {@link StateDescriptor} for a state matches the one
 	 * that we checkpointed, i.e. is already in the map of column families.
 	 */
-	protected ColumnFamilyHandle getColumnFamily(StateDescriptor<?, ?> descriptor) {
+	@SuppressWarnings("rawtypes, unchecked")
+	protected <N, S> ColumnFamilyHandle getColumnFamily(StateDescriptor<?, S> descriptor, TypeSerializer<N> namespaceSerializer) {
 
-		Tuple2<ColumnFamilyHandle, StateDescriptor<?, ?>> stateInfo = kvStateInformation.get(descriptor.getName());
+		Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>> stateInfo =
+				kvStateInformation.get(descriptor.getName());
+
+		RegisteredBackendStateMetaInfo<N, S> newMetaInfo = new RegisteredBackendStateMetaInfo<>(
+				descriptor.getType(),
+				descriptor.getName(),
+				namespaceSerializer,
+				descriptor.getSerializer());
 
 		if (stateInfo != null) {
-			if (!stateInfo.f1.equals(descriptor)) {
-				throw new RuntimeException("Trying to access state using wrong StateDescriptor, was " + stateInfo.f1 +
-						" trying access with " + descriptor);
+			if (!newMetaInfo.isCompatibleWith(stateInfo.f1)) {
+				throw new RuntimeException("Trying to access state using wrong meta info, was " + stateInfo.f1 +
+						" trying access with " + newMetaInfo);
 			}
+			stateInfo.f1 = newMetaInfo;
 			return stateInfo.f0;
 		}
 
@@ -793,9 +822,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		try {
 			ColumnFamilyHandle columnFamily = db.createColumnFamily(columnDescriptor);
-			Tuple2<ColumnFamilyHandle, StateDescriptor<?, ?>> tuple =
-					new Tuple2<ColumnFamilyHandle, StateDescriptor<?, ?>>(columnFamily, descriptor);
-			kvStateInformation.put(descriptor.getName(), tuple);
+			Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<N, S>> tuple =
+					new Tuple2<>(columnFamily, newMetaInfo);
+			Map rawAccess = kvStateInformation;
+			rawAccess.put(descriptor.getName(), tuple);
 			return columnFamily;
 		} catch (RocksDBException e) {
 			throw new RuntimeException("Error creating ColumnFamilyHandle.", e);
@@ -806,7 +836,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	protected <N, T> ValueState<T> createValueState(TypeSerializer<N> namespaceSerializer,
 			ValueStateDescriptor<T> stateDesc) throws Exception {
 
-		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc);
+		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
 
 		return new RocksDBValueState<>(columnFamily, namespaceSerializer,  stateDesc, this);
 	}
@@ -815,7 +845,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	protected <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer,
 			ListStateDescriptor<T> stateDesc) throws Exception {
 
-		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc);
+		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
 
 		return new RocksDBListState<>(columnFamily, namespaceSerializer, stateDesc, this);
 	}
@@ -824,7 +854,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	protected <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer,
 			ReducingStateDescriptor<T> stateDesc) throws Exception {
 
-		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc);
+		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
 
 		return new RocksDBReducingState<>(columnFamily, namespaceSerializer,  stateDesc, this);
 	}
@@ -833,7 +863,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer,
 			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
 
-		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc);
+		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
 
 		return new RocksDBFoldingState<>(columnFamily, namespaceSerializer, stateDesc, this);
 	}
@@ -1116,7 +1146,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			columnFamilyMapping.put(mappingByte, stateDescriptor);
 
 			// this will fill in the k/v state information
-			getColumnFamily(stateDescriptor);
+			getColumnFamily(stateDescriptor, null);
 		}
 
 		// try and read until EOF
@@ -1124,7 +1154,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			// the EOFException will get us out of this...
 			while (true) {
 				byte mappingByte = inputView.readByte();
-				ColumnFamilyHandle handle = getColumnFamily(columnFamilyMapping.get(mappingByte));
+				ColumnFamilyHandle handle = getColumnFamily(columnFamilyMapping.get(mappingByte), null);
 				byte[] keyAndNamespace = BytePrimitiveArraySerializer.INSTANCE.deserialize(inputView);
 
 				ByteArrayInputStreamWithPos bis = new ByteArrayInputStreamWithPos(keyAndNamespace);

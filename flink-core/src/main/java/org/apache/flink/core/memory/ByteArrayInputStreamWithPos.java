@@ -115,4 +115,8 @@ public class ByteArrayInputStreamWithPos extends InputStream {
 	public int getPosition() {
 		return position;
 	}
+
+	public void setPos(int pos) {
+		this.position = pos;
+	}
 }
