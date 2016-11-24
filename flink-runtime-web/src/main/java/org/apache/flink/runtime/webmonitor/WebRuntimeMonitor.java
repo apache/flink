@@ -458,6 +458,9 @@ public class WebRuntimeMonitor implements WebMonitor {
 				if (bootstrap.group() != null) {
 					bootstrap.group().shutdownGracefully();
 				}
+				if (bootstrap.childGroup() != null) {
+					bootstrap.childGroup().shutdownGracefully();
+				}
 			}
 
 			stackTraceSamples.shutDown();
