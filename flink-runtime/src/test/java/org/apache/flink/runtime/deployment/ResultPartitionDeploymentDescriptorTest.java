@@ -25,6 +25,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class ResultPartitionDeploymentDescriptorTest {
 
@@ -38,7 +39,6 @@ public class ResultPartitionDeploymentDescriptorTest {
 		IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 		ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
 		int numberOfSubpartitions = 24;
-		boolean eagerlyDeployConsumers = true;
 
 		ResultPartitionDeploymentDescriptor orig =
 				new ResultPartitionDeploymentDescriptor(
@@ -46,7 +46,7 @@ public class ResultPartitionDeploymentDescriptorTest {
 						partitionId,
 						partitionType,
 						numberOfSubpartitions,
-						eagerlyDeployConsumers);
+						true);
 
 		ResultPartitionDeploymentDescriptor copy =
 				CommonTestUtils.createCopySerializable(orig);
@@ -55,6 +55,6 @@ public class ResultPartitionDeploymentDescriptorTest {
 		assertEquals(partitionId, copy.getPartitionId());
 		assertEquals(partitionType, copy.getPartitionType());
 		assertEquals(numberOfSubpartitions, copy.getNumberOfSubpartitions());
-		assertEquals(eagerlyDeployConsumers, copy.getEagerlyDeployConsumers());
+		assertTrue(copy.sendScheduleOrUpdateConsumersMessage());
 	}
 }

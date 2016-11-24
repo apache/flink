@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -320,17 +320,14 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		CassandraCommitter cc1 = new CassandraCommitter(builder);
 		cc1.setJobId("job");
 		cc1.setOperatorId("operator");
-		cc1.setOperatorSubtaskId(0);
 
 		CassandraCommitter cc2 = new CassandraCommitter(builder);
 		cc2.setJobId("job");
 		cc2.setOperatorId("operator");
-		cc2.setOperatorSubtaskId(1);
 
 		CassandraCommitter cc3 = new CassandraCommitter(builder);
 		cc3.setJobId("job");
 		cc3.setOperatorId("operator1");
-		cc3.setOperatorSubtaskId(0);
 
 		cc1.createResource();
 
@@ -338,18 +335,18 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		cc2.open();
 		cc3.open();
 
-		Assert.assertFalse(cc1.isCheckpointCommitted(1));
-		Assert.assertFalse(cc2.isCheckpointCommitted(1));
-		Assert.assertFalse(cc3.isCheckpointCommitted(1));
+		Assert.assertFalse(cc1.isCheckpointCommitted(0, 1));
+		Assert.assertFalse(cc2.isCheckpointCommitted(1, 1));
+		Assert.assertFalse(cc3.isCheckpointCommitted(0, 1));
 
-		cc1.commitCheckpoint(1);
-		Assert.assertTrue(cc1.isCheckpointCommitted(1));
+		cc1.commitCheckpoint(0, 1);
+		Assert.assertTrue(cc1.isCheckpointCommitted(0, 1));
 		//verify that other sub-tasks aren't affected
-		Assert.assertFalse(cc2.isCheckpointCommitted(1));
+		Assert.assertFalse(cc2.isCheckpointCommitted(1, 1));
 		//verify that other tasks aren't affected
-		Assert.assertFalse(cc3.isCheckpointCommitted(1));
+		Assert.assertFalse(cc3.isCheckpointCommitted(0, 1));
 
-		Assert.assertFalse(cc1.isCheckpointCommitted(2));
+		Assert.assertFalse(cc1.isCheckpointCommitted(0, 2));
 
 		cc1.close();
 		cc2.close();
@@ -358,13 +355,12 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		cc1 = new CassandraCommitter(builder);
 		cc1.setJobId("job");
 		cc1.setOperatorId("operator");
-		cc1.setOperatorSubtaskId(0);
 
 		cc1.open();
 
 		//verify that checkpoint data is not destroyed within open/close and not reliant on internally cached data
-		Assert.assertTrue(cc1.isCheckpointCommitted(1));
-		Assert.assertFalse(cc1.isCheckpointCommitted(2));
+		Assert.assertTrue(cc1.isCheckpointCommitted(0, 1));
+		Assert.assertFalse(cc1.isCheckpointCommitted(0, 2));
 
 		cc1.close();
 	}

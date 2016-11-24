@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -52,7 +53,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Utility class to encapsulate the logic of building an {@link ExecutionGraph} from a {@link JobGraph}.
  */
 public class ExecutionGraphBuilder {
-		/**
+	/**
 	 * Builds the ExecutionGraph from the JobGraph.
 	 * If a prior execution graph exists, the JobGraph will be attached. If no prior execution
 	 * graph exists, then the JobGraph will become attach to a new emoty execution graph.
@@ -61,7 +62,8 @@ public class ExecutionGraphBuilder {
 			@Nullable ExecutionGraph prior,
 			JobGraph jobGraph,
 			Configuration jobManagerConfig,
-			Executor executor,
+			Executor futureExecutor,
+			Executor ioExecutor,
 			ClassLoader classLoader,
 			CheckpointRecoveryFactory recoveryFactory,
 			Time timeout,
@@ -77,9 +79,13 @@ public class ExecutionGraphBuilder {
 		final JobID jobId = jobGraph.getJobID();
 
 		// create a new execution graph, if none exists so far
-		final ExecutionGraph executionGraph = (prior != null) ? prior :
-				new ExecutionGraph(
-						executor,
+		final ExecutionGraph executionGraph;
+
+		try {
+			executionGraph = (prior != null) ? prior :
+					new ExecutionGraph(
+						futureExecutor,
+						ioExecutor,
 						jobId,
 						jobName,
 						jobGraph.getJobConfiguration(),
@@ -90,6 +96,9 @@ public class ExecutionGraphBuilder {
 						jobGraph.getClasspaths(),
 						classLoader,
 						metrics);
+		} catch (IOException e) {
+			throw new JobException("Could not create the execution graph.", e);
+		}
 
 		// set the basic properties
 

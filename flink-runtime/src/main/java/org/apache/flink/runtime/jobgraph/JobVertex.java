@@ -382,7 +382,7 @@ public class JobVertex implements java.io.Serializable {
 	}
 
 	public JobEdge connectNewDataSetAsInput(JobVertex input, DistributionPattern distPattern) {
-		return connectNewDataSetAsInput(input, distPattern, ResultPartitionType.PIPELINED, false);
+		return connectNewDataSetAsInput(input, distPattern, ResultPartitionType.PIPELINED);
 	}
 
 	public JobEdge connectNewDataSetAsInput(
@@ -390,17 +390,7 @@ public class JobVertex implements java.io.Serializable {
 			DistributionPattern distPattern,
 			ResultPartitionType partitionType) {
 
-		return connectNewDataSetAsInput(input, distPattern, partitionType, false);
-	}
-
-	public JobEdge connectNewDataSetAsInput(
-			JobVertex input,
-			DistributionPattern distPattern,
-			ResultPartitionType partitionType,
-			boolean eagerlyDeployConsumers) {
-
 		IntermediateDataSet dataSet = input.createAndAddResultDataSet(partitionType);
-		dataSet.setEagerlyDeployConsumers(eagerlyDeployConsumers);
 
 		JobEdge edge = new JobEdge(dataSet, this, distPattern);
 		this.inputs.add(edge);

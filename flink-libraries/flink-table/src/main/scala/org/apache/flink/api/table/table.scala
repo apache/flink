@@ -55,7 +55,7 @@ import scala.collection.JavaConverters._
   * syntax.
   *
   * @param tableEnv The [[TableEnvironment]] to which the table is bound.
-  * @param logicalPlan
+  * @param logicalPlan logical representation
   */
 class Table(
     private[flink] val tableEnv: TableEnvironment,
@@ -77,7 +77,7 @@ class Table(
     */
   def select(fields: Expression*): Table = {
 
-    val expandedFields = expandProjectList(fields, logicalPlan)
+    val expandedFields = expandProjectList(fields, logicalPlan, tableEnv)
     val (projection, aggs, props) = extractAggregationsAndProperties(expandedFields, tableEnv)
 
     if (props.nonEmpty) {
@@ -549,11 +549,9 @@ class Table(
     * }}}
     */
   def orderBy(fields: Expression*): Table = {
-    val order: Seq[Ordering] = fields.map { case e =>
-      e match {
-        case o: Ordering => o
-        case _ => Asc(e)
-      }
+    val order: Seq[Ordering] = fields.map {
+      case o: Ordering => o
+      case e => Asc(e)
     }
     new Table(tableEnv, Sort(order, logicalPlan).validate(tableEnv))
   }

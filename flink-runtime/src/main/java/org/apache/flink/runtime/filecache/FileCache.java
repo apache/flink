@@ -18,6 +18,22 @@
 
 package org.apache.flink.runtime.filecache;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
+import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.util.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -29,23 +45,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
-import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.core.fs.FileStatus;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
-import org.apache.flink.util.IOUtils;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The FileCache is used to create the local files for the registered cache files when a task is deployed.
@@ -236,8 +235,10 @@ public class FileCache {
 	// ------------------------------------------------------------------------
 
 	public static void copy(Path sourcePath, Path targetPath, boolean executable) throws IOException {
-		FileSystem sFS = sourcePath.getFileSystem();
-		FileSystem tFS = targetPath.getFileSystem();
+		// TODO rewrite this to make it participate in the closable registry and the lifecycle of a task.
+		// we unwrap the file system to get raw streams without safety net
+		FileSystem sFS = FileSystem.getUnguardedFileSystem(sourcePath.toUri());
+		FileSystem tFS = FileSystem.getUnguardedFileSystem(targetPath.toUri());
 		if (!tFS.exists(targetPath)) {
 			if (sFS.getFileStatus(sourcePath).isDir()) {
 				tFS.mkdirs(targetPath);
@@ -253,16 +254,11 @@ public class FileCache {
 					copy(content.getPath(), new Path(localPath), executable);
 				}
 			} else {
-				try {
-					FSDataOutputStream lfsOutput = tFS.create(targetPath, false);
-					FSDataInputStream fsInput = sFS.open(sourcePath);
+				try (FSDataOutputStream lfsOutput = tFS.create(targetPath, false); FSDataInputStream fsInput = sFS.open(sourcePath)) {
 					IOUtils.copyBytes(fsInput, lfsOutput);
 					//noinspection ResultOfMethodCallIgnored
 					new File(targetPath.toString()).setExecutable(executable);
-					// closing the FSDataOutputStream
-					lfsOutput.close();
-				}
-				catch (IOException ioe) {
+				} catch (IOException ioe) {
 					LOG.error("could not copy file to local file cache.", ioe);
 				}
 			}

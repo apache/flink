@@ -1013,8 +1013,8 @@ Group-windows are defined using the `window(w: GroupWindow)` clause. The followi
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-val table = input
-  .window(w: GroupWindow) // define window
+Table table = input
+  .window(GroupWindow w)  // define window
   .select("b.sum")        // aggregate
 {% endhighlight %}
 </div>
@@ -1033,9 +1033,9 @@ In streaming environments, group-window aggregates can only be computed in paral
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-val table = input
+Table table = input
   .groupBy("a")
-  .window(w: GroupWindow) // define window
+  .window(GroupWindow w)  // define window
   .select("a, b.sum")     // aggregate
 {% endhighlight %}
 </div>
@@ -1056,7 +1056,7 @@ By assigning the group-window an alias using `as`, properties such as the start 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-val table = input
+Table table = input
   .groupBy("a")
   .window(XXX.as("myWin"))                      // define window alias
   .select("a, myWin.start, myWin.end, b.count") // aggregate
@@ -1470,7 +1470,7 @@ The Table API is built on top of Flink's DataSet and DataStream API. Internally,
 | `Types.INTERVAL_MONTHS`| `INTERVAL YEAR TO MONTH`    | `java.lang.Integer`    |
 | `Types.INTERVAL_MILLIS`| `INTERVAL DAY TO SECOND(3)` | `java.lang.Long`       |
 
-Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and arrays can be fields of a row but can not be accessed yet. They are treated like a black box within Table API and SQL.
+Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and arrays can be fields of a row. Generic types and arrays are treated as a black box within Table API and SQL yet. Composite types, however, are fully supported types where fields of a composite type can be accessed using the `.get()` operator in Table API and dot operator (e.g. `MyTable.pojoColumn.myField`) in SQL. Composite types can also be flattened using `.flatten()` in Table API or `MyTable.pojoColumn.*` in SQL.
 
 {% top %}
 
@@ -1481,8 +1481,6 @@ Both the Table API and SQL come with a set of built-in functions for data transf
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-
-<br/>
 
 <table class="table table-bordered">
   <thead>
@@ -2006,12 +2004,34 @@ NUMERIC.rows
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight java %}
+ANY.flatten()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes into a flat representation where every subtype is a separate field. In most cases the fields of the flat representation are named similarly to the original fields but with a dollar separator (e.g. <code>mypojo$mytuple$f0</code>).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+COMPOSITE.get(STRING)
+COMPOSITE.get(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by index or name and returns it's value. E.g. <code>pojo.get('myField')</code> or <code>tuple.get(0)</code>.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 
 </div>
 <div data-lang="scala" markdown="1">
-<br />
 
 <table class="table table-bordered">
   <thead>
@@ -2534,6 +2554,29 @@ NUMERIC.rows
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY.flatten()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes into a flat representation where every subtype is a separate field. In most cases the fields of the flat representation are named similarly to the original fields but with a dollar separator (e.g. <code>mypojo$mytuple$f0</code>).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+COMPOSITE.get(STRING)
+COMPOSITE.get(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by index or name and returns it's value. E.g. <code>'pojo.get("myField")</code> or <code>'tuple.get(0)</code>.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 </div>
@@ -2548,7 +2591,6 @@ The documentation is split up and ordered like the tests in SqlExpressionTest.
 
 The Flink SQL functions (including their syntax) are a subset of Apache Calcite's built-in functions. Most of the documentation has been adopted from the [Calcite SQL reference](https://calcite.apache.org/docs/reference.html).
 
-<br />
 
 <table class="table table-bordered">
   <thead>
@@ -2758,6 +2800,18 @@ value NOT IN (value [, value]* )
         <p>Whether <i>value</i> is not equal to every value in a list.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+EXISTS (sub-query)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Whether <i>sub-query</i> returns at least one row. Only supported if the operation can be rewritten in a join and group operation.</p>
+      </td>
+    </tr>
+
 <!-- NOT SUPPORTED SO FAR
     <tr>
       <td>
@@ -2780,17 +2834,7 @@ value NOT IN (sub-query)
         <p>Whether <i>value</i> is not equal to every row returned by sub-query.</p>
       </td>
     </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-EXISTS (sub-query)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Whether sub-query returns at least one row.</p>
-      </td>
-    </tr>-->
+    -->
 
   </tbody>
 </table>
@@ -3302,6 +3346,8 @@ CAST(value AS type)
   </tbody>
 </table>
 
+
+<!-- Disabled temporarily in favor of composite type support
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -3334,6 +3380,7 @@ ROW (value [, value]* )
     </tr>
   </tbody>
 </table>
+-->
 
 <table class="table table-bordered">
   <thead>
@@ -3550,6 +3597,39 @@ MIN(value)
       </td>
       <td>
         <p>Returns the minimum value of <i>value</i> across all input values.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Value access functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight text %}
+tableName.compositeType.field
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by name and returns it's value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+tableName.compositeType.*
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes into a flat representation where every subtype is a separate field.</p>
       </td>
     </tr>
   </tbody>

@@ -18,10 +18,13 @@
 
 package org.apache.flink.cep.operator;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
 import org.apache.flink.cep.nfa.NFA;
@@ -35,6 +38,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,7 +46,9 @@ import org.junit.rules.TemporaryFolder;
 
 import static org.junit.Assert.*;
 
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class CEPOperatorTest extends TestLogger {
@@ -411,9 +417,160 @@ public class CEPOperatorTest extends TestLogger {
 		harness.close();
 	}
 
+	/**
+	 * Tests that the internal time of a CEP operator advances only given watermarks. See FLINK-5033
+	 */
+	@Test
+	public void testKeyedAdvancingTimeWithoutElements() throws Exception {
+		final KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
+			private static final long serialVersionUID = -4873366487571254798L;
+
+			@Override
+			public Integer getKey(Event value) throws Exception {
+				return value.getId();
+			}
+		};
+		final Event startEvent = new Event(42, "start", 1.0);
+		final long watermarkTimestamp1 = 5L;
+		final long watermarkTimestamp2 = 13L;
+
+		final Map<String, Event> expectedSequence = new HashMap<>(2);
+		expectedSequence.put("start", startEvent);
+
+		OneInputStreamOperatorTestHarness<Event, Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>> harness = new KeyedOneInputStreamOperatorTestHarness<>(
+			new TimeoutKeyedCEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				false,
+				keySelector,
+				IntSerializer.INSTANCE,
+				new NFAFactory(true)),
+			keySelector,
+			BasicTypeInfo.INT_TYPE_INFO);
+
+		try {
+			harness.setup(
+				new KryoSerializer<>(
+					(Class<Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>>) (Object) Either.class,
+					new ExecutionConfig()));
+			harness.open();
+
+			harness.processElement(new StreamRecord<>(startEvent, 3L));
+			harness.processWatermark(new Watermark(watermarkTimestamp1));
+			harness.processWatermark(new Watermark(watermarkTimestamp2));
+
+			Queue<Object> result = harness.getOutput();
+
+			assertEquals(3, result.size());
+
+			Object watermark1 = result.poll();
+
+			assertTrue(watermark1 instanceof Watermark);
+
+			assertEquals(watermarkTimestamp1, ((Watermark) watermark1).getTimestamp());
+
+			Object resultObject = result.poll();
+
+			assertTrue(resultObject instanceof StreamRecord);
+
+			StreamRecord<Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>> streamRecord = (StreamRecord<Either<Tuple2<Map<String,Event>,Long>,Map<String,Event>>>) resultObject;
+
+			assertTrue(streamRecord.getValue() instanceof Either.Left);
+
+			Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>> left = (Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>>) streamRecord.getValue();
+
+			Tuple2<Map<String, Event>, Long> leftResult = left.left();
+
+			assertEquals(watermarkTimestamp2, (long) leftResult.f1);
+			assertEquals(expectedSequence, leftResult.f0);
+
+			Object watermark2 = result.poll();
+
+			assertTrue(watermark2 instanceof Watermark);
+
+			assertEquals(watermarkTimestamp2, ((Watermark) watermark2).getTimestamp());
+		} finally {
+			harness.close();
+		}
+	}
+
+	/**
+	 * Tests that the internal time of a CEP operator advances only given watermarks. See FLINK-5033
+	 */
+	@Test
+	public void testAdvancingTimeWithoutElements() throws Exception {
+		final Event startEvent = new Event(42, "start", 1.0);
+		final long watermarkTimestamp1 = 5L;
+		final long watermarkTimestamp2 = 13L;
+
+		final Map<String, Event> expectedSequence = new HashMap<>(2);
+		expectedSequence.put("start", startEvent);
+
+		OneInputStreamOperatorTestHarness<Event, Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>> harness = new OneInputStreamOperatorTestHarness<>(
+			new TimeoutCEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				false,
+				new NFAFactory(true))
+		);
+
+		try {
+			harness.setup(
+				new KryoSerializer<>(
+					(Class<Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>>) (Object) Either.class,
+					new ExecutionConfig()));
+			harness.open();
+
+			harness.processElement(new StreamRecord<>(startEvent, 3L));
+			harness.processWatermark(new Watermark(watermarkTimestamp1));
+			harness.processWatermark(new Watermark(watermarkTimestamp2));
+
+			Queue<Object> result = harness.getOutput();
+
+			assertEquals(3, result.size());
+
+			Object watermark1 = result.poll();
+
+			assertTrue(watermark1 instanceof Watermark);
+
+			assertEquals(watermarkTimestamp1, ((Watermark) watermark1).getTimestamp());
+
+			Object resultObject = result.poll();
+
+			assertTrue(resultObject instanceof StreamRecord);
+
+			StreamRecord<Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>> streamRecord = (StreamRecord<Either<Tuple2<Map<String,Event>,Long>,Map<String,Event>>>) resultObject;
+
+			assertTrue(streamRecord.getValue() instanceof Either.Left);
+
+			Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>> left = (Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>>) streamRecord.getValue();
+
+			Tuple2<Map<String, Event>, Long> leftResult = left.left();
+
+			assertEquals(watermarkTimestamp2, (long) leftResult.f1);
+			assertEquals(expectedSequence, leftResult.f0);
+
+			Object watermark2 = result.poll();
+
+			assertTrue(watermark2 instanceof Watermark);
+
+			assertEquals(watermarkTimestamp2, ((Watermark) watermark2).getTimestamp());
+		} finally {
+			harness.close();
+		}
+	}
+
 	private static class NFAFactory implements NFACompiler.NFAFactory<Event> {
 
 		private static final long serialVersionUID = 1173020762472766713L;
+
+		private final boolean handleTimeout;
+
+		private NFAFactory() {
+			this(false);
+		}
+
+		private NFAFactory(boolean handleTimeout) {
+			this.handleTimeout = handleTimeout;
+		}
 
 		@Override
 		public NFA<Event> createNFA() {
@@ -444,9 +601,9 @@ public class CEPOperatorTest extends TestLogger {
 					})
 					// add a window timeout to test whether timestamps of elements in the
 					// priority queue in CEP operator are correctly checkpointed/restored
-					.within(Time.milliseconds(10));
+					.within(Time.milliseconds(10L));
 
-			return NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
 		}
 	}
 }

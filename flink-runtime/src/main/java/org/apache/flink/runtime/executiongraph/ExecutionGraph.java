@@ -58,6 +58,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,14 +123,13 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * within the job. */
 	private final SerializableObject progressLock = new SerializableObject();
 
-	/** The ID of the job this graph has been built for. */
-	private final JobID jobID;
+	/** Job specific information like the job id, job name, job configuration, etc. */
+	private final JobInformation jobInformation;
 
-	/** The name of the original job graph. */
-	private final String jobName;
-
-	/** The job configuration that was originally attached to the JobGraph. */
-	private final Configuration jobConfiguration;
+	/** Serialized version of the job specific information. This is done to avoid multiple
+	 * serializations of the same data when creating a TaskDeploymentDescriptor.
+	 */
+	private final SerializedValue<JobInformation> serializedJobInformation;
 
 	/** {@code true} if all source tasks are stoppable. */
 	private boolean isStoppable = true;
@@ -145,14 +145,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	/** The currently executed tasks, for callbacks */
 	private final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
-
-	/** A list of all libraries required during the job execution. Libraries have to be stored
-	 * inside the BlobService and are referenced via the BLOB keys. */
-	private final List<BlobKey> requiredJarFiles;
-
-	/** A list of all classpaths required during the job execution. Classpaths have to be
-	 * accessible on all nodes in the cluster. */
-	private final List<URL> requiredClasspaths;
 
 	/** Listeners that receive messages when the entire job switches it status
 	 * (such as from RUNNING to FINISHED) */
@@ -171,9 +163,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	private final Time timeout;
 
 	// ------ Configuration of the Execution -------
-
-	/** The execution configuration (see {@link ExecutionConfig}) related to this specific job. */
-	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
 	/** Flag to indicate whether the scheduler may queue tasks for execution, or needs to be able
 	 * to deploy them immediately. */
@@ -215,7 +204,10 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	private CheckpointStatsTracker checkpointStatsTracker;
 
 	/** The executor which is used to execute futures. */
-	private Executor executor;
+	private final Executor futureExecutor;
+
+	/** The executor which is used to execute blocking io operations */
+	private final Executor ioExecutor;
 
 	/** Registered KvState instances reported by the TaskManagers. */
 	private KvStateLocationRegistry kvStateLocationRegistry;
@@ -231,15 +223,17 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * This constructor is for tests only, because it does not include class loading information.
 	 */
 	ExecutionGraph(
-			Executor executor,
+			Executor futureExecutor,
+			Executor ioExecutor,
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
 			SerializedValue<ExecutionConfig> serializedConfig,
 			Time timeout,
-			RestartStrategy restartStrategy) {
+			RestartStrategy restartStrategy) throws IOException {
 		this(
-			executor,
+			futureExecutor,
+			ioExecutor,
 			jobId,
 			jobName,
 			jobConfig,
@@ -254,7 +248,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	}
 
 	public ExecutionGraph(
-			Executor executor,
+			Executor futureExecutor,
+			Executor ioExecutor,
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
@@ -264,19 +259,28 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			List<BlobKey> requiredJarFiles,
 			List<URL> requiredClasspaths,
 			ClassLoader userClassLoader,
-			MetricGroup metricGroup) {
+			MetricGroup metricGroup) throws IOException {
 
-		checkNotNull(executor);
+		checkNotNull(futureExecutor);
 		checkNotNull(jobId);
 		checkNotNull(jobName);
 		checkNotNull(jobConfig);
 		checkNotNull(userClassLoader);
 
-		this.executor = executor;
+		this.jobInformation = new JobInformation(
+			jobId,
+			jobName,
+			serializedConfig,
+			jobConfig,
+			requiredJarFiles,
+			requiredClasspaths);
 
-		this.jobID = jobId;
-		this.jobName = jobName;
-		this.jobConfiguration = jobConfig;
+		// serialize the job information to do the serialisation work only once
+		this.serializedJobInformation = new SerializedValue<>(jobInformation);
+
+		this.futureExecutor = Preconditions.checkNotNull(futureExecutor);
+		this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
+
 		this.userClassLoader = userClassLoader;
 
 		this.tasks = new ConcurrentHashMap<JobVertexID, ExecutionJobVertex>();
@@ -289,11 +293,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 		this.stateTimestamps = new long[JobStatus.values().length];
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
-
-		this.requiredJarFiles = requiredJarFiles;
-		this.requiredClasspaths = requiredClasspaths;
-
-		this.serializedExecutionConfig = checkNotNull(serializedConfig);
 
 		this.timeout = timeout;
 
@@ -374,19 +373,20 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 		// create the coordinator that triggers and commits checkpoints and holds the state
 		checkpointCoordinator = new CheckpointCoordinator(
-				jobID,
-				interval,
-				checkpointTimeout,
-				minPauseBetweenCheckpoints,
-				maxConcurrentCheckpoints,
-				externalizeSettings,
-				tasksToTrigger,
-				tasksToWaitFor,
-				tasksToCommitTo,
-				checkpointIDCounter,
-				checkpointStore,
-				checkpointDir,
-				checkpointStatsTracker);
+			jobInformation.getJobId(),
+			interval,
+			checkpointTimeout,
+			minPauseBetweenCheckpoints,
+			maxConcurrentCheckpoints,
+			externalizeSettings,
+			tasksToTrigger,
+			tasksToWaitFor,
+			tasksToCommitTo,
+			checkpointIDCounter,
+			checkpointStore,
+			checkpointDir,
+			checkpointStatsTracker,
+			ioExecutor);
 
 		// interval of max long value indicates disable periodic checkpoint,
 		// the CheckpointActivatorDeactivator should be created only if the interval is not max value
@@ -461,16 +461,16 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * Returns a list of BLOB keys referring to the JAR files required to run this job
 	 * @return list of BLOB keys referring to the JAR files required to run this job
 	 */
-	public List<BlobKey> getRequiredJarFiles() {
-		return this.requiredJarFiles;
+	public Collection<BlobKey> getRequiredJarFiles() {
+		return jobInformation.getRequiredJarFileBlobKeys();
 	}
 
 	/**
 	 * Returns a list of classpaths referring to the directories/JAR files required to run this job
 	 * @return list of classpaths referring to the directories/JAR files required to run this job
 	 */
-	public List<URL> getRequiredClasspaths() {
-		return this.requiredClasspaths;
+	public Collection<URL> getRequiredClasspaths() {
+		return jobInformation.getRequiredClasspathURLs();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -488,14 +488,18 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		return slotProvider;
 	}
 
+	public SerializedValue<JobInformation> getSerializedJobInformation() {
+		return serializedJobInformation;
+	}
+
 	@Override
 	public JobID getJobID() {
-		return jobID;
+		return jobInformation.getJobId();
 	}
 
 	@Override
 	public String getJobName() {
-		return jobName;
+		return jobInformation.getJobName();
 	}
 
 	@Override
@@ -504,7 +508,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	}
 
 	public Configuration getJobConfiguration() {
-		return jobConfiguration;
+		return jobInformation.getJobConfiguration();
 	}
 
 	public ClassLoader getUserClassLoader() {
@@ -594,8 +598,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 *
 	 * @return ExecutionContext associated with this ExecutionGraph
 	 */
-	public Executor getExecutor() {
-		return executor;
+	public Executor getFutureExecutor() {
+		return futureExecutor;
 	}
 
 	/**
@@ -663,7 +667,12 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			}
 
 			// create the execution job vertex and attach it to the graph
-			ExecutionJobVertex ejv = new ExecutionJobVertex(this, jobVertex, 1, timeout, createTimestamp);
+			ExecutionJobVertex ejv = null;
+			try {
+				ejv = new ExecutionJobVertex(this, jobVertex, 1, timeout, createTimestamp);
+			} catch (IOException e) {
+				throw new JobException("Could not create a execution job vertex for " + jobVertex.getID() + '.', e);
+			}
 			ejv.connectToPredecessors(this.intermediateResults);
 
 			ExecutionJobVertex previousTask = this.tasks.putIfAbsent(jobVertex.getID(), ejv);
@@ -933,23 +942,14 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	public ArchivedExecutionConfig getArchivedExecutionConfig() {
 		// create a summary of all relevant data accessed in the web interface's JobConfigHandler
 		try {
-			ExecutionConfig executionConfig = getSerializedExecutionConfig().deserializeValue(userClassLoader);
+			ExecutionConfig executionConfig = jobInformation.getSerializedExecutionConfig().deserializeValue(userClassLoader);
 			if (executionConfig != null) {
 				return executionConfig.archive();
 			}
 		} catch (IOException | ClassNotFoundException e) {
-			LOG.error("Couldn't create ArchivedExecutionConfig for job {} ", jobID, e);
+			LOG.error("Couldn't create ArchivedExecutionConfig for job {} ", getJobID(), e);
 		};
 		return null;
-	}
-
-	/**
-	 * Returns the serialized {@link ExecutionConfig}.
-	 *
-	 * @return ExecutionConfig
-	 */
-	public SerializedValue<ExecutionConfig> getSerializedExecutionConfig() {
-		return serializedExecutionConfig;
 	}
 
 	/**
@@ -970,9 +970,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	private boolean transitionState(JobStatus current, JobStatus newState, Throwable error) {
 		if (STATE_UPDATER.compareAndSet(this, current, newState)) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("{} switched from {} to {}.", this.getJobName(), current, newState);
-			}
+			LOG.info("Job {} ({}) switched from state {} to {}.", getJobName(), getJobID(), current, newState, error);
 
 			stateTimestamps[newState.ordinal()] = System.currentTimeMillis();
 			notifyJobStatusChange(newState, error);
@@ -1051,20 +1049,20 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		if (currentState == JobStatus.FAILING || currentState == JobStatus.RESTARTING) {
 			synchronized (progressLock) {
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Try to restart the job or fail it if no longer possible.", failureCause);
+					LOG.debug("Try to restart or fail the job {} ({}) if no longer possible.", getJobName(), getJobID(), failureCause);
 				} else {
-					LOG.info("Try to restart the job or fail it if no longer possible.");
+					LOG.info("Try to restart or fail the job {} ({}) if no longer possible.", getJobName(), getJobID());
 				}
 
 				boolean isRestartable = !(failureCause instanceof SuppressRestartsException) && restartStrategy.canRestart();
 
 				if (isRestartable && transitionState(currentState, JobStatus.RESTARTING)) {
-					LOG.info("Restarting the job...");
+					LOG.info("Restarting the job {} ({}).", getJobName(), getJobID());
 					restartStrategy.restart(this);
 
 					return true;
 				} else if (!isRestartable && transitionState(currentState, JobStatus.FAILED, failureCause)) {
-					LOG.info("Could not restart the job.", failureCause);
+					LOG.info("Could not restart the job {} ({}).", getJobName(), getJobID(), failureCause);
 					postRunCleanup();
 
 					return true;
@@ -1195,10 +1193,10 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			if (execution != null) {
 				execution.setAccumulators(userAccumulators);
 			} else {
-				LOG.warn("Received accumulator result for unknown execution {}.", execID);
+				LOG.debug("Received accumulator result for unknown execution {}.", execID);
 			}
 		} catch (Exception e) {
-			LOG.error("Cannot update accumulators for job {}.", jobID, e);
+			LOG.error("Cannot update accumulators for job {}.", getJobID(), e);
 		}
 	}
 
@@ -1225,7 +1223,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 			for (JobStatusListener listener : jobStatusListeners) {
 				try {
-					listener.jobStatusChanges(jobID, newState, timestamp, serializedError);
+					listener.jobStatusChanges(getJobID(), newState, timestamp, serializedError);
 				} catch (Throwable t) {
 					LOG.warn("Error while notifying JobStatusListener", t);
 				}
@@ -1246,7 +1244,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			for (ExecutionStatusListener listener : executionListeners) {
 				try {
 					listener.executionStatusChanged(
-							jobID, vertexId, vertex.getJobVertex().getName(),
+							getJobID(), vertexId, vertex.getJobVertex().getName(),
 							vertex.getParallelism(), subtask, executionID, newExecutionState,
 							timestamp, message);
 				} catch (Throwable t) {

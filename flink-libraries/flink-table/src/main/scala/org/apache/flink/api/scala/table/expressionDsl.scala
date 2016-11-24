@@ -431,6 +431,29 @@ trait ImplicitExpressionOperations {
     */
   def rows = toRowInterval(expr)
 
+  /**
+    * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by name and
+    * returns it's value.
+    *
+    * @param name name of the field (similar to Flink's field expressions)
+    * @return value of the field
+    */
+  def get(name: String) = GetCompositeField(expr, name)
+
+  /**
+    * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by index and
+    * returns it's value.
+    *
+    * @param index position of the field
+    * @return value of the field
+    */
+  def get(index: Int) = GetCompositeField(expr, index)
+
+  /**
+    * Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes
+    * into a flat representation where every subtype is a separate field.
+    */
+  def flatten() = Flattening(expr)
 }
 
 /**

@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
@@ -47,8 +48,8 @@ import static java.util.Objects.requireNonNull;
  * A {@link WindowOperator} that also allows an {@link Evictor} to be used.
  *
  * <p>
- * The {@code Evictor} is used to evict elements from panes before processing a window and after
- * a {@link Trigger} has fired.
+ * The {@code Evictor} is used to remove elements from a pane before/after the evaluation of WindowFunction and
+ * after the window evaluation gets triggered by a {@link org.apache.flink.streaming.api.windowing.triggers.Trigger}.
  *
  * @param <K> The type of key returned by the {@code KeySelector}.
  * @param <IN> The type of the incoming elements.
@@ -61,6 +62,8 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 	private static final long serialVersionUID = 1L;
 
 	private final Evictor<? super IN, ? super W> evictor;
+
+	private transient EvictorContext evictorContext;
 
 	private final StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> windowStateDescriptor;
 
@@ -146,6 +149,8 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 				context.key = key;
 				context.window = actualWindow;
+				evictorContext.key = key;
+				evictorContext.window = actualWindow;
 
 				// we might have already fired because of a merge but still call onElement
 				// on the (possibly merged) window
@@ -158,7 +163,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 						// if we have no state, there is nothing to do
 						continue;
 					}
-					fire(actualWindow, contents);
+					fire(actualWindow, contents, windowState);
 				}
 
 				if (combinedTriggerResult.isPurge()) {
@@ -183,6 +188,8 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 				context.key = key;
 				context.window = window;
+				evictorContext.key = key;
+				evictorContext.window = window;
 
 				TriggerResult triggerResult = context.onElement(element);
 
@@ -192,7 +199,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 						// if we have no state, there is nothing to do
 						continue;
 					}
-					fire(window, contents);
+					fire(window, contents, windowState);
 				}
 
 				if (triggerResult.isPurge()) {
@@ -209,6 +216,8 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 		context.key = timer.getKey();
 		context.window = timer.getNamespace();
+		evictorContext.key = timer.getKey();
+		evictorContext.window = timer.getNamespace();
 
 		ListState<StreamRecord<IN>> windowState;
 		MergingWindowSet<W> mergingWindows = null;
@@ -238,7 +247,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 		TriggerResult triggerResult = context.onEventTime(timer.getTimestamp());
 		if (triggerResult.isFire()) {
-			fire(context.window, contents);
+			fire(context.window, contents, windowState);
 		}
 
 		if (triggerResult.isPurge() || (windowAssigner.isEventTime() && isCleanupTime(context.window, timer.getTimestamp()))) {
@@ -250,6 +259,8 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 	public void onProcessingTime(InternalTimer<K, W> timer) throws Exception {
 		context.key = timer.getKey();
 		context.window = timer.getNamespace();
+		evictorContext.key = timer.getKey();
+		evictorContext.window = timer.getNamespace();
 
 		ListState<StreamRecord<IN>> windowState;
 		MergingWindowSet<W> mergingWindows = null;
@@ -276,7 +287,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 		TriggerResult triggerResult = context.onProcessingTime(timer.getTimestamp());
 		if (triggerResult.isFire()) {
-			fire(context.window, contents);
+			fire(context.window, contents, windowState);
 		}
 
 		if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(context.window, timer.getTimestamp()))) {
@@ -284,22 +295,84 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 		}
 	}
 
-	private void fire(W window, Iterable<StreamRecord<IN>> contents) throws Exception {
+	private void fire(W window, Iterable<StreamRecord<IN>> contents, ListState<StreamRecord<IN>> windowState) throws Exception {
 		timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
 
 		// Work around type system restrictions...
-		int toEvict = evictor.evict((Iterable) contents, Iterables.size(contents), context.window);
-
-		FluentIterable<IN> projectedContents = FluentIterable
+		FluentIterable<TimestampedValue<IN>> recordsWithTimestamp = FluentIterable
 			.from(contents)
-			.skip(toEvict)
-			.transform(new Function<StreamRecord<IN>, IN>() {
+			.transform(new Function<StreamRecord<IN>, TimestampedValue<IN>>() {
 				@Override
-				public IN apply(StreamRecord<IN> input) {
+				public TimestampedValue<IN> apply(StreamRecord<IN> input) {
+					return TimestampedValue.from(input);
+				}
+			});
+		evictorContext.evictBefore(recordsWithTimestamp, Iterables.size(recordsWithTimestamp));
+
+		FluentIterable<IN> projectedContents = recordsWithTimestamp
+			.transform(new Function<TimestampedValue<IN>, IN>() {
+				@Override
+				public IN apply(TimestampedValue<IN> input) {
 					return input.getValue();
 				}
 			});
+
 		userFunction.apply(context.key, context.window, projectedContents, timestampedCollector);
+		evictorContext.evictAfter(recordsWithTimestamp, Iterables.size(recordsWithTimestamp));
+
+
+		//work around to fix FLINK-4369, remove the evicted elements from the windowState.
+		//this is inefficient, but there is no other way to remove elements from ListState, which is an AppendingState.
+		windowState.clear();
+		for(TimestampedValue<IN> record : recordsWithTimestamp) {
+			windowState.add(record.getStreamRecord());
+		}
+	}
+
+
+	/**
+	 * {@code EvictorContext} is a utility for handling {@code Evictor} invocations. It can be reused
+	 * by setting the {@code key} and {@code window} fields. No internal state must be kept in
+	 * the {@code EvictorContext}.
+	 */
+
+	class EvictorContext implements Evictor.EvictorContext {
+
+		protected K key;
+		protected W window;
+
+		public EvictorContext(K key, W window) {
+			this.key = key;
+			this.window = window;
+		}
+
+		@Override
+		public long getCurrentProcessingTime() {
+			return internalTimerService.currentProcessingTime();
+		}
+
+		@Override
+		public long getCurrentWatermark() {
+			return internalTimerService.currentWatermark();
+		}
+
+		@Override
+		public MetricGroup getMetricGroup() {
+			return EvictingWindowOperator.this.getMetricGroup();
+		}
+
+
+		public K getKey() {
+			return key;
+		}
+
+		void evictBefore(Iterable<TimestampedValue<IN>> elements, int size) {
+			evictor.evictBefore((Iterable)elements, size, window, this);
+		}
+
+		void evictAfter(Iterable<TimestampedValue<IN>>  elements, int size) {
+			evictor.evictAfter((Iterable)elements, size, window, this);
+		}
 	}
 
 	private void cleanup(W window,
@@ -312,6 +385,24 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 			mergingWindows.persist();
 		}
 		context.clear();
+	}
+
+	@Override
+	public void open() throws Exception {
+		super.open();
+		evictorContext = new EvictorContext(null,null);
+	}
+
+	@Override
+	public void close() throws Exception {
+		super.close();
+		evictorContext = null;
+	}
+
+	@Override
+	public void dispose() throws Exception{
+		super.dispose();
+		evictorContext = null;
 	}
 
 	// ------------------------------------------------------------------------

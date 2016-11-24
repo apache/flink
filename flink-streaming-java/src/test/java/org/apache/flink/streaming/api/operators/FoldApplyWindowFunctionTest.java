@@ -56,7 +56,7 @@ public class FoldApplyWindowFunctionTest {
 
 		int initValue = 1;
 
-		FoldApplyWindowFunction<Integer, TimeWindow, Integer, Integer> foldWindowFunction = new FoldApplyWindowFunction<>(
+		FoldApplyWindowFunction<Integer, TimeWindow, Integer, Integer, Integer> foldWindowFunction = new FoldApplyWindowFunction<>(
 			initValue,
 			new FoldFunction<Integer, Integer>() {
 				private static final long serialVersionUID = -4849549768529720587L;
@@ -76,7 +76,8 @@ public class FoldApplyWindowFunctionTest {
 						out.collect(in);
 					}
 				}
-			}
+			},
+			BasicTypeInfo.INT_TYPE_INFO
 		);
 
 		AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> windowOperator = new AccumulatingProcessingTimeWindowOperator<>(

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -35,12 +36,13 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
@@ -70,6 +72,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URL;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,8 +86,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The Task represents one execution of a parallel subtask on a TaskManager.
@@ -144,10 +145,10 @@ public class Task implements Runnable, TaskActions {
 	private final Configuration taskConfiguration;
 
 	/** The jar files used by this task */
-	private final List<BlobKey> requiredJarFiles;
+	private final Collection<BlobKey> requiredJarFiles;
 
 	/** The classpaths used by this task */
-	private final List<URL> requiredClasspaths;
+	private final Collection<URL> requiredClasspaths;
 
 	/** The name of the class that holds the invokable code */
 	private final String nameOfInvokableClass;
@@ -249,7 +250,15 @@ public class Task implements Runnable, TaskActions {
 	 * be undone in the case of a failing task deployment.</p>
 	 */
 	public Task(
-		TaskDeploymentDescriptor tdd,
+		JobInformation jobInformation,
+		TaskInformation taskInformation,
+		ExecutionAttemptID executionAttemptID,
+		int subtaskIndex,
+		int attemptNumber,
+		Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
+		Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
+		int targetSlotNumber,
+		TaskStateHandles taskStateHandles,
 		MemoryManager memManager,
 		IOManager ioManager,
 		NetworkEnvironment networkEnvironment,
@@ -265,36 +274,49 @@ public class Task implements Runnable, TaskActions {
 		PartitionStateChecker partitionStateChecker,
 		Executor executor) {
 
-		this.taskInfo = checkNotNull(tdd.getTaskInfo());
-		this.jobId = checkNotNull(tdd.getJobID());
-		this.vertexId = checkNotNull(tdd.getVertexID());
-		this.executionId  = checkNotNull(tdd.getExecutionId());
+		Preconditions.checkNotNull(jobInformation);
+		Preconditions.checkNotNull(taskInformation);
+
+		Preconditions.checkArgument(0 <= subtaskIndex, "The subtask index must be positive.");
+		Preconditions.checkArgument(0 <= attemptNumber, "The attempt number must be positive.");
+		Preconditions.checkArgument(0 <= targetSlotNumber, "The target slot number must be positive.");
+
+		this.taskInfo = new TaskInfo(
+			taskInformation.getTaskName(),
+			taskInformation.getNumberOfKeyGroups(),
+			subtaskIndex,
+			taskInformation.getNumberOfSubtasks(),
+			attemptNumber);
+
+		this.jobId = jobInformation.getJobId();
+		this.vertexId = taskInformation.getJobVertexId();
+		this.executionId  = Preconditions.checkNotNull(executionAttemptID);
 		this.taskNameWithSubtask = taskInfo.getTaskNameWithSubtasks();
-		this.jobConfiguration = checkNotNull(tdd.getJobConfiguration());
-		this.taskConfiguration = checkNotNull(tdd.getTaskConfiguration());
-		this.requiredJarFiles = checkNotNull(tdd.getRequiredJarFiles());
-		this.requiredClasspaths = checkNotNull(tdd.getRequiredClasspaths());
-		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
-		this.serializedExecutionConfig = checkNotNull(tdd.getSerializedExecutionConfig());
-		this.taskStateHandles = tdd.getTaskStateHandles();
+		this.jobConfiguration = jobInformation.getJobConfiguration();
+		this.taskConfiguration = taskInformation.getTaskConfiguration();
+		this.requiredJarFiles = jobInformation.getRequiredJarFileBlobKeys();
+		this.requiredClasspaths = jobInformation.getRequiredClasspathURLs();
+		this.nameOfInvokableClass = taskInformation.getInvokableClassName();
+		this.serializedExecutionConfig = jobInformation.getSerializedExecutionConfig();
+		this.taskStateHandles = taskStateHandles;
 
-		Configuration taskConfig = tdd.getTaskConfiguration();
-		this.taskCancellationInterval = taskConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL);
-		this.taskCancellationTimeout = taskConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT);
+		Configuration tmConfig = taskManagerConfig.getConfiguration();
+		this.taskCancellationInterval = tmConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL);
+		this.taskCancellationTimeout = tmConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT);
 
-		this.memoryManager = checkNotNull(memManager);
-		this.ioManager = checkNotNull(ioManager);
-		this.broadcastVariableManager = checkNotNull(bcVarManager);
+		this.memoryManager = Preconditions.checkNotNull(memManager);
+		this.ioManager = Preconditions.checkNotNull(ioManager);
+		this.broadcastVariableManager = Preconditions.checkNotNull(bcVarManager);
 		this.accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
 
-		this.inputSplitProvider = checkNotNull(inputSplitProvider);
-		this.checkpointResponder = checkNotNull(checkpointResponder);
-		this.taskManagerConnection = checkNotNull(taskManagerConnection);
+		this.inputSplitProvider = Preconditions.checkNotNull(inputSplitProvider);
+		this.checkpointResponder = Preconditions.checkNotNull(checkpointResponder);
+		this.taskManagerConnection = Preconditions.checkNotNull(taskManagerConnection);
 
-		this.libraryCache = checkNotNull(libraryCache);
-		this.fileCache = checkNotNull(fileCache);
-		this.network = checkNotNull(networkEnvironment);
-		this.taskManagerConfig = checkNotNull(taskManagerConfig);
+		this.libraryCache = Preconditions.checkNotNull(libraryCache);
+		this.fileCache = Preconditions.checkNotNull(fileCache);
+		this.network = Preconditions.checkNotNull(networkEnvironment);
+		this.taskManagerConfig = Preconditions.checkNotNull(taskManagerConfig);
 
 		this.taskExecutionStateListeners = new CopyOnWriteArrayList<>();
 		this.metrics = metricGroup;
@@ -306,49 +328,53 @@ public class Task implements Runnable, TaskActions {
 
 		final String taskNameWithSubtaskAndId = taskNameWithSubtask + " (" + executionId + ')';
 
-		List<ResultPartitionDeploymentDescriptor> partitions = tdd.getProducedPartitions();
-		List<InputGateDeploymentDescriptor> consumedPartitions = tdd.getInputGates();
-
 		// Produced intermediate result partitions
-		this.producedPartitions = new ResultPartition[partitions.size()];
-		this.writers = new ResultPartitionWriter[partitions.size()];
+		this.producedPartitions = new ResultPartition[resultPartitionDeploymentDescriptors.size()];
+		this.writers = new ResultPartitionWriter[resultPartitionDeploymentDescriptors.size()];
 
-		for (int i = 0; i < this.producedPartitions.length; i++) {
-			ResultPartitionDeploymentDescriptor desc = partitions.get(i);
+		int counter = 0;
+
+		for (ResultPartitionDeploymentDescriptor desc: resultPartitionDeploymentDescriptors) {
 			ResultPartitionID partitionId = new ResultPartitionID(desc.getPartitionId(), executionId);
 
-			this.producedPartitions[i] = new ResultPartition(
+			this.producedPartitions[counter] = new ResultPartition(
 				taskNameWithSubtaskAndId,
 				this,
 				jobId,
 				partitionId,
 				desc.getPartitionType(),
-				desc.getEagerlyDeployConsumers(),
 				desc.getNumberOfSubpartitions(),
 				networkEnvironment.getResultPartitionManager(),
 				resultPartitionConsumableNotifier,
 				ioManager,
-				networkEnvironment.getDefaultIOMode());
+				networkEnvironment.getDefaultIOMode(),
+				desc.sendScheduleOrUpdateConsumersMessage());
 
-			this.writers[i] = new ResultPartitionWriter(this.producedPartitions[i]);
+			writers[counter] = new ResultPartitionWriter(producedPartitions[counter]);
+
+			++counter;
 		}
 
 		// Consumed intermediate result partitions
-		this.inputGates = new SingleInputGate[consumedPartitions.size()];
+		this.inputGates = new SingleInputGate[inputGateDeploymentDescriptors.size()];
 		this.inputGatesById = new HashMap<>();
 
-		for (int i = 0; i < this.inputGates.length; i++) {
+		counter = 0;
+
+		for (InputGateDeploymentDescriptor inputGateDeploymentDescriptor: inputGateDeploymentDescriptors) {
 			SingleInputGate gate = SingleInputGate.create(
 				taskNameWithSubtaskAndId,
 				jobId,
 				executionId,
-				consumedPartitions.get(i),
+				inputGateDeploymentDescriptor,
 				networkEnvironment,
 				this,
 				metricGroup.getIOMetricGroup());
 
-			this.inputGates[i] = gate;
+			inputGates[counter] = gate;
 			inputGatesById.put(gate.getConsumedResultId(), gate);
+
+			++counter;
 		}
 
 		invokableHasBeenCanceled = new AtomicBoolean(false);
@@ -513,6 +539,9 @@ public class Task implements Runnable, TaskActions {
 			//  check for canceling as a shortcut
 			// ----------------------------
 
+			// init closeable registry for this task
+			FileSystem.createFileSystemCloseableRegistryForTask();
+
 			// first of all, get a user-code classloader
 			// this may involve downloading the job's JAR files and/or classes
 			LOG.info("Loading JAR files for task " + taskNameWithSubtask);
@@ -545,6 +574,7 @@ public class Task implements Runnable, TaskActions {
 			// ----------------------------------------------------------------
 
 			LOG.info("Registering task at network: " + this);
+
 			network.registerTask(this);
 
 			// next, kick off the background copying of files for the distributed cache
@@ -732,6 +762,7 @@ public class Task implements Runnable, TaskActions {
 
 				// remove all files in the distributed cache
 				removeCachedFiles(distributedCacheEntries, fileCache);
+				FileSystem.disposeFileSystemCloseableRegistryForTask();
 
 				notifyFinalState();
 			}
@@ -1112,7 +1143,11 @@ public class Task implements Runnable, TaskActions {
 			final SingleInputGate inputGate = inputGatesById.get(resultId);
 
 			if (inputGate != null) {
-				if (partitionState == ExecutionState.RUNNING) {
+				if (partitionState == ExecutionState.RUNNING ||
+					partitionState == ExecutionState.FINISHED ||
+					partitionState == ExecutionState.SCHEDULED ||
+					partitionState == ExecutionState.DEPLOYING) {
+
 					// Retrigger the partition request
 					inputGate.retriggerPartitionRequest(partitionId);
 				}

@@ -32,7 +32,7 @@ import org.apache.flink.graph.spargel.ScatterFunction;
  * This is an implementation of the Single-Source-Shortest Paths algorithm, using a scatter-gather iteration.
  */
 @SuppressWarnings("serial")
-public class SingleSourceShortestPaths<K> implements GraphAlgorithm<K, Double, Double, DataSet<Vertex<K, Double>>> {
+public class SingleSourceShortestPaths<K, VV> implements GraphAlgorithm<K, VV, Double, DataSet<Vertex<K, Double>>> {
 
 	private final K srcVertexId;
 	private final Integer maxIterations;
@@ -49,14 +49,14 @@ public class SingleSourceShortestPaths<K> implements GraphAlgorithm<K, Double, D
 	}
 
 	@Override
-	public DataSet<Vertex<K, Double>> run(Graph<K, Double, Double> input) {
+	public DataSet<Vertex<K, Double>> run(Graph<K, VV, Double> input) {
 
-		return input.mapVertices(new InitVerticesMapper<>(srcVertexId))
+		return input.mapVertices(new InitVerticesMapper<K, VV>(srcVertexId))
 				.runScatterGatherIteration(new MinDistanceMessenger<K>(), new VertexDistanceUpdater<K>(),
 				maxIterations).getVertices();
 	}
 
-	public static final class InitVerticesMapper<K>	implements MapFunction<Vertex<K, Double>, Double> {
+	public static final class InitVerticesMapper<K, VV> implements MapFunction<Vertex<K, VV>, Double> {
 
 		private K srcVertexId;
 
@@ -64,7 +64,7 @@ public class SingleSourceShortestPaths<K> implements GraphAlgorithm<K, Double, D
 			this.srcVertexId = srcId;
 		}
 
-		public Double map(Vertex<K, Double> value) {
+		public Double map(Vertex<K, VV> value) {
 			if (value.f0.equals(srcVertexId)) {
 				return 0.0;
 			} else {

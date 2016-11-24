@@ -85,6 +85,8 @@ public class TaskManagerComponentsStartupShutdownTest {
 			final ActorRef jobManager = JobManager.startJobManagerActors(
 				config,
 				actorSystem,
+				actorSystem.dispatcher(),
+				actorSystem.dispatcher(),
 				JobManager.class,
 				MemoryArchivist.class)._1();
 
@@ -104,7 +106,7 @@ public class TaskManagerComponentsStartupShutdownTest {
 					config);
 
 			final NetworkEnvironmentConfiguration netConf = new NetworkEnvironmentConfiguration(
-					32, BUFFER_SIZE, MemoryType.HEAP, IOManager.IOMode.SYNC, Option.<NettyConfig>empty(), 0, 0);
+					32, BUFFER_SIZE, MemoryType.HEAP, IOManager.IOMode.SYNC, 0, 0, Option.<NettyConfig>empty());
 
 			ResourceID taskManagerId = ResourceID.generate();
 			
@@ -121,7 +123,7 @@ public class TaskManagerComponentsStartupShutdownTest {
 				null,
 				netConf.ioMode(),
 				netConf.partitionRequestInitialBackoff(),
-				netConf.partitinRequestMaxBackoff());
+				netConf.partitionRequestMaxBackoff());
 
 			network.start();
 

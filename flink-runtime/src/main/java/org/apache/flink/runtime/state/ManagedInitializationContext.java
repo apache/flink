@@ -43,11 +43,11 @@ public interface ManagedInitializationContext {
 	/**
 	 * Returns an interface that allows for registering operator state with the backend.
 	 */
-	OperatorStateStore getManagedOperatorStateStore();
+	OperatorStateStore getOperatorStateStore();
 
 	/**
 	 * Returns an interface that allows for registering keyed state with the backend.
 	 */
-	KeyedStateStore getManagedKeyedStateStore();
+	KeyedStateStore getKeyedStateStore();
 
 }

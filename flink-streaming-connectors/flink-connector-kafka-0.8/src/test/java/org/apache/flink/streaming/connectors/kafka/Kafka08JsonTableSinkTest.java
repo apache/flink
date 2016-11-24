@@ -41,8 +41,8 @@ public class Kafka08JsonTableSinkTest extends KafkaTableSinkTestBase {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	protected Class<SerializationSchema<Row>> getSerializationSchema() {
-		return (Class) JsonRowSerializationSchema.class;
+	protected SerializationSchema<Row> getSerializationSchema() {
+		return new JsonRowSerializationSchema(FIELD_NAMES);
 	}
 }
 

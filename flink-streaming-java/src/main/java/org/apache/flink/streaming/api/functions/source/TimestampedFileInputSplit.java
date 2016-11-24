@@ -44,10 +44,6 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Compara
 	 * */
 	private Serializable splitState;
 
-	/** A special {@link TimestampedFileInputSplit} signaling the end of the stream of splits.*/
-	public static final TimestampedFileInputSplit EOS =
-		new TimestampedFileInputSplit(Long.MAX_VALUE, -1, null, -1, -1, null);
-
 	/**
 	 * Creates a {@link TimestampedFileInputSplit} based on the file modification time and
 	 * the rest of the information of the {@link FileInputSplit}, as returned by the
@@ -101,24 +97,23 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Compara
 
 	@Override
 	public int compareTo(TimestampedFileInputSplit o) {
-		long modTimeComp = this.modificationTime - o.modificationTime;
+		int modTimeComp = Long.compare(this.modificationTime, o.modificationTime);
 		if (modTimeComp != 0L) {
-			// we cannot just cast the modTimeComp to int
-			// because it may overflow
-			return modTimeComp > 0 ? 1 : -1;
+			return modTimeComp;
 		}
 
-		// the file input split allows for null paths
-		if (this.getPath() == o.getPath()) {
-			return 0;
-		} else if (this.getPath() == null) {
+		// the file input split does not prevent null paths.
+		if (this.getPath() == null && o.getPath() != null) {
 			return 1;
-		} else if (o.getPath() == null) {
+		} else if (this.getPath() != null && o.getPath() == null) {
 			return -1;
 		}
 
-		int pathComp = this.getPath().compareTo(o.getPath());
-		return pathComp != 0 ? pathComp : this.getSplitNumber() - o.getSplitNumber();
+		int pathComp = this.getPath() == o.getPath() ? 0 :
+			this.getPath().compareTo(o.getPath());
+
+		return pathComp != 0 ? pathComp :
+			this.getSplitNumber() - o.getSplitNumber();
 	}
 
 	@Override

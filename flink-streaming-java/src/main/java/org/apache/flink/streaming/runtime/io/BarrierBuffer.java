@@ -199,6 +199,8 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	}
 
 	private void completeBufferedSequence() throws IOException {
+		LOG.debug("Finished feeding back buffered data");
+
 		currentBuffered.cleanup();
 		currentBuffered = queuedBuffered.pollFirst();
 		if (currentBuffered != null) {
@@ -475,7 +477,9 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		else {
 			// uncommon case: buffered data pending
 			// push back the pending data, if we have any
-			
+			LOG.debug("Checkpoint skipped via buffered data:" +
+					"Pushing back current alignment buffers and feeding back new alignment data first.");
+
 			// since we did not fully drain the previous sequence, we need to allocate a new buffer for this one
 			BufferSpiller.SpilledBufferOrEventSequence bufferedNow = bufferSpiller.rollOverWithNewBuffer();
 			if (bufferedNow != null) {
@@ -484,6 +488,11 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 				numQueuedBytes += currentBuffered.size();
 				currentBuffered = bufferedNow;
 			}
+		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Size of buffered data: {} bytes",
+					currentBuffered == null ? 0L : currentBuffered.size());
 		}
 
 		// the next barrier that comes must assume it is the first

@@ -48,25 +48,40 @@ public class TimeoutKeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPat
 			event,
 			timestamp);
 
-		Collection<Map<String, IN>> matchedPatterns = patterns.f0;
-		Collection<Tuple2<Map<String, IN>, Long>> partialPatterns = patterns.f1;
+		Collection<Map<String, IN>> matchedSequences = patterns.f0;
+		Collection<Tuple2<Map<String, IN>, Long>> timedOutSequences = patterns.f1;
 
+		emitMatchedSequences(matchedSequences, timestamp);
+		emitTimedOutSequences(timedOutSequences, timestamp);
+	}
+
+	@Override
+	protected void advanceTime(NFA<IN> nfa, long timestamp) {
+		Tuple2<Collection<Map<String, IN>>, Collection<Tuple2<Map<String, IN>, Long>>> patterns = nfa.process(null, timestamp);
+
+		emitMatchedSequences(patterns.f0, timestamp);
+		emitTimedOutSequences(patterns.f1, timestamp);
+	}
+
+	private void emitTimedOutSequences(Iterable<Tuple2<Map<String, IN>, Long>> timedOutSequences, long timestamp) {
 		StreamRecord<Either<Tuple2<Map<String, IN>, Long>, Map<String, IN>>> streamRecord = new StreamRecord<Either<Tuple2<Map<String, IN>, Long>, Map<String, IN>>>(
 			null,
 			timestamp);
 
-		if (!matchedPatterns.isEmpty()) {
-			for (Map<String, IN> matchedPattern : matchedPatterns) {
-				streamRecord.replace(Either.Right(matchedPattern));
-				output.collect(streamRecord);
-			}
+		for (Tuple2<Map<String, IN>, Long> partialPattern: timedOutSequences) {
+			streamRecord.replace(Either.Left(partialPattern));
+			output.collect(streamRecord);
 		}
+	}
 
-		if (!partialPatterns.isEmpty()) {
-			for (Tuple2<Map<String, IN>, Long> partialPattern: partialPatterns) {
-				streamRecord.replace(Either.Left(partialPattern));
-				output.collect(streamRecord);
-			}
+	protected void emitMatchedSequences(Iterable<Map<String, IN>> matchedSequences, long timestamp) {
+		StreamRecord<Either<Tuple2<Map<String, IN>, Long>, Map<String, IN>>> streamRecord = new StreamRecord<Either<Tuple2<Map<String, IN>, Long>, Map<String, IN>>>(
+			null,
+			timestamp);
+
+		for (Map<String, IN> matchedPattern : matchedSequences) {
+			streamRecord.replace(Either.Right(matchedPattern));
+			output.collect(streamRecord);
 		}
 	}
 }

@@ -215,7 +215,7 @@ class DataSetJoin(
   }
 
   private def joinTypeToString = joinType match {
-    case JoinRelType.INNER => "Join"
+    case JoinRelType.INNER => "InnerJoin"
     case JoinRelType.LEFT=> "LeftOuterJoin"
     case JoinRelType.RIGHT => "RightOuterJoin"
     case JoinRelType.FULL => "FullOuterJoin"

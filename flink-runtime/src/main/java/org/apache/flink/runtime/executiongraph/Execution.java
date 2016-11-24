@@ -372,7 +372,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				@Override
 				public Void apply(Throwable failure) {
 					if (failure instanceof TimeoutException) {
-						String taskname = deployment.getTaskInfo().getTaskNameWithSubtasks() + " (" + attemptId + ')';
+						String taskname = vertex.getTaskName() + '(' +
+							(getParallelSubtaskIndex() + 1) + '/' +
+							vertex.getTotalNumberOfParallelSubtasks() + ") (" + attemptId + ')';
 
 						markFailed(new Exception(
 							"Cannot deploy task " + taskname + " - TaskManager (" + assignedResourceLocation

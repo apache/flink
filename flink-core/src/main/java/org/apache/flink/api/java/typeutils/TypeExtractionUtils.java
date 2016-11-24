@@ -20,7 +20,9 @@ package org.apache.flink.api.java.typeutils;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -81,6 +83,12 @@ public class TypeExtractionUtils {
 		}
 	}
 
+	/**
+	 * Checks if the given function has been implemented using a Java 8 lambda. If yes, a LambdaExecutable
+	 * is returned describing the method/constructor. Otherwise null.
+	 *
+	 * @throws TypeExtractionException lambda extraction is pretty hacky, it might fail for unknown JVM issues.
+	 */
 	public static LambdaExecutable checkAndExtractLambda(Function function) throws TypeExtractionException {
 		try {
 			// get serialized lambda
@@ -163,5 +171,35 @@ public class TypeExtractionUtils {
 			clazz = clazz.getSuperclass();
 		}
 		return result;
+	}
+
+	/**
+	 * Convert ParameterizedType or Class to a Class.
+	 */
+	public static Class<?> typeToClass(Type t) {
+		if (t instanceof Class) {
+			return (Class<?>)t;
+		}
+		else if (t instanceof ParameterizedType) {
+			return ((Class<?>)((ParameterizedType) t).getRawType());
+		}
+		throw new IllegalArgumentException("Cannot convert type to class");
+	}
+
+	/**
+	 * Checks if a type can be converted to a Class. This is true for ParameterizedType and Class.
+	 */
+	public static boolean isClassType(Type t) {
+		return t instanceof Class<?> || t instanceof ParameterizedType;
+	}
+
+	/**
+	 * Checks whether two types are type variables describing the same.
+	 */
+	public static boolean sameTypeVars(Type t1, Type t2) {
+		return t1 instanceof TypeVariable &&
+			t2 instanceof TypeVariable &&
+			((TypeVariable<?>) t1).getName().equals(((TypeVariable<?>) t2).getName()) &&
+			((TypeVariable<?>) t1).getGenericDeclaration().equals(((TypeVariable<?>) t2).getGenericDeclaration());
 	}
 }

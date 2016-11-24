@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.Archiveable;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
@@ -30,23 +33,23 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.runtime.instance.SlotProvider;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.JobManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
-
 import scala.Option;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -84,13 +87,20 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	
 	private final InputSplit[] inputSplits;
 
+	/**
+	 * Serialized task information which is for all sub tasks the same. Thus, it avoids to
+	 * serialize the same information multiple times in order to create the
+	 * TaskDeploymentDescriptors.
+	 */
+	private final SerializedValue<TaskInformation> serializedTaskInformation;
+
 	private InputSplitAssigner splitAssigner;
 	
 	public ExecutionJobVertex(
 		ExecutionGraph graph,
 		JobVertex jobVertex,
 		int defaultParallelism,
-		Time timeout) throws JobException {
+		Time timeout) throws JobException, IOException {
 
 		this(graph, jobVertex, defaultParallelism, timeout, System.currentTimeMillis());
 	}
@@ -100,7 +110,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		JobVertex jobVertex,
 		int defaultParallelism,
 		Time timeout,
-		long createTimestamp) throws JobException {
+		long createTimestamp) throws JobException, IOException {
 
 		if (graph == null || jobVertex == null) {
 			throw new NullPointerException();
@@ -108,18 +118,26 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		
 		this.graph = graph;
 		this.jobVertex = jobVertex;
-		
+
 		int vertexParallelism = jobVertex.getParallelism();
 		int numTaskVertices = vertexParallelism > 0 ? vertexParallelism : defaultParallelism;
-		
+
 		this.parallelism = numTaskVertices;
 
-		int maxParallelism = jobVertex.getMaxParallelism();
+		int maxP = jobVertex.getMaxParallelism();
 
-		Preconditions.checkArgument(maxParallelism >= parallelism, "The maximum parallelism (" +
-			maxParallelism + ") must be greater or equal than the parallelism (" + parallelism +
+		Preconditions.checkArgument(maxP >= parallelism, "The maximum parallelism (" +
+			maxP + ") must be greater or equal than the parallelism (" + parallelism +
 			").");
-		this.maxParallelism = maxParallelism;
+		this.maxParallelism = maxP;
+
+		this.serializedTaskInformation = new SerializedValue<>(new TaskInformation(
+			jobVertex.getID(),
+			jobVertex.getName(),
+			parallelism,
+			maxParallelism,
+			jobVertex.getInvokableClassName(),
+			jobVertex.getConfiguration()));
 
 		this.taskVertices = new ExecutionVertex[numTaskVertices];
 		
@@ -144,13 +162,19 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 					result.getId(),
 					this,
 					numTaskVertices,
-					result.getResultType(),
-					result.getEagerlyDeployConsumers());
+					result.getResultType());
 		}
+
+		Configuration jobConfiguration = graph.getJobConfiguration();
+		int maxPriorAttemptsHistoryLength = jobConfiguration != null ?
+				jobConfiguration.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE) :
+				JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue();
 
 		// create all task vertices
 		for (int i = 0; i < numTaskVertices; i++) {
-			ExecutionVertex vertex = new ExecutionVertex(this, i, this.producedDataSets, timeout, createTimestamp);
+			ExecutionVertex vertex = new ExecutionVertex(
+					this, i, this.producedDataSets, timeout, createTimestamp, maxPriorAttemptsHistoryLength);
+
 			this.taskVertices[i] = vertex;
 		}
 		
@@ -246,6 +270,10 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	
 	public List<IntermediateResult> getInputs() {
 		return inputs;
+	}
+
+	public SerializedValue<TaskInformation> getSerializedTaskInformation() {
+		return serializedTaskInformation;
 	}
 	
 	public boolean isInFinalState() {

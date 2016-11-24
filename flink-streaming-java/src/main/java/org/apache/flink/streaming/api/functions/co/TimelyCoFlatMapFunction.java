@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
+import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
@@ -55,38 +56,73 @@ public interface TimelyCoFlatMapFunction<IN1, IN2, OUT> extends Function, Serial
 	 * This method is called for each element in the first of the connected streams.
 	 * 
 	 * @param value The stream element
-	 * @param timerService A {@link TimerService} that allows setting timers and querying the
-	 *                        current time.
+	 * @param ctx An {@link OnTimerContext} that allows querying the timestamp of the element,
+	 *            querying the {@link TimeDomain} of the firing timer and getting a
+	 *            {@link TimerService} for registering timers and querying the time.
+	 *            The context is only valid during the invocation of this method, do not store it.
 	 * @param out The collector to emit resulting elements to
 	 * @throws Exception The function may throw exceptions which cause the streaming program
 	 *                   to fail and go into recovery.
 	 */
-	void flatMap1(IN1 value, TimerService timerService, Collector<OUT> out) throws Exception;
+	void flatMap1(IN1 value, Context ctx, Collector<OUT> out) throws Exception;
 
 	/**
 	 * This method is called for each element in the second of the connected streams.
 	 * 
 	 * @param value The stream element
-	 * @param timerService A {@link TimerService} that allows setting timers and querying the
-	 *                        current time.
+	 * @param ctx An {@link OnTimerContext} that allows querying the timestamp of the element,
+	 *            querying the {@link TimeDomain} of the firing timer and getting a
+	 *            {@link TimerService} for registering timers and querying the time.
+	 *            The context is only valid during the invocation of this method, do not store it.
 	 * @param out The collector to emit resulting elements to
 	 * @throws Exception The function may throw exceptions which cause the streaming program
 	 *                   to fail and go into recovery.
 	 */
-	void flatMap2(IN2 value, TimerService timerService, Collector<OUT> out) throws Exception;
+	void flatMap2(IN2 value, Context ctx, Collector<OUT> out) throws Exception;
 
 	/**
 	 * Called when a timer set using {@link TimerService} fires.
 	 *
 	 * @param timestamp The timestamp of the firing timer.
-	 * @param timeDomain The {@link TimeDomain} of the firing timer.
-	 * @param timerService A {@link TimerService} that allows setting timers and querying the
-	 *                        current time.
+	 * @param ctx An {@link OnTimerContext} that allows querying the timestamp of the firing timer,
+	 *            querying the {@link TimeDomain} of the firing timer and getting a
+	 *            {@link TimerService} for registering timers and querying the time.
+	 *            The context is only valid during the invocation of this method, do not store it.
 	 * @param out The collector for returning result values.
 	 *
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
 	 *                   to fail and may trigger recovery.
 	 */
-	void onTimer(long timestamp, TimeDomain timeDomain, TimerService timerService, Collector<OUT> out) throws Exception ;
+	void onTimer(long timestamp, OnTimerContext ctx, Collector<OUT> out) throws Exception ;
 
+	/**
+	 * Information available in an invocation of {@link #flatMap1(Object, Context, Collector)}/
+	 * {@link #flatMap2(Object, Context, Collector)}
+	 * or {@link #onTimer(long, OnTimerContext, Collector)}.
+	 */
+	interface Context {
+
+		/**
+		 * Timestamp of the element currently being processed or timestamp of a firing timer.
+		 *
+		 * <p>This might be {@code null}, for example if the time characteristic of your program
+		 * is set to {@link org.apache.flink.streaming.api.TimeCharacteristic#ProcessingTime}.
+		 */
+		Long timestamp();
+
+		/**
+		 * A {@link TimerService} for querying time and registering timers.
+		 */
+		TimerService timerService();
+	}
+
+	/**
+	 * Information available in an invocation of {@link #onTimer(long, OnTimerContext, Collector)}.
+	 */
+	interface OnTimerContext extends TimelyFlatMapFunction.Context {
+		/**
+		 * The {@link TimeDomain} of the firing timer.
+		 */
+		TimeDomain timeDomain();
+	}
 }

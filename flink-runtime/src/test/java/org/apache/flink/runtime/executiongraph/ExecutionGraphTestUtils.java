@@ -174,6 +174,7 @@ public class ExecutionGraphTestUtils {
 
 		ExecutionGraph graph = new ExecutionGraph(
 			executor,
+			executor,
 			new JobID(), 
 			"test job", 
 			new Configuration(),
