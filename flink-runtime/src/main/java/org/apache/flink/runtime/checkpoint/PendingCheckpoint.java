@@ -129,12 +129,10 @@ public class PendingCheckpoint {
 		return discarded;
 	}
 	
-	public CompletedCheckpoint finalizeCheckpoint() throws Exception {
+	public CompletedCheckpoint finalizeCheckpoint() {
 		synchronized (lock) {
-			if (discarded) {
-				throw new IllegalStateException("pending checkpoint is discarded");
-			}
-			if (notYetAcknowledgedTasks.isEmpty()) {
+			Preconditions.checkState(isFullyAcknowledged(), "Pending checkpoint has not been fully acknowledged yet.");
+
 				CompletedCheckpoint completed =  new CompletedCheckpoint(
 					jobId,
 					checkpointId,
@@ -144,10 +142,6 @@ public class PendingCheckpoint {
 				dispose(null, false);
 				
 				return completed;
-			}
-			else {
-				throw new IllegalStateException("Cannot complete checkpoint while not all tasks are acknowledged");
-			}
 		}
 	}
 	
@@ -237,10 +231,9 @@ public class PendingCheckpoint {
 
 	private void dispose(final ClassLoader userClassLoader, boolean releaseState) {
 		synchronized (lock) {
-			discarded = true;
 			numAcknowledgedTasks = -1;
 			try {
-				if (releaseState) {
+				if (!discarded && releaseState) {
 					executor.execute(new Runnable() {
 						@Override
 						public void run() {
@@ -257,6 +250,7 @@ public class PendingCheckpoint {
 
 				}
 			} finally {
+				discarded = true;
 				taskStates.clear();
 				notYetAcknowledgedTasks.clear();
 				acknowledgedTasks.clear();
