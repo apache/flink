@@ -147,13 +147,8 @@ public class MigrationV0ToV1Test {
 
 							//check operator state
 							expTestState.f0 = 1;
-							if (p % 3 != 0) {
-								assertEquals(1, is.read());
-								actTestState = InstantiationUtil.deserializeObject(is, cl);
-								assertEquals(expTestState, actTestState);
-							} else {
-								assertEquals(0, is.read());
-							}
+							actTestState = InstantiationUtil.deserializeObject(is, cl);
+							assertEquals(expTestState, actTestState);
 						}
 					}
 
@@ -210,9 +205,7 @@ public class MigrationV0ToV1Test {
 						state.setFunctionState(new SerializedStateHandle<Serializable>(testState));
 					}
 					testState = new Tuple4<>(1, i, j, k);
-					if (j % 3 != 0) {
-						state.setOperatorState(new SerializedStateHandle<>(testState));
-					}
+					state.setOperatorState(new SerializedStateHandle<>(testState));
 
 					if ((0 == k) && (i % 3 != 0)) {
 						HashMap<String, KvStateSnapshot<?, ?, ?, ?>> testKeyedState = new HashMap<>(2);

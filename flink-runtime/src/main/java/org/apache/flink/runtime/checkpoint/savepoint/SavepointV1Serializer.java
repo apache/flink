@@ -211,7 +211,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 				duration);
 	}
 
-	public static void serializeKeyGroupStateHandle(
+	private static void serializeKeyGroupStateHandle(
 			KeyGroupsStateHandle stateHandle, DataOutputStream dos) throws IOException {
 
 		if (stateHandle != null) {
@@ -227,7 +227,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 		}
 	}
 
-	public static KeyGroupsStateHandle deserializeKeyGroupStateHandle(DataInputStream dis) throws IOException {
+	private static KeyGroupsStateHandle deserializeKeyGroupStateHandle(DataInputStream dis) throws IOException {
 		final int type = dis.readByte();
 		if (NULL_HANDLE == type) {
 			return null;
@@ -247,7 +247,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 		}
 	}
 
-	public static void serializeOperatorStateHandle(
+	private static void serializeOperatorStateHandle(
 			OperatorStateHandle stateHandle, DataOutputStream dos) throws IOException {
 
 		if (stateHandle != null) {
@@ -258,8 +258,8 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 				dos.writeUTF(entry.getKey());
 				long[] offsets = entry.getValue();
 				dos.writeInt(offsets.length);
-				for (int i = 0; i < offsets.length; ++i) {
-					dos.writeLong(offsets[i]);
+				for (long offset : offsets) {
+					dos.writeLong(offset);
 				}
 			}
 			serializeStreamStateHandle(stateHandle.getDelegateStateHandle(), dos);
@@ -268,7 +268,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 		}
 	}
 
-	public static OperatorStateHandle deserializeOperatorStateHandle(
+	private static OperatorStateHandle deserializeOperatorStateHandle(
 			DataInputStream dis) throws IOException {
 
 		final int type = dis.readByte();
@@ -292,7 +292,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 		}
 	}
 
-	public static void serializeStreamStateHandle(
+	private static void serializeStreamStateHandle(
 			StreamStateHandle stateHandle, DataOutputStream dos) throws IOException {
 
 		if (stateHandle == null) {
@@ -319,7 +319,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 		dos.flush();
 	}
 
-	public static StreamStateHandle deserializeStreamStateHandle(DataInputStream dis) throws IOException {
+	private static StreamStateHandle deserializeStreamStateHandle(DataInputStream dis) throws IOException {
 		int type = dis.read();
 		if (NULL_HANDLE == type) {
 			return null;
