@@ -22,7 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.hadoop.minikdc.MiniKdc;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
@@ -112,12 +112,11 @@ public class SecureTestEnvironment {
 			//ctx.setHadoopConfiguration() for the UGI implementation to work properly.
 			//See Yarn test case module for reference
 			createJaasConfig(baseDirForSecureRun);
-			SecurityContext.SecurityConfiguration ctx = new SecurityContext.SecurityConfiguration();
 			Configuration flinkConfig = GlobalConfiguration.loadConfiguration();
 			flinkConfig.setString(ConfigConstants.SECURITY_KEYTAB_KEY, testKeytab);
 			flinkConfig.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY, testPrincipal);
 			flinkConfig.setBoolean(HighAvailabilityOptions.ZOOKEEPER_SASL_DISABLE, false);
-			ctx.setFlinkConfiguration(flinkConfig);
+			SecurityUtils.SecurityConfiguration ctx = new SecurityUtils.SecurityConfiguration(flinkConfig);
 			TestingSecurityContext.install(ctx, getClientSecurityConfigurationMap());
 
 			populateJavaPropertyVariables();
@@ -227,7 +226,7 @@ public class SecureTestEnvironment {
 	 */
 	private static void  createJaasConfig(File baseDirForSecureRun) {
 
-		try(FileWriter fw = new FileWriter(new File(baseDirForSecureRun,SecurityContext.JAAS_CONF_FILENAME), true);
+		try(FileWriter fw = new FileWriter(new File(baseDirForSecureRun, SecurityUtils.JAAS_CONF_FILENAME), true);
 			BufferedWriter bw = new BufferedWriter(fw);
 			PrintWriter out = new PrintWriter(bw))
 		{
