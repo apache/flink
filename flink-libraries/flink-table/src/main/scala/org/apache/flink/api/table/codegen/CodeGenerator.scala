@@ -202,7 +202,8 @@ class CodeGenerator(
     * @param samMethodCode code contents of the SAM (Single Abstract Method). Inputs, collector, or
     *                 output record can be accessed via the given term methods.
     * @param returnType expected return type
-    * @param openMethodCode code contents of an open() method of generated [[org.apache.flink.api.common.functions.RichFunction]].
+    * @param openMethodCode code contents of an open() method of generated
+    *                         [[org.apache.flink.api.common.functions.RichFunction]].
     * @tparam T Flink Function to be generated.
     * @return instance of GeneratedFunction
     */
