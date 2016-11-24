@@ -87,6 +87,13 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	}
 
 	/**
+	 * @return the Flink execution environment.
+	 */
+	public ExecutionEnvironment getContext() {
+		return context;
+	}
+
+	/**
 	 * Get dataset with top vertices.
 	 *
 	 * @return dataset with top vertices

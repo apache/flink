@@ -404,6 +404,21 @@ accessor methods for the computed statistics. The graph ID type must be `Compara
 * `setParallelism`: override the operator parallelism
 * `setReduceOnTargetId` (undirected only): the degree can be counted from either the edge source or target IDs. By default the source IDs are counted. Reducing on target IDs may optimize the algorithm if the input edge list is sorted by target ID
 
+### Bipartite Graph Metrics
+
+#### Overview
+This graph analytics computes the following statistics for bipartite graphs:
+- number of top vertices
+- number of bottom vertices
+- number of edges
+- maximum top degree
+- maximum bottom degree
+
+#### Usage
+The analytics take a `BipartiteGraph` as input and output a `Result` with accessor methods for the computed statistics. The graph ID type must be `Comparable`.
+
+* `setParallelism`: override the operator parallelism
+
 ## Similarity
 
 ### Adamic-Adar
