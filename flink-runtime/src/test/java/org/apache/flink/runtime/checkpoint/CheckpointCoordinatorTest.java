@@ -1500,7 +1500,7 @@ public class CheckpointCoordinatorTest {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID) {
+	static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID) {
 		return mockExecutionVertex(attemptID, 1);
 	}
 
@@ -1508,7 +1508,7 @@ public class CheckpointCoordinatorTest {
 		return mockExecutionVertex(attemptId, ExecutionState.RUNNING, parallelism);
 	}
 
-	private static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID, 
+	private static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID,
 														ExecutionState state, ExecutionState ... successiveStates) {
 		return mockExecutionVertex(attemptID, state, 1, successiveStates);
 	}
