@@ -143,7 +143,7 @@ public class YarnClusterClientV2 extends ClusterClient {
 
 	@Override
 	public void finalizeCluster() {
-		throw new UnsupportedOperationException("Not support finalizeCluster since Flip-6.");
+		// Do nothing
 	}
 
 	@Override
