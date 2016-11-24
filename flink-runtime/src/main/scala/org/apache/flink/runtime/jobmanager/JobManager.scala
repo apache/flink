@@ -73,8 +73,8 @@ import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.query.KvStateMessage.{LookupKvStateLocation, NotifyKvStateRegistered, NotifyKvStateUnregistered}
 import org.apache.flink.runtime.query.{KvStateMessage, UnknownKvStateLocation}
-import org.apache.flink.runtime.security.SecurityContext
-import org.apache.flink.runtime.security.SecurityContext.{FlinkSecuredRunner, SecurityConfiguration}
+import org.apache.flink.runtime.security.SecurityUtils
+import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
@@ -1900,6 +1900,7 @@ object JobManager {
     catch {
       case t: Throwable =>
         LOG.error(t.getMessage(), t)
+        t.printStackTrace()
         System.exit(STARTUP_FAILURE_RETURN_CODE)
         null
     }
@@ -1930,11 +1931,11 @@ object JobManager {
     }
 
     // run the job manager
-    SecurityContext.install(new SecurityConfiguration().setFlinkConfiguration(configuration))
+    SecurityUtils.install(new SecurityConfiguration(configuration))
 
     try {
-      SecurityContext.getInstalled.runSecured(new FlinkSecuredRunner[Unit] {
-        override def run(): Unit = {
+      SecurityUtils.getInstalledContext.runSecured(new Callable[Unit] {
+        override def call(): Unit = {
           runJobManager(
             configuration,
             executionMode,
@@ -1945,6 +1946,7 @@ object JobManager {
     } catch {
       case t: Throwable =>
         LOG.error("Failed to run JobManager.", t)
+        t.printStackTrace()
         System.exit(STARTUP_FAILURE_RETURN_CODE)
     }
   }
