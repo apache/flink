@@ -27,6 +27,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,6 +41,8 @@ import java.util.Map;
  * serialization logic here.
  */
 public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable {
+
+	private static final Logger LOG = LoggerFactory.getLogger(KeyedBackendSerializationProxy.class);
 
 	private static final int VERSION = 1;
 
@@ -67,15 +71,9 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 	}
 
 	@Override
-	public boolean isCompatibleVersion(int version) {
-		return VERSION == version;
-	}
-
-	@Override
 	public int getVersion() {
 		return VERSION;
 	}
-
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
@@ -102,7 +100,8 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		try {
 			keySerializer = InstantiationUtil.deserializeObject(dis, userCodeClassLoader);
 		} catch (ClassNotFoundException e) {
-			throw new IOException(e);
+			keySerializer = null;
+			LOG.warn("Could not find class for key TypeSerializer", e);
 		}
 
 		int numKvStates = inView.readShort();
@@ -175,13 +174,21 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		public void read(DataInputView in) throws IOException {
 			setName(in.readUTF());
 			DataInputViewStream dis = new DataInputViewStream(in);
+
 			try {
 				TypeSerializer<?> namespaceSerializer = InstantiationUtil.deserializeObject(dis, userClassLoader);
-				TypeSerializer<?> stateSerializer = InstantiationUtil.deserializeObject(dis, userClassLoader);
 				setNamespaceSerializer(namespaceSerializer);
+			} catch (ClassNotFoundException exception) {
+				setNamespaceSerializer(null);
+				LOG.warn("Could not find class for namespace TypeSerializer", exception);
+			}
+
+			try {
+				TypeSerializer<?> stateSerializer = InstantiationUtil.deserializeObject(dis, userClassLoader);
 				setStateSerializer(stateSerializer);
 			} catch (ClassNotFoundException exception) {
-				throw new IOException(exception);
+				setStateSerializer(null);
+				LOG.warn("Could not find class for state TypeSerializer", exception);
 			}
 		}
 	}

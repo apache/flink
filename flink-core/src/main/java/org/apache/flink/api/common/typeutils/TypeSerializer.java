@@ -168,11 +168,11 @@ public abstract class TypeSerializer<T> implements Serializable, Compatible<Type
 	 * {@link TypeSerializer} is not  required to be commutative or transitive.
 	 *
 	 * @param other the type serializer to check for compatibility
-	 * @return true iff this can read serialized objects written through the passed argument
+	 * @return true iff this can read serialized objects written through the passed argument (always true for null)
 	 */
 	@Override
 	public boolean isCompatibleWith(TypeSerializer<?> other) {
-		// base implementation assumes compatibility only on equal serializers
-		return equals(other);
+		// base implementation assumes compatibility only on equal serializers and that we are compatible to null
+		return other == null || equals(other);
 	}
 }

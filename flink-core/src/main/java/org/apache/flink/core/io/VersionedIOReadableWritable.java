@@ -25,7 +25,8 @@ import java.io.IOException;
 
 /**
  * This is the abstract base class for {@link IOReadableWritable} which allows to differentiate between serialization
- * versions.
+ * versions. Concrete subclasses should typically override the {@link #write(DataOutputView)} and
+ * {@link #read(DataInputView)}, thereby calling super to ensure version checking.
  */
 public abstract class VersionedIOReadableWritable implements IOReadableWritable, Versioned {
 
@@ -54,10 +55,13 @@ public abstract class VersionedIOReadableWritable implements IOReadableWritable,
 	}
 
 	/**
-	 * Checks for compatibility between this and the found version.
+	 * Checks for compatibility between this and the found version. Subclasses can override this methods in case of
+	 * intended backwards backwards compatibility.
 	 *
 	 * @param version version number to compare against.
 	 * @return true, iff this is compatible to the passed version.
 	 */
-	public abstract boolean isCompatibleVersion(int version);
+	public boolean isCompatibleVersion(int version) {
+		return getVersion() == version;
+	}
 }
