@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.api.scala.function.util
 
-import org.apache.flink.api.common.functions.{IterationRuntimeContext, RuntimeContext}
-import org.apache.flink.api.java.operators.translation.WrappingFunction
 import org.apache.flink.streaming.api.functions.windowing.{ProcessWindowFunction => JProcessWindowFunction}
 import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.Window
@@ -37,8 +35,7 @@ import scala.collection.JavaConverters._
   */
 final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
     private[this] val func: ProcessWindowFunction[IN, OUT, KEY, W])
-    extends WrappingFunction[ProcessWindowFunction[IN, OUT, KEY, W]](func)
-    with JProcessWindowFunctionTrait[IN, OUT, KEY, W] {
+    extends JProcessWindowFunction[IN, OUT, KEY, W] {
 
   override def process(
       key: KEY,
@@ -50,15 +47,4 @@ final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
     }
     func.process(key, ctx, elements.asScala, out)
   }
-
-  override def getRuntimeContext: RuntimeContext = {
-    throw new RuntimeException("This should never be called")
-  }
-
-  override def getIterationRuntimeContext: IterationRuntimeContext = {
-    throw new RuntimeException("This should never be called")
-  }
 }
-
-private trait JProcessWindowFunctionTrait[IN, OUT, KEY, W]
-  extends JProcessWindowFunction[IN, OUT, KEY, W]
