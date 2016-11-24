@@ -56,13 +56,14 @@ class FileSystemBlobStore implements BlobStore {
 
 	FileSystemBlobStore(Configuration config) throws IOException {
 		String storagePath = config.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
+		String clusterId = config.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
 
 		if (storagePath == null || StringUtils.isBlank(storagePath)) {
 			throw new IllegalConfigurationException("Missing high-availability storage path for metadata." +
 					" Specify via configuration key '" + HighAvailabilityOptions.HA_STORAGE_PATH + "'.");
 		}
 
-		this.basePath = storagePath + "/blob";
+		this.basePath = storagePath + "/" + clusterId + "/blob";
 
 		FileSystem.get(new Path(basePath).toUri()).mkdirs(new Path(basePath));
 		LOG.info("Created blob directory {}.", basePath);
