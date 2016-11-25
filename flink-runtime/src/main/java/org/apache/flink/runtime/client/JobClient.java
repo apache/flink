@@ -222,7 +222,7 @@ public class JobClient {
 					allURLs[pos++] = blobClient.getURL(blobKey);
 				} catch (Exception e) {
 					blobClient.shutdown();
-					throw new JobRetrievalException(jobID, "Failed to download BlobKey " + blobKey);
+					throw new JobRetrievalException(jobID, "Failed to download BlobKey " + blobKey, e);
 				}
 			}
 
