@@ -118,6 +118,7 @@ class FunctionCatalog {
 object FunctionCatalog {
 
   val builtInFunctions: Map[String, Class[_]] = Map(
+    "in" -> classOf[In],
     // logic
     "isNull" -> classOf[IsNull],
     "isNotNull" -> classOf[IsNotNull],
@@ -252,6 +253,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.CASE,
     SqlStdOperatorTable.REINTERPRET,
     SqlStdOperatorTable.EXTRACT_DATE,
+    SqlStdOperatorTable.IN,
     // FUNCTIONS
     SqlStdOperatorTable.SUBSTRING,
     SqlStdOperatorTable.OVERLAY,

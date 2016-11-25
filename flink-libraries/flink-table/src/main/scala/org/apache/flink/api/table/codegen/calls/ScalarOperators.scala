@@ -78,6 +78,69 @@ object ScalarOperators {
     }
   }
 
+  def generateIn(
+      nullCheck: Boolean,
+      left: GeneratedExpression,
+      right: scala.collection.mutable.Buffer[GeneratedExpression],
+      addReusableCodeCallback: (String, String) => Any)
+    : GeneratedExpression = {
+    val resultTerm = newName("result")
+    val isNull = newName("isNull")
+
+    val castNumeric = if (isNumeric(left.resultType) || isNumeric(right.head.resultType)) {
+      (value: String) => s"""new java.math.BigDecimal("" + $value).stripTrailingZeros()"""
+    } else {
+      (value: String) => value
+    }
+
+    val valuesInitialization = if (right.size >= 20) {
+      "//literals were initialized in constructor\n"
+    } else {
+      s"""
+         |${right.map(_.code).mkString("")}
+         |""".stripMargin
+    }
+
+    val comparison = if (right.size >= 20) {
+      val hashSetVariable = newName("set")
+      addReusableCodeCallback(
+        s"""
+           |private java.util.Set $hashSetVariable = new java.util.HashSet();
+         """.stripMargin,
+        s"""
+           |${right.map(_.code).mkString("")}
+           |
+           |${right.map(element =>
+          s"$hashSetVariable.add(${castNumeric(element.resultTerm)});").mkString("\n\t")}
+           |""".stripMargin
+      )
+      s"$resultTerm = $hashSetVariable.contains(${castNumeric(left.resultTerm)});"
+    } else {
+      s"$resultTerm = ${right.map(element => "" + castNumeric(left.resultTerm) +
+        ".equals(" + castNumeric(element.resultTerm) + ")").mkString(" || ")};"
+    }
+
+    val code = if (nullCheck) {
+      s"""
+         |$valuesInitialization
+         |boolean $isNull = ${left.nullTerm};
+         |boolean $resultTerm;
+         |if ($isNull) {
+         |  $resultTerm = false;
+         |} else {
+         |  $comparison
+         |}
+         |""".stripMargin
+    } else {
+      s"""
+         |$valuesInitialization
+         |boolean $resultTerm;
+         |$comparison
+         |""".stripMargin
+    }
+    GeneratedExpression(resultTerm, GeneratedExpression.NEVER_NULL, code, BOOLEAN_TYPE_INFO)
+  }
+
   def generateEquals(
       nullCheck: Boolean,
       left: GeneratedExpression,
