@@ -726,11 +726,15 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		checkFs(outDir, 1, 0, 0, 0);
 
 		testHarness2.processElement(new StreamRecord<>("test2", 0L));
-		checkFs(outDir, 2, 0, 0, 0);
+		testHarness2.processElement(new StreamRecord<>("test3", 0L));
+		testHarness2.processElement(new StreamRecord<>("test4", 0L));
+		testHarness2.processElement(new StreamRecord<>("test5", 0L));
+		testHarness2.processElement(new StreamRecord<>("test6", 0L));
+		checkFs(outDir, 2, 4, 0, 0);
 
-		testHarness3.processElement(new StreamRecord<>("test3", 0L));
-		testHarness3.processElement(new StreamRecord<>("test4", 0L));
-		checkFs(outDir, 3, 1, 0, 0);
+		testHarness3.processElement(new StreamRecord<>("test7", 0L));
+		testHarness3.processElement(new StreamRecord<>("test8", 0L));
+		checkFs(outDir, 3, 5, 0, 0);
 
 		// intentionally we snapshot them in a not ascending order so that the states are shuffled
 		OperatorStateHandles mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
@@ -739,25 +743,25 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 			testHarness2.snapshot(0, 0)
 		);
 
-		//with the above state reshuffling, we expect the new testHarness1
-		// to take the state of the previous testHarness3 and testHarness2
-		// while the new testHarness2 will take that of the previous testHarness1
+		// with the above state reshuffling, we expect testHarness4 to take the
+		// state of the previous testHarness3 and testHarness1 while testHarness5
+		// will take that of the previous testHarness1
 
-		testHarness1 = createRescalingTestSink(outDir, 2, 0);
-		testHarness1.setup();
-		testHarness1.initializeState(mergedSnapshot);
-		testHarness1.open();
+		OneInputStreamOperatorTestHarness<String, Object> testHarness4 = createRescalingTestSink(outDir, 2, 0);
+		testHarness4.setup();
+		testHarness4.initializeState(mergedSnapshot);
+		testHarness4.open();
 
 		// we do not have a length file for part-2-0 because bucket part-2-0
 		// was not "in-progress", but "pending" (its full content is valid).
-		checkFs(outDir, 1, 0, 3, 2);
+		checkFs(outDir, 1, 4, 3, 2);
 
-		testHarness2 = createRescalingTestSink(outDir, 2, 1);
-		testHarness2.setup();
-		testHarness2.initializeState(mergedSnapshot);
-		testHarness2.open();
+		OneInputStreamOperatorTestHarness<String, Object> testHarness5 = createRescalingTestSink(outDir, 2, 1);
+		testHarness5.setup();
+		testHarness5.initializeState(mergedSnapshot);
+		testHarness5.open();
 
-		checkFs(outDir, 0, 0, 4, 3);
+		checkFs(outDir, 0, 0, 8, 3);
 	}
 
 	@Test
