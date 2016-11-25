@@ -37,24 +37,36 @@ Apache Flink is an open source platform for distributed stream and batch data pr
 
 - **Programming Guides**: You can check out our guides about [basic concepts](dev/api_concepts.html) and the [DataStream API](dev/datastream_api.html) or [DataSet API](dev/batch/index.html) to learn how to write your first Flink programs.
 
-## Stack
+{: style="color: red"}
+## TODO
 
-This is an overview of Flink's stack. Click on any component to go to the respective documentation page.
+* improve this page
+* give the quickstart more love
+* find a way to raise the visibility of rich functions
+* fix bugs
+  * find and fix broken links
+  * [fault tolerance](dev/batch/fault_tolerance) mixes batch and streaming in a confusing way
+  * [rescaling figure is confusing](fig/rescale.svg)
+  * the [info about mongodb](dev/batch/connectors) seems to be stale. There's an indirect pointer to https://flink.incubator.apache.org/news/2014/01/28/querying_mongodb.html which doesn't exist
+* break up the streaming page somewhat to better group material that goes with content on other pages, and to raise the discoverability of certain topics (since the sidebar navigation can only link to whole pages)
+* also break up and reorganize [Basic API Concepts](dev/api_concepts) somewhat
+* [batch#dataset-transformations](http://localhost:4000/dev/batch/#dataset-transformations) has strong overlap with [batch/dataset_transformations](http://localhost:4000/dev/batch/dataset_transformations.html). Not sure what to do about it.
+* gather together (some of) the material on debugging
+* the explanation of windowAll needs love
+* move the material on [custom serializers](http://localhost:4000/monitoring/best_practices.html#register-a-custom-serializer-for-your-flink-program) into the [section on serialization](dev/types_serialization)
+* [local execution](dev/local_execution) and [cluster execution](dev/cluster_execution) have already been moved under batch, because their current content is batch specific. It's not clear these pages should still exist. Some of their content has already been generalized elsewhere (eg [linking with flink](dev/api_concepts.html#linking-with-flink)).
+* [data streaming fault tolerance](internals/stream_checkpointing) is very nice. Maybe it should be promoted into the application development section (and out of internals).
+* add more examples, eg
+  * connected streams (from training slides)
+  * point to the [blog post on kafka/elasticsearch/kibana](https://www.elastic.co/blog/building-real-time-dashboard-applications-with-apache-flink-elasticsearch-and-kibana)
+  * point to the training site
 
-<center>
-  <img src="{{ site.baseurl }}/fig/stack.png" width="700px" alt="Apache Flink: Stack" usemap="#overview-stack">
-</center>
+{: style="color: red"}
+## GOALS
 
-<map name="overview-stack">
-<area id="lib-datastream-cep" title="CEP: Complex Event Processing" href="{{ site.baseurl }}/dev/libs/cep.html" shape="rect" coords="63,0,143,177" />
-<area id="lib-datastream-table" title="Table: Relational DataStreams" href="{{ site.baseurl }}/dev/table_api.html" shape="rect" coords="143,0,223,177" />
-<area id="lib-dataset-ml" title="FlinkML: Machine Learning" href="{{ site.baseurl }}/dev/libs/ml/index.html" shape="rect" coords="382,2,462,176" />
-<area id="lib-dataset-gelly" title="Gelly: Graph Processing" href="{{ site.baseurl }}/dev/libs/gelly/index.html" shape="rect" coords="461,0,541,177" />
-<area id="lib-dataset-table" title="Table API and SQL" href="{{ site.baseurl }}/dev/table_api.html" shape="rect" coords="544,0,624,177" />
-<area id="datastream" title="DataStream API" href="{{ site.baseurl }}/dev/datastream_api.html" shape="rect" coords="64,177,379,255" />
-<area id="dataset" title="DataSet API" href="{{ site.baseurl }}/dev/batch/index.html" shape="rect" coords="382,177,697,255" />
-<area id="runtime" title="Runtime" href="{{ site.baseurl }}/internals/general_arch.html" shape="rect" coords="63,257,700,335" />
-<area id="local" title="Local" href="{{ site.baseurl }}/setup/local_setup.html" shape="rect" coords="62,337,275,414" />
-<area id="cluster" title="Cluster" href="{{ site.baseurl }}/setup/cluster_setup.html" shape="rect" coords="273,336,486,413" />
-<area id="cloud" title="Cloud" href="{{ site.baseurl }}/setup/gce_setup.html" shape="rect" coords="485,336,700,414" />
-</map>
+* make a good first impression on first-time visitors
+* reduce duplication: ideally every piece of information would have one natural place to be
+* improve navigation and discoverability: important topics shouldn't be hard to find
+* update/remove out-of-date material
+* arrange all of the content in a natural, linear ordering for those who want to read (or skim through) everything
+* improve important sections that are difficult to understand
