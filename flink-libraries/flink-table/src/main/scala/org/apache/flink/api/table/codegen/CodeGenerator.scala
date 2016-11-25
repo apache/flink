@@ -25,7 +25,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, Function, MapFunction, RichFunction, RichMapFunction}
+import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, Function, MapFunction}
 import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfo}
@@ -38,7 +38,6 @@ import org.apache.flink.api.table.functions.UserDefinedFunction
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.table.typeutils.TypeCheckUtils._
 import org.apache.flink.api.table.{FlinkTypeFactory, TableConfig}
-
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -108,9 +107,6 @@ class CodeGenerator(
   // we use a LinkedHashSet to keep the insertion order
   private val reusableInitStatements = mutable.LinkedHashSet[String]()
 
-  // set of methods that will be added only once
-  private val reusableMethodsStatements = mutable.LinkedHashSet[String]()
-
   // set of statements that will be added only once per record
   // we use a LinkedHashSet to keep the insertion order
   private val reusablePerRecordStatements = mutable.LinkedHashSet[String]()
@@ -132,13 +128,6 @@ class CodeGenerator(
     */
   def reuseInitCode(): String = {
     reusableInitStatements.mkString("", "\n", "\n")
-  }
-
-  /**
-    * @return code block of methods that need to be added to the Function
-    */
-  def reuseMethodsCode(): String = {
-    reusableMethodsStatements.mkString("", "\n", "\n")
   }
 
   /**
@@ -193,31 +182,6 @@ class CodeGenerator(
   }
 
   /**
-    * Generates a [[org.apache.flink.api.common.functions.RichFunction]] that can be passed to Java
-    * compiler.
-    *
-    * @param name Class name of the Function. Must not be unique but has to be a valid Java class
-    *             identifier.
-    * @param clazz Flink Function to be generated.
-    * @param samMethodCode code contents of the SAM (Single Abstract Method). Inputs, collector, or
-    *                 output record can be accessed via the given term methods.
-    * @param returnType expected return type
-    * @param openMethodCode code contents of an open() method of generated
-    *                         [[org.apache.flink.api.common.functions.RichFunction]].
-    * @tparam T Flink Function to be generated.
-    * @return instance of GeneratedFunction
-    */
-  def generateRichFunction[T <: RichFunction](
-      name: String,
-      clazz: Class[T],
-      samMethodCode: String,
-      returnType: TypeInformation[Any],
-      openMethodCode: String): GeneratedFunction[T] = {
-    addOpenMethod(openMethodCode)
-    generateFunction(name, clazz, samMethodCode, returnType)
-  }
-
-  /**
     * Generates a [[org.apache.flink.api.common.functions.Function]] that can be passed to Java
     * compiler.
     *
@@ -237,7 +201,6 @@ class CodeGenerator(
       returnType: TypeInformation[Any])
     : GeneratedFunction[T] = {
     val funcName = newName(name)
-    val inheritanceKeyword = if (clazz.isInterface) "implements" else "extends"
 
     // Janino does not support generics, that's why we need
     // manual casting here
@@ -249,13 +212,13 @@ class CodeGenerator(
           List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
       }
 
-      // MapFunction, RichMapFunction
-      else if (clazz == classOf[MapFunction[_,_]] ||
-               clazz == classOf[RichMapFunction[_,_]]) {
+      // MapFunction
+      else if (clazz == classOf[MapFunction[_,_]]) {
         val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
         ("Object map(Object _in1)",
           List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
       }
+
       // FlatJoinFunction
       else if (clazz == classOf[FlatJoinFunction[_,_,_]]) {
         val inputTypeTerm1 = boxedTypeTermForTypeInfo(input1)
@@ -272,15 +235,13 @@ class CodeGenerator(
 
     val funcCode = j"""
       public class $funcName
-          $inheritanceKeyword ${clazz.getCanonicalName} {
+          implements ${clazz.getCanonicalName} {
 
         ${reuseMemberCode()}
 
         public $funcName() throws Exception {
           ${reuseInitCode()}
         }
-
-        ${reuseMethodsCode()}
 
         @Override
         public ${samHeader._1} throws Exception {
@@ -303,30 +264,21 @@ class CodeGenerator(
     *
     * @param returnType conversion target type. Inputs and output must have the same arity.
     * @param resultFieldNames result field names necessary for a mapping to POJO fields.
-    * @param switchInputs change order of storing inputs in global result variable. If true then the
-    *                     second input will be added first.
     * @return instance of GeneratedExpression
     */
   def generateConverterResultExpression(
       returnType: TypeInformation[_ <: Any],
-      resultFieldNames: Seq[String],
-      switchInputs: Boolean = false)
+      resultFieldNames: Seq[String])
     : GeneratedExpression = {
-    val (firstPlaceInputTerm, secondPlaceInputTerm) =
-      if (switchInputs) {
-        (input2Term, input1Term)
-      } else {
-        (input1Term, input2Term)
-      }
-
     val input1AccessExprs = for (i <- 0 until input1.getArity)
-      yield generateInputAccess(input1, firstPlaceInputTerm, i)
+      yield generateInputAccess(input1, input1Term, i)
 
     val input2AccessExprs = input2 match {
       case Some(ti) => for (i <- 0 until ti.getArity)
-        yield generateInputAccess(ti, secondPlaceInputTerm, i)
+        yield generateInputAccess(ti, input2Term, i)
       case None => Seq() // add nothing
     }
+
     generateResultExpression(input1AccessExprs ++ input2AccessExprs, returnType, resultFieldNames)
   }
 
@@ -1209,52 +1161,9 @@ class CodeGenerator(
     }
   }
 
-  /**
-    * Generates an instance field for the second input. It may be used for storing a broadcast set
-    * in single input [[org.apache.flink.api.common.functions.RichFunction]]
-    *
-    * @return instance of GeneratedField
-    */
-  def generateInputInstanceField(): GeneratedField = {
-    val inputTypeTerm = boxedTypeTermForTypeInfo(input2.getOrElse(
-        throw new CodeGenException("Input 2 should not be null to generate instance input field")))
-    addInstanceInputField(input2Term, inputTypeTerm)
-    GeneratedField(input2Term, inputTypeTerm)
-  }
-
   // ----------------------------------------------------------------------------------------------
   // Reusable code snippets
   // ----------------------------------------------------------------------------------------------
-
-  /**
-    * Adds a reusable input record to the member area
-    * of the generated [[org.apache.flink.api.common.functions.Function]].
-    *
-    * @param inputTerm name of field to be instantiated during runtime
-    * @param inputTypeTerm field type
-    * @return member variable term
-    */
-  private def addInstanceInputField(inputTerm: String, inputTypeTerm: String) = {
-    val inputDeclaration = s"private $inputTypeTerm $inputTerm;"
-    reusableMemberStatements.add(inputDeclaration)
-  }
-
-  /**
-    * Adds an open() method for a [[org.apache.flink.api.common.functions.RichFunction]]
-    *
-    * @param methodBodyCode code snippet that need to be placed into the method
-    */
-  private def addOpenMethod(methodBodyCode: String): Unit = {
-    val openMethod =
-      j"""
-        @Override
-        public void open(org.apache.flink.configuration.Configuration parameters)
-            throws Exception {
-          $methodBodyCode
-        }
-      """.stripMargin
-    reusableMethodsStatements.add(openMethod)
-  }
 
   /**
     * Adds a reusable output record to the member area of the generated [[Function]].

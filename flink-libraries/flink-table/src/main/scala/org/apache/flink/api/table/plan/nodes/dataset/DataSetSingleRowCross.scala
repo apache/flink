@@ -22,11 +22,11 @@ import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
-import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
+import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, MapFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.codegen.CodeGenerator
-import org.apache.flink.api.table.runtime.RichMapRunner
+import org.apache.flink.api.table.runtime.{MapJoinLeftRunner, MapJoinRightRunner}
 import org.apache.flink.api.table.typeutils.TypeConverter.determineReturnType
 import org.apache.flink.api.table.{BatchTableEnvironment, TableConfig}
 
@@ -105,7 +105,7 @@ class DataSetSingleRowCross(
       }
 
     multiRowDataSet
-      .map(mapSideJoin)
+      .flatMap(mapSideJoin)
       .withBroadcastSet(singleRowDataSet, broadcastSetName)
       .name(getMapOperatorName)
       .asInstanceOf[DataSet[Any]]
@@ -117,7 +117,7 @@ class DataSetSingleRowCross(
       inputType2: TypeInformation[Any],
       firstIsSingle: Boolean,
       broadcastInputSetName: String,
-      expectedType: Option[TypeInformation[Any]]): MapFunction[Any, Any] = {
+      expectedType: Option[TypeInformation[Any]]): FlatMapFunction[Any, Any] = {
 
     val codeGenerator = new CodeGenerator(
       config,
@@ -133,32 +133,32 @@ class DataSetSingleRowCross(
 
     val conversion = codeGenerator.generateConverterResultExpression(
       returnType,
-      joinRowType.getFieldNames,
-      firstIsSingle)
+      joinRowType.getFieldNames)
 
-    val mapMethodBody = s"""
+    val joinMethodBody = s"""
                   |${conversion.code}
-                  |return ${conversion.resultTerm};
+                  |${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
                   |""".stripMargin
 
-    val broadcastInput = codeGenerator.generateInputInstanceField()
-    val openMethodBody = s"""
-                  |${broadcastInput.fieldName} = (${broadcastInput.fieldType})
-                  |  getRuntimeContext().getBroadcastVariable("$broadcastInputSetName").get(0);
-                  |""".stripMargin
-
-
-    val genFunction = codeGenerator.generateRichFunction(
+    val genFunction = codeGenerator.generateFunction(
       ruleDescription,
-      classOf[RichMapFunction[Any, Any]],
-      mapMethodBody,
-      returnType,
-      openMethodBody)
+      classOf[FlatJoinFunction[Any, Any, Any]],
+      joinMethodBody,
+      returnType)
 
-    new RichMapRunner[Any, Any](
-      genFunction.name,
-      genFunction.code,
-      genFunction.returnType)
+    if (firstIsSingle) {
+      new MapJoinRightRunner[Any, Any, Any](
+        genFunction.name,
+        genFunction.code,
+        genFunction.returnType,
+        broadcastInputSetName)
+    } else {
+      new MapJoinLeftRunner[Any, Any, Any](
+        genFunction.name,
+        genFunction.code,
+        genFunction.returnType,
+        broadcastInputSetName)
+    }
   }
 
   private def getMapOperatorName: String = {

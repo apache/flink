@@ -18,35 +18,33 @@
 
 package org.apache.flink.api.table.runtime
 
-import org.apache.flink.api.common.functions.RichMapFunction
+import org.apache.flink.api.common.functions.{FlatJoinFunction, RichFlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.configuration.Configuration
 import org.slf4j.LoggerFactory
 
-class RichMapRunner[IN, OUT](
+abstract class MapSideJoinRunner[IN1, IN2, SINGLE_IN, MULTI_IN, OUT](
     name: String,
     code: String,
-    @transient returnType: TypeInformation[OUT])
-  extends RichMapFunction[IN, OUT]
-  with ResultTypeQueryable[OUT]
-  with FunctionCompiler[RichMapFunction[IN, OUT]] {
+    @transient returnType: TypeInformation[OUT],
+    broadcastSetName: String)
+  extends RichFlatMapFunction[MULTI_IN, OUT]
+    with ResultTypeQueryable[OUT]
+    with FunctionCompiler[FlatJoinFunction[IN1, IN2, OUT]] {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
-  private var function: RichMapFunction[IN, OUT] = null
+  protected var function: FlatJoinFunction[IN1, IN2, OUT] = null
+  protected var singleInput: SINGLE_IN = _
 
   override def open(parameters: Configuration): Unit = {
-    LOG.debug(s"Compiling MapFunction: $name \n\n Code:\n$code")
+    LOG.debug(s"Compiling FlatJoinFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
-    LOG.debug("Instantiating MapFunction.")
+    LOG.debug("Instantiating FlatJoinFunction.")
     function = clazz.newInstance()
-    function.setRuntimeContext(getRuntimeContext)
-    function.open(parameters)
+    singleInput = getRuntimeContext.getBroadcastVariable(broadcastSetName).get(0)
   }
-
-  override def map(in: IN): OUT =
-    function.map(in)
 
   override def getProducedType: TypeInformation[OUT] = returnType
 }
