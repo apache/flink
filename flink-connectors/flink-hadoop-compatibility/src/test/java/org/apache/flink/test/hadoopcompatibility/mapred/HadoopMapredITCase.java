@@ -21,11 +21,20 @@ package org.apache.flink.test.hadoopcompatibility.mapred;
 import org.apache.flink.test.hadoopcompatibility.mapred.example.HadoopMapredCompatWordCount;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.util.OperatingSystem;
+import org.junit.Assume;
+import org.junit.Before;
 
 public class HadoopMapredITCase extends JavaProgramTestBase {
 	
 	protected String textPath;
 	protected String resultPath;
+
+	@Before
+	public void checkOperatingSystem() {
+		// FLINK-5164 - see https://wiki.apache.org/hadoop/WindowsProblems
+		Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows());
+	}
 
 	@Override
 	protected void preSubmit() throws Exception {

@@ -22,15 +22,23 @@ import org.apache.flink.api.scala._
 import org.apache.flink.hadoopcompatibility.scala.HadoopInputs
 import org.apache.flink.test.testdata.WordCountData
 import org.apache.flink.test.util.{TestBaseUtils, JavaProgramTestBase}
+import org.apache.flink.util.OperatingSystem
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.{Text, LongWritable}
 import org.apache.hadoop.mapreduce.Job
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat
 import org.apache.hadoop.mapreduce.lib.output.{FileOutputFormat, TextOutputFormat}
+import org.junit.{Assume, Before}
 
 class WordCountMapreduceITCase extends JavaProgramTestBase {
   protected var textPath: String = null
   protected var resultPath: String = null
+
+  @Before
+  def checkOperatingSystem() {
+    // FLINK-5164 - see https://wiki.apache.org/hadoop/WindowsProblems
+    Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows)
+  }
 
   protected override def preSubmit() {
     textPath = createTempFile("text.txt", WordCountData.TEXT)
