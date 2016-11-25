@@ -46,6 +46,7 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
@@ -87,9 +88,6 @@ public class YarnTaskExecutorRunner implements FatalErrorHandler {
 	@GuardedBy("lock")
 	private TaskExecutor taskExecutor;
 
-	/** Flag marking the task executor runner as started/running */
-	private volatile boolean running;
-
 	// ------------------------------------------------------------------------
 	//  Program entry point
 	// ------------------------------------------------------------------------
@@ -129,10 +127,10 @@ public class YarnTaskExecutorRunner implements FatalErrorHandler {
 			LOG.info("Current working Directory: {}", currDir);
 
 			final String remoteKeytabPath = ENV.get(YarnConfigKeys.KEYTAB_PATH);
-			LOG.info("TM: remoteKeytabPath obtained {}", remoteKeytabPath);
+			LOG.info("TM: remote keytab path obtained {}", remoteKeytabPath);
 
 			final String remoteKeytabPrincipal = ENV.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
-			LOG.info("TM: remoteKeytabPrincipal obtained {}", remoteKeytabPrincipal);
+			LOG.info("TM: remote keytab principal obtained {}", remoteKeytabPrincipal);
 
 			final Configuration configuration = GlobalConfiguration.loadConfiguration(currDir);
 			FileSystem.setDefaultScheme(configuration);
@@ -155,7 +153,7 @@ public class YarnTaskExecutorRunner implements FatalErrorHandler {
 			if(remoteKeytabPath != null) {
 				File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
 				keytabPath = f.getAbsolutePath();
-				LOG.info("keytabPath: {}", keytabPath);
+				LOG.info("keytab path: {}", keytabPath);
 			}
 
 			UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
@@ -213,7 +211,7 @@ public class YarnTaskExecutorRunner implements FatalErrorHandler {
 			// ---- (1) create common services
 			// first get the ResouceId, resource id is the container id for yarn.
 			final String containerId = ENV.get(YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID);
-			require(containerId != null,
+			Preconditions.checkArgument(containerId != null,
 					"ContainerId variable %s not set", YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID);
 
 			ResourceID resourceID = new ResourceID(containerId);
@@ -231,10 +229,8 @@ public class YarnTaskExecutorRunner implements FatalErrorHandler {
 				taskExecutor.start();
 				LOG.debug("YARN task executor started");
 			}
-			running = true;
-			while (running) {
-				Thread.sleep(100);
-			}
+
+			taskExecutor.getTerminationFuture().get();
 			// everything started, we can wait until all is done or the process is killed
 			LOG.info("YARN task executor runner finished");
 		}
@@ -252,35 +248,11 @@ public class YarnTaskExecutorRunner implements FatalErrorHandler {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	/**
-	 * Validates a condition, throwing a RuntimeException if the condition is violated.
-	 * 
-	 * @param condition The condition.
-	 * @param message The message for the runtime exception, with format variables as defined by
-	 *				{@link String#format(String, Object...)}.
-	 * @param values The format arguments.
-	 */
-	private static void require(boolean condition, String message, Object... values) {
-		if (!condition) {
-			throw new RuntimeException(String.format(message, values));
-		}
-	}
-	protected RpcService createRpcService(
+	private RpcService createRpcService(
 			Configuration configuration) throws Exception{
-		FiniteDuration duration = AkkaUtils.getTimeout(configuration);
-
 		String taskExecutorHostname = ENV.get(YarnResourceManager.ENV_FLINK_NODE_ID);//TODO
-		if (taskExecutorHostname != null) {
-			LOG.info("Using configured hostname/address for TaskManager: " + taskExecutorHostname);
-		}
-		else {
-			LeaderRetrievalService leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(configuration);
-			InetAddress taskManagerAddress = LeaderRetrievalUtils.findConnectingAddress(
-					leaderRetrievalService,
-					duration);
-			taskExecutorHostname = taskManagerAddress.getHostName();
-			LOG.info("TaskExecutor will use hostname/address {} for communication.", taskExecutorHostname);
-		}
+		Preconditions.checkArgument(taskExecutorHostname != null,
+				"taskExecutorHostname variable %s not set", YarnResourceManager.ENV_FLINK_NODE_ID);
 
 		// if no task manager port has been configured, use 0 (system will pick any free port)
 		int taskExecutorPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0);
@@ -291,17 +263,16 @@ public class YarnTaskExecutorRunner implements FatalErrorHandler {
 					" - Leave config parameter empty or use 0 to let the system choose a port automatically.");
 		}
 
-		ActorSystem actorSystem = AkkaUtils.createActorSystem(configuration, taskExecutorHostname, taskExecutorPort);
-		return new AkkaRpcService(actorSystem, Time.of(duration.length(), duration.unit()));
+		return RpcServiceUtils.createRpcService(taskExecutorHostname, taskExecutorPort, configuration);
 	}
 
 	private TaskExecutor createTaskExecutor(Configuration config, ResourceID resourceID) throws Exception {
 
-		InetAddress remoteAddress = InetAddress.getByName(taskExecutorRpcService.getAddress());
+		InetAddress taskExecutorAddress = InetAddress.getByName(taskExecutorRpcService.getAddress());
 
 		TaskManagerServicesConfiguration taskManagerServicesConfiguration = TaskManagerServicesConfiguration.fromConfiguration(
 				config,
-				remoteAddress,
+				taskExecutorAddress,
 				false);
 
 		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
@@ -367,7 +338,6 @@ public class YarnTaskExecutorRunner implements FatalErrorHandler {
 				}
 			}
 		}
-		running = false;
 	}
 
 	//-------------------------------------------------------------------------------------
