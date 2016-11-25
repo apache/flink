@@ -80,7 +80,7 @@ Next, you have to add the FlinkML dependency to the `pom.xml` of your project.
 {% endhighlight %}
 
 Note that FlinkML is currently not part of the binary distribution.
-See linking with it for cluster execution [here]({{site.baseurl}}/dev/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+See linking with it for cluster execution [here]({{site.baseurl}}/dev/linking).
 
 Now you can start solving your analysis task.
 The following code snippet shows how easy it is to train a multiple linear regression model.
