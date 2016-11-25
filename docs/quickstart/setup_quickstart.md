@@ -3,7 +3,6 @@ title: "Quickstart"
 nav-title: '<i class="fa fa-power-off title" aria-hidden="true"></i> Quickstart'
 nav-parent_id: root
 nav-pos: 2
-nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

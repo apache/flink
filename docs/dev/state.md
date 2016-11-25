@@ -1,7 +1,8 @@
 ---
-title: "Working with State"
+title: "State & Checkpointing"
 nav-parent_id: dev
-nav-pos: 3
+nav-id: state
+nav-pos: 42
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

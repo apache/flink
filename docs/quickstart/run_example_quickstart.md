@@ -1,8 +1,8 @@
 ---
 title: "Monitoring the Wikipedia Edit Stream"
 nav-title: Monitoring Wikipedia Edits
-nav-parent_id: quickstarts
-nav-pos: 2
+nav-parent_id: examples
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

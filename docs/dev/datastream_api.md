@@ -1,8 +1,8 @@
 ---
 title: "Flink DataStream API Programming Guide"
 nav-title: Streaming (DataStream API)
-nav-parent_id: apis
-nav-pos: 2
+nav-parent_id: dev
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

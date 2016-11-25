@@ -1,7 +1,9 @@
 ---
 title: "Basic API Concepts"
-nav-parent_id: apis
+nav-parent_id: dev
 nav-pos: 1
+nav-show_overview: true
+nav-id: api-concepts
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

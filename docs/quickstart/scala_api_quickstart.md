@@ -1,7 +1,7 @@
 ---
-title: "Quickstart: Scala API"
-nav-title: Scala API
-nav-parent_id: quickstarts
+title: "Quickstart: Projects using the Scala API"
+nav-title: Scala Projects
+nav-parent_id: start
 nav-pos: 4
 ---
 <!--

@@ -1,8 +1,9 @@
 ---
-title: "Quickstarts"
-nav-id: quickstarts
-nav-parent_id: dev
-nav-pos: 1
+title: Examples
+nav-id: examples
+nav-title: '<i class="fa fa-file-code-o title" aria-hidden="true"></i> Examples'
+nav-parent_id: root
+nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

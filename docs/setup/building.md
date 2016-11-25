@@ -1,7 +1,7 @@
 ---
-title: Build Flink from Source
-nav-parent_id: setup
-nav-pos: 1
+title: Building Flink from Source
+nav-parent_id: start
+nav-pos: 20
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

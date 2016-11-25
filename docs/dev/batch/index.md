@@ -2,8 +2,8 @@
 title: "Flink DataSet API Programming Guide"
 nav-id: batch
 nav-title: Batch (DataSet API)
-nav-parent_id: apis
-nav-pos: 3
+nav-parent_id: dev
+nav-pos: 70
 nav-show_overview: true
 ---
 <!--

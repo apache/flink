@@ -1,7 +1,7 @@
 ---
 title: "IDE Setup"
-nav-parent_id: internals
-nav-pos: 1
+nav-parent_id: start
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

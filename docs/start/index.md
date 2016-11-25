@@ -1,8 +1,8 @@
 ---
-title: "APIs"
-nav-id: apis
+title: "Installation & Setup"
+nav-id: "start"
 nav-parent_id: dev
-nav-pos: 2
+nav-pos: 0
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

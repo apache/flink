@@ -1,8 +1,8 @@
 ---
 title: "Table and SQL"
 is_beta: true
-nav-parent_id: apis
-nav-pos: 3
+nav-parent_id: libs
+nav-pos: 0
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

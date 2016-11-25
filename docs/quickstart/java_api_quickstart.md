@@ -1,7 +1,7 @@
 ---
-title: "Quickstart: Java API"
-nav-title: Java API
-nav-parent_id: quickstarts
+title: "Quickstart: Projects using the Java API"
+nav-title: Java Projects
+nav-parent_id: start
 nav-pos: 3
 ---
 <!--

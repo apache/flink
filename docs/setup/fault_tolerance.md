@@ -1,8 +1,8 @@
 ---
 title: "Failure & Recovery Model"
 nav-id: fault_tolerance
-nav-parent_id: setup
-nav-pos: 4
+nav-parent_id: dev
+nav-pos: 45
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

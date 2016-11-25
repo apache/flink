@@ -2,7 +2,7 @@
 title: "Data Types & Serialization"
 nav-id: types
 nav-parent_id: dev
-nav-pos: 9
+nav-pos: 50
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
