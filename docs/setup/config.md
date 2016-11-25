@@ -1,7 +1,7 @@
 ---
 title: "Configuration"
 nav-id: "config"
-nav-title: '<i class="fa fa-sliders title" aria-hidden="true"></i> Configuration'
+nav-title: '<i class="fa fa-sliders title maindish" aria-hidden="true"></i> Configuration'
 nav-parent_id: root
 nav-pos: 5
 ---

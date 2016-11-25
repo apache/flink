@@ -193,8 +193,24 @@ svg.graph text {
 =============================================================================*/
 
 #sidenav a i.title {
-    color: #FBB142;
     min-width: 21px;
+}
+
+#sidenav a i.title.appetizer {
+    color: #FBB142;
+}
+
+#sidenav a i.title.maindish {
+    color: #7E4F89;
+}
+
+#sidenav a i.title.dessert {
+    color: #E6526F;
+}
+
+#sidenav hr.section-break {
+    margin-bottom: 5px;
+    border-top: 0px;
 }
 
 #sidenav, #sidenav ul {

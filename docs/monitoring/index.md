@@ -1,6 +1,6 @@
 ---
 title: "Debugging and Monitoring"
-nav-title: '<i class="fa fa-bug title" aria-hidden="true"></i> Debugging & Monitoring'
+nav-title: '<i class="fa fa-bug title maindish" aria-hidden="true"></i> Debugging & Monitoring'
 nav-id: monitoring
 nav-parent_id: root
 nav-pos: 7
