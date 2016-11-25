@@ -56,20 +56,24 @@ public class SecurityUtilsTest {
 		String userName = "";
 		String osName = System.getProperty( "os.name" ).toLowerCase();
 		String className = null;
+		String methodName = null;
 
 		if( osName.contains( "windows" ) ){
 			className = "com.sun.security.auth.module.NTSystem";
+			methodName = "getName";
 		}
 		else if( osName.contains( "linux" ) || osName.contains( "mac" )  ){
 			className = "com.sun.security.auth.module.UnixSystem";
+			methodName = "getUsername";
 		}
 		else if( osName.contains( "solaris" ) || osName.contains( "sunos" ) ){
 			className = "com.sun.security.auth.module.SolarisSystem";
+			methodName = "getUsername";
 		}
 
 		if( className != null ){
 			Class<?> c = Class.forName( className );
-			Method method = c.getDeclaredMethod( "getUsername" );
+			Method method = c.getDeclaredMethod( methodName );
 			Object o = c.newInstance();
 			userName = (String) method.invoke( o );
 		}
