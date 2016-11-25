@@ -1,6 +1,6 @@
 ---
-title:  "How to add a new Operator"
-nav-title: "How-To: Add an Operator"
+title:  "How to add a new DataSet Operator"
+nav-title: "Adding a new DataSet Operator"
 nav-parent_id: internals
 nav-pos: 6
 ---
