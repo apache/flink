@@ -2,8 +2,8 @@
 title: "Streaming Connectors"
 nav-id: connectors
 nav-title: Connectors
-nav-parent_id: dev
-nav-pos: 7
+nav-parent_id: streaming
+nav-pos: 30
 nav-show_overview: true
 ---
 <!--

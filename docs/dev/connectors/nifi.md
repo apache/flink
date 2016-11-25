@@ -37,7 +37,7 @@ following dependency to your project:
 
 Note that the streaming connectors are currently not part of the binary
 distribution. See
-[here]({{site.baseurl}}/dev/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution)
+[here]({{site.baseurl}}/dev/linking)
 for information about how to package the program with the libraries for
 cluster execution.
 

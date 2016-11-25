@@ -1,8 +1,8 @@
 ---
 title: "Table and SQL"
 is_beta: true
-nav-parent_id: apis
-nav-pos: 3
+nav-parent_id: libs
+nav-pos: 0
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -47,7 +47,7 @@ The following dependency must be added to your project in order to use the Table
 </dependency>
 {% endhighlight %}
 
-*Note: The Table API is currently not part of the binary distribution. See linking with it for cluster execution [here]({{ site.baseurl }}/dev/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).*
+*Note: The Table API is currently not part of the binary distribution. See linking with it for cluster execution [here]({{ site.baseurl }}/dev/linking.html).*
 
 
 Registering Tables

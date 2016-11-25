@@ -35,7 +35,7 @@ following dependency to your project:
 {% endhighlight %}
 Version Compatibility: This module is compatible with Redis 2.8.5.
 
-Note that the streaming connectors are currently not part of the binary distribution. You need to link them for cluster execution [explicitly]({{site.baseurl}}/dev/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+Note that the streaming connectors are currently not part of the binary distribution. You need to link them for cluster execution [explicitly]({{site.baseurl}}/dev/linking).
 
 #### Installing Redis
 Follow the instructions from the [Redis download page](http://redis.io/download).
