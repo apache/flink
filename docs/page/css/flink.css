@@ -192,6 +192,11 @@ svg.graph text {
  Side navigation
 =============================================================================*/
 
+#sidenav a i.title {
+    color: #FBB142;
+    min-width: 21px;
+}
+
 #sidenav, #sidenav ul {
 	list-style: none;
 	display: block;

@@ -2,7 +2,7 @@
 title: Concepts
 nav-id: concepts
 nav-pos: 1
-nav-title: '<i class="fa fa-map-o" aria-hidden="true"></i> Concepts'
+nav-title: '<i class="fa fa-map-o title" aria-hidden="true"></i> Concepts'
 nav-parent_id: root
 ---
 <!--

@@ -1,7 +1,7 @@
 ---
 title: "Application Development"
 nav-id: dev
-nav-title: '<i class="fa fa-code" aria-hidden="true"></i> Application Development'
+nav-title: '<i class="fa fa-code title" aria-hidden="true"></i> Application Development'
 nav-parent_id: root
 nav-pos: 3
 ---

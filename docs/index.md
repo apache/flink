@@ -1,7 +1,7 @@
 ---
 title: "Apache Flink Documentation"
 nav-pos: 0
-nav-title: '<i class="fa fa-home" aria-hidden="true"></i> Home'
+nav-title: '<i class="fa fa-home title" aria-hidden="true"></i> Home'
 nav-parent_id: root
 ---
 <!--

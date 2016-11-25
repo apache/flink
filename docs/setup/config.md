@@ -1,7 +1,9 @@
 ---
 title: "Configuration"
-nav-parent_id: setup
-nav-pos: 3
+nav-id: "config"
+nav-title: '<i class="fa fa-sliders title" aria-hidden="true"></i> Configuration'
+nav-parent_id: root
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
