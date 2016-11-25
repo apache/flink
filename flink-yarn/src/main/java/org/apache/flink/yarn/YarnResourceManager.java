@@ -157,6 +157,7 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 		try {
 			//TODO: change akka address to tcp host and port, the getAddress() interface should return a standard tcp address
 			Tuple2<String, Integer> hostPort = parseHostPort(getAddress());
+			//TODO: the third paramter should be the webmonitor address
 			resourceManagerClient.registerApplicationMaster(hostPort.f0, hostPort.f1, getAddress());
 		} catch (Exception e) {
 			LOG.info("registerApplicationMaster fail", e);
@@ -407,16 +408,16 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 		String yarnClientUsername = env.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
 
 		final String remoteKeytabPath = env.get(YarnConfigKeys.KEYTAB_PATH);
-		log.info("TM:remoteKeytabPath obtained {}", remoteKeytabPath);
+		log.info("TM:remote keytab path obtained {}", remoteKeytabPath);
 
 		final String remoteKeytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
-		log.info("TM:remoteKeytabPrincipal obtained {}", remoteKeytabPrincipal);
+		log.info("TM:remote keytab principal obtained {}", remoteKeytabPrincipal);
 
 		final String remoteYarnConfPath = env.get(YarnConfigKeys.ENV_YARN_SITE_XML_PATH);
-		log.info("TM:remoteYarnConfPath obtained {}", remoteYarnConfPath);
+		log.info("TM:remote yarn conf path obtained {}", remoteYarnConfPath);
 
 		final String remoteKrb5Path = env.get(YarnConfigKeys.ENV_KRB5_PATH);
-		log.info("TM:remotekrb5Path obtained {}", remoteKrb5Path);
+		log.info("TM:remote krb5 path obtained {}", remoteKrb5Path);
 
 		String classPathString = env.get(YarnConfigKeys.ENV_FLINK_CLASSPATH);
 
