@@ -54,35 +54,52 @@ class FileSystemBlobStore implements BlobStore {
 	/** The base path of the blob store. */
 	private final String basePath;
 
-	/** The high availability mode this filesystem is supposed to reflect. */
-	private final HighAvailabilityMode highAvailabilityMode;
+	/**
+	 * Whether this is the globally responsible instance that is allowed to
+	 * create and delete files in a distributed file system
+	 **/
+	private final boolean isGlobal;
 
-	FileSystemBlobStore(Configuration config) throws IOException {
+	/**
+	 * Whether a distributed file system is being used. In that case, files
+	 * can only be written or deleted if {@link #isGlobal} is set.
+	 */
+	private final boolean isDistributed;
+
+	/**
+	 * Creates a new file system abstraction that is either backed by a global,
+	 * distributed file system or a local one. A distributed file system is
+	 * only used of the HA mode is set ({@link HighAvailabilityMode#ZOOKEEPER}).
+	 *
+	 * @param config global configuration
+	 * @param isGlobal whether this is the globally responsible instance that
+	 *                 is allowed to create and delete files in a distributed
+	 *                 file system
+	 * @throws IOException
+	 */
+	FileSystemBlobStore(Configuration config, boolean isGlobal) throws IOException {
 		checkNotNull(config, "Configuration");
 
-		highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
+		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
+		this.isGlobal = isGlobal;
 
 		// Configure and create the storage directory:
 		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
-			String storagePath = config.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
-
-			if (StringUtils.isBlank(storagePath)) {
-				// TODO: try multiple times to find a unique path that does not exist yet?
-				storagePath = System.getProperty("java.io.tmpdir") +
-					"/blobStore-" + UUID.randomUUID().toString();
-			}
-
-			this.basePath = new Path(storagePath).toString();
+			this.basePath = getLocalFileSystemPath(config);
+			this.isDistributed = false;
 		} else if (highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
-			String storagePath = config.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
-			String clusterId = config.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
-
-			if (StringUtils.isBlank(storagePath)) {
-				throw new IllegalConfigurationException("Missing high-availability storage path for metadata." +
-					" Specify via configuration key '" + HighAvailabilityOptions.HA_STORAGE_PATH + "'.");
+			// if this is not the globally responsible instance, we may not
+			// have access to the distributed file system
+			// -> fall back to a local file system
+			final String haPathStr = getHAModeFileSystemPath(config);
+			final Path haPath = new Path(haPathStr);
+			if (isGlobal || FileSystem.get(haPath.toUri()).exists(haPath)) {
+				this.basePath = haPathStr;
+				this.isDistributed = true;
+			} else {
+				this.basePath = getLocalFileSystemPath(config);
+				this.isDistributed = false;
 			}
-
-			this.basePath = storagePath + "/" + clusterId + "/blob";
 		} else {
 			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + ".");
 		}
@@ -98,6 +115,50 @@ class FileSystemBlobStore implements BlobStore {
 		FileSystem.get(p.toUri()).mkdirs(new Path(p, "incoming"));
 	}
 
+	/**
+	 * Returns the blob storage path on a local file system.
+	 *
+	 * <p>Uses {@link ConfigConstants#BLOB_STORAGE_DIRECTORY_KEY} if set or
+	 * a randomly created path below the path given by <tt>java.io.tmpdir</tt>.
+	 * </p>
+	 *
+	 * @param config the configuration to extract the path from
+	 * @return path to store blobs at
+	 */
+	private final static String getLocalFileSystemPath(Configuration config) {
+		String storagePath = config.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
+
+		if (StringUtils.isBlank(storagePath)) {
+			// TODO: try multiple times to find a unique path that does not exist yet?
+			storagePath = System.getProperty("java.io.tmpdir") +
+				"/blobStore-" + UUID.randomUUID().toString();
+		}
+
+		return new Path(storagePath).toString();
+	}
+
+	/**
+	 * Returns the blob storage path in high availability mode, i.e. a
+	 * distributed file system.
+	 *
+	 * <p>Uses {@link HighAvailabilityOptions#HA_STORAGE_PATH} which must be
+	 * set to an existing and accessible storage path.</p>
+	 *
+	 * @param config the configuration to extract the path from
+	 * @return path to store blobs at
+	 */
+	private final static String getHAModeFileSystemPath(Configuration config) {
+		String storagePath = config.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
+		String clusterId = config.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
+
+		if (StringUtils.isBlank(storagePath)) {
+			throw new IllegalConfigurationException("Missing high-availability storage path for metadata." +
+				" Specify via configuration key '" + HighAvailabilityOptions.HA_STORAGE_PATH + "'.");
+		}
+
+		return storagePath + "/" + clusterId + "/blob";
+	}
+
 	// - Create & write temporary files ---------------------------------------
 
 	@Override
@@ -107,6 +168,10 @@ class FileSystemBlobStore implements BlobStore {
 
 	@Override
 	public FSDataOutputStream createTempFile(final String filename) throws IOException {
+		if (isDistributed && !isGlobal) {
+			throw new IllegalStateException("Trying to change the distributed filesystem from a non-global owner.");
+		}
+
 		final Path path = new Path(String.format("%s/incoming/%s", basePath, filename));
 		return FileSystem.get(path.toUri()).create(path, false);
 	}
@@ -122,6 +187,10 @@ class FileSystemBlobStore implements BlobStore {
 	}
 
 	void persistTempFile(final String tempFile, String toBlobPath) throws IOException {
+		if (isDistributed && !isGlobal) {
+			throw new IllegalStateException("Trying to change the distributed filesystem from a non-global owner.");
+		}
+
 		final Path tempFilePath = new Path(String.format("%s/incoming/%s", basePath, tempFile));
 		final Path dst = new Path(toBlobPath);
 		LOG.debug("Moving temporary file {} to {}.", tempFile, toBlobPath);
@@ -138,6 +207,10 @@ class FileSystemBlobStore implements BlobStore {
 
 	@Override
 	public void deleteTempFile(String tempFile) {
+		if (isDistributed && !isGlobal) {
+			throw new IllegalStateException("Trying to change the distributed filesystem from a non-global owner.");
+		}
+
 		final Path tempFilePath = new Path(String.format("%s/incoming/%s", basePath, tempFile));
 
 		try {
@@ -193,48 +266,52 @@ class FileSystemBlobStore implements BlobStore {
 	}
 
 	private boolean delete(String blobPath) {
-		final Path path = new Path(blobPath);
-		try {
-			LOG.debug("Deleting {}.", blobPath);
+		if (!isDistributed || isGlobal) {
+			final Path path = new Path(blobPath);
+			try {
+				LOG.debug("Deleting {}.", blobPath);
 
-			FileSystem fs = FileSystem.get(path.toUri());
-			if (fs.delete(path, true)) {
-				/**
-				 * Send a call to delete the directory containing the file.
-				 * This will fail (and be ignored) when some files still exist.
-				 *
-				 * Filesystem layout:
-				 * <basePath>/cache/<file>, <basePath>/job_<jobid>/file,  <basePath>/incoming
-				 */
-				try {
-					fs.delete(path.getParent(), false); // basePath/<cache | jobdir>
-					Path baseDir = new Path(basePath);
-					// <basePath>/incoming may be empty and thus also deleted here:
-					fs.delete(new Path(baseDir, "incoming"), false);
-					fs.delete(baseDir, false);
-				} catch (IOException ignored) {
+				FileSystem fs = FileSystem.get(path.toUri());
+				if (fs.delete(path, true)) {
+					/**
+					 * Send a call to delete the directory containing the file.
+					 * This will fail (and be ignored) when some files still exist.
+					 *
+					 * Filesystem layout:
+					 * <basePath>/cache/<file>, <basePath>/job_<jobid>/file,  <basePath>/incoming
+					 */
+					try {
+						fs.delete(path.getParent(), false); // basePath/<cache | jobdir> or basePath
+						Path baseDir = new Path(basePath);
+						// <basePath>/incoming may be empty and thus also deleted here:
+						fs.delete(new Path(baseDir, "incoming"), false); // basePath/incoming
+						fs.delete(baseDir, false);
+					} catch (IOException ignored) {
+					}
+					return true;
 				}
-				return true;
 			}
-		}
-		catch (Exception e) {
+			catch (Exception e) {
+				LOG.warn("Failed to delete blob at " + blobPath);
+				return false;
+			}
+			// the file may not have existed after all
+			try {
+				FileSystem.get(path.toUri()).getFileStatus(path);
+			} catch (FileNotFoundException e1) {
+				return true;
+			} catch (IOException ignored) {
+			}
 			LOG.warn("Failed to delete blob at " + blobPath);
 			return false;
+		} else {
+			return false;
 		}
-		// the file may not have existed after all
-		try {
-			FileSystem.get(path.toUri()).getFileStatus(path);
-		} catch (FileNotFoundException e1) {
-			return true;
-		} catch (IOException ignored) {
-		}
-		LOG.warn("Failed to delete blob at " + blobPath);
-		return false;
 	}
 
 	@Override
 	public void cleanUp() {
-		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
+		if (!isDistributed) {
 			try {
 				LOG.debug("Cleaning up {}.", basePath);
 
@@ -250,4 +327,10 @@ class FileSystemBlobStore implements BlobStore {
 	public String getBasePath() {
 		return basePath;
 	}
+
+	@Override
+	public boolean isDistributed() {
+		return isDistributed;
+	}
+
 }

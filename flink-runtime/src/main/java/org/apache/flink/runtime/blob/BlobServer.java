@@ -91,7 +91,7 @@ public class BlobServer extends Thread implements BlobService {
 		this.blobServiceConfiguration = config;
 
 		// configure and create the storage directory
-		this.blobStore = new FileSystemBlobStore(config);
+		this.blobStore = new FileSystemBlobStore(config, true);
 
 		try {
 

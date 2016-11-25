@@ -151,4 +151,11 @@ interface BlobStore {
 	 */
 	String getBasePath();
 
+	/**
+	 * Returns whether this store is backed by a distributed file system.
+	 *
+	 * @return <tt>true</tt> if a distributed file system is used,
+	 *         <tt>false</tt> otherwise
+	 */
+	boolean isDistributed();
 }
