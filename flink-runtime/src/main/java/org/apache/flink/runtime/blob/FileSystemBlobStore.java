@@ -81,7 +81,7 @@ class FileSystemBlobStore implements BlobStore {
 	}
 
 	private void put(File fromFile, String toBlobPath) throws Exception {
-		try (OutputStream os = FileSystem.get(new URI(toBlobPath))
+		try (OutputStream os = FileSystem.get(new Path(toBlobPath).toUri())
 				.create(new Path(toBlobPath), true)) {
 
 			LOG.debug("Copying from {} to {}.", fromFile, toBlobPath);
@@ -109,8 +109,8 @@ class FileSystemBlobStore implements BlobStore {
 			throw new IllegalStateException("Failed to create target file to copy to");
 		}
 
-		final URI fromUri = new URI(fromBlobPath);
 		final Path fromPath = new Path(fromBlobPath);
+		final URI fromUri = fromPath.toUri();
 
 		if (FileSystem.get(fromUri).exists(fromPath)) {
 			try (InputStream is = FileSystem.get(fromUri).open(fromPath)) {
@@ -146,8 +146,8 @@ class FileSystemBlobStore implements BlobStore {
 		try {
 			LOG.debug("Deleting {}.", blobPath);
 
-			FileSystem fs = FileSystem.get(new URI(blobPath));
 			Path path = new Path(blobPath);
+			FileSystem fs = FileSystem.get(path.toUri());
 
 			fs.delete(path, true);
 
@@ -159,7 +159,7 @@ class FileSystemBlobStore implements BlobStore {
 			} catch (IOException ignored) {}
 		}
 		catch (Exception e) {
-			LOG.warn("Failed to delete blob at " + blobPath);
+			LOG.warn("Failed to delete blob at " + blobPath, e);
 		}
 	}
 
