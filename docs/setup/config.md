@@ -24,7 +24,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The default configuration parameters allow Flink to run out-of-the-box in single node setups.
+**For single-node setups Flink is ready to go out of the box and you don't need to change the default configuration to get started.**
+
+The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in `conf/flink-conf.yaml` if you want to manually override the Java runtime to use.
 
 This page lists the most common options that are typically needed to set up a well performing (distributed) installation. In addition a full list of all available configuration parameters is listed here.
 
