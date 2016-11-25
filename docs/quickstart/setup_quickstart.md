@@ -32,9 +32,25 @@ Get a Flink example program up and running in a few simple steps.
 
 Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the only requirement is to have a working __Java 7.x__ (or higher) installation. Windows users, please take a look at the [Flink on Windows]({{ site.baseurl }}/setup/flink_on_windows) guide which describes how to run Flink on Windows for local setups.
 
+You can check the correct installation of Java by issuing the following command:
+
+~~~bash
+java -version
+~~~
+
+If you have Java 8, the output will look something like this:
+
+~~~bash
+java version "1.8.0_111"
+Java(TM) SE Runtime Environment (build 1.8.0_111-b14)
+Java HotSpot(TM) 64-Bit Server VM (build 25.111-b14, mixed mode)
+~~~
+
 ### Download
 
-Download a binary from the [downloads page](http://flink.apache.org/downloads.html). You can pick any Hadoop/Scala combination you like.
+Download a binary from the [downloads page](http://flink.apache.org/downloads.html). You can pick
+any Hadoop/Scala combination you like. If you plan to just use the local file system, any Hadoop
+version will work fine.
 
 ### Start a Local Flink Cluster
 
@@ -52,6 +68,16 @@ $ bin/start-local.sh    # Start Flink
 Check the __JobManager's web frontend__ at [http://localhost:8081](http://localhost:8081) and make sure everything is up and running. The web frontend should report a single available TaskManager instance.
 
 <a href="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-1.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-1.png" alt="JobManager: Overview"/></a>
+
+You can also verify that the system is running by checking the log files in the `logs` directory:
+
+~~~bash
+$ tail log/flink-*-jobmanager-*.log
+INFO ... - Starting JobManager
+INFO ... - Starting JobManager web frontend
+INFO ... - Web frontend listening at 127.0.0.1:8081
+INFO ... - Registered TaskManager at 127.0.0.1 (akka://flink/user/taskmanager)
+~~~
 
 ## Run Example
 
