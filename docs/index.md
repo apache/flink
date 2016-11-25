@@ -29,7 +29,7 @@ Apache Flink is an open source platform for distributed stream and batch data pr
 
 ## First Steps
 
-- **Concepts**: Start with the [basic concepts]({{ site.baseurl }}/concepts/index.html) of Flink. This will help you to fully understand the other parts of the documentation, including the setup and programming guides. It is highly recommended to read this first.
+- **Concepts**: Start with the basic concepts of Flink's [Dataflow Programming Model]({{ site.baseurl }}/concepts/programming-model.html) and [Distributed Runtime Environment]({{ site.baseurl }}/concepts/runtime.html). This will help you to fully understand the other parts of the documentation, including the setup and programming guides. It is highly recommended to read these sections first.
 
 - **Quickstarts**: [Run an example program](quickstart/setup_quickstart.html) on your local machine or [write a simple program](quickstart/run_example_quickstart.html) working on live Wikipedia edits.
 
