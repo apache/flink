@@ -264,18 +264,11 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		RunnableFuture<KeyGroupsStateHandle> snapshot = keyedStateBackend.snapshot(0L, 0L, testStreamFactory);
 		Thread asyncSnapshotThread = new Thread(snapshot);
 		asyncSnapshotThread.start();
-		//TODO replace with reset-latch wait!!!!
-		Thread.sleep(100);
-		for (int i = 50; i < 150; ++i) {
-			if (i % 10 == 0) {
-				Thread.sleep(1);
-			}
-			keyedStateBackend.setCurrentKey(i);
-			testState1.update(4200 + i);
-			testState2.update("S-" + (4200 + i));
-		}
-		blocker.trigger();
-		waiter.await();
+		waiter.await(); // wait for snapshot to run
+		waiter.reset();
+		runStateUpdates();
+		blocker.trigger(); // allow checkpointing to start writing
+		waiter.await(); // wait for snapshot stream writing to run
 		KeyGroupsStateHandle keyGroupsStateHandle = snapshot.get();
 		assertNotNull(keyGroupsStateHandle);
 		assertTrue(keyGroupsStateHandle.getStateSize() > 0);
@@ -291,20 +284,13 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		RunnableFuture<KeyGroupsStateHandle> snapshot = keyedStateBackend.snapshot(0L, 0L, testStreamFactory);
 		Thread asyncSnapshotThread = new Thread(snapshot);
 		asyncSnapshotThread.start();
-		//TODO replace with reset-latch wait!!!!
-		Thread.sleep(100);
-		for (int i = 50; i < 150; ++i) {
-			if (i % 10 == 0) {
-				Thread.sleep(1);
-			}
-			keyedStateBackend.setCurrentKey(i);
-			testState1.update(4200 + i);
-			testState2.update("S-" + (4200 + i));
-		}
-		blocker.trigger();
+		waiter.await(); // wait for snapshot to run
+		waiter.reset();
+		runStateUpdates();
+		blocker.trigger(); // allow checkpointing to start writing
 		snapshot.cancel(true);
 		assertTrue(testStreamFactory.getLastCreatedStream().isClosed());
-		waiter.await();
+		waiter.await(); // wait for snapshot stream writing to run
 		try {
 			snapshot.get();
 			fail();
@@ -313,6 +299,17 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
 		verifyRocksObjectsReleased();
 		asyncSnapshotThread.join();
+	}
+
+	private void runStateUpdates() throws Exception{
+		for (int i = 50; i < 150; ++i) {
+			if (i % 10 == 0) {
+				Thread.sleep(1);
+			}
+			keyedStateBackend.setCurrentKey(i);
+			testState1.update(4200 + i);
+			testState2.update("S-" + (4200 + i));
+		}
 	}
 
 	private void verifyRocksObjectsReleased() {
@@ -363,6 +360,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
 		@Override
 		public MemCheckpointStreamFactory.MemoryCheckpointOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws Exception {
+			waiter.trigger();
 			this.lastCreatedStream = new MemCheckpointStreamFactory.MemoryCheckpointOutputStream(maxSize) {
 
 				private int afterNInvocations = afterNumberInvocations;
@@ -404,6 +402,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 					}
 				}
 			};
+
 			return lastCreatedStream;
 		}
 
