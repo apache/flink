@@ -453,8 +453,11 @@ public abstract class StreamExecutionEnvironment {
 	 * @param restartStrategyConfiguration Restart strategy configuration to be set
 	 */
 	@PublicEvolving
-	public void setRestartStrategy(RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
+	public StreamExecutionEnvironment setRestartStrategy(
+		RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
+
 		config.setRestartStrategy(restartStrategyConfiguration);
+		return this;
 	}
 
 	/**
@@ -482,8 +485,9 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	@Deprecated
 	@PublicEvolving
-	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
+	public StreamExecutionEnvironment setNumberOfExecutionRetries(int numberOfExecutionRetries) {
 		config.setNumberOfExecutionRetries(numberOfExecutionRetries);
+		return this;
 	}
 
 	/**
@@ -531,8 +535,11 @@ public abstract class StreamExecutionEnvironment {
 	 * @param serializer
 	 * 		The serializer to use.
 	 */
-	public <T extends Serializer<?> & Serializable>void addDefaultKryoSerializer(Class<?> type, T serializer) {
+	public <T extends Serializer<?> & Serializable>StreamExecutionEnvironment addDefaultKryoSerializer(
+		Class<?> type, T serializer) {
+
 		config.addDefaultKryoSerializer(type, serializer);
+		return this;
 	}
 
 	/**
@@ -543,8 +550,11 @@ public abstract class StreamExecutionEnvironment {
 	 * @param serializerClass
 	 * 		The class of the serializer to use.
 	 */
-	public void addDefaultKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+	public StreamExecutionEnvironment addDefaultKryoSerializer(
+		Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+
 		config.addDefaultKryoSerializer(type, serializerClass);
+		return this;
 	}
 
 	/**
@@ -559,8 +569,11 @@ public abstract class StreamExecutionEnvironment {
 	 * @param serializer
 	 * 		The serializer to use.
 	 */
-	public <T extends Serializer<?> & Serializable>void registerTypeWithKryoSerializer(Class<?> type, T serializer) {
+	public <T extends Serializer<?> & Serializable>StreamExecutionEnvironment registerTypeWithKryoSerializer(
+		Class<?> type, T serializer) {
+
 		config.registerTypeWithKryoSerializer(type, serializer);
+		return this;
 	}
 
 	/**
@@ -573,8 +586,11 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The class of the serializer to use.
 	 */
 	@SuppressWarnings("rawtypes")
-	public void registerTypeWithKryoSerializer(Class<?> type, Class<? extends Serializer> serializerClass) {
+	public StreamExecutionEnvironment registerTypeWithKryoSerializer(
+		Class<?> type, Class<? extends Serializer> serializerClass) {
+
 		config.registerTypeWithKryoSerializer(type, serializerClass);
+		return this;
 	}
 
 	/**
@@ -586,7 +602,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @param type
 	 * 		The class of the type to register.
 	 */
-	public void registerType(Class<?> type) {
+	public StreamExecutionEnvironment registerType(Class<?> type) {
 		if (type == null) {
 			throw new NullPointerException("Cannot register null type class.");
 		}
@@ -598,6 +614,8 @@ public abstract class StreamExecutionEnvironment {
 		} else {
 			config.registerKryoType(type);
 		}
+
+		return this;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -616,13 +634,15 @@ public abstract class StreamExecutionEnvironment {
 	 * @param characteristic The time characteristic.
 	 */
 	@PublicEvolving
-	public void setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
+	public StreamExecutionEnvironment setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
 		this.timeCharacteristic = Preconditions.checkNotNull(characteristic);
 		if (characteristic == TimeCharacteristic.ProcessingTime) {
 			getConfig().setAutoWatermarkInterval(0);
 		} else {
 			getConfig().setAutoWatermarkInterval(200);
 		}
+
+		return this;
 	}
 
 	/**
