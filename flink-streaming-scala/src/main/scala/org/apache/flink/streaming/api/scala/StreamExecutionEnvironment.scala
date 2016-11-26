@@ -502,9 +502,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     *          The files to be excluded from the processing
     * @return The data stream that represents the data read from the given file
     *
-    * @deprecated Use {@link FileInputFormat#setFilesFilter(FilePathFilter)} to set a filter and
-    *         {@link StreamExecutionEnvironment#readFile(FileInputFormat,
-      *              String, FileProcessingMode, long)}
+    * @deprecated Use [[FileInputFormat#setFilesFilter(FilePathFilter)]] to set a filter and
+    * [[StreamExecutionEnvironment#readFile(FileInputFormat, String, FileProcessingMode, long)]]
     */
   @PublicEvolving
   @Deprecated
