@@ -49,16 +49,20 @@ public class PartialInputChannelDeploymentDescriptor {
 	/** The partition connection index. */
 	private final int partitionConnectionIndex;
 
+	private final boolean capacityBoundedInput;
+
 	public PartialInputChannelDeploymentDescriptor(
 			IntermediateDataSetID resultId,
 			ResultPartitionID partitionID,
 			InstanceConnectionInfo partitionConnectionInfo,
-			int partitionConnectionIndex) {
+			int partitionConnectionIndex,
+			boolean capacityBoundedInput) {
 
 		this.resultId = checkNotNull(resultId);
 		this.partitionID = checkNotNull(partitionID);
 		this.partitionConnectionInfo = checkNotNull(partitionConnectionInfo);
 		this.partitionConnectionIndex = partitionConnectionIndex;
+		this.capacityBoundedInput = capacityBoundedInput;
 	}
 
 	/**
@@ -85,7 +89,7 @@ public class PartialInputChannelDeploymentDescriptor {
 					new ConnectionID(partitionConnectionInfo, partitionConnectionIndex));
 		}
 
-		return new InputChannelDeploymentDescriptor(partitionID, partitionLocation);
+		return new InputChannelDeploymentDescriptor(partitionID, partitionLocation, capacityBoundedInput);
 	}
 
 	public IntermediateDataSetID getResultId() {
@@ -99,7 +103,8 @@ public class PartialInputChannelDeploymentDescriptor {
 	 */
 	public static PartialInputChannelDeploymentDescriptor fromEdge(
 			IntermediateResultPartition partition,
-			Execution producer) {
+			Execution producer,
+			boolean capacityBoundedInput) {
 
 		final ResultPartitionID partitionId = new ResultPartitionID(
 				partition.getPartitionId(), producer.getAttemptId());
@@ -111,6 +116,6 @@ public class PartialInputChannelDeploymentDescriptor {
 		final int partitionConnectionIndex = result.getConnectionIndex();
 
 		return new PartialInputChannelDeploymentDescriptor(
-				resultId, partitionId, partitionConnectionInfo, partitionConnectionIndex);
+				resultId, partitionId, partitionConnectionInfo, partitionConnectionIndex, capacityBoundedInput);
 	}
 }

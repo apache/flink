@@ -228,6 +228,10 @@ public final class ConfigConstants {
 
 	public static final String NETWORK_REQUEST_BACKOFF_MAX_KEY = "taskmanager.net.request-backoff.max";
 
+	/** Queue length for bounded pipelined partitions. 0 indicates unbounded. */
+	@PublicEvolving
+	public static final String NETWORK_PIPELINED_BOUNDED_QUEUE_LENGTH_KEY = "taskmanager.net.max-out-queue-length";
+
 	/**
 	 * Config parameter defining the size of memory buffers used by the network stack and the memory manager.
 	 */
@@ -846,6 +850,9 @@ public final class ConfigConstants {
 
 	/** Maximum backoff for partition requests of input channels. */
 	public static final int DEFAULT_NETWORK_REQUEST_BACKOFF_MAX = 10000;
+
+	/** Queue length for bounded pipelined partitions. 0 indicates unbounded. */
+	public static final int DEFAULT_NETWORK_PIPELINED_BOUNDED_QUEUE_LENGTH = 0;
 
 	/**
 	 * Default size of memory segments in the network stack and the memory manager.

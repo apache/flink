@@ -139,18 +139,17 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 	 * The thread is daemonic, because it is only a utility thread.
 	 */
 	private class OutputFlusher extends Thread {
-		
+
 		private final long timeout;
-		
+
 		private volatile boolean running = true;
 
-		
 		OutputFlusher(String name, long timeout) {
 			super(name);
 			setDaemon(true);
 			this.timeout = timeout;
 		}
-		
+
 		public void terminate() {
 			running = false;
 			interrupt();
@@ -170,10 +169,10 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 							throw new Exception(e);
 						}
 					}
-					
+
 					// any errors here should let the thread come to a halt and be
 					// recognized by the writer 
-					flush();
+					tryFlush();
 				}
 			}
 			catch (Throwable t) {

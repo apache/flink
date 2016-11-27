@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel.CapacityAvailabilityListener;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.junit.Test;
@@ -38,7 +39,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -53,12 +56,13 @@ public class RemoteInputChannelTest {
 		// Setup
 		final SingleInputGate inputGate = mock(SingleInputGate.class);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
+		final CapacityAvailabilityListener capacityListener = mock(CapacityAvailabilityListener.class);
 
 		// The test
-		inputChannel.onBuffer(TestBufferFactory.getMockBuffer(), 0);
+		assertTrue(inputChannel.onBuffer(TestBufferFactory.getMockBuffer(), 0, capacityListener));
 
 		// This does not yet throw the exception, but sets the error at the channel.
-		inputChannel.onBuffer(TestBufferFactory.getMockBuffer(), 29);
+		assertTrue(inputChannel.onBuffer(TestBufferFactory.getMockBuffer(), 29, capacityListener));
 
 		try {
 			inputChannel.getNextBuffer();
@@ -66,6 +70,7 @@ public class RemoteInputChannelTest {
 			fail("Did not throw expected exception after enqueuing an out-of-order buffer.");
 		}
 		catch (Exception expected) {
+			// expected
 		}
 
 		// Need to notify the input gate for the out-of-order buffer as well. Otherwise the
@@ -82,6 +87,7 @@ public class RemoteInputChannelTest {
 
 		// Setup
 		final ExecutorService executor = Executors.newFixedThreadPool(2);
+		final CapacityAvailabilityListener capacityListener = mock(CapacityAvailabilityListener.class);
 
 		try {
 			// Test
@@ -95,7 +101,7 @@ public class RemoteInputChannelTest {
 					public Void call() throws Exception {
 						while (true) {
 							for (int j = 0; j < 128; j++) {
-								inputChannel.onBuffer(TestBufferFactory.getMockBuffer(), j);
+								inputChannel.onBuffer(TestBufferFactory.getMockBuffer(), j, capacityListener);
 							}
 
 							if (inputChannel.isReleased()) {
@@ -249,7 +255,9 @@ public class RemoteInputChannelTest {
 				partitionId,
 				mock(ConnectionID.class),
 				connectionManager,
-				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+				new Tuple2<>(0, 0),
+				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup(),
+				0);
 
 		ch.onFailedPartitionRequest();
 
@@ -269,7 +277,9 @@ public class RemoteInputChannelTest {
 				new ResultPartitionID(),
 				mock(ConnectionID.class),
 				connManager,
-				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+				new Tuple2<>(0, 0),
+				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup(),
+				0);
 
 		ch.onError(new ProducerFailedException(new RuntimeException("Expected test exception.")));
 
@@ -305,6 +315,7 @@ public class RemoteInputChannelTest {
 				mock(ConnectionID.class),
 				connectionManager,
 				initialAndMaxRequestBackoff,
-				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup(),
+				0);
 	}
 }

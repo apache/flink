@@ -67,25 +67,29 @@ public final class ResultPartitionWriter implements EventListener<TaskEvent> {
 	// Data processing
 	// ------------------------------------------------------------------------
 
-	public void writeBuffer(Buffer buffer, int targetChannel) throws IOException {
-		partition.add(buffer, targetChannel);
+	public void writeBuffer(Buffer buffer, int targetChannel, boolean backPressured) throws IOException, InterruptedException {
+		partition.add(buffer, targetChannel, backPressured);
 	}
 
-	public void writeEvent(AbstractEvent event, int targetChannel) throws IOException {
-		partition.add(EventSerializer.toBuffer(event), targetChannel);
+	public boolean tryWriteBuffer(Buffer buffer, int targetChannel) throws IOException {
+		return partition.addBufferIfCapacityAvailable(buffer, targetChannel);
 	}
 
-	public void writeEventToAllChannels(AbstractEvent event) throws IOException {
+	public void writeEvent(AbstractEvent event, int targetChannel) throws IOException, InterruptedException {
+		partition.add(EventSerializer.toBuffer(event), targetChannel, false);
+	}
+
+	public void writeEventToAllChannels(AbstractEvent event) throws IOException, InterruptedException {
 		for (int i = 0; i < partition.getNumberOfSubpartitions(); i++) {
 			Buffer buffer = EventSerializer.toBuffer(event);
-			partition.add(buffer, i);
+			partition.add(buffer, i, false);
 		}
 	}
 
-	public void writeEndOfSuperstep() throws IOException {
+	public void writeEndOfSuperstep() throws IOException, InterruptedException {
 		for (int i = 0; i < partition.getNumberOfSubpartitions(); i++) {
 			Buffer buffer = EventSerializer.toBuffer(EndOfSuperstepEvent.INSTANCE);
-			partition.add(buffer, i);
+			partition.add(buffer, i, false);
 		}
 	}
 

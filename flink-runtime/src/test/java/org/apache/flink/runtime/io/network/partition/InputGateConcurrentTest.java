@@ -73,7 +73,7 @@ public class InputGateConcurrentTest {
 					resultPartitionManager, mock(TaskEventDispatcher.class), new DummyIOMetricGroup());
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
-			partitions[i] = new PipelinedSubpartition(0, resultPartition);
+			partitions[i] = new PipelinedSubpartition(0, resultPartition, 0);
 			sources[i] = new PipelinedSubpartitionSource(partitions[i]);
 		}
 
@@ -108,7 +108,7 @@ public class InputGateConcurrentTest {
 		for (int i = 0; i < numChannels; i++) {
 			RemoteInputChannel channel = new RemoteInputChannel(
 					gate, i, new ResultPartitionID(), mock(ConnectionID.class),
-					connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup());
+					connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup(), 0);
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
 			sources[i] = new RemoteChannelSource(channel);
@@ -158,7 +158,7 @@ public class InputGateConcurrentTest {
 		for (int i = 0, local = 0; i < numChannels; i++) {
 			if (localOrRemote.get(i)) {
 				// local channel
-				PipelinedSubpartition psp = new PipelinedSubpartition(0, resultPartition);
+				PipelinedSubpartition psp = new PipelinedSubpartition(0, resultPartition, 0);
 				localPartitions[local++] = psp;
 				sources[i] = new PipelinedSubpartitionSource(psp);
 
@@ -170,7 +170,7 @@ public class InputGateConcurrentTest {
 				//remote channel
 				RemoteInputChannel channel = new RemoteInputChannel(
 						gate, i, new ResultPartitionID(), mock(ConnectionID.class),
-						connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup());
+						connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup(), 0);
 				gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
 				sources[i] = new RemoteChannelSource(channel);
@@ -206,7 +206,7 @@ public class InputGateConcurrentTest {
 
 		@Override
 		void addBuffer(Buffer buffer) throws Exception {
-			partition.add(buffer);
+			partition.add(buffer, false);
 		}
 	}
 
@@ -221,7 +221,7 @@ public class InputGateConcurrentTest {
 
 		@Override
 		void addBuffer(Buffer buffer) throws Exception {
-			channel.onBuffer(buffer, seq++);
+			channel.onBuffer(buffer, seq++, null);
 		}
 	}
 

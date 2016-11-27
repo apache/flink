@@ -59,7 +59,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 	PipelinedSubpartition createSubpartition() {
 		final ResultPartition parent = mock(ResultPartition.class);
 
-		return new PipelinedSubpartition(0, parent);
+		return new PipelinedSubpartition(0, parent, 0);
 	}
 
 	@Test
@@ -98,7 +98,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		verify(listener, times(1)).notifyBuffersAvailable(eq(0L));
 
 		// Add data to the queue...
-		subpartition.add(createBuffer());
+		subpartition.add(createBuffer(), false);
 
 		// ...should have resulted in a notification
 		verify(listener, times(1)).notifyBuffersAvailable(eq(1L));
@@ -108,7 +108,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		assertNull(view.getNextBuffer());
 
 		// Add data to the queue...
-		subpartition.add(createBuffer());
+		subpartition.add(createBuffer(), false);
 		verify(listener, times(2)).notifyBuffersAvailable(eq(1L));
 	}
 

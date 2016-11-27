@@ -27,10 +27,8 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.types.LongValue;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -38,8 +36,11 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * This test uses the PowerMockRunner runner to work around the fact that the 
@@ -121,7 +122,15 @@ public class StreamRecordWriterTest {
 		}
 
 		@Override
-		public void flush() throws IOException {
+		public void tryFlush() throws IOException {
+			if (flushesBeforeException-- <= 0) {
+				throw new IOException("Test Exception");
+			}
+			super.tryFlush();
+		}
+
+		@Override
+		public void flush() throws IOException, InterruptedException {
 			if (flushesBeforeException-- <= 0) {
 				throw new IOException("Test Exception");
 			}

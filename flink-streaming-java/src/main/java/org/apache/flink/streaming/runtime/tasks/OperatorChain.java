@@ -173,7 +173,7 @@ public class OperatorChain<OUT> {
 	 *
 	 * @throws IOException Thrown, if the buffered data cannot be pushed into the output streams.
 	 */
-	public void flushOutputs() throws IOException {
+	public void flushOutputs() throws IOException, InterruptedException {
 		for (RecordWriterOutput<?> streamOutput : getStreamOutputs()) {
 			streamOutput.flush();
 		}

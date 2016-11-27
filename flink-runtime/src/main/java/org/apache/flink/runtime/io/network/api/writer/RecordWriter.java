@@ -102,7 +102,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 				Buffer buffer = serializer.getCurrentBuffer();
 
 				if (buffer != null) {
-					writeAndClearBuffer(buffer, targetChannel, serializer);
+					writeAndClearBuffer(buffer, targetChannel, true, serializer);
 
 					// If this was a full record, we are done. Not breaking
 					// out of the loop at this point will lead to another
@@ -127,7 +127,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 			synchronized (serializer) {
 				Buffer buffer = serializer.getCurrentBuffer();
 				if (buffer != null) {
-					writeAndClearBuffer(buffer, targetChannel, serializer);
+					writeAndClearBuffer(buffer, targetChannel, false, serializer);
 				} else if (serializer.hasData()) {
 					throw new IllegalStateException("No buffer, but serializer has buffered data.");
 				}
@@ -144,7 +144,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 			synchronized (serializer) {
 				Buffer buffer = serializer.getCurrentBuffer();
 				if (buffer != null) {
-					writeAndClearBuffer(buffer, targetChannel, serializer);
+					writeAndClearBuffer(buffer, targetChannel, false, serializer);
 				}
 			}
 		}
@@ -152,7 +152,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 		targetPartition.writeEndOfSuperstep();
 	}
 
-	public void flush() throws IOException {
+	public void flush() throws IOException, InterruptedException {
 		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
 			RecordSerializer<T> serializer = serializers[targetChannel];
 
@@ -161,9 +161,23 @@ public class RecordWriter<T extends IOReadableWritable> {
 					Buffer buffer = serializer.getCurrentBuffer();
 
 					if (buffer != null) {
-						writeAndClearBuffer(buffer, targetChannel, serializer);
+						writeAndClearBuffer(buffer, targetChannel, false, serializer);
 					}
 				} finally {
+					serializer.clear();
+				}
+			}
+		}
+	}
+
+	public void tryFlush() throws IOException {
+		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
+			RecordSerializer<T> serializer = serializers[targetChannel];
+
+			synchronized (serializer) {
+				Buffer buffer = serializer.getCurrentBuffer();
+
+				if (buffer != null && targetPartition.tryWriteBuffer(buffer, targetChannel)) {
 					serializer.clear();
 				}
 			}
@@ -214,10 +228,11 @@ public class RecordWriter<T extends IOReadableWritable> {
 	private void writeAndClearBuffer(
 			Buffer buffer,
 			int targetChannel,
-			RecordSerializer<T> serializer) throws IOException {
+			boolean backPressure,
+			RecordSerializer<T> serializer) throws IOException, InterruptedException {
 
 		try {
-			targetPartition.writeBuffer(buffer, targetChannel);
+			targetPartition.writeBuffer(buffer, targetChannel, backPressure);
 		}
 		finally {
 			serializer.clearCurrentBuffer();

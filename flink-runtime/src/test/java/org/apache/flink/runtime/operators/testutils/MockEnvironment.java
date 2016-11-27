@@ -58,6 +58,7 @@ import java.util.concurrent.Future;
 
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -165,7 +166,7 @@ public class MockEnvironment implements Environment {
 
 					return null;
 				}
-			}).when(mockWriter).writeBuffer(any(Buffer.class), anyInt());
+			}).when(mockWriter).writeBuffer(any(Buffer.class), anyInt(), anyBoolean());
 
 			outputs.add(mockWriter);
 		}
