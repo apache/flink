@@ -183,6 +183,14 @@ class PipelinedSubpartition extends ResultSubpartition {
 		return readView;
 	}
 
+	// ------------------------------------------------------------------------
+
+	int getCurrentNumberOfBuffers() {
+		return buffers.size();
+	}
+
+	// ------------------------------------------------------------------------
+
 	@Override
 	public String toString() {
 		final long numBuffers;
