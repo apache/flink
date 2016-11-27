@@ -739,7 +739,9 @@ public class CheckpointCoordinator {
 			completedCheckpointStore.addCheckpoint(completedCheckpoint);
 
 			rememberRecentCheckpointId(checkpointId);
-			dropSubsumedCheckpoints(checkpointId);
+			dropSubsumedCheckpoints(completedCheckpoint.getTimestamp());
+
+			onFullyAcknowledgedCheckpoint(completedCheckpoint);
 		} catch (Exception exception) {
 			// abort the current pending checkpoint if it has not been discarded yet
 			if(!pendingCheckpoint.isDiscarded()) {
