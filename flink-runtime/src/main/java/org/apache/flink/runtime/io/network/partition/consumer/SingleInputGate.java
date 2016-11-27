@@ -242,7 +242,7 @@ public class SingleInputGate implements InputGate {
 		this.bufferPool = checkNotNull(bufferPool);
 	}
 
-	void setInputChannel(IntermediateResultPartitionID partitionId, InputChannel inputChannel) {
+	public void setInputChannel(IntermediateResultPartitionID partitionId, InputChannel inputChannel) {
 		synchronized (requestLock) {
 			if (inputChannels.put(checkNotNull(partitionId), checkNotNull(inputChannel)) == null
 					&& inputChannel.getClass() == UnknownInputChannel.class) {
@@ -518,7 +518,8 @@ public class SingleInputGate implements InputGate {
 				partitionId);
 	}
 
-	private void queueChannel(InputChannel channel) {
+	@VisibleForTesting
+	void queueChannel(InputChannel channel) {
 		int availableChannels;
 
 		synchronized (inputChannelsWithData) {

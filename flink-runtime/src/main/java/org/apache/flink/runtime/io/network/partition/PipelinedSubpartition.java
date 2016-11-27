@@ -55,7 +55,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	// ------------------------------------------------------------------------
 
-	PipelinedSubpartition(int index, ResultPartition parent) {
+	public PipelinedSubpartition(int index, ResultPartition parent) {
 		super(index, parent);
 	}
 
@@ -182,6 +182,14 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 		return readView;
 	}
+
+	// ------------------------------------------------------------------------
+
+	int getCurrentNumberOfBuffers() {
+		return buffers.size();
+	}
+
+	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
