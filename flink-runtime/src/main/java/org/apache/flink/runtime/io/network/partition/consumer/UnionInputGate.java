@@ -225,7 +225,7 @@ public class UnionInputGate implements InputGate, InputGateListener {
 			inputGatesWithData.add(inputGate);
 
 			if (availableInputGates == 0) {
-				inputGatesWithData.notify();
+				inputGatesWithData.notifyAll();
 			}
 		}
 

@@ -65,7 +65,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
 	private volatile boolean isReleased;
 
-	LocalInputChannel(
+	public LocalInputChannel(
 		SingleInputGate inputGate,
 		int channelIndex,
 		ResultPartitionID partitionId,
@@ -77,7 +77,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 			new Tuple2<Integer, Integer>(0, 0), metrics);
 	}
 
-	LocalInputChannel(
+	public LocalInputChannel(
 		SingleInputGate inputGate,
 		int channelIndex,
 		ResultPartitionID partitionId,
