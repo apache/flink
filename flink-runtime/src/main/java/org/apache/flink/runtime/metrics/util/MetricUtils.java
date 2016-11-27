@@ -21,12 +21,10 @@ import org.apache.commons.lang3.text.WordUtils;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.util.Hardware;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
 import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ClassLoadingMXBean;
 import java.lang.management.GarbageCollectorMXBean;
@@ -41,8 +39,6 @@ import java.util.List;
 public class MetricUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricUtils.class);
 	private static final String METRIC_GROUP_STATUS_NAME = "Status";
-	private static final String VM_SIZE = "VmSize";
-	private static final String VM_RSS = "VmRSS";
 
 	private MetricUtils() {
 	}
@@ -82,12 +78,6 @@ public class MetricUtils {
 		instantiateMemoryMetrics(jvm.addGroup("Memory"));
 		instantiateThreadMetrics(jvm.addGroup("Threads"));
 		instantiateCPUMetrics(jvm.addGroup("CPU"));
-
-		MetricGroup process = status
-			.addGroup("Process");
-
-		instantiateProcessMemoryMetrics(process.addGroup("Memory"));
-		instantiateProcessCPUMetrics(process.addGroup("CPU"));
 	}
 
 	private static void instantiateClassLoaderMetrics(MetricGroup metrics) {
@@ -192,6 +182,20 @@ public class MetricUtils {
 				}
 			});
 		}
+
+		MetricGroup process = metrics.addGroup("Process");
+		process.gauge("VmSize", new Gauge<Long>() {
+			@Override
+			public Long getValue() {
+				return Hardware.getSizeOfProcessVirtualMemory();
+			}
+		});
+		process.gauge("VmRSS", new Gauge<Long>() {
+			@Override
+			public Long getValue() {
+				return Hardware.getSizeOfProcessPhysicalMemory();
+			}
+		});
 	}
 
 	private static void instantiateThreadMetrics(MetricGroup metrics) {
@@ -256,183 +260,12 @@ public class MetricUtils {
 				}
 			});
 		}
-	}
 
-	private static void instantiateProcessMemoryMetrics(MetricGroup metrics) {
-		String os = System.getProperty("os.name");
-		if (os.toLowerCase().startsWith("linux")) {
-			metrics.gauge(VM_SIZE, new Gauge<Long>() {
-				@Override
-				public Long getValue() {
-					return getProcessVmStat(VM_SIZE);
-				}
-			});
-			metrics.gauge(VM_RSS, new Gauge<Long>() {
-				@Override
-				public Long getValue() {
-					return getProcessVmStat(VM_RSS);
-				}
-			});
-		} else {
-			LOG.warn("Unsupported process memory metrics in current os " + os);
-			metrics.gauge(VM_SIZE, new Gauge<Long>() {
-				@Override
-				public Long getValue() {
-					return -1L;
-				}
-			});
-			metrics.gauge(VM_RSS, new Gauge<Long>() {
-				@Override
-				public Long getValue() {
-					return -1L;
-				}
-			});
-		}
-	}
-
-	private static void instantiateProcessCPUMetrics(MetricGroup metrics) {
-		String os = System.getProperty("os.name");
-		if (os.toLowerCase().startsWith("linux")) {
-			metrics.gauge("Usage", new Gauge<Double>() {
-				@Override
-				public Double getValue() {
-					return ProcessCpuStat.getCpuUsage();
-				}
-			});
-		} else {
-			LOG.warn("Unsupported process CPU metrics in current os " + os);
-			metrics.gauge("Usage", new Gauge<Double>() {
-				@Override
-				public Double getValue() {
-					return 0.0;
-				}
-			});
-		}
-	}
-
-	private static long getProcessVmStat(String vmProperty) {
-		BufferedReader br = null;
-		String line;
-
-		try {
-			br = new BufferedReader(new FileReader("/proc/self/status"));
-			//read process status
-			while ((line = br.readLine()) != null) {
-				if (line.startsWith(vmProperty)) {
-					int beginIndex = line.indexOf(":") + 1;
-					int endIndex = line.indexOf("kB") - 1;
-					String value = line.substring(beginIndex, endIndex).trim();
-					return Long.parseLong(value);
-				}
+		metrics.gauge("Usage", new Gauge<Double>() {
+			@Override
+			public Double getValue() {
+				return Hardware.getProcessCpuUsage();
 			}
-		} catch (IOException ignore) {
-		} finally {
-			try {
-				if (br != null) {
-					br.close();
-				}
-			} catch (IOException ignore) {
-			}
-		}
-
-		return -1L;
-	}
-
-	private static class ProcessCpuStat {
-
-		private static final int AVAILABLE_PROCESSOR_COUNT = Runtime.getRuntime().availableProcessors();
-
-		private static double currentSystemCpuTotal = 0.0;
-		private static double currentProcCpuClock = 0.0;
-
-		public static double getCpuUsage() {
-			try {
-				double procCpuClock = getProcessCpuClock();
-				double totalCpuStat = getTotalCpuClock();
-				if (totalCpuStat == 0.0) {
-					return 0.0;
-				}
-
-				double cpuUsagePercent = procCpuClock / totalCpuStat;
-				return cpuUsagePercent * AVAILABLE_PROCESSOR_COUNT;
-			} catch (IOException ex) {
-				LOG.warn("collect cpu load exception " + ex.getMessage());
-			}
-
-			return 0.0;
-		}
-
-		private static double getProcessCpuClock() throws IOException {
-			double lastProcCpuClock = currentProcCpuClock;
-
-			String line = getFirstLineFromFile("/proc/self/stat");
-			if (line == null) {
-				throw new IOException("read /proc/self/stat null !");
-			}
-
-			String[] processStats = line.split(" ", -1);
-			if (processStats.length < 17) {
-				LOG.error("parse cpu stat file failed! the first line is:" + line);
-				throw new IOException("parse process stat file failed!");
-			}
-
-			int rBracketPos = 0;
-			for (int i = processStats.length - 1; i > 0; i--) {
-				if (processStats[i].contains(")")) {
-					rBracketPos = i;
-					break;
-				}
-			}
-
-			if (rBracketPos == 0) {
-				throw new IOException("get right bracket pos error");
-			}
-
-			double cpuTotal = 0.0;
-			for (int i = rBracketPos + 12; i < rBracketPos + 16; i++) {
-				cpuTotal += Double.parseDouble(processStats[i]);
-			}
-
-			currentProcCpuClock = cpuTotal;
-
-			return currentProcCpuClock - lastProcCpuClock;
-		}
-
-		private static double getTotalCpuClock() throws IOException {
-			double lastSystemCpuTotal = currentSystemCpuTotal;
-
-			String line = getFirstLineFromFile("/proc/stat");
-			if (line == null) {
-				throw new IOException("read /proc/stat null !");
-			}
-
-			String[] cpuStats = line.split(" ", -1);
-			if (cpuStats.length < 11) {
-				LOG.error("parse cpu stat file failed! the first line is:" + line);
-				throw new IOException("parse cpu stat file failed!");
-			}
-
-			double statCpuTotal = 0.0;
-			for (int i = 2; i < cpuStats.length; i++) {
-				statCpuTotal += Double.parseDouble(cpuStats[i]);
-			}
-
-			currentSystemCpuTotal = statCpuTotal;
-
-			return currentSystemCpuTotal - lastSystemCpuTotal;
-		}
-
-		private static String getFirstLineFromFile(String fileName) throws IOException {
-			BufferedReader br = null;
-			try {
-				br = new BufferedReader(new FileReader(fileName));
-				String line = br.readLine();
-				return line;
-			} finally {
-				if (br != null) {
-					br.close();
-				}
-			}
-		}
+		});
 	}
 }
