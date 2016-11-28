@@ -23,8 +23,6 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.api.reader.BufferReader;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import scala.Tuple2;
@@ -75,9 +73,9 @@ public class UnknownInputChannel extends InputChannel {
 	}
 
 	@Override
-	public Buffer getNextBuffer() throws IOException {
+	public BufferAndAvailability getNextBuffer() throws IOException {
 		// Nothing to do here
-		return null;
+		throw new UnsupportedOperationException("Cannot retrieve a buffer from an UnknownInputChannel");
 	}
 
 	@Override
@@ -90,8 +88,7 @@ public class UnknownInputChannel extends InputChannel {
 	 * <p>
 	 * <strong>Important</strong>: It is important that the method correctly
 	 * always <code>false</code> for unknown input channels in order to not
-	 * finish the consumption of an intermediate result partition early in
-	 * {@link BufferReader}.
+	 * finish the consumption of an intermediate result partition early.
 	 */
 	@Override
 	public boolean isReleased() {

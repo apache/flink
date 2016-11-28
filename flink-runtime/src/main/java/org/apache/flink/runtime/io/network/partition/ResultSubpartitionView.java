@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.util.event.NotificationListener;
 
 import java.io.IOException;
 
@@ -41,13 +40,7 @@ public interface ResultSubpartitionView {
 	 */
 	Buffer getNextBuffer() throws IOException, InterruptedException;
 
-	/**
-	 * Subscribes to data availability notifications.
-	 * <p>
-	 * Returns whether the subscription was successful. A subscription fails,
-	 * if there is data available.
-	 */
-	boolean registerListener(NotificationListener listener) throws IOException;
+	void notifyBuffersAvailable(long buffers) throws IOException;
 
 	void releaseAllResources() throws IOException;
 

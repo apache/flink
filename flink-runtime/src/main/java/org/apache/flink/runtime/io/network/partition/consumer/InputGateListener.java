@@ -16,21 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition;
+package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-
-import java.io.IOException;
-
-public interface ResultPartitionProvider {
+/**
+ * Listener interface implemented by consumers of {@link InputGate} instances
+ * that want to be notified of availability of buffer or event instances.
+ */
+public interface InputGateListener {
 
 	/**
-	 * Returns the requested intermediate result partition input view.
+	 * Notification callback if the input gate moves from zero to non-zero
+	 * available input channels with data.
+	 *
+	 * @param inputGate Input Gate that became available.
 	 */
-	ResultSubpartitionView createSubpartitionView(
-			ResultPartitionID partitionId,
-			int index,
-			BufferProvider bufferProvider,
-			BufferAvailabilityListener availabilityListener) throws IOException;
+	void notifyInputGateNonEmpty(InputGate inputGate);
 
 }

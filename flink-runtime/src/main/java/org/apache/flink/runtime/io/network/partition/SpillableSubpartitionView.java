@@ -18,15 +18,14 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
+import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.util.event.NotificationListener;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 class SpillableSubpartitionView implements ResultSubpartitionView {
@@ -34,146 +33,163 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	/** The subpartition this view belongs to. */
 	private final SpillableSubpartition parent;
 
-	/** The buffer provider to read buffers into (spilling case). */
-	private final BufferProvider bufferProvider;
+	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
+	private final ArrayDeque<Buffer> buffers;
 
-	/** The number of buffers in-memory at the subpartition. */
-	private final int numberOfBuffers;
+	/** IO manager if we need to spill (for spilled case). */
+	private final IOManager ioManager;
 
-	/** The default I/O mode to use. */
-	private final IOMode ioMode;
+	/** Size of memory segments (for spilled case). */
+	private final int memorySegmentSize;
 
-	private ResultSubpartitionView spilledView;
-
-	private int currentQueuePosition;
-
-	private long currentBytesRead;
+	/**
+	 * The buffer availability listener. As long as in-memory, notifications
+	 * happen on a buffer per buffer basis as spilling may happen after a
+	 * notification has been sent out.
+	 */
+	private final BufferAvailabilityListener listener;
 
 	private final AtomicBoolean isReleased = new AtomicBoolean(false);
 
-	public SpillableSubpartitionView(
-			SpillableSubpartition parent,
-			BufferProvider bufferProvider,
-			int numberOfBuffers,
-			IOMode ioMode) {
+	/**
+	 * The next buffer to hand out. Everytime this is set to a non-null value,
+	 * a listener notification happens.
+	 */
+	private Buffer nextBuffer;
+
+	private volatile SpilledSubpartitionView spilledView;
+
+	SpillableSubpartitionView(
+		SpillableSubpartition parent,
+		ArrayDeque<Buffer> buffers,
+		IOManager ioManager,
+		int memorySegmentSize,
+		BufferAvailabilityListener listener) {
 
 		this.parent = checkNotNull(parent);
-		this.bufferProvider = checkNotNull(bufferProvider);
-		checkArgument(numberOfBuffers >= 0);
-		this.numberOfBuffers = numberOfBuffers;
-		this.ioMode = checkNotNull(ioMode);
+		this.buffers = checkNotNull(buffers);
+		this.ioManager = checkNotNull(ioManager);
+		this.memorySegmentSize = memorySegmentSize;
+		this.listener = checkNotNull(listener);
+
+		synchronized (buffers) {
+			nextBuffer = buffers.poll();
+		}
+
+		if (nextBuffer != null) {
+			listener.notifyBuffersAvailable(1);
+		}
+	}
+
+	int releaseMemory() throws IOException {
+		synchronized (buffers) {
+			if (spilledView != null || nextBuffer == null) {
+				// Already spilled or nothing in-memory
+				return 0;
+			} else {
+				// We don't touch next buffer, because a notification has
+				// already been sent for it. Only when it is consumed, will
+				// it be recycled.
+
+				// Create the spill writer and write all buffers to disk
+				BufferFileWriter spillWriter = ioManager.createBufferFileWriter(ioManager.createChannel());
+
+				int numBuffers = buffers.size();
+				for (int i = 0; i < numBuffers; i++) {
+					Buffer buffer = buffers.remove();
+					try {
+						spillWriter.writeBlock(buffer);
+					} finally {
+						buffer.recycle();
+					}
+				}
+
+				spilledView = new SpilledSubpartitionView(
+					parent,
+					memorySegmentSize,
+					spillWriter,
+					numBuffers,
+					listener);
+
+				return numBuffers;
+			}
+		}
 	}
 
 	@Override
 	public Buffer getNextBuffer() throws IOException, InterruptedException {
-
-		if (isReleased.get()) {
-			return null;
-		}
-
-		// 1) In-memory
-		synchronized (parent.buffers) {
-			if (parent.isReleased()) {
+		synchronized (buffers) {
+			if (isReleased.get()) {
 				return null;
-			}
+			} else if (nextBuffer != null) {
+				Buffer current = nextBuffer;
+				nextBuffer = buffers.poll();
 
-			if (parent.spillWriter == null) {
-				if (currentQueuePosition < numberOfBuffers) {
-					Buffer buffer = parent.buffers.get(currentQueuePosition);
-
-					buffer.retain();
-
-					// TODO Fix hard coding of 8 bytes for the header
-					currentBytesRead += buffer.getSize() + 8;
-					currentQueuePosition++;
-
-					return buffer;
+				if (nextBuffer != null) {
+					listener.notifyBuffersAvailable(1);
 				}
 
-				return null;
+				return current;
 			}
-		}
+		} // else: spilled
 
-		// 2) Spilled
-		if (spilledView != null) {
-			return spilledView.getNextBuffer();
+		SpilledSubpartitionView spilled = spilledView;
+		if (spilled != null) {
+			return spilled.getNextBuffer();
+		} else {
+			throw new IllegalStateException("No in-memory buffers available, but also nothing spilled.");
 		}
-
-		// 3) Spilling
-		// Make sure that all buffers are written before consuming them. We can't block here,
-		// because this might be called from an network I/O thread.
-		if (parent.spillWriter.getNumberOfOutstandingRequests() > 0) {
-			return null;
-		}
-
-		if (ioMode.isSynchronous()) {
-			spilledView = new SpilledSubpartitionViewSyncIO(
-					parent,
-					bufferProvider.getMemorySegmentSize(),
-					parent.spillWriter.getChannelID(),
-					currentBytesRead);
-		}
-		else {
-			spilledView = new SpilledSubpartitionViewAsyncIO(
-					parent,
-					bufferProvider,
-					parent.ioManager,
-					parent.spillWriter.getChannelID(),
-					currentBytesRead);
-		}
-
-		return spilledView.getNextBuffer();
 	}
 
 	@Override
-	public boolean registerListener(NotificationListener listener) throws IOException {
-		if (spilledView == null) {
-			synchronized (parent.buffers) {
-				// Didn't spill yet, buffers should be in-memory
-				if (parent.spillWriter == null) {
-					return false;
-				}
-			}
-
-			// Spilling
-			if (parent.spillWriter.getNumberOfOutstandingRequests() > 0) {
-				return parent.spillWriter.registerAllRequestsProcessedListener(listener);
-			}
-
-			return false;
-		}
-
-		return spilledView.registerListener(listener);
-	}
-
-	@Override
-	public void notifySubpartitionConsumed() throws IOException {
-		parent.onConsumedSubpartition();
+	public void notifyBuffersAvailable(long buffers) throws IOException {
+		// We do the availability listener notification one by one
 	}
 
 	@Override
 	public void releaseAllResources() throws IOException {
 		if (isReleased.compareAndSet(false, true)) {
-			if (spilledView != null) {
-				spilledView.releaseAllResources();
+			SpilledSubpartitionView spilled = spilledView;
+			if (spilled != null) {
+				spilled.releaseAllResources();
 			}
 		}
 	}
 
 	@Override
+	public void notifySubpartitionConsumed() throws IOException {
+		SpilledSubpartitionView spilled = spilledView;
+		if (spilled != null) {
+			spilled.notifySubpartitionConsumed();
+		} else {
+			parent.onConsumedSubpartition();
+		}
+	}
+
+	@Override
 	public boolean isReleased() {
-		return parent.isReleased() || isReleased.get();
+		SpilledSubpartitionView spilled = spilledView;
+		if (spilled != null) {
+			return spilled.isReleased();
+		} else {
+			return parent.isReleased() || isReleased.get();
+		}
 	}
 
 	@Override
 	public Throwable getFailureCause() {
-		return parent.getFailureCause();
+		SpilledSubpartitionView spilled = spilledView;
+		if (spilled != null) {
+			return spilled.getFailureCause();
+		} else {
+			return parent.getFailureCause();
+		}
 	}
 
 	@Override
 	public String toString() {
 		return String.format("SpillableSubpartitionView(index: %d) of ResultPartition %s",
-				parent.index,
-				parent.parent.getPartitionId());
+			parent.index,
+			parent.parent.getPartitionId());
 	}
 }
