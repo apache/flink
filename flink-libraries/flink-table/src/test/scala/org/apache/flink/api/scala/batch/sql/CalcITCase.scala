@@ -271,24 +271,6 @@ class CalcITCase(
   }
 
   @Test
-  def testNotInWithNestedSelect(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    tEnv.getConfig.setNullCheck(true)
-
-    val ds = CollectionDataSets.getSmall3TupleDataSet(env)
-    val table = ds.toTable(tEnv).as('a1, 'a2, 'a3)
-    tEnv.registerTable("A", table)
-    val sqlQuery = s"SELECT * FROM A WHERE a1 NOT IN (SELECT a1 FROM A WHERE a1 = 1)"
-
-    val expected = "2,2,Hello\n" +
-                   "3,2,Hello world"
-    val results = tEnv.sql(sqlQuery).collect()
-
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
   def testAdvancedDataTypes(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
