@@ -528,7 +528,7 @@ public class SingleInputGate implements InputGate {
 			inputChannelsWithData.add(channel);
 
 			if (availableChannels == 0) {
-				inputChannelsWithData.notify();
+				inputChannelsWithData.notifyAll();
 			}
 		}
 
