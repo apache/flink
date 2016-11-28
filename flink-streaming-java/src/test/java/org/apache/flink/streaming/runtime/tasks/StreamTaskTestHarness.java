@@ -91,7 +91,7 @@ public class StreamTaskTestHarness<OUT> {
 	// input related methods only need to be implemented once, in generic form
 	protected int numInputGates;
 	protected int numInputChannelsPerGate;
-	
+
 	@SuppressWarnings("rawtypes")
 	protected StreamTestSingleInputGate[] inputGates;
 
@@ -154,7 +154,7 @@ public class StreamTaskTestHarness<OUT> {
 		return new StreamMockEnvironment(
 				jobConfig, taskConfig, executionConfig, memorySize, new MockInputSplitProvider(), bufferSize);
 	}
-	
+
 	/**
 	 * Invoke the Task. This resets the output of any previous invocation. This will start a new
 	 * Thread to execute the Task in. Use {@link #waitForTaskCompletion()} to wait for the
@@ -297,7 +297,7 @@ public class StreamTaskTestHarness<OUT> {
 			try {
 				Thread.sleep(10);
 			} catch (InterruptedException ignored) {}
-			
+
 			if (allEmpty) {
 				break;
 			}
@@ -305,7 +305,7 @@ public class StreamTaskTestHarness<OUT> {
 
 		// then wait for the Task Thread to be in a blocked state
 		// Check whether the state is blocked, this should be the case if it cannot
-		// read more input, i.e. all currently available input has been processed.
+		// notifyNonEmpty more input, i.e. all currently available input has been processed.
 		while (true) {
 			Thread.State state = taskThread.getState();
 			if (state == Thread.State.BLOCKED || state == Thread.State.TERMINATED ||
@@ -328,13 +328,13 @@ public class StreamTaskTestHarness<OUT> {
 			inputGates[i].endInput();
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	private class TaskThread extends Thread {
-		
+
 		private final AbstractInvokable task;
-		
+
 		private volatile Throwable error;
 
 		TaskThread(AbstractInvokable task) {

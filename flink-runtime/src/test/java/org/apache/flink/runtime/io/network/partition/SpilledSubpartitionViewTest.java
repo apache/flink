@@ -21,23 +21,18 @@ package org.apache.flink.runtime.io.network.partition;
 import com.google.common.collect.Lists;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.util.TestConsumerCallback.RecyclingCallback;
+import org.apache.flink.runtime.io.network.util.TestConsumerCallback;
 import org.apache.flink.runtime.io.network.util.TestInfiniteBufferProvider;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionConsumer;
 import org.junit.AfterClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -47,55 +42,103 @@ import java.util.concurrent.TimeoutException;
 
 import static org.mockito.Mockito.mock;
 
-/**
- * Test for both the asynchronous and synchronous spilled subpartition view implementation.
- */
-@RunWith(Parameterized.class)
 public class SpilledSubpartitionViewTest {
 
-	private static final IOManager ioManager = new IOManagerAsync();
-
-	private static final ExecutorService executor = Executors.newCachedThreadPool();
+	private static final IOManager IO_MANAGER = new IOManagerAsync();
 
 	private static final TestInfiniteBufferProvider writerBufferPool =
-			new TestInfiniteBufferProvider();
-
-	private IOMode ioMode;
-
-	public SpilledSubpartitionViewTest(IOMode ioMode) {
-		this.ioMode = ioMode;
-	}
+		new TestInfiniteBufferProvider();
 
 	@AfterClass
 	public static void shutdown() {
-		ioManager.shutdown();
-		executor.shutdown();
+		IO_MANAGER.shutdown();
 	}
 
-	@Parameterized.Parameters
-	public static Collection<Object[]> ioMode() {
-		return Arrays.asList(new Object[][]{
-				{IOMode.SYNC},
-				{IOMode.ASYNC}});
+	@Test
+	public void testWriteConsume() throws Exception {
+		// Config
+		final int numberOfBuffersToWrite = 512;
+
+		// Setup
+		final BufferFileWriter writer = createWriterAndWriteBuffers(IO_MANAGER, writerBufferPool, numberOfBuffersToWrite);
+
+		writer.close();
+
+		TestPooledBufferProvider viewBufferPool = new TestPooledBufferProvider(1);
+
+		TestSubpartitionConsumer consumer = new TestSubpartitionConsumer(
+			false, new TestConsumerCallback.RecyclingCallback());
+
+		SpilledSubpartitionView view = new SpilledSubpartitionView(
+			mock(ResultSubpartition.class),
+			viewBufferPool.getMemorySegmentSize(),
+			writer,
+			numberOfBuffersToWrite + 1, // +1 for end-of-partition
+			consumer);
+
+		consumer.setSubpartitionView(view);
+
+		// Consume subpartition
+		consumer.call();
+	}
+
+	@Test
+	public void testConsumeWithFewBuffers() throws Exception {
+		// Config
+		final int numberOfBuffersToWrite = 512;
+
+		// Setup
+		final BufferFileWriter writer = createWriterAndWriteBuffers(IO_MANAGER, writerBufferPool, numberOfBuffersToWrite);
+
+		writer.close();
+
+		TestSubpartitionConsumer consumer = new TestSubpartitionConsumer(
+			false, new TestConsumerCallback.RecyclingCallback());
+
+		SpilledSubpartitionView view = new SpilledSubpartitionView(
+			mock(ResultSubpartition.class),
+			32 * 1024,
+			writer,
+			numberOfBuffersToWrite + 1,
+			consumer);
+
+		consumer.setSubpartitionView(view);
+
+		// No buffer available, don't deadlock. We need to make progress in situations when the view
+		// is consumed at an input gate with local and remote channels. The remote channels might
+		// eat up all the buffers, at which point the spilled view will not have any buffers
+		// available and the input gate can't make any progress if we don't return immediately.
+		//
+		// The current solution is straight-forward with a separate buffer per spilled subpartition,
+		// but introduces memory-overhead.
+		//
+		// TODO Replace with asynchronous buffer pool request as this introduces extra buffers per
+		// consumed subpartition.
+		consumer.call();
 	}
 
 	@Test
 	public void testReadMultipleFilesWithSingleBufferPool() throws Exception {
-		// Setup
-		BufferFileWriter[] writers = new BufferFileWriter[]{
-				createWriterAndWriteBuffers(ioManager, writerBufferPool, 512),
-				createWriterAndWriteBuffers(ioManager, writerBufferPool, 512)
-		};
-
-		final ResultSubpartitionView[] readers = new ResultSubpartitionView[writers.length];
-
-		// Make this buffer pool small so that we can test the behaviour of the asynchronous view
-		// with few  buffers.
-		final BufferProvider inputBuffers = new TestPooledBufferProvider(2);
-
-		final ResultSubpartition parent = mock(ResultSubpartition.class);
+		ExecutorService executor = null;
+		BufferFileWriter[] writers = null;
+		ResultSubpartitionView[] readers = null;
 
 		try {
+			executor = Executors.newCachedThreadPool();
+
+			// Setup
+			writers = new BufferFileWriter[]{
+				createWriterAndWriteBuffers(IO_MANAGER, writerBufferPool, 512),
+				createWriterAndWriteBuffers(IO_MANAGER, writerBufferPool, 512)
+			};
+
+			readers = new ResultSubpartitionView[writers.length];
+			TestSubpartitionConsumer[] consumers = new TestSubpartitionConsumer[writers.length];
+
+			BufferProvider inputBuffers = new TestPooledBufferProvider(2);
+
+			ResultSubpartition parent = mock(ResultSubpartition.class);
+
 			// Wait for writers to finish
 			for (BufferFileWriter writer : writers) {
 				writer.close();
@@ -103,55 +146,55 @@ public class SpilledSubpartitionViewTest {
 
 			// Create the views depending on the test configuration
 			for (int i = 0; i < readers.length; i++) {
-				if (ioMode.isSynchronous()) {
-					readers[i] = new SpilledSubpartitionViewSyncIO(
-							parent,
-							inputBuffers.getMemorySegmentSize(),
-							writers[i].getChannelID(),
-							0);
-				}
-				else {
-					// For the asynchronous view, it is important that a registered listener will
-					// eventually be notified even if the view never got a buffer to read data into.
-					//
-					// At runtime, multiple threads never share the same buffer pool as in test. We
-					// do it here to provoke the erroneous behaviour.
-					readers[i] = new SpilledSubpartitionViewAsyncIO(
-							parent, inputBuffers, ioManager, writers[i].getChannelID(), 0);
-				}
+				consumers[i] = new TestSubpartitionConsumer(
+					false, new TestConsumerCallback.RecyclingCallback());
+
+				readers[i] = new SpilledSubpartitionView(
+					parent,
+					inputBuffers.getMemorySegmentSize(),
+					writers[i],
+					512 + 1, // +1 for end of partition event
+					consumers[i]);
+
+				consumers[i].setSubpartitionView(readers[i]);
 			}
 
 			final List<Future<Boolean>> results = Lists.newArrayList();
 
 			// Submit the consuming tasks
-			for (ResultSubpartitionView view : readers) {
-				results.add(executor.submit(new TestSubpartitionConsumer(
-						view, false, new RecyclingCallback())));
+			for (TestSubpartitionConsumer consumer : consumers) {
+				results.add(executor.submit(consumer));
 			}
 
 			// Wait for the results
 			for (Future<Boolean> res : results) {
 				try {
 					res.get(2, TimeUnit.MINUTES);
-				}
-				catch (TimeoutException e) {
+				} catch (TimeoutException e) {
 					throw new TimeoutException("There has been a timeout in the test. This " +
-							"indicates that there is a bug/deadlock in the tested subpartition " +
-							"view. The timed out test was in " + ioMode + " mode.");
+						"indicates that there is a bug/deadlock in the tested subpartition " +
+						"view.");
 				}
 			}
-		}
-		finally {
-			for (BufferFileWriter writer : writers) {
-				if (writer != null) {
-					writer.deleteChannel();
+		} finally {
+			if (writers != null) {
+				for (BufferFileWriter writer : writers) {
+					if (writer != null) {
+						writer.deleteChannel();
+					}
 				}
 			}
 
-			for (ResultSubpartitionView reader : readers) {
-				if (reader != null) {
-					reader.releaseAllResources();
+			if (readers != null) {
+				for (ResultSubpartitionView reader : readers) {
+					if (reader != null) {
+						reader.releaseAllResources();
+					}
 				}
+			}
+
+			if (executor != null) {
+				executor.shutdown();
 			}
 		}
 	}
@@ -163,9 +206,9 @@ public class SpilledSubpartitionViewTest {
 	 * <p> Call {@link BufferFileWriter#close()} to ensure that all buffers have been written.
 	 */
 	static BufferFileWriter createWriterAndWriteBuffers(
-			IOManager ioManager,
-			BufferProvider bufferProvider,
-			int numberOfBuffers) throws IOException {
+		IOManager ioManager,
+		BufferProvider bufferProvider,
+		int numberOfBuffers) throws IOException {
 
 		final BufferFileWriter writer = ioManager.createBufferFileWriter(ioManager.createChannel());
 
@@ -177,4 +220,5 @@ public class SpilledSubpartitionViewTest {
 
 		return writer;
 	}
+
 }

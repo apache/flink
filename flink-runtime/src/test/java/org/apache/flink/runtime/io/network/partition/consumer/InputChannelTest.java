@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.junit.Test;
 import scala.Tuple2;
@@ -103,10 +102,10 @@ public class InputChannelTest {
 
 	private InputChannel createInputChannel(int initialBackoff, int maxBackoff) {
 		return new MockInputChannel(
-				mock(SingleInputGate.class),
-				0,
-				new ResultPartitionID(),
-				new Tuple2<Integer, Integer>(initialBackoff, maxBackoff));
+			mock(SingleInputGate.class),
+			0,
+			new ResultPartitionID(),
+			new Tuple2<Integer, Integer>(initialBackoff, maxBackoff));
 	}
 
 	// ---------------------------------------------------------------------------------------------
@@ -114,10 +113,10 @@ public class InputChannelTest {
 	private static class MockInputChannel extends InputChannel {
 
 		private MockInputChannel(
-				SingleInputGate inputGate,
-				int channelIndex,
-				ResultPartitionID partitionId,
-				Tuple2<Integer, Integer> initialAndMaxBackoff) {
+			SingleInputGate inputGate,
+			int channelIndex,
+			ResultPartitionID partitionId,
+			Tuple2<Integer, Integer> initialAndMaxBackoff) {
 
 			super(inputGate, channelIndex, partitionId, initialAndMaxBackoff, new SimpleCounter());
 		}
@@ -127,7 +126,7 @@ public class InputChannelTest {
 		}
 
 		@Override
-		Buffer getNextBuffer() throws IOException, InterruptedException {
+		BufferAndAvailability getNextBuffer() throws IOException, InterruptedException {
 			return null;
 		}
 

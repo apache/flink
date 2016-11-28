@@ -112,8 +112,10 @@ public class StreamMockEnvironment implements Environment {
 		this.accumulatorRegistry = new AccumulatorRegistry(jobID, getExecutionId());
 	}
 
-	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, long memorySize,
-								 MockInputSplitProvider inputSplitProvider, int bufferSize) {
+	public StreamMockEnvironment(
+		Configuration jobConfig, Configuration taskConfig, long memorySize,
+		MockInputSplitProvider inputSplitProvider, int bufferSize) {
+
 		this(jobConfig, taskConfig, null, memorySize, inputSplitProvider, bufferSize);
 	}
 
