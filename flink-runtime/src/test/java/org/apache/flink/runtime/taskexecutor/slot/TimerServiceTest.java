@@ -48,7 +48,7 @@ public class TimerServiceTest {
 		ScheduledFuture scheduledFuture = mock(ScheduledFuture.class);
 		when(scheduledExecutorService.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class)))
 			.thenReturn(scheduledFuture);
-		TimerService<AllocationID> timerService = new TimerService<>(scheduledExecutorService);
+		TimerService<AllocationID> timerService = new TimerService<>(scheduledExecutorService, 100L);
 		TimeoutListener<AllocationID> listener = mock(TimeoutListener.class);
 
 		timerService.start(listener);

@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,8 +37,13 @@ import java.util.concurrent.TimeUnit;
  */
 public class TimerService<K> {
 
+	private static final Logger LOG = LoggerFactory.getLogger(TimerService.class);
+
 	/** Executor service for the scheduled timeouts */
 	private final ScheduledExecutorService scheduledExecutorService;
+
+	/** Timeout for the shutdown of the service. */
+	private final long shutdownTimeout;
 
 	/** Map of currently active timeouts */
 	private final Map<K, Timeout<K>> timeouts;
@@ -44,8 +51,13 @@ public class TimerService<K> {
 	/** Listener which is notified about occurring timeouts */
 	private TimeoutListener<K> timeoutListener;
 
-	public TimerService(final ScheduledExecutorService scheduledExecutorService) {
+	public TimerService(
+			final ScheduledExecutorService scheduledExecutorService,
+			final long shutdownTimeout) {
 		this.scheduledExecutorService = Preconditions.checkNotNull(scheduledExecutorService);
+
+		Preconditions.checkArgument(shutdownTimeout >= 0L, "The shut down timeout must be larger than or equal than 0.");
+		this.shutdownTimeout = shutdownTimeout;
 
 		this.timeouts = new HashMap<>(16);
 		this.timeoutListener = null;
@@ -65,6 +77,17 @@ public class TimerService<K> {
 		timeoutListener = null;
 
 		scheduledExecutorService.shutdown();
+
+		try {
+			if(!scheduledExecutorService.awaitTermination(shutdownTimeout, TimeUnit.MILLISECONDS)) {
+				LOG.debug("The scheduled executor service did not properly terminate. Shutting " +
+					"it down now.");
+				scheduledExecutorService.shutdownNow();
+			}
+		} catch (InterruptedException e) {
+			LOG.debug("Could not properly await the termination of the scheduled executor service.", e);
+			scheduledExecutorService.shutdownNow();
+		}
 	}
 
 	/**
@@ -103,9 +126,7 @@ public class TimerService<K> {
 	 */
 	protected void unregisterAllTimeouts() {
 		for (Timeout<K> timeout : timeouts.values()) {
-			if (timeout != null) {
-				timeout.cancel();
-			}
+			timeout.cancel();
 		}
 		timeouts.clear();
 	}
