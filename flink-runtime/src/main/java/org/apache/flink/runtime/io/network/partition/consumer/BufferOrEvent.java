@@ -34,18 +34,35 @@ public class BufferOrEvent {
 
 	private final AbstractEvent event;
 
+	/**
+	 * Indicate availability of further instances for the union input gate.
+	 * This is not needed outside of the input gate unioning logic and cannot
+	 * be set outside of the consumer package.
+	 */
+	private final boolean moreAvailable;
+
 	private int channelIndex;
 
-	public BufferOrEvent(Buffer buffer, int channelIndex) {
+	BufferOrEvent(Buffer buffer, int channelIndex, boolean moreAvailable) {
 		this.buffer = checkNotNull(buffer);
 		this.event = null;
 		this.channelIndex = channelIndex;
+		this.moreAvailable = moreAvailable;
 	}
 
-	public BufferOrEvent(AbstractEvent event, int channelIndex) {
+	BufferOrEvent(AbstractEvent event, int channelIndex, boolean moreAvailable) {
 		this.buffer = null;
 		this.event = checkNotNull(event);
 		this.channelIndex = channelIndex;
+		this.moreAvailable = moreAvailable;
+	}
+
+	public BufferOrEvent(Buffer buffer, int channelIndex) {
+		this(buffer, channelIndex, true);
+	}
+
+	public BufferOrEvent(AbstractEvent event, int channelIndex) {
+		this(event, channelIndex, true);
 	}
 
 	public boolean isBuffer() {
@@ -71,6 +88,10 @@ public class BufferOrEvent {
 	public void setChannelIndex(int channelIndex) {
 		checkArgument(channelIndex >= 0);
 		this.channelIndex = channelIndex;
+	}
+
+	boolean moreAvailable() {
+		return moreAvailable;
 	}
 
 	@Override

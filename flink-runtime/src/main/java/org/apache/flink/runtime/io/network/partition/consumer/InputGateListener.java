@@ -16,35 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.api.reader;
-
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-
-import java.io.IOException;
+package org.apache.flink.runtime.io.network.partition.consumer;
 
 /**
- * A buffer-oriented reader.
+ * Listener interface implemented by consumers of {@link InputGate} instances
+ * that want to be notified of availability of buffer or event instances.
  */
-public final class BufferReader extends AbstractReader {
+public interface InputGateListener {
 
-	public BufferReader(InputGate gate) {
-		super(gate);
-	}
+	/**
+	 * Notification callback if the input gate moves from zero to non-zero
+	 * available input channels with data.
+	 *
+	 * @param inputGate Input Gate that became available.
+	 */
+	void notifyInputGateNonEmpty(InputGate inputGate);
 
-	public Buffer getNextBuffer() throws IOException, InterruptedException {
-		while (true) {
-			final BufferOrEvent bufferOrEvent = inputGate.getNextBufferOrEvent();
-
-			if (bufferOrEvent.isBuffer()) {
-				return bufferOrEvent.getBuffer();
-			}
-			else {
-				if (handleEvent(bufferOrEvent.getEvent())) {
-					return null;
-				}
-			}
-		}
-	}
 }

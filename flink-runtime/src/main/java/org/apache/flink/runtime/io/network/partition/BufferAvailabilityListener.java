@@ -18,19 +18,16 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-
-import java.io.IOException;
-
-public interface ResultPartitionProvider {
+/**
+ * Listener interface implemented by consumers of {@link ResultSubpartitionView}
+ * that want to be notified of availability of further buffers.
+ */
+public interface BufferAvailabilityListener {
 
 	/**
-	 * Returns the requested intermediate result partition input view.
+	 * Called whenever a new number of buffers becomes available.
+	 *
+	 * @param numBuffers The number of buffers that became available.
 	 */
-	ResultSubpartitionView createSubpartitionView(
-			ResultPartitionID partitionId,
-			int index,
-			BufferProvider bufferProvider,
-			BufferAvailabilityListener availabilityListener) throws IOException;
-
+	void notifyBuffersAvailable(long numBuffers);
 }

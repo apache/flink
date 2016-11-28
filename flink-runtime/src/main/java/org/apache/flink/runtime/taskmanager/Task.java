@@ -347,7 +347,6 @@ public class Task implements Runnable, TaskActions {
 				networkEnvironment.getResultPartitionManager(),
 				resultPartitionConsumableNotifier,
 				ioManager,
-				networkEnvironment.getDefaultIOMode(),
 				desc.sendScheduleOrUpdateConsumersMessage());
 
 			writers[counter] = new ResultPartitionWriter(producedPartitions[counter]);
