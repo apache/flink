@@ -19,13 +19,15 @@
 
 package org.apache.flink.types.parser;
 
-import static org.junit.Assert.assertTrue;
-
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 import org.junit.Test;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class VarLengthStringParserTest {
 
@@ -200,7 +202,7 @@ public class VarLengthStringParserTest {
 	@Test
 	public void testParseValidMixedStringsWithCharset() {
 
-		Charset charset = Charset.forName("US-ASCII");
+		Charset charset = StandardCharsets.US_ASCII;
 		this.parser = new StringValueParser();
 		this.parser.enableQuotedStringParsing((byte) '@');
 
@@ -211,7 +213,7 @@ public class VarLengthStringParserTest {
 		int startPos = 0;
 		parser.setCharset(charset);
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[]{'|'}, s);
-		assertTrue(startPos == 11);
-		assertTrue(s.getValue().equals("abcde|gh"));
+		assertEquals(11, startPos);
+		assertEquals("abcde|gh", s.getValue());
 	}
 }

@@ -32,6 +32,7 @@ import org.apache.flink.types.StringValue;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -79,7 +80,7 @@ public abstract class FieldParser<T> {
 		BOOLEAN_INVALID
 	}
 
-	private Charset charset = Charset.forName("UTF-8");
+	private Charset charset = StandardCharsets.UTF_8;
 
 	private ParseErrorState errorState = ParseErrorState.NONE;
 
@@ -105,9 +106,7 @@ public abstract class FieldParser<T> {
 
 	/**
 	 * Each parser's logic should be implemented inside this method
-	 *
-	 * @see {@link FieldParser#parseField(byte[], int, int, byte[], Object)}
-	 * */
+	 */
 	protected abstract int parseField(byte[] bytes, int startPos, int limit, byte[] delim, T reuse);
 
 	/**
@@ -221,20 +220,19 @@ public abstract class FieldParser<T> {
 		return limitedLength;
 	}
 
-	/*
-	 * Gets the Charset for the parser.Default is set to ASCII
+	/**
+	 * Gets the character set used for this parser.
 	 *
-	 * @return The charset for the parser.
+	 * @return the charset used for this parser.
 	 */
 	public Charset getCharset() {
 		return this.charset;
 	}
 
 	/**
-	 * Sets the charset of the parser. Called by subclasses of the parser to set the type of charset
-	 * when doing a parse.
+	 * Sets the character set used for this parser.
 	 *
-	 * @param charset The charset  to set.
+	 * @param charset charset used for this parser.
 	 */
 	public void setCharset(Charset charset) {
 		this.charset = charset;

@@ -25,12 +25,10 @@ import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.StringParser;
 import org.apache.flink.types.parser.StringValueParser;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.TreeMap;
@@ -45,9 +43,6 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	
 	
 	private static final Logger LOG = LoggerFactory.getLogger(GenericCsvInputFormat.class);
-
-	/** The charset used to convert strings to bytes */
-	private Charset charset = Charset.forName("UTF-8");
 
 	private static final Class<?>[] EMPTY_TYPES = new Class<?>[0];
 	
@@ -79,9 +74,12 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	private Class<?>[] fieldTypes = EMPTY_TYPES;
 	
 	protected boolean[] fieldIncluded = EMPTY_INCLUDED;
-		
+
+	// The byte representation of the delimiter is updated consistent with
+	// current charset.
 	private byte[] fieldDelim = DEFAULT_FIELD_DELIMITER;
-	
+	private String fieldDelimString = null;
+
 	private boolean lenient;
 	
 	private boolean skipFirstLineAsHeader;
@@ -90,7 +88,10 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
 	private byte quoteCharacter;
 
+	// The byte representation of the comment prefix is updated consistent with
+	// current charset.
 	protected byte[] commentPrefix = null;
+	private String commentPrefixString = null;
 
 
 	// --------------------------------------------------------------------------------------------
@@ -105,11 +106,6 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		super(filePath, null);
 	}
 
-	protected GenericCsvInputFormat(Path filePath, Charset charset) {
-		this(filePath);
-		this.charset = Preconditions.checkNotNull(charset);
-	}
-
 	// --------------------------------------------------------------------------------------------
 
 	public int getNumberOfFieldsTotal() {
@@ -120,43 +116,43 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		return this.fieldTypes.length;
 	}
 
+	@Override
+	public void setCharset(String charset) {
+		super.setCharset(charset);
+
+		if (this.fieldDelimString != null) {
+			this.fieldDelim = fieldDelimString.getBytes(getCharset());
+		}
+
+		if (this.commentPrefixString != null) {
+			this.commentPrefix = commentPrefixString.getBytes(getCharset());
+		}
+	}
+
 	public byte[] getCommentPrefix() {
 		return commentPrefix;
 	}
 
 	public void setCommentPrefix(String commentPrefix) {
-		setCommentPrefix(commentPrefix, charset);
-	}
-
-	private void setCommentPrefix(String commentPrefix, Charset charset) {
-		if (charset == null) {
-			throw new IllegalArgumentException("Charset must not be null");
-		}
 		if (commentPrefix != null) {
-			this.commentPrefix = commentPrefix.getBytes(charset);
+			this.commentPrefix = commentPrefix.getBytes(getCharset());
 		} else {
 			this.commentPrefix = null;
 		}
+		this.commentPrefixString = commentPrefix;
 	}
 
 	public byte[] getFieldDelimiter() {
 		return fieldDelim;
 	}
 
-	public void setFieldDelimiter(byte[] delimiter) {
+	public void setFieldDelimiter(String delimiter) {
 		if (delimiter == null) {
 			throw new IllegalArgumentException("Delimiter must not be null");
 		}
 
-		this.fieldDelim = delimiter;
-	}
-
-	public void setFieldDelimiter(char delimiter) {
-		setFieldDelimiter(String.valueOf(delimiter));
-	}
-
-	public void setFieldDelimiter(String delimiter) {
-		this.fieldDelim = delimiter.getBytes(charset);
+		this.fieldDelim = delimiter.getBytes(getCharset());
+		this.fieldDelimString = delimiter;
 	}
 
 	public boolean isLenient() {
@@ -296,25 +292,6 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		this.fieldIncluded = includedMask;
 	}
 
-	/**
-	 * Gets the character set for the parser. Default is set to UTF-8.
-	 *
-	 * @return The charset for the parser.
-	 */
-	Charset getCharset() {
-		return this.charset;
-	}
-
-	/**
-	 * Sets the charset of the parser. Called by subclasses of the parser to set the type of charset
-	 * when doing a parse.
-	 *
-	 * @param charset The character set to set.
-	 */
-	public void setCharset(Charset charset) {
-		this.charset = Preconditions.checkNotNull(charset);
-	}
-
 	// --------------------------------------------------------------------------------------------
 	//  Runtime methods
 	// --------------------------------------------------------------------------------------------
@@ -322,7 +299,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	@Override
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
-		
+
 		// instantiate the parsers
 		FieldParser<?>[] parsers = new FieldParser<?>[fieldTypes.length];
 		
@@ -335,7 +312,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
 				FieldParser<?> p = InstantiationUtil.instantiate(parserType, FieldParser.class);
 
-				p.setCharset(this.getCharset());
+				p.setCharset(getCharset());
 				if (this.quotedStringParsing) {
 					if (p instanceof StringParser) {
 						((StringParser)p).enableQuotedStringParsing(this.quoteCharacter);

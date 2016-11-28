@@ -18,24 +18,22 @@
 
 package org.apache.flink.api.java.io;
 
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Arrays;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.operators.DataSource;
+//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
+import org.apache.flink.api.java.tuple.*;
+//CHECKSTYLE.ON: AvoidStarImport
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Preconditions;
 
-//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
-import org.apache.flink.api.java.tuple.*;
-//CHECKSTYLE.ON: AvoidStarImport
+import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * A builder class to instantiate a CSV parsing data source. The CSV reader configures the field types,
@@ -66,7 +64,7 @@ public class CsvReader {
 	
 	protected boolean ignoreInvalidLines = false;
 
-	private Charset charset = Charset.forName("UTF-8");
+	private String charset = "UTF-8";
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -162,11 +160,12 @@ public class CsvReader {
 	}
 
 	/**
-	 * Gets the character set for the reader. Default is set to UTF-8.
+	 * Gets the character set for the reader. Default is UTF-8.
 	 *
 	 * @return The charset for the reader.
 	 */
-	public Charset getCharset() {
+	@PublicEvolving
+	public String getCharset() {
 		return this.charset;
 	}
 
@@ -175,7 +174,8 @@ public class CsvReader {
 	 *
 	 * @param charset The character set to set.
 	 */
-	public void setCharset(Charset charset) {
+	@PublicEvolving
+	public void setCharset(String charset) {
 		this.charset = Preconditions.checkNotNull(charset);
 	}
 
@@ -356,12 +356,12 @@ public class CsvReader {
 	// --------------------------------------------------------------------------------------------
 	
 	private void configureInputFormat(CsvInputFormat<?> format) {
+		format.setCharset(this.charset);
 		format.setDelimiter(this.lineDelimiter);
 		format.setFieldDelimiter(this.fieldDelimiter);
 		format.setCommentPrefix(this.commentPrefix);
 		format.setSkipFirstLineAsHeader(skipFirstLineAsHeader);
 		format.setLenient(ignoreInvalidLines);
-		format.setCharset(this.charset);
 		if (this.parseQuotedStrings) {
 			format.enableQuotedStringParsing(this.quoteCharacter);
 		}
