@@ -22,6 +22,7 @@ import org.apache.flink.runtime.io.disk.iomanager.AsynchronousBufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.util.TestInfiniteBufferProvider;
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -34,7 +35,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode.SYNC;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -59,7 +60,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 
 	@Override
 	ResultSubpartition createSubpartition() {
-		return new SpillableSubpartition(0, mock(ResultPartition.class), ioManager, SYNC);
+		return new SpillableSubpartition(0, mock(ResultPartition.class), ioManager);
 	}
 
 	/**
@@ -87,14 +88,14 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		// Mock I/O manager returning the blocking spill writer
 		IOManager ioManager = mock(IOManager.class);
 		when(ioManager.createBufferFileWriter(any(FileIOChannel.ID.class)))
-				.thenReturn(spillWriter);
+			.thenReturn(spillWriter);
 
 		// The partition
 		final SpillableSubpartition partition = new SpillableSubpartition(
-				0, mock(ResultPartition.class), ioManager, SYNC);
+			0, mock(ResultPartition.class), ioManager);
 
 		// Spill the partition initially (creates the spill writer)
-		partition.releaseMemory();
+		assertEquals(0, partition.releaseMemory());
 
 		ExecutorService executor = Executors.newSingleThreadExecutor();
 
@@ -130,13 +131,18 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	public void testReleasePartitionAndGetNext() throws Exception {
 		// Create partition and add some buffers
 		SpillableSubpartition partition = new SpillableSubpartition(
-				0, mock(ResultPartition.class), ioManager, SYNC);
+			0, mock(ResultPartition.class), ioManager);
 
 		partition.finish();
 
 		// Create the read view
 		ResultSubpartitionView readView = spy(partition
-				.createReadView(new TestInfiniteBufferProvider()));
+			.createReadView(new TestInfiniteBufferProvider(), new BufferAvailabilityListener() {
+				@Override
+				public void notifyBuffersAvailable(long numBuffers) {
+
+				}
+			}));
 
 		// The released state check (of the parent) needs to be independent
 		// of the released state of the view.
