@@ -421,10 +421,9 @@ public class CheckpointCoordinator {
 			if (lastTriggeredCheckpoint + minPauseBetweenCheckpoints > timestamp && baseInterval != Long.MAX_VALUE) {
 				if (currentPeriodicTrigger != null) {
 					currentPeriodicTrigger.cancel();
-					currentPeriodicTrigger = null;
 				}
-				ScheduledTrigger trigger = new ScheduledTrigger();
-				timer.scheduleAtFixedRate(trigger, minPauseBetweenCheckpoints, baseInterval);
+				currentPeriodicTrigger = new ScheduledTrigger();
+				timer.scheduleAtFixedRate(currentPeriodicTrigger, minPauseBetweenCheckpoints, baseInterval);
 				return false;
 			}
 		}
