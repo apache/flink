@@ -28,6 +28,7 @@ import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -524,12 +525,16 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 					
 					// update name of container task
 					String containerTaskName = container.getName();
+					ResourceSpec minResource = container.getMinResource();
+					ResourceSpec maxResource = container.getMaxResource();
 					if (containerTaskName.startsWith("CHAIN ")) {
 						container.setName(containerTaskName + " -> " + chainedTask.getTaskName());
 					} else {
 						container.setName("CHAIN " + containerTaskName + " -> " + chainedTask.getTaskName());
 					}
-					
+					minResource.merge(node.getMinResource());
+					maxResource.merge(node.getMaxResource());
+
 					this.chainedTasksInSequence.add(chainedTask);
 					return;
 				}
@@ -828,6 +833,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		} else {
 			// create task vertex
 			vertex = new JobVertex(taskName);
+			vertex.setMinResource(node.getMinResource());
+			vertex.setMaxResource(node.getMaxResource());
 			vertex.setInvokableClass((this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediateTask.class : BatchTask.class);
 			
 			config = new TaskConfig(vertex.getConfiguration());
@@ -853,6 +860,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final DriverStrategy ds = node.getDriverStrategy();
 		final JobVertex vertex = new JobVertex(taskName);
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
+		vertex.setMinResource(node.getMinResource());
+		vertex.setMaxResource(node.getMaxResource());
 		vertex.setInvokableClass( (this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediateTask.class : BatchTask.class);
 		
 		// set user code
@@ -881,6 +890,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final InputFormatVertex vertex = new InputFormatVertex(node.getNodeName());
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
 
+		vertex.setMinResource(node.getMinResource());
+		vertex.setMaxResource(node.getMaxResource());
 		vertex.setInvokableClass(DataSourceTask.class);
 		vertex.setFormatDescription(getDescriptionForUserCode(node.getProgramOperator().getUserCodeWrapper()));
 
@@ -896,6 +907,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final OutputFormatVertex vertex = new OutputFormatVertex(node.getNodeName());
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
 
+		vertex.setMinResource(node.getMinResource());
+		vertex.setMaxResource(node.getMaxResource());
 		vertex.setInvokableClass(DataSinkTask.class);
 		vertex.setFormatDescription(getDescriptionForUserCode(node.getProgramOperator().getUserCodeWrapper()));
 		
@@ -958,6 +971,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
 			headVertex = new JobVertex("PartialSolution ("+iteration.getNodeName()+")");
+			headVertex.setMinResource(iteration.getMinResource());
+			headVertex.setMaxResource(iteration.getMaxResource());
 			headVertex.setInvokableClass(IterationHeadTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			headConfig.setDriver(NoOpDriver.class);
@@ -1026,6 +1041,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
 			headVertex = new JobVertex("IterationHead("+iteration.getNodeName()+")");
+			headVertex.setMinResource(iteration.getMinResource());
+			headVertex.setMaxResource(iteration.getMaxResource());
 			headVertex.setInvokableClass(IterationHeadTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			headConfig.setDriver(NoOpDriver.class);
@@ -1266,6 +1283,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		
 		// --------------------------- create the sync task ---------------------------
 		final JobVertex sync = new JobVertex("Sync(" + bulkNode.getNodeName() + ")");
+		sync.setMinResource(bulkNode.getMinResource());
+		sync.setMaxResource(bulkNode.getMaxResource());
 		sync.setInvokableClass(IterationSynchronizationSinkTask.class);
 		sync.setParallelism(1);
 		this.auxVertices.add(sync);
@@ -1402,6 +1421,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final TaskConfig syncConfig;
 		{
 			final JobVertex sync = new JobVertex("Sync (" + iterNode.getNodeName() + ")");
+			sync.setMinResource(iterNode.getMinResource());
+			sync.setMaxResource(iterNode.getMaxResource());
 			sync.setInvokableClass(IterationSynchronizationSinkTask.class);
 			sync.setParallelism(1);
 			this.auxVertices.add(sync);

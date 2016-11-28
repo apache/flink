@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
@@ -120,6 +121,26 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 		Preconditions.checkArgument(maxParallelism > 0, "The maximum parallelism must be greater than 0.");
 
 		transformation.setMaxParallelism(maxParallelism);
+
+		return this;
+	}
+
+	/**
+	 * Sets the minimum and maximum resource for this operator.
+	 *
+	 * The minimum resource must be satisfied and the maximum resource specifies the upper bound
+	 * for dynamic resource resize.
+	 *
+	 * @param minResource Minimum resource.
+	 * @param maxResource Maximum resource.
+	 * @return The operator with set minimum and maximum resource.
+	 */
+	public SingleOutputStreamOperator<T> setResource(ResourceSpec minResource, ResourceSpec maxResource) {
+		requireNonNull(minResource, "minimum resource must not be null.");
+		requireNonNull(maxResource, "maximum resource must not be null.");
+		Preconditions.checkArgument(minResource.lessThan(maxResource), "The maximum resource must be greater than minimum resource.");
+
+		transformation.setResource(minResource, maxResource);
 
 		return this;
 	}

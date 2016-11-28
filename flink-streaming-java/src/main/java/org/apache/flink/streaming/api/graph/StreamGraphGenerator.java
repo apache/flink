@@ -211,6 +211,10 @@ public class StreamGraphGenerator {
 			streamGraph.setTransformationId(transform.getId(), transform.getUid());
 		}
 
+		if (transform.getMinResource() != null && transform.getMaxResource() != null) {
+			streamGraph.setResource(transform.getId(), transform.getMinResource(), transform.getMaxResource());
+		}
+
 		return transformedIds;
 	}
 

@@ -26,7 +26,10 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.Visitable;
+
+import static java.util.Objects.requireNonNull;
 
 /**
 * Abstract base class for all operators. An operator is a source, sink, or it applies an operation to
@@ -49,6 +52,10 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	 * The return type of the user function.
 	 */
 	protected final OperatorInformation<OUT> operatorInfo;
+
+	private ResourceSpec minResource;
+
+	private ResourceSpec maxResource;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -183,6 +190,45 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	 */
 	public void setParallelism(int parallelism) {
 		this.parallelism = parallelism;
+	}
+
+	/**
+	 * Gets the minimum resource for this contract instance. The minimum resource denotes how many
+	 * resources will be needed in the minimum for the user function during the execution. If it is not setted
+	 * by user, the system will create an empty resource.
+	 *
+	 * @return The minimum resource.
+	 */
+	public ResourceSpec getMinResource() {
+		return this.minResource != null ? minResource : ResourceSpec.UNKNOWN;
+	}
+
+	/**
+	 * Gets the minimum resource for this contract instance. The minimum resource denotes how many
+	 * resources will be needed in the maximum for the user function during the execution. If it is not setted
+	 * by user, the system will create an empty resource.
+	 *
+	 * @return The maximum resource.
+	 */
+	public ResourceSpec getMaxResource() {
+		return this.maxResource != null ? maxResource : ResourceSpec.UNKNOWN;
+	}
+
+	/**
+	 * Sets the minimum and maximum resources for this contract instance. The resource denotes
+	 * how many resources will be needed by user function during the execution. And the resource can be dynamic
+	 * resize between minimum and maximum resources.
+	 *
+	 * @param minResource The minimum of the resource.
+	 * @param maxResource The maximum of the resource.
+	 */
+	public  void setResource(ResourceSpec minResource, ResourceSpec maxResource) {
+		requireNonNull(minResource, "minimum resource must not be null.");
+		requireNonNull(maxResource, "maximum resource must not be null.");
+		Preconditions.checkArgument(minResource.lessThan(maxResource), "The maximum resource must be greater than minimum resource.");
+
+		this.minResource = minResource;
+		this.maxResource = maxResource;
 	}
 	
 	

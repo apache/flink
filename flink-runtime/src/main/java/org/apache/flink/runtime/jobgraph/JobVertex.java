@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -94,6 +95,12 @@ public class JobVertex implements java.io.Serializable {
 	/** Optional, the JSON for the optimizer properties of the operator result,
 	 * to be included in the JSON plan */
 	private String resultOptimizerProperties;
+
+	/** Optional, the minimum resource of the operator */
+	private ResourceSpec minResource;
+
+	/** Optional, the maximum resource of the operator */
+	private ResourceSpec maxResource;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -489,6 +496,22 @@ public class JobVertex implements java.io.Serializable {
 
 	public void setResultOptimizerProperties(String resultOptimizerProperties) {
 		this.resultOptimizerProperties = resultOptimizerProperties;
+	}
+
+	public ResourceSpec getMinResource() {
+		return minResource;
+	}
+
+	public ResourceSpec getMaxResource() {
+		return maxResource;
+	}
+
+	public void setMinResource(ResourceSpec minResource) {
+		this.minResource = minResource;
+	}
+
+	public void setMaxResource(ResourceSpec maxResource) {
+		this.maxResource = maxResource;
 	}
 
 	// --------------------------------------------------------------------------------------------
