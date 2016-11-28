@@ -57,7 +57,7 @@ under the License.
 		<dependency>
 			<groupId>org.rocksdb</groupId>
 			<artifactId>rocksdbjni</artifactId>
-			<version>4.5.1</version>
+			<version>4.11.2</version>
 		</dependency>
 
 		<!-- test dependencies -->
