@@ -55,7 +55,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	// ------------------------------------------------------------------------
 
-	public PipelinedSubpartition(int index, ResultPartition parent) {
+	PipelinedSubpartition(int index, ResultPartition parent) {
 		super(index, parent);
 	}
 

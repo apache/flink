@@ -518,8 +518,7 @@ public class SingleInputGate implements InputGate {
 				partitionId);
 	}
 
-	@VisibleForTesting
-	void queueChannel(InputChannel channel) {
+	private void queueChannel(InputChannel channel) {
 		int availableChannels;
 
 		synchronized (inputChannelsWithData) {
