@@ -61,6 +61,11 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     * zero or more output. The function can also query the time and set timers. When
     * reacting to the firing of set timers the function can emit yet more elements.
     *
+    * The function will be called for every element in the input streams and can produce zero
+    * or more output elements. Contrary to the [[DataStream#flatMap(FlatMapFunction)]]
+    * function, this function can also query the time and set timers. When reacting to the firing
+    * of set timers the function can directly emit elements and/or register yet more timers.
+    *
     * A [[RichProcessFunction]]
     * can be used to gain access to features provided by the
     * [[org.apache.flink.api.common.functions.RichFunction]]
@@ -68,8 +73,9 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     * @param processFunction The [[ProcessFunction]] that is called for each element
     *                   in the stream.
     */
+  @PublicEvolving
   def process[R: TypeInformation](
-                                   processFunction: ProcessFunction[T, R]): DataStream[R] = {
+    processFunction: ProcessFunction[T, R]): DataStream[R] = {
 
     if (processFunction == null) {
       throw new NullPointerException("ProcessFunction must not be null.")

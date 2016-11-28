@@ -22,24 +22,24 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
-import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
 /**
- * A function that processes elements of two streams.
+ * A function that processes elements of two streams and produces a single output one.
  *
  * <p>The function will be called for every element in the input streams and can produce
- * zero or more output. The function can also query the time and set timers. When
- * reacting to the firing of set timers the function can emit yet more elements.
- * 
- * <p>An example for the use of connected streams would be to apply rules that change over time
- * onto elements of a stream. One of the connected streams has the rules, the other stream the
- * elements to apply the rules to. The operation on the connected stream maintains the 
- * current set of rules in the state. It may receive either a rule update (from the first stream)
- * and update the state, or a data element (from the second stream) and apply the rules in the
- * state to the element. The result of applying the rules would be emitted.
+ * zero or more output elements. Contrary to the {@link CoFlatMapFunction}, this function can also
+ * query the time (both event and processing) and set timers, through the provided {@link Context}.
+ * When reacting to the firing of set timers the function can emit yet more elements.
+ *
+ * <p>An example use-case for connected streams would be the application of a set of rules that change
+ * over time ({@code stream A}) to the elements contained in another stream (stream {@code B}). The rules
+ * contained in {@code stream A} can be stored in the state and wait for new elements to arrive on
+ * {@code stream B}. Upon reception of a new element on {@code stream B}, the function can now apply the
+ * previously stored rules to the element and directly emit a result, and/or register a timer that
+ * will trigger an action in the future.
  *
  * @param <IN1> Type of the first input.
  * @param <IN2> Type of the second input.
@@ -50,9 +50,12 @@ public interface CoProcessFunction<IN1, IN2, OUT> extends Function, Serializable
 
 	/**
 	 * This method is called for each element in the first of the connected streams.
+	 *
+	 * This function can output zero or more elements using the {@link Collector} parameter
+	 * and also update internal state or set timers using the {@link Context} parameter.
 	 * 
 	 * @param value The stream element
-	 * @param ctx An {@link OnTimerContext} that allows querying the timestamp of the element,
+	 * @param ctx A {@link Context} that allows querying the timestamp of the element,
 	 *            querying the {@link TimeDomain} of the firing timer and getting a
 	 *            {@link TimerService} for registering timers and querying the time.
 	 *            The context is only valid during the invocation of this method, do not store it.
@@ -64,9 +67,12 @@ public interface CoProcessFunction<IN1, IN2, OUT> extends Function, Serializable
 
 	/**
 	 * This method is called for each element in the second of the connected streams.
+	 *
+	 * This function can output zero or more elements using the {@link Collector} parameter
+	 * and also update internal state or set timers using the {@link Context} parameter.
 	 * 
 	 * @param value The stream element
-	 * @param ctx An {@link OnTimerContext} that allows querying the timestamp of the element,
+	 * @param ctx A {@link Context} that allows querying the timestamp of the element,
 	 *            querying the {@link TimeDomain} of the firing timer and getting a
 	 *            {@link TimerService} for registering timers and querying the time.
 	 *            The context is only valid during the invocation of this method, do not store it.
@@ -115,7 +121,7 @@ public interface CoProcessFunction<IN1, IN2, OUT> extends Function, Serializable
 	/**
 	 * Information available in an invocation of {@link #onTimer(long, OnTimerContext, Collector)}.
 	 */
-	interface OnTimerContext extends ProcessFunction.Context {
+	interface OnTimerContext extends Context {
 		/**
 		 * The {@link TimeDomain} of the firing timer.
 		 */

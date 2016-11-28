@@ -104,9 +104,10 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * Applies the given [[CoProcessFunction]] on the connected input streams,
    * thereby creating a transformed output stream.
    *
-   * The function will be called for every element in the streams and can produce
-   * zero or more output. The function can also query the time and set timers. When
-   * reacting to the firing of set timers the function can emit yet more elements.
+   * The function will be called for every element in the input streams and can produce zero
+   * or more output elements. Contrary to the [[flatMap(CoFlatMapFunction)]] function,
+   * this function can also query the time and set timers. When reacting to the firing of set
+   * timers the function can directly emit elements and/or register yet more timers.
    *
    * A [[RichCoProcessFunction]]
    * can be used to gain access to features provided by the
@@ -114,8 +115,9 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    *
    * @param coProcessFunction The [[CoProcessFunction]] that is called for each element
     *                    in the stream.
-   * @return The transformed { @link DataStream}.
+   * @return The transformed [[DataStream]].
    */
+  @PublicEvolving
   def process[R: TypeInformation](
       coProcessFunction: CoProcessFunction[IN1, IN2, R]) : DataStream[R] = {
 

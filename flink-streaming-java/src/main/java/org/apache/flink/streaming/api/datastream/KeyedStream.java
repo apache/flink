@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -177,9 +178,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * Applies the given {@link ProcessFunction} on the input stream, thereby
 	 * creating a transformed output stream.
 	 *
-	 * <p>The function will be called for every element in the stream and can produce
-	 * zero or more output. The function can also query the time and set timers. When
-	 * reacting to the firing of set timers the function can emit yet more elements.
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
+	 * function, this function can also query the time and set timers. When reacting to the firing
+	 * of set timers the function can directly emit elements and/or register yet more timers.
 	 *
 	 * <p>A {@link RichProcessFunction}
 	 * can be used to gain access to features provided by the
@@ -188,10 +190,11 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param processFunction The {@link ProcessFunction} that is called for each element
 	 *                      in the stream.
 	 *
-	 * @param <R> The of elements emitted by the {@code ProcessFunction}.
+	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
 	 *
 	 * @return The transformed {@link DataStream}.
 	 */
+	@PublicEvolving
 	public <R> SingleOutputStreamOperator<R> process(ProcessFunction<T, R> processFunction) {
 
 		TypeInformation<R> outType = TypeExtractor.getUnaryOperatorReturnType(
@@ -210,9 +213,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * Applies the given {@link ProcessFunction} on the input stream, thereby
 	 * creating a transformed output stream.
 	 *
-	 * <p>The function will be called for every element in the stream and can produce
-	 * zero or more output. The function can also query the time and set timers. When
-	 * reacting to the firing of set timers the function can emit yet more elements.
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
+	 * function, this function can also query the time and set timers. When reacting to the firing
+	 * of set timers the function can directly emit elements and/or register yet more timers.
 	 *
 	 * <p>A {@link RichProcessFunction}
 	 * can be used to gain access to features provided by the
@@ -222,7 +226,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *                      in the stream.
 	 * @param outputType {@link TypeInformation} for the result type of the function.
 	 *
-	 * @param <R> The of elements emitted by the {@code ProcessFunction}.
+	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
 	 *
 	 * @return The transformed {@link DataStream}.
 	 */

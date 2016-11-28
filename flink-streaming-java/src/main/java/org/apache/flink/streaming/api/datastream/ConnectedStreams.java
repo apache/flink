@@ -238,9 +238,10 @@ public class ConnectedStreams<IN1, IN2> {
 	 * Applies the given {@link CoProcessFunction} on the connected input streams,
 	 * thereby creating a transformed output stream.
 	 *
-	 * <p>The function will be called for every element in the streams and can produce
-	 * zero or more output. The function can also query the time and set timers. When
-	 * reacting to the firing of set timers the function can emit yet more elements.
+	 * <p>The function will be called for every element in the input streams and can produce zero or
+	 * more output elements. Contrary to the {@link #flatMap(CoFlatMapFunction)} function, this
+	 * function can also query the time and set timers. When reacting to the firing of set timers
+	 * the function can directly emit elements and/or register yet more timers.
 	 *
 	 * <p>A {@link RichCoProcessFunction}
 	 * can be used to gain access to features provided by the
@@ -249,10 +250,11 @@ public class ConnectedStreams<IN1, IN2> {
 	 * @param coProcessFunction The {@link CoProcessFunction} that is called for each element
 	 *                      in the stream.
 	 *
-	 * @param <R> The of elements emitted by the {@code CoProcessFunction}.
+	 * @param <R> The type of elements emitted by the {@code CoProcessFunction}.
 	 *
 	 * @return The transformed {@link DataStream}.
 	 */
+	@PublicEvolving
 	public <R> SingleOutputStreamOperator<R> process(
 			CoProcessFunction<IN1, IN2, R> coProcessFunction) {
 
@@ -267,9 +269,10 @@ public class ConnectedStreams<IN1, IN2> {
 	 * Applies the given {@link CoProcessFunction} on the connected input streams,
 	 * thereby creating a transformed output stream.
 	 *
-	 * <p>The function will be called for every element in the streams and can produce
-	 * zero or more output. The function can also query the time and set timers. When
-	 * reacting to the firing of set timers the function can emit yet more elements.
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements. Contrary to the {@link #flatMap(CoFlatMapFunction)} function,
+	 * this function can also query the time and set timers. When reacting to the firing of set
+	 * timers the function can directly emit elements and/or register yet more timers.
 	 *
 	 * <p>A {@link RichCoProcessFunction}
 	 * can be used to gain access to features provided by the
@@ -278,7 +281,7 @@ public class ConnectedStreams<IN1, IN2> {
 	 * @param coProcessFunction The {@link CoProcessFunction} that is called for each element
 	 *                      in the stream.
 	 *
-	 * @param <R> The of elements emitted by the {@code CoProcessFunction}.
+	 * @param <R> The type of elements emitted by the {@code CoProcessFunction}.
 	 *
 	 * @return The transformed {@link DataStream}.
 	 */
@@ -287,12 +290,16 @@ public class ConnectedStreams<IN1, IN2> {
 			CoProcessFunction<IN1, IN2, R> coProcessFunction,
 			TypeInformation<R> outputType) {
 
+		if (!(inputStream1 instanceof KeyedStream) || !(inputStream2 instanceof KeyedStream)) {
+			throw new UnsupportedOperationException("A CoProcessFunction can only be applied" +
+					"when both input streams are keyed.");
+		}
+
 		CoProcessOperator<Object, IN1, IN2, R> operator = new CoProcessOperator<>(
 				inputStream1.clean(coProcessFunction));
 
 		return transform("Co-Process", outputType, operator);
 	}
-
 
 	@PublicEvolving
 	public <R> SingleOutputStreamOperator<R> transform(String functionName,

@@ -31,6 +31,13 @@ import org.apache.flink.util.Collector;
  * zero or more output. The function can also query the time and set timers. When
  * reacting to the firing of set timers the function can emit yet more elements.
  *
+ * <p>The function will be called for every element in the input stream and can produce
+ * zero or more output elements. Contrary to the
+ * {@link org.apache.flink.api.common.functions.FlatMapFunction}, this function can also query
+ * the time (both event and processing) and set timers, through the provided {@link Context}.
+ * When reacting to the firing of set timers the function can directly emit a result, and/or
+ * register a timer that will trigger an action in the future.
+ *
  * @param <I> Type of the input elements.
  * @param <O> Type of the output elements.
  */
