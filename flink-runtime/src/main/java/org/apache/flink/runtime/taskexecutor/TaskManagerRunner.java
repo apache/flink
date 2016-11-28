@@ -185,7 +185,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 		final int rpcPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0);
 
-		Preconditions.checkState(rpcPort < 0 || rpcPort >65535, "Invalid value for " +
+		Preconditions.checkState(rpcPort >= 0 && rpcPort <= 65535, "Invalid value for " +
 				"'%s' (port for the TaskManager actor system) : %d - Leave config parameter empty or " +
 				"use 0 to let the system choose port automatically.",
 			ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, rpcPort);
