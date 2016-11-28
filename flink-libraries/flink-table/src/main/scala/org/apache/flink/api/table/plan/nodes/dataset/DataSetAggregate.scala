@@ -18,18 +18,14 @@
 
 package org.apache.flink.api.table.plan.nodes.dataset
 
-import com.google.common.collect.ImmutableList
-import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
-import org.apache.calcite.rel.`type`.{RelDataTypeFactory, RelDataType}
-import org.apache.calcite.rel.core.{RelFactories, AggregateCall}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.operators.MapOperator
 import org.apache.flink.api.table.plan.nodes.FlinkAggregate
-import org.apache.flink.api.table.plan.rules.dataSet.DataSetValuesRule
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.api.table.typeutils.{RowTypeInfo, TypeConverter}
@@ -137,7 +133,7 @@ class DataSetAggregate(
       else {
         // global aggregation
         val aggOpName = s"select:($aggString)"
-        mappedInput.asInstanceOf[DataSet[Row]].union(dummyRow(mappedInput,tableEnv))
+        mappedInput.asInstanceOf[DataSet[Row]]
           .reduceGroup(groupReduceFunction)
           .returns(rowTypeInfo)
           .name(aggOpName)
@@ -160,42 +156,5 @@ class DataSetAggregate(
         .name(mapName)
       case _ => result
     }
-  }
-
-  /**
-    * Dummy [[Row]] into a [[DataSet]] for result after map operations.
-    * @param mapOperator after which insert dummy records
-    * @param tableEnv [[BatchTableEnvironment]] for getting rel builder and type factory
-    * @tparam IN mapOperator input type
-    * @tparam OUT mapOperator output type
-    * @return DataSet of type Row is contains null literals for columns
-    */
-  private def dummyRow[IN,OUT](
-      mapOperator: MapOperator[IN,OUT],
-      tableEnv: BatchTableEnvironment): DataSet[Row] = {
-
-    val builder: RelDataTypeFactory.FieldInfoBuilder = getCluster.getTypeFactory.builder
-    val rowInfo = mapOperator.getResultType.asInstanceOf[RowTypeInfo]
-
-    val nullLiterals :ImmutableList[ImmutableList[RexLiteral]] =
-      ImmutableList.of(ImmutableList.copyOf[RexLiteral](
-        for (fieldName <- rowInfo.getFieldNames)
-          yield {
-            val columnType = tableEnv.getTypeFactory
-              .createTypeFromTypeInfo(rowInfo.getTypeAt(fieldName))
-            builder.add(fieldName, columnType)
-            tableEnv.getRelBuilder.getRexBuilder
-              .makeLiteral(null,columnType,false).asInstanceOf[RexLiteral]
-          }))
-
-    val dataType = builder.build()
-
-    val relNode = RelFactories.DEFAULT_VALUES_FACTORY
-      .createValues(getCluster, dataType, nullLiterals)
-
-    DataSetValuesRule.INSTANCE.asInstanceOf[DataSetValuesRule]
-      .convert(relNode).asInstanceOf[DataSetValues]
-      .translateToPlan(tableEnv, Some(TypeConverter.DEFAULT_ROW_TYPE))
-      .asInstanceOf[DataSet[Row]]
   }
 }

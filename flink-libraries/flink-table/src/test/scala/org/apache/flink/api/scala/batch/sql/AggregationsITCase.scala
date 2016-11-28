@@ -260,7 +260,7 @@ class AggregationsITCase(
   }
 
   @Test
-  def testDummyRecords(): Unit = {
+  def testAggregateEmptyDataSets(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -287,12 +287,13 @@ class AggregationsITCase(
 
     val results = result.toDataSet[Row].collect()
     val expected = Seq.empty
-    val results2 = result2.toDataSet[Row].collect()
+    val results2 =  result2.toDataSet[Row].collect()
     val expected2 = "null,null,0"
     val results3 = result3.toDataSet[Row].collect()
     val expected3 = "1,3,2"
 
-    assert(results.equals(expected), "Empty result is expected for grouped set, but actual: "+results)
+    assert(results.equals(expected),
+      "Empty result is expected for grouped set, but actual: " + results)
     TestBaseUtils.compareResultAsText(results2.asJava, expected2)
     TestBaseUtils.compareResultAsText(results3.asJava, expected3)
   }
