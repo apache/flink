@@ -656,7 +656,7 @@ class RowCsvInputFormatTest {
 
     val format = new RowCsvInputFormat(PATH, typeInfo)
     format.setSkipFirstLineAsHeader(true)
-    format.setFieldDelimiter(',')
+    format.setFieldDelimiter(",")
     format.configure(new Configuration)
     format.open(split)
 
@@ -745,7 +745,7 @@ class RowCsvInputFormatTest {
       rowTypeInfo = typeInfo,
       includedFieldsMask = Array(true, false, true))
     inputFormat.enableQuotedStringParsing('"')
-    inputFormat.setFieldDelimiter('|')
+    inputFormat.setFieldDelimiter("|")
     inputFormat.setDelimiter('\n')
     inputFormat.configure(new Configuration)
 
@@ -776,7 +776,7 @@ class RowCsvInputFormatTest {
       new Path(tempFile.toURI.toString),
       rowTypeInfo = typeInfo)
     inputFormat.enableQuotedStringParsing('"')
-    inputFormat.setFieldDelimiter('|')
+    inputFormat.setFieldDelimiter("|")
     inputFormat.setDelimiter('\n')
     inputFormat.configure(new Configuration)
 

@@ -18,21 +18,6 @@
 
 package org.apache.flink.api.common.io;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.util.Arrays;
-import java.util.zip.DeflaterOutputStream;
-import java.util.zip.GZIPOutputStream;
-
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
@@ -41,10 +26,25 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.util.Arrays;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.GZIPOutputStream;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class GenericCsvInputFormatTest {
 
@@ -485,8 +485,7 @@ public class GenericCsvInputFormatTest {
 				format.nextRecord(values);
 				fail("Input format accepted on invalid input.");
 			}
-			catch (ParseException e) {
-				// all good
+			catch (ParseException ignored) {
 			}
 		}
 		catch (Exception ex) {
@@ -551,40 +550,65 @@ public class GenericCsvInputFormatTest {
 
 	@Test
 	public void testReadWithCharset() throws IOException {
-		try {
-			final String fileContent = "\u00bf|Flink|\u00f1";
-			final FileInputSplit split = createTempFile(fileContent);
+		// Unicode row fragments
+		String prefix = "\u020e\u021f";
+		String stem = "Flink";
+		String postfix = "\u020b\u020f";
 
-			final Configuration parameters = new Configuration();
+		// Unicode delimiter
+		String delimiter = "\u05c0";
 
-			format.setCharset(Charset.forName("UTF-8"));
-			format.setFieldDelimiter("|");
-			format.setFieldTypesGeneric(StringValue.class, StringValue.class, StringValue.class);
+		String fileContent = prefix + delimiter + stem + delimiter + postfix;
 
-			format.configure(parameters);
+		// StringValueParser is not configurable with a Charset so rely on StringParser
+		GenericCsvInputFormat<String[]> format = new GenericCsvInputFormat<String[]>() {
+			@Override
+			public String[] readRecord(String[] target, byte[] bytes, int offset, int numBytes) throws IOException {
+				return parseRecord(target, bytes, offset, numBytes) ? target : null;
+			}
+		};
+		format.setFilePath("file:///some/file/that/will/not/be/read");
+
+		for (String charset : new String[]{ "UTF-8", "UTF-16BE", "UTF-16LE" }) {
+			File tempFile = File.createTempFile("test_contents", "tmp");
+			tempFile.deleteOnExit();
+
+			// write string with proper encoding
+			try (Writer out = new OutputStreamWriter(new FileOutputStream(tempFile), charset)) {
+				out.write(fileContent);
+			}
+
+			FileInputSplit split = new FileInputSplit(0, new Path(tempFile.toURI().toString()),
+				0, tempFile.length(), new String[]{ "localhost" });
+
+			// use the same encoding to parse the file
+			format.setCharset(charset);
+			format.setFieldDelimiter(delimiter);
+			format.setFieldTypesGeneric(String.class, String.class, String.class);
+			format.configure(new Configuration());
 			format.open(split);
 
-			Value[] values = new Value[] { new StringValue(), new StringValue(), new StringValue()};
-
+			String[] values = new String[]{ "", "", "" };
 			values = format.nextRecord(values);
+
+			// validate results
 			assertNotNull(values);
-			assertEquals("\u00bf", ((StringValue) values[0]).getValue());
-			assertEquals("Flink", ((StringValue) values[1]).getValue());
-			assertEquals("\u00f1", ((StringValue) values[2]).getValue());
+			assertEquals(prefix, values[0]);
+			assertEquals(stem, values[1]);
+			assertEquals(postfix, values[2]);
 
 			assertNull(format.nextRecord(values));
 			assertTrue(format.reachedEnd());
 		}
-		catch (Exception ex) {
-			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
-		}
+
+		format.close();
 	}
 
 	@Test
 	public void readWithEmptyField() {
 		try {
 			final String fileContent = "abc|def|ghijk\nabc||hhg\n|||";
-			final FileInputSplit split = createTempFile(fileContent);	
+			final FileInputSplit split = createTempFile(fileContent);
 		
 			final Configuration parameters = new Configuration();
 
