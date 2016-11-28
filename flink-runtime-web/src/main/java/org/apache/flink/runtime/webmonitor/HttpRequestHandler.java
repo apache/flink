@@ -66,7 +66,7 @@ import java.util.UUID;
 public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 	private static final Charset ENCODING = Charset.forName("UTF-8");
-	
+
 	/** A decoder factory that always stores POST chunks on disk */
 	private static final HttpDataFactory DATA_FACTORY = new DefaultHttpDataFactory(true);
 
@@ -80,7 +80,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 	public HttpRequestHandler(File tmpDir) {
 		this.tmpDir = tmpDir;
 	}
-	
+
 	@Override
 	public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
 		if (currentDecoder != null) {
@@ -94,12 +94,12 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 			if (msg instanceof HttpRequest) {
 				currentRequest = (HttpRequest) msg;
 				currentRequestPath = null;
-				
+
 				if (currentDecoder != null) {
 					currentDecoder.destroy();
 					currentDecoder = null;
 				}
-				
+
 				if (currentRequest.getMethod() == HttpMethod.GET || currentRequest.getMethod() == HttpMethod.DELETE) {
 					// directly delegate to the router
 					ctx.fireChannelRead(currentRequest);
@@ -118,43 +118,43 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 				// received new chunk, give it to the current decoder
 				HttpContent chunk = (HttpContent) msg;
 				currentDecoder.offer(chunk);
-				
+
 				try {
 					while (currentDecoder.hasNext()) {
 						InterfaceHttpData data = currentDecoder.next();
-						
+
 						// IF SOMETHING EVER NEEDS POST PARAMETERS, THIS WILL BE THE PLACE TO HANDLE IT
 						// all fields values will be passed with type Attribute.
-						
+
 						if (data.getHttpDataType() == HttpDataType.FileUpload) {
 							DiskFileUpload file = (DiskFileUpload) data;
 							if (file.isCompleted()) {
 								String name = file.getFilename();
-								
+
 								File target = new File(tmpDir, UUID.randomUUID() + "_" + name);
 								file.renameTo(target);
-								
+
 								QueryStringEncoder encoder = new QueryStringEncoder(currentRequestPath);
 								encoder.addParam("filepath", target.getAbsolutePath());
 								encoder.addParam("filename", name);
-								
+
 								currentRequest.setUri(encoder.toString());
 							}
 						}
-						
+
 						data.release();
 					}
 				}
 				catch (EndOfDataDecoderException ignored) {}
-				
+
 				if (chunk instanceof LastHttpContent) {
 					HttpRequest request = currentRequest;
 					currentRequest = null;
 					currentRequestPath = null;
-					
+
 					currentDecoder.destroy();
 					currentDecoder = null;
-					
+
 					// fire next channel handler
 					ctx.fireChannelRead(request);
 				}
@@ -163,20 +163,19 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 		catch (Throwable t) {
 			currentRequest = null;
 			currentRequestPath = null;
-			
+
 			if (currentDecoder != null) {
 				currentDecoder.destroy();
 				currentDecoder = null;
 			}
-			
+
 			if (ctx.channel().isActive()) {
 				byte[] bytes = ExceptionUtils.stringifyException(t).getBytes(ENCODING);
-				
+
 				DefaultFullHttpResponse response = new DefaultFullHttpResponse(
 					HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR,
 					Unpooled.wrappedBuffer(bytes));
-	
-				response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
+
 				response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
 				response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
 
