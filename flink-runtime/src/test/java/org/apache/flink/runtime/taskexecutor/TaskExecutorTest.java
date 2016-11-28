@@ -37,6 +37,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.filecache.FileCache;
+import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.NonHaServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -130,6 +131,8 @@ public class TaskExecutorTest extends TestLogger {
 				mock(NetworkEnvironment.class),
 				haServices,
 				mock(MetricRegistry.class),
+				mock(HeartbeatManagerImpl.class),
+				mock(HeartbeatManagerImpl.class),
 				mock(TaskManagerMetricGroup.class),
 				mock(BroadcastVariableManager.class),
 				mock(FileCache.class),
@@ -193,6 +196,8 @@ public class TaskExecutorTest extends TestLogger {
 				mock(NetworkEnvironment.class),
 				haServices,
 				mock(MetricRegistry.class),
+				mock(HeartbeatManagerImpl.class),
+				mock(HeartbeatManagerImpl.class),
 				mock(TaskManagerMetricGroup.class),
 				mock(BroadcastVariableManager.class),
 				mock(FileCache.class),
@@ -214,10 +219,10 @@ public class TaskExecutorTest extends TestLogger {
 					eq(leaderId1), eq(taskManagerAddress), eq(resourceID), any(SlotReport.class), any(Time.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 
-			// cancel the leader 
+			// cancel the leader
 			testLeaderService.notifyListener(null, null);
 
-			// set a new leader, see that a registration happens 
+			// set a new leader, see that a registration happens
 			testLeaderService.notifyListener(address2, leaderId2);
 
 			verify(rmGateway2).registerTaskExecutor(
@@ -305,6 +310,8 @@ public class TaskExecutorTest extends TestLogger {
 				networkEnvironment,
 				haServices,
 				mock(MetricRegistry.class),
+				mock(HeartbeatManagerImpl.class),
+				mock(HeartbeatManagerImpl.class),
 				taskManagerMetricGroup,
 				mock(BroadcastVariableManager.class),
 				mock(FileCache.class),
@@ -369,13 +376,14 @@ public class TaskExecutorTest extends TestLogger {
 
 		final ResourceManagerGateway resourceManagerGateway = mock(ResourceManagerGateway.class);
 		final InstanceID registrationId = new InstanceID();
+		final ResourceID resourceID = ResourceID.generate();
 
 		when(resourceManagerGateway.registerTaskExecutor(
 			eq(resourceManagerLeaderId),
 			any(String.class),
 			eq(resourceId),
 			any(SlotReport.class),
-			any(Time.class))).thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new TaskExecutorRegistrationSuccess(registrationId, 1000L)));
+			any(Time.class))).thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new TaskExecutorRegistrationSuccess(registrationId, resourceID, 1000L)));
 
 		final String jobManagerAddress = "jm";
 		final UUID jobManagerLeaderId = UUID.randomUUID();
@@ -409,6 +417,8 @@ public class TaskExecutorTest extends TestLogger {
 				mock(NetworkEnvironment.class),
 				haServices,
 				mock(MetricRegistry.class),
+				mock(HeartbeatManagerImpl.class),
+				mock(HeartbeatManagerImpl.class),
 				mock(TaskManagerMetricGroup.class),
 				mock(BroadcastVariableManager.class),
 				mock(FileCache.class),
@@ -478,13 +488,14 @@ public class TaskExecutorTest extends TestLogger {
 
 		final ResourceManagerGateway resourceManagerGateway = mock(ResourceManagerGateway.class);
 		final InstanceID registrationId = new InstanceID();
+		final ResourceID resourceID = ResourceID.generate();
 
 		when(resourceManagerGateway.registerTaskExecutor(
 			eq(resourceManagerLeaderId),
 			any(String.class),
 			eq(resourceId),
 			any(SlotReport.class),
-			any(Time.class))).thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new TaskExecutorRegistrationSuccess(registrationId, 1000L)));
+			any(Time.class))).thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new TaskExecutorRegistrationSuccess(registrationId, resourceID, 1000L)));
 
 		final ResourceID jmResourceId = new ResourceID(jobManagerAddress);
 		final int blobPort = 42;
@@ -522,6 +533,8 @@ public class TaskExecutorTest extends TestLogger {
 				mock(NetworkEnvironment.class),
 				haServices,
 				mock(MetricRegistry.class),
+				mock(HeartbeatManagerImpl.class),
+				mock(HeartbeatManagerImpl.class),
 				mock(TaskManagerMetricGroup.class),
 				mock(BroadcastVariableManager.class),
 				mock(FileCache.class),
@@ -594,6 +607,8 @@ public class TaskExecutorTest extends TestLogger {
 				mock(NetworkEnvironment.class),
 				haServices,
 				mock(MetricRegistry.class),
+				mock(HeartbeatManagerImpl.class),
+				mock(HeartbeatManagerImpl.class),
 				mock(TaskManagerMetricGroup.class),
 				mock(BroadcastVariableManager.class),
 				mock(FileCache.class),

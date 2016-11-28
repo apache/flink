@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 
@@ -33,16 +34,19 @@ public final class TaskExecutorRegistrationSuccess extends RegistrationResponse.
 
 	private final InstanceID registrationId;
 
+	private final ResourceID resourceID;
+
 	private final long heartbeatInterval;
 
 	/**
 	 * Create a new {@code TaskExecutorRegistrationSuccess} message.
-	 * 
+	 *
 	 * @param registrationId     The ID that the ResourceManager assigned the registration.
 	 * @param heartbeatInterval  The interval in which the ResourceManager will heartbeat the TaskExecutor.
 	 */
-	public TaskExecutorRegistrationSuccess(InstanceID registrationId, long heartbeatInterval) {
+	public TaskExecutorRegistrationSuccess(InstanceID registrationId, ResourceID resourceID, long heartbeatInterval) {
 		this.registrationId = registrationId;
+		this.resourceID = resourceID;
 		this.heartbeatInterval = heartbeatInterval;
 	}
 
@@ -54,6 +58,11 @@ public final class TaskExecutorRegistrationSuccess extends RegistrationResponse.
 	}
 
 	/**
+	 * Gets the ResourceID of the ResourceManager
+	 */
+	public ResourceID getResourceID() { return resourceID; }
+
+	/**
 	 * Gets the interval in which the ResourceManager will heartbeat the TaskExecutor.
 	 */
 	public long getHeartbeatInterval() {
@@ -62,14 +71,7 @@ public final class TaskExecutorRegistrationSuccess extends RegistrationResponse.
 
 	@Override
 	public String toString() {
-		return "TaskExecutorRegistrationSuccess (" + registrationId + " / " + heartbeatInterval + ')';
+		return "TaskExecutorRegistrationSuccess (" + registrationId + " / " + resourceID + "/" + heartbeatInterval + ')';
 	}
 
 }
-
-
-
-
-
-
-

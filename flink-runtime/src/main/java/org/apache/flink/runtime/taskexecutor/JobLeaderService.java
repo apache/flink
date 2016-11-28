@@ -21,7 +21,10 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
+import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -74,6 +77,9 @@ public class JobLeaderService {
 	/** Job leader listener listening for job leader changes */
 	private JobLeaderListener jobLeaderListener;
 
+	/** Heartbeat manager for monitoring new job leader after successful registration */
+	private HeartbeatManagerImpl heartbeatManager;
+
 	public JobLeaderService(TaskManagerLocation location) {
 		this.ownLocation = Preconditions.checkNotNull(location);
 
@@ -101,6 +107,7 @@ public class JobLeaderService {
 	 */
 	public void start(
 			final String initialOwnerAddress,
+			final HeartbeatManagerImpl heartbeatManager,
 			final RpcService initialRpcService,
 			final HighAvailabilityServices initialHighAvailabilityServices,
 			final JobLeaderListener initialJobLeaderListener) {
@@ -111,6 +118,7 @@ public class JobLeaderService {
 			LOG.info("Start job leader service.");
 
 			this.ownerAddress = Preconditions.checkNotNull(initialOwnerAddress);
+			this.heartbeatManager = Preconditions.checkNotNull(heartbeatManager);
 			this.rpcService = Preconditions.checkNotNull(initialRpcService);
 			this.highAvailabilityServices = Preconditions.checkNotNull(initialHighAvailabilityServices);
 			this.jobLeaderListener = Preconditions.checkNotNull(initialJobLeaderListener);
@@ -328,6 +336,18 @@ public class JobLeaderService {
 					log.info("Successful registration at job manager {} for job {}.", getTargetAddress(), jobId);
 
 					jobLeaderListener.jobManagerGainedLeadership(jobId, getTargetGateway(), getTargetLeaderId(), success);
+
+					heartbeatManager.monitorTarget(success.getResourceID(), new HeartbeatTarget() {
+						@Override
+						public void sendHeartbeat(ResourceID resourceID, Object payload) {
+							getTargetGateway().sendHeartbeatFromTaskManager(resourceID, payload);
+						}
+
+						@Override
+						public void requestHeartbeat(ResourceID resourceID, Object payload) {
+							throw new UnsupportedOperationException("Should never call requestHeartbeat in task executor.");
+						}
+					});
 				} else {
 					log.debug("Encountered obsolete JobManager registration success from {} with leader session ID {}.", getTargetAddress(), getTargetLeaderId());
 				}
