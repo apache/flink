@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.api.windowing.triggers;
 
-import org.apache.flink.streaming.api.windowing.windows.Window;
-
 /**
  * Result type for trigger methods. This determines what happens with the window,
  * for example whether the window function should be called, or the window
