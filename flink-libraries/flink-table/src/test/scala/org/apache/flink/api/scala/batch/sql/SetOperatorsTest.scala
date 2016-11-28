@@ -54,7 +54,7 @@ class SetOperatorsTest extends TableTestBase {
               term("join", "b_long", "b_int", "b_string", "a_long"),
               term("joinType", "InnerJoin")
             ),
-            term("select", "a_long", "true AS $f0")
+            term("select", "true AS $f0", "a_long")
           ),
           term("groupBy", "a_long"),
           term("select", "a_long", "MIN($f0) AS $f1")
