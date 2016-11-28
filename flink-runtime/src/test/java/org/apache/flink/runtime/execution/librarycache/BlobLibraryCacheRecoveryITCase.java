@@ -65,7 +65,8 @@ public class BlobLibraryCacheRecoveryITCase {
 		Configuration config = new Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getAbsolutePath());
+		String absolutePath = "dfs://" + temporaryFolder.getRoot().getAbsolutePath();
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, absolutePath);
 
 		try {
 			for (int i = 0; i < server.length; i++) {

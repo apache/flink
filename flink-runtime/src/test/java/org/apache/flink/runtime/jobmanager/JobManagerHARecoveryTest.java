@@ -153,7 +153,7 @@ public class JobManagerHARecoveryTest {
 		ActorRef taskManager = null;
 
 		flinkConfiguration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-		flinkConfiguration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().toString());
+		flinkConfiguration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, "dfs://" + temporaryFolder.newFolder().toString());
 		flinkConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slots);
 
 		ExecutorService executor = null;

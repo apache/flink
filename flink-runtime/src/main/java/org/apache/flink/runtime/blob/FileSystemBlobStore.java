@@ -100,8 +100,7 @@ class FileSystemBlobStore implements BlobStore {
 
 		// Configure and create the storage directory:
 		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
-			this.basePath = getLocalFileSystemPath(config);
-			this.isDistributed = false;
+			this.basePath = getNonHAModeFileSystemPath(config);
 		} else if (highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
 			// if this is not the globally responsible instance, we may not
 			// have access to the distributed file system
@@ -110,39 +109,49 @@ class FileSystemBlobStore implements BlobStore {
 			final Path haPath = new Path(haPathStr);
 			if (isGlobal || FileSystem.get(haPath.toUri()).exists(haPath)) {
 				this.basePath = haPathStr;
-				this.isDistributed = true;
+				// this must always be a distributed file system!
+				if (!FileSystem.get(haPath.toUri()).isDistributedFS()) {
+					throw new IllegalConfigurationException(
+						"Non-distributed file system in high availability mode. " +
+							"For locally mounted distributed file systems, please prepend 'dfs://'.");
+				}
 			} else {
-				this.basePath = getLocalFileSystemPath(config);
-				this.isDistributed = false;
+				this.basePath = getNonHAModeFileSystemPath(config);
 			}
 		} else {
 			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + "'.");
 		}
 
 		final Path p = new Path(basePath);
-		if (!FileSystem.get(p.toUri()).mkdirs(p)) {
+		FileSystem fs = FileSystem.get(p.toUri());
+		this.isDistributed = fs.isDistributedFS();
+		if (!fs.mkdirs(p)) {
 			throw new RuntimeException("Could not create storage directory for " +
 				"BLOB store in '" + basePath + "'.");
 		}
 		LOG.info("Created blob directory {}.", basePath);
 
 		// also create a directory for temporary files during transfer
-		FileSystem.get(p.toUri()).mkdirs(new Path(p, "incoming"));
+		fs.mkdirs(new Path(p, "incoming"));
 	}
 
 	/**
-	 * Returns the blob storage path on a local file system.
+	 * Returns the blob storage path for non-HA mode, e.g. a local file system.
 	 *
 	 * <p>Uses {@link ConfigConstants#BLOB_STORAGE_DIRECTORY_KEY} if set or
 	 * otherwise <tt>java.io.tmpdir</tt>. Then creates a unique blob storage
 	 * directory under this directory using a random UUID.</p>
+	 *
+	 * <p>NOTE: {@link ConfigConstants#BLOB_STORAGE_DIRECTORY_KEY} may also be a
+	 * distributed file system in which case only the global {@link BlobServer}
+	 * is allowed to make changes.</p>
 	 *
 	 * @param config the configuration to extract the path from
 	 * @return path to store blobs at
 	 * @throws IOException if the file system object cannot be retrieved or
 	 *                     no unique path could be setup after some attempts
 	 */
-	private static String getLocalFileSystemPath(Configuration config) throws IOException {
+	private final static String getNonHAModeFileSystemPath(Configuration config) throws IOException {
 		String storagePath = config.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
 
 		if (StringUtils.isBlank(storagePath)) {
@@ -152,6 +161,10 @@ class FileSystemBlobStore implements BlobStore {
 		final Path path = new Path(storagePath);
 		final FileSystem fs = FileSystem.get(path.toUri());
 		storagePath = path.toString(); // adds a valid fs scheme if not present
+
+		if (fs.isDistributedFS()) {
+			return storagePath;
+		}
 
 		String blobStorePath;
 		final int MAX_ATTEMPTS = 10;

@@ -55,7 +55,7 @@ public class BlobRecoveryITCase {
 		Configuration config = new Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getPath());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, "dfs://" + temporaryFolder.getRoot().getPath());
 
 		try {
 			for (int i = 0; i < server.length; i++) {

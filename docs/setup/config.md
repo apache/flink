@@ -162,7 +162,7 @@ will be used under the directory specified by jobmanager.web.tmpdir.
 
 - `high-availability.zookeeper.storageDir`: Required for HA. Directory for storing JobManager metadata; this is persisted in the state backend and only a pointer to this state is stored in ZooKeeper. Exactly like the checkpoint directory it must be accessible from the JobManager and a local filesystem should only be used for local deployments. Previously this key was named `recovery.zookeeper.storageDir`.
 
-- `blob.storage.directory`: Directory for storing blobs (such as user jar's) on the TaskManagers.
+- `blob.storage.directory`: Directory for storing blobs (such as user jar's) on each of the JobManagers and TaskManagers. It can also be a distributed file system used by all of them either in an explicit form, e.g. `hdfs:///flink/data/`, or a locally-mounted distributed file system which needs to be hinted to flink for the best performance, e.g. `dfs:///flink/data/` for a file system mounted to `/flink/data/`.
 
 - `blob.server.port`: Port definition for the blob server (serving user jar's) on the Taskmanagers. By default the port is set to 0, which means that the operating system is picking an ephemeral port. Flink also accepts a list of ports ("50100,50101"), ranges ("50100-50200") or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple JobManagers are running on the same machine.
 
