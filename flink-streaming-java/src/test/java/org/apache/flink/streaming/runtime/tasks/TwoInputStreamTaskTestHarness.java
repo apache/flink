@@ -124,7 +124,6 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 							bufferSize,
 							inputSerializer1);
 
-
 					StreamEdge streamEdge = new StreamEdge(sourceVertexDummy,
 							targetVertexDummy,
 							1,

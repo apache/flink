@@ -28,10 +28,11 @@ import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -62,9 +63,9 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 
 	@SuppressWarnings("unchecked")
 	public StreamTestSingleInputGate(
-			int numInputChannels,
-			int bufferSize,
-			TypeSerializer<T> serializer) throws IOException, InterruptedException {
+		int numInputChannels,
+		int bufferSize,
+		TypeSerializer<T> serializer) throws IOException, InterruptedException {
 		super(numInputChannels, false);
 
 		this.bufferSize = bufferSize;
@@ -86,39 +87,36 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			final int channelIndex = i;
 			final RecordSerializer<SerializationDelegate<Object>> recordSerializer = new SpanningRecordSerializer<SerializationDelegate<Object>>();
 			final SerializationDelegate<Object> delegate = (SerializationDelegate<Object>) (SerializationDelegate<?>)
-					new SerializationDelegate<StreamElement>(new StreamElementSerializer<T>(serializer));
+				new SerializationDelegate<StreamElement>(new StreamElementSerializer<T>(serializer));
 
 			inputQueues[channelIndex] = new ConcurrentLinkedQueue<InputValue<Object>>();
 			inputChannels[channelIndex] = new TestInputChannel(inputGate, i);
 
 
-			final Answer<Buffer> answer = new Answer<Buffer>() {
+			final Answer<BufferAndAvailability> answer = new Answer<BufferAndAvailability>() {
 				@Override
-				public Buffer answer(InvocationOnMock invocationOnMock) throws Throwable {
+				public BufferAndAvailability answer(InvocationOnMock invocationOnMock) throws Throwable {
 					InputValue<Object> input = inputQueues[channelIndex].poll();
 					if (input != null && input.isStreamEnd()) {
 						when(inputChannels[channelIndex].getInputChannel().isReleased()).thenReturn(
-								true);
-						return EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE);
-					}
-					else if (input != null && input.isStreamRecord()) {
+							true);
+						return new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), false);
+					} else if (input != null && input.isStreamRecord()) {
 						Object inputElement = input.getStreamRecord();
 						final Buffer buffer = new Buffer(
-								MemorySegmentFactory.allocateUnpooledSegment(bufferSize),
-								mock(BufferRecycler.class));
-						
+							MemorySegmentFactory.allocateUnpooledSegment(bufferSize),
+							mock(BufferRecycler.class));
+
 						recordSerializer.setNextBuffer(buffer);
 						delegate.setInstance(inputElement);
 						recordSerializer.addRecord(delegate);
 
 						// Call getCurrentBuffer to ensure size is set
-						return recordSerializer.getCurrentBuffer();
-					}
-					else if (input != null && input.isEvent()) {
+						return new BufferAndAvailability(recordSerializer.getCurrentBuffer(), false);
+					} else if (input != null && input.isEvent()) {
 						AbstractEvent event = input.getEvent();
-						return EventSerializer.toBuffer(event);
-					}
-					else {
+						return new BufferAndAvailability(EventSerializer.toBuffer(event), false);
+					} else {
 						synchronized (inputQueues[channelIndex]) {
 							inputQueues[channelIndex].wait();
 							return answer(invocationOnMock);
@@ -130,7 +128,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			when(inputChannels[channelIndex].getInputChannel().getNextBuffer()).thenAnswer(answer);
 
 			inputGate.setInputChannel(new IntermediateResultPartitionID(),
-					inputChannels[channelIndex].getInputChannel());
+				inputChannels[channelIndex].getInputChannel());
 		}
 	}
 
@@ -139,7 +137,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			inputQueues[channel].add(InputValue.element(element));
 			inputQueues[channel].notifyAll();
 		}
-		inputGate.onAvailableBuffer(inputChannels[channel].getInputChannel());
+		inputGate.notifyChannelNonEmpty(inputChannels[channel].getInputChannel());
 	}
 
 	public void sendEvent(AbstractEvent event, int channel) {
@@ -147,7 +145,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			inputQueues[channel].add(InputValue.event(event));
 			inputQueues[channel].notifyAll();
 		}
-		inputGate.onAvailableBuffer(inputChannels[channel].getInputChannel());
+		inputGate.notifyChannelNonEmpty(inputChannels[channel].getInputChannel());
 	}
 
 	public void endInput() {
@@ -156,7 +154,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 				inputQueues[i].add(InputValue.streamEnd());
 				inputQueues[i].notifyAll();
 			}
-			inputGate.onAvailableBuffer(inputChannels[i].getInputChannel());
+			inputGate.notifyChannelNonEmpty(inputChannels[i].getInputChannel());
 		}
 	}
 

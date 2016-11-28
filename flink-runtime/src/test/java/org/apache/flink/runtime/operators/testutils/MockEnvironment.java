@@ -67,9 +67,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class MockEnvironment implements Environment {
-	
+
 	private final TaskInfo taskInfo;
-	
+
 	private final ExecutionConfig executionConfig;
 
 	private final MemoryManager memManager;
@@ -184,7 +184,7 @@ public class MockEnvironment implements Environment {
 						}
 
 						if (result == RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER
-								|| result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
+							|| result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
 							break;
 						}
 					}
@@ -234,9 +234,9 @@ public class MockEnvironment implements Environment {
 	@Override
 	public TaskManagerRuntimeInfo getTaskManagerInfo() {
 		return new TaskManagerRuntimeInfo(
-				"localhost",
-				new UnmodifiableConfiguration(new Configuration()),
-				System.getProperty("java.io.tmpdir"));
+			"localhost",
+			new UnmodifiableConfiguration(new Configuration()),
+			System.getProperty("java.io.tmpdir"));
 	}
 
 	@Override

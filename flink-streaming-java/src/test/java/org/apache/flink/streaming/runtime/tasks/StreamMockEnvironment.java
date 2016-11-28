@@ -102,13 +102,13 @@ public class StreamMockEnvironment implements Environment {
 	private volatile boolean wasFailedExternally = false;
 
 	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, ExecutionConfig executionConfig,
-									long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
+								 long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
 		this.taskInfo = new TaskInfo(
-				"", /* task name */
-				1, /* num key groups / max parallelism */
-				0, /* index of this subtask */
-				1, /* num subtasks */
-				0 /* attempt number */);
+			"", /* task name */
+			1, /* num key groups / max parallelism */
+			0, /* index of this subtask */
+			1, /* num subtasks */
+			0 /* attempt number */);
 		this.jobConfiguration = jobConfig;
 		this.taskConfiguration = taskConfig;
 		this.inputs = new LinkedList<InputGate>();
@@ -146,8 +146,8 @@ public class StreamMockEnvironment implements Environment {
 				@Override
 				public Buffer answer(InvocationOnMock invocationOnMock) throws Throwable {
 					return new Buffer(
-							MemorySegmentFactory.allocateUnpooledSegment(bufferSize),
-							mock(BufferRecycler.class));
+						MemorySegmentFactory.allocateUnpooledSegment(bufferSize),
+						mock(BufferRecycler.class));
 				}
 			});
 
@@ -175,7 +175,7 @@ public class StreamMockEnvironment implements Environment {
 						}
 
 						if (result == RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER
-								|| result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
+							|| result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
 							break;
 						}
 					}
@@ -318,7 +318,7 @@ public class StreamMockEnvironment implements Environment {
 
 	@Override
 	public void acknowledgeCheckpoint(
-			CheckpointMetaData checkpointMetaData, SubtaskState subtaskState) {
+		CheckpointMetaData checkpointMetaData, SubtaskState subtaskState) {
 	}
 
 	@Override
@@ -343,4 +343,3 @@ public class StreamMockEnvironment implements Environment {
 		return new UnregisteredTaskMetricsGroup();
 	}
 }
-
