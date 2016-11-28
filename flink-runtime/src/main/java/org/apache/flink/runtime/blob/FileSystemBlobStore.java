@@ -101,7 +101,7 @@ class FileSystemBlobStore implements BlobStore {
 				this.isDistributed = false;
 			}
 		} else {
-			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + ".");
+			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + "'.");
 		}
 
 		final Path p = new Path(basePath);
