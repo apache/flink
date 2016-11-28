@@ -1046,11 +1046,10 @@ class TaskManager(
       network.getKvStateRegistry.unregisterListener()
     }
     
-    // failsafe shutdown of the metrics registry
     try {
-      metricsRegistry.shutdown()
+      taskManagerMetricGroup.close()
     } catch {
-      case t: Exception => log.error("MetricRegistry did not shutdown properly.", t)
+      case t: Exception => log.warn("TaskManagerMetricGroup could not be closed successfully.", t)
     }
   }
 
