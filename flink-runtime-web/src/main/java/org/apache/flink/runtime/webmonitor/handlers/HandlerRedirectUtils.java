@@ -89,7 +89,6 @@ public class HandlerRedirectUtils {
 		HttpResponse redirectResponse = new DefaultFullHttpResponse(
 				HttpVersion.HTTP_1_1, HttpResponseStatus.TEMPORARY_REDIRECT);
 		redirectResponse.headers().set(HttpHeaders.Names.LOCATION, newLocation);
-		redirectResponse.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
 		redirectResponse.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
 
 		return redirectResponse;
@@ -102,7 +101,6 @@ public class HandlerRedirectUtils {
 		HttpResponse unavailableResponse = new DefaultFullHttpResponse(
 				HttpVersion.HTTP_1_1, HttpResponseStatus.SERVICE_UNAVAILABLE, Unpooled.wrappedBuffer(bytes));
 
-		unavailableResponse.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
 		unavailableResponse.headers().set(HttpHeaders.Names.CONTENT_LENGTH, bytes.length);
 		unavailableResponse.headers().set(HttpHeaders.Names.CONTENT_TYPE, MimeTypes.getMimeTypeForExtension("txt"));
 

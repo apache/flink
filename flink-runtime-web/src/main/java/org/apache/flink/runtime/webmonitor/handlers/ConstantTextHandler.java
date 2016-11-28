@@ -37,9 +37,9 @@ import java.io.UnsupportedEncodingException;
  */
 @ChannelHandler.Sharable
 public class ConstantTextHandler extends SimpleChannelInboundHandler<Routed> {
-	
+
 	private final byte[] encodedText;
-	
+
 	public ConstantTextHandler(String text) {
 		try {
 			this.encodedText = text.getBytes("UTF-8");
@@ -48,16 +48,15 @@ public class ConstantTextHandler extends SimpleChannelInboundHandler<Routed> {
 			throw new RuntimeException(e.getMessage(), e);
 		}
 	}
-	
+
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
 		HttpResponse response = new DefaultFullHttpResponse(
 			HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.wrappedBuffer(encodedText));
 
 		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, encodedText.length);
-		response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
 		response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
-		
+
 		KeepAliveWrite.flush(ctx, routed.request(), response);
 	}
 }

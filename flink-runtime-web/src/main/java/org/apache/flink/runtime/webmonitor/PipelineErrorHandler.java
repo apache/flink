@@ -64,7 +64,6 @@ public class PipelineErrorHandler extends SimpleChannelInboundHandler<Object> {
 						HttpResponseStatus.INTERNAL_SERVER_ERROR, Unpooled.wrappedBuffer(error.getBytes()));
 
 			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
-			response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
 			response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
 
 			ctx.writeAndFlush(response);
