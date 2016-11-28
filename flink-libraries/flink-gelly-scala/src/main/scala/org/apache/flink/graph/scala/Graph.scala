@@ -294,7 +294,7 @@ object Graph {
 }
 
 /**
- * Represents a graph consisting of [[Edge]] edgs and [[Vertex]] vertices.
+ * Represents a graph consisting of [[Edge]] edges and [[Vertex]] vertices.
  *
  * @param jgraph the underlying java api Graph.
  * @tparam K the key type for vertex and edge identifiers
