@@ -23,6 +23,14 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 import static java.util.Objects.requireNonNull;
 
@@ -37,6 +45,7 @@ import static java.util.Objects.requireNonNull;
 public class FoldingStateDescriptor<T, ACC> extends SimpleStateDescriptor<ACC, FoldingState<T, ACC>> {
 	private static final long serialVersionUID = 1L;
 
+	private transient ACC initialValue;
 	private final FoldFunction<T, ACC> foldFunction;
 
 	/**
@@ -51,13 +60,14 @@ public class FoldingStateDescriptor<T, ACC> extends SimpleStateDescriptor<ACC, F
 	 * @param typeClass The type of the values in the state.
 	 */
 	public FoldingStateDescriptor(String name, ACC initialValue, FoldFunction<T, ACC> foldFunction, Class<ACC> typeClass) {
-		super(name, typeClass, initialValue);
+		super(name, typeClass);
 
 		if (foldFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("FoldFunction of FoldingState can not be a RichFunction.");
 		}
 
 		this.foldFunction = requireNonNull(foldFunction);
+		this.initialValue = initialValue;
 	}
 
 	/**
@@ -69,13 +79,14 @@ public class FoldingStateDescriptor<T, ACC> extends SimpleStateDescriptor<ACC, F
 	 * @param typeInfo The type of the values in the state.
 	 */
 	public FoldingStateDescriptor(String name, ACC initialValue, FoldFunction<T, ACC> foldFunction, TypeInformation<ACC> typeInfo) {
-		super(name, typeInfo, initialValue);
+		super(name, typeInfo);
 
 		if (foldFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("FoldFunction of FoldingState can not be a RichFunction.");
 		}
 
 		this.foldFunction = requireNonNull(foldFunction);
+		this.initialValue = initialValue;
 	}
 
 	/**
@@ -87,20 +98,31 @@ public class FoldingStateDescriptor<T, ACC> extends SimpleStateDescriptor<ACC, F
 	 * @param typeSerializer The type serializer of the values in the state.
 	 */
 	public FoldingStateDescriptor(String name, ACC initialValue, FoldFunction<T, ACC> foldFunction, TypeSerializer<ACC> typeSerializer) {
-		super(name, typeSerializer, initialValue);
+		super(name, typeSerializer);
 
 		if (foldFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("FoldFunction of FoldingState can not be a RichFunction.");
 		}
 
 		this.foldFunction = requireNonNull(foldFunction);
+		this.initialValue = initialValue;
 	}
 
 	// ------------------------------------------------------------------------
-	
-	@Override
-	public FoldingState<T, ACC> bind(StateBackend stateBackend) throws Exception {
-		return stateBackend.createFoldingState(this);
+
+	/**
+	 * Returns the initial value used in the folding.
+	 */
+	public ACC getInitialValue() {
+		if (initialValue != null) {
+			if (typeSerializer != null) {
+				return typeSerializer.copy(initialValue);
+			} else {
+				throw new IllegalStateException("Serializer not yet initialized.");
+			}
+		} else {
+			return null;
+		}
 	}
 
 	/**
@@ -110,16 +132,11 @@ public class FoldingStateDescriptor<T, ACC> extends SimpleStateDescriptor<ACC, F
 		return foldFunction;
 	}
 
-	/**
-	 * Returns the initial value used in the folding.
-	 */
-	public ACC getInitialValue() {
-		return defaultValue;
-	}
+	// ------------------------------------------------------------------------
 
 	@Override
-	public ACC getDefaultValue() {
-		return null;
+	public FoldingState<T, ACC> bind(StateBackend stateBackend) throws Exception {
+		return stateBackend.createFoldingState(this);
 	}
 
 	@Override
@@ -148,9 +165,71 @@ public class FoldingStateDescriptor<T, ACC> extends SimpleStateDescriptor<ACC, F
 	public String toString() {
 		return "FoldingStateDescriptor{" +
 				"serializer=" + typeSerializer +
-				", initialValue=" + defaultValue +
+				", initialValue=" + initialValue +
 				", foldFunction=" + foldFunction +
 				'}';
+	}
+
+	// ------------------------------------------------------------------------
+	//  Serialization
+	// ------------------------------------------------------------------------
+
+	private void writeObject(final ObjectOutputStream out) throws IOException {
+		// write the fold function
+		out.defaultWriteObject();
+
+		// write the non-serializable default value field
+		if (initialValue == null) {
+			// we don't have an initial value
+			out.writeBoolean(false);
+		} else {
+			// we have an initial value
+			out.writeBoolean(true);
+
+			byte[] serializedDefaultValue;
+			try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(baos))
+			{
+				TypeSerializer<ACC> duplicateSerializer = typeSerializer.duplicate();
+				duplicateSerializer.serialize(initialValue, outView);
+
+				outView.flush();
+				serializedDefaultValue = baos.toByteArray();
+			}
+			catch (Exception e) {
+				throw new IOException("Unable to serialize initial value of type " +
+					initialValue.getClass().getSimpleName() + ".", e);
+			}
+
+			out.writeInt(serializedDefaultValue.length);
+			out.write(serializedDefaultValue);
+		}
+	}
+
+	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
+		// read the fold function
+		in.defaultReadObject();
+
+		// read the initial value field
+		boolean hasInitialValue = in.readBoolean();
+		if (hasInitialValue) {
+			int size = in.readInt();
+
+			byte[] buffer = new byte[size];
+
+			in.readFully(buffer);
+
+			try (ByteArrayInputStream bais = new ByteArrayInputStream(buffer);
+				DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(bais))
+			{
+				initialValue = typeSerializer.deserialize(inView);
+			}
+			catch (Exception e) {
+				throw new IOException("Unable to deserialize initial value.", e);
+			}
+		} else {
+			initialValue = null;
+		}
 	}
 
 	@Override

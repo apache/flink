@@ -36,7 +36,7 @@ import java.io.IOException;
  * @param <N> The type of the namespace.
  * @param <V> The type of value that the state state stores.
  */
-public class RocksDBReducingState<K, N, V> extends RocksDBSimpleState<K, N, V> implements ReducingState<V> {
+public class RocksDBReducingState<K, N, V> extends RocksDBSimpleState<K, N, V, ReducingStateDescriptor<V>> implements ReducingState<V> {
 	/** User-specified reduce function */
 	private final ReduceFunction<V> reduceFunction;
 

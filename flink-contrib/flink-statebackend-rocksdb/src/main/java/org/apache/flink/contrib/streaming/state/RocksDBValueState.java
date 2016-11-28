@@ -34,7 +34,7 @@ import java.io.IOException;
  * @param <N> The type of the namespace.
  * @param <V> The type of value that the state state stores.
  */
-public class RocksDBValueState<K, N, V> extends RocksDBSimpleState<K, N, V> implements ValueState<V> {
+public class RocksDBValueState<K, N, V> extends RocksDBSimpleState<K, N, V, ValueStateDescriptor<V>> implements ValueState<V> {
 	/**
 	 * Creates a new {@code RocksDBValueState}.
 	 *
@@ -49,6 +49,13 @@ public class RocksDBValueState<K, N, V> extends RocksDBSimpleState<K, N, V> impl
 	}
 
 	@Override
+	public V get() {
+		V ret = super.get();
+
+		return (ret == null ? stateDesc.getDefaultValue() : ret);
+	}
+
+	@Override
 	public V value() throws IOException {
 		return get();
 	}
@@ -59,12 +66,15 @@ public class RocksDBValueState<K, N, V> extends RocksDBSimpleState<K, N, V> impl
 			clear();
 			return;
 		}
-		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
+
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
 			byte[] key = keySerializationStream.toByteArray();
+
 			keySerializationStream.reset();
+			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
 			valueSerializer.serialize(value, out);
+
 			backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 		} catch (Exception e) {
 			throw new RuntimeException("Error while adding data to RocksDB", e);

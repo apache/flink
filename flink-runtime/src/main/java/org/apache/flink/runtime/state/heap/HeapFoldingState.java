@@ -37,9 +37,8 @@ import java.util.Map;
  * @param <T> The type of the values that can be folded into the state.
  * @param <ACC> The type of the value in the folding state.
  */
-public class HeapFoldingState<K, N, T, ACC> extends HeapSimpleState<K, N, ACC> implements FoldingState<T, ACC> {
+public class HeapFoldingState<K, N, T, ACC> extends HeapSimpleState<K, N, ACC, FoldingStateDescriptor<T, ACC>> implements FoldingState<T, ACC> {
 
-	private final ACC initialValue;
 	private final FoldFunction<T, ACC> foldFunction;
 
 	/**
@@ -55,7 +54,7 @@ public class HeapFoldingState<K, N, T, ACC> extends HeapSimpleState<K, N, ACC> i
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 		super(backend, stateDesc, stateTable, keySerializer, namespaceSerializer);
-		this.initialValue = stateDesc.getInitialValue();
+
 		this.foldFunction = stateDesc.getFoldFunction();
 	}
 
@@ -82,12 +81,12 @@ public class HeapFoldingState<K, N, T, ACC> extends HeapSimpleState<K, N, ACC> i
 		}
 
 		ACC currentValue = keyedMap.get(backend.getCurrentKey());
+		if (currentValue == null) {
+			currentValue = stateDesc.getInitialValue();
+		}
+
 		try {
-			if (currentValue == null) {
-				keyedMap.put(backend.getCurrentKey(), foldFunction.fold(initialValue, value));
-			} else {
-				keyedMap.put(backend.getCurrentKey(), foldFunction.fold(currentValue, value));
-			}
+			keyedMap.put(backend.getCurrentKey(), foldFunction.fold(currentValue, value));
 		} catch (Exception e) {
 			throw new RuntimeException("Could not add value to folding state.", e);
 		}

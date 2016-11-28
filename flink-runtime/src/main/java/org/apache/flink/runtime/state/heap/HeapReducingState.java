@@ -36,7 +36,7 @@ import java.util.Map;
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-public class HeapReducingState<K, N, V> extends HeapSimpleState<K, N, V> implements ReducingState<V> {
+public class HeapReducingState<K, N, V> extends HeapSimpleState<K, N, V, ReducingStateDescriptor<V>> implements ReducingState<V> {
 
 	private final ReduceFunction<V> reduceFunction;
 
@@ -54,6 +54,7 @@ public class HeapReducingState<K, N, V> extends HeapSimpleState<K, N, V> impleme
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 		super(backend, stateDesc, stateTable, keySerializer, namespaceSerializer);
+
 		this.reduceFunction = stateDesc.getReduceFunction();
 	}
 
@@ -79,13 +80,15 @@ public class HeapReducingState<K, N, V> extends HeapSimpleState<K, N, V> impleme
 			namespaceMap.put(currentNamespace, keyedMap);
 		}
 
-		V currentValue = keyedMap.put(backend.<K>getCurrentKey(), value);
-		if (currentValue != null) {
-			try {
-				keyedMap.put(backend.<K>getCurrentKey(), reduceFunction.reduce(currentValue, value));
-			} catch (Exception e) {
-				throw new RuntimeException("Could not add value to reducing state.", e);
+		V currentValue = keyedMap.get(backend.getCurrentKey());
+		try {
+			if (currentValue == null) {
+				keyedMap.put(backend.getCurrentKey(), stateDesc.getSerializer().copy(value));
+			} else {
+				keyedMap.put(backend.getCurrentKey(), reduceFunction.reduce(currentValue, value));
 			}
+		} catch (Exception e) {
+			throw new RuntimeException("Could not add value to reducing state.", e);
 		}
 	}
 }

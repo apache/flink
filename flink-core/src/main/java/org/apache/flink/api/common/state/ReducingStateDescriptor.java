@@ -36,7 +36,7 @@ import static java.util.Objects.requireNonNull;
 @PublicEvolving
 public class ReducingStateDescriptor<T> extends SimpleStateDescriptor<T, ReducingState<T>> {
 	private static final long serialVersionUID = 1L;
-	
+
 	
 	private final ReduceFunction<T> reduceFunction;
 
@@ -51,12 +51,13 @@ public class ReducingStateDescriptor<T> extends SimpleStateDescriptor<T, Reducin
 	 * @param typeClass The type of the values in the state.
 	 */
 	public ReducingStateDescriptor(String name, ReduceFunction<T> reduceFunction, Class<T> typeClass) {
-		super(name, typeClass, null);
-		this.reduceFunction = requireNonNull(reduceFunction);
+		super(name, typeClass);
 
 		if (reduceFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("ReduceFunction of ReducingState can not be a RichFunction.");
 		}
+
+		this.reduceFunction = requireNonNull(reduceFunction);
 	}
 
 	/**
@@ -67,7 +68,12 @@ public class ReducingStateDescriptor<T> extends SimpleStateDescriptor<T, Reducin
 	 * @param typeInfo The type of the values in the state.
 	 */
 	public ReducingStateDescriptor(String name, ReduceFunction<T> reduceFunction, TypeInformation<T> typeInfo) {
-		super(name, typeInfo, null);
+		super(name, typeInfo);
+
+		if (reduceFunction instanceof RichFunction) {
+			throw new UnsupportedOperationException("ReduceFunction of ReducingState can not be a RichFunction.");
+		}
+
 		this.reduceFunction = requireNonNull(reduceFunction);
 	}
 
@@ -79,7 +85,12 @@ public class ReducingStateDescriptor<T> extends SimpleStateDescriptor<T, Reducin
 	 * @param typeSerializer The type serializer of the values in the state.
 	 */
 	public ReducingStateDescriptor(String name, ReduceFunction<T> reduceFunction, TypeSerializer<T> typeSerializer) {
-		super(name, typeSerializer, null);
+		super(name, typeSerializer);
+
+		if (reduceFunction instanceof RichFunction) {
+			throw new UnsupportedOperationException("ReduceFunction of ReducingState can not be a RichFunction.");
+		}
+
 		this.reduceFunction = requireNonNull(reduceFunction);
 	}
 

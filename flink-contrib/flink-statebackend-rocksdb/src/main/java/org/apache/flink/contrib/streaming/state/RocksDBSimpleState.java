@@ -37,11 +37,12 @@ import java.io.IOException;
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <V> The type of value that the state state stores.
+ * @param <SD> The type of the state descriptor.
  */
-public class RocksDBSimpleState<K, N, V> extends AbstractRocksDBState<K, N> implements UpdatableState<V> {
+public class RocksDBSimpleState<K, N, V, SD extends SimpleStateDescriptor<V, ? extends State<V>>> extends AbstractRocksDBState<K, N> implements UpdatableState<V> {
 
 	/** State descriptor from which to create this state instance */
-	protected final SimpleStateDescriptor<V, ? extends State<V>> stateDesc;
+	protected final SD stateDesc;
 
 	/** Serializer for the values */
 	protected final TypeSerializer<V> valueSerializer;
@@ -60,7 +61,7 @@ public class RocksDBSimpleState<K, N, V> extends AbstractRocksDBState<K, N> impl
 	 */
 	public RocksDBSimpleState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			SimpleStateDescriptor<V, ? extends State<V>> stateDesc,
+			SD stateDesc,
 			RocksDBKeyedStateBackend<K> backend) {
 
 		super(columnFamily, namespaceSerializer, backend);
@@ -77,10 +78,12 @@ public class RocksDBSimpleState<K, N, V> extends AbstractRocksDBState<K, N> impl
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
 			byte[] key = keySerializationStream.toByteArray();
+
 			byte[] valueBytes = backend.db.get(columnFamily, key);
 			if (valueBytes == null) {
-				return stateDesc.getDefaultValue();
+				return null;
 			}
+
 			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
 		} catch (IOException|RocksDBException e) {
 			throw new RuntimeException("Error while retrieving data from RocksDB.", e);
@@ -92,6 +95,7 @@ public class RocksDBSimpleState<K, N, V> extends AbstractRocksDBState<K, N> impl
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
 			byte[] key = keySerializationStream.toByteArray();
+
 			backend.db.remove(columnFamily, writeOptions, key);
 		} catch (IOException|RocksDBException e) {
 			throw new RuntimeException("Error while removing entry from RocksDB", e);

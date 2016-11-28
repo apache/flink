@@ -34,9 +34,10 @@ import java.util.Map;
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
+ * @param <SD> The type of the state descriptor.
  */
-public class HeapSimpleState<K, N, V>
-	extends AbstractHeapState<K, N, V, SimpleStateDescriptor<V, ? extends State<V>>>
+public class HeapSimpleState<K, N, V, SD extends SimpleStateDescriptor<V, ? extends State<V>>>
+	extends AbstractHeapState<K, N, V, SD>
 	implements UpdatableState<V> {
 
 	/**
@@ -47,7 +48,7 @@ public class HeapSimpleState<K, N, V>
 	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
 	 */
 	public HeapSimpleState(KeyedStateBackend<K> backend,
-		SimpleStateDescriptor<V, ? extends State<V>> stateDesc,
+		SD stateDesc,
 		StateTable<K, N, V> stateTable,
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<N> namespaceSerializer) {
@@ -87,17 +88,17 @@ public class HeapSimpleState<K, N, V>
 
 		Map<N, Map<K, V>> namespaceMap = stateTable.get(backend.getCurrentKeyGroupIndex());
 		if (namespaceMap == null) {
-			return stateDesc.getDefaultValue();
+			return null;
 		}
 
 		Map<K, V> keyedMap = namespaceMap.get(currentNamespace);
 		if (keyedMap == null) {
-			return stateDesc.getDefaultValue();
+			return null;
 		}
 
 		V result = keyedMap.get(backend.getCurrentKey());
 		if (result == null) {
-			return stateDesc.getDefaultValue();
+			return null;
 		}
 
 		return result;

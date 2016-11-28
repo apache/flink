@@ -23,13 +23,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 import static java.util.Objects.requireNonNull;
@@ -55,8 +50,7 @@ public abstract class SimpleStateDescriptor<T, S extends State<T>> extends State
 	 * and dropped during serialization */
 	private transient TypeInformation<T> typeInfo;
 
-	/** The default value returned by the state when no other value is bound to a key */
-	protected transient T defaultValue;
+
 
 	// ------------------------------------------------------------------------
 
@@ -65,12 +59,10 @@ public abstract class SimpleStateDescriptor<T, S extends State<T>> extends State
 	 *
 	 * @param name The name of the {@code SimpleStateDescriptor}.
 	 * @param serializer The type serializer for the values in the state.
-	 * @param defaultValue The default value that will be set when requesting state without setting a value before.
 	 */
-	protected SimpleStateDescriptor(String name, TypeSerializer<T> serializer, T defaultValue) {
+	protected SimpleStateDescriptor(String name, TypeSerializer<T> serializer) {
 		super(name);
 		this.typeSerializer = requireNonNull(serializer, "serializer must not be null");
-		this.defaultValue = defaultValue;
 	}
 
 	/**
@@ -78,26 +70,22 @@ public abstract class SimpleStateDescriptor<T, S extends State<T>> extends State
 	 *
 	 * @param name The name of the {@code SimpleStateDescriptor}.
 	 * @param typeInfo The type information for the values in the state.
-	 * @param defaultValue The default value that will be set when requesting state without setting a value before.
 	 */
-	protected SimpleStateDescriptor(String name, TypeInformation<T> typeInfo, T defaultValue) {
+	protected SimpleStateDescriptor(String name, TypeInformation<T> typeInfo) {
 		super(name);
 		this.typeInfo = requireNonNull(typeInfo, "type information must not be null");
-		this.defaultValue = defaultValue;
 	}
 
 	/**
 	 * Create a new {@code StateDescriptor} with the given name and the given type information.
 	 *
 	 * <p>If this constructor fails (because it is not possible to describe the type via a class),
-	 * consider using the {@link #SimpleStateDescriptor(String, TypeInformation, Object)} constructor.
+	 * consider using the {@link #SimpleStateDescriptor(String, TypeInformation)} constructor.
 	 *
 	 * @param name The name of the {@code StateDescriptor}.
 	 * @param type The class of the type of values in the state.
-	 * @param defaultValue The default value that will be set when requesting state without setting
-	 *                     a value before.
 	 */
-	protected SimpleStateDescriptor(String name, Class<T> type, T defaultValue) {
+	protected SimpleStateDescriptor(String name, Class<T> type) {
 		super(name);
 
 		requireNonNull(type, "type class must not be null");
@@ -107,26 +95,9 @@ public abstract class SimpleStateDescriptor<T, S extends State<T>> extends State
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot create full type information based on the given class. If the type has generics, please", e);
 		}
-
-		this.defaultValue = defaultValue;
 	}
 
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Returns the default value.
-	 */
-	public T getDefaultValue() {
-		if (defaultValue != null) {
-			if (typeSerializer != null) {
-				return typeSerializer.copy(defaultValue);
-			} else {
-				throw new IllegalStateException("Serializer not yet initialized.");
-			}
-		} else {
-			return null;
-		}
-	}
 
 	/**
 	 * Returns the {@link TypeSerializer} that can be used to serialize the value in the state.
@@ -169,58 +140,5 @@ public abstract class SimpleStateDescriptor<T, S extends State<T>> extends State
 
 		// write all the non-transient fields
 		out.defaultWriteObject();
-
-		// write the non-serializable default value field
-		if (defaultValue == null) {
-			// we don't have a default value
-			out.writeBoolean(false);
-		} else {
-			// we have a default value
-			out.writeBoolean(true);
-
-			byte[] serializedDefaultValue;
-			try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(baos))
-			{
-				TypeSerializer<T> duplicateSerializer = typeSerializer.duplicate();
-				duplicateSerializer.serialize(defaultValue, outView);
-
-				outView.flush();
-				serializedDefaultValue = baos.toByteArray();
-			}
-			catch (Exception e) {
-				throw new IOException("Unable to serialize default value of type " +
-					defaultValue.getClass().getSimpleName() + ".", e);
-			}
-
-			out.writeInt(serializedDefaultValue.length);
-			out.write(serializedDefaultValue);
-		}
-	}
-
-	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
-		// read the non-transient fields
-		in.defaultReadObject();
-
-		// read the default value field
-		boolean hasDefaultValue = in.readBoolean();
-		if (hasDefaultValue) {
-			int size = in.readInt();
-
-			byte[] buffer = new byte[size];
-
-			in.readFully(buffer);
-
-			try (ByteArrayInputStream bais = new ByteArrayInputStream(buffer);
-				DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(bais))
-			{
-				defaultValue = typeSerializer.deserialize(inView);
-			}
-			catch (Exception e) {
-				throw new IOException("Unable to deserialize default value.", e);
-			}
-		} else {
-			defaultValue = null;
-		}
 	}
 }

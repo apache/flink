@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.util.Preconditions;
 
@@ -35,7 +36,7 @@ import java.util.Map;
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-public class HeapValueState<K, N, V> extends HeapSimpleState<K, N, V> implements ValueState<V> {
+public class HeapValueState<K, N, V> extends HeapSimpleState<K, N, V, ValueStateDescriptor<V>> implements ValueState<V> {
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
@@ -50,6 +51,13 @@ public class HeapValueState<K, N, V> extends HeapSimpleState<K, N, V> implements
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 		super(backend, stateDesc, stateTable, keySerializer, namespaceSerializer);
+	}
+
+	@Override
+	public V get() {
+		V ret = super.get();
+
+		return (ret == null ? stateDesc.getDefaultValue() : ret);
 	}
 
 	@Override
@@ -80,5 +88,16 @@ public class HeapValueState<K, N, V> extends HeapSimpleState<K, N, V> implements
 		}
 
 		keyedMap.put(backend.getCurrentKey(), value);
+	}
+
+	@Override
+	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
+		byte[] value = super.getSerializedValue(serializedKeyAndNamespace);
+
+		if (value != null) {
+			return value;
+		} else {
+			return KvStateRequestSerializer.serializeValue(stateDesc.getDefaultValue(), stateDesc.getSerializer());
+		}
 	}
 }
