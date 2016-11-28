@@ -115,7 +115,7 @@ object AkkaUtils {
   }
 
   def getAkkaConfig(configuration: Configuration, hostname: String, port: Int): Config = {
-    getAkkaConfig(configuration, if (hostname == null) Some((hostname, port)) else None)
+    getAkkaConfig(configuration, if (hostname != null) Some((hostname, port)) else None)
   }
 
   /**
