@@ -129,7 +129,7 @@ class ScalarOperatorsTest extends ExpressionTestBase {
     testSqlApi(
       "CASE 1 WHEN 1, 2 THEN '1 or 2' WHEN 2 THEN 'not possible' WHEN 3, 2 THEN '3' " +
       "ELSE 'none of the above' END",
-      "1 or 2")
+      "1 or 2           ")
     testSqlApi("CASE WHEN 'a'='a' THEN 1 END", "1")
     testSqlApi("CASE 2 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END", "bcd")
     testSqlApi("CASE f2 WHEN 1 THEN 11 WHEN 2 THEN 4 ELSE NULL END", "11")

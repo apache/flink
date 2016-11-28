@@ -21,7 +21,7 @@ package org.apache.flink.api.table.runtime.io
 import org.apache.flink.api.common.io.{GenericInputFormat, NonParallelInput}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.api.table.runtime.Compiler
+import org.apache.flink.api.table.codegen.Compiler
 import org.apache.flink.core.io.GenericInputSplit
 import org.slf4j.LoggerFactory
 

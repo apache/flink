@@ -21,10 +21,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.utils.TableTestBase
 import org.apache.flink.api.table.utils.TableTestUtil._
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
-// TODO enable if FLINK-4825 is solved
-@Ignore
 class ExpressionReductionTest extends TableTestBase {
 
   @Test
@@ -64,7 +62,7 @@ class ExpressionReductionTest extends TableTestBase {
         "true AS EXPR$9",
         "2 AS EXPR$10",
         "true AS EXPR$11",
-        "'TRUEX' AS EXPR$12"
+        "'trueX' AS EXPR$12"
       ),
       term("where", ">(a, 8)")
     )
@@ -109,7 +107,7 @@ class ExpressionReductionTest extends TableTestBase {
         "true AS EXPR$9",
         "2 AS EXPR$10",
         "true AS EXPR$11",
-        "'TRUEX' AS EXPR$12"
+        "'trueX' AS EXPR$12"
       )
     )
 
@@ -164,7 +162,7 @@ class ExpressionReductionTest extends TableTestBase {
         "false AS _c5",
         "true AS _c6",
         "2E0 AS _c7",
-        "'TRUEX' AS _c8"
+        "'trueX' AS _c8"
       ),
       term("where", ">(a, 8)")
     )
@@ -200,7 +198,7 @@ class ExpressionReductionTest extends TableTestBase {
         "false AS _c5",
         "true AS _c6",
         "2E0 AS _c7",
-        "'TRUEX' AS _c8"
+        "'trueX' AS _c8"
       )
     )
 
@@ -262,7 +260,7 @@ class ExpressionReductionTest extends TableTestBase {
         "true AS EXPR$9",
         "2 AS EXPR$10",
         "true AS EXPR$11",
-        "'TRUEX' AS EXPR$12"
+        "'trueX' AS EXPR$12"
       ),
       term("where", ">(a, 8)")
     )
@@ -307,7 +305,7 @@ class ExpressionReductionTest extends TableTestBase {
         "true AS EXPR$9",
         "2 AS EXPR$10",
         "true AS EXPR$11",
-        "'TRUEX' AS EXPR$12"
+        "'trueX' AS EXPR$12"
       )
     )
 
@@ -362,7 +360,7 @@ class ExpressionReductionTest extends TableTestBase {
         "false AS _c5",
         "true AS _c6",
         "2E0 AS _c7",
-        "'TRUEX' AS _c8"
+        "'trueX' AS _c8"
       ),
       term("where", ">(a, 8)")
     )
@@ -398,7 +396,7 @@ class ExpressionReductionTest extends TableTestBase {
         "false AS _c5",
         "true AS _c6",
         "2E0 AS _c7",
-        "'TRUEX' AS _c8"
+        "'trueX' AS _c8"
       )
     )
 
