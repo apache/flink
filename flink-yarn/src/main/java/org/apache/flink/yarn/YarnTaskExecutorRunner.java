@@ -18,33 +18,20 @@
 
 package org.apache.flink.yarn;
 
-import akka.actor.ActorSystem;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
-import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.security.SecurityContext;
-import org.apache.flink.runtime.taskexecutor.TaskExecutor;
-import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
-import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
-import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
-import org.apache.flink.runtime.taskexecutor.utils.TaskExecutorMetricsInitializer;
+import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
@@ -52,17 +39,14 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.duration.FiniteDuration;
 
-import javax.annotation.concurrent.GuardedBy;
 import java.io.File;
-import java.net.InetAddress;
 import java.util.Map;
 
 /**
  * This class is the executable entry point for running a TaskExecutor in a YARN container.
  */
-public class YarnTaskExecutorRunner implements FatalErrorHandler {
+public class YarnTaskExecutorRunner {
 
 	/** Logger */
 	protected static final Logger LOG = LoggerFactory.getLogger(YarnTaskExecutorRunner.class);
@@ -70,30 +54,23 @@ public class YarnTaskExecutorRunner implements FatalErrorHandler {
 	/** The process environment variables */
 	private static final Map<String, String> ENV = System.getenv();
 
-	/** The exit code returned if the initialization of the application master failed */
+	/** The exit code returned if the initialization of the yarn task executor runner failed */
 	private static final int INIT_ERROR_EXIT_CODE = 31;
 
-	/** The lock to guard startup / shutdown / manipulation methods */
-	private final Object lock = new Object();
-
-	@GuardedBy("lock")
 	private MetricRegistry metricRegistry;
 
-	@GuardedBy("lock")
 	private HighAvailabilityServices haServices;
 
-	@GuardedBy("lock")
 	private RpcService taskExecutorRpcService;
 
-	@GuardedBy("lock")
-	private TaskExecutor taskExecutor;
+	private TaskManagerRunner taskManagerRunner;
 
 	// ------------------------------------------------------------------------
 	//  Program entry point
 	// ------------------------------------------------------------------------
 
 	/**
-	 * The entry point for the YARN task executor.
+	 * The entry point for the YARN task executor runner.
 	 *
 	 * @param args The command line arguments.
 	 */
@@ -213,26 +190,30 @@ public class YarnTaskExecutorRunner implements FatalErrorHandler {
 			final String containerId = ENV.get(YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID);
 			Preconditions.checkArgument(containerId != null,
 					"ContainerId variable %s not set", YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID);
+			// use the hostname passed by job manager
+			final String taskExecutorHostname = ENV.get(YarnResourceManager.ENV_FLINK_NODE_ID);
+			if (taskExecutorHostname != null) {
+				config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, taskExecutorHostname);
+			}
 
 			ResourceID resourceID = new ResourceID(containerId);
 			LOG.info("YARN assigned resource id {} for the task executor.", resourceID.toString());
 
-			synchronized (lock) {
-				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config);
-				metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+			haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config);
+			metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
-				// ---- (2) init resource manager -------
-				taskExecutorRpcService = createRpcService(config);
-				taskExecutor = createTaskExecutor(config, resourceID);
+			// ---- (2) init task manager runner -------
+			taskExecutorRpcService = TaskManagerRunner.createRpcService(config, haServices);
+			taskManagerRunner = new TaskManagerRunner(config, resourceID, taskExecutorRpcService, haServices, metricRegistry);
 
-				// ---- (3) start the task executor
-				taskExecutor.start();
-				LOG.debug("YARN task executor started");
-			}
+			// ---- (3) start the task manager runner
+			taskManagerRunner.start();
+			LOG.debug("YARN task executor started");
 
-			taskExecutor.getTerminationFuture().get();
+			taskManagerRunner.getTerminationFuture().get();
 			// everything started, we can wait until all is done or the process is killed
-			LOG.info("YARN task executor runner finished");
+			LOG.info("YARN task manager runner finished");
+			shutdown();
 		}
 		catch (Throwable t) {
 			// make sure that everything whatever ends up in the log
@@ -248,74 +229,8 @@ public class YarnTaskExecutorRunner implements FatalErrorHandler {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private RpcService createRpcService(
-			Configuration configuration) throws Exception{
-		String taskExecutorHostname = ENV.get(YarnResourceManager.ENV_FLINK_NODE_ID);//TODO
-		Preconditions.checkArgument(taskExecutorHostname != null,
-				"taskExecutorHostname variable %s not set", YarnResourceManager.ENV_FLINK_NODE_ID);
-
-		// if no task manager port has been configured, use 0 (system will pick any free port)
-		int taskExecutorPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0);
-		if (taskExecutorPort < 0 || taskExecutorPort > 65535) {
-			throw new IllegalConfigurationException("Invalid value for '" +
-					ConfigConstants.TASK_MANAGER_IPC_PORT_KEY +
-					"' (port for the TaskManager actor system) : " + taskExecutorPort +
-					" - Leave config parameter empty or use 0 to let the system choose a port automatically.");
-		}
-
-		return RpcServiceUtils.createRpcService(taskExecutorHostname, taskExecutorPort, configuration);
-	}
-
-	private TaskExecutor createTaskExecutor(Configuration config, ResourceID resourceID) throws Exception {
-
-		InetAddress taskExecutorAddress = InetAddress.getByName(taskExecutorRpcService.getAddress());
-
-		TaskManagerServicesConfiguration taskManagerServicesConfiguration = TaskManagerServicesConfiguration.fromConfiguration(
-				config,
-				taskExecutorAddress,
-				false);
-
-		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
-				taskManagerServicesConfiguration,
-				resourceID);
-
-		TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(config);
-
-		TaskManagerMetricGroup taskManagerMetricGroup = new TaskManagerMetricGroup(
-				metricRegistry,
-				taskManagerServices.getTaskManagerLocation().getHostname(),
-				resourceID.toString());
-
-		// Initialize the TM metrics
-		TaskExecutorMetricsInitializer.instantiateStatusMetrics(taskManagerMetricGroup, taskManagerServices.getNetworkEnvironment());
-
-		return new TaskExecutor(
-				taskManagerConfiguration,
-				taskManagerServices.getTaskManagerLocation(),
-				taskExecutorRpcService,
-				taskManagerServices.getMemoryManager(),
-				taskManagerServices.getIOManager(),
-				taskManagerServices.getNetworkEnvironment(),
-				haServices,
-				metricRegistry,
-				taskManagerMetricGroup,
-				taskManagerServices.getBroadcastVariableManager(),
-				taskManagerServices.getFileCache(),
-				taskManagerServices.getTaskSlotTable(),
-				taskManagerServices.getJobManagerTable(),
-				taskManagerServices.getJobLeaderService(),
-				this);
-	}
 
 	protected void shutdown() {
-		synchronized (lock) {
-			if (taskExecutor != null) {
-				try {
-					taskExecutor.shutDown();
-				} catch (Throwable tt) {
-					LOG.warn("Failed to stop the JobMaster", tt);
-				}
-			}
 			if (taskExecutorRpcService != null) {
 				try {
 					taskExecutorRpcService.stopService();
@@ -337,18 +252,6 @@ public class YarnTaskExecutorRunner implements FatalErrorHandler {
 					LOG.warn("Failed to stop the metrics registry", tt);
 				}
 			}
-		}
-	}
-
-	//-------------------------------------------------------------------------------------
-	// Fatal error handler
-	//-------------------------------------------------------------------------------------
-
-	@Override
-	public void onFatalError(Throwable exception) {
-		LOG.error("Encountered fatal error.", exception);
-
-		shutdown();
 	}
 
 }
