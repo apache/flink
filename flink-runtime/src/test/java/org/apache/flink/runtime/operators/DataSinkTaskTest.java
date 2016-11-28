@@ -129,7 +129,6 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 	@Test
 	public void testUnionDataSinkTask() {
-
 		int keyCnt = 10;
 		int valCnt = 20;
 
@@ -147,9 +146,10 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 		try {
 			// For the union reader to work, we need to start notifications *after* the union reader
-			// has been initialized.
+			// has been initialized. This is accomplished via a mockito hack in TestSingleInputGate,
+			// which checks forwards existing notifications on registerListener calls.
 			for (IteratorWrappingTestSingleInputGate<?> reader : readers) {
-				reader.read();
+				reader.notifyNonEmpty();
 			}
 
 			testTask.invoke();

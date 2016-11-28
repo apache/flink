@@ -45,7 +45,7 @@ import java.io.IOException;
  *
  * <p>
  * When Elements or Events are offered to the Task they are put into a queue. The input gates
- * of the Task read from this queue. Use {@link #waitForInputProcessing()} to wait until all
+ * of the Task notifyNonEmpty from this queue. Use {@link #waitForInputProcessing()} to wait until all
  * queues are empty. This must be used after entering some elements before checking the
  * desired output.
  */
@@ -58,11 +58,13 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	 * Creates a test harness with the specified number of input gates and specified number
 	 * of channels per input gate.
 	 */
-	public OneInputStreamTaskTestHarness(OneInputStreamTask<IN, OUT> task,
-			int numInputGates,
-			int numInputChannelsPerGate,
-			TypeInformation<IN> inputType,
-			TypeInformation<OUT> outputType) {
+	public OneInputStreamTaskTestHarness(
+		OneInputStreamTask<IN, OUT> task,
+		int numInputGates,
+		int numInputChannelsPerGate,
+		TypeInformation<IN> inputType,
+		TypeInformation<OUT> outputType) {
+		
 		super(task, outputType);
 
 		this.inputType = inputType;
@@ -75,9 +77,10 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	/**
 	 * Creates a test harness with one input gate that has one input channel.
 	 */
-	public OneInputStreamTaskTestHarness(OneInputStreamTask<IN, OUT> task,
-			TypeInformation<IN> inputType,
-			TypeInformation<OUT> outputType) {
+	public OneInputStreamTaskTestHarness(
+		OneInputStreamTask<IN, OUT> task,
+		TypeInformation<IN> inputType,
+		TypeInformation<OUT> outputType) {
 		this(task, 1, 1, inputType, outputType);
 	}
 
@@ -87,9 +90,9 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 
 		for (int i = 0; i < numInputGates; i++) {
 			inputGates[i] = new StreamTestSingleInputGate<IN>(
-					numInputChannelsPerGate,
-					bufferSize,
-					inputSerializer);
+				numInputChannelsPerGate,
+				bufferSize,
+				inputSerializer);
 			this.mockEnv.addInputGate(inputGates[i].getInputGate());
 		}
 

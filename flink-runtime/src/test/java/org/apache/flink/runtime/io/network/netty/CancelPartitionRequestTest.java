@@ -24,14 +24,16 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
+import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.util.event.NotificationListener;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
@@ -73,11 +75,18 @@ public class CancelPartitionRequestTest {
 
 			CountDownLatch sync = new CountDownLatch(1);
 
-			ResultSubpartitionView view = spy(new InfiniteSubpartitionView(outboundBuffers, sync));
+			final ResultSubpartitionView view = spy(new InfiniteSubpartitionView(outboundBuffers, sync));
 
 			// Return infinite subpartition
-			when(partitions.createSubpartitionView(eq(pid), eq(0), any(BufferProvider.class)))
-					.thenReturn(view);
+			when(partitions.createSubpartitionView(eq(pid), eq(0), any(BufferProvider.class), any(BufferAvailabilityListener.class)))
+				.thenAnswer(new Answer<ResultSubpartitionView>() {
+					@Override
+					public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
+						BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[3];
+						listener.notifyBuffersAvailable(Long.MAX_VALUE);
+						return view;
+					}
+				});
 
 			PartitionRequestProtocol protocol = new PartitionRequestProtocol(
 					partitions, mock(TaskEventDispatcher.class), mock(NetworkBufferPool.class));
@@ -109,19 +118,26 @@ public class CancelPartitionRequestTest {
 		NettyServerAndClient serverAndClient = null;
 
 		try {
-			TestPooledBufferProvider outboundBuffers = new TestPooledBufferProvider(16);
+			final TestPooledBufferProvider outboundBuffers = new TestPooledBufferProvider(16);
 
 			ResultPartitionManager partitions = mock(ResultPartitionManager.class);
 
 			ResultPartitionID pid = new ResultPartitionID();
 
-			CountDownLatch sync = new CountDownLatch(1);
+			final CountDownLatch sync = new CountDownLatch(1);
 
-			ResultSubpartitionView view = spy(new InfiniteSubpartitionView(outboundBuffers, sync));
+			final ResultSubpartitionView view = spy(new InfiniteSubpartitionView(outboundBuffers, sync));
 
 			// Return infinite subpartition
-			when(partitions.createSubpartitionView(eq(pid), eq(0), any(BufferProvider.class)))
-					.thenReturn(view);
+			when(partitions.createSubpartitionView(eq(pid), eq(0), any(BufferProvider.class), any(BufferAvailabilityListener.class)))
+					.thenAnswer(new Answer<ResultSubpartitionView>() {
+						@Override
+						public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
+							BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[3];
+							listener.notifyBuffersAvailable(Long.MAX_VALUE);
+							return view;
+						}
+					});
 
 			PartitionRequestProtocol protocol = new PartitionRequestProtocol(
 					partitions, mock(TaskEventDispatcher.class), mock(NetworkBufferPool.class));
@@ -174,8 +190,7 @@ public class CancelPartitionRequestTest {
 		}
 
 		@Override
-		public boolean registerListener(final NotificationListener listener) throws IOException {
-			return false;
+		public void notifyBuffersAvailable(long buffers) throws IOException {
 		}
 
 		@Override
