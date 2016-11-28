@@ -19,13 +19,16 @@
 package org.apache.flink.api.table.plan.rules.dataSet
 
 import org.apache.calcite.plan.volcano.RelSubset
-import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalJoin}
-import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetSingleRowCross}
+import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetSingleRowJoin}
 
-class DataSetSingleRowCrossRule
+import scala.collection.JavaConversions._
+
+class DataSetSingleRowJoinRule
   extends ConverterRule(
       classOf[LogicalJoin],
       Convention.NONE,
@@ -35,7 +38,7 @@ class DataSetSingleRowCrossRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val join = call.rel(0).asInstanceOf[LogicalJoin]
 
-    if (isCrossJoin(join)) {
+    if (isInnerJoin(join)) {
       isGlobalAggregation(join.getRight.asInstanceOf[RelSubset].getOriginal) ||
         isGlobalAggregation(join.getLeft.asInstanceOf[RelSubset].getOriginal)
     } else {
@@ -43,9 +46,8 @@ class DataSetSingleRowCrossRule
     }
   }
 
-  private def isCrossJoin(join: LogicalJoin) = {
-    val joinCondition = join.analyzeCondition
-    joinCondition.isEqui && joinCondition.pairs().isEmpty
+  private def isInnerJoin(join: LogicalJoin) = {
+    join.getJoinType == JoinRelType.INNER
   }
 
   private def isGlobalAggregation(node: RelNode) = {
@@ -54,9 +56,10 @@ class DataSetSingleRowCrossRule
   }
 
   private def isSingleLine(agg: LogicalAggregate) = {
-    agg.getGroupSets.size() == 1 &&
-    agg.getGroupSets.get(0).isEmpty &&
-    agg.getGroupSet.isEmpty
+    agg.getGroupSets == null ||
+      (agg.getGroupSets.size() == 1 &&
+       agg.getGroupSets.get(0).isEmpty &&
+       agg.getGroupSet.isEmpty)
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -66,18 +69,20 @@ class DataSetSingleRowCrossRule
     val dataSetRightNode = RelOptRule.convert(join.getRight, DataSetConvention.INSTANCE)
     val leftIsSingle = isGlobalAggregation(join.getLeft.asInstanceOf[RelSubset].getOriginal)
 
-    new DataSetSingleRowCross(
+    new DataSetSingleRowJoin(
       rel.getCluster,
       traitSet,
       dataSetLeftNode,
       dataSetRightNode,
       leftIsSingle,
       rel.getRowType,
+      join.getCondition,
       join.getRowType,
+      join.analyzeCondition.pairs.toList,
       description)
   }
 }
 
-object DataSetSingleRowCrossRule {
-  val INSTANCE: RelOptRule = new DataSetSingleRowCrossRule
+object DataSetSingleRowJoinRule {
+  val INSTANCE: RelOptRule = new DataSetSingleRowJoinRule
 }
