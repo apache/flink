@@ -45,7 +45,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * system (if configured for high availability) or a local one.
  */
 class FileSystemBlobStore implements BlobStore {
+	/**
+	 * The prefix of all job-specific directories.
+	 */
+	static final String JOB_DIR_PREFIX = "job_";
 
+	/**
+	 * The prefix of all BLOB files.
+	 */
+	static final String BLOB_FILE_PREFIX = "blob_";
+
+	/**
+	 * The prefix of all job-specific directories created by the BLOB server.
+	 */
 	private static final Logger LOG = LoggerFactory.getLogger(FileSystemBlobStore.class);
 
 	/** Counter to generate unique names for temporary files. */
@@ -66,6 +78,9 @@ class FileSystemBlobStore implements BlobStore {
 	 */
 	private final boolean isDistributed;
 
+	/** The high availability mode this blob store is set up for. */
+	private final HighAvailabilityMode highAvailabilityMode;
+
 	/**
 	 * Creates a new file system abstraction that is either backed by a global,
 	 * distributed file system or a local one. A distributed file system is
@@ -80,7 +95,7 @@ class FileSystemBlobStore implements BlobStore {
 	FileSystemBlobStore(Configuration config, boolean isGlobal) throws IOException {
 		checkNotNull(config, "Configuration");
 
-		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
+		highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
 		this.isGlobal = isGlobal;
 
 		// Configure and create the storage directory:
@@ -127,7 +142,7 @@ class FileSystemBlobStore implements BlobStore {
 	 * @throws IOException if the file system object cannot be retrieved or
 	 *                     no unique path could be setup after some attempts
 	 */
-	private final static String getLocalFileSystemPath(Configuration config) throws IOException {
+	private static String getLocalFileSystemPath(Configuration config) throws IOException {
 		String storagePath = config.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
 
 		if (StringUtils.isBlank(storagePath)) {
@@ -164,7 +179,7 @@ class FileSystemBlobStore implements BlobStore {
 	 * @param config the configuration to extract the path from
 	 * @return path to store blobs at
 	 */
-	private final static String getHAModeFileSystemPath(Configuration config) {
+	private static String getHAModeFileSystemPath(Configuration config) {
 		String storagePath = config.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
 		String clusterId = config.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
 
@@ -174,6 +189,39 @@ class FileSystemBlobStore implements BlobStore {
 		}
 
 		return storagePath + "/" + clusterId + "/blob";
+	}
+
+	// - File directory layout (inside basePath) ------------------------------
+
+	/**
+	 * Returns the path for temporary files, e.g. incoming files.
+	 */
+	static String getTempDirectory(String tempFile, String basePath) {
+		return String.format("%s/incoming/%s", basePath, tempFile);
+	}
+
+	/**
+	 * Returns the path for the given job ID.
+	 */
+	static String getRecoveryPath(String basePath, JobID jobId) {
+		return String.format("%s/%s%s", basePath, JOB_DIR_PREFIX, jobId.toString());
+	}
+
+	/**
+	 * Returns the path for the given job ID and key.
+	 */
+	static String getRecoveryPath(String basePath, JobID jobId, String key) {
+		// format: $base/job_$id/blob_$key
+		return String.format("%s/%s%s/%s%s", basePath, JOB_DIR_PREFIX, jobId.toString(),
+			BLOB_FILE_PREFIX, BlobUtils.encodeKey(key));
+	}
+
+	/**
+	 * Returns the path for the given blob key.
+	 */
+	static String getRecoveryPath(String basePath, BlobKey blobKey) {
+		// format: $base/cache/blob_$key
+		return String.format("%s/cache/%s%s", basePath, BLOB_FILE_PREFIX, blobKey.toString());
 	}
 
 	// - Create & write temporary files ---------------------------------------
@@ -189,18 +237,18 @@ class FileSystemBlobStore implements BlobStore {
 			throw new IllegalStateException("Trying to change the distributed filesystem from a non-global owner.");
 		}
 
-		final Path path = new Path(String.format("%s/incoming/%s", basePath, filename));
+		final Path path = new Path(getTempDirectory(filename, basePath));
 		return FileSystem.get(path.toUri()).create(path, false);
 	}
 
 	@Override
 	public void persistTempFile(final String tempFile, BlobKey blobKey) throws IOException {
-		persistTempFile(tempFile, BlobUtils.getRecoveryPath(basePath, blobKey));
+		persistTempFile(tempFile, getRecoveryPath(basePath, blobKey));
 	}
 
 	@Override
 	public void persistTempFile(final String tempFile, JobID jobId, String key) throws IOException {
-		persistTempFile(tempFile, BlobUtils.getRecoveryPath(basePath, jobId, key));
+		persistTempFile(tempFile, getRecoveryPath(basePath, jobId, key));
 	}
 
 	void persistTempFile(final String tempFile, String toBlobPath) throws IOException {
@@ -208,7 +256,7 @@ class FileSystemBlobStore implements BlobStore {
 			throw new IllegalStateException("Trying to change the distributed filesystem from a non-global owner.");
 		}
 
-		final Path tempFilePath = new Path(String.format("%s/incoming/%s", basePath, tempFile));
+		final Path tempFilePath = new Path(getTempDirectory(tempFile, basePath));
 		final Path dst = new Path(toBlobPath);
 		LOG.debug("Moving temporary file {} to {}.", tempFile, toBlobPath);
 		FileSystem fs = FileSystem.get(tempFilePath.toUri());
@@ -228,7 +276,7 @@ class FileSystemBlobStore implements BlobStore {
 			throw new IllegalStateException("Trying to change the distributed filesystem from a non-global owner.");
 		}
 
-		final Path tempFilePath = new Path(String.format("%s/incoming/%s", basePath, tempFile));
+		final Path tempFilePath = new Path(getTempDirectory(tempFile, basePath));
 
 		try {
 			LOG.debug("Deleting temporary file {}.", tempFile);
@@ -247,12 +295,12 @@ class FileSystemBlobStore implements BlobStore {
 
 	@Override
 	public FileStatus getFileStatus(BlobKey blobKey) throws IOException {
-		return getFileStatus(BlobUtils.getRecoveryPath(basePath, blobKey));
+		return getFileStatus(getRecoveryPath(basePath, blobKey));
 	}
 
 	@Override
 	public FileStatus getFileStatus(JobID jobId, String key) throws IOException {
-		return getFileStatus(BlobUtils.getRecoveryPath(basePath, jobId, key));
+		return getFileStatus(getRecoveryPath(basePath, jobId, key));
 	}
 
 	private FileStatus getFileStatus(String fromBlobPath) throws IOException {
@@ -269,17 +317,17 @@ class FileSystemBlobStore implements BlobStore {
 
 	@Override
 	public boolean delete(BlobKey blobKey) {
-		return delete(BlobUtils.getRecoveryPath(basePath, blobKey));
+		return delete(getRecoveryPath(basePath, blobKey));
 	}
 
 	@Override
 	public boolean delete(JobID jobId, String key) {
-		return delete(BlobUtils.getRecoveryPath(basePath, jobId, key));
+		return delete(getRecoveryPath(basePath, jobId, key));
 	}
 
 	@Override
 	public void deleteAll(JobID jobId) {
-		delete(BlobUtils.getRecoveryPath(basePath, jobId));
+		delete(getRecoveryPath(basePath, jobId));
 	}
 
 	private boolean delete(String blobPath) {
