@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.HybridMemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -37,6 +38,7 @@ import java.io.File;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -63,6 +65,8 @@ public class TaskManagerServicesConfiguration {
 
 	private final MetricRegistryConfiguration metricRegistryConfiguration;
 
+	private final long timerServiceShutdownTimeout;
+
 	public TaskManagerServicesConfiguration(
 			InetAddress taskManagerAddress,
 			String[] tmpDirPaths,
@@ -72,7 +76,8 @@ public class TaskManagerServicesConfiguration {
 			long configuredMemory,
 			boolean preAllocateMemory,
 			float memoryFraction,
-			MetricRegistryConfiguration metricRegistryConfiguration) {
+			MetricRegistryConfiguration metricRegistryConfiguration,
+			long timerServiceShutdownTimeout) {
 
 		this.taskManagerAddress = checkNotNull(taskManagerAddress);
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
@@ -85,6 +90,10 @@ public class TaskManagerServicesConfiguration {
 		this.memoryFraction = memoryFraction;
 
 		this.metricRegistryConfiguration = checkNotNull(metricRegistryConfiguration);
+
+		checkArgument(timerServiceShutdownTimeout >= 0L, "The timer " +
+			"service shutdown timeout must be greater or equal to 0.");
+		this.timerServiceShutdownTimeout = timerServiceShutdownTimeout;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -126,6 +135,10 @@ public class TaskManagerServicesConfiguration {
 
 	public MetricRegistryConfiguration getMetricRegistryConfiguration() {
 		return metricRegistryConfiguration;
+	}
+
+	public long getTimerServiceShutdownTimeout() {
+		return timerServiceShutdownTimeout;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -188,7 +201,7 @@ public class TaskManagerServicesConfiguration {
 
 		final MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(configuration);
 
-
+		long timerServiceShutdownTimeout = AkkaUtils.getTimeout(configuration).toMillis();
 
 		return new TaskManagerServicesConfiguration(
 			remoteAddress,
@@ -199,7 +212,8 @@ public class TaskManagerServicesConfiguration {
 			configuredMemory,
 			preAllocateMemory,
 			memoryFraction,
-			metricRegistryConfiguration);
+			metricRegistryConfiguration,
+			timerServiceShutdownTimeout);
 	}
 
 	// --------------------------------------------------------------------------
