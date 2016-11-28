@@ -194,6 +194,7 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 
 	private JobManagerRunner createJobManagerRunner(Configuration config) throws Exception{
 		// first get JobGraph from local resources
+		//TODO: generate the job graph from user's jar
 		jobGraph = loadJobGraph(config);
 
 		// we first need to mark the job as running in the HA services, so that the
