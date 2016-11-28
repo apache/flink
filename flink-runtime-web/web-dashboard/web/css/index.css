@@ -115,6 +115,7 @@
 }
 #content #content-inner {
   padding: 0px 20px 20px 20px;
+  overflow: auto;
 }
 #content #content-inner.has-navbar-main-additional {
   padding-top: 42px;
