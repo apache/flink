@@ -50,7 +50,15 @@ public class RpcServiceUtils {
 		final ActorSystem actorSystem;
 
 		try {
-			Config akkaConfig = AkkaUtils.getAkkaConfig(configuration, hostname, port);
+			Config akkaConfig;
+
+			if (hostname != null && !hostname.isEmpty()) {
+				// remote akka config
+				akkaConfig = AkkaUtils.getAkkaConfig(configuration, hostname, port);
+			} else {
+				// local akka config
+				akkaConfig = AkkaUtils.getAkkaConfig(configuration);
+			}
 
 			LOG.debug("Using akka configuration \n {}.", akkaConfig);
 
