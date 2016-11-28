@@ -119,22 +119,39 @@ class FileSystemBlobStore implements BlobStore {
 	 * Returns the blob storage path on a local file system.
 	 *
 	 * <p>Uses {@link ConfigConstants#BLOB_STORAGE_DIRECTORY_KEY} if set or
-	 * a randomly created path below the path given by <tt>java.io.tmpdir</tt>.
-	 * </p>
+	 * otherwise <tt>java.io.tmpdir</tt>. Then creates a unique blob storage
+	 * directory under this directory using a random UUID.</p>
 	 *
 	 * @param config the configuration to extract the path from
 	 * @return path to store blobs at
+	 * @throws IOException if the file system object cannot be retrieved or
+	 *                     no unique path could be setup after some attempts
 	 */
-	private final static String getLocalFileSystemPath(Configuration config) {
+	private final static String getLocalFileSystemPath(Configuration config) throws IOException {
 		String storagePath = config.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
 
 		if (StringUtils.isBlank(storagePath)) {
-			// TODO: try multiple times to find a unique path that does not exist yet?
-			storagePath = System.getProperty("java.io.tmpdir") +
-				"/blobStore-" + UUID.randomUUID().toString();
+			storagePath = System.getProperty("java.io.tmpdir");
 		}
 
-		return new Path(storagePath).toString();
+		final Path path = new Path(storagePath);
+		final FileSystem fs = FileSystem.get(path.toUri());
+		storagePath = path.toString(); // adds a valid fs scheme if not present
+
+		String blobStorePath;
+		final int MAX_ATTEMPTS = 10;
+		for(int attempt = 0; attempt < MAX_ATTEMPTS; ++attempt) {
+			blobStorePath = storagePath +
+				"/blobStore-" + UUID.randomUUID().toString();
+
+			// Create the storage dir if it doesn't exist.
+			// Only return it when the operation was successful.
+			if (fs.mkdirs(path)) {
+				return blobStorePath;
+			}
+		}
+		// max attempts exceeded to find a storage directory
+		throw new IOException("Could not create storage directory for BLOB store in '" + storagePath + "'.");
 	}
 
 	/**
