@@ -2,7 +2,7 @@
 nav-title: "Linking with Optional Modules"
 title: "Linking with modules not contained in the binary distribution"
 nav-parent_id: start
-nav-pos: 12
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

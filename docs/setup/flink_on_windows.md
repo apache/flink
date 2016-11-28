@@ -1,7 +1,7 @@
 ---
 title:  "Running Flink on Windows"
 nav-parent_id: start
-nav-pos: 10
+nav-pos: 12
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
