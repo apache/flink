@@ -212,24 +212,24 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	public void open(Configuration configuration) {
 		producer = getKafkaProducer(this.producerConfig);
 
-		// the fetched list is immutable, so we're creating a mutable copy in order to sort it
-		List<PartitionInfo> partitionsList = new ArrayList<>(producer.partitionsFor(defaultTopicId));
-
-		// sort the partitions by partition id to make sure the fetched partition list is the same across subtasks
-		Collections.sort(partitionsList, new Comparator<PartitionInfo>() {
-			@Override
-			public int compare(PartitionInfo o1, PartitionInfo o2) {
-				return Integer.compare(o1.partition(), o2.partition());
-			}
-		});
-
-		partitions = new int[partitionsList.size()];
-		for (int i = 0; i < partitions.length; i++) {
-			partitions[i] = partitionsList.get(i).partition();
-		}
-
 		RuntimeContext ctx = getRuntimeContext();
 		if (partitioner != null) {
+			// the fetched list is immutable, so we're creating a mutable copy in order to sort it
+			List<PartitionInfo> partitionsList = new ArrayList<>(producer.partitionsFor(defaultTopicId));
+
+			// sort the partitions by partition id to make sure the fetched partition list is the same across subtasks
+			Collections.sort(partitionsList, new Comparator<PartitionInfo>() {
+				@Override
+				public int compare(PartitionInfo o1, PartitionInfo o2) {
+					return Integer.compare(o1.partition(), o2.partition());
+				}
+			});
+
+			partitions = new int[partitionsList.size()];
+			for (int i = 0; i < partitions.length; i++) {
+				partitions[i] = partitionsList.get(i).partition();
+			}
+
 			partitioner.open(ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks(), partitions);
 		}
 
