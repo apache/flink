@@ -219,6 +219,47 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   }
 
   @Test
+  def testLikeWithEscape(): Unit = {
+    testSqlApi(
+      "f23 LIKE '&%Th_s%' ESCAPE '&'",
+      "true")
+
+    testSqlApi(
+      "f23 LIKE '&%%is a%' ESCAPE '&'",
+      "true"
+    )
+
+    testSqlApi(
+      "f0 LIKE 'Th_s%' ESCAPE '&'",
+      "true")
+
+    testSqlApi(
+      "f0 LIKE '%is a%' ESCAPE '&'",
+      "true")
+  }
+
+  @Test
+  def testNotLikeWithEscape(): Unit = {
+    testSqlApi(
+      "f23 NOT LIKE '&%Th_s%' ESCAPE '&'",
+      "false")
+
+    testSqlApi(
+      "f23 NOT LIKE '&%%is a%' ESCAPE '&'",
+      "false")
+
+    testSqlApi(
+      "f0 NOT LIKE 'Th_s%' ESCAPE '&'",
+      "false"
+    )
+
+    testSqlApi(
+      "f0 NOT LIKE '%is a%' ESCAPE '&'",
+      "false"
+    )
+  }
+
+  @Test
   def testSimilar(): Unit = {
     testAllApis(
       'f0.similar("_*"),
@@ -246,6 +287,52 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "!f0.similar('This (is)? a (test)+ Strin_*')",
       "f0 NOT SIMILAR TO 'This (is)? a (test)+ Strin_*'",
       "false")
+  }
+
+  @Test
+  def testSimilarWithEscape(): Unit = {
+    testSqlApi(
+      "f24 SIMILAR TO '&*&__*' ESCAPE '&'",
+      "true"
+    )
+
+    testSqlApi(
+      "f0 SIMILAR TO '_*' ESCAPE '&'",
+      "true"
+    )
+
+    testSqlApi(
+      "f24 SIMILAR TO '&*&_This (is)? a (test)+ Strin_*' ESCAPE '&'",
+      "true"
+    )
+
+    testSqlApi(
+      "f0 SIMILAR TO 'This (is)? a (test)+ Strin_*' ESCAPE '&'",
+      "true"
+    )
+  }
+
+  @Test
+  def testNotSimilarWithEscape(): Unit = {
+    testSqlApi(
+      "f24 NOT SIMILAR TO '&*&__*' ESCAPE '&'",
+      "false"
+    )
+
+    testSqlApi(
+      "f0 NOT SIMILAR TO '_*' ESCAPE '&'",
+      "false"
+    )
+
+    testSqlApi(
+      "f24 NOT SIMILAR TO '&*&_This (is)? a (test)+ Strin_*' ESCAPE '&'",
+      "false"
+    )
+
+    testSqlApi(
+      "f0 NOT SIMILAR TO 'This (is)? a (test)+ Strin_*' ESCAPE '&'",
+      "false"
+    )
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -1028,7 +1115,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(23)
+    val testData = new Row(25)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -1052,6 +1139,8 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testData.setField(20, 25) // +2-01
     testData.setField(21, null)
     testData.setField(22, BigDecimal("2").bigDecimal)
+    testData.setField(23, "%This is a test String.")
+    testData.setField(24, "*_This is a test String.")
     testData
   }
 
@@ -1079,6 +1168,9 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       Types.INTERVAL_MILLIS,
       Types.INTERVAL_MONTHS,
       Types.BOOLEAN,
-      Types.DECIMAL)).asInstanceOf[TypeInformation[Any]]
+      Types.DECIMAL,
+      Types.STRING,
+      Types.STRING)).asInstanceOf[TypeInformation[Any]]
+
   }
 }
