@@ -19,10 +19,8 @@
 package org.apache.flink.runtime.akka;
 
 import akka.actor.UntypedActor;
-
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +38,7 @@ import java.util.UUID;
  * a leader session ID option which is returned by getLeaderSessionID.
  */
 public abstract class FlinkUntypedActor extends UntypedActor {
-	
+
 	protected final Logger LOG = LoggerFactory.getLogger(getClass());
 
 	/**
@@ -56,16 +54,16 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 	 */
 	@Override
 	public final void onReceive(Object message) throws Exception {
-		if(LOG.isDebugEnabled()) {
-			LOG.debug("Received message {} at {} from {}.", message, getSelf().path(), getSender());
+		if(LOG.isTraceEnabled()) {
+			LOG.trace("Received message {} at {} from {}.", message, getSelf().path(), getSender());
 
 			long start = System.nanoTime();
 
 			handleLeaderSessionID(message);
 
-			long duration = (System.nanoTime() - start)/ 1000000;
+			long duration = (System.nanoTime() - start)/ 1_000_000;
 
-			LOG.debug("Handled message {} in {} ms from {}.", message, duration, getSender());
+			LOG.trace("Handled message {} in {} ms from {}.", message, duration, getSender());
 		} else {
 			handleLeaderSessionID(message);
 		}
@@ -81,7 +79,7 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 	 * @throws Exception
 	 */
 	private void handleLeaderSessionID(Object message) throws Exception {
-		if(message instanceof LeaderSessionMessage) {
+		if (message instanceof LeaderSessionMessage) {
 			LeaderSessionMessage msg = (LeaderSessionMessage) message;
 			UUID expectedID = getLeaderSessionID();
 			UUID actualID = msg.leaderSessionID();
