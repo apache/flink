@@ -82,6 +82,9 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	 */
 	private final PathChildrenCache pathCache;
 
+	/** The full configured base path including the namespace. */
+	private final String zooKeeperFullBasePath;
+
 	/** The external listener to be notified on races. */
 	private SubmittedJobGraphListener jobGraphListener;
 
@@ -117,6 +120,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 		// All operations will have the path as root
 		CuratorFramework facade = client.usingNamespace(client.getNamespace() + currentJobsPath);
 
+		this.zooKeeperFullBasePath = client.getNamespace() + currentJobsPath;
 		this.jobGraphsInZooKeeper = new ZooKeeperStateHandleStore<>(facade, stateStorage, executor);
 
 		this.pathCache = new PathChildrenCache(facade, "/", false);
@@ -156,6 +160,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 		synchronized (cacheLock) {
 			verifyIsRunning();
 
+			LOG.debug("Recovering all job graphs from ZooKeeper at {}.", zooKeeperFullBasePath);
 			List<Tuple2<RetrievableStateHandle<SubmittedJobGraph>, String>> submitted;
 
 			while (true) {
@@ -167,6 +172,8 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 					LOG.warn("Concurrent modification while reading from ZooKeeper. Retrying.");
 				}
 			}
+
+			LOG.info("Found {} job graphs.", submitted.size());
 
 			if (submitted.size() != 0) {
 				List<SubmittedJobGraph> jobGraphs = new ArrayList<>(submitted.size());
@@ -193,6 +200,8 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 		checkNotNull(jobId, "Job ID");
 		String path = getPathForJob(jobId);
 
+		LOG.debug("Recovering job graph {} from {}{}.", jobId, zooKeeperFullBasePath, path);
+
 		synchronized (cacheLock) {
 			verifyIsRunning();
 
@@ -215,6 +224,8 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 		checkNotNull(jobGraph, "Job graph");
 		String path = getPathForJob(jobGraph.getJobId());
 
+		LOG.debug("Adding job graph {} to {}{}.", jobGraph.getJobId(), zooKeeperFullBasePath, path);
+
 		boolean success = false;
 
 		while (!success) {
@@ -228,8 +239,6 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 						jobGraphsInZooKeeper.add(path, jobGraph);
 
 						addedJobGraphs.add(jobGraph.getJobId());
-
-						LOG.info("Added {} to ZooKeeper.", jobGraph);
 
 						success = true;
 					}
@@ -252,6 +261,8 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 				}
 			}
 		}
+
+		LOG.info("Added {} to ZooKeeper.", jobGraph);
 	}
 
 	@Override
@@ -259,14 +270,17 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 		checkNotNull(jobId, "Job ID");
 		String path = getPathForJob(jobId);
 
+		LOG.debug("Removing job graph {} from {}{}.", jobId, zooKeeperFullBasePath, path);
+
 		synchronized (cacheLock) {
 			if (addedJobGraphs.contains(jobId)) {
 				jobGraphsInZooKeeper.removeAndDiscardState(path);
 
 				addedJobGraphs.remove(jobId);
-				LOG.info("Removed job graph {} from ZooKeeper.", jobId);
 			}
 		}
+
+		LOG.info("Removed job graph {} from ZooKeeper.", jobId);
 	}
 
 	/**
@@ -291,70 +305,80 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 			}
 
 			switch (event.getType()) {
-				case CHILD_ADDED:
+				case CHILD_ADDED: {
+					JobID jobId = fromEvent(event);
+
+					LOG.debug("Received CHILD_ADDED event notification for job {}", jobId);
+
 					synchronized (cacheLock) {
 						try {
-							JobID jobId = fromEvent(event);
 							if (jobGraphListener != null && !addedJobGraphs.contains(jobId)) {
 								try {
 									// Whoa! This has been added by someone else. Or we were fast
 									// to remove it (false positive).
 									jobGraphListener.onAddedJobGraph(jobId);
-								}
-								catch (Throwable t) {
+								} catch (Throwable t) {
 									LOG.error("Error in callback", t);
 								}
 							}
-						}
-						catch (Exception e) {
+						} catch (Exception e) {
 							LOG.error("Error in SubmittedJobGraphsPathCacheListener", e);
 						}
 					}
+				}
+				break;
 
-					break;
-
-				case CHILD_UPDATED:
+				case CHILD_UPDATED: {
 					// Nothing to do
-					break;
+				}
+				break;
 
-				case CHILD_REMOVED:
+				case CHILD_REMOVED: {
+					JobID jobId = fromEvent(event);
+
+					LOG.debug("Received CHILD_REMOVED event notification for job {}", jobId);
+
 					synchronized (cacheLock) {
 						try {
-							JobID jobId = fromEvent(event);
 							if (jobGraphListener != null && addedJobGraphs.contains(jobId)) {
 								try {
 									// Oh oh. Someone else removed one of our job graphs. Mean!
 									jobGraphListener.onRemovedJobGraph(jobId);
-								}
-								catch (Throwable t) {
+								} catch (Throwable t) {
 									LOG.error("Error in callback", t);
 								}
 							}
 
 							break;
-						}
-						catch (Exception e) {
+						} catch (Exception e) {
 							LOG.error("Error in SubmittedJobGraphsPathCacheListener", e);
 						}
 					}
-					break;
+				}
+				break;
 
-				case CONNECTION_SUSPENDED:
+				case CONNECTION_SUSPENDED: {
 					LOG.warn("ZooKeeper connection SUSPENDED. Changes to the submitted job " +
-							"graphs are not monitored (temporarily).");
-					break;
-				case CONNECTION_LOST:
-					LOG.warn("ZooKeeper connection LOST. Changes to the submitted job " +
-							"graphs are not monitored (permanently).");
-					break;
+						"graphs are not monitored (temporarily).");
+				}
+				break;
 
-				case CONNECTION_RECONNECTED:
+				case CONNECTION_LOST: {
+					LOG.warn("ZooKeeper connection LOST. Changes to the submitted job " +
+						"graphs are not monitored (permanently).");
+				}
+				break;
+
+				case CONNECTION_RECONNECTED: {
 					LOG.info("ZooKeeper connection RECONNECTED. Changes to the submitted job " +
-							"graphs are monitored again.");
-					break;
-				case INITIALIZED:
+						"graphs are monitored again.");
+				}
+				break;
+
+				case INITIALIZED: {
 					LOG.info("SubmittedJobGraphsPathCacheListener initialized");
-					break;
+				}
+				break;
 			}
 		}
 
