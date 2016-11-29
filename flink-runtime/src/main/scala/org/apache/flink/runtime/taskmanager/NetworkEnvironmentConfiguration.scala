@@ -23,13 +23,10 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 
 case class NetworkEnvironmentConfiguration(
-  numNetworkBuffers: Int,
-  networkBufferSize: Int,
-  memoryType: MemoryType,
-  ioMode: IOMode,
-  queryServerPort: Int,
-  queryServerNetworkThreads: Int,
-  queryServerQueryThreads: Int,
-  nettyConfig: Option[NettyConfig] = None,
-  partitionRequestInitialBackoff: Int = 500,
-  partitinRequestMaxBackoff: Int = 3000)
+    numNetworkBuffers: Int,
+    networkBufferSize: Int,
+    memoryType: MemoryType,
+    ioMode: IOMode,
+    partitionRequestInitialBackoff : Int,
+    partitionRequestMaxBackoff : Int,
+    nettyConfig: Option[NettyConfig] = None)

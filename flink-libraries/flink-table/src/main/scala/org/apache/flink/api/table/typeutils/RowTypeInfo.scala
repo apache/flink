@@ -96,6 +96,7 @@ class RowTypeInfo(fieldTypes: Seq[TypeInformation[_]])
       val maxIndex = logicalKeyFields.max
 
       new RowComparator(
+        getArity,
         logicalKeyFields.toArray,
         fieldComparators.toArray.asInstanceOf[Array[TypeComparator[Any]]],
         types.take(maxIndex + 1).map(_.createSerializer(config).asInstanceOf[TypeSerializer[Any]]),

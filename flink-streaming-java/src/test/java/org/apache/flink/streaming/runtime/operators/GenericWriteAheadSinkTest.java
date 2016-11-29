@@ -15,29 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(ResultPartitionWriter.class)
-@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
 public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Integer>, GenericWriteAheadSinkTest.ListSink> {
+
 	@Override
 	protected ListSink createSink() throws Exception {
 		return new ListSink();
@@ -133,7 +128,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		testHarness.notifyOfCompletedCheckpoint(0);
 
 		//isCommitted should have failed, thus sendValues() should never have been called
-		Assert.assertTrue(sink.values.size() == 0);
+		Assert.assertEquals(0, sink.values.size());
 
 		for (int x = 0; x < 10; x++) {
 			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 1)));
@@ -144,7 +139,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		testHarness.notifyOfCompletedCheckpoint(1);
 
 		//previous CP should be retried, but will fail the CP commit. Second CP should be skipped.
-		Assert.assertTrue(sink.values.size() == 10);
+		Assert.assertEquals(10, sink.values.size());
 
 		for (int x = 0; x < 10; x++) {
 			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 2)));
@@ -155,7 +150,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		testHarness.notifyOfCompletedCheckpoint(2);
 
 		//all CP's should be retried and succeed; since one CP was written twice we have 2 * 10 + 10 + 10 = 40 values
-		Assert.assertTrue(sink.values.size() == 40);
+		Assert.assertEquals(40, sink.values.size());
 	}
 
 	/**
@@ -198,12 +193,12 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 
 		@Override
-		public void commitCheckpoint(long checkpointID) {
+		public void commitCheckpoint(int subtaskIdx, long checkpointID) {
 			checkpoints.add(checkpointID);
 		}
 
 		@Override
-		public boolean isCheckpointCommitted(long checkpointID) {
+		public boolean isCheckpointCommitted(int subtaskIdx, long checkpointID) {
 			return checkpoints.contains(checkpointID);
 		}
 	}
@@ -250,7 +245,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 
 		@Override
-		public void commitCheckpoint(long checkpointID) {
+		public void commitCheckpoint(int subtaskIdx, long checkpointID) {
 			if (failCommit) {
 				failCommit = false;
 				throw new RuntimeException("Expected exception");
@@ -260,7 +255,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 
 		@Override
-		public boolean isCheckpointCommitted(long checkpointID) {
+		public boolean isCheckpointCommitted(int subtaskIdx, long checkpointID) {
 			if (failIsCommitted) {
 				failIsCommitted = false;
 				throw new RuntimeException("Expected exception");

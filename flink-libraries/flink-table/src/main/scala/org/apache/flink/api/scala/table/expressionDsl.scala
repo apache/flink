@@ -21,7 +21,7 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval}
+import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.api.table.expressions._
 
@@ -101,6 +101,16 @@ trait ImplicitExpressionOperations {
 
   def asc = Asc(expr)
   def desc = Desc(expr)
+
+  /**
+    * Returns the start time of a window when applied on a window reference.
+    */
+  def start = WindowStart(expr)
+
+  /**
+    * Returns the end time of a window when applied on a window reference.
+    */
+  def end = WindowEnd(expr)
 
   /**
     * Ternary conditional operator that decides which of two other expressions should be evaluated
@@ -322,11 +332,25 @@ trait ImplicitExpressionOperations {
   def year = toMonthInterval(expr, 12)
 
   /**
+    * Creates an interval of the given number of years.
+    *
+    * @return interval of months
+    */
+  def years = year
+
+  /**
     * Creates an interval of the given number of months.
     *
     * @return interval of months
     */
   def month = toMonthInterval(expr, 1)
+
+  /**
+    * Creates an interval of the given number of months.
+    *
+    * @return interval of months
+    */
+  def months = month
 
   /**
     * Creates an interval of the given number of days.
@@ -335,33 +359,101 @@ trait ImplicitExpressionOperations {
     */
   def day = toMilliInterval(expr, MILLIS_PER_DAY)
 
-    /**
+  /**
+    * Creates an interval of the given number of days.
+    *
+    * @return interval of milliseconds
+    */
+  def days = day
+
+  /**
     * Creates an interval of the given number of hours.
     *
     * @return interval of milliseconds
     */
   def hour = toMilliInterval(expr, MILLIS_PER_HOUR)
 
-    /**
+  /**
+    * Creates an interval of the given number of hours.
+    *
+    * @return interval of milliseconds
+    */
+  def hours = hour
+
+  /**
     * Creates an interval of the given number of minutes.
     *
     * @return interval of milliseconds
     */
   def minute = toMilliInterval(expr, MILLIS_PER_MINUTE)
 
-    /**
+  /**
+    * Creates an interval of the given number of minutes.
+    *
+    * @return interval of milliseconds
+    */
+  def minutes = minute
+
+  /**
     * Creates an interval of the given number of seconds.
     *
     * @return interval of milliseconds
     */
   def second = toMilliInterval(expr, MILLIS_PER_SECOND)
 
-    /**
+  /**
+    * Creates an interval of the given number of seconds.
+    *
+    * @return interval of milliseconds
+    */
+  def seconds = second
+
+  /**
     * Creates an interval of the given number of milliseconds.
     *
     * @return interval of milliseconds
     */
   def milli = toMilliInterval(expr, 1)
+
+  /**
+    * Creates an interval of the given number of milliseconds.
+    *
+    * @return interval of milliseconds
+    */
+  def millis = milli
+
+  // row interval type
+
+  /**
+    * Creates an interval of rows.
+    *
+    * @return interval of rows
+    */
+  def rows = toRowInterval(expr)
+
+  /**
+    * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by name and
+    * returns it's value.
+    *
+    * @param name name of the field (similar to Flink's field expressions)
+    * @return value of the field
+    */
+  def get(name: String) = GetCompositeField(expr, name)
+
+  /**
+    * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by index and
+    * returns it's value.
+    *
+    * @param index position of the field
+    * @return value of the field
+    */
+  def get(index: Int) = GetCompositeField(expr, index)
+
+  /**
+    * Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes
+    * into a flat representation where every subtype is a separate field.
+    */
+  def flatten() = Flattening(expr)
 }
 
 /**

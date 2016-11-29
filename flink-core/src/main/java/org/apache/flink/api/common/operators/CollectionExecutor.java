@@ -18,20 +18,6 @@
 
 package org.apache.flink.api.common.operators;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
@@ -58,12 +44,27 @@ import org.apache.flink.api.common.operators.util.TypeComparable;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Visitor;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Execution utility for serial, local, collection-based executions of Flink programs.
@@ -412,6 +413,9 @@ public class CollectionExecutor {
 			aggregators.put(a.getName(), a.getAggregator());
 		}
 
+		String convCriterionAggName = iteration.getAggregators().getConvergenceCriterionAggregatorName();
+		ConvergenceCriterion<Value> convCriterion = (ConvergenceCriterion<Value>) iteration.getAggregators().getConvergenceCriterion();
+
 		final int maxIterations = iteration.getMaximumNumberOfIterations();
 
 		for (int superstep = 1; superstep <= maxIterations; superstep++) {
@@ -440,6 +444,14 @@ public class CollectionExecutor {
 
 			if (currentWorkset.isEmpty()) {
 				break;
+			}
+
+			// evaluate the aggregator convergence criterion
+			if (convCriterion != null && convCriterionAggName != null) {
+				Value v = aggregators.get(convCriterionAggName).getAggregate();
+				if (convCriterion.isConverged(superstep, v)) {
+					break;
+				}
 			}
 
 			// clear the dynamic results
@@ -560,7 +572,7 @@ public class CollectionExecutor {
 
 		public CompletedFuture(Path entry) {
 			try{
-				LocalFileSystem fs = (LocalFileSystem) entry.getFileSystem();
+				LocalFileSystem fs = (LocalFileSystem) FileSystem.getUnguardedFileSystem(entry.toUri());
 				result = entry.isAbsolute() ? new Path(entry.toUri().getPath()): new Path(fs.getWorkingDirectory(),entry);
 			} catch (Exception e){
 				throw new RuntimeException("DistributedCache supports only local files for Collection Environments");

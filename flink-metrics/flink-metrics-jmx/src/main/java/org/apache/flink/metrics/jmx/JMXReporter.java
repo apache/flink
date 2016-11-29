@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.jmx;
 
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -25,8 +26,9 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
-
 import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +50,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -59,12 +62,18 @@ import java.util.Map;
  */
 public class JMXReporter implements MetricReporter {
 
-	private static final String PREFIX = "org.apache.flink.metrics:";
-	private static final String KEY_PREFIX = "key";
+	static final String JMX_DOMAIN_PREFIX = "org.apache.flink.";
 
 	public static final String ARG_PORT = "port";
 
 	private static final Logger LOG = LoggerFactory.getLogger(JMXReporter.class);
+
+	private static final CharacterFilter CHARACTER_FILTER = new CharacterFilter() {
+		@Override
+		public String filterCharacters(String input) {
+			return replaceInvalidChars(input);
+		}
+	};
 
 	// ------------------------------------------------------------------------
 
@@ -144,14 +153,19 @@ public class JMXReporter implements MetricReporter {
 
 	@Override
 	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-		final String name = generateJmxName(metricName, group.getScopeComponents());
+		final String domain = generateJmxDomain(metricName, group);
+		final Hashtable<String, String> table = generateJmxTable(group.getAllVariables());
 
 		AbstractBean jmxMetric;
 		ObjectName jmxName;
 		try {
-			jmxName = new ObjectName(name);
+			jmxName = new ObjectName(domain, table);
 		} catch (MalformedObjectNameException e) {
-			LOG.error("Metric name did not conform to JMX ObjectName rules: " + name, e);
+			/**
+			 * There is an implementation error on our side if this occurs. Either the domain was modified and no longer
+			 * conforms to the JMX domain rules or the table wasn't properly generated.
+			 */
+			LOG.debug("Implementation error. The domain or table does not conform to JMX rules." , e);
 			return;
 		}
 
@@ -176,12 +190,11 @@ public class JMXReporter implements MetricReporter {
 			}
 		} catch (NotCompliantMBeanException e) {
 			// implementation error on our side
-			LOG.error("Metric did not comply with JMX MBean naming rules.", e);
+			LOG.debug("Metric did not comply with JMX MBean rules.", e);
 		} catch (InstanceAlreadyExistsException e) {
-			LOG.debug("A metric with the name " + jmxName + " was already registered.", e);
-			LOG.error("A metric with the name " + jmxName + " was already registered.");
+			LOG.warn("A metric with the name " + jmxName + " was already registered.", e);
 		} catch (Throwable t) {
-			LOG.error("Failed to register metric", t);
+			LOG.warn("Failed to register metric", t);
 		}
 	}
 
@@ -209,27 +222,18 @@ public class JMXReporter implements MetricReporter {
 	//  Utilities 
 	// ------------------------------------------------------------------------
 
-	static String generateJmxName(String metricName, String[] scopeComponents) {
-		final StringBuilder nameBuilder = new StringBuilder(128);
-		nameBuilder.append(PREFIX);
-
-		for (int x = 0; x < scopeComponents.length; x++) {
-			// write keyX=
-			nameBuilder.append(KEY_PREFIX);
-			nameBuilder.append(x);
-			nameBuilder.append("=");
-
-			// write scope component
-			nameBuilder.append(replaceInvalidChars(scopeComponents[x]));
-			nameBuilder.append(",");
+	static Hashtable<String, String> generateJmxTable(Map<String, String> variables) {
+		Hashtable<String, String> ht = new Hashtable<>(variables.size());
+		for (Map.Entry<String, String> variable : variables.entrySet()) {
+			ht.put(replaceInvalidChars(variable.getKey()), replaceInvalidChars(variable.getValue()));
 		}
-
-		// write the name
-		nameBuilder.append("name=").append(replaceInvalidChars(metricName));
-
-		return nameBuilder.toString();
+		return ht;
 	}
-	
+
+	static String generateJmxDomain(String metricName, MetricGroup group) {
+		return JMX_DOMAIN_PREFIX + ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(CHARACTER_FILTER, '.') + '.' + metricName;
+	}
+
 	/**
 	 * Lightweight method to replace unsupported characters.
 	 * If the string does not contain any unsupported characters, this method creates no
@@ -251,6 +255,8 @@ public class JMXReporter implements MetricReporter {
 		for (int i = 0; i < strLen; i++) {
 			final char c = str.charAt(i);
 			switch (c) {
+				case '>':
+				case '<':
 				case '"':
 					// remove character by not moving cursor
 					if (chars == null) {
@@ -426,7 +432,7 @@ public class JMXReporter implements MetricReporter {
 		long getCount();
 	}
 
-	private class JmxMeter extends AbstractBean implements JmxMeterMBean {
+	private static class JmxMeter extends AbstractBean implements JmxMeterMBean {
 
 		private final Meter meter;
 

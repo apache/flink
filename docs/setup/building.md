@@ -52,6 +52,26 @@ This instructs [Maven](http://maven.apache.org) (`mvn`) to first remove all exis
 
 The default build includes the YARN Client for Hadoop 2.
 
+## Dependency Shading
+
+Flink [shades away](https://maven.apache.org/plugins/maven-shade-plugin/) some of the libraries it uses, in order to avoid version clashes with user programs that use different versions of these libraries. Among the shaded libraries are *Google Guava*, *Asm*, *Apache Curator*, *Apache HTTP Components*, and others.
+
+The dependency shading mechanism was recently changed in Maven and requires users to build Flink slightly differently, depending on their Maven version:
+
+**Maven 3.0.x, 3.1.x, and 3.2.x**
+It is sufficient to call `mvn clean install -DskipTests` in the root directory of Flink code base.
+
+**Maven 3.3.x**
+The build has to be done in two steps: First in the base directory, then in the distribution project:
+
+~~~bash
+mvn clean install -DskipTests
+cd flink-dist
+mvn clean install
+~~~
+
+*Note:* To check your Maven version, run `mvn --version`.
+
 {% top %}
 
 ## Hadoop Versions

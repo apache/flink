@@ -54,10 +54,6 @@ import java.util.List;
  * of the Task read from this queue. Use {@link #waitForInputProcessing()} to wait until all
  * queues are empty. This must be used after entering some elements before checking the
  * desired output.
- *
- * <p>
- * When using this you need to add the following line to your test class to setup Powermock:
- * {@code {@literal @}PrepareForTest({ResultPartitionWriter.class})}
  */
 public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTestHarness<OUT> {
 

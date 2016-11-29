@@ -28,10 +28,10 @@ import java.util.Map;
 /**
  * Request handler for the STOP request.
  */
-public class JobStoppingHandler implements RequestHandler {
+public class JobStoppingHandler extends AbstractJsonRequestHandler {
 
 	@Override
-	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {
 			JobID jobid = new JobID(StringUtils.hexStringToByte(pathParams.get("jobid")));
 			if (jobManager != null) {

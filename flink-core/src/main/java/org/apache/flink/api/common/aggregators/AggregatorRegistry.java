@@ -49,18 +49,14 @@ public class AggregatorRegistry {
 		}
 		this.registry.put(name, aggregator);
 	}
-	
-	public Aggregator<?> unregisterAggregator(String name) {
-		return this.registry.remove(name);
-	}
-	
+
 	public Collection<AggregatorWithName<?>> getAllRegisteredAggregators() {
 		ArrayList<AggregatorWithName<?>> list = new ArrayList<AggregatorWithName<?>>(this.registry.size());
 		
 		for (Map.Entry<String, Aggregator<?>> entry : this.registry.entrySet()) {
 			@SuppressWarnings("unchecked")
 			Aggregator<Value> valAgg = (Aggregator<Value>) entry.getValue();
-			list.add(new AggregatorWithName<Value>(entry.getKey(), valAgg));
+			list.add(new AggregatorWithName<>(entry.getKey(), valAgg));
 		}
 		return list;
 	}
@@ -72,7 +68,7 @@ public class AggregatorRegistry {
 			throw new IllegalArgumentException("Name, aggregator, or convergence criterion must not be null");
 		}
 		
-		Aggregator<?> genAgg = (Aggregator<?>) aggregator;
+		Aggregator<?> genAgg = aggregator;
 		
 		Aggregator<?> previous = this.registry.get(name);
 		if (previous != null && previous != genAgg) {

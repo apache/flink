@@ -19,8 +19,7 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
@@ -47,7 +46,7 @@ import static org.apache.flink.runtime.io.network.api.serialization.RecordSerial
  */
 public class RecordWriter<T extends IOReadableWritable> {
 
-	protected final ResultPartitionWriter writer;
+	protected final ResultPartitionWriter targetPartition;
 
 	private final ChannelSelector<T> channelSelector;
 
@@ -64,7 +63,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	@SuppressWarnings("unchecked")
 	public RecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector) {
-		this.writer = writer;
+		this.targetPartition = writer;
 		this.channelSelector = channelSelector;
 
 		this.numChannels = writer.getNumberOfOutputChannels();
@@ -108,15 +107,25 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 		synchronized (serializer) {
 			SerializationResult result = serializer.addRecord(record);
+
 			while (result.isFullBuffer()) {
 				Buffer buffer = serializer.getCurrentBuffer();
 
 				if (buffer != null) {
-					writeBuffer(buffer, targetChannel, serializer);
-				}
+					writeAndClearBuffer(buffer, targetChannel, serializer);
 
-				buffer = writer.getBufferProvider().requestBufferBlocking();
-				result = serializer.setNextBuffer(buffer);
+					// If this was a full record, we are done. Not breaking
+					// out of the loop at this point will lead to another
+					// buffer request before breaking out (that would not be
+					// a problem per se, but it can lead to stalls in the
+					// pipeline).
+					if (result.isFullRecord()) {
+						break;
+					}
+				} else {
+					buffer = targetPartition.getBufferProvider().requestBufferBlocking();
+					result = serializer.setNextBuffer(buffer);
+				}
 			}
 		}
 	}
@@ -126,23 +135,14 @@ public class RecordWriter<T extends IOReadableWritable> {
 			RecordSerializer<T> serializer = serializers[targetChannel];
 
 			synchronized (serializer) {
-
-				if (serializer.hasData()) {
-					Buffer buffer = serializer.getCurrentBuffer();
-					if (buffer == null) {
-						throw new IllegalStateException("Serializer has data but no buffer.");
-					}
-
-					writeBuffer(buffer, targetChannel, serializer);
-
-					writer.writeEvent(event, targetChannel);
-
-					buffer = writer.getBufferProvider().requestBufferBlocking();
-					serializer.setNextBuffer(buffer);
+				Buffer buffer = serializer.getCurrentBuffer();
+				if (buffer != null) {
+					writeAndClearBuffer(buffer, targetChannel, serializer);
+				} else if (serializer.hasData()) {
+					throw new IllegalStateException("No buffer, but serializer has buffered data.");
 				}
-				else {
-					writer.writeEvent(event, targetChannel);
-				}
+
+				targetPartition.writeEvent(event, targetChannel);
 			}
 		}
 	}
@@ -154,15 +154,12 @@ public class RecordWriter<T extends IOReadableWritable> {
 			synchronized (serializer) {
 				Buffer buffer = serializer.getCurrentBuffer();
 				if (buffer != null) {
-					writeBuffer(buffer, targetChannel, serializer);
-
-					buffer = writer.getBufferProvider().requestBufferBlocking();
-					serializer.setNextBuffer(buffer);
+					writeAndClearBuffer(buffer, targetChannel, serializer);
 				}
 			}
 		}
 
-		writer.writeEndOfSuperstep();
+		targetPartition.writeEndOfSuperstep();
 	}
 
 	public void flush() throws IOException {
@@ -174,7 +171,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 					Buffer buffer = serializer.getCurrentBuffer();
 
 					if (buffer != null) {
-						writeBuffer(buffer, targetChannel, serializer);
+						writeAndClearBuffer(buffer, targetChannel, serializer);
 					}
 				} finally {
 					serializer.clear();
@@ -201,19 +198,10 @@ public class RecordWriter<T extends IOReadableWritable> {
 	}
 
 	/**
-	 * Counter for the number of records emitted and the records processed.
-	 */
-	public void setReporter(AccumulatorRegistry.Reporter reporter) {
-		for(RecordSerializer<?> serializer : serializers) {
-			serializer.setReporter(reporter);
-		}
-	}
-
-	/**
 	 * Sets the metric group for this RecordWriter.
 	 * @param metrics
      */
-	public void setMetricGroup(IOMetricGroup metrics) {
+	public void setMetricGroup(TaskIOMetricGroup metrics) {
 		for(RecordSerializer<?> serializer : serializers) {
 			serializer.instantiateMetrics(metrics);
 		}
@@ -224,13 +212,13 @@ public class RecordWriter<T extends IOReadableWritable> {
 	 *
 	 * <p> The buffer is cleared from the serializer state after a call to this method.
 	 */
-	private void writeBuffer(
+	private void writeAndClearBuffer(
 			Buffer buffer,
 			int targetChannel,
 			RecordSerializer<T> serializer) throws IOException {
 
 		try {
-			writer.writeBuffer(buffer, targetChannel);
+			targetPartition.writeBuffer(buffer, targetChannel);
 		}
 		finally {
 			serializer.clearCurrentBuffer();

@@ -32,9 +32,8 @@ import org.apache.flink.util.MathUtils;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import static java.util.Objects.requireNonNull;
@@ -42,7 +41,7 @@ import static java.util.Objects.requireNonNull;
 @Internal
 public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, STATE, F extends Function> 
 		extends AbstractUdfStreamOperator<OUT, F> 
-		implements OneInputStreamOperator<IN, OUT>, Triggerable {
+		implements OneInputStreamOperator<IN, OUT>, ProcessingTimeCallback {
 	
 	private static final long serialVersionUID = 3245500864882459867L;
 	
@@ -125,7 +124,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		
 		// decide when to first compute the window and when to slide it
 		// the values should align with the start of time (that is, the UNIX epoch, not the big bang)
-		final long now = getTimerService().getCurrentProcessingTime();
+		final long now = getProcessingTimeService().getCurrentProcessingTime();
 		nextEvaluationTime = now + windowSlide - (now % windowSlide);
 		nextSlideTime = now + paneSize - (now % paneSize);
 
@@ -166,7 +165,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		}
 
 		// make sure the first window happens
-		getTimerService().registerTimer(firstTriggerTime, this);
+		getProcessingTimeService().registerTimer(firstTriggerTime, this);
 	}
 
 	@Override
@@ -208,12 +207,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	}
 
 	@Override
-	public void processWatermark(Watermark mark) {
-		// this operator does not react to watermarks
-	}
-
-	@Override
-	public void trigger(long timestamp) throws Exception {
+	public void onProcessingTime(long timestamp) throws Exception {
 		// first we check if we actually trigger the window function
 		if (timestamp == nextEvaluationTime) {
 			// compute and output the results
@@ -230,7 +224,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		}
 
 		long nextTriggerTime = Math.min(nextEvaluationTime, nextSlideTime);
-		getTimerService().registerTimer(nextTriggerTime, this);
+		getProcessingTimeService().registerTimer(nextTriggerTime, this);
 	}
 	
 	private void computeWindow(long timestamp) throws Exception {

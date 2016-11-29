@@ -22,6 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphException;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.ConnectionID;
@@ -88,7 +89,9 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 	 * Creates an input channel deployment descriptor for each partition.
 	 */
 	public static InputChannelDeploymentDescriptor[] fromEdges(
-			ExecutionEdge[] edges, SimpleSlot consumerSlot) {
+			ExecutionEdge[] edges,
+			SimpleSlot consumerSlot,
+			boolean allowLazyDeployment) throws ExecutionGraphException {
 
 		final ResourceID consumerTaskManager = consumerSlot.getTaskManagerID();
 		final InputChannelDeploymentDescriptor[] icdd = new InputChannelDeploymentDescriptor[edges.length];
@@ -105,9 +108,11 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 
 			// The producing task needs to be RUNNING or already FINISHED
 			if (consumedPartition.isConsumable() && producerSlot != null &&
-					(producerState == ExecutionState.RUNNING
-							|| producerState == ExecutionState.FINISHED)) {
-
+					(producerState == ExecutionState.RUNNING ||
+						producerState == ExecutionState.FINISHED ||
+						producerState == ExecutionState.SCHEDULED ||
+						producerState == ExecutionState.DEPLOYING)) {
+				
 				final TaskManagerLocation partitionTaskManagerLocation = producerSlot.getTaskManagerLocation();
 				final ResourceID partitionTaskManager = partitionTaskManagerLocation.getResourceID();
 
@@ -124,9 +129,11 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 					partitionLocation = ResultPartitionLocation.createRemote(connectionId);
 				}
 			}
-			else {
+			else if (allowLazyDeployment) {
 				// The producing task might not have registered the partition yet
 				partitionLocation = ResultPartitionLocation.createUnknown();
+			} else {
+				throw new ExecutionGraphException("Trying to eagerly schedule a task whose inputs are not ready.");
 			}
 
 			final ResultPartitionID consumedPartitionId = new ResultPartitionID(

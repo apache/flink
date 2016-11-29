@@ -132,7 +132,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
 
-		when(initializationContext.getManagedOperatorStateStore()).thenReturn(operatorStateStore);
+		when(initializationContext.getOperatorStateStore()).thenReturn(operatorStateStore);
 		when(initializationContext.isRestored()).thenReturn(true);
 
 		consumer.initializeState(initializationContext);
@@ -172,7 +172,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
 
-		when(initializationContext.getManagedOperatorStateStore()).thenReturn(operatorStateStore);
+		when(initializationContext.getOperatorStateStore()).thenReturn(operatorStateStore);
 		when(initializationContext.isRestored()).thenReturn(false);
 
 		consumer.initializeState(initializationContext);
@@ -199,7 +199,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
 
-		when(initializationContext.getManagedOperatorStateStore()).thenReturn(operatorStateStore);
+		when(initializationContext.getOperatorStateStore()).thenReturn(operatorStateStore);
 
 		// make the context signal that there is no restored state, then validate that
 		when(initializationContext.isRestored()).thenReturn(false);
@@ -245,7 +245,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
 
-		when(initializationContext.getManagedOperatorStateStore()).thenReturn(backend);
+		when(initializationContext.getOperatorStateStore()).thenReturn(backend);
 		when(initializationContext.isRestored()).thenReturn(false, true, true, true);
 
 		consumer.initializeState(initializationContext);

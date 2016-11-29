@@ -32,6 +32,7 @@ import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.FailureRateRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
+import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -40,6 +41,7 @@ import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -96,7 +98,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		
 		//setting up
 		Instance instance = ExecutionGraphTestUtils.getInstance(
-			new SimpleActorGateway(TestingUtils.directExecutionContext()),
+			new ActorTaskManagerGateway(
+				new SimpleActorGateway(TestingUtils.directExecutionContext())),
 			NUM_TASKS);
 		
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
@@ -186,7 +189,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	@Test
 	public void testCancelWhileRestarting() throws Exception {
 		// We want to manually control the restart and delay
-		FixedDelayRestartStrategy restartStrategy = new FixedDelayRestartStrategy(Integer.MAX_VALUE, Long.MAX_VALUE);
+		RestartStrategy restartStrategy = new InfiniteDelayRestartStrategy();
 		Tuple2<ExecutionGraph, Instance> executionGraphInstanceTuple = createExecutionGraph(restartStrategy);
 		ExecutionGraph executionGraph = executionGraphInstanceTuple.f0;
 		Instance instance = executionGraphInstanceTuple.f1;
@@ -220,7 +223,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 
 		Instance instance = ExecutionGraphTestUtils.getInstance(
-			new SimpleActorGateway(TestingUtils.directExecutionContext()),
+			new ActorTaskManagerGateway(
+				new SimpleActorGateway(TestingUtils.directExecutionContext())),
 			NUM_TASKS);
 
 		scheduler.newInstanceAvailable(instance);
@@ -228,13 +232,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		// Blocking program
 		ExecutionGraph executionGraph = new ExecutionGraph(
 			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
 			new JobID(),
 			"TestJob",
 			new Configuration(),
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			// We want to manually control the restart and delay
-			new FixedDelayRestartStrategy(Integer.MAX_VALUE, Long.MAX_VALUE));
+			new InfiniteDelayRestartStrategy());
 
 		JobVertex jobVertex = new JobVertex("NoOpInvokable");
 		jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
@@ -263,8 +268,13 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		assertEquals(JobStatus.RESTARTING, executionGraph.getState());
 
-		// Canceling needs to abort the restart
+		// The restarting should not fail with an ordinary exception
 		executionGraph.fail(new Exception("Test exception"));
+
+		assertEquals(JobStatus.RESTARTING, executionGraph.getState());
+
+		// but it should fail when sending a SuppressRestartsException
+		executionGraph.fail(new SuppressRestartsException(new Exception("Test exception")));
 
 		assertEquals(JobStatus.FAILED, executionGraph.getState());
 
@@ -277,7 +287,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	@Test
 	public void testCancelWhileFailing() throws Exception {
 		// We want to manually control the restart and delay
-		FixedDelayRestartStrategy restartStrategy = new FixedDelayRestartStrategy(Integer.MAX_VALUE, Long.MAX_VALUE);
+		RestartStrategy restartStrategy = new InfiniteDelayRestartStrategy();
 		Tuple2<ExecutionGraph, Instance> executionGraphInstanceTuple = createSpyExecutionGraph(restartStrategy);
 		ExecutionGraph executionGraph = executionGraphInstanceTuple.f0;
 		Instance instance = executionGraphInstanceTuple.f1;
@@ -363,7 +373,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	@Test
 	public void testFailingExecutionAfterRestart() throws Exception {
 		Instance instance = ExecutionGraphTestUtils.getInstance(
-			new SimpleActorGateway(TestingUtils.directExecutionContext()),
+			new ActorTaskManagerGateway(
+				new SimpleActorGateway(TestingUtils.directExecutionContext())),
 			2);
 
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
@@ -426,8 +437,9 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	@Test
 	public void testFailExecutionAfterCancel() throws Exception {
 		Instance instance = ExecutionGraphTestUtils.getInstance(
-				new SimpleActorGateway(TestingUtils.directExecutionContext()),
-				2);
+			new ActorTaskManagerGateway(
+				new SimpleActorGateway(TestingUtils.directExecutionContext())),
+			2);
 
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 		scheduler.newInstanceAvailable(instance);
@@ -440,7 +452,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		JobGraph jobGraph = new JobGraph("Test Job", vertex);
 		jobGraph.setExecutionConfig(executionConfig);
 
-		ExecutionGraph eg = newExecutionGraph(new FixedDelayRestartStrategy(1, 1000000));
+		ExecutionGraph eg = newExecutionGraph(new InfiniteDelayRestartStrategy());
 
 		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
 
@@ -471,8 +483,9 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	@Test
 	public void testFailExecutionGraphAfterCancel() throws Exception {
 		Instance instance = ExecutionGraphTestUtils.getInstance(
-				new SimpleActorGateway(TestingUtils.directExecutionContext()),
-				2);
+			new ActorTaskManagerGateway(
+				new SimpleActorGateway(TestingUtils.directExecutionContext())),
+			2);
 
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 		scheduler.newInstanceAvailable(instance);
@@ -485,7 +498,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		JobGraph jobGraph = new JobGraph("Test Job", vertex);
 		jobGraph.setExecutionConfig(executionConfig);
 
-		ExecutionGraph eg = newExecutionGraph(new FixedDelayRestartStrategy(1, 1000000));
+		ExecutionGraph eg = newExecutionGraph(new InfiniteDelayRestartStrategy());
 
 		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
 
@@ -518,7 +531,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		Deadline deadline = timeout.fromNow();
 
 		Instance instance = ExecutionGraphTestUtils.getInstance(
-			new SimpleActorGateway(TestingUtils.directExecutionContext()),
+			new ActorTaskManagerGateway(
+				new SimpleActorGateway(TestingUtils.directExecutionContext())),
 			NUM_TASKS);
 
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
@@ -533,6 +547,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		ControllableRestartStrategy controllableRestartStrategy = new ControllableRestartStrategy(timeout);
 
 		ExecutionGraph eg = new ExecutionGraph(
+			TestingUtils.defaultExecutionContext(),
 			TestingUtils.defaultExecutionContext(),
 			new JobID(),
 			"Test job",
@@ -633,8 +648,9 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	private static Tuple2<ExecutionGraph, Instance> createExecutionGraph(RestartStrategy restartStrategy, boolean isSpy) throws Exception {
 		Instance instance = ExecutionGraphTestUtils.getInstance(
-				new SimpleActorGateway(TestingUtils.directExecutionContext()),
-				NUM_TASKS);
+			new ActorTaskManagerGateway(
+				new SimpleActorGateway(TestingUtils.directExecutionContext())),
+			NUM_TASKS);
 
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 		scheduler.newInstanceAvailable(instance);
@@ -665,13 +681,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	private static ExecutionGraph newExecutionGraph(RestartStrategy restartStrategy) throws IOException {
 		return new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				new JobID(),
-				"Test job",
-				new Configuration(),
-				new SerializedValue<>(new ExecutionConfig()),
-				AkkaUtils.getDefaultTimeout(),
-				restartStrategy);
+			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
+			new JobID(),
+			"Test job",
+			new Configuration(),
+			new SerializedValue<>(new ExecutionConfig()),
+			AkkaUtils.getDefaultTimeout(),
+			restartStrategy);
 	}
 
 	private static void restartAfterFailure(ExecutionGraph eg, FiniteDuration timeout, boolean haltAfterRestart) throws InterruptedException {

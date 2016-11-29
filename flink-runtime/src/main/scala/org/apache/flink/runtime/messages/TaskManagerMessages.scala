@@ -52,15 +52,12 @@ object TaskManagerMessages {
 
   /**
    * Reports liveliness of the TaskManager instance with the given instance ID to the
-   * This message is sent to the job. This message reports the TaskManagers
-   * metrics, as a byte array.
+   * This message is sent to the job.
    *
    * @param instanceID The instance ID of the reporting TaskManager.
-   * @param metricsReport utf-8 encoded JSON metrics report from the metricRegistry.
    * @param accumulators Accumulators of tasks serialized as Tuple2[internal, user-defined]
    */
-  case class Heartbeat(instanceID: InstanceID, metricsReport: Array[Byte],
-     accumulators: Seq[AccumulatorSnapshot])
+  case class Heartbeat(instanceID: InstanceID, accumulators: Seq[AccumulatorSnapshot])
 
 
   // --------------------------------------------------------------------------

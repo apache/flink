@@ -198,8 +198,8 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 					"First input is outer (blocking) side, second input is inner (spilling) side."));
 		}
 
-		final Counter numRecordsIn = taskContext.getMetricGroup().counter("numRecordsIn");
-		final Counter numRecordsOut = taskContext.getMetricGroup().counter("numRecordsOut");
+		final Counter numRecordsIn = taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOut = taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 
 		final MutableObjectIterator<T1> in1 = new CountingMutableObjectIterator<>(this.taskContext.<T1>getInput(0), numRecordsIn);
 		final MutableObjectIterator<T2> in2 = new CountingMutableObjectIterator<>(this.taskContext.<T2>getInput(1), numRecordsIn);
@@ -266,8 +266,8 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 					"First input is inner (spilling) side, second input is outer (blocking) side."));
 		}
 
-		final Counter numRecordsIn = taskContext.getMetricGroup().counter("numRecordsIn");
-		final Counter numRecordsOut = taskContext.getMetricGroup().counter("numRecordsOut");
+		final Counter numRecordsIn = taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOut = taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 
 		final MutableObjectIterator<T1> in1 = new CountingMutableObjectIterator<>(this.taskContext.<T1>getInput(0), numRecordsIn);
 		final MutableObjectIterator<T2> in2 = new CountingMutableObjectIterator<>(this.taskContext.<T2>getInput(1), numRecordsIn);
@@ -332,8 +332,8 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 					"First input is outer side, second input is inner (spilling) side."));
 		}
 
-		final Counter numRecordsIn = taskContext.getMetricGroup().counter("numRecordsIn");
-		final Counter numRecordsOut = taskContext.getMetricGroup().counter("numRecordsOut");
+		final Counter numRecordsIn = taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOut = taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 
 		final MutableObjectIterator<T1> in1 = new CountingMutableObjectIterator<>(this.taskContext.<T1>getInput(0), numRecordsIn);
 		final MutableObjectIterator<T2> in2 = new CountingMutableObjectIterator<>(this.taskContext.<T2>getInput(1), numRecordsIn);
@@ -385,8 +385,8 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 					"First input is inner (spilling) side, second input is outer side."));
 		}
 
-		final Counter numRecordsIn = taskContext.getMetricGroup().counter("numRecordsIn");
-		final Counter numRecordsOut = taskContext.getMetricGroup().counter("numRecordsOut");
+		final Counter numRecordsIn = taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOut = taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 
 		final MutableObjectIterator<T1> in1 = new CountingMutableObjectIterator<>(this.taskContext.<T1>getInput(0), numRecordsIn);
 		final MutableObjectIterator<T2> in2 = new CountingMutableObjectIterator<>(this.taskContext.<T2>getInput(1), numRecordsIn);

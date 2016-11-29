@@ -31,11 +31,15 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -64,6 +68,9 @@ public class PendingCheckpoint {
 
 	private final Map<ExecutionAttemptID, ExecutionVertex> notYetAcknowledgedTasks;
 
+	/** Set of acknowledged tasks */
+	private final Set<ExecutionAttemptID> acknowledgedTasks;
+
 	/** Flag indicating whether the checkpoint is triggered as part of periodic scheduling. */
 	private final boolean isPeriodic;
 
@@ -79,6 +86,8 @@ public class PendingCheckpoint {
 	/** The promise to fulfill once the checkpoint has been completed. */
 	private final FlinkCompletableFuture<CompletedCheckpoint> onCompletionPromise = new FlinkCompletableFuture<>();
 
+	private final Executor executor;
+
 	private int numAcknowledgedTasks;
 
 	private boolean discarded;
@@ -92,7 +101,8 @@ public class PendingCheckpoint {
 			Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm,
 			boolean isPeriodic,
 			CheckpointProperties props,
-			String targetDirectory) {
+			String targetDirectory,
+			Executor executor) {
 		this.jobId = checkNotNull(jobId);
 		this.checkpointId = checkpointId;
 		this.checkpointTimestamp = checkpointTimestamp;
@@ -101,6 +111,7 @@ public class PendingCheckpoint {
 		this.taskStates = new HashMap<>();
 		this.props = checkNotNull(props);
 		this.targetDirectory = targetDirectory;
+		this.executor = Preconditions.checkNotNull(executor);
 
 		// Sanity check
 		if (props.externalizeCheckpoint() && targetDirectory == null) {
@@ -109,6 +120,8 @@ public class PendingCheckpoint {
 
 		checkArgument(verticesToConfirm.size() > 0,
 				"Checkpoint needs at least one vertex that commits the checkpoint");
+
+		acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -228,36 +241,47 @@ public class PendingCheckpoint {
 			}
 		}
 	}
-	
-	public boolean acknowledgeTask(
-			ExecutionAttemptID attemptID,
-			SubtaskState checkpointedSubtaskState) {
+
+	/**
+	 * Acknowledges the task with the given execution attempt id and the given subtask state.
+	 *
+	 * @param executionAttemptId of the acknowledged task
+	 * @param subtaskState of the acknowledged task
+	 * @return TaskAcknowledgeResult of the operation
+	 */
+	public TaskAcknowledgeResult acknowledgeTask(
+			ExecutionAttemptID executionAttemptId,
+			SubtaskState subtaskState) {
 
 		synchronized (lock) {
 
 			if (discarded) {
-				return false;
+				return TaskAcknowledgeResult.DISCARDED;
 			}
 
-			final ExecutionVertex vertex = notYetAcknowledgedTasks.remove(attemptID);
+			final ExecutionVertex vertex = notYetAcknowledgedTasks.remove(executionAttemptId);
 
 			if (vertex == null) {
-				return false;
+				if (acknowledgedTasks.contains(executionAttemptId)) {
+					return TaskAcknowledgeResult.DUPLICATE;
+				} else {
+					return TaskAcknowledgeResult.UNKNOWN;
+				}
+			} else {
+				acknowledgedTasks.add(executionAttemptId);
 			}
 
-			if (null != checkpointedSubtaskState && checkpointedSubtaskState.hasState()) {
+			if (null != subtaskState) {
 
 				JobVertexID jobVertexID = vertex.getJobvertexId();
-
 				int subtaskIndex = vertex.getParallelSubtaskIndex();
-
 				TaskState taskState = taskStates.get(jobVertexID);
 
 				if (null == taskState) {
 					ChainedStateHandle<StreamStateHandle> nonPartitionedState =
-							checkpointedSubtaskState.getLegacyOperatorState();
+							subtaskState.getLegacyOperatorState();
 					ChainedStateHandle<OperatorStateHandle> partitioneableState =
-							checkpointedSubtaskState.getManagedOperatorState();
+							subtaskState.getManagedOperatorState();
 					//TODO this should go away when we remove chained state, assigning state to operators directly instead
 					int chainLength;
 					if (nonPartitionedState != null) {
@@ -278,15 +302,25 @@ public class PendingCheckpoint {
 				}
 
 				long duration = System.currentTimeMillis() - checkpointTimestamp;
-				checkpointedSubtaskState.setDuration(duration);
+				subtaskState.setDuration(duration);
 
-				taskState.putState(subtaskIndex, checkpointedSubtaskState);
+				taskState.putState(subtaskIndex, subtaskState);
 			}
 
 			++numAcknowledgedTasks;
 
-			return true;
+			return TaskAcknowledgeResult.SUCCESS;
 		}
+	}
+
+	/**
+	 * Result of the {@link PendingCheckpoint#acknowledgedTasks} method.
+	 */
+	public enum TaskAcknowledgeResult {
+		SUCCESS, // successful acknowledge of the task
+		DUPLICATE, // acknowledge message is a duplicate
+		UNKNOWN, // unknown task acknowledged
+		DISCARDED // pending checkpoint has been discarded
 	}
 
 	// ------------------------------------------------------------------------
@@ -296,7 +330,7 @@ public class PendingCheckpoint {
 	/**
 	 * Aborts a checkpoint because it expired (took too long).
 	 */
-	public void abortExpired() throws Exception {
+	public void abortExpired() {
 		try {
 			onCompletionPromise.completeExceptionally(new Exception("Checkpoint expired before completing"));
 		} finally {
@@ -307,7 +341,7 @@ public class PendingCheckpoint {
 	/**
 	 * Aborts the pending checkpoint because a newer completed checkpoint subsumed it.
 	 */
-	public void abortSubsumed() throws Exception {
+	public void abortSubsumed() {
 		try {
 			if (props.forceCheckpoint()) {
 				onCompletionPromise.completeExceptionally(new Exception("Bug: forced checkpoints must never be subsumed"));
@@ -321,7 +355,7 @@ public class PendingCheckpoint {
 		}
 	}
 
-	public void abortDeclined() throws Exception {
+	public void abortDeclined() {
 		try {
 			onCompletionPromise.completeExceptionally(new Exception("Checkpoint was declined (tasks not ready)"));
 		} finally {
@@ -333,7 +367,7 @@ public class PendingCheckpoint {
 	 * Aborts the pending checkpoint due to an error.
 	 * @param cause The error's exception.
 	 */
-	public void abortError(Throwable cause) throws Exception {
+	public void abortError(Throwable cause) {
 		try {
 			onCompletionPromise.completeExceptionally(new Exception("Checkpoint failed: " + cause.getMessage(), cause));
 		} finally {
@@ -341,17 +375,29 @@ public class PendingCheckpoint {
 		}
 	}
 
-	private void dispose(boolean releaseState) throws Exception {
+	private void dispose(boolean releaseState) {
 		synchronized (lock) {
 			try {
 				discarded = true;
 				numAcknowledgedTasks = -1;
 				if (releaseState) {
-					StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
+					executor.execute(new Runnable() {
+						@Override
+						public void run() {
+							try {
+								StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
+							} catch (Exception e) {
+								LOG.warn("Could not properly dispose the pending checkpoint " +
+									"{} of job {}.", checkpointId, jobId, e);
+							}
+						}
+					});
+
 				}
 			} finally {
 				taskStates.clear();
 				notYetAcknowledgedTasks.clear();
+				acknowledgedTasks.clear();
 			}
 		}
 	}

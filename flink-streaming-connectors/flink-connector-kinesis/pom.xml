@@ -150,6 +150,10 @@ under the License.
 									<pattern>com.google.protobuf</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.com.google.protobuf</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>com.amazonaws</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.com.amazonaws</shadedPattern>
+								</relocation>
 							</relocations>
 						</configuration>
 					</execution>

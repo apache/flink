@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemoryType;
@@ -119,7 +120,11 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 			}
 
 			try {
-				jobManger = TestingUtils.createJobManager(testActorSystem, new Configuration());
+				jobManger = TestingUtils.createJobManager(
+					testActorSystem,
+					testActorSystem.dispatcher(),
+					testActorSystem.dispatcher(),
+					new Configuration());
 
 				final Configuration config = new Configuration();
 				config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
@@ -157,14 +162,14 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 							ExecutionJobVertex vertex = executionGraph.getJobVertex(task.getID());
 
 							StackTraceSampleCoordinator coordinator = new StackTraceSampleCoordinator(
-									testActorSystem, 60000);
+									testActorSystem.dispatcher(), 60000);
 
 							// Verify back pressure (clean up interval can be ignored)
 							BackPressureStatsTracker statsTracker = new BackPressureStatsTracker(
-									coordinator,
-									100 * 1000,
-									20,
-									new FiniteDuration(10, TimeUnit.MILLISECONDS));
+								coordinator,
+								100 * 1000,
+								20,
+								Time.milliseconds(10L));
 
 							int numAttempts = 10;
 

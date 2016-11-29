@@ -31,11 +31,11 @@ public class MetricStoreTest extends TestLogger {
 	public void testAdd() throws IOException {
 		MetricStore store = setupStore(new MetricStore());
 
-		assertEquals(0L, store.jobManager.metrics.get("abc.metric1"));
-		assertEquals(1L, store.taskManagers.get("tmid").metrics.get("abc.metric2"));
-		assertEquals(2L, store.jobs.get("jobid").metrics.get("abc.metric3"));
-		assertEquals(3L, store.jobs.get("jobid").tasks.get("taskid").metrics.get("8.abc.metric4"));
-		assertEquals(4L, store.jobs.get("jobid").tasks.get("taskid").metrics.get("8.opname.abc.metric5"));
+		assertEquals("0", store.getJobManagerMetricStore().getMetric("abc.metric1", "-1"));
+		assertEquals("1", store.getTaskManagerMetricStore("tmid").getMetric("abc.metric2", "-1"));
+		assertEquals("2", store.getJobMetricStore("jobid").getMetric("abc.metric3", "-1"));
+		assertEquals("3", store.getTaskMetricStore("jobid", "taskid").getMetric("8.abc.metric4", "-1"));
+		assertEquals("4", store.getTaskMetricStore("jobid", "taskid").getMetric("8.opname.abc.metric5", "-1"));
 	}
 
 	@Test

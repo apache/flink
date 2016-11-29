@@ -22,15 +22,20 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Kill;
 import akka.actor.Props;
+import akka.actor.Status;
 import akka.japi.Creator;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.concurrent.CompletableFuture;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -38,11 +43,14 @@ import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.PartitionState;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -51,22 +59,21 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.Tasks;
-import org.apache.flink.runtime.messages.Messages;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.RegistrationMessages;
-import org.apache.flink.runtime.messages.StackTraceSampleMessages.ResponseStackTraceSampleFailure;
-import org.apache.flink.runtime.messages.StackTraceSampleMessages.ResponseStackTraceSampleSuccess;
 import org.apache.flink.runtime.messages.StackTraceSampleMessages.TriggerStackTraceSample;
+import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
 import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.messages.TaskMessages.StopTask;
 import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
-import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.StoppableInvokable;
+import org.apache.flink.types.IntValue;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -79,11 +86,14 @@ import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
+import scala.util.Failure;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -107,6 +117,7 @@ public class TaskManagerTest extends TestLogger {
 	private static final FiniteDuration timeout = new FiniteDuration(1, TimeUnit.MINUTES);
 
 	private static final FiniteDuration d = new FiniteDuration(60, TimeUnit.SECONDS);
+	private static final Time timeD = Time.seconds(60L);
 
 	private static ActorSystem system;
 
@@ -123,7 +134,7 @@ public class TaskManagerTest extends TestLogger {
 	}
 
 	@Test
-	public void testSubmitAndExecuteTask() {
+	public void testSubmitAndExecuteTask() throws IOException {
 		new JavaTestKit(system){{
 
 			ActorGateway taskManager = null;
@@ -163,12 +174,13 @@ public class TaskManagerTest extends TestLogger {
 				final ExecutionAttemptID eid = new ExecutionAttemptID();
 				final SerializedValue<ExecutionConfig> executionConfig = new SerializedValue<>(new ExecutionConfig());
 
-				final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, "TestJob", vid, eid, executionConfig,
-						"TestTask", 7, 2, 7, 0, new Configuration(), new Configuration(),
-						TestInvokableCorrect.class.getName(),
-						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-						Collections.<InputGateDeploymentDescriptor>emptyList(),
-						new ArrayList<BlobKey>(), Collections.<URL>emptyList(), 0);
+				final TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(
+					jid, "TestJob", vid, eid, executionConfig,
+					"TestTask", 7, 2, 7, 0, new Configuration(), new Configuration(),
+					TestInvokableCorrect.class.getName(),
+					Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+					Collections.<InputGateDeploymentDescriptor>emptyList(),
+					new ArrayList<BlobKey>(), Collections.<URL>emptyList(), 0);
 
 
 				new Within(d) {
@@ -182,7 +194,7 @@ public class TaskManagerTest extends TestLogger {
 						long deadline = System.currentTimeMillis() + 10000;
 						do {
 							Object message = receiveOne(d);
-							if (message == Messages.getAcknowledge()) {
+							if (message.equals(Acknowledge.get())) {
 								break;
 							}
 						} while (System.currentTimeMillis() < deadline);
@@ -220,10 +232,6 @@ public class TaskManagerTest extends TestLogger {
 
 					}
 				};
-			}
-			catch (Exception e) {
-				e.printStackTrace();
-				fail(e.getMessage());
 			}
 			finally {
 				// shut down the actors
@@ -264,7 +272,7 @@ public class TaskManagerTest extends TestLogger {
 				final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 				final ExecutionAttemptID eid2 = new ExecutionAttemptID();
 
-				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(
+				final TaskDeploymentDescriptor tdd1 = createTaskDeploymentDescriptor(
 						jid1, "TestJob1", vid1, eid1,
 						new SerializedValue<>(new ExecutionConfig()),
 						"TestTask1", 5, 1, 5, 0,
@@ -273,7 +281,7 @@ public class TaskManagerTest extends TestLogger {
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
 						new ArrayList<BlobKey>(), Collections.<URL>emptyList(), 0);
 
-				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(
+				final TaskDeploymentDescriptor tdd2 = createTaskDeploymentDescriptor(
 						jid2, "TestJob2", vid2, eid2,
 						new SerializedValue<>(new ExecutionConfig()),
 						"TestTask2", 7, 2, 7, 0,
@@ -299,8 +307,8 @@ public class TaskManagerTest extends TestLogger {
 							tm.tell(new SubmitTask(tdd1), testActorGateway);
 							tm.tell(new SubmitTask(tdd2), testActorGateway);
 
-							expectMsgEquals(Messages.getAcknowledge());
-							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Acknowledge.get());
+							expectMsgEquals(Acknowledge.get());
 
 							Await.ready(t1Running, d);
 							Await.ready(t2Running, d);
@@ -321,7 +329,7 @@ public class TaskManagerTest extends TestLogger {
 
 							tm.tell(new CancelTask(eid1), testActorGateway);
 
-							expectMsgEquals(new TaskOperationResult(eid1, true));
+							expectMsgEquals(Acknowledge.get());
 
 							Future<Object> response = tm.ask(new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
 									timeout);
@@ -336,11 +344,10 @@ public class TaskManagerTest extends TestLogger {
 							assertEquals(1, runningTasks.size());
 
 							tm.tell(new CancelTask(eid1), testActorGateway);
-							expectMsgEquals(new TaskOperationResult(eid1, false, "No task with that execution ID was " +
-									"found."));
+							expectMsgEquals(Acknowledge.get());
 
 							tm.tell(new CancelTask(eid2), testActorGateway);
-							expectMsgEquals(new TaskOperationResult(eid2, true));
+							expectMsgEquals(Acknowledge.get());
 
 							response = tm.ask(new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid2),
 									timeout);
@@ -404,13 +411,13 @@ public class TaskManagerTest extends TestLogger {
 
 				final SerializedValue<ExecutionConfig> executionConfig = new SerializedValue<>(new ExecutionConfig());
 
-				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid1, "TestJob", vid1, eid1, executionConfig,
+				final TaskDeploymentDescriptor tdd1 = createTaskDeploymentDescriptor(jid1, "TestJob", vid1, eid1, executionConfig,
 						"TestTask1", 5, 1, 5, 0, new Configuration(), new Configuration(), StoppableInvokable.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
 						new ArrayList<BlobKey>(), Collections.<URL>emptyList(), 0);
 
-				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid2, "TestJob", vid2, eid2, executionConfig,
+				final TaskDeploymentDescriptor tdd2 = createTaskDeploymentDescriptor(jid2, "TestJob", vid2, eid2, executionConfig,
 						"TestTask2", 7, 2, 7, 0, new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
@@ -433,8 +440,8 @@ public class TaskManagerTest extends TestLogger {
 							tm.tell(new SubmitTask(tdd1), testActorGateway);
 							tm.tell(new SubmitTask(tdd2), testActorGateway);
 
-							expectMsgEquals(Messages.getAcknowledge());
-							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Acknowledge.get());
+							expectMsgEquals(Acknowledge.get());
 
 							Await.ready(t1Running, d);
 							Await.ready(t2Running, d);
@@ -455,7 +462,7 @@ public class TaskManagerTest extends TestLogger {
 
 							tm.tell(new StopTask(eid1), testActorGateway);
 
-							expectMsgEquals(new TaskOperationResult(eid1, true));
+							expectMsgEquals(Acknowledge.get());
 
 							Future<Object> response = tm.ask(
 									new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
@@ -471,11 +478,10 @@ public class TaskManagerTest extends TestLogger {
 							assertEquals(1, runningTasks.size());
 
 							tm.tell(new StopTask(eid1), testActorGateway);
-							expectMsgEquals(new TaskOperationResult(eid1, false, "No task with that execution ID was " +
-									"found."));
+							expectMsgEquals(Acknowledge.get());
 
 							tm.tell(new StopTask(eid2), testActorGateway);
-							expectMsgEquals(new TaskOperationResult(eid2, false, "UnsupportedOperationException: Stopping not supported by this task."));
+							expectMsgClass(Failure.class);
 
 							assertEquals(ExecutionState.RUNNING, t2.getExecutionState());
 
@@ -530,7 +536,7 @@ public class TaskManagerTest extends TestLogger {
 				final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 				final ExecutionAttemptID eid2 = new ExecutionAttemptID();
 
-				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(
+				final TaskDeploymentDescriptor tdd1 = createTaskDeploymentDescriptor(
 						jid, "TestJob", vid1, eid1,
 						new SerializedValue<>(new ExecutionConfig()),
 						"Sender", 1, 0, 1, 0,
@@ -539,7 +545,7 @@ public class TaskManagerTest extends TestLogger {
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
 						new ArrayList<BlobKey>(), Collections.<URL>emptyList(), 0);
 
-				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(
+				final TaskDeploymentDescriptor tdd2 = createTaskDeploymentDescriptor(
 						jid, "TestJob", vid2, eid2,
 						new SerializedValue<>(new ExecutionConfig()),
 						"Receiver", 7, 2, 7, 0,
@@ -556,8 +562,8 @@ public class TaskManagerTest extends TestLogger {
 							tm.tell(new SubmitTask(tdd1), testActorGateway);
 							tm.tell(new SubmitTask(tdd2), testActorGateway);
 
-							expectMsgEquals(Messages.getAcknowledge());
-							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Acknowledge.get());
+							expectMsgEquals(Acknowledge.get());
 
 							tm.tell(new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
 									testActorGateway);
@@ -625,7 +631,7 @@ public class TaskManagerTest extends TestLogger {
 				IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 
 				List<ResultPartitionDeploymentDescriptor> irpdd = new ArrayList<ResultPartitionDeploymentDescriptor>();
-				irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1, false));
+				irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1, true));
 
 				InputGateDeploymentDescriptor ircdd =
 						new InputGateDeploymentDescriptor(
@@ -635,7 +641,7 @@ public class TaskManagerTest extends TestLogger {
 								}
 						);
 
-				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(
+				final TaskDeploymentDescriptor tdd1 = createTaskDeploymentDescriptor(
 						jid, "TestJob", vid1, eid1,
 						new SerializedValue<>(new ExecutionConfig()),
 						"Sender", 1, 0, 1, 0,
@@ -643,7 +649,7 @@ public class TaskManagerTest extends TestLogger {
 						irpdd, Collections.<InputGateDeploymentDescriptor>emptyList(), new ArrayList<BlobKey>(),
 						Collections.<URL>emptyList(), 0);
 
-				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(
+				final TaskDeploymentDescriptor tdd2 = createTaskDeploymentDescriptor(
 						jid, "TestJob", vid2, eid2,
 						new SerializedValue<>(new ExecutionConfig()),
 						"Receiver", 7, 2, 7, 0,
@@ -667,14 +673,14 @@ public class TaskManagerTest extends TestLogger {
 
 							// submit the sender task
 							tm.tell(new SubmitTask(tdd1), testActorGateway);
-							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Acknowledge.get());
 
 							// wait until the sender task is running
 							Await.ready(t1Running, d);
 
 							// only now (after the sender is running), submit the receiver task
 							tm.tell(new SubmitTask(tdd2), testActorGateway);
-							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Acknowledge.get());
 
 							// wait until the receiver task is running
 							Await.ready(t2Running, d);
@@ -770,7 +776,7 @@ public class TaskManagerTest extends TestLogger {
 				IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 
 				List<ResultPartitionDeploymentDescriptor> irpdd = new ArrayList<ResultPartitionDeploymentDescriptor>();
-				irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1, false));
+				irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1, true));
 
 				InputGateDeploymentDescriptor ircdd =
 						new InputGateDeploymentDescriptor(
@@ -780,7 +786,7 @@ public class TaskManagerTest extends TestLogger {
 								}
 						);
 
-				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(
+				final TaskDeploymentDescriptor tdd1 = createTaskDeploymentDescriptor(
 						jid, "TestJob", vid1, eid1,
 						new SerializedValue<>(new ExecutionConfig()),
 						"Sender", 1, 0, 1, 0,
@@ -788,7 +794,7 @@ public class TaskManagerTest extends TestLogger {
 						irpdd, Collections.<InputGateDeploymentDescriptor>emptyList(),
 						new ArrayList<BlobKey>(), Collections.<URL>emptyList(), 0);
 
-				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(
+				final TaskDeploymentDescriptor tdd2 = createTaskDeploymentDescriptor(
 						jid, "TestJob", vid2, eid2,
 						new SerializedValue<>(new ExecutionConfig()),
 						"Receiver", 7, 2, 7, 0,
@@ -813,8 +819,8 @@ public class TaskManagerTest extends TestLogger {
 							tm.tell(new SubmitTask(tdd2), testActorGateway);
 							tm.tell(new SubmitTask(tdd1), testActorGateway);
 
-							expectMsgEquals(Messages.getAcknowledge());
-							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Acknowledge.get());
+							expectMsgEquals(Acknowledge.get());
 
 							Await.ready(t1Running, d);
 							Await.ready(t2Running, d);
@@ -827,7 +833,7 @@ public class TaskManagerTest extends TestLogger {
 							Task t2 = tasks.get(eid2);
 
 							tm.tell(new CancelTask(eid2), testActorGateway);
-							expectMsgEquals(new TaskOperationResult(eid2, true));
+							expectMsgEquals(Acknowledge.get());
 
 							if (t2 != null) {
 								Future<Object> response = tm.ask(new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid2),
@@ -838,7 +844,7 @@ public class TaskManagerTest extends TestLogger {
 							if (t1 != null) {
 								if (t1.getExecutionState() == ExecutionState.RUNNING) {
 									tm.tell(new CancelTask(eid1), testActorGateway);
-									expectMsgEquals(new TaskOperationResult(eid1, true));
+									expectMsgEquals(Acknowledge.get());
 								}
 								Future<Object> response = tm.ask(
 										new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
@@ -898,6 +904,8 @@ public class TaskManagerTest extends TestLogger {
 				final int dataPort = NetUtils.getAvailablePort();
 				Configuration config = new Configuration();
 				config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort);
+				config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+				config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
 
 				taskManager = TestingUtils.createTaskManager(
 						system,
@@ -928,7 +936,7 @@ public class TaskManagerTest extends TestLogger {
 				final InputGateDeploymentDescriptor igdd =
 						new InputGateDeploymentDescriptor(resultId, 0, icdd);
 
-				final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
+				final TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(
 						jid, "TestJob", vid, eid,
 						new SerializedValue<>(new ExecutionConfig()),
 						"Receiver", 1, 0, 1, 0,
@@ -944,7 +952,7 @@ public class TaskManagerTest extends TestLogger {
 					protected void run() {
 						// Submit the task
 						tm.tell(new SubmitTask(tdd), testActorGateway);
-						expectMsgClass(Messages.getAcknowledge().getClass());
+						expectMsgClass(Acknowledge.get().getClass());
 
 						// Wait to be notified about the final execution state by the mock JM
 						TaskExecutionState msg = expectMsgClass(TaskExecutionState.class);
@@ -993,6 +1001,8 @@ public class TaskManagerTest extends TestLogger {
 				jobManager = new AkkaActorGateway(jm, leaderSessionID);
 
 				final Configuration config = new Configuration();
+				config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+				config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
 
 				taskManager = TestingUtils.createTaskManager(
 						system,
@@ -1021,7 +1031,7 @@ public class TaskManagerTest extends TestLogger {
 				final InputGateDeploymentDescriptor igdd =
 						new InputGateDeploymentDescriptor(resultId, 0, icdd);
 
-				final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
+				final TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(
 						jid, "TestJob", vid, eid,
 						new SerializedValue<>(new ExecutionConfig()),
 						"Receiver", 1, 0, 1, 0,
@@ -1037,7 +1047,7 @@ public class TaskManagerTest extends TestLogger {
 					protected void run() {
 						// Submit the task
 						tm.tell(new SubmitTask(tdd), testActorGateway);
-						expectMsgClass(Messages.getAcknowledge().getClass());
+						expectMsgClass(Acknowledge.get().getClass());
 
 						// Wait to be notified about the final execution state by the mock JM
 						TaskExecutionState msg = expectMsgClass(TaskExecutionState.class);
@@ -1095,9 +1105,11 @@ public class TaskManagerTest extends TestLogger {
 						true,
 						false);
 
+				final JobID jobId = new JobID();
+
 				// Single blocking task
-				final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
-						new JobID(),
+				final TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(
+						jobId,
 						"Job",
 						new JobVertexID(),
 						new ExecutionAttemptID(),
@@ -1129,7 +1141,7 @@ public class TaskManagerTest extends TestLogger {
 
 							Future<Object> taskRunningFuture = taskManager.ask(
 									new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(
-											tdd.getExecutionId()), timeout);
+											tdd.getExecutionAttemptId()), timeout);
 
 							taskManager.tell(new SubmitTask(tdd));
 
@@ -1154,21 +1166,19 @@ public class TaskManagerTest extends TestLogger {
 											112223,
 											taskId,
 											100,
-											d,
+											timeD,
 											0),
 									testActorGateway);
 
 							// Receive the expected message (heartbeat races possible)
 							Object[] msg = receiveN(1);
-							while (!(msg[0] instanceof ResponseStackTraceSampleFailure)) {
+							while (!(msg[0] instanceof Failure)) {
 								msg = receiveN(1);
 							}
 
-							ResponseStackTraceSampleFailure response = (ResponseStackTraceSampleFailure) msg[0];
+							Failure response = (Failure) msg[0];
 
-							assertEquals(112223, response.sampleId());
-							assertEquals(taskId, response.executionId());
-							assertEquals(IllegalStateException.class, response.cause().getClass());
+							assertEquals(IllegalStateException.class, response.exception().getClass());
 						} catch (Exception e) {
 							e.printStackTrace();
 							fail(e.getMessage());
@@ -1191,25 +1201,25 @@ public class TaskManagerTest extends TestLogger {
 
 								taskManager.tell(new TriggerStackTraceSample(
 												19230,
-												tdd.getExecutionId(),
+												tdd.getExecutionAttemptId(),
 												numSamples,
-												new FiniteDuration(100, TimeUnit.MILLISECONDS),
+												Time.milliseconds(100L),
 												0),
 										testActorGateway);
 
 								// Receive the expected message (heartbeat races possible)
 								Object[] msg = receiveN(1);
-								while (!(msg[0] instanceof ResponseStackTraceSampleSuccess)) {
+								while (!(msg[0] instanceof StackTraceSampleResponse)) {
 									msg = receiveN(1);
 								}
 
-								ResponseStackTraceSampleSuccess response = (ResponseStackTraceSampleSuccess) msg[0];
+								StackTraceSampleResponse response = (StackTraceSampleResponse) msg[0];
 
 								// ---- Verify response ----
-								assertEquals(19230, response.sampleId());
-								assertEquals(tdd.getExecutionId(), response.executionId());
+								assertEquals(19230, response.getSampleId());
+								assertEquals(tdd.getExecutionAttemptId(), response.getExecutionAttemptID());
 
-								List<StackTraceElement[]> traces = response.samples();
+								List<StackTraceElement[]> traces = response.getSamples();
 
 								assertEquals("Number of samples", numSamples, traces.size());
 
@@ -1263,25 +1273,25 @@ public class TaskManagerTest extends TestLogger {
 
 							taskManager.tell(new TriggerStackTraceSample(
 											1337,
-											tdd.getExecutionId(),
+											tdd.getExecutionAttemptId(),
 											numSamples,
-											new FiniteDuration(100, TimeUnit.MILLISECONDS),
+											Time.milliseconds(100L),
 											maxDepth),
 									testActorGateway);
 
 							// Receive the expected message (heartbeat races possible)
 							Object[] msg = receiveN(1);
-							while (!(msg[0] instanceof ResponseStackTraceSampleSuccess)) {
+							while (!(msg[0] instanceof StackTraceSampleResponse)) {
 								msg = receiveN(1);
 							}
 
-							ResponseStackTraceSampleSuccess response = (ResponseStackTraceSampleSuccess) msg[0];
+							StackTraceSampleResponse response = (StackTraceSampleResponse) msg[0];
 
 							// ---- Verify response ----
-							assertEquals(1337, response.sampleId());
-							assertEquals(tdd.getExecutionId(), response.executionId());
+							assertEquals(1337, response.getSampleId());
+							assertEquals(tdd.getExecutionAttemptId(), response.getExecutionAttemptID());
 
-							List<StackTraceElement[]> traces = response.samples();
+							List<StackTraceElement[]> traces = response.getSamples();
 
 							assertEquals("Number of samples", numSamples, traces.size());
 
@@ -1307,41 +1317,42 @@ public class TaskManagerTest extends TestLogger {
 							for (int i = 0; i < maxAttempts; i++, sleepTime *= 2) {
 								// Trigger many samples in order to cancel the task
 								// during a sample
-								taskManager.tell(new TriggerStackTraceSample(
-												44,
-												tdd.getExecutionId(),
-												Integer.MAX_VALUE,
-												new FiniteDuration(10, TimeUnit.MILLISECONDS),
-												0),
-										testActorGateway);
+								taskManager.tell(
+									new TriggerStackTraceSample(
+										44,
+										tdd.getExecutionAttemptId(),
+										Integer.MAX_VALUE,
+										Time.milliseconds(10L),
+										0),
+									testActorGateway);
 
 								Thread.sleep(sleepTime);
 
 								Future<?> removeFuture = taskManager.ask(
-										new TestingJobManagerMessages.NotifyWhenJobRemoved(tdd.getJobID()),
+										new TestingJobManagerMessages.NotifyWhenJobRemoved(jobId),
 										remaining());
 
 								// Cancel the task
-								taskManager.tell(new CancelTask(tdd.getExecutionId()));
+								taskManager.tell(new CancelTask(tdd.getExecutionAttemptId()));
 
 								// Receive the expected message (heartbeat races possible)
 								while (true) {
 									Object[] msg = receiveN(1);
-									if (msg[0] instanceof ResponseStackTraceSampleSuccess) {
-										ResponseStackTraceSampleSuccess response = (ResponseStackTraceSampleSuccess) msg[0];
+									if (msg[0] instanceof StackTraceSampleResponse) {
+										StackTraceSampleResponse response = (StackTraceSampleResponse) msg[0];
 
-										assertEquals(tdd.getExecutionId(), response.executionId());
-										assertEquals(44, response.sampleId());
+										assertEquals(tdd.getExecutionAttemptId(), response.getExecutionAttemptID());
+										assertEquals(44, response.getSampleId());
 
 										// Done
 										return;
-									} else if (msg[0] instanceof ResponseStackTraceSampleFailure) {
+									} else if (msg[0] instanceof Failure) {
 										// Wait for removal before resubmitting
 										Await.ready(removeFuture, remaining());
 
 										Future<?> taskRunningFuture = taskManager.ask(
 												new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(
-														tdd.getExecutionId()), timeout);
+														tdd.getExecutionAttemptId()), timeout);
 
 										// Resubmit
 										taskManager.tell(new SubmitTask(tdd));
@@ -1390,6 +1401,74 @@ public class TaskManagerTest extends TestLogger {
 			}
 		}};
 	}
+
+	/**
+	 * Test that a failing schedule or update consumers call leads to the failing of the respective
+	 * task.
+	 *
+	 * IMPORTANT: We have to make sure that the invokable's cancel method is called, because only
+	 * then the future is completed. We do this by not eagerly deploy consumer tasks and requiring
+	 * the invokable to fill one memory segment. The completed memory segment will trigger the
+	 * scheduling of the downstream operator since it is in pipeline mode. After we've filled the
+	 * memory segment, we'll block the invokable and wait for the task failure due to the failed
+	 * schedule or update consumers call.
+	 */
+	@Test(timeout = 10000L)
+	public void testFailingScheduleOrUpdateConsumersMessage() throws Exception {
+		new JavaTestKit(system) {{
+			final Configuration configuration = new Configuration();
+
+			// set the memory segment to the smallest size possible, because we have to fill one
+			// memory buffer to trigger the schedule or update consumers message to the downstream
+			// operators
+			configuration.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY, 4096);
+
+			final JobID jid = new JobID();
+			final JobVertexID vid = new JobVertexID();
+			final ExecutionAttemptID eid = new ExecutionAttemptID();
+			final SerializedValue<ExecutionConfig> executionConfig = new SerializedValue<>(new ExecutionConfig());
+
+			final ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor = new ResultPartitionDeploymentDescriptor(
+				new IntermediateDataSetID(),
+				new IntermediateResultPartitionID(),
+				ResultPartitionType.PIPELINED,
+				1,
+				true);
+
+			final TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(jid, "TestJob", vid, eid, executionConfig,
+				"TestTask", 1, 0, 1, 0, new Configuration(), new Configuration(),
+				TestInvokableRecordCancel.class.getName(),
+				Collections.singletonList(resultPartitionDeploymentDescriptor),
+				Collections.<InputGateDeploymentDescriptor>emptyList(),
+				new ArrayList<BlobKey>(), Collections.<URL>emptyList(), 0);
+
+
+			ActorRef jmActorRef = system.actorOf(Props.create(FailingScheduleOrUpdateConsumersJobManager.class, leaderSessionID), "jobmanager");
+			ActorGateway jobManager = new AkkaActorGateway(jmActorRef, leaderSessionID);
+
+			final ActorGateway taskManager = TestingUtils.createTaskManager(
+				system,
+				jobManager,
+				configuration,
+				true,
+				true);
+
+			try {
+				TestInvokableRecordCancel.resetGotCanceledFuture();
+
+				Future<Object> result = taskManager.ask(new SubmitTask(tdd), timeout);
+
+				Await.result(result, timeout);
+
+				org.apache.flink.runtime.concurrent.Future<Boolean> cancelFuture = TestInvokableRecordCancel.gotCanceled();
+
+				assertEquals(true, cancelFuture.get());
+			} finally {
+				TestingUtils.stopActor(taskManager);
+				TestingUtils.stopActor(jobManager);
+			}
+		}};
+	}
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -1425,6 +1504,25 @@ public class TaskManagerTest extends TestLogger {
 		}
 	}
 
+	public static class FailingScheduleOrUpdateConsumersJobManager extends SimpleJobManager {
+
+		public FailingScheduleOrUpdateConsumersJobManager(UUID leaderSessionId) {
+			super(leaderSessionId);
+		}
+
+		@Override
+		public void handleMessage(Object message) throws Exception {
+			if (message instanceof ScheduleOrUpdateConsumers) {
+				getSender().tell(
+					decorateMessage(
+						new Status.Failure(new Exception("Could not schedule or update consumers."))),
+					getSelf());
+			} else {
+				super.handleMessage(message);
+			}
+		}
+	}
+
 	public static class SimpleLookupJobManager extends SimpleJobManager {
 
 		public SimpleLookupJobManager(UUID leaderSessionID) {
@@ -1435,7 +1533,7 @@ public class TaskManagerTest extends TestLogger {
 		public void handleMessage(Object message) throws Exception {
 			if (message instanceof ScheduleOrUpdateConsumers) {
 				getSender().tell(
-						decorateMessage(Messages.getAcknowledge()),
+						decorateMessage(Acknowledge.get()),
 						getSelf()
 						);
 			} else {
@@ -1450,7 +1548,7 @@ public class TaskManagerTest extends TestLogger {
 
 		public SimpleLookupFailingUpdateJobManager(UUID leaderSessionID, Set<ExecutionAttemptID> ids) {
 			super(leaderSessionID);
-			this.validIDs = new HashSet<ExecutionAttemptID>(ids);
+			this.validIDs = new HashSet<>(ids);
 		}
 
 		@Override
@@ -1566,7 +1664,7 @@ public class TaskManagerTest extends TestLogger {
 		public void invoke() {}
 	}
 	
-	public static final class TestInvokableBlockingCancelable extends AbstractInvokable {
+	public static class TestInvokableBlockingCancelable extends AbstractInvokable {
 
 		@Override
 		public void invoke() throws Exception {
@@ -1579,5 +1677,100 @@ public class TaskManagerTest extends TestLogger {
 				}
 			}
 		}
+	}
+
+	public static final class TestInvokableRecordCancel extends AbstractInvokable {
+
+		private static final Object lock = new Object();
+		private static CompletableFuture<Boolean> gotCanceledFuture = new FlinkCompletableFuture<>();
+
+		@Override
+		public void invoke() throws Exception {
+			final Object o = new Object();
+			RecordWriter<IntValue> recordWriter = new RecordWriter<>(getEnvironment().getWriter(0));
+
+			for (int i = 0; i < 1024; i++) {
+				recordWriter.emit(new IntValue(42));
+			}
+
+			synchronized (o) {
+				//noinspection InfiniteLoopStatement
+				while (true) {
+					o.wait();
+				}
+			}
+
+		}
+
+		@Override
+		public void cancel() {
+			synchronized (lock) {
+				gotCanceledFuture.complete(true);
+			}
+		}
+
+		public static void resetGotCanceledFuture() {
+			synchronized (lock) {
+				gotCanceledFuture = new FlinkCompletableFuture<>();
+			}
+		}
+
+		public static org.apache.flink.runtime.concurrent.Future<Boolean> gotCanceled() {
+			synchronized (lock) {
+				return gotCanceledFuture;
+			}
+		}
+	}
+
+	private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(
+		JobID jobId,
+		String jobName,
+		JobVertexID jobVertexId,
+		ExecutionAttemptID executionAttemptId,
+		SerializedValue<ExecutionConfig> serializedExecutionConfig,
+		String taskName,
+		int numberOfKeyGroups,
+		int subtaskIndex,
+		int parallelism,
+		int attemptNumber,
+		Configuration jobConfiguration,
+		Configuration taskConfiguration,
+		String invokableClassName,
+		Collection<ResultPartitionDeploymentDescriptor> producedPartitions,
+		Collection<InputGateDeploymentDescriptor> inputGates,
+		Collection<BlobKey> requiredJarFiles,
+		Collection<URL> requiredClasspaths,
+		int targetSlotNumber) throws IOException {
+
+		JobInformation jobInformation = new JobInformation(
+			jobId,
+			jobName,
+			serializedExecutionConfig,
+			jobConfiguration,
+			requiredJarFiles,
+			requiredClasspaths);
+
+		TaskInformation taskInformation = new TaskInformation(
+			jobVertexId,
+			taskName,
+			parallelism,
+			numberOfKeyGroups,
+			invokableClassName,
+			taskConfiguration);
+
+		SerializedValue<JobInformation> serializedJobInformation = new SerializedValue<>(jobInformation);
+		SerializedValue<TaskInformation> serializedJobVertexInformation = new SerializedValue<>(taskInformation);
+
+		return new TaskDeploymentDescriptor(
+			serializedJobInformation,
+			serializedJobVertexInformation,
+			executionAttemptId,
+			subtaskIndex,
+			attemptNumber,
+			targetSlotNumber,
+			null,
+			producedPartitions,
+			inputGates);
+
 	}
 }

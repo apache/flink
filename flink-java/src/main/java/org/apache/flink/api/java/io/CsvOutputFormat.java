@@ -165,6 +165,7 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 	@Override
 	public void close() throws IOException {
 		if (wrt != null) {
+			this.wrt.flush();
 			this.wrt.close();
 		}
 		super.close();

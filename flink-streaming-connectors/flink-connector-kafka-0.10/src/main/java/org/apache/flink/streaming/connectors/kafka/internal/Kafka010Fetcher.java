@@ -18,17 +18,17 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 
 import java.util.List;
@@ -36,6 +36,9 @@ import java.util.Properties;
 
 /**
  * A fetcher that fetches data from Kafka brokers via the Kafka 0.10 consumer API.
+ * 
+ * <p>This fetcher re-uses basically all functionality of the 0.9 fetcher. It only additionally
+ * takes the KafkaRecord-attached timestamp and attaches it to the Flink records.
  * 
  * @param <T> The type of elements produced by the fetcher.
  */
@@ -46,47 +49,52 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 			List<KafkaTopicPartition> assignedPartitions,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
-			StreamingRuntimeContext runtimeContext,
+			ProcessingTimeService processingTimeProvider,
+			long autoWatermarkInterval,
+			ClassLoader userCodeClassLoader,
+			boolean enableCheckpointing,
+			String taskNameWithSubtasks,
+			MetricGroup metricGroup,
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
 			boolean useMetrics) throws Exception
 	{
-		super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, runtimeContext, deserializer, kafkaProperties, pollTimeout, useMetrics);
+		super(
+				sourceContext,
+				assignedPartitions,
+				watermarksPeriodic,
+				watermarksPunctuated,
+				processingTimeProvider,
+				autoWatermarkInterval,
+				userCodeClassLoader,
+				enableCheckpointing,
+				taskNameWithSubtasks,
+				metricGroup,
+				deserializer,
+				kafkaProperties,
+				pollTimeout,
+				useMetrics);
 	}
 
 	@Override
-	protected void assignPartitionsToConsumer(KafkaConsumer<byte[], byte[]> consumer, List<TopicPartition> topicPartitions) {
-		consumer.assign(topicPartitions);
-	}
+	protected void emitRecord(
+			T record,
+			KafkaTopicPartitionState<TopicPartition> partition,
+			long offset,
+			ConsumerRecord<?, ?> consumerRecord) throws Exception {
 
-	@Override
-	protected void emitRecord(T record, KafkaTopicPartitionState<TopicPartition> partition, long offset, ConsumerRecord consumerRecord) throws Exception {
-		// get timestamp from provided ConsumerRecord (only possible with kafka 0.10.x)
-		super.emitRecord(record, partition, offset, consumerRecord.timestamp());
+		// we attach the Kafka 0.10 timestamp here
+		emitRecordWithTimestamp(record, partition, offset, consumerRecord.timestamp());
 	}
 
 	/**
-	 * Emit record Kafka-timestamp aware.
+	 * This method needs to be overridden because Kafka broke binary compatibility between 0.9 and 0.10,
+	 * changing binary signatures
 	 */
 	@Override
-	protected void emitRecord(T record, KafkaTopicPartitionState<TopicPartition> partitionState, long offset, long timestamp) throws Exception {
-		if (timestampWatermarkMode == NO_TIMESTAMPS_WATERMARKS) {
-			// fast path logic, in case there are no watermarks
-
-			// emit the record, using the checkpoint lock to guarantee
-			// atomicity of record emission and offset state update
-			synchronized (checkpointLock) {
-				sourceContext.collectWithTimestamp(record, timestamp);
-				partitionState.setOffset(offset);
-			}
-		}
-		else if (timestampWatermarkMode == PERIODIC_WATERMARKS) {
-			emitRecordWithTimestampAndPeriodicWatermark(record, partitionState, offset, timestamp);
-		}
-		else {
-			emitRecordWithTimestampAndPunctuatedWatermark(record, partitionState, offset, timestamp);
-		}
+	protected KafkaConsumerCallBridge010 createCallBridge() {
+		return new KafkaConsumerCallBridge010();
 	}
 
 	@Override

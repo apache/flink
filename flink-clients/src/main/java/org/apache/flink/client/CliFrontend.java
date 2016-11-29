@@ -39,6 +39,8 @@ import org.apache.flink.client.cli.StopOptions;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.client.program.ProgramMissingJobException;
+import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -68,7 +70,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -95,6 +97,7 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
@@ -234,12 +237,12 @@ public class CliFrontend {
 		ClusterClient client = null;
 		try {
 
-			client = createClient(options, program.getMainClassName());
+			client = createClient(options, program);
 			client.setPrintStatusDuringExecution(options.getStdoutLogging());
 			client.setDetached(options.getDetachedMode());
 			LOG.debug("Client slots is set to {}", client.getMaxSlots());
 
-			LOG.debug("Savepoint path is set to {}", options.getSavepointPath());
+			LOG.debug(options.getSavepointRestoreSettings().toString());
 
 			int userParallelism = options.getParallelism();
 			LOG.debug("User parallelism is set to {}", userParallelism);
@@ -826,6 +829,10 @@ public class CliFrontend {
 		JobSubmissionResult result;
 		try {
 			result = client.run(program, parallelism);
+		} catch (ProgramParametrizationException e) {
+			return handleParametrizationException(e);
+		} catch (ProgramMissingJobException e) {
+			return handleMissingJobException();
 		} catch (ProgramInvocationException e) {
 			return handleError(e);
 		} finally {
@@ -884,7 +891,7 @@ public class CliFrontend {
 				new PackagedProgram(jarFile, classpaths, programArgs) :
 				new PackagedProgram(jarFile, classpaths, entryPointClass, programArgs);
 
-		program.setSavepointPath(options.getSavepointPath());
+		program.setSavepointRestoreSettings(options.getSavepointRestoreSettings());
 
 		return program;
 	}
@@ -922,12 +929,12 @@ public class CliFrontend {
 	/**
 	 * Creates a {@link ClusterClient} object from the given command line options and other parameters.
 	 * @param options Command line options
-	 * @param programName Program name
+	 * @param program The program for which to create the client.
 	 * @throws Exception
 	 */
 	protected ClusterClient createClient(
 			CommandLineOptions options,
-			String programName) throws Exception {
+			PackagedProgram program) throws Exception {
 
 		// Get the custom command-line (e.g. Standalone/Yarn/Mesos)
 		CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
@@ -938,8 +945,12 @@ public class CliFrontend {
 			logAndSysout("Cluster configuration: " + client.getClusterIdentifier());
 		} catch (UnsupportedOperationException e) {
 			try {
-				String applicationName = "Flink Application: " + programName;
-				client = activeCommandLine.createCluster(applicationName, options.getCommandLine(), config);
+				String applicationName = "Flink Application: " + program.getMainClassName();
+				client = activeCommandLine.createCluster(
+					applicationName,
+					options.getCommandLine(),
+					config,
+					program.getAllLibraries());
 				logAndSysout("Cluster started: " + client.getClusterIdentifier());
 			} catch (UnsupportedOperationException e2) {
 				throw new IllegalConfigurationException(
@@ -971,6 +982,29 @@ public class CliFrontend {
 		System.out.println(e.getMessage());
 		System.out.println();
 		System.out.println("Use the help option (-h or --help) to get help on the command.");
+		return 1;
+	}
+
+	/**
+	 * Displays an optional exception message for incorrect program parametrization.
+	 *
+	 * @param e The exception to display.
+	 * @return The return code for the process.
+	 */
+	private int handleParametrizationException(ProgramParametrizationException e) {
+		System.err.println(e.getMessage());
+		return 1;
+	}
+
+	/**
+	 * Displays a message for a program without a job to execute.
+	 *
+	 * @return The return code for the process.
+	 */
+	private int handleMissingJobException() {
+		System.err.println();
+		System.err.println("The program didn't contain a Flink job. " +
+			"Perhaps you forgot to call execute() on the execution environment.");
 		return 1;
 	}
 
@@ -1078,11 +1112,11 @@ public class CliFrontend {
 
 		try {
 			final CliFrontend cli = new CliFrontend();
-			SecurityContext.install(new SecurityContext.SecurityConfiguration().setFlinkConfiguration(cli.config));
-			int retCode = SecurityContext.getInstalled()
-					.runSecured(new SecurityContext.FlinkSecuredRunner<Integer>() {
+			SecurityUtils.install(new SecurityUtils.SecurityConfiguration(cli.config));
+			int retCode = SecurityUtils.getInstalledContext()
+					.runSecured(new Callable<Integer>() {
 						@Override
-						public Integer run() {
+						public Integer call() {
 							return cli.parseParameters(args);
 						}
 					});

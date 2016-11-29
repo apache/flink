@@ -25,8 +25,8 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.TestingResourceManager;
@@ -75,7 +75,12 @@ public class ResourceManagerITCase extends TestLogger {
 		protected void run() {
 
 			ActorGateway jobManager =
-				TestingUtils.createJobManager(system, config, "ReconciliationTest");
+				TestingUtils.createJobManager(
+					system,
+					system.dispatcher(),
+					system.dispatcher(),
+					config,
+					"ReconciliationTest");
 			ActorGateway me =
 				TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
 
@@ -102,7 +107,7 @@ public class ResourceManagerITCase extends TestLogger {
 			resourceManager.tell(new TestingResourceManager.NotifyWhenResourceManagerConnected(), me);
 
 			// Wait for resource manager
-			expectMsgEquals(Messages.getAcknowledge());
+			expectMsgEquals(Acknowledge.get());
 
 			// check if we registered the task manager resource
 			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), me);
@@ -129,7 +134,12 @@ public class ResourceManagerITCase extends TestLogger {
 		protected void run() {
 
 			ActorGateway jobManager =
-				TestingUtils.createJobManager(system, config, "RegTest");
+				TestingUtils.createJobManager(
+					system,
+					system.dispatcher(),
+					system.dispatcher(),
+					config,
+					"RegTest");
 			ActorGateway me =
 				TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
 
@@ -141,7 +151,7 @@ public class ResourceManagerITCase extends TestLogger {
 			resourceManager.tell(new TestingResourceManager.NotifyWhenResourceManagerConnected(), me);
 
 			// Wait for resource manager
-			expectMsgEquals(Messages.getAcknowledge());
+			expectMsgEquals(Acknowledge.get());
 
 			// start task manager and wait for registration
 			ActorGateway taskManager =

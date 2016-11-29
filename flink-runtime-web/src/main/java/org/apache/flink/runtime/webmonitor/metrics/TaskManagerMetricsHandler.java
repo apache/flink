@@ -38,8 +38,8 @@ public class TaskManagerMetricsHandler extends AbstractMetricsHandler {
 	}
 
 	@Override
-	protected Map<String, Object> getMapFor(Map<String, String> pathParams, MetricStore metrics) {
-		MetricStore.TaskManagerMetricStore taskManager = metrics.taskManagers.get(pathParams.get(PARAMETER_TM_ID));
+	protected Map<String, String> getMapFor(Map<String, String> pathParams, MetricStore metrics) {
+		MetricStore.TaskManagerMetricStore taskManager = metrics.getTaskManagerMetricStore(pathParams.get(PARAMETER_TM_ID));
 		if (taskManager == null) {
 			return null;
 		} else {

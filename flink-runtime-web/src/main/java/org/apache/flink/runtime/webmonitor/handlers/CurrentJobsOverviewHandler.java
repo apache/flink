@@ -36,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Request handler that returns a summary of the job status.
  */
-public class CurrentJobsOverviewHandler implements RequestHandler {
+public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 
 	private final FiniteDuration timeout;
 	
@@ -55,7 +55,7 @@ public class CurrentJobsOverviewHandler implements RequestHandler {
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {
 			if (jobManager != null) {
 				Future<Object> future = jobManager.ask(

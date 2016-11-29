@@ -18,11 +18,9 @@
 package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 

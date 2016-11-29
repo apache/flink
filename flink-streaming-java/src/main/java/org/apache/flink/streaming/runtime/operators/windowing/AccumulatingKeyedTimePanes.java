@@ -66,7 +66,7 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 			// optimized path for single pane case (tumbling window)
 			for (KeyMap.Entry<Key, ArrayList<Type>> entry : latestPane) {
 				Key key = entry.getKey();
-				operator.setKeyContext(key);
+				operator.setCurrentKey(key);
 				function.apply(entry.getKey(), window, entry.getValue(), out);
 			}
 		}
@@ -122,7 +122,7 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 
 		@Override
 		public void keyDone() throws Exception {
-			contextOperator.setKeyContext(currentKey);
+			contextOperator.setCurrentKey(currentKey);
 			function.apply(currentKey, window, unionIterator, out);
 		}
 	}

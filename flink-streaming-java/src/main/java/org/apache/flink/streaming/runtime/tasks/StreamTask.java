@@ -23,18 +23,20 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.ClosableRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
@@ -146,11 +148,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private AbstractKeyedStateBackend<?> keyedStateBackend;
 
 	/**
-	 * The internal {@link TimeServiceProvider} used to define the current
+	 * The internal {@link ProcessingTimeService} used to define the current
 	 * processing time (default = {@code System.currentTimeMillis()}) and
 	 * register timers for tasks to be executed in the future.
 	 */
-	private TimeServiceProvider timerService;
+	private ProcessingTimeService timerService;
 
 	/** The map of user-defined accumulators of this task */
 	private Map<String, Accumulator<?, ?>> accumulatorMap;
@@ -159,7 +161,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 
 	/** The currently active background materialization threads */
-	private final ClosableRegistry cancelables = new ClosableRegistry();
+	private final CloseableRegistry cancelables = new CloseableRegistry();
 
 	/** Flag to mark the task "in operation", in which case check
 	 * needs to be initialized to true, so that early cancel() before invoke() behaves correctly */
@@ -190,13 +192,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Allows the user to specify his own {@link TimeServiceProvider TimerServiceProvider}.
-	 * By default a {@link DefaultTimeServiceProvider DefaultTimerService} is going to be provided.
+	 * Allows the user to specify his own {@link ProcessingTimeService TimerServiceProvider}.
+	 * By default a {@link SystemProcessingTimeService DefaultTimerService} is going to be provided.
 	 * Changing it can be useful for testing processing time functionality, such as
 	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner WindowAssigners}
 	 * and {@link org.apache.flink.streaming.api.windowing.triggers.Trigger Triggers}.
 	 * */
-	public void setTimeService(TimeServiceProvider timeProvider) {
+	public void setProcessingTimeService(ProcessingTimeService timeProvider) {
 		if (timeProvider == null) {
 			throw new RuntimeException("The timeProvider cannot be set to null.");
 		}
@@ -224,10 +226,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				ThreadFactory timerThreadFactory =
 					new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, "Time Trigger for " + getName());
 
-				timerService = new DefaultTimeServiceProvider(this, getCheckpointLock(), timerThreadFactory);
+				timerService = new SystemProcessingTimeService(this, getCheckpointLock(), timerThreadFactory);
 			}
 
-			operatorChain = new OperatorChain<>(this, getEnvironment().getAccumulatorRegistry().getReadWriteReporter());
+			operatorChain = new OperatorChain<>(this);
 			headOperator = operatorChain.getHeadOperator();
 
 			getEnvironment().getMetricGroup().gauge("lastCheckpointSize", new Gauge<Long>() {
@@ -240,7 +242,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// task specific initialization
 			init();
 
-			// save the work of reloadig state, etc, if the task is already canceled
+			// save the work of reloading state, etc, if the task is already canceled
 			if (canceled) {
 				throw new CancelTaskException();
 			}
@@ -265,6 +267,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// let the task do its work
 			isRunning = true;
 			run();
+
+			// if this left the run() method cleanly despite the fact that this was canceled,
+			// make sure the "clean shutdown" is not attempted
+			if (canceled) {
+				throw new CancelTaskException();
+			}
 
 			// make sure all timers finish and no new timers can come
 			timerService.quiesceAndAwaitPending();
@@ -343,8 +351,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	public final void cancel() throws Exception {
 		isRunning = false;
 		canceled = true;
-		cancelTask();
-		cancelables.close();
+
+		// the "cancel task" call must come first, but the cancelables must be
+		// closed no matter what
+		try {
+			cancelTask();
+		}
+		finally {
+			cancelables.close();
+		}
 	}
 
 	public final boolean isRunning() {
@@ -457,14 +472,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return tc == TimeCharacteristic.EventTime | tc == TimeCharacteristic.IngestionTime;
 	}
 
-	/**
-	 * Check if the tasks is sending a mixed stream (of watermarks, latency marks and records)
-	 * @return true if stream contains more than just records
-	 */
-	protected boolean isSerializingMixedStream() {
-		return isSerializingTimestamps() || getExecutionConfig().isLatencyTrackingEnabled();
-	}
-	
 	// ------------------------------------------------------------------------
 	//  Access to properties and utilities
 	// ------------------------------------------------------------------------
@@ -530,7 +537,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	@Override
 	public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData) throws Exception {
-
 		try {
 			performCheckpoint(checkpointMetaData);
 		}
@@ -542,12 +548,25 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
-	private boolean performCheckpoint(CheckpointMetaData checkpointMetaData) throws Exception {
+	@Override
+	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception {
+		LOG.debug("Aborting checkpoint via cancel-barrier {} for task {}", checkpointId, getName());
 
+		// notify the coordinator that we decline this checkpoint
+		getEnvironment().declineCheckpoint(checkpointId, cause);
+
+		// notify all downstream operators that they should not wait for a barrier from us
+		synchronized (lock) {
+			operatorChain.broadcastCheckpointCancelMarker(checkpointId);
+		}
+	}
+
+	private boolean performCheckpoint(CheckpointMetaData checkpointMetaData) throws Exception {
 		LOG.debug("Starting checkpoint {} on task {}", checkpointMetaData.getCheckpointId(), getName());
 
 		synchronized (lock) {
 			if (isRunning) {
+				// we can do a checkpoint
 
 				// Since both state checkpointing and downstream barrier emission occurs in this
 				// lock scope, they are an atomic operation regardless of the order in which they occur.
@@ -558,7 +577,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				checkpointState(checkpointMetaData);
 				return true;
-			} else {
+			}
+			else {
+				// we cannot perform our checkpoint - let the downstream operators know that they
+				// should not wait for any input from this operator
+
+				// we cannot broadcast the cancellation markers on the 'operator chain', because it may not
+				// yet be created
+				final CancelCheckpointMarker message = new CancelCheckpointMarker(checkpointMetaData.getCheckpointId());
+				for (ResultPartitionWriter output : getEnvironment().getAllWriters()) {
+					output.writeEventToAllChannels(message);
+				}
+
 				return false;
 			}
 		}
@@ -672,6 +702,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					stateBackend = backend;
 					break;
 
+				case "rocksdb":
+					backendName = "org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory";
+					// fall through to the 'default' case that uses reflection to load the backend
+					// that way we can keep RocksDB in a separate module
+
 				default:
 					try {
 						@SuppressWarnings("rawtypes")
@@ -773,10 +808,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	/**
-	 * Returns the {@link TimeServiceProvider} responsible for telling the current
+	 * Returns the {@link ProcessingTimeService} responsible for telling the current
 	 * processing time and registering timers.
 	 */
-	public TimeServiceProvider getTimerService() {
+	public ProcessingTimeService getProcessingTimeService() {
 		if (timerService == null) {
 			throw new IllegalStateException("The timer service has not been initialized.");
 		}
@@ -819,10 +854,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		private final List<OperatorSnapshotResult> snapshotInProgressList;
 
-		RunnableFuture<KeyGroupsStateHandle> futureKeyedBackendStateHandles;
-		RunnableFuture<KeyGroupsStateHandle> futureKeyedStreamStateHandles;
+		private RunnableFuture<KeyGroupsStateHandle> futureKeyedBackendStateHandles;
+		private RunnableFuture<KeyGroupsStateHandle> futureKeyedStreamStateHandles;
 
-		List<StreamStateHandle> nonPartitionedStateHandles;
+		private List<StreamStateHandle> nonPartitionedStateHandles;
 
 		private final CheckpointMetaData checkpointMetaData;
 
@@ -890,11 +925,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						keyedStateHandleBackend,
 						keyedStateHandleStream);
 
-				if (subtaskState.hasState()) {
-					owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData, subtaskState);
-				} else {
-					owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData);
-				}
+				owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData, subtaskState);
 
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("{} - finished asynchronous part of checkpoint {}. Asynchronous duration: {} ms",
@@ -918,7 +949,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
-	public ClosableRegistry getCancelables() {
+	public CloseableRegistry getCancelables() {
 		return cancelables;
 	}
 

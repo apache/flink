@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import akka.dispatch.OnComplete;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Maps;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.BiFunction;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -29,9 +31,6 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -39,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -97,7 +97,7 @@ public class BackPressureStatsTracker {
 
 	private final int numSamples;
 
-	private final FiniteDuration delayBetweenSamples;
+	private final Time delayBetweenSamples;
 
 	/** Flag indicating whether the stats tracker has been shut down. */
 	private boolean shutDown;
@@ -113,7 +113,7 @@ public class BackPressureStatsTracker {
 			StackTraceSampleCoordinator coordinator,
 			int cleanUpInterval,
 			int numSamples,
-			FiniteDuration delayBetweenSamples) {
+			Time delayBetweenSamples) {
 
 		this.coordinator = checkNotNull(coordinator, "Stack trace sample coordinator");
 
@@ -165,10 +165,10 @@ public class BackPressureStatsTracker {
 			if (!pendingStats.contains(vertex) &&
 					!vertex.getGraph().getState().isGloballyTerminalState()) {
 
-				ExecutionContext executionContext = vertex.getGraph().getExecutionContext();
+				Executor executor = vertex.getGraph().getFutureExecutor();
 
 				// Only trigger if still active job
-				if (executionContext != null) {
+				if (executor != null) {
 					pendingStats.add(vertex);
 
 					if (LOG.isDebugEnabled()) {
@@ -181,7 +181,7 @@ public class BackPressureStatsTracker {
 							delayBetweenSamples,
 							MAX_STACK_TRACE_DEPTH);
 
-					sample.onComplete(new StackTraceSampleCompletionCallback(vertex), executionContext);
+					sample.handleAsync(new StackTraceSampleCompletionCallback(vertex), executor);
 
 					return true;
 				}
@@ -227,7 +227,7 @@ public class BackPressureStatsTracker {
 	/**
 	 * Callback on completed stack trace sample.
 	 */
-	class StackTraceSampleCompletionCallback extends OnComplete<StackTraceSample> {
+	class StackTraceSampleCompletionCallback implements BiFunction<StackTraceSample, Throwable, Void> {
 
 		private final ExecutionJobVertex vertex;
 
@@ -236,28 +236,30 @@ public class BackPressureStatsTracker {
 		}
 
 		@Override
-		public void onComplete(Throwable failure, StackTraceSample success) throws Throwable {
+		public Void apply(StackTraceSample stackTraceSample, Throwable throwable) {
 			synchronized (lock) {
 				try {
 					if (shutDown) {
-						return;
+						return null;
 					}
 
 					// Job finished, ignore.
 					JobStatus jobState = vertex.getGraph().getState();
 					if (jobState.isGloballyTerminalState()) {
 						LOG.debug("Ignoring sample, because job is in state " + jobState + ".");
-					} else if (success != null) {
-						OperatorBackPressureStats stats = createStatsFromSample(success);
+					} else if (stackTraceSample != null) {
+						OperatorBackPressureStats stats = createStatsFromSample(stackTraceSample);
 						operatorStatsCache.put(vertex, stats);
 					} else {
-						LOG.debug("Failed to gather stack trace sample.", failure);
+						LOG.debug("Failed to gather stack trace sample.", throwable);
 					}
 				} catch (Throwable t) {
 					LOG.error("Error during stats completion.", t);
 				} finally {
 					pendingStats.remove(vertex);
 				}
+
+				return null;
 			}
 		}
 

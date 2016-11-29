@@ -130,7 +130,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 			@SuppressWarnings("unchecked")
 			ListCheckpointed<Serializable> listCheckpointedFun = (ListCheckpointed<Serializable>) userFunction;
 
-			ListState<Serializable> listState = context.getManagedOperatorStateStore().
+			ListState<Serializable> listState = context.getOperatorStateStore().
 					getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
 
 			List<Serializable> list = new ArrayList<>();
@@ -176,12 +176,10 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	
 	@Override
 	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
-
-
 		if (userFunction instanceof Checkpointed) {
 			@SuppressWarnings("unchecked")
 			Checkpointed<Serializable> chkFunction = (Checkpointed<Serializable>) userFunction;
-			
+
 			Serializable udfState;
 			try {
 				udfState = chkFunction.snapshotState(checkpointId, timestamp);
@@ -199,7 +197,6 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 
 	@Override
 	public void restoreState(FSDataInputStream in) throws Exception {
-
 		if (userFunction instanceof CheckpointedRestoring) {
 			@SuppressWarnings("unchecked")
 			CheckpointedRestoring<Serializable> chkFunction = (CheckpointedRestoring<Serializable>) userFunction;

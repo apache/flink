@@ -31,7 +31,7 @@ import java.util.TimeZone;
  * against this web server should behave. It defines for example the refresh interval,
  * and time zone of the server timestamps.
  */
-public class DashboardConfigHandler implements RequestHandler {
+public class DashboardConfigHandler extends AbstractJsonRequestHandler {
 	
 	private final String configString;
 	
@@ -67,7 +67,7 @@ public class DashboardConfigHandler implements RequestHandler {
 	}
 	
 	@Override
-	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		return this.configString;
 	}
 }

@@ -46,7 +46,6 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -726,6 +725,8 @@ public class TimestampITCase extends TestLogger {
 
 		@Override
 		public void processWatermark(Watermark mark) throws Exception {
+			super.processWatermark(mark);
+
 			for (Watermark previousMark: watermarks) {
 				assertTrue(previousMark.getTimestamp() < mark.getTimestamp());
 			}
@@ -760,9 +761,6 @@ public class TimestampITCase extends TestLogger {
 			}
 			output.collect(element);
 		}
-
-		@Override
-		public void processWatermark(Watermark mark) throws Exception {}
 	}
 
 	public static class DisabledTimestampCheckingOperator extends AbstractStreamOperator<Integer> implements OneInputStreamOperator<Integer, Integer> {
@@ -774,10 +772,6 @@ public class TimestampITCase extends TestLogger {
 			}
 			output.collect(element);
 		}
-
-		@Override
-		public void processWatermark(Watermark mark) throws Exception {}
-
 	}
 
 	public static class IdentityCoMap implements CoMapFunction<Integer, Integer, Integer> {

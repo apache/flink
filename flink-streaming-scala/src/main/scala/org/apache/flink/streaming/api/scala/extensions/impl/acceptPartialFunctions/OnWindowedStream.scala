@@ -21,6 +21,7 @@ import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{DataStream, WindowedStream}
 import org.apache.flink.streaming.api.windowing.windows.Window
+import org.apache.flink.util.Collector
 
 /**
   * Wraps a joined data stream, allowing to use anonymous partial functions to
@@ -77,13 +78,13 @@ class OnWindowedStream[T, K, W <: Window](stream: WindowedStream[T, K, W]) {
     * @return The data stream that is the result of applying the window function to the window.
     */
   @PublicEvolving
-  def applyWith[R: TypeInformation](
-      initialValue: R)(
-      foldFunction: (R, T) => R,
-      windowFunction: (K, W, Stream[R]) => TraversableOnce[R])
+  def applyWith[ACC: TypeInformation, R: TypeInformation](
+      initialValue: ACC)(
+      foldFunction: (ACC, T) => ACC,
+      windowFunction: (K, W, Stream[ACC]) => TraversableOnce[R])
     : DataStream[R] =
-    stream.apply(initialValue, foldFunction, {
-      (key, window, items, out) =>
+    stream.fold(initialValue, foldFunction, {
+      (key: K, window: W, items: Iterable[ACC], out: Collector[R]) =>
         windowFunction(key, window, items.toStream).foreach(out.collect)
     })
 

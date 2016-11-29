@@ -343,8 +343,7 @@ public class RocksDBStateBackendConfigTest {
 	@Test
 	public void testCallsForwardedToNonPartitionedBackend() throws Exception {
 		AbstractStateBackend nonPartBackend = mock(AbstractStateBackend.class);
-		String checkpointPath = tempFolder.newFolder().toURI().toString();
-		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath, nonPartBackend);
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(nonPartBackend);
 
 		Environment env = getMockEnvironment();
 		rocksDbBackend.createStreamFactory(env.getJobID(), "foobar");

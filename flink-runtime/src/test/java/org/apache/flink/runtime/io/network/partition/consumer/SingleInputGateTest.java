@@ -21,11 +21,14 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
+import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -42,9 +45,12 @@ import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -66,7 +72,7 @@ public class SingleInputGateTest {
 	public void testBasicGetNextLogic() throws Exception {
 		// Setup
 		final SingleInputGate inputGate = new SingleInputGate(
-				"Test Task Name", new JobID(), new ExecutionAttemptID(), new IntermediateDataSetID(), 0, 2, mock(TaskActions.class), new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+				"Test Task Name", new JobID(), new ExecutionAttemptID(), new IntermediateDataSetID(), 0, 2, mock(TaskActions.class), new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 
 		final TestInputChannel[] inputChannels = new TestInputChannel[]{
 				new TestInputChannel(inputGate, 0),
@@ -113,7 +119,7 @@ public class SingleInputGateTest {
 		// Setup reader with one local and one unknown input channel
 		final IntermediateDataSetID resultId = new IntermediateDataSetID();
 
-		final SingleInputGate inputGate = new SingleInputGate("Test Task Name", new JobID(), new ExecutionAttemptID(), resultId, 0, 2, mock(TaskActions.class), new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+		final SingleInputGate inputGate = new SingleInputGate("Test Task Name", new JobID(), new ExecutionAttemptID(), resultId, 0, 2, mock(TaskActions.class), new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 		final BufferPool bufferPool = mock(BufferPool.class);
 		when(bufferPool.getNumberOfRequiredMemorySegments()).thenReturn(2);
 
@@ -122,12 +128,12 @@ public class SingleInputGateTest {
 		// Local
 		ResultPartitionID localPartitionId = new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID());
 
-		InputChannel local = new LocalInputChannel(inputGate, 0, localPartitionId, partitionManager, taskEventDispatcher, new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+		InputChannel local = new LocalInputChannel(inputGate, 0, localPartitionId, partitionManager, taskEventDispatcher, new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 
 		// Unknown
 		ResultPartitionID unknownPartitionId = new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID());
 
-		InputChannel unknown = new UnknownInputChannel(inputGate, 1, unknownPartitionId, partitionManager, taskEventDispatcher, mock(ConnectionManager.class), 0, 0, new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+		InputChannel unknown = new UnknownInputChannel(inputGate, 1, unknownPartitionId, partitionManager, taskEventDispatcher, mock(ConnectionManager.class), 0, 0, new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 
 		// Set channels
 		inputGate.setInputChannel(localPartitionId.getPartitionId(), local);
@@ -169,7 +175,7 @@ public class SingleInputGateTest {
 			0,
 			1,
 			mock(TaskActions.class),
-			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 
@@ -182,7 +188,7 @@ public class SingleInputGateTest {
 			new LocalConnectionManager(),
 			0,
 			0,
-			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 
 		inputGate.setInputChannel(unknown.partitionId.getPartitionId(), unknown);
 
@@ -212,7 +218,7 @@ public class SingleInputGateTest {
 			0,
 			1,
 			mock(TaskActions.class),
-			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 
 		InputChannel unknown = new UnknownInputChannel(
 			inputGate,
@@ -223,7 +229,7 @@ public class SingleInputGateTest {
 			new LocalConnectionManager(),
 			0,
 			0,
-			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 
 		inputGate.setInputChannel(unknown.partitionId.getPartitionId(), unknown);
 
@@ -269,6 +275,84 @@ public class SingleInputGateTest {
 
 		assertNotNull(asyncException.get());
 		assertEquals(IllegalStateException.class, asyncException.get().getClass());
+	}
+
+	/**
+	 * Tests request back off configuration is correctly forwarded to the channels.
+	 */
+	@Test
+	public void testRequestBackoffConfiguration() throws Exception {
+		ResultPartitionID[] partitionIds = new ResultPartitionID[] {
+			new ResultPartitionID(),
+			new ResultPartitionID(),
+			new ResultPartitionID()
+		};
+
+		InputChannelDeploymentDescriptor[] channelDescs = new InputChannelDeploymentDescriptor[]{
+			// Local
+			new InputChannelDeploymentDescriptor(
+				partitionIds[0],
+				ResultPartitionLocation.createLocal()),
+			// Remote
+			new InputChannelDeploymentDescriptor(
+				partitionIds[1],
+				ResultPartitionLocation.createRemote(new ConnectionID(new InetSocketAddress("localhost", 5000), 0))),
+			// Unknown
+			new InputChannelDeploymentDescriptor(
+				partitionIds[2],
+				ResultPartitionLocation.createUnknown())};
+
+		InputGateDeploymentDescriptor gateDesc = new InputGateDeploymentDescriptor(new IntermediateDataSetID(), 0, channelDescs);
+
+		int initialBackoff = 137;
+		int maxBackoff = 1001;
+
+		NetworkEnvironment netEnv = mock(NetworkEnvironment.class);
+		when(netEnv.getResultPartitionManager()).thenReturn(new ResultPartitionManager());
+		when(netEnv.getTaskEventDispatcher()).thenReturn(new TaskEventDispatcher());
+		when(netEnv.getPartitionRequestInitialBackoff()).thenReturn(initialBackoff);
+		when(netEnv.getPartitionRequestMaxBackoff()).thenReturn(maxBackoff);
+		when(netEnv.getConnectionManager()).thenReturn(new LocalConnectionManager());
+
+		SingleInputGate gate = SingleInputGate.create(
+			"TestTask",
+			new JobID(),
+			new ExecutionAttemptID(),
+			gateDesc,
+			netEnv,
+			mock(TaskActions.class),
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+
+		Map<IntermediateResultPartitionID, InputChannel> channelMap = gate.getInputChannels();
+
+		assertEquals(3, channelMap.size());
+		InputChannel localChannel = channelMap.get(partitionIds[0].getPartitionId());
+		assertEquals(LocalInputChannel.class, localChannel.getClass());
+
+		InputChannel remoteChannel = channelMap.get(partitionIds[1].getPartitionId());
+		assertEquals(RemoteInputChannel.class, remoteChannel.getClass());
+
+		InputChannel unknownChannel = channelMap.get(partitionIds[2].getPartitionId());
+		assertEquals(UnknownInputChannel.class, unknownChannel.getClass());
+
+		InputChannel[] channels = new InputChannel[]{localChannel, remoteChannel, unknownChannel};
+		for (InputChannel ch : channels) {
+			assertEquals(0, ch.getCurrentBackoff());
+
+			assertTrue(ch.increaseBackoff());
+			assertEquals(initialBackoff, ch.getCurrentBackoff());
+
+			assertTrue(ch.increaseBackoff());
+			assertEquals(initialBackoff * 2, ch.getCurrentBackoff());
+
+			assertTrue(ch.increaseBackoff());
+			assertEquals(initialBackoff * 2 * 2, ch.getCurrentBackoff());
+
+			assertTrue(ch.increaseBackoff());
+			assertEquals(maxBackoff, ch.getCurrentBackoff());
+
+			assertFalse(ch.increaseBackoff());
+		}
 	}
 
 	/**

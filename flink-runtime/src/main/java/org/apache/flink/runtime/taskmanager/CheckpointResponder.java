@@ -52,10 +52,12 @@ public interface CheckpointResponder {
 	 *
 	 * @param jobID Job ID of the running job
 	 * @param executionAttemptID Execution attempt ID of the running task
-	 * @param checkpointMetaData Meta data for this checkpoint
+	 * @param checkpointId The ID of the declined checkpoint
+	 * @param cause The optional cause why the checkpoint was declined   
 	 */
 	void declineCheckpoint(
 		JobID jobID,
 		ExecutionAttemptID executionAttemptID,
-		CheckpointMetaData checkpointMetaData);
+		long checkpointId,
+		Throwable cause);
 }

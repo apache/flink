@@ -32,6 +32,7 @@ import java.io.StringWriter;
 
 @Internal
 public final class ExceptionUtils {
+	public static final String STRINGIFIED_NULL_EXCEPTION = "(null)";
 
 	/**
 	 * Makes a string representation of the exception's stack trace, or "(null)", if the
@@ -44,7 +45,7 @@ public final class ExceptionUtils {
 	 */
 	public static String stringifyException(final Throwable e) {
 		if (e == null) {
-			return "(null)";
+			return STRINGIFIED_NULL_EXCEPTION;
 		}
 		
 		try {
@@ -95,6 +96,26 @@ public final class ExceptionUtils {
 		}
 		else {
 			throw new RuntimeException(parentMessage, t);
+		}
+	}
+
+	/**
+	 * Throws the given {@code Throwable} in scenarios where the signatures do allow to
+	 * throw a Exception. Errors and Exceptions are thrown directly, other "exotic"
+	 * subclasses of Throwable are wrapped in an Exception.
+	 *
+	 * @param t The throwable to be thrown.
+	 * @param parentMessage The message for the parent Exception, if one is needed.
+	 */
+	public static void rethrowException(Throwable t, String parentMessage) throws Exception {
+		if (t instanceof Error) {
+			throw (Error) t;
+		}
+		else if (t instanceof Exception) {
+			throw (Exception) t;
+		}
+		else {
+			throw new Exception(parentMessage, t);
 		}
 	}
 

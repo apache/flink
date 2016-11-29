@@ -20,19 +20,18 @@ package org.apache.flink.api.table.plan.nodes.dataset
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Values
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.table.BatchTableEnvironment
+import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.runtime.io.ValuesInputFormat
-import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.table.typeutils.TypeConverter._
-import org.apache.flink.api.table.{BatchTableEnvironment, Row}
 
 import scala.collection.JavaConverters._
-import scala.collection.JavaConversions._
 
 /**
   * DataSet RelNode for a LogicalValues.
@@ -42,7 +41,8 @@ class DataSetValues(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     rowRelDataType: RelDataType,
-    tuples: ImmutableList[ImmutableList[RexLiteral]])
+    tuples: ImmutableList[ImmutableList[RexLiteral]],
+    ruleDescription: String)
   extends Values(cluster, rowRelDataType, tuples, traitSet)
   with DataSetRel {
 
@@ -53,7 +53,8 @@ class DataSetValues(
       cluster,
       traitSet,
       getRowType,
-      getTuples
+      getTuples,
+      ruleDescription
     )
   }
 
@@ -75,16 +76,29 @@ class DataSetValues(
       getRowType,
       expectedType,
       config.getNullCheck,
-      config.getEfficientTypeUsage).asInstanceOf[RowTypeInfo]
+      config.getEfficientTypeUsage)
 
-    // convert List[RexLiteral] to Row
-    val rows: Seq[Row] = getTuples.asList.map { t =>
-      val row = new Row(t.size())
-      t.zipWithIndex.foreach( x => row.setField(x._2, x._1.getValue.asInstanceOf[Any]) )
-      row
+    val generator = new CodeGenerator(config)
+
+    // generate code for every record
+    val generatedRecords = getTuples.asScala.map { r =>
+      generator.generateResultExpression(
+        returnType,
+        getRowType.getFieldNames.asScala,
+        r.asScala)
     }
 
-    val inputFormat = new ValuesInputFormat(rows)
+    // generate input format
+    val generatedFunction = generator.generateValuesInputFormat(
+      ruleDescription,
+      generatedRecords.map(_.code),
+      returnType)
+
+    val inputFormat = new ValuesInputFormat[Any](
+      generatedFunction.name,
+      generatedFunction.code,
+      generatedFunction.returnType)
+
     tableEnv.execEnv.createInput(inputFormat, returnType).asInstanceOf[DataSet[Any]]
   }
 

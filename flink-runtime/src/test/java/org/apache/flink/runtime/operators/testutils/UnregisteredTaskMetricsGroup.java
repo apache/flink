@@ -23,7 +23,8 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
-import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -67,9 +68,15 @@ public class UnregisteredTaskMetricsGroup extends TaskMetricGroup {
 		}
 	}
 	
-	public static class DummyIOMetricGroup extends IOMetricGroup {
-		public DummyIOMetricGroup() {
+	public static class DummyTaskIOMetricGroup extends TaskIOMetricGroup {
+		public DummyTaskIOMetricGroup() {
 			super(new UnregisteredTaskMetricsGroup());
+		}
+	}
+
+	public static class DummyOperatorMetricGroup extends OperatorMetricGroup {
+		public DummyOperatorMetricGroup() {
+			super(EMPTY_REGISTRY, new UnregisteredTaskMetricsGroup(), "testoperator");
 		}
 	}
 }

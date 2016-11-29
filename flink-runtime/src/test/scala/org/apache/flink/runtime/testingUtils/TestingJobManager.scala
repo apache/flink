@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import java.util.concurrent.ExecutorService
+import java.util.concurrent.{Executor, ExecutorService}
 
 import akka.actor.ActorRef
 import org.apache.flink.configuration.Configuration
@@ -39,7 +39,8 @@ import scala.language.postfixOps
   */
 class TestingJobManager(
     flinkConfiguration: Configuration,
-    executorService: ExecutorService,
+    futureExecutor: Executor,
+    ioExecutor: Executor,
     instanceManager: InstanceManager,
     scheduler: Scheduler,
     libraryCacheManager: BlobLibraryCacheManager,
@@ -53,7 +54,8 @@ class TestingJobManager(
     metricRegistry : Option[MetricRegistry])
   extends JobManager(
     flinkConfiguration,
-    executorService,
+    futureExecutor,
+    ioExecutor,
     instanceManager,
     scheduler,
     libraryCacheManager,

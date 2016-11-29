@@ -27,7 +27,7 @@ import org.apache.flink.api.table.validate._
 abstract class BinaryPredicate extends BinaryExpression {
   override private[flink] def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (left.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
         right.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
       ValidationSuccess
@@ -48,7 +48,7 @@ case class Not(child: Expression) extends UnaryExpression {
 
   override private[flink] def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (child.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
       ValidationSuccess
     } else {
@@ -94,7 +94,7 @@ case class If(
     relBuilder.call(SqlStdOperatorTable.CASE, c, t, f)
   }
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (condition.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
         ifTrue.resultType == ifFalse.resultType) {
       ValidationSuccess

@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -42,16 +41,14 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 		if (numberOfInputs > 0) {
 			InputGate[] inputGates = getEnvironment().getAllInputGates();
-			inputProcessor = new StreamInputProcessor<IN>(inputGates, inSerializer,
+			inputProcessor = new StreamInputProcessor<IN>(
+					inputGates, inSerializer,
 					this, 
 					configuration.getCheckpointMode(),
 					getEnvironment().getIOManager(),
-					isSerializingMixedStream());
+					getEnvironment().getTaskManagerInfo().getConfiguration());
 
 			// make sure that stream tasks report their I/O statistics
-			AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
-			AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
-			inputProcessor.setReporter(reporter);
 			inputProcessor.setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());
 		}
 	}
@@ -70,7 +67,9 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 	@Override
 	protected void cleanup() throws Exception {
-		inputProcessor.cleanup();
+		if (inputProcessor != null) {
+			inputProcessor.cleanup();
+		}
 	}
 
 	@Override

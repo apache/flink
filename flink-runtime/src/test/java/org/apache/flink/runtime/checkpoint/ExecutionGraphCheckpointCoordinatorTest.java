@@ -22,6 +22,7 @@ import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
@@ -94,17 +96,18 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			CheckpointIDCounter counter,
 			CompletedCheckpointStore store) throws Exception {
 		ExecutionGraph executionGraph = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				new JobID(),
-				"test",
-				new Configuration(),
-				new SerializedValue<>(new ExecutionConfig()),
-				new FiniteDuration(1, TimeUnit.DAYS),
-				new NoRestartStrategy(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				ClassLoader.getSystemClassLoader(),
-				new UnregisteredMetricsGroup());
+			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
+			new JobID(),
+			"test",
+			new Configuration(),
+			new SerializedValue<>(new ExecutionConfig()),
+			Time.days(1L),
+			new NoRestartStrategy(),
+			Collections.<BlobKey>emptyList(),
+			Collections.<URL>emptyList(),
+			ClassLoader.getSystemClassLoader(),
+			new UnregisteredMetricsGroup());
 
 		executionGraph.enableSnapshotCheckpointing(
 				100,
@@ -121,6 +124,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 				new DisabledCheckpointStatsTracker());
 
 		JobVertex jobVertex = new JobVertex("MockVertex");
+		jobVertex.setInvokableClass(AbstractInvokable.class);
 		executionGraph.attachJobGraph(Collections.singletonList(jobVertex));
 
 		return executionGraph;

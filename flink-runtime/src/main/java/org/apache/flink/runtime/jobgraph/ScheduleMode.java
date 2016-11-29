@@ -27,5 +27,13 @@ public enum ScheduleMode {
 	LAZY_FROM_SOURCES,
 
 	/** Schedules all tasks immediately. */
-	EAGER
+	EAGER;
+	
+	/**
+	 * Returns whether we are allowed to deploy consumers lazily.
+	 */
+	public boolean allowLazyDeployment() {
+		return this == LAZY_FROM_SOURCES;
+	}
+	
 }

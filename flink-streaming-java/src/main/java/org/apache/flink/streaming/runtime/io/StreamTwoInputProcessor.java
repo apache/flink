@@ -20,10 +20,12 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
-import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -39,8 +41,7 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -96,12 +97,18 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			StatefulTask checkpointedTask,
 			CheckpointingMode checkpointMode,
 			IOManager ioManager,
-			boolean enableMultiplexing) throws IOException {
-		
+			Configuration taskManagerConfig) throws IOException {
+
 		final InputGate inputGate = InputGateUtil.createInputGate(inputGates1, inputGates2);
 
 		if (checkpointMode == CheckpointingMode.EXACTLY_ONCE) {
-			this.barrierHandler = new BarrierBuffer(inputGate, ioManager);
+			long maxAlign = taskManagerConfig.getLong(TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT);
+			if (!(maxAlign == -1 || maxAlign > 0)) {
+				throw new IllegalConfigurationException(
+						TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT.key()
+								+ " must be positive or -1 (infinite)");
+			}
+			this.barrierHandler = new BarrierBuffer(inputGate, ioManager, maxAlign);
 		}
 		else if (checkpointMode == CheckpointingMode.AT_LEAST_ONCE) {
 			this.barrierHandler = new BarrierTracker(inputGate);
@@ -114,25 +121,11 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			this.barrierHandler.registerCheckpointEventHandler(checkpointedTask);
 		}
 		
-		if (enableMultiplexing) {
-			MultiplexingStreamRecordSerializer<IN1> ser = new MultiplexingStreamRecordSerializer<>(inputSerializer1);
-			this.deserializationDelegate1 = new NonReusingDeserializationDelegate<>(ser);
-		}
-		else {
-			StreamRecordSerializer<IN1> ser = new StreamRecordSerializer<>(inputSerializer1);
-			this.deserializationDelegate1 = (DeserializationDelegate<StreamElement>)
-					(DeserializationDelegate<?>) new NonReusingDeserializationDelegate<>(ser);
-		}
-		
-		if (enableMultiplexing) {
-			MultiplexingStreamRecordSerializer<IN2> ser = new MultiplexingStreamRecordSerializer<>(inputSerializer2);
-			this.deserializationDelegate2 = new NonReusingDeserializationDelegate<>(ser);
-		}
-		else {
-			StreamRecordSerializer<IN2> ser = new StreamRecordSerializer<>(inputSerializer2);
-			this.deserializationDelegate2 = (DeserializationDelegate<StreamElement>)
-					(DeserializationDelegate<?>) new NonReusingDeserializationDelegate<>(ser);
-		}
+		StreamElementSerializer<IN1> ser1 = new StreamElementSerializer<>(inputSerializer1);
+		this.deserializationDelegate1 = new NonReusingDeserializationDelegate<>(ser1);
+
+		StreamElementSerializer<IN2> ser2 = new StreamElementSerializer<>(inputSerializer2);
+		this.deserializationDelegate2 = new NonReusingDeserializationDelegate<>(ser2);
 
 		// Initialize one deserializer per input channel
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
@@ -285,19 +278,13 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			}
 		}
 	}
-	
-	public void setReporter(AccumulatorRegistry.Reporter reporter) {
-		for (RecordDeserializer<?> deserializer : recordDeserializers) {
-			deserializer.setReporter(reporter);
-		}
-	}
 
 	/**
 	 * Sets the metric group for this StreamTwoInputProcessor.
 	 *
 	 * @param metrics metric group
 	 */
-	public void setMetricGroup(IOMetricGroup metrics) {
+	public void setMetricGroup(TaskIOMetricGroup metrics) {
 		metrics.gauge("currentLowWatermark", new Gauge<Long>() {
 			@Override
 			public Long getValue() {

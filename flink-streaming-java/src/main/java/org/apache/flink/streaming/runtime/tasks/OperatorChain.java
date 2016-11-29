@@ -17,42 +17,40 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.streaming.api.collector.selector.CopyingDirectedOutput;
+import org.apache.flink.streaming.api.collector.selector.DirectedOutput;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
+import org.apache.flink.streaming.runtime.io.StreamRecordWriter;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.XORShiftRandom;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.OutputTag;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.api.collector.selector.CopyingDirectedOutput;
-import org.apache.flink.streaming.api.collector.selector.DirectedOutput;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
-import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.graph.StreamEdge;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.runtime.io.StreamRecordWriter;
-import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
-import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
-import org.apache.flink.util.XORShiftRandom;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 /**
@@ -75,11 +73,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 
 	private final OP headOperator;
 
-	public OperatorChain(StreamTask<OUT, OP> containingTask, AccumulatorRegistry.Reporter reporter) {
+	public OperatorChain(StreamTask<OUT, OP> containingTask) {
 		
 		final ClassLoader userCodeClassloader = containingTask.getUserCodeClassLoader();
 		final StreamConfig configuration = containingTask.getConfiguration();
-		final boolean enableMultiplexing = containingTask.isSerializingMixedStream();
 
 		headOperator = configuration.getStreamOperator(userCodeClassloader);
 
@@ -101,7 +98,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 
 				RecordWriterOutput<?> streamOutput = createStreamOutput(
 						outEdge, chainedConfigs.get(outEdge.getSourceId()), i,
-						containingTask.getEnvironment(), enableMultiplexing, reporter, containingTask.getName());
+						containingTask.getEnvironment(), containingTask.getName());
 	
 				this.streamOutputs[i] = streamOutput;
 				streamOutputMap.put(outEdge, streamOutput);
@@ -137,15 +134,32 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 		}
 		
 	}
-	
-	
-	public void broadcastCheckpointBarrier(long id, long timestamp) throws IOException, InterruptedException {
-		CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp);
-		for (RecordWriterOutput<?> streamOutput : streamOutputs) {
-			streamOutput.broadcastEvent(barrier);
+
+
+	public void broadcastCheckpointBarrier(long id, long timestamp) throws IOException {
+		try {
+			CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp);
+			for (RecordWriterOutput<?> streamOutput : streamOutputs) {
+				streamOutput.broadcastEvent(barrier);
+			}
+		}
+		catch (InterruptedException e) {
+			throw new IOException("Interrupted while broadcasting checkpoint barrier");
 		}
 	}
-	
+
+	public void broadcastCheckpointCancelMarker(long id) throws IOException {
+		try {
+			CancelCheckpointMarker barrier = new CancelCheckpointMarker(id);
+			for (RecordWriterOutput<?> streamOutput : streamOutputs) {
+				streamOutput.broadcastEvent(barrier);
+			}
+		}
+		catch (InterruptedException e) {
+			throw new IOException("Interrupted while broadcasting checkpoint cancellation");
+		}
+	}
+
 	public RecordWriterOutput<?>[] getStreamOutputs() {
 		return streamOutputs;
 	}
@@ -306,10 +320,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 	}
 	
 	private static <T> RecordWriterOutput<T> createStreamOutput(
-		StreamEdge edge, StreamConfig upStreamConfig, int outputIndex,
-		Environment taskEnvironment, boolean enableMultiplexing,
-		AccumulatorRegistry.Reporter reporter, String taskName)
-	{
+			StreamEdge edge, StreamConfig upStreamConfig, int outputIndex,
+			Environment taskEnvironment,
+			String taskName) {
 		TypeSerializer<T> outSerializer = upStreamConfig.getTypeSerializerOut(taskEnvironment.getUserClassLoader());
 
 		@SuppressWarnings("unchecked")
@@ -321,10 +334,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 
 		StreamRecordWriter<SerializationDelegate<StreamRecord<T>>> output = 
 				new StreamRecordWriter<>(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
-		output.setReporter(reporter);
 		output.setMetricGroup(taskEnvironment.getMetricGroup().getIOMetricGroup());
 		
-		return new RecordWriterOutput<>(output, outSerializer, enableMultiplexing);
+		return new RecordWriterOutput<>(output, outSerializer);
 	}
 	
 	// ------------------------------------------------------------------------
@@ -338,7 +350,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 
 		public ChainingOutput(OneInputStreamOperator<T, ?> operator) {
 			this.operator = operator;
-			this.numRecordsIn = operator.getMetricGroup().counter("numRecordsIn");
+			this.numRecordsIn = ((OperatorMetricGroup) operator.getMetricGroup()).getIOMetricGroup().getNumRecordsInCounter();
 		}
 
 		@Override

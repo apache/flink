@@ -25,10 +25,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
-import akka.actor.ActorRef;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,17 +49,14 @@ public class InstanceManager {
 	/** Set of hosts known to run a task manager that are thus able to execute tasks (by ID). */
 	private final Map<InstanceID, Instance> registeredHostsById;
 
-	/** Set of hosts known to run a task manager that are thus able to execute tasks (by connection). */
-	private final Map<ActorRef, Instance> registeredHostsByConnection;
-
 	/** Set of hosts known to run a task manager that are thus able to execute tasks (by ResourceID). */
 	private final Map<ResourceID, Instance> registeredHostsByResource;
 
 	/** Set of hosts that were present once and have died */
-	private final Set<ActorRef> deadHosts;
+	private final Set<ResourceID> deadHosts;
 
 	/** Listeners that want to be notified about availability and disappearance of instances */
-	private final List<InstanceListener> instanceListeners = new ArrayList<InstanceListener>();
+	private final List<InstanceListener> instanceListeners = new ArrayList<>();
 
 	/** The total number of task slots that the system has */
 	private int totalNumberOfAliveTaskSlots;
@@ -77,7 +73,6 @@ public class InstanceManager {
 	 */
 	public InstanceManager() {
 		this.registeredHostsById = new LinkedHashMap<>();
-		this.registeredHostsByConnection = new LinkedHashMap<>();
 		this.registeredHostsByResource = new LinkedHashMap<>();
 		this.deadHosts = new HashSet<>();
 	}
@@ -94,14 +89,13 @@ public class InstanceManager {
 			}
 
 			this.registeredHostsById.clear();
-			this.registeredHostsByConnection.clear();
 			this.registeredHostsByResource.clear();
 			this.deadHosts.clear();
 			this.totalNumberOfAliveTaskSlots = 0;
 		}
 	}
 
-	public boolean reportHeartBeat(InstanceID instanceId, byte[] lastMetricsReport) {
+	public boolean reportHeartBeat(InstanceID instanceId) {
 		if (instanceId == null) {
 			throw new IllegalArgumentException("InstanceID may not be null.");
 		}
@@ -123,7 +117,6 @@ public class InstanceManager {
 			}
 
 			host.reportHeartBeat();
-			host.setMetricsReport(lastMetricsReport);
 
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Received heartbeat from TaskManager " + host);
@@ -137,46 +130,46 @@ public class InstanceManager {
 	 * Registers a task manager. Registration of a task manager makes it available to be used
 	 * for the job execution.
 	 *
-	 * @param taskManager ActorRef to the TaskManager which wants to be registered
+	 * @param taskManagerGateway gateway to the task manager
 	 * @param taskManagerLocation Location info of the TaskManager
 	 * @param resources Hardware description of the TaskManager
 	 * @param numberOfSlots Number of available slots on the TaskManager
-	 * @param leaderSessionID The current leader session ID of the JobManager
 	 * @return The assigned InstanceID of the registered task manager
 	 */
 	public InstanceID registerTaskManager(
-			ActorRef taskManager,
+			TaskManagerGateway taskManagerGateway,
 			TaskManagerLocation taskManagerLocation,
 			HardwareDescription resources,
-			int numberOfSlots,
-			UUID leaderSessionID) {
+			int numberOfSlots) {
 		
 		synchronized (this.lock) {
 			if (this.isShutdown) {
 				throw new IllegalStateException("InstanceManager is shut down.");
 			}
 
-			Instance prior = registeredHostsByConnection.get(taskManager);
+			Instance prior = registeredHostsByResource.get(taskManagerLocation.getResourceID());
 			if (prior != null) {
 				throw new IllegalStateException("Registration attempt from TaskManager at "
-					+ taskManager.path() +
+					+ taskManagerLocation.addressString() +
 					". This connection is already registered under ID " + prior.getId());
 			}
 
-			boolean wasDead = this.deadHosts.remove(taskManager);
+			boolean wasDead = this.deadHosts.remove(taskManagerLocation.getResourceID());
 			if (wasDead) {
-				LOG.info("Registering TaskManager at " + taskManager.path() +
+				LOG.info("Registering TaskManager at " + taskManagerLocation.addressString() +
 						" which was marked as dead earlier because of a heart-beat timeout.");
 			}
 
-			ActorGateway actorGateway = new AkkaActorGateway(taskManager, leaderSessionID);
-
 			InstanceID instanceID = new InstanceID();
 
-			Instance host = new Instance(actorGateway, taskManagerLocation, instanceID, resources, numberOfSlots);
+			Instance host = new Instance(
+				taskManagerGateway,
+				taskManagerLocation,
+				instanceID,
+				resources,
+				numberOfSlots);
 
 			registeredHostsById.put(instanceID, host);
-			registeredHostsByConnection.put(taskManager, host);
 			registeredHostsByResource.put(taskManagerLocation.getResourceID(), host);
 
 			totalNumberOfAliveTaskSlots += numberOfSlots;
@@ -186,7 +179,7 @@ public class InstanceManager {
 								"Current number of registered hosts is %d. " +
 								"Current number of alive task slots is %d.",
 						taskManagerLocation.getHostname(),
-						taskManager.path(),
+						taskManagerGateway.getAddress(),
 						instanceID,
 						registeredHostsById.size(),
 						totalNumberOfAliveTaskSlots));
@@ -202,23 +195,20 @@ public class InstanceManager {
 	}
 
 	/**
-	 * Unregisters the TaskManager with the given {@link ActorRef}. Unregistering means to mark
+	 * Unregisters the TaskManager with the given instance id. Unregistering means to mark
 	 * the given instance as dead and notify {@link InstanceListener} about the dead instance.
 	 *
-	 * @param instanceID TaskManager which is about to be marked dead.
+	 * @param instanceId TaskManager which is about to be marked dead.
 	 */
-	public void unregisterTaskManager(ActorRef instanceID, boolean terminated){
-		Instance instance = registeredHostsByConnection.get(instanceID);
+	public void unregisterTaskManager(InstanceID instanceId, boolean terminated){
+		Instance instance = registeredHostsById.get(instanceId);
 
 		if (instance != null){
-			ActorRef host = instance.getActorGateway().actor();
-
-			registeredHostsByConnection.remove(host);
 			registeredHostsById.remove(instance.getId());
 			registeredHostsByResource.remove(instance.getTaskManagerID());
 
 			if (terminated) {
-				deadHosts.add(instance.getActorGateway().actor());
+				deadHosts.add(instance.getTaskManagerID());
 			}
 
 			instance.markDead();
@@ -227,11 +217,12 @@ public class InstanceManager {
 
 			notifyDeadInstance(instance);
 
-			LOG.info("Unregistered task manager " + host.path() + ". Number of " +
-					"registered task managers " + getNumberOfRegisteredTaskManagers() + ". Number" +
-					" of available slots " + getTotalNumberOfSlots() + ".");
+			LOG.info(
+				"Unregistered task manager " + instance.getTaskManagerLocation().addressString() +
+				". Number of registered task managers " + getNumberOfRegisteredTaskManagers() +
+				". Number of available slots " + getTotalNumberOfSlots() + ".");
 		} else {
-			LOG.warn("Tried to unregister instance {} but it is not registered.", instanceID);
+			LOG.warn("Tried to unregister instance {} but it is not registered.", instanceId);
 		}
 	}
 
@@ -240,7 +231,7 @@ public class InstanceManager {
 	 */
 	public void unregisterAllTaskManagers() {
 		for(Instance instance: registeredHostsById.values()) {
-			deadHosts.add(instance.getActorGateway().actor());
+			deadHosts.add(instance.getTaskManagerID());
 
 			instance.markDead();
 
@@ -250,12 +241,15 @@ public class InstanceManager {
 		}
 
 		registeredHostsById.clear();
-		registeredHostsByConnection.clear();
 		registeredHostsByResource.clear();
 	}
 
-	public boolean isRegistered(ActorRef taskManager) {
-		return registeredHostsByConnection.containsKey(taskManager);
+	public boolean isRegistered(InstanceID instanceId) {
+		return registeredHostsById.containsKey(instanceId);
+	}
+
+	public boolean isRegistered(ResourceID resourceId) {
+		return registeredHostsByResource.containsKey(resourceId);
 	}
 
 	public int getNumberOfRegisteredTaskManagers() {
@@ -288,10 +282,6 @@ public class InstanceManager {
 
 	public Instance getRegisteredInstanceById(InstanceID instanceID) {
 		return registeredHostsById.get(instanceID);
-	}
-
-	public Instance getRegisteredInstance(ActorRef ref) {
-		return registeredHostsByConnection.get(ref);
 	}
 
 	public Instance getRegisteredInstance(ResourceID ref) {

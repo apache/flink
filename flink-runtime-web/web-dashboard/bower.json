@@ -1,7 +1,6 @@
 {
   "name": "flink-dashboard",
   "version": "1.0.0",
- 
   "license": "The Apache Software License 2.0",
   "private": true,
   "ignore": [
@@ -21,7 +20,9 @@
     "dagre-d3": "0.4.17",
     "font-awesome": "4.5.0",
     "moment-duration-format": "1.3.0",
-    "qtip2": "2.2.1"
+    "qtip2": "2.2.1",
+    "angular-drag-and-drop-lists": "^1.4.0",
+    "nvd3": "^1.8.4"
   },
   "overrides": {
     "dagre-d3": {

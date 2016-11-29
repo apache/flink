@@ -32,6 +32,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -113,6 +114,7 @@ public class RescalingITCase extends TestLogger {
 	public static void teardown() {
 		if (cluster != null) {
 			cluster.shutdown();
+			cluster.awaitTermination();
 		}
 	}
 
@@ -192,7 +194,7 @@ public class RescalingITCase extends TestLogger {
 
 			JobGraph scaledJobGraph = createJobGraphWithKeyedState(parallelism2, maxParallelism, numberKeys, numberElements2, true, 100);
 
-			scaledJobGraph.setSavepointPath(savepointPath);
+			scaledJobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
 			jobID = scaledJobGraph.getJobID();
 
@@ -261,17 +263,11 @@ public class RescalingITCase extends TestLogger {
 			// wait until the operator is started
 			StateSourceBase.workStartedLatch.await();
 
-			while (deadline.hasTimeLeft()) {
-				Future<Object> savepointPathFuture = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobID, Option.<String>empty()), deadline.timeLeft());
-				FiniteDuration waitingTime = new FiniteDuration(10, TimeUnit.SECONDS);
-				savepointResponse = Await.result(savepointPathFuture, waitingTime);
+			Future<Object> savepointPathFuture = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobID, Option.<String>empty()), deadline.timeLeft());
+			FiniteDuration waitingTime = new FiniteDuration(10, TimeUnit.SECONDS);
+			savepointResponse = Await.result(savepointPathFuture, waitingTime);
 
-				if (savepointResponse instanceof JobManagerMessages.TriggerSavepointSuccess) {
-					break;
-				}
-			}
-
-			assertTrue(savepointResponse instanceof JobManagerMessages.TriggerSavepointSuccess);
+			assertTrue(String.valueOf(savepointResponse), savepointResponse instanceof JobManagerMessages.TriggerSavepointSuccess);
 
 			final String savepointPath = ((JobManagerMessages.TriggerSavepointSuccess)savepointResponse).savepointPath();
 
@@ -290,7 +286,7 @@ public class RescalingITCase extends TestLogger {
 
 			JobGraph scaledJobGraph = createJobGraphWithOperatorState(parallelism2, maxParallelism, OperatorCheckpointMethod.NON_PARTITIONED);
 
-			scaledJobGraph.setSavepointPath(savepointPath);
+			scaledJobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
 			jobID = scaledJobGraph.getJobID();
 
@@ -403,7 +399,7 @@ public class RescalingITCase extends TestLogger {
 				true,
 				100);
 
-			scaledJobGraph.setSavepointPath(savepointPath);
+			scaledJobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
 			jobID = scaledJobGraph.getJobID();
 
@@ -529,7 +525,7 @@ public class RescalingITCase extends TestLogger {
 
 			JobGraph scaledJobGraph = createJobGraphWithOperatorState(parallelism2, maxParallelism, checkpointMethod);
 
-			scaledJobGraph.setSavepointPath(savepointPath);
+			scaledJobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
 			jobID = scaledJobGraph.getJobID();
 
@@ -584,7 +580,7 @@ public class RescalingITCase extends TestLogger {
 		env.enableCheckpointing(Long.MAX_VALUE);
 		env.setRestartStrategy(RestartStrategies.noRestart());
 
-		StateSourceBase.workStartedLatch = new CountDownLatch(1);
+		StateSourceBase.workStartedLatch = new CountDownLatch(parallelism);
 
 		SourceFunction<Integer> src;
 
@@ -796,8 +792,8 @@ public class RescalingITCase extends TestLogger {
 
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
-			counter = context.getManagedKeyedStateStore().getState(new ValueStateDescriptor<>("counter", Integer.class, 0));
-			sum = context.getManagedKeyedStateStore().getState(new ValueStateDescriptor<>("sum", Integer.class, 0));
+			counter = context.getKeyedStateStore().getState(new ValueStateDescriptor<>("counter", Integer.class, 0));
+			sum = context.getKeyedStateStore().getState(new ValueStateDescriptor<>("sum", Integer.class, 0));
 		}
 	}
 
@@ -921,6 +917,8 @@ public class RescalingITCase extends TestLogger {
 		@Override
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {
 
+			counterPartitions.clear();
+
 			CHECK_CORRECT_SNAPSHOT[getRuntimeContext().getIndexOfThisSubtask()] = counter;
 
 			int div = counter / NUM_PARTITIONS;
@@ -939,7 +937,7 @@ public class RescalingITCase extends TestLogger {
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
 			this.counterPartitions =
-					context.getManagedOperatorStateStore().getSerializableListState("counter_partitions");
+					context.getOperatorStateStore().getSerializableListState("counter_partitions");
 			if (context.isRestored()) {
 				for (int v : counterPartitions.get()) {
 					counter += v;

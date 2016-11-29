@@ -25,6 +25,7 @@ import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -48,15 +49,28 @@ public class CEPPatternOperator<IN> extends AbstractCEPPatternOperator<IN, Map<S
 
 		Collection<Map<String, IN>> matchedPatterns = patterns.f0;
 
-		if (!matchedPatterns.isEmpty()) {
+		emitMatchedSequences(matchedPatterns, timestamp);
+	}
+
+	@Override
+	protected void advanceTime(NFA<IN> nfa, long timestamp) {
+		Tuple2<Collection<Map<String, IN>>, Collection<Tuple2<Map<String, IN>, Long>>> patterns = nfa.process(null, timestamp);
+
+		emitMatchedSequences(patterns.f0, timestamp);
+	}
+
+	private void emitMatchedSequences(Iterable<Map<String, IN>> matchedSequences, long timestamp) {
+		Iterator<Map<String, IN>> iterator = matchedSequences.iterator();
+
+		if (iterator.hasNext()) {
 			StreamRecord<Map<String, IN>> streamRecord = new StreamRecord<Map<String, IN>>(
 				null,
 				timestamp);
 
-			for (Map<String, IN> pattern: matchedPatterns) {
-				streamRecord.replace(pattern);
+			do {
+				streamRecord.replace(iterator.next());
 				output.collect(streamRecord);
-			}
+			} while (iterator.hasNext());
 		}
 	}
 }

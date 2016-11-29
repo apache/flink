@@ -30,6 +30,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 
@@ -95,7 +96,13 @@ public class ExecutionGraphConstructionTest {
 		v3.setParallelism(2);
 		v4.setParallelism(11);
 		v5.setParallelism(4);
-		
+
+		v1.setInvokableClass(AbstractInvokable.class);
+		v2.setInvokableClass(AbstractInvokable.class);
+		v3.setInvokableClass(AbstractInvokable.class);
+		v4.setInvokableClass(AbstractInvokable.class);
+		v5.setInvokableClass(AbstractInvokable.class);
+
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
 		v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
 		v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
@@ -105,7 +112,8 @@ public class ExecutionGraphConstructionTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(), 
+			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
 			jobId, 
 			jobName, 
 			cfg,
@@ -137,7 +145,11 @@ public class ExecutionGraphConstructionTest {
 		v1.setParallelism(5);
 		v2.setParallelism(7);
 		v3.setParallelism(2);
-		
+
+		v1.setInvokableClass(AbstractInvokable.class);
+		v2.setInvokableClass(AbstractInvokable.class);
+		v3.setInvokableClass(AbstractInvokable.class);
+
 		// this creates an intermediate result for v1
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
 		
@@ -150,7 +162,8 @@ public class ExecutionGraphConstructionTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(), 
+			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
 			jobId, 
 			jobName, 
 			cfg,
@@ -171,7 +184,10 @@ public class ExecutionGraphConstructionTest {
 		JobVertex v5 = new JobVertex("vertex5");
 		v4.setParallelism(11);
 		v5.setParallelism(4);
-		
+
+		v4.setInvokableClass(AbstractInvokable.class);
+		v5.setInvokableClass(AbstractInvokable.class);
+
 		v4.connectDataSetAsInput(v2result, DistributionPattern.ALL_TO_ALL);
 		v4.connectDataSetAsInput(v3result_1, DistributionPattern.ALL_TO_ALL);
 		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
@@ -205,6 +221,10 @@ public class ExecutionGraphConstructionTest {
 		v1.setParallelism(5);
 		v2.setParallelism(7);
 		v3.setParallelism(2);
+
+		v1.setInvokableClass(AbstractInvokable.class);
+		v2.setInvokableClass(AbstractInvokable.class);
+		v3.setInvokableClass(AbstractInvokable.class);
 		
 		// this creates an intermediate result for v1
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
@@ -213,12 +233,12 @@ public class ExecutionGraphConstructionTest {
 		IntermediateDataSet v2result = v2.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
 		IntermediateDataSet v3result_1 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
 		IntermediateDataSet v3result_2 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
-		
-		
+
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(), 
+			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
 			jobId, 
 			jobName, 
 			cfg,
@@ -239,7 +259,10 @@ public class ExecutionGraphConstructionTest {
 		JobVertex v5 = new JobVertex("vertex5");
 		v4.setParallelism(11);
 		v5.setParallelism(4);
-		
+
+		v4.setInvokableClass(AbstractInvokable.class);
+		v5.setInvokableClass(AbstractInvokable.class);
+
 		v4.connectIdInput(v2result.getId(), DistributionPattern.ALL_TO_ALL);
 		v4.connectIdInput(v3result_1.getId(), DistributionPattern.ALL_TO_ALL);
 		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
@@ -469,11 +492,13 @@ public class ExecutionGraphConstructionTest {
 		// construct part one of the execution graph
 		JobVertex v1 = new JobVertex("vertex1");
 		v1.setParallelism(7);
-		
+		v1.setInvokableClass(AbstractInvokable.class);
+
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(), 
+			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
 			jobId, 
 			jobName, 
 			cfg,
@@ -490,6 +515,7 @@ public class ExecutionGraphConstructionTest {
 		
 		// attach the second part of the graph
 		JobVertex v2 = new JobVertex("vertex2");
+		v2.setInvokableClass(AbstractInvokable.class);
 		v2.connectIdInput(new IntermediateDataSetID(), DistributionPattern.ALL_TO_ALL);
 		
 		List<JobVertex> ordered2 = new ArrayList<JobVertex>(Arrays.asList(v2));
@@ -520,7 +546,13 @@ public class ExecutionGraphConstructionTest {
 		v3.setParallelism(2);
 		v4.setParallelism(11);
 		v5.setParallelism(4);
-		
+
+		v1.setInvokableClass(AbstractInvokable.class);
+		v2.setInvokableClass(AbstractInvokable.class);
+		v3.setInvokableClass(AbstractInvokable.class);
+		v4.setInvokableClass(AbstractInvokable.class);
+		v5.setInvokableClass(AbstractInvokable.class);
+
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
 		v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
 		v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
@@ -530,7 +562,8 @@ public class ExecutionGraphConstructionTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v5, v4));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(), 
+			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
 			jobId, 
 			jobName, 
 			cfg,
@@ -579,6 +612,12 @@ public class ExecutionGraphConstructionTest {
 			v3.setParallelism(2);
 			v4.setParallelism(11);
 			v5.setParallelism(4);
+
+			v1.setInvokableClass(AbstractInvokable.class);
+			v2.setInvokableClass(AbstractInvokable.class);
+			v3.setInvokableClass(AbstractInvokable.class);
+			v4.setInvokableClass(AbstractInvokable.class);
+			v5.setInvokableClass(AbstractInvokable.class);
 			
 			v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
 			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
@@ -592,7 +631,8 @@ public class ExecutionGraphConstructionTest {
 			List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
 			ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(), 
+				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutionContext(),
 				jobId, 
 				jobName, 
 				cfg,
@@ -638,7 +678,8 @@ public class ExecutionGraphConstructionTest {
 			List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
 			ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(), 
+				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutionContext(),
 				jobId, 
 				jobName,
 				cfg,
@@ -672,6 +713,8 @@ public class ExecutionGraphConstructionTest {
 			JobVertex v2 = new JobVertex("vertex2");
 			v1.setParallelism(6);
 			v2.setParallelism(4);
+			v1.setInvokableClass(AbstractInvokable.class);
+			v2.setInvokableClass(AbstractInvokable.class);
 			
 			SlotSharingGroup sl1 = new SlotSharingGroup();
 			v1.setSlotSharingGroup(sl1);
@@ -690,6 +733,12 @@ public class ExecutionGraphConstructionTest {
 			v5.setParallelism(3);
 			v6.setParallelism(3);
 			v7.setParallelism(3);
+
+			v3.setInvokableClass(AbstractInvokable.class);
+			v4.setInvokableClass(AbstractInvokable.class);
+			v5.setInvokableClass(AbstractInvokable.class);
+			v6.setInvokableClass(AbstractInvokable.class);
+			v7.setInvokableClass(AbstractInvokable.class);
 			
 			SlotSharingGroup sl2 = new SlotSharingGroup();
 			v3.setSlotSharingGroup(sl2);
@@ -706,11 +755,13 @@ public class ExecutionGraphConstructionTest {
 			// isolated vertex
 			JobVertex v8 = new JobVertex("vertex8");
 			v8.setParallelism(2);
+			v8.setInvokableClass(AbstractInvokable.class);
 
 			JobGraph jg = new JobGraph(jobId, jobName, v1, v2, v3, v4, v5, v6, v7, v8);
 			
 			ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(), 
+				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutionContext(),
 				jobId, 
 				jobName, 
 				cfg,

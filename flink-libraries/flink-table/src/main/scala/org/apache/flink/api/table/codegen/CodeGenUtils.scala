@@ -28,7 +28,7 @@ import org.apache.flink.api.common.typeinfo.{FractionalTypeInfo, SqlTimeTypeInfo
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.table.typeutils.{IntervalTypeInfo, RowTypeInfo, TypeCheckUtils}
+import org.apache.flink.api.table.typeutils.{TimeIntervalTypeInfo, RowTypeInfo, TypeCheckUtils}
 
 object CodeGenUtils {
 
@@ -71,8 +71,8 @@ object CodeGenUtils {
     case SqlTimeTypeInfo.TIMESTAMP => "long"
 
     // internal primitive representation of time intervals
-    case IntervalTypeInfo.INTERVAL_MONTHS => "int"
-    case IntervalTypeInfo.INTERVAL_MILLIS => "long"
+    case TimeIntervalTypeInfo.INTERVAL_MONTHS => "int"
+    case TimeIntervalTypeInfo.INTERVAL_MILLIS => "long"
 
     case _ =>
       tpe.getTypeClass.getCanonicalName
@@ -106,8 +106,8 @@ object CodeGenUtils {
     case CHAR_TYPE_INFO => "'\\0'"
     case SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIME => "-1"
     case SqlTimeTypeInfo.TIMESTAMP => "-1L"
-    case IntervalTypeInfo.INTERVAL_MONTHS => "-1"
-    case IntervalTypeInfo.INTERVAL_MILLIS => "-1L"
+    case TimeIntervalTypeInfo.INTERVAL_MONTHS => "-1"
+    case TimeIntervalTypeInfo.INTERVAL_MILLIS => "-1L"
 
     case _ => "null"
   }

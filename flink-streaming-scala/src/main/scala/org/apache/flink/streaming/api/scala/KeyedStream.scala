@@ -23,7 +23,8 @@ import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.state.{FoldingStateDescriptor, ListStateDescriptor, ReducingStateDescriptor, ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, KeyedStream => KeyedJavaStream, QueryableStateStream, WindowedStream => WindowedJavaStream}
+import org.apache.flink.streaming.api.datastream.{QueryableStateStream, SingleOutputStreamOperator, DataStream => JavaStream, KeyedStream => KeyedJavaStream, WindowedStream => WindowedJavaStream}
+import org.apache.flink.streaming.api.functions.{ProcessFunction, RichProcessFunction}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
 import org.apache.flink.streaming.api.functions.query.{QueryableAppendingStateOperator, QueryableValueStateOperator}
@@ -46,6 +47,42 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    */
   @Internal
   def getKeyType = javaStream.getKeyType()
+
+
+  // ------------------------------------------------------------------------
+  //  basic transformations
+  // ------------------------------------------------------------------------
+
+  /**
+    * Applies the given [[ProcessFunction]] on the input stream, thereby
+    * creating a transformed output stream.
+    *
+    * The function will be called for every element in the stream and can produce
+    * zero or more output. The function can also query the time and set timers. When
+    * reacting to the firing of set timers the function can emit yet more elements.
+    *
+    * The function will be called for every element in the input streams and can produce zero
+    * or more output elements. Contrary to the [[DataStream#flatMap(FlatMapFunction)]]
+    * function, this function can also query the time and set timers. When reacting to the firing
+    * of set timers the function can directly emit elements and/or register yet more timers.
+    *
+    * A [[RichProcessFunction]]
+    * can be used to gain access to features provided by the
+    * [[org.apache.flink.api.common.functions.RichFunction]]
+    *
+    * @param processFunction The [[ProcessFunction]] that is called for each element
+    *                   in the stream.
+    */
+  @PublicEvolving
+  def process[R: TypeInformation](
+    processFunction: ProcessFunction[T, R]): DataStream[R] = {
+
+    if (processFunction == null) {
+      throw new NullPointerException("ProcessFunction must not be null.")
+    }
+
+    asScalaStream(javaStream.process(processFunction, implicitly[TypeInformation[R]]))
+  }
   
   // ------------------------------------------------------------------------
   //  Windowing
@@ -185,6 +222,10 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * Applies an aggregation that that gives the current maximum of the data stream at
    * the given position by the given key. An independent aggregate is kept per key.
    *
+   * @param position
+   *            The field position in the data points to minimize. This is applicable to
+   *            Tuple types, Scala case classes, and primitive types (which is considered
+   *            as having one field).
    */
   def max(position: Int): DataStream[T] = aggregate(AggregationType.MAX, position)
   
@@ -192,6 +233,13 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * Applies an aggregation that that gives the current maximum of the data stream at
    * the given field by the given key. An independent aggregate is kept per key.
    *
+   * @param field
+   *            In case of a POJO, Scala case class, or Tuple type, the
+   *            name of the (public) field on which to perform the aggregation.
+   *            Additionally, a dot can be used to drill down into nested
+   *            objects, as in `"field1.fieldxy"`.
+   *            Furthermore "*" can be specified in case of a basic type
+   *            (which is considered as having only one field).
    */
   def max(field: String): DataStream[T] = aggregate(AggregationType.MAX, field)
   
@@ -199,6 +247,10 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * Applies an aggregation that that gives the current minimum of the data stream at
    * the given position by the given key. An independent aggregate is kept per key.
    *
+   * @param position
+   *            The field position in the data points to minimize. This is applicable to
+   *            Tuple types, Scala case classes, and primitive types (which is considered
+   *            as having one field).
    */
   def min(position: Int): DataStream[T] = aggregate(AggregationType.MIN, position)
   
@@ -206,6 +258,13 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * Applies an aggregation that that gives the current minimum of the data stream at
    * the given field by the given key. An independent aggregate is kept per key.
    *
+   * @param field
+   *            In case of a POJO, Scala case class, or Tuple type, the
+   *            name of the (public) field on which to perform the aggregation.
+   *            Additionally, a dot can be used to drill down into nested
+   *            objects, as in `"field1.fieldxy"`.
+   *            Furthermore "*" can be specified in case of a basic type
+   *            (which is considered as having only one field).
    */
   def min(field: String): DataStream[T] = aggregate(AggregationType.MIN, field)
 
@@ -213,6 +272,10 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * Applies an aggregation that sums the data stream at the given position by the given 
    * key. An independent aggregate is kept per key.
    *
+   * @param position
+   *            The field position in the data points to minimize. This is applicable to
+   *            Tuple types, Scala case classes, and primitive types (which is considered
+   *            as having one field).
    */
   def sum(position: Int): DataStream[T] = aggregate(AggregationType.SUM, position)
   
@@ -220,6 +283,13 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * Applies an aggregation that sums the data stream at the given field by the given 
    * key. An independent aggregate is kept per key.
    *
+   * @param field
+   *            In case of a POJO, Scala case class, or Tuple type, the
+   *            name of the (public) field on which to perform the aggregation.
+   *            Additionally, a dot can be used to drill down into nested
+   *            objects, as in `"field1.fieldxy"`.
+   *            Furthermore "*" can be specified in case of a basic type
+   *            (which is considered as having only one field).
    */
   def sum(field: String): DataStream[T] =  aggregate(AggregationType.SUM, field)
 
@@ -228,34 +298,56 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * the given position by the given key. An independent aggregate is kept per key. 
    * When equality, the first element is returned with the minimal value.
    *
+   * @param position
+   *            The field position in the data points to minimize. This is applicable to
+   *            Tuple types, Scala case classes, and primitive types (which is considered
+   *            as having one field).
    */
   def minBy(position: Int): DataStream[T] = aggregate(AggregationType
     .MINBY, position)
     
    /**
-   * Applies an aggregation that that gives the current minimum element of the data stream by
-   * the given field by the given key. An independent aggregate is kept per key.
-   * When equality, the first element is returned with the minimal value.
-   *
-   */
+    * Applies an aggregation that that gives the current minimum element of the data stream by
+    * the given field by the given key. An independent aggregate is kept per key.
+    * When equality, the first element is returned with the minimal value.
+    *
+    * @param field
+    *            In case of a POJO, Scala case class, or Tuple type, the
+    *            name of the (public) field on which to perform the aggregation.
+    *            Additionally, a dot can be used to drill down into nested
+    *            objects, as in `"field1.fieldxy"`.
+    *            Furthermore "*" can be specified in case of a basic type
+    *            (which is considered as having only one field).
+    */
   def minBy(field: String): DataStream[T] = aggregate(AggregationType
     .MINBY, field )
 
    /**
-   * Applies an aggregation that that gives the current maximum element of the data stream by
-   * the given position by the given key. An independent aggregate is kept per key. 
-   * When equality, the first element is returned with the maximal value.
-   *
-   */
+    * Applies an aggregation that that gives the current maximum element of the data stream by
+    * the given position by the given key. An independent aggregate is kept per key.
+    * When equality, the first element is returned with the maximal value.
+    *
+    * @param position
+    *            The field position in the data points to minimize. This is applicable to
+    *            Tuple types, Scala case classes, and primitive types (which is considered
+    *            as having one field).
+    */
   def maxBy(position: Int): DataStream[T] =
     aggregate(AggregationType.MAXBY, position)
     
    /**
-   * Applies an aggregation that that gives the current maximum element of the data stream by
-   * the given field by the given key. An independent aggregate is kept per key. 
-   * When equality, the first element is returned with the maximal value.
-   *
-   */
+    * Applies an aggregation that that gives the current maximum element of the data stream by
+    * the given field by the given key. An independent aggregate is kept per key.
+    * When equality, the first element is returned with the maximal value.
+    *
+    * @param field
+    *            In case of a POJO, Scala case class, or Tuple type, the
+    *            name of the (public) field on which to perform the aggregation.
+    *            Additionally, a dot can be used to drill down into nested
+    *            objects, as in `"field1.fieldxy"`.
+    *            Furthermore "*" can be specified in case of a basic type
+    *            (which is considered as having only one field).
+    */
   def maxBy(field: String): DataStream[T] =
     aggregate(AggregationType.MAXBY, field)
     

@@ -20,7 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.test.util.TestingSecurityContext;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -30,6 +30,8 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.Callable;
 
 public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 
@@ -47,7 +49,7 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 
 		SecureTestEnvironment.prepare(tmp);
 
-		populateYarnSecureConfigurations(yarnConfiguration,SecureTestEnvironment.getHadoopServicePrincipal(),
+		populateYarnSecureConfigurations(yarnConfiguration, SecureTestEnvironment.getHadoopServicePrincipal(),
 				SecureTestEnvironment.getTestKeytab());
 
 		Configuration flinkConfig = new Configuration();
@@ -56,15 +58,14 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 		flinkConfig.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY,
 				SecureTestEnvironment.getHadoopServicePrincipal());
 
-		SecurityContext.SecurityConfiguration ctx = new SecurityContext.SecurityConfiguration();
-		ctx.setFlinkConfiguration(flinkConfig);
+		SecurityUtils.SecurityConfiguration ctx = new SecurityUtils.SecurityConfiguration(flinkConfig);
 		ctx.setHadoopConfiguration(yarnConfiguration);
 		try {
 			TestingSecurityContext.install(ctx, SecureTestEnvironment.getClientSecurityConfigurationMap());
 
-			SecurityContext.getInstalled().runSecured(new SecurityContext.FlinkSecuredRunner<Integer>() {
+			SecurityUtils.getInstalledContext().runSecured(new Callable<Object>() {
 				@Override
-				public Integer run() {
+				public Integer call() {
 					startYARNSecureMode(yarnConfiguration, SecureTestEnvironment.getHadoopServicePrincipal(),
 							SecureTestEnvironment.getTestKeytab());
 					return null;

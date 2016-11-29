@@ -26,7 +26,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -46,7 +46,7 @@ import java.util.PriorityQueue;
 abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBasePatternOperator<IN, OUT> {
 	private static final long serialVersionUID = 7487334510746595640L;
 
-	private final MultiplexingStreamRecordSerializer<IN> streamRecordSerializer;
+	private final StreamElementSerializer<IN> streamRecordSerializer;
 
 	// global nfa for all elements
 	private NFA<IN> nfa;
@@ -60,12 +60,13 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 			NFACompiler.NFAFactory<IN> nfaFactory) {
 		super(inputSerializer, isProcessingTime);
 
-		this.streamRecordSerializer = new MultiplexingStreamRecordSerializer<>(inputSerializer);
+		this.streamRecordSerializer = new StreamElementSerializer<>(inputSerializer);
 		this.nfa = nfaFactory.createNFA();
 	}
 
 	@Override
-	public void open() {
+	public void open() throws Exception {
+		super.open();
 		if (priorityQueue == null) {
 			priorityQueue = new PriorityQueue<StreamRecord<IN>>(INITIAL_PRIORITY_QUEUE_CAPACITY, new StreamRecordComparator<IN>());
 		}
@@ -93,10 +94,17 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
-		while(!priorityQueue.isEmpty() && priorityQueue.peek().getTimestamp() <= mark.getTimestamp()) {
-			StreamRecord<IN> streamRecord = priorityQueue.poll();
+		// we do our own watermark handling, no super call. we will never be able to use
+		// the timer service like this, however.
 
-			processEvent(nfa, streamRecord.getValue(), streamRecord.getTimestamp());
+		if (priorityQueue.isEmpty()) {
+			advanceTime(nfa, mark.getTimestamp());
+		} else {
+			while (!priorityQueue.isEmpty() && priorityQueue.peek().getTimestamp() <= mark.getTimestamp()) {
+				StreamRecord<IN> streamRecord = priorityQueue.poll();
+
+				processEvent(nfa, streamRecord.getValue(), streamRecord.getTimestamp());
+			}
 		}
 
 		output.emitWatermark(mark);

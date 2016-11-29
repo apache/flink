@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.{CodeGenException, GeneratedExpression}
-import org.apache.flink.api.table.typeutils.IntervalTypeInfo
+import org.apache.flink.api.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.api.table.typeutils.TypeCheckUtils._
 
 object ScalarOperators {
@@ -432,7 +432,7 @@ object ScalarOperators {
       }
 
     // Interval Months -> String
-    case (IntervalTypeInfo.INTERVAL_MONTHS, STRING_TYPE_INFO) =>
+    case (TimeIntervalTypeInfo.INTERVAL_MONTHS, STRING_TYPE_INFO) =>
       val method = qualifyMethod(BuiltInMethod.INTERVAL_YEAR_MONTH_TO_STRING.method)
       val timeUnitRange = qualifyEnum(TimeUnitRange.YEAR_TO_MONTH)
       generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
@@ -440,7 +440,7 @@ object ScalarOperators {
       }
 
     // Interval Millis -> String
-    case (IntervalTypeInfo.INTERVAL_MILLIS, STRING_TYPE_INFO) =>
+    case (TimeIntervalTypeInfo.INTERVAL_MILLIS, STRING_TYPE_INFO) =>
       val method = qualifyMethod(BuiltInMethod.INTERVAL_DAY_TIME_TO_STRING.method)
       val timeUnitRange = qualifyEnum(TimeUnitRange.DAY_TO_SECOND)
       generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
@@ -573,17 +573,17 @@ object ScalarOperators {
          (INT_TYPE_INFO, SqlTimeTypeInfo.DATE) |
          (INT_TYPE_INFO, SqlTimeTypeInfo.TIME) |
          (LONG_TYPE_INFO, SqlTimeTypeInfo.TIMESTAMP) |
-         (INT_TYPE_INFO, IntervalTypeInfo.INTERVAL_MONTHS) |
-         (LONG_TYPE_INFO, IntervalTypeInfo.INTERVAL_MILLIS) |
-         (IntervalTypeInfo.INTERVAL_MONTHS, INT_TYPE_INFO) |
-         (IntervalTypeInfo.INTERVAL_MILLIS, LONG_TYPE_INFO) =>
+         (INT_TYPE_INFO, TimeIntervalTypeInfo.INTERVAL_MONTHS) |
+         (LONG_TYPE_INFO, TimeIntervalTypeInfo.INTERVAL_MILLIS) |
+         (TimeIntervalTypeInfo.INTERVAL_MONTHS, INT_TYPE_INFO) |
+         (TimeIntervalTypeInfo.INTERVAL_MILLIS, LONG_TYPE_INFO) =>
       internalExprCasting(operand, targetType)
 
     // internal reinterpretation of temporal types
     // Date, Time, Interval Months -> Long
     case  (SqlTimeTypeInfo.DATE, LONG_TYPE_INFO)
         | (SqlTimeTypeInfo.TIME, LONG_TYPE_INFO)
-        | (IntervalTypeInfo.INTERVAL_MONTHS, LONG_TYPE_INFO) =>
+        | (TimeIntervalTypeInfo.INTERVAL_MONTHS, LONG_TYPE_INFO) =>
       internalExprCasting(operand, targetType)
 
     case (from, to) =>
@@ -656,38 +656,36 @@ object ScalarOperators {
       right: GeneratedExpression)
     : GeneratedExpression = {
 
-    val operator = if (plus) "+" else "-"
+    val op = if (plus) "+" else "-"
 
     (left.resultType, right.resultType) match {
-      case (l: IntervalTypeInfo[_], r: IntervalTypeInfo[_]) if l == r =>
-        generateArithmeticOperator(operator, nullCheck, l, left, right)
+      case (l: TimeIntervalTypeInfo[_], r: TimeIntervalTypeInfo[_]) if l == r =>
+        generateArithmeticOperator(op, nullCheck, l, left, right)
 
-      case (SqlTimeTypeInfo.DATE, IntervalTypeInfo.INTERVAL_MILLIS) |
-           (IntervalTypeInfo.INTERVAL_MILLIS, SqlTimeTypeInfo.DATE) =>
+      case (SqlTimeTypeInfo.DATE, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
-          if (isTimePoint(left.resultType)) {
-            (leftTerm, rightTerm) => s"$leftTerm + ((int) ($rightTerm / ${MILLIS_PER_DAY}L))"
-          } else {
-            (leftTerm, rightTerm) => s"((int) ($leftTerm / ${MILLIS_PER_DAY}L)) + $rightTerm"
-          }
+            (l, r) => s"$l $op ((int) ($r / ${MILLIS_PER_DAY}L))"
         }
 
-      case (SqlTimeTypeInfo.TIME, IntervalTypeInfo.INTERVAL_MILLIS) |
-           (IntervalTypeInfo.INTERVAL_MILLIS, SqlTimeTypeInfo.TIME) =>
+      case (SqlTimeTypeInfo.DATE, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
+            (l, r) => s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($l, $op($r))"
+        }
+
+      case (SqlTimeTypeInfo.TIME, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIME, left, right) {
-          if (isTimePoint(left.resultType)) {
-            (leftTerm, rightTerm) => s"$leftTerm + ((int) ($rightTerm))"
-          } else {
-            (leftTerm, rightTerm) => s"((int) ($leftTerm)) + $rightTerm"
-          }
+            (l, r) => s"$l $op ((int) ($r))"
         }
 
-      case (SqlTimeTypeInfo.TIMESTAMP, IntervalTypeInfo.INTERVAL_MILLIS) =>
+      case (SqlTimeTypeInfo.TIMESTAMP, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
-          (leftTerm, rightTerm) => s"$leftTerm + $rightTerm"
+          (l, r) => s"$l $op $r"
         }
 
-      // TODO more operations when CALCITE-308 is fixed
+      case (SqlTimeTypeInfo.TIMESTAMP, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
+          (l, r) => s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($l, $op($r))"
+        }
 
       case _ =>
         throw new CodeGenException("Unsupported temporal arithmetic.")

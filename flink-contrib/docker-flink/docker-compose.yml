@@ -20,16 +20,20 @@ version: "2"
 services:
   jobmanager:
     image: flink
+    container_name: "jobmanager"
+    expose:
+      - "6123"
     ports:
       - "48081:8081"
     command: jobmanager
-    volumes:
-      - /opt/flink/conf
 
   taskmanager:
     image: flink
+    expose:
+      - "6121"
+      - "6122"
     depends_on:
       - jobmanager
     command: taskmanager
-    volumes_from:
-      - jobmanager:ro
+    links:
+      - "jobmanager:jobmanager"

@@ -26,7 +26,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 /**
- * This interface describes the methods that are required for a data type to be handled by the pact
+ * This interface describes the methods that are required for a data type to be handled by the Flink
  * runtime. Specifically, this interface contains the serialization and copying methods.
  * <p>
  * The methods in this class are assumed to be stateless, such that it is effectively thread safe. Stateful

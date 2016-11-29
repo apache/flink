@@ -120,8 +120,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			}
 			case ROCKSDB_FULLY_ASYNC: {
 				String rocksDb = tempFolder.newFolder().getAbsolutePath();
-				String rocksDbBackups = tempFolder.newFolder().toURI().toString();
-				RocksDBStateBackend rdb = new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend(MAX_MEM_STATE_SIZE));
+				RocksDBStateBackend rdb = new RocksDBStateBackend(new MemoryStateBackend(MAX_MEM_STATE_SIZE));
 				rdb.setDbStoragePath(rocksDb);
 				this.stateBackend = rdb;
 				break;
@@ -286,6 +285,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
 					"localhost", cluster.getLeaderRPCPort());
 
+			env.setMaxParallelism(2 * PARALLELISM);
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
@@ -362,7 +362,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(WINDOW_SIZE, MILLISECONDS))
-					.apply(
+					.reduce(
 							new ReduceFunction<Tuple2<Long, IntType>>() {
 
 								@Override
@@ -435,7 +435,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(WINDOW_SIZE, MILLISECONDS), Time.of(WINDOW_SLIDE, MILLISECONDS))
-					.apply(
+					.reduce(
 							new ReduceFunction<Tuple2<Long, IntType>>() {
 
 								@Override

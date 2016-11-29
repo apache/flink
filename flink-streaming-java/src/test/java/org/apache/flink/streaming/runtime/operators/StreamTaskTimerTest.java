@@ -20,20 +20,15 @@ package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -42,9 +37,6 @@ import static org.junit.Assert.*;
 /**
  * Tests for the timer service of {@link org.apache.flink.streaming.runtime.tasks.StreamTask}.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(ResultPartitionWriter.class)
-@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
 @SuppressWarnings("serial")
 public class StreamTaskTimerTest {
 
@@ -64,9 +56,9 @@ public class StreamTaskTimerTest {
 		testHarness.waitForTaskRunning();
 
 		// first one spawns thread
-		mapTask.getTimerService().registerTimer(System.currentTimeMillis(), new Triggerable() {
+		mapTask.getProcessingTimeService().registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
 			@Override
-			public void trigger(long timestamp) {
+			public void onProcessingTime(long timestamp) {
 			}
 		});
 
@@ -106,15 +98,15 @@ public class StreamTaskTimerTest {
 			final long t3 = System.currentTimeMillis() + 100;
 			final long t4 = System.currentTimeMillis() + 200;
 
-			TimeServiceProvider timeService = mapTask.getTimerService();
-			timeService.registerTimer(t1, new ValidatingTriggerable(errorRef, t1, 0));
-			timeService.registerTimer(t2, new ValidatingTriggerable(errorRef, t2, 1));
-			timeService.registerTimer(t3, new ValidatingTriggerable(errorRef, t3, 2));
-			timeService.registerTimer(t4, new ValidatingTriggerable(errorRef, t4, 3));
+			ProcessingTimeService timeService = mapTask.getProcessingTimeService();
+			timeService.registerTimer(t1, new ValidatingProcessingTimeCallback(errorRef, t1, 0));
+			timeService.registerTimer(t2, new ValidatingProcessingTimeCallback(errorRef, t2, 1));
+			timeService.registerTimer(t3, new ValidatingProcessingTimeCallback(errorRef, t3, 2));
+			timeService.registerTimer(t4, new ValidatingProcessingTimeCallback(errorRef, t4, 3));
 
 			long deadline = System.currentTimeMillis() + 20000;
 			while (errorRef.get() == null &&
-					ValidatingTriggerable.numInSequence < 4 &&
+					ValidatingProcessingTimeCallback.numInSequence < 4 &&
 					System.currentTimeMillis() < deadline)
 			{
 				Thread.sleep(100);
@@ -126,7 +118,7 @@ public class StreamTaskTimerTest {
 				fail(errorRef.get().getMessage());
 			}
 
-			assertEquals(4, ValidatingTriggerable.numInSequence);
+			assertEquals(4, ValidatingProcessingTimeCallback.numInSequence);
 
 			testHarness.endInput();
 			testHarness.waitForTaskCompletion();
@@ -146,7 +138,7 @@ public class StreamTaskTimerTest {
 		}
 	}
 
-	private static class ValidatingTriggerable implements Triggerable {
+	private static class ValidatingProcessingTimeCallback implements ProcessingTimeCallback {
 		
 		static int numInSequence;
 		
@@ -155,14 +147,14 @@ public class StreamTaskTimerTest {
 		private final long expectedTimestamp;
 		private final int expectedInSequence;
 
-		private ValidatingTriggerable(AtomicReference<Throwable> errorRef, long expectedTimestamp, int expectedInSequence) {
+		private ValidatingProcessingTimeCallback(AtomicReference<Throwable> errorRef, long expectedTimestamp, int expectedInSequence) {
 			this.errorRef = errorRef;
 			this.expectedTimestamp = expectedTimestamp;
 			this.expectedInSequence = expectedInSequence;
 		}
 
 		@Override
-		public void trigger(long timestamp) {
+		public void onProcessingTime(long timestamp) {
 			try {
 				assertEquals(expectedTimestamp, timestamp);
 				assertEquals(expectedInSequence, numInSequence);

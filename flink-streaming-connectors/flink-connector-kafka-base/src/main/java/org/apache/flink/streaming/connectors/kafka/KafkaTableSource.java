@@ -37,7 +37,7 @@ import static org.apache.flink.streaming.connectors.kafka.internals.TypeUtil.toT
  * <p>The version-specific Kafka consumers need to extend this class and
  * override {@link #getKafkaConsumer(String, Properties, DeserializationSchema)}}.
  */
-abstract class KafkaTableSource implements StreamTableSource<Row> {
+public abstract class KafkaTableSource implements StreamTableSource<Row> {
 
 	/** The Kafka topic to consume. */
 	private final String topic;

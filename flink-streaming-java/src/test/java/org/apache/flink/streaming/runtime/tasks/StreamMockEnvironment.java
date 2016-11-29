@@ -103,7 +103,12 @@ public class StreamMockEnvironment implements Environment {
 
 	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, ExecutionConfig executionConfig,
 									long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
-		this.taskInfo = new TaskInfo("", 1, 0, 1, 0);
+		this.taskInfo = new TaskInfo(
+				"", /* task name */
+				1, /* num key groups / max parallelism */
+				0, /* index of this subtask */
+				1, /* num subtasks */
+				0 /* attempt number */);
 		this.jobConfiguration = jobConfig;
 		this.taskConfiguration = taskConfig;
 		this.inputs = new LinkedList<InputGate>();
@@ -315,6 +320,9 @@ public class StreamMockEnvironment implements Environment {
 	public void acknowledgeCheckpoint(
 			CheckpointMetaData checkpointMetaData, SubtaskState subtaskState) {
 	}
+
+	@Override
+	public void declineCheckpoint(long checkpointId, Throwable cause) {}
 
 	@Override
 	public void failExternally(Throwable cause) {

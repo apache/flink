@@ -22,6 +22,7 @@ import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -87,9 +88,21 @@ public class InstanceManagerTest{
 			final JavaTestKit probe2 = new JavaTestKit(system);
 			final JavaTestKit probe3 = new JavaTestKit(system);
 
-			cm.registerTaskManager(probe1.getRef(), ici1, hardwareDescription, 1, leaderSessionID);
-			cm.registerTaskManager(probe2.getRef(), ici2, hardwareDescription, 2, leaderSessionID);
-			cm.registerTaskManager(probe3.getRef(), ici3, hardwareDescription, 5, leaderSessionID);
+			cm.registerTaskManager(
+				new ActorTaskManagerGateway(new AkkaActorGateway(probe1.getRef(), leaderSessionID)),
+				ici1,
+				hardwareDescription,
+				1);
+			cm.registerTaskManager(
+				new ActorTaskManagerGateway(new AkkaActorGateway(probe2.getRef(), leaderSessionID)),
+				ici2,
+				hardwareDescription,
+				2);
+			cm.registerTaskManager(
+				new ActorTaskManagerGateway(new AkkaActorGateway(probe3.getRef(), leaderSessionID)),
+				ici3,
+				hardwareDescription,
+				5);
 
 			assertEquals(3, cm.getNumberOfRegisteredTaskManagers());
 			assertEquals(8, cm.getTotalNumberOfSlots());
@@ -130,13 +143,21 @@ public class InstanceManagerTest{
 			TaskManagerLocation ici = new TaskManagerLocation(resID1, address, dataPort);
 
 			JavaTestKit probe = new JavaTestKit(system);
-			cm.registerTaskManager(probe.getRef(), ici, resources, 1, leaderSessionID);
+			cm.registerTaskManager(
+				new ActorTaskManagerGateway(new AkkaActorGateway(probe.getRef(), leaderSessionID)),
+				ici,
+				resources,
+				1);
 
 			assertEquals(1, cm.getNumberOfRegisteredTaskManagers());
 			assertEquals(1, cm.getTotalNumberOfSlots());
 
 			try {
-				cm.registerTaskManager(probe.getRef(), ici, resources, 1, leaderSessionID);
+				cm.registerTaskManager(
+					new ActorTaskManagerGateway(new AkkaActorGateway(probe.getRef(), leaderSessionID)),
+					ici,
+					resources,
+					1);
 			} catch (Exception e) {
 				// good
 			}
@@ -179,19 +200,28 @@ public class InstanceManagerTest{
 			JavaTestKit probe3 = new JavaTestKit(system);
 
 			InstanceID instanceID1 = cm.registerTaskManager(
-					probe1.getRef(), ici1, hardwareDescription, 1, leaderSessionID);
+				new ActorTaskManagerGateway(new AkkaActorGateway(probe1.getRef(), leaderSessionID)),
+				ici1,
+				hardwareDescription,
+				1);
 			InstanceID instanceID2 = cm.registerTaskManager(
-					probe2.getRef(), ici2, hardwareDescription, 1, leaderSessionID);
+				new ActorTaskManagerGateway(new AkkaActorGateway(probe2.getRef(), leaderSessionID)),
+				ici2,
+				hardwareDescription,
+				1);
 			InstanceID instanceID3 = cm.registerTaskManager(
-					probe3.getRef(), ici3, hardwareDescription, 1, leaderSessionID);
+				new ActorTaskManagerGateway(new AkkaActorGateway(probe3.getRef(), leaderSessionID)),
+				ici3,
+				hardwareDescription,
+				1);
 
 			// report some immediate heart beats
-			assertTrue(cm.reportHeartBeat(instanceID1, new byte[] {}));
-			assertTrue(cm.reportHeartBeat(instanceID2, new byte[] {}));
-			assertTrue(cm.reportHeartBeat(instanceID3, new byte[] {}));
+			assertTrue(cm.reportHeartBeat(instanceID1));
+			assertTrue(cm.reportHeartBeat(instanceID2));
+			assertTrue(cm.reportHeartBeat(instanceID3));
 
 			// report heart beat for non-existing instance
-			assertFalse(cm.reportHeartBeat(new InstanceID(), new byte[] {}));
+			assertFalse(cm.reportHeartBeat(new InstanceID()));
 
 			final long WAIT = 200;
 			CommonTestUtils.sleepUninterruptibly(WAIT);
@@ -205,7 +235,7 @@ public class InstanceManagerTest{
 			long h3 = it.next().getLastHeartBeat();
 
 			// send one heart beat again and verify that the
-			assertTrue(cm.reportHeartBeat(instance1.getId(), new byte[] {}));
+			assertTrue(cm.reportHeartBeat(instance1.getId()));
 			long newH1 = instance1.getLastHeartBeat();
 
 			long now = System.currentTimeMillis();
@@ -237,14 +267,18 @@ public class InstanceManagerTest{
 				TaskManagerLocation ici = new TaskManagerLocation(resID, address, 20000);
 
 				JavaTestKit probe = new JavaTestKit(system);
-				cm.registerTaskManager(probe.getRef(), ici, resources, 1, leaderSessionID);
+				cm.registerTaskManager(
+					new ActorTaskManagerGateway(new AkkaActorGateway(probe.getRef(), leaderSessionID)),
+					ici,
+					resources,
+					1);
 				fail("Should raise exception in shutdown state");
 			}
 			catch (IllegalStateException e) {
 				// expected
 			}
 			
-			assertFalse(cm.reportHeartBeat(new InstanceID(), new byte[] {}));
+			assertFalse(cm.reportHeartBeat(new InstanceID()));
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

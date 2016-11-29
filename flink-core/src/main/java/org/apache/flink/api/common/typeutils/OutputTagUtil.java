@@ -1,15 +1,11 @@
 package org.apache.flink.api.common.typeutils;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
 import org.apache.flink.api.common.typeinfo.OutputTag;
-import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
-import org.codehaus.jackson.map.type.TypeParser;
+
+import java.util.Arrays;
+import java.util.List;
 
 
 /**

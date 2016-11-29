@@ -28,9 +28,8 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -49,8 +48,7 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 	@SuppressWarnings("unchecked")
 	public RecordWriterOutput(
 			StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
-			TypeSerializer<OUT> outSerializer,
-			boolean enableMultiplexing) {
+			TypeSerializer<OUT> outSerializer) {
 
 		checkNotNull(recordWriter);
 
@@ -59,12 +57,8 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 		this.recordWriter = (StreamRecordWriter<SerializationDelegate<StreamElement>>) 
 				(StreamRecordWriter<?>) recordWriter;
 
-		if (enableMultiplexing) {
-			outRecordSerializer = new MultiplexingStreamRecordSerializer<OUT>(outSerializer);
-		} else {
-			outRecordSerializer = (TypeSerializer<StreamElement>)
-					(TypeSerializer<?>) new StreamRecordSerializer<OUT>(outSerializer);
-		}
+		TypeSerializer<StreamElement> outRecordSerializer =
+				new StreamElementSerializer<>(outSerializer);
 
 		if (outSerializer != null) {
 			serializationDelegate = new SerializationDelegate<StreamElement>(outRecordSerializer);
@@ -108,8 +102,8 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 		}
 	}
 
-	public void broadcastEvent(AbstractEvent barrier) throws IOException, InterruptedException {
-		recordWriter.broadcastEvent(barrier);
+	public void broadcastEvent(AbstractEvent event) throws IOException, InterruptedException {
+		recordWriter.broadcastEvent(event);
 	}
 	
 	

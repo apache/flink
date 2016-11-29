@@ -56,4 +56,9 @@ public class GenericMetricGroup extends AbstractMetricGroup<AbstractMetricGroup<
 		}
 		return new String[] { name };
 	}
+
+	@Override
+	protected String getGroupName(CharacterFilter filter) {
+		return filter.filterCharacters(name);
+	}
 }

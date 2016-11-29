@@ -17,15 +17,12 @@
  */
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.Serializable;
-import java.util.Map;
 
 public class ArchivedExecution implements AccessExecution, Serializable {
 	private static final long serialVersionUID = 4817108757483345173L;
@@ -46,13 +43,12 @@ public class ArchivedExecution implements AccessExecution, Serializable {
 	/* Continuously updated map of user-defined accumulators */
 	private final StringifiedAccumulatorResult[] userAccumulators;
 
-	/* Continuously updated map of internal accumulators */
-	private final Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
 	private final int parallelSubtaskIndex;
+
+	private final IOMetrics ioMetrics;
 
 	public ArchivedExecution(Execution execution) {
 		this.userAccumulators = execution.getUserAccumulatorsStringified();
-		this.flinkAccumulators = execution.getFlinkAccumulators();
 		this.attemptId = execution.getAttemptId();
 		this.attemptNumber = execution.getAttemptNumber();
 		this.stateTimestamps = execution.getStateTimestamps();
@@ -60,6 +56,7 @@ public class ArchivedExecution implements AccessExecution, Serializable {
 		this.state = execution.getState();
 		this.failureCause = ExceptionUtils.stringifyException(execution.getFailureCause());
 		this.assignedResourceLocation = execution.getAssignedResourceLocation();
+		this.ioMetrics = execution.getIOMetrics();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -106,13 +103,14 @@ public class ArchivedExecution implements AccessExecution, Serializable {
 		return userAccumulators;
 	}
 
-	@Override
-	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getFlinkAccumulators() {
-		return flinkAccumulators;
-	}
 
 	@Override
 	public int getParallelSubtaskIndex() {
 		return parallelSubtaskIndex;
+	}
+
+	@Override
+	public IOMetrics getIOMetrics() {
+		return ioMetrics;
 	}
 }

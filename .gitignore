@@ -28,3 +28,5 @@ out/
 /docs/Gemfile.lock
 /docs/.bundle
 /docs/.rubydeps
+*.ipr
+*.iws

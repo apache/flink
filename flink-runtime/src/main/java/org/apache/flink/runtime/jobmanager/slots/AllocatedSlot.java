@@ -21,7 +21,6 @@ package org.apache.flink.runtime.jobmanager.slots;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -53,7 +52,7 @@ public class AllocatedSlot {
 	private final ResourceProfile resourceProfile;
 
 	/** TEMP until the new RPC is in place: The actor gateway to communicate with the TaskManager */
-	private final ActorGateway taskManagerActorGateway;
+	private final TaskManagerGateway taskManagerGateway;
 
 	/** The number of the slot on the TaskManager to which slot belongs. Purely informational. */
 	private final int slotNumber;
@@ -66,14 +65,14 @@ public class AllocatedSlot {
 			TaskManagerLocation location,
 			int slotNumber,
 			ResourceProfile resourceProfile,
-			ActorGateway actorGateway)
+			TaskManagerGateway taskManagerGateway)
 	{
 		this.slotAllocationId = checkNotNull(slotAllocationId);
 		this.jobID = checkNotNull(jobID);
 		this.taskManagerLocation = checkNotNull(location);
 		this.slotNumber = slotNumber;
 		this.resourceProfile = checkNotNull(resourceProfile);
-		this.taskManagerActorGateway = checkNotNull(actorGateway);
+		this.taskManagerGateway = checkNotNull(taskManagerGateway);
 	}
 
 	public AllocatedSlot(AllocatedSlot other) {
@@ -82,7 +81,7 @@ public class AllocatedSlot {
 		this.taskManagerLocation = other.taskManagerLocation;
 		this.slotNumber = other.slotNumber;
 		this.resourceProfile = other.resourceProfile;
-		this.taskManagerActorGateway = other.taskManagerActorGateway;
+		this.taskManagerGateway = other.taskManagerGateway;
 	}
 
 	// ------------------------------------------------------------------------
@@ -139,8 +138,8 @@ public class AllocatedSlot {
 	 *
 	 * @return The actor gateway that can be used to send messages to the TaskManager.
 	 */
-	public ActorGateway getTaskManagerActorGateway() {
-		return taskManagerActorGateway;
+	public TaskManagerGateway getTaskManagerGateway() {
+		return taskManagerGateway;
 	}
 
 	// ------------------------------------------------------------------------

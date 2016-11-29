@@ -401,7 +401,7 @@ dataStream.union(otherStream1, otherStream2, ...);
             <p>Join two data streams on a given key and a common window.</p>
     {% highlight java %}
 dataStream.join(otherStream)
-    .where(0).equalTo(1)
+    .where(<key selector>).equalTo(<key selector>)
     .window(TumblingEventTimeWindows.of(Time.seconds(3)))
     .apply (new JoinFunction () {...});
     {% endhighlight %}
@@ -750,7 +750,7 @@ dataStream.union(otherStream1, otherStream2, ...)
             <p>Join two data streams on a given key and a common window.</p>
     {% highlight scala %}
 dataStream.join(otherStream)
-    .where(0).equalTo(1)
+    .where(<key selector>).equalTo(<key selector>)
     .window(TumblingEventTimeWindows.of(Time.seconds(3)))
     .apply { ... }
     {% endhighlight %}
@@ -872,7 +872,7 @@ data.map {
   case (id, name, temperature) => // [...]
 }
 {% endhighlight %}
-is not supported by the API out-of-the-box. To use this feature, you should use a <a href="../scala_api_extensions.html">Scala API extension</a>.
+is not supported by the API out-of-the-box. To use this feature, you should use a <a href="./scala_api_extensions.html">Scala API extension</a>.
 
 
 </div>

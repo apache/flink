@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -42,7 +43,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 	 * Registry for opened streams to participate in the lifecycle of the stream task. Hence, this registry should be 
 	 * obtained from and managed by the stream task.
 	 */
-	private final ClosableRegistry closableRegistry;
+	private final CloseableRegistry closableRegistry;
 
 	private KeyedStateCheckpointOutputStream keyedStateCheckpointOutputStream;
 	private OperatorStateCheckpointOutputStream operatorStateCheckpointOutputStream;
@@ -62,7 +63,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 			long checkpointTimestamp,
 			CheckpointStreamFactory streamFactory,
 			KeyGroupRange keyGroupRange,
-			ClosableRegistry closableRegistry) {
+			CloseableRegistry closableRegistry) {
 
 		this.checkpointId = checkpointId;
 		this.checkpointTimestamp = checkpointTimestamp;

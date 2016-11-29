@@ -177,6 +177,11 @@ public class MetricGroupTest extends TestLogger {
 		}
 
 		@Override
+		protected String getGroupName(CharacterFilter filter) {
+			return "";
+		}
+
+		@Override
 		protected void addMetric(String name, Metric metric) {}
 
 		@Override

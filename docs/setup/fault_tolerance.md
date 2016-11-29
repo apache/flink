@@ -457,4 +457,10 @@ env.setRestartStrategy(RestartStrategies.noRestart())
 </div>
 </div>
 
+### Fallback Restart Strategy
+
+The cluster defined restart strategy is used. 
+This helpful for streaming programs which enable checkpointing.
+Per default, a fixed delay restart strategy is chosen if there is no other restart strategy defined.
+
 {% top %}

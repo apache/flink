@@ -35,10 +35,12 @@ import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
@@ -160,6 +162,7 @@ public class SavepointITCase extends TestLogger {
 			config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
 			config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,
 					checkpointDir.toURI().toString());
+			config.setString(FsStateBackendFactory.MEMORY_THRESHOLD_CONF_KEY, "0");
 			config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
 					savepointDir.toURI().toString());
 
@@ -230,6 +233,7 @@ public class SavepointITCase extends TestLogger {
 			// Shut down the Flink cluster (thereby canceling the job)
 			LOG.info("Shutting down Flink cluster.");
 			flink.shutdown();
+			flink.awaitTermination();
 
 			// - Verification START -------------------------------------------
 
@@ -282,7 +286,7 @@ public class SavepointITCase extends TestLogger {
 							}
 
 							// Set the savepoint path
-							jobGraph.setSavepointPath(savepointPath);
+							jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
 							LOG.info("Resubmitting job " + jobGraph.getJobID() + " with " +
 									"savepoint path " + savepointPath + " in detached mode.");
@@ -307,7 +311,11 @@ public class SavepointITCase extends TestLogger {
 
 								LOG.info("Received: " + tdd.toString() + ".");
 
-								tdds.put(tdd.getVertexID(), tdd);
+								TaskInformation taskInformation = tdd
+									.getSerializedTaskInformation()
+									.deserializeValue(getClass().getClassLoader());
+
+								tdds.put(taskInformation.getJobVertexId(), tdd);
 							}
 						}
 						catch (Throwable t) {
@@ -334,9 +342,10 @@ public class SavepointITCase extends TestLogger {
 				assertEquals(taskState.getNumberCollectedStates(), taskTdds.size());
 
 				for (TaskDeploymentDescriptor tdd : taskTdds) {
-					SubtaskState subtaskState = taskState.getState(tdd.getIndexInSubtaskGroup());
+					SubtaskState subtaskState = taskState.getState(tdd.getSubtaskIndex());
 
 					assertNotNull(subtaskState);
+
 					errMsg = "Initial operator state mismatch.";
 					assertEquals(errMsg, subtaskState.getLegacyOperatorState(),
 							tdd.getTaskStateHandles().getLegacyOperatorState());
@@ -451,8 +460,8 @@ public class SavepointITCase extends TestLogger {
 			final JobGraph jobGraph = createJobGraph(parallelism, numberOfRetries, 3600000, 1000);
 
 			// Set non-existing savepoint path
-			jobGraph.setSavepointPath("unknown path");
-			assertEquals("unknown path", jobGraph.getSnapshotSettings().getSavepointPath());
+			jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath("unknown path"));
+			assertEquals("unknown path", jobGraph.getSavepointRestoreSettings().getRestorePath());
 
 			LOG.info("Submitting job " + jobGraph.getJobID() + " in detached mode.");
 

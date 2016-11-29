@@ -17,6 +17,20 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.util.ClassLoaderUtil;
+import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
+import org.apache.flink.util.InstantiationUtil;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -24,21 +38,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.OutputTag;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
-import org.apache.flink.runtime.util.ClassLoaderUtil;
-import org.apache.flink.streaming.api.CheckpointingMode;
-import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
-import org.apache.flink.util.InstantiationUtil;
 
 @Internal
 public class StreamConfig implements Serializable {
@@ -70,14 +69,14 @@ public class StreamConfig implements Serializable {
 	private static final String EDGES_IN_ORDER = "edgesInOrder";
 	private static final String OUT_STREAM_EDGES = "outStreamEdges";
 	private static final String IN_STREAM_EDGES = "inStreamEdges";
+	private static final String OPERATOR_NAME = "operatorName";
+	private static final String CHAIN_END = "chainEnd";
 
 	private static final String CHECKPOINTING_ENABLED = "checkpointing";
 	private static final String CHECKPOINT_MODE = "checkpointMode";
 	
 	private static final String STATE_BACKEND = "statebackend";
 	private static final String STATE_PARTITIONER = "statePartitioner";
-
-	private static final String NUMBER_OF_KEY_GROUPS = "numberOfKeyGroups";
 
 	private static final String STATE_KEY_SERIALIZER = "statekeyser";
 	
@@ -392,6 +391,14 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException("Could not instantiate configuration.", e);
 		}
 	}
+	
+	public void setOperatorName(String name) {
+		this.config.setString(OPERATOR_NAME,name);
+	}
+	
+	public String getOperatorName() {
+		return this.config.getString(OPERATOR_NAME, null);
+	}
 
 	public void setChainIndex(int index) {
 		this.config.setInteger(CHAIN_INDEX, index);
@@ -443,32 +450,6 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	/**
-	 * Sets the number of key-groups to be used for the current {@link StreamOperator}.
-	 *
-	 * @param numberOfKeyGroups Number of key-groups to be used
-	 */
-	public void setNumberOfKeyGroups(int numberOfKeyGroups) {
-		try {
-			InstantiationUtil.writeObjectToConfig(numberOfKeyGroups, this.config, NUMBER_OF_KEY_GROUPS);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not serialize virtual state partitioner.", e);
-		}
-	}
-
-	/**
-	 * Gets the number of key-groups for the {@link StreamOperator}.
-	 *
-	 * @return the number of key-groups
-	 */
-	public Integer getNumberOfKeyGroups(ClassLoader cl) {
-		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, NUMBER_OF_KEY_GROUPS, cl);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate virtual state partitioner.", e);
-		}
-	}
-	
 	public void setStateKeySerializer(TypeSerializer<?> serializer) {
 		try {
 			InstantiationUtil.writeObjectToConfig(serializer, this.config, STATE_KEY_SERIALIZER);
@@ -497,6 +478,14 @@ public class StreamConfig implements Serializable {
 
 	public boolean isChainStart() {
 		return config.getBoolean(IS_CHAINED_VERTEX, false);
+	}
+
+	public void setChainEnd() {
+		config.setBoolean(CHAIN_END, true);
+	}
+
+	public boolean isChainEnd() {
+		return config.getBoolean(CHAIN_END, false);
 	}
 
 	@Override

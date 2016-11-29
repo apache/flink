@@ -21,7 +21,6 @@ import java.io.Serializable;
 import java.util.List;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 

@@ -126,7 +126,7 @@ public class MetricFetcher {
 				logErrorOnFailure(jobDetailsFuture, "Fetching of JobDetails failed.");
 
 				String jobManagerPath = jobManager.path();
-				String queryServicePath = jobManagerPath.substring(0, jobManagerPath.lastIndexOf('/') + 1) + "MetricQueryService";
+				String queryServicePath = jobManagerPath.substring(0, jobManagerPath.lastIndexOf('/') + 1) + MetricQueryService.METRIC_QUERY_SERVICE_NAME;
 				ActorRef jobManagerQueryService = actorSystem.actorFor(queryServicePath);
 
 				queryMetrics(jobManagerQueryService);
@@ -147,8 +147,8 @@ public class MetricFetcher {
 							for (Instance taskManager : taskManagers) {
 								activeTaskManagers.add(taskManager.getId().toString());
 
-								String taskManagerPath = taskManager.getActorGateway().path();
-								String queryServicePath = taskManagerPath.substring(0, taskManagerPath.lastIndexOf('/') + 1) + "MetricQueryService";
+								String taskManagerPath = taskManager.getTaskManagerGateway().getAddress();
+								String queryServicePath = taskManagerPath.substring(0, taskManagerPath.lastIndexOf('/') + 1) + MetricQueryService.METRIC_QUERY_SERVICE_NAME + "_" + taskManager.getTaskManagerID().getResourceIdString();
 								ActorRef taskManagerQueryService = actorSystem.actorFor(queryServicePath);
 
 								queryMetrics(taskManagerQueryService);

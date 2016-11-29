@@ -179,6 +179,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				jobManager[i] = JobManager.startJobManagerActors(
 					jmConfig,
 					jobManagerSystem[i],
+					jobManagerSystem[i].dispatcher(),
+					jobManagerSystem[i].dispatcher(),
 					JobManager.class,
 					MemoryArchivist.class)._1();
 

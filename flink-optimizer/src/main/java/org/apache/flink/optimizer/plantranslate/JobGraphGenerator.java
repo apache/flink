@@ -1513,14 +1513,21 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		
 		String convAggName = aggs.getConvergenceCriterionAggregatorName();
 		ConvergenceCriterion<?> convCriterion = aggs.getConvergenceCriterion();
-		
+
 		if (convCriterion != null || convAggName != null) {
-			throw new CompilerException("Error: Cannot use custom convergence criterion with workset iteration. Workset iterations have implicit convergence criterion where workset is empty.");
+			if (convCriterion == null) {
+				throw new CompilerException("Error: Convergence criterion aggregator set, but criterion is null.");
+			}
+			if (convAggName == null) {
+				throw new CompilerException("Error: Aggregator convergence criterion set, but aggregator is null.");
+			}
+
+			syncConfig.setConvergenceCriterion(convAggName, convCriterion);
 		}
 		
 		headConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new LongSumAggregator());
 		syncConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new LongSumAggregator());
-		syncConfig.setConvergenceCriterion(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new WorksetEmptyConvergenceCriterion());
+		syncConfig.setImplicitConvergenceCriterion(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new WorksetEmptyConvergenceCriterion());
 	}
 	
 	private String getDescriptionForUserCode(UserCodeWrapper<?> wrapper) {

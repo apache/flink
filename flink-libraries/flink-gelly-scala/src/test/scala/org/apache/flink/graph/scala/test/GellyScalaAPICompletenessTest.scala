@@ -26,7 +26,7 @@ import org.junit.Test
 
 /**
  * This checks whether the Gelly Scala API is up to feature parity with the Java API.
- * Implements the {@link ScalaAPICompletenessTest} for Gelly.
+ * Implements the [[ScalaAPICompletenessTestBase]] for Gelly.
  */
 class GellyScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
 

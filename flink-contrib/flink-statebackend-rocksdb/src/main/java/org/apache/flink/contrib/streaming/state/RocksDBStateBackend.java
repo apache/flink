@@ -29,17 +29,18 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
@@ -133,29 +134,23 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public RocksDBStateBackend(URI checkpointDataUri) throws IOException {
-		// creating the FsStateBackend automatically sanity checks the URI
-		FsStateBackend fsStateBackend = new FsStateBackend(checkpointDataUri);
-
-		this.checkpointStreamBackend = fsStateBackend;
+		this(new FsStateBackend(checkpointDataUri));
 	}
 
-
-	public RocksDBStateBackend(String checkpointDataUri, AbstractStateBackend nonPartitionedStateBackend) throws IOException {
-		this(new Path(checkpointDataUri).toUri(), nonPartitionedStateBackend);
-	}
-
-	public RocksDBStateBackend(URI checkpointDataUri, AbstractStateBackend checkpointStreamBackend) throws IOException {
+	/**
+	 * Creates a new {@code RocksDBStateBackend} that uses the given state backend to store its
+	 * checkpoint data streams. Typically, one would supply a filesystem or database state backend
+	 * here where the snapshots from RocksDB would be stored.
+	 * 
+	 * <p>The snapshots of the RocksDB state will be stored using the given backend's
+	 * {@link AbstractStateBackend#createStreamFactory(JobID, String) checkpoint stream}. 
+	 * 
+	 * @param checkpointStreamBackend The backend to store the
+	 */
+	public RocksDBStateBackend(AbstractStateBackend checkpointStreamBackend) {
 		this.checkpointStreamBackend = requireNonNull(checkpointStreamBackend);
 	}
 
-	private void writeObject(ObjectOutputStream oos) throws IOException {
-		oos.defaultWriteObject();
-	}
-
-	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-		ois.defaultReadObject();
-		isInitialized = false;
-	}
 	// ------------------------------------------------------------------------
 	//  State backend methods
 	// ------------------------------------------------------------------------
@@ -446,5 +441,15 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			columnOptions = opt;
 		}
 		return columnOptions;
+	}
+
+	@Override
+	public String toString() {
+		return "RocksDB State Backend {" +
+			"isInitialized=" + isInitialized +
+			", configuredDbBasePaths=" + Arrays.toString(configuredDbBasePaths) +
+			", initializedDbBasePaths=" + Arrays.toString(initializedDbBasePaths) +
+			", checkpointStreamBackend=" + checkpointStreamBackend +
+			'}';
 	}
 }

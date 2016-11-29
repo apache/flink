@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -149,9 +148,7 @@ public class StreamOperatorChainingTest {
 		StreamTask<Integer, StreamMap<Integer, Integer>> mockTask =
 				createMockTask(streamConfig, chainedVertex.getName());
 
-		OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(
-				mockTask,
-				mock(AccumulatorRegistry.Reporter.class));
+		OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(mockTask);
 
 		headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
 
@@ -291,9 +288,7 @@ public class StreamOperatorChainingTest {
 		StreamTask<Integer, StreamMap<Integer, Integer>> mockTask =
 				createMockTask(streamConfig, chainedVertex.getName());
 
-		OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(
-				mockTask,
-				mock(AccumulatorRegistry.Reporter.class));
+		OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(mockTask);
 
 		headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
 

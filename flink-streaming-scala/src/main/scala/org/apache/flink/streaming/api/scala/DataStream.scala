@@ -22,6 +22,7 @@ import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
 import org.apache.flink.api.common.io.OutputFormat
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.{Tuple => JavaTuple}
@@ -198,6 +199,13 @@ class DataStream[T](stream: JavaStream[T]) {
     case stream : SingleOutputStreamOperator[T] => asScalaStream(stream.uid(uid))
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
     this
+  }
+
+  @PublicEvolving
+  def getOutput(tag: OutputTag[T]): DataStream[T] = javaStream match {
+    case stream : SingleOutputStreamOperator[T] => asScalaStream(stream.getOutput(tag: OutputTag[T]))
+    case _ => throw new UnsupportedOperationException("Only supported for operators.")
+      this
   }
 
   /**
@@ -697,7 +705,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * For the second case and when the watermarks are required to lag behind the maximum
    * timestamp seen so far in the elements of the stream by a fixed amount of time, and this
    * amount is known in advance, use the
-   * {@link org.apache.flink.streaming.api.functions.TimestampExtractorWithFixedAllowedLateness}.
+   * [[org.apache.flink.streaming.api.functions.TimestampExtractorWithFixedAllowedLateness]].
    *
    * For cases where watermarks should be created in an irregular fashion, for example
    * based on certain markers that some element carry, use the

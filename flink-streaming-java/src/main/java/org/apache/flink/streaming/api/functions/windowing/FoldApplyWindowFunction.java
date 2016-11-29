@@ -36,20 +36,22 @@ import java.io.IOException;
 import java.util.Collections;
 
 @Internal
-public class FoldApplyWindowFunction<K, W extends Window, T, ACC>
-	extends WrappingFunction<WindowFunction<ACC, ACC, K, W>>
-	implements WindowFunction<T, ACC, K, W>, OutputTypeConfigurable<ACC> {
+public class FoldApplyWindowFunction<K, W extends Window, T, ACC, R>
+	extends WrappingFunction<WindowFunction<ACC, R, K, W>>
+	implements WindowFunction<T, R, K, W>, OutputTypeConfigurable<R> {
 
 	private static final long serialVersionUID = 1L;
 
 	private final FoldFunction<T, ACC> foldFunction;
 
 	private byte[] serializedInitialValue;
+	private transient TypeInformation<ACC> accTypeInformation;
 	private TypeSerializer<ACC> accSerializer;
 	private transient ACC initialValue;
 
-	public FoldApplyWindowFunction(ACC initialValue, FoldFunction<T, ACC> foldFunction, WindowFunction<ACC, ACC, K, W> windowFunction) {
+	public FoldApplyWindowFunction(ACC initialValue, FoldFunction<T, ACC> foldFunction, WindowFunction<ACC, R, K, W> windowFunction, TypeInformation<ACC> accTypeInformation) {
 		super(windowFunction);
+		this.accTypeInformation = accTypeInformation;
 		this.foldFunction = foldFunction;
 		this.initialValue = initialValue;
 	}
@@ -57,6 +59,11 @@ public class FoldApplyWindowFunction<K, W extends Window, T, ACC>
 	@Override
 	public void open(Configuration configuration) throws Exception {
 		super.open(configuration);
+
+		if (accSerializer == null) {
+			throw new RuntimeException("No serializer set for the fold accumulator type. " +
+				"Probably the setOutputType method was not called.");
+		}
 
 		if (serializedInitialValue == null) {
 			throw new RuntimeException("No initial value was serialized for the fold " +
@@ -69,7 +76,7 @@ public class FoldApplyWindowFunction<K, W extends Window, T, ACC>
 	}
 
 	@Override
-	public void apply(K key, W window, Iterable<T> values, Collector<ACC> out) throws Exception {
+	public void apply(K key, W window, Iterable<T> values, Collector<R> out) throws Exception {
 		ACC result = accSerializer.copy(initialValue);
 
 		for (T val: values) {
@@ -80,8 +87,9 @@ public class FoldApplyWindowFunction<K, W extends Window, T, ACC>
 	}
 
 	@Override
-	public void setOutputType(TypeInformation<ACC> outTypeInfo, ExecutionConfig executionConfig) {
-		accSerializer = outTypeInfo.createSerializer(executionConfig);
+	public void setOutputType(TypeInformation<R> outTypeInfo, ExecutionConfig executionConfig) {
+		// out type is not used, just use this for the execution config
+		accSerializer = accTypeInformation.createSerializer(executionConfig);
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);

@@ -31,7 +31,7 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.io.IOException;
@@ -108,7 +108,7 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 
 		@SuppressWarnings("unchecked,rawtypes")
 		TypeSerializer<StreamRecord<IN>> streamRecordSerializer =
-				(TypeSerializer) new MultiplexingStreamRecordSerializer<>(getInputSerializer());
+				(TypeSerializer) new StreamElementSerializer<>(getInputSerializer());
 
 		if (priorityQueueOperatorState == null) {
 			priorityQueueOperatorState = getPartitionedState(
@@ -166,18 +166,26 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
+		// we do our own watermark handling, no super call. we will never be able to use
+		// the timer service like this, however.
+
 		// iterate over all keys to trigger the execution of the buffered elements
 		for (KEY key: keys) {
-			setKeyContext(key);
+			setCurrentKey(key);
 
 			PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
 			NFA<IN> nfa = getNFA();
 
-			while (!priorityQueue.isEmpty() && priorityQueue.peek().getTimestamp() <= mark.getTimestamp()) {
-				StreamRecord<IN> streamRecord = priorityQueue.poll();
+			if (priorityQueue.isEmpty()) {
+					advanceTime(nfa, mark.getTimestamp());
+			} else {
+				while (!priorityQueue.isEmpty() && priorityQueue.peek().getTimestamp() <= mark.getTimestamp()) {
+					StreamRecord<IN> streamRecord = priorityQueue.poll();
 
-				processEvent(nfa, streamRecord.getValue(), streamRecord.getTimestamp());
+					processEvent(nfa, streamRecord.getValue(), streamRecord.getTimestamp());
+				}
 			}
+
 			updateNFA(nfa);
 			updatePriorityQueue(priorityQueue);
 		}
@@ -187,7 +195,6 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 
 	@Override
 	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
-
 		DataOutputView ov = new DataOutputViewStreamWrapper(out);
 		ov.writeInt(keys.size());
 
@@ -198,7 +205,6 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 
 	@Override
 	public void restoreState(FSDataInputStream state) throws Exception {
-
 		DataInputView inputView = new DataInputViewStreamWrapper(state);
 
 		if (keys == null) {

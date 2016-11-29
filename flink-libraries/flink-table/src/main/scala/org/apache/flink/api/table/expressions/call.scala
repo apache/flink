@@ -21,7 +21,7 @@ import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.table.functions.ScalarFunction
 import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils.{getResultType, getSignature, signatureToString, signaturesToString}
-import org.apache.flink.api.table.validate.{ExprValidationResult, ValidationFailure, ValidationSuccess}
+import org.apache.flink.api.table.validate.{ValidationResult, ValidationFailure, ValidationSuccess}
 import org.apache.flink.api.table.{FlinkTypeFactory, UnresolvedException}
 
 /**
@@ -41,7 +41,7 @@ case class Call(functionName: String, args: Seq[Expression]) extends Expression 
   override private[flink] def resultType =
     throw UnresolvedException(s"calling resultType on UnresolvedFunction $functionName")
 
-  override private[flink] def validateInput(): ExprValidationResult =
+  override private[flink] def validateInput(): ValidationResult =
     ValidationFailure(s"Unresolved function call: $functionName")
 }
 
@@ -71,7 +71,7 @@ case class ScalarFunctionCall(
 
   override private[flink] def resultType = getResultType(scalarFunction, foundSignature.get)
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     val signature = children.map(_.resultType)
     // look for a signature that matches the input types
     foundSignature = getSignature(scalarFunction, signature)

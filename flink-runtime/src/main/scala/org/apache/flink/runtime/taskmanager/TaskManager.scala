@@ -19,37 +19,30 @@
 package org.apache.flink.runtime.taskmanager
 
 import java.io.{File, FileInputStream, IOException}
-import java.lang.management.{ManagementFactory, OperatingSystemMXBean}
-import java.lang.reflect.Method
+import java.lang.management.ManagementFactory
 import java.net.{InetAddress, InetSocketAddress}
 import java.util
-import java.util.UUID
-import java.util.concurrent.TimeUnit
-import javax.management.ObjectName
+import java.util.concurrent.Callable
+import java.util.{Collections, UUID}
 
 import _root_.akka.actor._
 import _root_.akka.pattern.ask
 import _root_.akka.util.Timeout
-import com.codahale.metrics.json.MetricsModule
-import com.codahale.metrics.jvm.{BufferPoolMetricSet, GarbageCollectorMetricSet, MemoryUsageGaugeSet}
-import com.codahale.metrics.{Gauge, MetricFilter, MetricRegistry}
-import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.memory.{HeapMemorySegment, HybridMemorySegment, MemorySegmentFactory, MemoryType}
-import org.apache.flink.metrics.{MetricGroup, Gauge => FlinkGauge}
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobCache, BlobClient, BlobService}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
-import org.apache.flink.runtime.deployment.{InputChannelDeploymentDescriptor, TaskDeploymentDescriptor}
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
+import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, PartitionInfo}
 import org.apache.flink.runtime.filecache.FileCache
 import org.apache.flink.runtime.instance.{AkkaActorGateway, HardwareDescription, InstanceID}
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
@@ -58,22 +51,23 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool
 import org.apache.flink.runtime.io.network.{LocalConnectionManager, NetworkEnvironment, TaskEventDispatcher}
 import org.apache.flink.runtime.io.network.netty.{NettyConfig, NettyConnectionManager, PartitionStateChecker}
 import org.apache.flink.runtime.io.network.partition.{ResultPartitionConsumableNotifier, ResultPartitionManager}
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.memory.MemoryManager
+import org.apache.flink.runtime.messages.{Acknowledge, StackTraceSampleResponse}
 import org.apache.flink.runtime.messages.Messages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
-import org.apache.flink.runtime.messages.StackTraceSampleMessages.{ResponseStackTraceSampleFailure, ResponseStackTraceSampleSuccess, SampleTaskStackTrace, StackTraceSampleMessages, TriggerStackTraceSample}
+import org.apache.flink.runtime.messages.StackTraceSampleMessages.{SampleTaskStackTrace, StackTraceSampleMessages, TriggerStackTraceSample}
 import org.apache.flink.runtime.messages.TaskManagerMessages._
 import org.apache.flink.runtime.messages.TaskMessages._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, NotifyCheckpointComplete, TriggerCheckpoint}
 import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
+import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.query.KvStateRegistry
 import org.apache.flink.runtime.query.netty.{DisabledKvStateRequestStats, KvStateServer}
-import org.apache.flink.runtime.security.SecurityContext.{FlinkSecuredRunner, SecurityConfiguration}
-import org.apache.flink.runtime.security.SecurityContext
+import org.apache.flink.runtime.security.SecurityUtils
+import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.util.{MathUtils, NetUtils}
@@ -82,7 +76,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 /**
  * The TaskManager is responsible for executing the individual tasks of a Flink job. It is
@@ -157,19 +151,7 @@ class TaskManager(
   /** Handler for distributed files cached by this TaskManager */
   protected val fileCache = new FileCache(config.configuration)
 
-  /** Registry of metrics periodically transmitted to the JobManager */
-  private val metricRegistry = TaskManager.createMetricsRegistry()
-
   private var taskManagerMetricGroup : TaskManagerMetricGroup = _
-
-  /** Metric serialization */
-  private val metricRegistryMapper: ObjectMapper = new ObjectMapper()
-    .registerModule(
-      new MetricsModule(
-        TimeUnit.SECONDS,
-        TimeUnit.MILLISECONDS,
-        false,
-        MetricFilter.ALL))
 
   /** Actors which want to be notified once this task manager has been
     * registered at the job manager */
@@ -329,16 +311,20 @@ class TaskManager(
     // this message indicates that some actor watched by this TaskManager has died
     case Terminated(actor: ActorRef) =>
       if (isConnected && actor == currentJobManager.orNull) {
-          handleJobManagerDisconnect(sender(), "JobManager is no longer reachable")
+          handleJobManagerDisconnect("JobManager is no longer reachable")
           triggerTaskManagerRegistration()
       } else {
         log.warn(s"Received unrecognized disconnect message " +
             s"from ${if (actor == null) null else actor.path}.")
       }
 
-    case Disconnect(msg) =>
-      handleJobManagerDisconnect(sender(), s"JobManager requested disconnect: $msg")
-      triggerTaskManagerRegistration()
+    case Disconnect(instanceIdToDisconnect, cause) =>
+      if (instanceIdToDisconnect.equals(instanceID)) {
+        handleJobManagerDisconnect(s"JobManager requested disconnect: ${cause.getMessage()}")
+        triggerTaskManagerRegistration()
+      } else {
+        log.debug(s"Received disconnect message for wrong instance id ${instanceIdToDisconnect}.")
+      }
 
     case msg: StopCluster =>
       log.info(s"Stopping TaskManager with final application status ${msg.finalStatus()} " +
@@ -407,7 +393,9 @@ class TaskManager(
 
         // tell the task about the availability of a new input partition
         case UpdateTaskSinglePartitionInfo(executionID, resultID, partitionInfo) =>
-          updateTaskInputPartitions(executionID, List((resultID, partitionInfo)))
+          updateTaskInputPartitions(
+            executionID,
+            Collections.singletonList(new PartitionInfo(resultID, partitionInfo)))
 
         // tell the task about the availability of some new input partitions
         case UpdateTaskMultiplePartitionInfos(executionID, partitionInfos) =>
@@ -484,24 +472,14 @@ class TaskManager(
           if (task != null) {
             try {
               task.stopExecution()
-              sender ! decorateMessage(new TaskOperationResult(executionID, true))
+              sender ! decorateMessage(Acknowledge.get())
             } catch {
               case t: Throwable =>
-                        sender ! decorateMessage(
-                          new TaskOperationResult(
-                            executionID,
-                            false,
-                            t.getClass().getSimpleName() + ": " + t.getLocalizedMessage())
-                        )
+                sender ! decorateMessage(Failure(t))
             }
           } else {
             log.debug(s"Cannot find task to stop for execution ${executionID})")
-            sender ! decorateMessage(
-              new TaskOperationResult(
-               executionID,
-               false,
-               "No task with that execution ID was found.")
-            )
+            sender ! decorateMessage(Acknowledge.get())
           }
  
         // cancels a task
@@ -509,15 +487,10 @@ class TaskManager(
           val task = runningTasks.get(executionID)
           if (task != null) {
             task.cancelExecution()
-            sender ! decorateMessage(new TaskOperationResult(executionID, true))
+            sender ! decorateMessage(Acknowledge.get())
           } else {
             log.debug(s"Cannot find task to cancel for execution $executionID)")
-            sender ! decorateMessage(
-              new TaskOperationResult(
-                executionID,
-                false,
-              "No task with that execution ID was found.")
-            )
+            sender ! decorateMessage(Acknowledge.get())
           }
       }
       }
@@ -779,14 +752,16 @@ class TaskManager(
                     sender)
 
                   context.system.scheduler.scheduleOnce(
-                    delayBetweenSamples,
+                    new FiniteDuration(delayBetweenSamples.getSize, delayBetweenSamples.getUnit),
                     self,
                     msg)(context.dispatcher)
                 } else {
                   // ---- Done ----
                   log.debug(s"Done with stack trace sample $sampleId.")
 
-                  sender ! ResponseStackTraceSampleSuccess(sampleId, executionId, currentTraces)
+
+
+                  sender ! new StackTraceSampleResponse(sampleId, executionId, currentTraces)
                 }
 
               case None =>
@@ -795,7 +770,7 @@ class TaskManager(
                     s"Either the task is not known to the task manager or it is not running.")
                 } else {
                   // Task removed during sampling. Reply with partial result.
-                  sender ! ResponseStackTraceSampleSuccess(sampleId, executionId, currentTraces)
+                  sender ! new StackTraceSampleResponse(sampleId, executionId, currentTraces)
                 }
             }
           } else {
@@ -803,7 +778,7 @@ class TaskManager(
           }
         } catch {
           case e: Exception =>
-            sender ! ResponseStackTraceSampleFailure(sampleId, executionId, e)
+            sender ! Failure(e)
         }
 
       case _ => unhandled(message)
@@ -994,7 +969,8 @@ class TaskManager(
     taskManagerMetricGroup = 
       new TaskManagerMetricGroup(metricsRegistry, this.runtimeInfo.getHostname, id.toString)
     
-    TaskManager.instantiateStatusMetrics(taskManagerMetricGroup, network)
+    MetricUtils.instantiateStatusMetrics(taskManagerMetricGroup)
+    MetricUtils.instantiateNetworkMetrics(taskManagerMetricGroup, network)
     
     // watch job manager to detect when it dies
     context.watch(jobManager)
@@ -1043,7 +1019,10 @@ class TaskManager(
 
     // de-register from the JobManager (faster detection of disconnect)
     currentJobManager foreach {
-      _ ! decorateMessage(Disconnect(s"TaskManager ${self.path} is disassociating"))
+      _ ! decorateMessage(
+        Disconnect(
+          instanceID,
+          new Exception(s"TaskManager ${self.path} is disassociating")))
     }
 
     currentJobManager = None
@@ -1075,31 +1054,26 @@ class TaskManager(
     }
   }
 
-  protected def handleJobManagerDisconnect(jobManager: ActorRef, msg: String): Unit = {
-    if (isConnected && jobManager != null) {
-
+  protected def handleJobManagerDisconnect(msg: String): Unit = {
+    if (isConnected) {
+      val jobManager = currentJobManager.orNull
       // check if it comes from our JobManager
-      if (jobManager == currentJobManager.orNull) {
-        try {
-          val message = s"TaskManager ${self.path} disconnects from JobManager " +
-            s"${jobManager.path}: " + msg
-          log.info(message)
+      try {
+        val message = s"TaskManager ${self.path} disconnects from JobManager " +
+          s"${jobManager.path}: " + msg
+        log.info(message)
 
-          // cancel all our tasks with a proper error message
-          cancelAndClearEverything(new Exception(message))
+        // cancel all our tasks with a proper error message
+        cancelAndClearEverything(new Exception(message))
 
-          // reset our state to disassociated
-          disassociateFromJobManager()
-        }
-        catch {
-          // this is pretty bad, it leaves the TaskManager in a state where it cannot
-          // cleanly reconnect
-          case t: Throwable =>
-            killTaskManagerFatal("Failed to disassociate from the JobManager", t)
-        }
+        // reset our state to disassociated
+        disassociateFromJobManager()
       }
-      else {
-        log.warn(s"Received erroneous JobManager disconnect message for ${jobManager.path}.")
+      catch {
+        // this is pretty bad, it leaves the TaskManager in a state where it cannot
+        // cleanly reconnect
+        case t: Throwable =>
+          killTaskManagerFatal("Failed to disassociate from the JobManager", t)
       }
     }
   }
@@ -1147,24 +1121,46 @@ class TaskManager(
 
       val jobManagerGateway = new AkkaActorGateway(jobManagerActor, leaderSessionID.orNull)
 
-      var jobName = tdd.getJobName
-      if (tdd.getJobName.length == 0) {
-        jobName = tdd.getJobID.toString()
-      } else {
-        jobName = tdd.getJobName
+      val jobInformation = try {
+        tdd.getSerializedJobInformation.deserializeValue(getClass.getClassLoader)
+      } catch {
+        case e @ (_: IOException | _: ClassNotFoundException) =>
+          throw new IOException("Could not deserialize the job information.", e)
       }
-      
-      val taskMetricGroup = taskManagerMetricGroup.addTaskForJob(tdd)
+
+      val taskInformation = try {
+        tdd.getSerializedTaskInformation.deserializeValue(getClass.getClassLoader)
+      } catch {
+        case e@(_: IOException | _: ClassNotFoundException) =>
+          throw new IOException("Could not deserialize the job vertex information.", e)
+      }
+
+      val taskMetricGroup = taskManagerMetricGroup.addTaskForJob(
+        jobInformation.getJobId,
+        jobInformation.getJobName,
+        taskInformation.getJobVertexId,
+        tdd.getExecutionAttemptId,
+        taskInformation.getTaskName,
+        tdd.getSubtaskIndex,
+        tdd.getAttemptNumber)
 
       val inputSplitProvider = new TaskInputSplitProvider(
         jobManagerGateway,
-        tdd.getJobID,
-        tdd.getVertexID,
-        tdd.getExecutionId,
+        jobInformation.getJobId,
+        taskInformation.getJobVertexId,
+        tdd.getExecutionAttemptId,
         config.timeout)
 
       val task = new Task(
-        tdd,
+        jobInformation,
+        taskInformation,
+        tdd.getExecutionAttemptId,
+        tdd.getSubtaskIndex,
+        tdd.getAttemptNumber,
+        tdd.getProducedPartitions,
+        tdd.getInputGates,
+        tdd.getTargetSlotNumber,
+        tdd.getTaskStateHandles,
         memoryManager,
         ioManager,
         network,
@@ -1182,7 +1178,7 @@ class TaskManager(
 
       log.info(s"Received task ${task.getTaskInfo.getTaskNameWithSubtasks()}")
 
-      val execId = tdd.getExecutionId
+      val execId = tdd.getExecutionAttemptId
       // add the task to the map
       val prevTask = runningTasks.put(execId, task)
       if (prevTask != null) {
@@ -1194,7 +1190,8 @@ class TaskManager(
       // all good, we kick off the task, which performs its own initialization
       task.startTaskThread()
 
-      sender ! decorateMessage(Acknowledge)
+      sender ! decorateMessage(Acknowledge.get())
+
     }
     catch {
       case t: Throwable =>
@@ -1211,15 +1208,16 @@ class TaskManager(
    */
   private def updateTaskInputPartitions(
        executionId: ExecutionAttemptID,
-       partitionInfos: Seq[(IntermediateDataSetID, InputChannelDeploymentDescriptor)])
+       partitionInfos: java.lang.Iterable[PartitionInfo])
     : Unit = {
 
     Option(runningTasks.get(executionId)) match {
       case Some(task) =>
 
-        val errors: Seq[String] = partitionInfos.flatMap { info =>
+        val errors: Iterable[String] = partitionInfos.asScala.flatMap { info =>
 
-          val (resultID, partitionInfo) = info
+          val resultID = info.getIntermediateDataSetID
+          val partitionInfo = info.getInputChannelDeploymentDescriptor
           val reader = task.getInputGateById(resultID)
 
           if (reader != null) {
@@ -1250,7 +1248,7 @@ class TaskManager(
         }
 
         if (errors.isEmpty) {
-          sender ! decorateMessage(Acknowledge)
+          sender ! decorateMessage(Acknowledge.get())
         } else {
           sender ! decorateMessage(Failure(new Exception(errors.mkString("\n"))))
         }
@@ -1258,7 +1256,7 @@ class TaskManager(
       case None =>
         log.debug(s"Discard update for input partitions of task $executionId : " +
           s"task is no longer running.")
-        sender ! decorateMessage(Acknowledge)
+        sender ! decorateMessage(Acknowledge.get())
     }
   }
 
@@ -1309,7 +1307,8 @@ class TaskManager(
             task.getExecutionId,
             task.getExecutionState,
             task.getFailureCause,
-            accumulators)
+            accumulators,
+            task.getMetricGroup.getIOMetricGroup.createSnapshot())
         )
       )
     }
@@ -1329,7 +1328,6 @@ class TaskManager(
   protected def sendHeartbeatToJobManager(): Unit = {
     try {
       log.debug("Sending heartbeat to JobManager")
-      val metricsReport: Array[Byte] = metricRegistryMapper.writeValueAsBytes(metricRegistry)
 
       val accumulatorEvents =
         scala.collection.mutable.Buffer[AccumulatorSnapshot]()
@@ -1348,7 +1346,7 @@ class TaskManager(
       }
 
        currentJobManager foreach {
-        jm => jm ! decorateMessage(Heartbeat(instanceID, metricsReport, accumulatorEvents))
+        jm => jm ! decorateMessage(Heartbeat(instanceID, accumulatorEvents))
       }
     }
     catch {
@@ -1373,7 +1371,7 @@ class TaskManager(
           "Thread: " + thread.getName + '\n' + elements.mkString("\n")
         }.mkString("\n\n")
 
-      recipient ! decorateMessage(StackTrace(instanceID, stackTraceStr))
+      recipient ! decorateMessage(new StackTrace(instanceID, stackTraceStr))
     }
     catch {
       case e: Exception => log.error("Failed to send stack trace to " + recipient.path, e)
@@ -1416,9 +1414,9 @@ class TaskManager(
       case Some(jm) =>
         Option(newJobManagerAkkaURL) match {
           case Some(newJMAkkaURL) =>
-            handleJobManagerDisconnect(jm, s"JobManager $newJMAkkaURL was elected as leader.")
+            handleJobManagerDisconnect(s"JobManager $newJMAkkaURL was elected as leader.")
           case None =>
-            handleJobManagerDisconnect(jm, s"Old JobManager lost its leadership.")
+            handleJobManagerDisconnect(s"Old JobManager lost its leadership.")
         }
       case None =>
     }
@@ -1535,11 +1533,11 @@ object TaskManager {
     val resourceId = ResourceID.generate()
 
     // run the TaskManager (if requested in an authentication enabled context)
-    SecurityContext.install(new SecurityConfiguration().setFlinkConfiguration(configuration))
+    SecurityUtils.install(new SecurityConfiguration(configuration))
 
     try {
-      SecurityContext.getInstalled.runSecured(new FlinkSecuredRunner[Unit] {
-        override def run(): Unit = {
+      SecurityUtils.getInstalledContext.runSecured(new Callable[Unit] {
+        override def call(): Unit = {
           selectNetworkInterfaceAndRunTaskManager(configuration, resourceId, classOf[TaskManager])
         }
       })
@@ -1876,7 +1874,7 @@ object TaskManager {
       leaderRetrievalService,
       metricsRegistry)
 
-    metricsRegistry.startQueryService(actorSystem)
+    metricsRegistry.startQueryService(actorSystem, resourceID)
 
     taskManagerActorName match {
       case Some(actorName) => actorSystem.actorOf(tmProps, actorName)
@@ -1949,30 +1947,30 @@ object TaskManager {
 
     val kvStateRegistry = new KvStateRegistry()
 
-    val kvStateServer = netConfig.nettyConfig match {
-      case Some(nettyConfig) =>
+    val tmConfig = taskManagerConfig.configuration
+    val kvStateServer = tmConfig.getBoolean(QueryableStateOptions.SERVER_ENABLE) match {
+      case true =>
+        val port = tmConfig.getInteger(QueryableStateOptions.SERVER_PORT)
 
-        val numNetworkThreads = if (netConfig.queryServerNetworkThreads == 0) {
-          nettyConfig.getNumberOfSlots
-        } else {
-          netConfig.queryServerNetworkThreads
+        var numNetworkThreads = tmConfig.getInteger(QueryableStateOptions.SERVER_NETWORK_THREADS)
+        if (numNetworkThreads == 0) {
+          numNetworkThreads = taskManagerConfig.numberOfSlots
         }
 
-        val numQueryThreads = if (netConfig.queryServerQueryThreads == 0) {
-          nettyConfig.getNumberOfSlots
-        } else {
-          netConfig.queryServerQueryThreads
+        var numQueryThreads = tmConfig.getInteger(QueryableStateOptions.SERVER_ASYNC_QUERY_THREADS)
+        if (numQueryThreads == 0) {
+          numQueryThreads = taskManagerConfig.numberOfSlots
         }
 
         new KvStateServer(
           taskManagerAddress.getAddress(),
-          netConfig.queryServerPort,
+          port,
           numNetworkThreads,
           numQueryThreads,
           kvStateRegistry,
           new DisabledKvStateRequestStats())
 
-      case None => null
+      case false => null
     }
 
     // we start the network first, to make sure it can allocate its buffers first
@@ -1985,7 +1983,7 @@ object TaskManager {
       kvStateServer,
       netConfig.ioMode,
       netConfig.partitionRequestInitialBackoff,
-      netConfig.partitinRequestMaxBackoff)
+      netConfig.partitionRequestMaxBackoff)
 
     network.start()
 
@@ -2261,26 +2259,18 @@ object TaskManager {
 
     val ioMode : IOMode = if (syncOrAsync == "async") IOMode.ASYNC else IOMode.SYNC
 
-    val queryServerPort =  configuration.getInteger(
-      ConfigConstants.QUERYABLE_STATE_SERVER_PORT,
-      ConfigConstants.DEFAULT_QUERYABLE_STATE_SERVER_PORT)
-
-    val queryServerNetworkThreads =  configuration.getInteger(
-      ConfigConstants.QUERYABLE_STATE_SERVER_NETWORK_THREADS,
-      ConfigConstants.DEFAULT_QUERYABLE_STATE_SERVER_NETWORK_THREADS)
-
-    val queryServerQueryThreads =  configuration.getInteger(
-      ConfigConstants.QUERYABLE_STATE_SERVER_QUERY_THREADS,
-      ConfigConstants.DEFAULT_QUERYABLE_STATE_SERVER_QUERY_THREADS)
+    val initialRequestBackoff = configuration.getInteger(
+      TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL)
+    val maxRequestBackoff = configuration.getInteger(
+      TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX)
 
     val networkConfig = NetworkEnvironmentConfiguration(
       numNetworkBuffers,
       pageSize,
       memType,
       ioMode,
-      queryServerPort,
-      queryServerNetworkThreads,
-      queryServerQueryThreads,
+      initialRequestBackoff,
+      maxRequestBackoff,
       nettyConfig)
 
     // ----> timeouts, library caching, profiling
@@ -2476,198 +2466,6 @@ object TaskManager {
             f"usable $usableSpaceGb GB ($usablePercentage%.2f%% usable)")
         }
       case (_, id) => throw new IllegalArgumentException(s"Temporary file directory #$id is null.")
-    }
-  }
-
-  /**
-   * Creates the registry of default metrics, including stats about garbage collection, memory
-   * usage, and system CPU load.
-   *
-   * @return The registry with the default metrics.
-   */
-  private def createMetricsRegistry() : MetricRegistry = {
-    val metricRegistry = new MetricRegistry()
-
-    // register default metrics
-    metricRegistry.register("gc", new GarbageCollectorMetricSet)
-    metricRegistry.register("memory", new MemoryUsageGaugeSet)
-    metricRegistry.register("direct-memory", new BufferPoolMetricSet(
-      ManagementFactory.getPlatformMBeanServer))
-    metricRegistry.register("load", new Gauge[Double] {
-      override def getValue: Double =
-        ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage()
-    })
-
-    // Pre-processing steps for registering cpuLoad
-    val osBean: OperatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean()
-        
-    val fetchCPULoadMethod: Option[Method] = 
-      try {
-        Class.forName("com.sun.management.OperatingSystemMXBean")
-          .getMethods()
-          .find( _.getName() == "getProcessCpuLoad" )
-      }
-      catch {
-        case t: Throwable =>
-          LOG.warn("Cannot access com.sun.management.OperatingSystemMXBean.getProcessCpuLoad()" +
-            " - CPU load metrics will not be available.")
-          None
-      }
-
-    metricRegistry.register("cpuLoad", new Gauge[Double] {
-      override def getValue: Double = {
-        try{
-          fetchCPULoadMethod.map(_.invoke(osBean).asInstanceOf[Double]).getOrElse(-1.0)
-        }
-        catch {
-          case t: Throwable =>
-            LOG.warn("Error retrieving CPU Load through OperatingSystemMXBean", t)
-            -1.0
-        }
-      }
-    })
-    metricRegistry
-  }
-
-  private def instantiateStatusMetrics(
-      taskManagerMetricGroup: MetricGroup,
-      network: NetworkEnvironment)
-    : Unit = {
-    val status = taskManagerMetricGroup
-      .addGroup("Status")
-
-    instantiateNetworkMetrics(status.addGroup("Network"), network)
-
-    val jvm = status
-      .addGroup("JVM")
-
-    instantiateClassLoaderMetrics(jvm.addGroup("ClassLoader"))
-    instantiateGarbageCollectorMetrics(jvm.addGroup("GarbageCollector"))
-    instantiateMemoryMetrics(jvm.addGroup("Memory"))
-    instantiateThreadMetrics(jvm.addGroup("Threads"))
-    instantiateCPUMetrics(jvm.addGroup("CPU"))
-  }
-
-  private def instantiateNetworkMetrics(
-        metrics: MetricGroup,
-        network: NetworkEnvironment)
-    : Unit = {
-    metrics.gauge[Long, FlinkGauge[Long]]("TotalMemorySegments", new FlinkGauge[Long] {
-      override def getValue: Long = network.getNetworkBufferPool.getTotalNumberOfMemorySegments
-    })
-    metrics.gauge[Long, FlinkGauge[Long]]("AvailableMemorySegments", new FlinkGauge[Long] {
-      override def getValue: Long = network.getNetworkBufferPool.getNumberOfAvailableMemorySegments
-    })
-  }
-
-  private def instantiateClassLoaderMetrics(metrics: MetricGroup) {
-    val mxBean = ManagementFactory.getClassLoadingMXBean
-
-    metrics.gauge[Long, FlinkGauge[Long]]("ClassesLoaded", new FlinkGauge[Long] {
-      override def getValue: Long = mxBean.getTotalLoadedClassCount
-    })
-    metrics.gauge[Long, FlinkGauge[Long]]("ClassesUnloaded", new FlinkGauge[Long] {
-      override def getValue: Long = mxBean.getUnloadedClassCount
-    })
-  }
-
-  private def instantiateGarbageCollectorMetrics(metrics: MetricGroup) {
-    val garbageCollectors = ManagementFactory.getGarbageCollectorMXBeans
-
-    for (garbageCollector <- garbageCollectors.asScala) {
-      val gcGroup = metrics.addGroup(garbageCollector.getName)
-      gcGroup.gauge[Long, FlinkGauge[Long]]("Count", new FlinkGauge[Long] {
-        override def getValue: Long = garbageCollector.getCollectionCount
-      })
-      gcGroup.gauge[Long, FlinkGauge[Long]]("Time", new FlinkGauge[Long] {
-        override def getValue: Long = garbageCollector.getCollectionTime
-      })
-    }
-  }
-
-  private def instantiateMemoryMetrics(metrics: MetricGroup) {
-    val mxBean = ManagementFactory.getMemoryMXBean
-    val heap = metrics.addGroup("Heap")
-    heap.gauge[Long, FlinkGauge[Long]]("Used", new FlinkGauge[Long] {
-      override def getValue: Long = mxBean.getHeapMemoryUsage.getUsed
-    })
-    heap.gauge[Long, FlinkGauge[Long]]("Committed", new FlinkGauge[Long] {
-      override def getValue: Long = mxBean.getHeapMemoryUsage.getCommitted
-    })
-    heap.gauge[Long, FlinkGauge[Long]]("Max", new FlinkGauge[Long] {
-      override def getValue: Long = mxBean.getHeapMemoryUsage.getMax
-    })
-
-    val nonHeap = metrics.addGroup("NonHeap")
-    nonHeap.gauge[Long, FlinkGauge[Long]]("Used", new FlinkGauge[Long] {
-      override def getValue: Long = mxBean.getNonHeapMemoryUsage.getUsed
-    })
-    nonHeap.gauge[Long, FlinkGauge[Long]]("Committed", new FlinkGauge[Long] {
-      override def getValue: Long = mxBean.getNonHeapMemoryUsage.getCommitted
-    })
-    nonHeap.gauge[Long, FlinkGauge[Long]]("Max", new FlinkGauge[Long] {
-      override def getValue: Long = mxBean.getNonHeapMemoryUsage.getMax
-    })
-
-    val con = ManagementFactory.getPlatformMBeanServer;
-
-    val directObjectName = new ObjectName("java.nio:type=BufferPool,name=direct")
-
-    val direct = metrics.addGroup("Direct")
-    direct.gauge[Long, FlinkGauge[Long]]("Count", new FlinkGauge[Long] {
-      override def getValue: Long = con
-        .getAttribute(directObjectName, "Count").asInstanceOf[Long]
-    })
-    direct.gauge[Long, FlinkGauge[Long]]("MemoryUsed", new FlinkGauge[Long] {
-      override def getValue: Long = con
-        .getAttribute(directObjectName, "MemoryUsed").asInstanceOf[Long]
-    })
-    direct.gauge[Long, FlinkGauge[Long]]("TotalCapacity", new FlinkGauge[Long] {
-      override def getValue: Long = con
-        .getAttribute(directObjectName, "TotalCapacity").asInstanceOf[Long]
-    })
-
-    val mappedObjectName = new ObjectName("java.nio:type=BufferPool,name=mapped")
-
-    val mapped = metrics.addGroup("Mapped")
-    mapped.gauge[Long, FlinkGauge[Long]]("Count", new FlinkGauge[Long] {
-      override def getValue: Long = con
-        .getAttribute(mappedObjectName, "Count").asInstanceOf[Long]
-    })
-    mapped.gauge[Long, FlinkGauge[Long]]("MemoryUsed", new FlinkGauge[Long] {
-      override def getValue: Long = con
-        .getAttribute(mappedObjectName, "MemoryUsed").asInstanceOf[Long]
-    })
-    mapped.gauge[Long, FlinkGauge[Long]]("TotalCapacity", new FlinkGauge[Long] {
-      override def getValue: Long = con
-        .getAttribute(mappedObjectName, "TotalCapacity").asInstanceOf[Long]
-    })
-  }
-
-  private def instantiateThreadMetrics(metrics: MetricGroup): Unit = {
-    val mxBean = ManagementFactory.getThreadMXBean
-
-    metrics.gauge[Int, FlinkGauge[Int]]("Count", new FlinkGauge[Int] {
-      override def getValue: Int = mxBean.getThreadCount
-    })
-  }
-
-  private def instantiateCPUMetrics(metrics: MetricGroup): Unit = {
-    try {
-      val mxBean = ManagementFactory.getOperatingSystemMXBean
-        .asInstanceOf[com.sun.management.OperatingSystemMXBean]
-
-      metrics.gauge[Double, FlinkGauge[Double]]("Load", new FlinkGauge[Double] {
-          override def getValue: Double = mxBean.getProcessCpuLoad
-        })
-      metrics.gauge[Long, FlinkGauge[Long]]("Time", new FlinkGauge[Long] {
-          override def getValue: Long = mxBean.getProcessCpuTime
-        })
-    }
-    catch {
-     case t: Throwable =>
-       LOG.warn("Cannot access com.sun.management.OperatingSystemMXBean.getProcessCpuLoad()" +
-        " - CPU load metrics will not be available.") 
     }
   }
 }

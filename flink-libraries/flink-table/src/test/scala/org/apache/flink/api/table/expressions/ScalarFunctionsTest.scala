@@ -219,6 +219,44 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   }
 
   @Test
+  def testLikeWithEscape(): Unit = {
+    testSqlApi(
+      "f23 LIKE '&%Th_s%' ESCAPE '&'",
+      "true")
+
+    testSqlApi(
+      "f23 LIKE '&%%is a%' ESCAPE '&'",
+      "true")
+
+    testSqlApi(
+      "f0 LIKE 'Th_s%' ESCAPE '&'",
+      "true")
+
+    testSqlApi(
+      "f0 LIKE '%is a%' ESCAPE '&'",
+      "true")
+  }
+
+  @Test
+  def testNotLikeWithEscape(): Unit = {
+    testSqlApi(
+      "f23 NOT LIKE '&%Th_s%' ESCAPE '&'",
+      "false")
+
+    testSqlApi(
+      "f23 NOT LIKE '&%%is a%' ESCAPE '&'",
+      "false")
+
+    testSqlApi(
+      "f0 NOT LIKE 'Th_s%' ESCAPE '&'",
+      "false")
+
+    testSqlApi(
+      "f0 NOT LIKE '%is a%' ESCAPE '&'",
+      "false")
+  }
+
+  @Test
   def testSimilar(): Unit = {
     testAllApis(
       'f0.similar("_*"),
@@ -245,6 +283,44 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       !'f0.similar("This (is)? a (test)+ Strin_*"),
       "!f0.similar('This (is)? a (test)+ Strin_*')",
       "f0 NOT SIMILAR TO 'This (is)? a (test)+ Strin_*'",
+      "false")
+  }
+
+  @Test
+  def testSimilarWithEscape(): Unit = {
+    testSqlApi(
+      "f24 SIMILAR TO '&*&__*' ESCAPE '&'",
+      "true")
+
+    testSqlApi(
+      "f0 SIMILAR TO '_*' ESCAPE '&'",
+      "true")
+
+    testSqlApi(
+      "f24 SIMILAR TO '&*&_This (is)? a (test)+ Strin_*' ESCAPE '&'",
+      "true")
+
+    testSqlApi(
+      "f0 SIMILAR TO 'This (is)? a (test)+ Strin_*' ESCAPE '&'",
+      "true")
+  }
+
+  @Test
+  def testNotSimilarWithEscape(): Unit = {
+    testSqlApi(
+      "f24 NOT SIMILAR TO '&*&__*' ESCAPE '&'",
+      "false")
+
+    testSqlApi(
+      "f0 NOT SIMILAR TO '_*' ESCAPE '&'",
+      "false")
+
+    testSqlApi(
+      "f24 NOT SIMILAR TO '&*&_This (is)? a (test)+ Strin_*' ESCAPE '&'",
+      "false")
+
+    testSqlApi(
+      "f0 NOT SIMILAR TO 'This (is)? a (test)+ Strin_*' ESCAPE '&'",
       "false")
   }
 
@@ -354,6 +430,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
 
   @Test
   def testPower(): Unit = {
+    // f7: int , f4: long, f6: double
     testAllApis(
       'f2.power('f7),
       "f2.power(f7)",
@@ -377,10 +454,93 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "f4.power(f5)",
       "POWER(f4, f5)",
       math.pow(44.toLong, 4.5.toFloat).toString)
+
+    // f5: float
+    testAllApis('f5.power('f5),
+      "f5.power(f5)",
+      "power(f5, f5)",
+      math.pow(4.5F, 4.5F).toString)
+
+    testAllApis('f5.power('f6),
+      "f5.power(f6)",
+      "power(f5, f6)",
+      math.pow(4.5F, 4.6D).toString)
+
+    testAllApis('f5.power('f7),
+      "f5.power(f7)",
+      "power(f5, f7)",
+      math.pow(4.5F, 3).toString)
+
+    testAllApis('f5.power('f4),
+      "f5.power(f4)",
+      "power(f5, f4)",
+      math.pow(4.5F, 44L).toString)
+
+    // f22: bigDecimal
+    // TODO delete casting in SQL when CALCITE-1467 is fixed
+    testAllApis(
+      'f22.cast(Types.DOUBLE).power('f5),
+      "f22.cast(DOUBLE).power(f5)",
+      "power(CAST(f22 AS DOUBLE), f5)",
+      math.pow(2, 4.5F).toString)
+
+    testAllApis(
+      'f22.cast(Types.DOUBLE).power('f6),
+      "f22.cast(DOUBLE).power(f6)",
+      "power(CAST(f22 AS DOUBLE), f6)",
+      math.pow(2, 4.6D).toString)
+
+    testAllApis(
+      'f22.cast(Types.DOUBLE).power('f7),
+      "f22.cast(DOUBLE).power(f7)",
+      "power(CAST(f22 AS DOUBLE), f7)",
+      math.pow(2, 3).toString)
+
+    testAllApis(
+      'f22.cast(Types.DOUBLE).power('f4),
+      "f22.cast(DOUBLE).power(f4)",
+      "power(CAST(f22 AS DOUBLE), f4)",
+      math.pow(2, 44L).toString)
+
+    testAllApis(
+      'f6.power('f22.cast(Types.DOUBLE)),
+      "f6.power(f22.cast(DOUBLE))",
+      "power(f6, f22)",
+      math.pow(4.6D, 2).toString)
   }
 
   @Test
   def testSqrt(): Unit = {
+    testAllApis(
+      'f6.sqrt(),
+      "f6.sqrt",
+      "SQRT(f6)",
+      math.sqrt(4.6D).toString)
+
+    testAllApis(
+      'f7.sqrt(),
+      "f7.sqrt",
+      "SQRT(f7)",
+      math.sqrt(3).toString)
+
+    testAllApis(
+      'f4.sqrt(),
+      "f4.sqrt",
+      "SQRT(f4)",
+      math.sqrt(44L).toString)
+
+    testAllApis(
+      'f22.cast(Types.DOUBLE).sqrt(),
+      "f22.cast(DOUBLE).sqrt",
+      "SQRT(CAST(f22 AS DOUBLE))",
+      math.sqrt(2.0).toString)
+
+    testAllApis(
+      'f5.sqrt(),
+      "f5.sqrt",
+      "SQRT(f5)",
+      math.pow(4.5F, 0.5).toString)
+
     testAllApis(
       25.sqrt(),
       "25.sqrt()",
@@ -821,8 +981,8 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   @Test
   def testOverlaps(): Unit = {
     testAllApis(
-      temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hour),
-      "temporalOverlaps('2:55:00'.toTime, 1.hour, '3:30:00'.toTime, 2.hour)",
+      temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hours),
+      "temporalOverlaps('2:55:00'.toTime, 1.hour, '3:30:00'.toTime, 2.hours)",
       "(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)",
       "true")
 
@@ -833,14 +993,14 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "true")
 
     testAllApis(
-      temporalOverlaps("9:00:00".toTime, "10:00:00".toTime, "10:15:00".toTime, 3.hour),
-      "temporalOverlaps('9:00:00'.toTime, '10:00:00'.toTime, '10:15:00'.toTime, 3.hour)",
+      temporalOverlaps("9:00:00".toTime, "10:00:00".toTime, "10:15:00".toTime, 3.hours),
+      "temporalOverlaps('9:00:00'.toTime, '10:00:00'.toTime, '10:15:00'.toTime, 3.hours)",
       "(TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR)",
       "false")
 
     testAllApis(
-      temporalOverlaps("2011-03-10".toDate, 10.day, "2011-03-19".toDate, 10.day),
-      "temporalOverlaps('2011-03-10'.toDate, 10.day, '2011-03-19'.toDate, 10.day)",
+      temporalOverlaps("2011-03-10".toDate, 10.days, "2011-03-19".toDate, 10.days),
+      "temporalOverlaps('2011-03-10'.toDate, 10.days, '2011-03-19'.toDate, 10.days)",
       "(DATE '2011-03-10', INTERVAL '10' DAY) OVERLAPS (DATE '2011-03-19', INTERVAL '10' DAY)",
       "true")
 
@@ -944,7 +1104,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(22)
+    val testData = new Row(25)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -967,6 +1127,9 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testData.setField(19, 1467012213000L) // +16979 07:23:33.000
     testData.setField(20, 25) // +2-01
     testData.setField(21, null)
+    testData.setField(22, BigDecimal("2").bigDecimal)
+    testData.setField(23, "%This is a test String.")
+    testData.setField(24, "*_This is a test String.")
     testData
   }
 
@@ -993,6 +1156,10 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       Types.TIMESTAMP,
       Types.INTERVAL_MILLIS,
       Types.INTERVAL_MONTHS,
-      Types.BOOLEAN)).asInstanceOf[TypeInformation[Any]]
+      Types.BOOLEAN,
+      Types.DECIMAL,
+      Types.STRING,
+      Types.STRING)).asInstanceOf[TypeInformation[Any]]
+
   }
 }

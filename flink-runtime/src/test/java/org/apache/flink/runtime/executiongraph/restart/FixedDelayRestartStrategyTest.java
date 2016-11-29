@@ -39,7 +39,7 @@ public class FixedDelayRestartStrategyTest {
 			restartDelay);
 
 		ExecutionGraph executionGraph = mock(ExecutionGraph.class);
-		when(executionGraph.getExecutionContext())
+		when(executionGraph.getFutureExecutor())
 			.thenReturn(ExecutionContext$.MODULE$.fromExecutor(MoreExecutors.directExecutor()));
 
 		while(fixedDelayRestartStrategy.canRestart()) {

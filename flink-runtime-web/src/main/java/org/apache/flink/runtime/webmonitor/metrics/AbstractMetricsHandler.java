@@ -19,8 +19,8 @@ package org.apache.flink.runtime.webmonitor.metrics;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.webmonitor.handlers.AbstractJsonRequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JsonFactory;
-import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -38,7 +38,7 @@ import java.util.Map;
  * The handler will then return a list containing the values of the requested metrics.
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
  */
-public abstract class AbstractMetricsHandler implements RequestHandler {
+public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler {
 	private final MetricFetcher fetcher;
 
 	public AbstractMetricsHandler(MetricFetcher fetcher) {
@@ -46,7 +46,7 @@ public abstract class AbstractMetricsHandler implements RequestHandler {
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		fetcher.update();
 		String requestedMetricsList = queryParams.get("get");
 		return requestedMetricsList != null
@@ -61,7 +61,7 @@ public abstract class AbstractMetricsHandler implements RequestHandler {
 	 * @param metrics MetricStore containing all metrics
 	 * @return Map containing metrics, or null if no metric exists
 	 */
-	protected abstract Map<String, Object> getMapFor(Map<String, String> pathParams, MetricStore metrics);
+	protected abstract Map<String, String> getMapFor(Map<String, String> pathParams, MetricStore metrics);
 
 	private String getMetricsValues(Map<String, String> pathParams, String requestedMetricsList) throws IOException {
 		if (requestedMetricsList.isEmpty()) {
@@ -73,7 +73,7 @@ public abstract class AbstractMetricsHandler implements RequestHandler {
 		}
 		MetricStore metricStore = fetcher.getMetricStore();
 		synchronized (metricStore) {
-			Map<String, Object> metrics = getMapFor(pathParams, metricStore);
+			Map<String, String> metrics = getMapFor(pathParams, metricStore);
 			if (metrics == null) {
 				return "";
 			}
@@ -102,7 +102,7 @@ public abstract class AbstractMetricsHandler implements RequestHandler {
 	private String getAvailableMetricsList(Map<String, String> pathParams) throws IOException {
 		MetricStore metricStore = fetcher.getMetricStore();
 		synchronized (metricStore) {
-			Map<String, Object> metrics = getMapFor(pathParams, metricStore);
+			Map<String, String> metrics = getMapFor(pathParams, metricStore);
 			if (metrics == null) {
 				return "";
 			}

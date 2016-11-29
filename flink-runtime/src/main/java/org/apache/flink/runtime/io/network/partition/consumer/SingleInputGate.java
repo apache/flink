@@ -19,9 +19,10 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import com.google.common.collect.Maps;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.taskmanager.TaskActions;
-import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -175,7 +176,7 @@ public class SingleInputGate implements InputGate {
 			int consumedSubpartitionIndex,
 			int numberOfInputChannels,
 			TaskActions taskActions,
-			IOMetricGroup metrics) {
+			TaskIOMetricGroup metrics) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		this.jobId = checkNotNull(jobId);
@@ -212,6 +213,10 @@ public class SingleInputGate implements InputGate {
 		return bufferPool;
 	}
 
+	public BufferPool getBufferPool() {
+		return bufferPool;
+	}
+
 	@Override
 	public int getPageSize() {
 		if (bufferPool != null) {
@@ -220,6 +225,26 @@ public class SingleInputGate implements InputGate {
 		else {
 			throw new IllegalStateException("Input gate has not been initialized with buffers.");
 		}
+	}
+
+	public int getNumberOfQueuedBuffers() {
+		// re-try 3 times, if fails, return 0 for "unknown"
+		for (int retry = 0; retry < 3; retry++) {
+			try {
+				int totalBuffers = 0;
+
+				for (InputChannel channel : inputChannels.values()) {
+					if (channel instanceof RemoteInputChannel) {
+						totalBuffers += ((RemoteInputChannel) channel).getNumberOfQueuedBuffers();
+					}
+				}
+
+				return  totalBuffers;
+			}
+			catch (Exception ignored) {}
+		}
+
+		return 0;
 	}
 
 	// ------------------------------------------------------------------------
@@ -496,6 +521,13 @@ public class SingleInputGate implements InputGate {
 
 	// ------------------------------------------------------------------------
 
+	@VisibleForTesting
+	Map<IntermediateResultPartitionID, InputChannel> getInputChannels() {
+		return inputChannels;
+	}
+
+	// ------------------------------------------------------------------------
+
 	/**
 	 * Creates an input gate and all of its input channels.
 	 */
@@ -506,7 +538,7 @@ public class SingleInputGate implements InputGate {
 			InputGateDeploymentDescriptor igdd,
 			NetworkEnvironment networkEnvironment,
 			TaskActions taskActions,
-			IOMetricGroup metrics) {
+			TaskIOMetricGroup metrics) {
 
 		final IntermediateDataSetID consumedResultId = checkNotNull(igdd.getConsumedResultId());
 
@@ -541,7 +573,7 @@ public class SingleInputGate implements InputGate {
 					partitionLocation.getConnectionId(),
 					networkEnvironment.getConnectionManager(),
 					networkEnvironment.getPartitionRequestInitialBackoff(),
-					networkEnvironment.getPartitionRequestInitialBackoff(),
+					networkEnvironment.getPartitionRequestMaxBackoff(),
 					metrics
 				);
 			}

@@ -70,6 +70,16 @@ public class CompletedCheckpoint implements Serializable {
 			long checkpointID,
 			long timestamp,
 			long completionTimestamp,
+			Map<JobVertexID, TaskState> taskStates) {
+
+		this(job, checkpointID, timestamp, completionTimestamp, taskStates, CheckpointProperties.forStandardCheckpoint(), null);
+	}
+
+	public CompletedCheckpoint(
+			JobID job,
+			long checkpointID,
+			long timestamp,
+			long completionTimestamp,
 			Map<JobVertexID, TaskState> taskStates,
 			CheckpointProperties props,
 			String externalPath) {

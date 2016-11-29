@@ -21,25 +21,32 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
+import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -51,11 +58,11 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,6 +70,8 @@ import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Base class for all stream operators. Operators that contain a user function should extend the class 
@@ -81,7 +90,7 @@ import java.util.Map;
  */
 @PublicEvolving
 public abstract class AbstractStreamOperator<OUT>
-		implements StreamOperator<OUT>, java.io.Serializable {
+		implements StreamOperator<OUT>, java.io.Serializable, KeyContext {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -98,13 +107,12 @@ public abstract class AbstractStreamOperator<OUT>
 	/** The task that contains this operator (and other operators in the same chain) */
 	private transient StreamTask<?, ?> container;
 	
-	private transient StreamConfig config;
+	protected transient StreamConfig config;
 
 	protected transient Output<StreamRecord<OUT>> output;
 
 	/** The runtime context for UDFs */
 	private transient StreamingRuntimeContext runtimeContext;
-
 
 
 	// ---------------- key/value state ------------------
@@ -118,7 +126,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	/** Keyed state store view on the keyed backend */
 	private transient DefaultKeyedStateStore keyedStateStore;
-	
+
 	/** Operator state backend / store */
 	private transient OperatorStateBackend operatorStateBackend;
 
@@ -130,6 +138,20 @@ public abstract class AbstractStreamOperator<OUT>
 
 	protected LatencyGauge latencyGauge;
 
+	// ---------------- timers ------------------
+
+	private transient Map<String, HeapInternalTimerService<?, ?>> timerServices;
+//	private transient Map<String, HeapInternalTimerService<?, ?>> restoredServices;
+
+
+	// ---------------- two-input operator watermarks ------------------
+
+	// We keep track of watermarks from both inputs, the combined input is the minimum
+	// Once the minimum advances we emit a new watermark for downstream operators
+	private long combinedWatermark = Long.MIN_VALUE;
+	private long input1Watermark = Long.MIN_VALUE;
+	private long input2Watermark = Long.MIN_VALUE;
+
 	// ------------------------------------------------------------------------
 	//  Life Cycle
 	// ------------------------------------------------------------------------
@@ -138,10 +160,15 @@ public abstract class AbstractStreamOperator<OUT>
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		this.container = containingTask;
 		this.config = config;
-		String operatorName = containingTask.getEnvironment().getTaskInfo().getTaskName().split("->")[config.getChainIndex()].trim();
 		
-		this.metrics = container.getEnvironment().getMetricGroup().addOperator(operatorName);
-		this.output = new CountingOutput(output, this.metrics.counter("numRecordsOut"));
+		this.metrics = container.getEnvironment().getMetricGroup().addOperator(config.getOperatorName());
+		this.output = new CountingOutput(output, ((OperatorMetricGroup) this.metrics).getIOMetricGroup().getNumRecordsOutCounter());
+		if (config.isChainStart()) {
+			((OperatorMetricGroup) this.metrics).getIOMetricGroup().reuseInputMetricsForTask();
+		}
+		if (config.isChainEnd()) {
+			((OperatorMetricGroup) this.metrics).getIOMetricGroup().reuseOutputMetricsForTask();
+		}
 		Configuration taskManagerConfig = container.getEnvironment().getTaskManagerInfo().getConfiguration();
 		int historySize = taskManagerConfig.getInteger(ConfigConstants.METRICS_LATENCY_HISTORY_SIZE, ConfigConstants.DEFAULT_METRICS_LATENCY_HISTORY_SIZE);
 		if (historySize <= 0) {
@@ -229,7 +256,9 @@ public abstract class AbstractStreamOperator<OUT>
 	 */
 	@Override
 	public void open() throws Exception {
-
+		if (timerServices == null) {
+			timerServices = new HashMap<>();
+		}
 	}
 
 	private void initKeyedState() {
@@ -240,13 +269,13 @@ public abstract class AbstractStreamOperator<OUT>
 				KeyGroupRange subTaskKeyGroupRange = KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
 						container.getEnvironment().getTaskInfo().getNumberOfKeyGroups(),
 						container.getEnvironment().getTaskInfo().getNumberOfParallelSubtasks(),
-						container.getIndexInSubtaskGroup());
+						container.getEnvironment().getTaskInfo().getIndexOfThisSubtask());
 
 				this.keyedStateBackend = container.createKeyedStateBackend(
 						keySerializer,
-						container.getConfiguration().getNumberOfKeyGroups(getUserCodeClassloader()),
+						container.getEnvironment().getTaskInfo().getNumberOfKeyGroups(),
 						subTaskKeyGroupRange);
-				
+
 				this.keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getExecutionConfig());
 			}
 
@@ -336,7 +365,25 @@ public abstract class AbstractStreamOperator<OUT>
 	 * @param context context that provides information and means required for taking a snapshot
 	 */
 	public void snapshotState(StateSnapshotContext context) throws Exception {
+		if (getKeyedStateBackend() != null) {
+			KeyedStateCheckpointOutputStream out = context.getRawKeyedOperatorStateOutput();
 
+			KeyGroupsList allKeyGroups = out.getKeyGroupList();
+			for (int keyGroupIdx : allKeyGroups) {
+				out.startNewKeyGroup(keyGroupIdx);
+
+				DataOutputViewStreamWrapper dov = new DataOutputViewStreamWrapper(out);
+				dov.writeInt(timerServices.size());
+
+				for (Map.Entry<String, HeapInternalTimerService<?, ?>> entry : timerServices.entrySet()) {
+					String serviceName = entry.getKey();
+					HeapInternalTimerService<?, ?> timerService = entry.getValue();
+
+					dov.writeUTF(serviceName);
+					timerService.snapshotTimersForKeyGroup(dov, keyGroupIdx);
+				}
+			}
+		}
 	}
 
 	/**
@@ -345,7 +392,38 @@ public abstract class AbstractStreamOperator<OUT>
 	 * @param context context that allows to register different states.
 	 */
 	public void initializeState(StateInitializationContext context) throws Exception {
+		if (getKeyedStateBackend() != null) {
+			int totalKeyGroups = getKeyedStateBackend().getNumberOfKeyGroups();
+			KeyGroupsList localKeyGroupRange = getKeyedStateBackend().getKeyGroupRange();
 
+			// initialize the map with the timer services
+			this.timerServices = new HashMap<>();
+
+			// and then initialize the timer services
+			for (KeyGroupStatePartitionStreamProvider streamProvider : context.getRawKeyedStateInputs()) {
+				DataInputViewStreamWrapper div = new DataInputViewStreamWrapper(streamProvider.getStream());
+
+				int keyGroupIdx = streamProvider.getKeyGroupId();
+				checkArgument(localKeyGroupRange.contains(keyGroupIdx),
+					"Key Group " + keyGroupIdx + " does not belong to the local range.");
+
+				int noOfTimerServices = div.readInt();
+				for (int i = 0; i < noOfTimerServices; i++) {
+					String serviceName = div.readUTF();
+
+					HeapInternalTimerService<?, ?> timerService = this.timerServices.get(serviceName);
+					if (timerService == null) {
+						timerService = new HeapInternalTimerService<>(
+							totalKeyGroups,
+							localKeyGroupRange,
+							this,
+							getRuntimeContext().getProcessingTimeService());
+						this.timerServices.put(serviceName, timerService);
+					}
+					timerService.restoreTimersForKeyGroup(div, keyGroupIdx, getUserCodeClassloader());
+				}
+			}
+		}
 	}
 
 	@Override
@@ -396,11 +474,11 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	/**
-	 * Returns the {@link TimeServiceProvider} responsible for getting  the current
+	 * Returns the {@link ProcessingTimeService} responsible for getting  the current
 	 * processing time and registering timers.
 	 */
-	protected TimeServiceProvider getTimerService() {
-		return container.getTimerService();
+	protected ProcessingTimeService getProcessingTimeService() {
+		return container.getProcessingTimeService();
 	}
 
 	/**
@@ -421,9 +499,9 @@ public abstract class AbstractStreamOperator<OUT>
 	 */
 	@SuppressWarnings("unchecked")
 	protected <S extends State, N> S getPartitionedState(
-			N namespace, TypeSerializer<N> namespaceSerializer, 
+			N namespace, TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, ?> stateDescriptor) throws Exception {
-		
+
 		if (keyedStateStore != null) {
 			return keyedStateBackend.getPartitionedState(namespace, namespaceSerializer, stateDescriptor);
 		} else {
@@ -448,12 +526,12 @@ public abstract class AbstractStreamOperator<OUT>
 	private <T> void setKeyContextElement(StreamRecord<T> record, KeySelector<T, ?> selector) throws Exception {
 		if (selector != null) {
 			Object key = selector.getKey(record.getValue());
-			setKeyContext(key);
+			setCurrentKey(key);
 		}
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
-	public void setKeyContext(Object key) {
+	public void setCurrentKey(Object key) {
 		if (keyedStateBackend != null) {
 			try {
 				// need to work around type restrictions
@@ -464,6 +542,15 @@ public abstract class AbstractStreamOperator<OUT>
 			} catch (Exception e) {
 				throw new RuntimeException("Exception occurred while setting the current key context.", e);
 			}
+		}
+	}
+
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	public Object getCurrentKey() {
+		if (keyedStateBackend != null) {
+			return keyedStateBackend.getCurrentKey();
+		} else {
+			throw new UnsupportedOperationException("Key can only be retrieven on KeyedStream.");
 		}
 	}
 
@@ -665,4 +752,96 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 	}
 
+	// ------------------------------------------------------------------------
+	//  Watermark handling
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Returns a {@link InternalTimerService} that can be used to query current processing time
+	 * and event time and to set timers. An operator can have several timer services, where
+	 * each has its own namespace serializer. Timer services are differentiated by the string
+	 * key that is given when requesting them, if you call this method with the same key
+	 * multiple times you will get the same timer service instance in subsequent requests.
+	 *
+	 * <p>Timers are always scoped to a key, the currently active key of a keyed stream operation.
+	 * When a timer fires, this key will also be set as the currently active key.
+	 *
+	 * <p>Each timer has attached metadata, the namespace. Different timer services
+	 * can have a different namespace type. If you don't need namespace differentiation you
+	 * can use {@link VoidNamespaceSerializer} as the namespace serializer.
+	 *
+	 * @param name The name of the requested timer service. If no service exists under the given
+	 *             name a new one will be created and returned.
+	 * @param namespaceSerializer {@code TypeSerializer} for the timer namespace.
+	 * @param triggerable The {@link Triggerable} that should be invoked when timers fire
+	 *
+	 * @param <N> The type of the timer namespace.
+	 */
+	public <N> InternalTimerService<N> getInternalTimerService(
+			String name,
+			TypeSerializer<N> namespaceSerializer,
+			Triggerable<?, N> triggerable) {
+		if (getKeyedStateBackend() == null) {
+			throw new UnsupportedOperationException("Timers can only be used on keyed operators.");
+		}
+
+		@SuppressWarnings("unchecked")
+		HeapInternalTimerService<Object, N> timerService = (HeapInternalTimerService<Object, N>) timerServices.get(name);
+
+		if (timerService == null) {
+			timerService = new HeapInternalTimerService<>(
+				getKeyedStateBackend().getNumberOfKeyGroups(),
+				getKeyedStateBackend().getKeyGroupRange(),
+				this,
+				getRuntimeContext().getProcessingTimeService());
+			timerServices.put(name, timerService);
+		}
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		Triggerable rawTriggerable = (Triggerable) triggerable;
+		timerService.startTimerService(getKeyedStateBackend().getKeySerializer(), namespaceSerializer, rawTriggerable);
+		return timerService;
+	}
+
+	public void processWatermark(Watermark mark) throws Exception {
+		for (HeapInternalTimerService<?, ?> service : timerServices.values()) {
+			service.advanceWatermark(mark.getTimestamp());
+		}
+		output.emitWatermark(mark);
+	}
+
+	public void processWatermark1(Watermark mark) throws Exception {
+		input1Watermark = mark.getTimestamp();
+		long newMin = Math.min(input1Watermark, input2Watermark);
+		if (newMin > combinedWatermark) {
+			combinedWatermark = newMin;
+			processWatermark(new Watermark(combinedWatermark));
+		}
+	}
+
+	public void processWatermark2(Watermark mark) throws Exception {
+		input2Watermark = mark.getTimestamp();
+		long newMin = Math.min(input1Watermark, input2Watermark);
+		if (newMin > combinedWatermark) {
+			combinedWatermark = newMin;
+			processWatermark(new Watermark(combinedWatermark));
+		}
+	}
+
+	@VisibleForTesting
+	public int numProcessingTimeTimers() {
+		int count = 0;
+		for (HeapInternalTimerService<?, ?> timerService : timerServices.values()) {
+			count += timerService.numProcessingTimeTimers();
+		}
+		return count;
+	}
+
+	@VisibleForTesting
+	public int numEventTimeTimers() {
+		int count = 0;
+		for (HeapInternalTimerService<?, ?> timerService : timerServices.values()) {
+			count += timerService.numEventTimeTimers();
+		}
+		return count;
+	}
 }

@@ -23,6 +23,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.util.ExceptionUtils;
 
 import java.io.StringWriter;
 import java.util.Map;
@@ -59,7 +60,7 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 		
 		for (AccessExecutionVertex task : graph.getAllExecutionVertices()) {
 			String t = task.getFailureCauseAsString();
-			if (t != null) {
+			if (!t.equals(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)) {
 				if (numExceptionsSoFar >= MAX_NUMBER_EXCEPTION_TO_REPORT) {
 					truncated = true;
 					break;

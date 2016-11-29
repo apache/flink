@@ -75,8 +75,8 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 			
 			testDriver(testTask, MockReduceStub.class);
 		} catch (Exception e) {
-			LOG.debug("Exception while running the test task.", e);
-			Assert.fail("Exception in Test.");
+			LOG.info("Exception while running the test task.", e);
+			Assert.fail("Exception in Test: " + e.getMessage());
 		}
 		
 		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
@@ -103,8 +103,8 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 		try {
 			testDriver(testTask, MockReduceStub.class);
 		} catch (Exception e) {
-			LOG.debug("Exception while running the test task.", e);
-			Assert.fail("Invoke method caused exception.");
+			LOG.info("Exception while running the test task.", e);
+			Assert.fail("Invoke method caused exception: " + e.getMessage());
 		}
 		
 		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
@@ -137,8 +137,8 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 		
 			testDriver(testTask, MockCombiningReduceStub.class);
 		} catch (Exception e) {
-			LOG.debug("Exception while running the test task.", e);
-			Assert.fail("Invoke method caused exception.");
+			LOG.info("Exception while running the test task.", e);
+			Assert.fail("Invoke method caused exception: " + e.getMessage());
 		} finally {
 			if (sorter != null) {
 				sorter.close();
@@ -178,8 +178,8 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 		} catch (ExpectedTestException eetex) {
 			// Good!
 		} catch (Exception e) {
-			LOG.debug("Exception which was not the ExpectedTestException while running the test task.", e);
-			Assert.fail("Test caused exception.");
+			LOG.info("Exception which was not the ExpectedTestException while running the test task.", e);
+			Assert.fail("Test caused exception: " + e.getMessage());
 		}
 		
 		this.outList.clear();

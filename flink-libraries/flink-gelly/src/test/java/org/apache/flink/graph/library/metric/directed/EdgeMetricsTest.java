@@ -34,7 +34,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithSimpleGraph()
 			throws Exception {
-		Result expectedResult = new Result(6, 7, 2, 6, 13, 4, 2, 3, 1, 3, 6);
+		Result expectedResult = new Result(2, 6, 1, 3);
 
 		Result edgeMetrics = new EdgeMetrics<IntValue, NullValue, NullValue>()
 			.run(directedSimpleGraph)
@@ -47,13 +47,11 @@ extends AsmTestBase {
 	public void testWithCompleteGraph()
 			throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedEdges = completeGraphVertexCount * expectedDegree;
 		long expectedMaximumTriplets = CombinatoricsUtils.binomialCoefficient((int)expectedDegree, 2);
 		long expectedTriplets = completeGraphVertexCount * expectedMaximumTriplets;
 
-		Result expectedResult = new Result(completeGraphVertexCount, expectedEdges, expectedTriplets / 3, 2 * expectedTriplets / 3, expectedTriplets,
-			expectedDegree, expectedDegree, expectedDegree,
-			expectedMaximumTriplets, expectedMaximumTriplets, expectedMaximumTriplets);
+		Result expectedResult = new Result(expectedTriplets / 3, 2 * expectedTriplets / 3,
+			expectedMaximumTriplets, expectedMaximumTriplets);
 
 		Result edgeMetrics = new EdgeMetrics<LongValue, NullValue, NullValue>()
 			.run(completeGraph)
@@ -67,7 +65,7 @@ extends AsmTestBase {
 			throws Exception {
 		Result expectedResult;
 
-		expectedResult = new Result(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+		expectedResult = new Result(0, 0, 0, 0);
 
 		Result withoutZeroDegreeVertices = new EdgeMetrics<LongValue, NullValue, NullValue>()
 			.run(emptyGraph)
@@ -79,7 +77,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 			throws Exception {
-		Result expectedResult = new Result(902, 12009, 107817, 315537, 1003442, 463, 334, 342, 820, 3822, 106953);
+		Result expectedResult = new Result(107817, 315537, 820, 3822);
 
 		Result withoutZeroDegreeVertices = new EdgeMetrics<LongValue, NullValue, NullValue>()
 			.run(directedRMatGraph)

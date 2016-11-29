@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.CompletableFuture;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -27,20 +30,16 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.junit.Test;
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.duration.FiniteDuration;
-import scala.concurrent.impl.Promise;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executor;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;
@@ -54,34 +53,24 @@ public class BackPressureStatsTrackerTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testTriggerStackTraceSample() throws Exception {
-		Promise<StackTraceSample> samplePromise = new Promise.DefaultPromise<>();
+		CompletableFuture<StackTraceSample> sampleFuture = new FlinkCompletableFuture<>();
 
 		StackTraceSampleCoordinator sampleCoordinator = mock(StackTraceSampleCoordinator.class);
 		when(sampleCoordinator.triggerStackTraceSample(
 				any(ExecutionVertex[].class),
 				anyInt(),
-				any(FiniteDuration.class),
-				anyInt())).thenReturn(samplePromise.future());
+				any(Time.class),
+				anyInt())).thenReturn(sampleFuture);
 
 		ExecutionGraph graph = mock(ExecutionGraph.class);
 		when(graph.getState()).thenReturn(JobStatus.RUNNING);
 
 		// Same Thread execution context
-		when(graph.getExecutionContext()).thenReturn(new ExecutionContext() {
+		when(graph.getFutureExecutor()).thenReturn(new Executor() {
 
 			@Override
 			public void execute(Runnable runnable) {
 				runnable.run();
-			}
-
-			@Override
-			public void reportFailure(Throwable t) {
-				fail();
-			}
-
-			@Override
-			public ExecutionContext prepare() {
-				return this;
 			}
 		});
 
@@ -99,7 +88,7 @@ public class BackPressureStatsTrackerTest {
 		taskVertices[3] = mockExecutionVertex(jobVertex, 3);
 
 		int numSamples = 100;
-		FiniteDuration delayBetweenSamples = new FiniteDuration(100, TimeUnit.MILLISECONDS);
+		Time delayBetweenSamples = Time.milliseconds(100L);
 
 		BackPressureStatsTracker tracker = new BackPressureStatsTracker(
 				sampleCoordinator, 9999, numSamples, delayBetweenSamples);
@@ -149,7 +138,7 @@ public class BackPressureStatsTrackerTest {
 				traces);
 
 		// Succeed the promise
-		samplePromise.success(sample);
+		sampleFuture.complete(sample);
 
 		assertTrue(tracker.getOperatorBackPressureStats(jobVertex).isDefined());
 

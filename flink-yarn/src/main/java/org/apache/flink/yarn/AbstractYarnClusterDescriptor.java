@@ -23,9 +23,10 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -61,6 +62,12 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -77,7 +84,7 @@ import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties;
 
 /**
- * The descriptor with deployment information for spwaning or resuming a {@link YarnClusterClient}.
+ * The descriptor with deployment information for spawning or resuming a {@link YarnClusterClient}.
  */
 public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor<YarnClusterClient> {
 	private static final Logger LOG = LoggerFactory.getLogger(YarnClusterDescriptor.class);
@@ -127,6 +134,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	private String customName;
 
 	private String zookeeperNamespace;
+
+	/** Optional Jar file to include in the system class loader of all application nodes
+	 * (for per-job submission) */
+	private Set<File> userJarFiles;
 
 	public AbstractYarnClusterDescriptor() {
 		// for unit tests only
@@ -237,6 +248,41 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		this.dynamicPropertiesEncoded = dynamicPropertiesEncoded;
 	}
 
+	/**
+	 * Returns true if the descriptor has the job jars to include in the classpath.
+	 */
+	public boolean hasUserJarFiles(List<URL> requiredJarFiles) {
+		if (userJarFiles == null || userJarFiles.size() != requiredJarFiles.size()) {
+			return false;
+		}
+		try {
+			for(URL jarFile : requiredJarFiles) {
+				if (!userJarFiles.contains(new File(jarFile.toURI()))) {
+					return false;
+				}
+			}
+		} catch (URISyntaxException e) {
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Sets the user jar which is included in the system classloader of all nodes.
+	 */
+	public void setProvidedUserJarFiles(List<URL> userJarFiles) {
+		Set<File> localUserJarFiles = new HashSet<>(userJarFiles.size());
+		for (URL jarFile : userJarFiles) {
+			try {
+				localUserJarFiles.add(new File(jarFile.toURI()));
+			} catch (URISyntaxException e) {
+				throw new IllegalArgumentException("Couldn't add local user jar: " + jarFile
+					+ " Currently only file:/// URLs are supported.");
+			}
+		}
+		this.userJarFiles = localUserJarFiles;
+	}
+
 	public String getDynamicPropertiesEncoded() {
 		return this.dynamicPropertiesEncoded;
 	}
@@ -259,10 +305,25 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			throw new YarnDeploymentException("Flink configuration object has not been set");
 		}
 
+		// Check if we don't exceed YARN's maximum virtual cores.
+		// The number of cores can be configured in the config.
+		// If not configured, it is set to the number of task slots
+		int numYarnVcores = conf.getInt(YarnConfiguration.NM_VCORES, YarnConfiguration.DEFAULT_NM_VCORES);
+		int configuredVcores = flinkConfiguration.getInteger(ConfigConstants.YARN_VCORES, slots);
+		// don't configure more than the maximum configured number of vcores
+		if (configuredVcores > numYarnVcores) {
+			throw new IllegalConfigurationException(
+				String.format("The number of virtual cores per node were configured with %d" +
+						" but Yarn only has %d virtual cores available. Please note that the number" +
+						" of virtual cores is set to the number of task slots by default unless configured" +
+						" in the Flink config with '%s.'",
+					configuredVcores, numYarnVcores, ConfigConstants.YARN_VCORES));
+		}
+
 		// check if required Hadoop environment variables are set. If not, warn user
 		if(System.getenv("HADOOP_CONF_DIR") == null &&
 			System.getenv("YARN_CONF_DIR") == null) {
-			LOG.warn("Neither the HADOOP_CONF_DIR nor the YARN_CONF_DIR environment variable is set." +
+			LOG.warn("Neither the HADOOP_CONF_DIR nor the YARN_CONF_DIR environment variable is set. " +
 				"The Flink YARN Client needs one of these to be set to properly load the Hadoop " +
 				"configuration for accessing YARN.");
 		}
@@ -523,12 +584,17 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 
 		//check if there is a JAAS config file
-		File jaasConfigFile = new File(configurationDirectory + File.separator + SecurityContext.JAAS_CONF_FILENAME);
+		File jaasConfigFile = new File(configurationDirectory + File.separator + SecurityUtils.JAAS_CONF_FILENAME);
 		if (jaasConfigFile.exists() && jaasConfigFile.isFile()) {
 			effectiveShipFiles.add(jaasConfigFile);
 		}
 
 		addLibFolderToShipFiles(effectiveShipFiles);
+
+		// add the user jar to the classpath of the to-be-created cluster
+		if (userJarFiles != null) {
+			effectiveShipFiles.addAll(userJarFiles);
+		}
 
 		// Set-up ApplicationSubmissionContext for the application
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
@@ -583,12 +649,32 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 			localResources.put(shipFile.getName(), shipResources);
 
-			classPathBuilder.append(shipFile.getName());
 			if (shipFile.isDirectory()) {
 				// add directories to the classpath
-				classPathBuilder.append(File.separator).append("*");
+				java.nio.file.Path shipPath = shipFile.toPath();
+				final java.nio.file.Path parentPath = shipPath.getParent();
+
+				Files.walkFileTree(shipPath, new SimpleFileVisitor<java.nio.file.Path>() {
+					@Override
+					public FileVisitResult preVisitDirectory(java.nio.file.Path dir, BasicFileAttributes attrs)
+							throws IOException {
+						super.preVisitDirectory(dir, attrs);
+
+						java.nio.file.Path relativePath = parentPath.relativize(dir);
+
+						classPathBuilder
+							.append(relativePath)
+							.append(File.separator)
+							.append("*")
+							.append(File.pathSeparator);
+
+						return FileVisitResult.CONTINUE;
+					}
+				});
+			} else {
+				// add files to the classpath
+				classPathBuilder.append(shipFile.getName()).append(File.pathSeparator);
 			}
-			classPathBuilder.append(File.pathSeparator);
 
 			envShipFileList.append(remotePath).append(",");
 		}
@@ -743,7 +829,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			try {
 				report = yarnClient.getApplicationReport(appId);
 			} catch (IOException e) {
-				throw new YarnDeploymentException("Failed to deploy the cluster: " + e.getMessage());
+				throw new YarnDeploymentException("Failed to deploy the cluster.", e);
 			}
 			YarnApplicationState appState = report.getYarnApplicationState();
 			LOG.debug("Application State: {}", appState);

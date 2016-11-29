@@ -26,8 +26,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.View;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
@@ -40,7 +42,9 @@ import java.util.List;
 import java.util.TimerTask;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A MetricRegistry keeps track of all registered {@link Metric Metrics}. It serves as the
@@ -52,6 +56,8 @@ public class MetricRegistry {
 	private List<MetricReporter> reporters;
 	private ScheduledExecutorService executor;
 	private ActorRef queryService;
+
+	private ViewUpdater viewUpdater;
 
 	private final ScopeFormats scopeFormats;
 	private final char globalDelimiter;
@@ -69,11 +75,12 @@ public class MetricRegistry {
 
 		List<Tuple2<String, Configuration>> reporterConfigurations = config.getReporterConfigurations();
 
+		this.executor = Executors.newSingleThreadScheduledExecutor(new MetricRegistryThreadFactory());
+
 		if (reporterConfigurations.isEmpty()) {
 			// no reporters defined
 			// by default, don't report anything
 			LOG.info("No metrics reporter configured, no metrics will be exposed/reported.");
-			this.executor = null;
 		} else {
 			// we have some reporters so
 			for (Tuple2<String, Configuration> reporterConfiguration: reporterConfigurations) {
@@ -112,9 +119,6 @@ public class MetricRegistry {
 					reporterInstance.open(metricConfig);
 
 					if (reporterInstance instanceof Scheduled) {
-						if (executor == null) {
-							executor = Executors.newSingleThreadScheduledExecutor();
-						}
 						LOG.info("Periodically reporting metrics in intervals of {} {} for reporter {} of type {}.", period, timeunit.name(), namedReporter, className);
 
 						executor.scheduleWithFixedDelay(
@@ -132,7 +136,6 @@ public class MetricRegistry {
 					this.delimiters.add(delimiterForReporter.charAt(0));
 				}
 				catch (Throwable t) {
-					shutdownExecutor();
 					LOG.error("Could not instantiate metrics reporter {}. Metrics might not be exposed/reported.", namedReporter, t);
 				}
 			}
@@ -143,10 +146,11 @@ public class MetricRegistry {
 	 * Initializes the MetricQueryService.
 	 * 
 	 * @param actorSystem ActorSystem to create the MetricQueryService on
+	 * @param resourceID resource ID used to disambiguate the actor name
      */
-	public void startQueryService(ActorSystem actorSystem) {
+	public void startQueryService(ActorSystem actorSystem, ResourceID resourceID) {
 		try {
-			queryService = MetricQueryService.startMetricQueryService(actorSystem);
+			queryService = MetricQueryService.startMetricQueryService(actorSystem, resourceID);
 		} catch (Exception e) {
 			LOG.warn("Could not start MetricDumpActor. No metrics will be submitted to the WebInterface.", e);
 		}
@@ -240,6 +244,12 @@ public class MetricRegistry {
 			if (queryService != null) {
 				MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, group);
 			}
+			if (metric instanceof View) {
+				if (viewUpdater == null) {
+					viewUpdater = new ViewUpdater(executor);
+				}
+				viewUpdater.notifyOfAddedView((View) metric);
+			}
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);
 		}
@@ -265,6 +275,11 @@ public class MetricRegistry {
 			}
 			if (queryService != null) {
 				MetricQueryService.notifyOfRemovedMetric(queryService, metric);
+			}
+			if (metric instanceof View) {
+				if (viewUpdater != null) {
+					viewUpdater.notifyOfRemovedView((View) metric);
+				}
 			}
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);
@@ -298,6 +313,27 @@ public class MetricRegistry {
 			} catch (Throwable t) {
 				LOG.warn("Error while reporting metrics", t);
 			}
+		}
+	}
+
+	private static final class MetricRegistryThreadFactory implements ThreadFactory {
+		private final ThreadGroup group;
+		private final AtomicInteger threadNumber = new AtomicInteger(1);
+
+		MetricRegistryThreadFactory() {
+			SecurityManager s = System.getSecurityManager();
+			group = (s != null) ? s.getThreadGroup() : Thread.currentThread().getThreadGroup();
+		}
+
+		public Thread newThread(Runnable r) {
+			Thread t = new Thread(group, r, "Flink-MetricRegistry-" + threadNumber.getAndIncrement(), 0);
+			if (t.isDaemon()) {
+				t.setDaemon(false);
+			}
+			if (t.getPriority() != Thread.NORM_PRIORITY) {
+				t.setPriority(Thread.NORM_PRIORITY);
+			}
+			return t;
 		}
 	}
 }

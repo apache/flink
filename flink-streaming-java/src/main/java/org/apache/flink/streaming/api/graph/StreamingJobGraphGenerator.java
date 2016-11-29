@@ -29,6 +29,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputFormatVertex;
+import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -211,6 +212,7 @@ public class StreamingJobGraphGenerator {
 
 				config.setChainStart();
 				config.setChainIndex(0);
+				config.setOperatorName(streamGraph.getStreamNode(currentNodeId).getOperatorName());
 				config.setOutEdgesInOrder(transitiveOutEdges);
 				config.setOutEdges(streamGraph.getStreamNode(currentNodeId).getOutEdges());
 
@@ -228,7 +230,11 @@ public class StreamingJobGraphGenerator {
 					chainedConfigs.put(startNodeId, new HashMap<Integer, StreamConfig>());
 				}
 				config.setChainIndex(chainIndex);
+				config.setOperatorName(streamGraph.getStreamNode(currentNodeId).getOperatorName());
 				chainedConfigs.get(startNodeId).put(currentNodeId, config);
+				if (chainableOutputs.isEmpty()) {
+					config.setChainEnd();
+				}
 			}
 
 			return transitiveOutEdges;
@@ -353,11 +359,6 @@ public class StreamingJobGraphGenerator {
 		config.setStatePartitioner(1, vertex.getStatePartitioner2());
 		config.setStateKeySerializer(vertex.getStateKeySerializer());
 
-		// only set the max parallelism if the vertex uses partitioned state (= KeyedStream).
-		if (vertex.getStatePartitioner1() != null) {
-			config.setNumberOfKeyGroups(vertex.getMaxParallelism());
-		}
-
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();
 
 		if (vertexClass.equals(StreamIterationHead.class)
@@ -386,25 +387,25 @@ public class StreamingJobGraphGenerator {
 		downStreamConfig.setNumberOfInputs(downStreamConfig.getNumberOfInputs() + 1);
 
 		StreamPartitioner<?> partitioner = edge.getPartitioner();
+		JobEdge jobEdge = null;
 		if (partitioner instanceof ForwardPartitioner) {
-			downStreamVertex.connectNewDataSetAsInput(
+			jobEdge = downStreamVertex.connectNewDataSetAsInput(
 				headVertex,
 				DistributionPattern.POINTWISE,
-				ResultPartitionType.PIPELINED,
-				true);
+				ResultPartitionType.PIPELINED);
 		} else if (partitioner instanceof RescalePartitioner){
-			downStreamVertex.connectNewDataSetAsInput(
+			jobEdge = downStreamVertex.connectNewDataSetAsInput(
 				headVertex,
 				DistributionPattern.POINTWISE,
-				ResultPartitionType.PIPELINED,
-				true);
+				ResultPartitionType.PIPELINED);
 		} else {
-			downStreamVertex.connectNewDataSetAsInput(
+			jobEdge = downStreamVertex.connectNewDataSetAsInput(
 					headVertex,
 					DistributionPattern.ALL_TO_ALL,
-					ResultPartitionType.PIPELINED,
-					true);
+					ResultPartitionType.PIPELINED);
 		}
+		// set strategy name so that web interface can show it.
+		jobEdge.setShipStrategyName(partitioner.toString());
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("CONNECTED: {} - {} -> {}", partitioner.getClass().getSimpleName(),

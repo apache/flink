@@ -41,7 +41,6 @@ under the License.
 		<module>flink-storm-examples</module>
 		<module>flink-streaming-contrib</module>
 		<module>flink-tweet-inputformat</module>
-		<module>flink-operator-stats</module>
 		<module>flink-connector-wikiedits</module>
 		<module>flink-statebackend-rocksdb</module>
 	</modules>

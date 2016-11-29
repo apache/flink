@@ -127,9 +127,8 @@ public class ManualWindowSpeedITCase extends StreamingMultipleProgramsTestBase {
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.setParallelism(1);
-
-		String checkpoints = tempFolder.newFolder().toURI().toString();
-		env.setStateBackend(new RocksDBStateBackend(checkpoints, new MemoryStateBackend()));
+		
+		env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
 
 		env.addSource(new InfiniteTupleSource(10_000))
 				.keyBy(0)
@@ -163,8 +162,7 @@ public class ManualWindowSpeedITCase extends StreamingMultipleProgramsTestBase {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.setParallelism(1);
 
-		String rocksDbBackups = tempFolder.newFolder().toURI().toString();
-		env.setStateBackend(new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend()));
+		env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
 
 		env.addSource(new InfiniteTupleSource(10_000))
 				.keyBy(0)
@@ -199,8 +197,7 @@ public class ManualWindowSpeedITCase extends StreamingMultipleProgramsTestBase {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		env.setParallelism(1);
 
-		String rocksDbBackups = tempFolder.newFolder().toURI().toString();
-		env.setStateBackend(new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend()));
+		env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
 
 		env.addSource(new InfiniteTupleSource(10_000))
 				.keyBy(0)

@@ -459,9 +459,22 @@ public class PythonPlanBinder {
 				.map(new KeyDiscarder()).setParallelism(getParallelism(info)).name("DistinctPostStep"));
 	}
 
+	@SuppressWarnings("unchecked")
 	private void createFirstOperation(PythonOperationInfo info) throws IOException {
-		DataSet op = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op.first(info.count).setParallelism(getParallelism(info)).name("First"));
+		Object op = sets.get(info.parentID);
+		if (op instanceof DataSet) {
+			sets.put(info.setID, ((DataSet) op).first(info.count).setParallelism(getParallelism(info)).name("First"));
+			return;
+		}
+		if (op instanceof UnsortedGrouping) {
+			sets.put(info.setID, ((UnsortedGrouping) op).first(info.count).setParallelism(getParallelism(info)).name("First")
+				.map(new KeyDiscarder()).setParallelism(getParallelism(info)).name("FirstPostStep"));
+			return;
+		}
+		if (op instanceof SortedGrouping) {
+			sets.put(info.setID, ((SortedGrouping) op).first(info.count).setParallelism(getParallelism(info)).name("First")
+				.map(new KeyDiscarder()).setParallelism(getParallelism(info)).name("FirstPostStep"));
+		}
 	}
 
 	private void createGroupOperation(PythonOperationInfo info) throws IOException {
