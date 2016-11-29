@@ -50,19 +50,19 @@ div(ng-if="metrics.id")
     tbody
       tr
         td Heap
-        td {{ metrics.metrics.heapCommitted | humanizeBytes  }}
-        td {{ metrics.metrics.heapUsed | humanizeBytes  }}
-        td {{ metrics.metrics.heapMax | humanizeBytes  }}
+        td {{ metrics.metrics.heapCommitted | humanizeBytes }}
+        td {{ metrics.metrics.heapUsed | humanizeBytes }}
+        td {{ metrics.metrics.heapMax | humanizeBytes }}
       tr
         td Non-Heap
-        td {{ metrics.metrics.nonHeapCommitted | humanizeBytes  }}
-        td {{ metrics.metrics.nonHeapUsed | humanizeBytes  }}
-        td {{ metrics.metrics.nonHeapMax | humanizeBytes  }}
+        td {{ metrics.metrics.nonHeapCommitted | humanizeBytes }}
+        td {{ metrics.metrics.nonHeapUsed | humanizeBytes }}
+        td {{ metrics.metrics.nonHeapMax | humanizeBytes }}
       tr
         td Total
-        td {{ metrics.metrics.totalCommitted | humanizeBytes  }}
-        td {{ metrics.metrics.totalUsed | humanizeBytes  }}
-        td {{ metrics.metrics.totalMax | humanizeBytes  }}
+        td {{ metrics.metrics.totalCommitted | humanizeBytes }}
+        td {{ metrics.metrics.totalUsed | humanizeBytes }}
+        td {{ metrics.metrics.totalMax | humanizeBytes }}
 
   h2 Outside JVM
   table.table.table-properties
@@ -75,18 +75,18 @@ div(ng-if="metrics.id")
     tbody
       tr
         td Direct
-        td {{ metrics.metrics.directCount }}
-        td {{ metrics.metrics.directUsed }}
-        td {{ metrics.metrics.directTotal }}
+        td {{ metrics.metrics.directCount | toLocaleString }}
+        td {{ metrics.metrics.directUsed | humanizeBytes }}
+        td {{ metrics.metrics.directMax | humanizeBytes }}
       tr
         td Mapped
-        td {{ metrics.metrics.mappedCount }}
-        td {{ metrics.metrics.mappedUsed }}
-        td {{ metrics.metrics.mappedMax }}
+        td {{ metrics.metrics.mappedCount | toLocaleString }}
+        td {{ metrics.metrics.mappedUsed | humanizeBytes }}
+        td {{ metrics.metrics.mappedMax | humanizeBytes }}
 
   h1 Network
 
-  h2 MemorySegments
+  h2 Memory Segments
   table.table.table-properties
     thead
       tr
@@ -95,11 +95,10 @@ div(ng-if="metrics.id")
     tbody
       tr
         td Available
-        td {{ metrics.metrics.memorySegmentsAvailable }}
+        td {{ metrics.metrics.memorySegmentsAvailable | toLocaleString }}
       tr
         td Total
-        td {{ metrics.metrics.memorySegmentsTotal }}
-
+        td {{ metrics.metrics.memorySegmentsTotal | toLocaleString }}
 
   h1 Garbage Collection
   table.table.table-properties
@@ -109,7 +108,7 @@ div(ng-if="metrics.id")
         th Count
         th Time
     tbody(ng-repeat="g in metrics.metrics.garbageCollectors")
-      tr  
+      tr
         td {{ g.name }}
-        td {{ g.count }}
-        td {{ g.time }}
+        td {{ g.count | toLocaleString }}
+        td {{ g.time | toLocaleString }}

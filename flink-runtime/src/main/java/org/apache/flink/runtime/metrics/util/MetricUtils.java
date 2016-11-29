@@ -17,6 +17,7 @@
  */
 package org.apache.flink.runtime.metrics.util;
 
+import org.apache.commons.lang3.text.WordUtils;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
@@ -46,13 +47,16 @@ public class MetricUtils {
 		final NetworkEnvironment network) {
 		MetricGroup status = metrics.addGroup(METRIC_GROUP_STATUS_NAME);
 
-		status.gauge("TotalMemorySegments", new Gauge<Integer>() {
+		MetricGroup networkGroup = status
+			.addGroup("Network");
+
+		networkGroup.gauge("TotalMemorySegments", new Gauge<Integer>() {
 			@Override
 			public Integer getValue() {
 				return network.getNetworkBufferPool().getTotalNumberOfMemorySegments();
 			}
 		});
-		status.gauge("AvailableMemorySegments", new Gauge<Integer>() {
+		networkGroup.gauge("AvailableMemorySegments", new Gauge<Integer>() {
 			@Override
 			public Integer getValue() {
 				return network.getNetworkBufferPool().getNumberOfAvailableMemorySegments();
@@ -157,7 +161,7 @@ public class MetricUtils {
 		List<BufferPoolMXBean> bufferMxBeans = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
 
 		for (final BufferPoolMXBean bufferMxBean : bufferMxBeans) {
-			MetricGroup bufferGroup = metrics.addGroup(bufferMxBean.getName());
+			MetricGroup bufferGroup = metrics.addGroup(WordUtils.capitalize(bufferMxBean.getName()));
 			bufferGroup.gauge("Count", new Gauge<Long>() {
 				@Override
 				public Long getValue() {

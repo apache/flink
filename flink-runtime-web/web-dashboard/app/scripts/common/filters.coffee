@@ -73,5 +73,8 @@ angular.module('flinkApp')
     return "" if typeof bytes is "undefined" or bytes is null
     if bytes < 1000 then bytes + " B" else converter(bytes, 1)
 
+.filter "toLocaleString", ->
+  (text) -> text.toLocaleString()
+
 .filter "toUpperCase", ->
   (text) -> text.toUpperCase()
