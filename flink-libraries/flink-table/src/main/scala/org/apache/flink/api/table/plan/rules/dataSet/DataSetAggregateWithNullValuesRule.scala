@@ -48,7 +48,6 @@ class DataSetAggregateWithNullValuesRule
       return false
     }
 
-    // TODO code duplicates DataSetAggregateRule#matches
     // check if we have distinct aggregates
     val distinctAggs = agg.getAggCallList.exists(_.isDistinct)
     if (distinctAggs) {
@@ -79,19 +78,11 @@ class DataSetAggregateWithNullValuesRule
 
     val logicalValues = LogicalValues.create(cluster, agg.getInput.getRowType, nullLiterals)
     val logicalUnion = LogicalUnion.create(List(logicalValues, agg.getInput), true)
-    val logicalAggregate = new LogicalAggregate(
-      cluster,
-      traitSet,
-      logicalUnion,
-      true,
-      agg.getGroupSet,
-      agg.getGroupSets,
-      agg.getAggCallList)
 
     new DataSetAggregate(
       cluster,
       traitSet,
-      RelOptRule.convert(logicalAggregate.getInput, DataSetConvention.INSTANCE),
+      RelOptRule.convert(logicalUnion, DataSetConvention.INSTANCE),
       agg.getNamedAggCalls,
       rel.getRowType,
       agg.getInput.getRowType,

@@ -33,10 +33,37 @@ class AggregationTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
-    val sqlQuery = (
-      "SELECT avg(a),sum(b),count(c) FROM MyTable",
-      "SELECT avg(a),sum(b),count(c) FROM MyTable WHERE a = 1"
+    val sqlQuery = "SELECT avg(a),sum(b),count(c) FROM MyTable"
+
+    val setValues = unaryNode(
+      "DataSetValues",
+      batchTableNode(0),
+      tuples(List(null,null,null)),
+      term("values","a","b","c")
     )
+    val union = unaryNode(
+      "DataSetUnion",
+      setValues,
+      term("union","a","b","c")
+    )
+
+    val aggregate = unaryNode(
+      "DataSetAggregate",
+      union,
+      term("select",
+        "AVG(a) AS EXPR$0",
+        "SUM(b) AS EXPR$1",
+        "COUNT(c) AS EXPR$2")
+    )
+    util.verifySql(sqlQuery, aggregate)
+  }
+
+  @Test
+  def testAggregateWithFilterQueryBatchSQL(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
+
+    val sqlQuery = "SELECT avg(a),sum(b),count(c) FROM MyTable WHERE a = 1"
 
     val calcNode = unaryNode(
       "DataSetCalc",
@@ -45,53 +72,28 @@ class AggregationTest extends TableTestBase {
       term("where", "=(a, 1)")
     )
 
-    val setValues = (
-      unaryNode(
-        "DataSetValues",
-        batchTableNode(0),
-        tuples(List(null,null,null)),
-        term("values","a","b","c")
-      ),
-      unaryNode(
+    val setValues =  unaryNode(
         "DataSetValues",
         calcNode,
         tuples(List(null,null,null)),
         term("values","a","b","c")
-      )
-    )
-    val union = (
-      unaryNode(
-      "DataSetUnion",
-      setValues._1,
-      term("union","a","b","c")
-    ),
-      unaryNode(
-      "DataSetUnion",
-      setValues._2,
-      term("union","a","b","c")
-      )
     )
 
-    val aggregate = (
-      unaryNode(
-        "DataSetAggregate",
-        union._1,
-        term("select",
-          "AVG(a) AS EXPR$0",
-          "SUM(b) AS EXPR$1",
-          "COUNT(c) AS EXPR$2")
-      ),
-      unaryNode(
-        "DataSetAggregate",
-        union._2,
-        term("select",
-          "AVG(a) AS EXPR$0",
-          "SUM(b) AS EXPR$1",
-          "COUNT(c) AS EXPR$2")
-      )
+    val union = unaryNode(
+      "DataSetUnion",
+      setValues,
+      term("union","a","b","c")
     )
-    util.verifySql(sqlQuery._1, aggregate._1)
-    util.verifySql(sqlQuery._2, aggregate._2)
+
+    val aggregate = unaryNode(
+      "DataSetAggregate",
+      union,
+      term("select",
+        "AVG(a) AS EXPR$0",
+        "SUM(b) AS EXPR$1",
+        "COUNT(c) AS EXPR$2")
+    )
+    util.verifySql(sqlQuery, aggregate)
   }
 
   @Test
@@ -99,10 +101,35 @@ class AggregationTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
-    val sqlQuery = (
-      "SELECT avg(a),sum(b),count(c) FROM MyTable GROUP BY a",
-      "SELECT avg(a),sum(b),count(c) FROM MyTable WHERE a = 1 GROUP BY a"
-      )
+    val sqlQuery = "SELECT avg(a),sum(b),count(c) FROM MyTable GROUP BY a"
+
+    val aggregate = unaryNode(
+        "DataSetAggregate",
+        batchTableNode(0),
+        term("groupBy", "a"),
+        term("select",
+          "a",
+          "AVG(a) AS EXPR$0",
+          "SUM(b) AS EXPR$1",
+          "COUNT(c) AS EXPR$2")
+    )
+    val expected = unaryNode(
+        "DataSetCalc",
+        aggregate,
+        term("select",
+          "EXPR$0",
+          "EXPR$1",
+          "EXPR$2")
+    )
+    util.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testAggregateGroupWithFilterQueryBatchSQL(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
+
+    val sqlQuery = "SELECT avg(a),sum(b),count(c) FROM MyTable WHERE a = 1 GROUP BY a"
 
     val calcNode = unaryNode(
       "DataSetCalc",
@@ -111,18 +138,7 @@ class AggregationTest extends TableTestBase {
       term("where","=(a, 1)")
     )
 
-    val aggregate = (
-      unaryNode(
-        "DataSetAggregate",
-        batchTableNode(0),
-        term("groupBy", "a"),
-        term("select",
-          "a",
-          "AVG(a) AS EXPR$0",
-          "SUM(b) AS EXPR$1",
-          "COUNT(c) AS EXPR$2")
-      ),
-      unaryNode(
+    val aggregate = unaryNode(
         "DataSetAggregate",
         calcNode,
         term("groupBy", "a"),
@@ -131,27 +147,115 @@ class AggregationTest extends TableTestBase {
           "AVG(a) AS EXPR$0",
           "SUM(b) AS EXPR$1",
           "COUNT(c) AS EXPR$2")
-      )
     )
-    val expected = (
-      unaryNode(
+    val expected = unaryNode(
         "DataSetCalc",
-        aggregate._1,
+        aggregate,
         term("select",
           "EXPR$0",
           "EXPR$1",
           "EXPR$2")
-      ),
-      unaryNode(
-        "DataSetCalc",
-        aggregate._2,
-        term("select",
-          "EXPR$0",
-          "EXPR$1",
-          "EXPR$2")
-      )
     )
-    util.verifySql(sqlQuery._1, expected._1)
-    util.verifySql(sqlQuery._2, expected._2)
+    util.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testAggregateGroupWithFilterTableApi(): Unit = {
+
+    val util = batchTestUtil()
+    val sourceTable = util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
+
+    val resultTable = sourceTable.groupBy('a)
+      .select('a, 'a.avg, 'b.sum, 'c.count)
+      .where('a === 1)
+
+    val calcNode = unaryNode(
+      "DataSetCalc",
+      batchTableNode(0),
+      term("select", "a", "b", "c"),
+      term("where", "=(a, 1)")
+    )
+
+    val expected = unaryNode(
+      "DataSetAggregate",
+      calcNode,
+      term("groupBy", "a"),
+      term("select",
+        "a",
+        "AVG(a) AS TMP_0",
+        "SUM(b) AS TMP_1",
+        "COUNT(c) AS TMP_2")
+    )
+
+    util.verifyTable(resultTable,expected)
+  }
+
+  @Test
+  def testAggregateTableApi(): Unit = {
+    val util = batchTestUtil()
+    val sourceTable = util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
+    val resultTable = sourceTable.select('a.avg,'b.sum,'c.count)
+
+    val setValues = unaryNode(
+      "DataSetValues",
+      batchTableNode(0),
+      tuples(List(null,null,null)),
+      term("values","a","b","c")
+    )
+    val union = unaryNode(
+      "DataSetUnion",
+      setValues,
+      term("union","a","b","c")
+    )
+
+    val expected = unaryNode(
+      "DataSetAggregate",
+      union,
+      term("select",
+        "AVG(a) AS TMP_0",
+        "SUM(b) AS TMP_1",
+        "COUNT(c) AS TMP_2")
+    )
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testAggregateWithFilterTableApi(): Unit = {
+    val util = batchTestUtil()
+    val sourceTable = util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
+
+    val resultTable = sourceTable.select('a,'b,'c).where('a === 1)
+      .select('a.avg,'b.sum,'c.count)
+
+    val calcNode = unaryNode(
+      "DataSetCalc",
+      batchTableNode(0),
+      term("select", "a", "b", "c"),
+      term("where", "=(a, 1)")
+    )
+
+    val setValues =  unaryNode(
+      "DataSetValues",
+      calcNode,
+      tuples(List(null,null,null)),
+      term("values","a","b","c")
+    )
+
+    val union = unaryNode(
+      "DataSetUnion",
+      setValues,
+      term("union","a","b","c")
+    )
+
+    val expected = unaryNode(
+      "DataSetAggregate",
+      union,
+      term("select",
+        "AVG(a) AS TMP_0",
+        "SUM(b) AS TMP_1",
+        "COUNT(c) AS TMP_2")
+    )
+
+    util.verifyTable(resultTable, expected)
   }
 }
