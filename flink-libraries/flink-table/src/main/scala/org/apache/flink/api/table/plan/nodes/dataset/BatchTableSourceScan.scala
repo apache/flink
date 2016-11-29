@@ -23,37 +23,59 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.BatchTableEnvironment
+import org.apache.flink.api.table.{BatchTableEnvironment, FlinkTypeFactory}
 import org.apache.flink.api.table.plan.schema.TableSourceTable
 import org.apache.flink.api.table.sources.BatchTableSource
 
 /** Flink RelNode to read data from an external source defined by a [[BatchTableSource]]. */
 class BatchTableSourceScan(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    table: RelOptTable,
-    rowType: RelDataType)
-  extends BatchScan(cluster, traitSet, table, rowType) {
+                            cluster: RelOptCluster,
+                            traitSet: RelTraitSet,
+                            table: RelOptTable,
+                            tableSource: Option[BatchTableSource[_]] = None)
+  extends BatchScan(cluster, traitSet, table) {
 
-  val tableSourceTable = getTable.unwrap(classOf[TableSourceTable])
-  val tableSource = tableSourceTable.tableSource.asInstanceOf[BatchTableSource[_]]
+  override def deriveRowType() = {
+    tableSource match {
+      case Some(ts) =>
+        val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+        val builder = flinkTypeFactory.builder
+        ts.getFieldsNames
+          .zip(ts.getFieldTypes)
+          .foreach { f =>
+            builder.add(f._1, flinkTypeFactory.createTypeFromTypeInfo(f._2)).nullable(true)
+          }
+        builder.build
+      case None => getTable.getRowType
+    }
+  }
+
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new BatchTableSourceScan(
       cluster,
       traitSet,
       getTable,
-      getRowType
+      tableSource
     )
   }
 
   override def translateToPlan(
-      tableEnv: BatchTableEnvironment,
-      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+                                tableEnv: BatchTableEnvironment,
+                                expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
     val config = tableEnv.getConfig
-    val inputDataSet = tableSource.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
 
-    convertToExpectedType(inputDataSet, tableSourceTable, expectedType, config)
+    tableSource match {
+      case Some(ts) =>
+        val inputDs = ts.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
+        convertToExpectedType(inputDs, new TableSourceTable(ts), expectedType, config)
+      case None =>
+        val originTableSourceTable = getTable.unwrap(classOf[TableSourceTable])
+        val originTableSource = originTableSourceTable.tableSource.asInstanceOf[BatchTableSource[_]]
+        val originDs = originTableSource.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
+        convertToExpectedType(originDs, originTableSourceTable, expectedType, config)
+
+    }
   }
 }

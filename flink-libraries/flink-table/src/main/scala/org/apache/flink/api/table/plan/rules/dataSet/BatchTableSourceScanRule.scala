@@ -60,8 +60,7 @@ class BatchTableSourceScanRule
     new BatchTableSourceScan(
       rel.getCluster,
       traitSet,
-      scan.getTable,
-      rel.getRowType
+      scan.getTable
     )
   }
 }

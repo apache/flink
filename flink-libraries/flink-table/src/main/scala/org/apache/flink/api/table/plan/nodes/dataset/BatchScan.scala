@@ -35,12 +35,9 @@ import scala.collection.JavaConverters._
 abstract class BatchScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    table: RelOptTable,
-    rowRelDataType: RelDataType)
+    table: RelOptTable)
   extends TableScan(cluster, traitSet, table)
   with DataSetRel {
-
-  override def deriveRowType() = rowRelDataType
 
   override def toString: String = {
     s"Source(from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")}))"
