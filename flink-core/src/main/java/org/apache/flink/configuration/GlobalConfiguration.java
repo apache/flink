@@ -144,7 +144,7 @@ public final class GlobalConfiguration {
 						continue;
 					}
 
-					LOG.debug("Loading configuration property: {}, {}", key, value);
+					LOG.info("Loading configuration property: {}, {}", key, value);
 					config.setString(key, value);
 				}
 			}
