@@ -676,10 +676,11 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
 
 		// write job graph to tmp file and add it to local resource 
-		// TODO: need refine ?
+		// TODO: server use user main method to generate job graph 
 		if (jobGraph != null) {
 			try {
-				File fp = new File("/tmp/jobgraph-" + appId.toString());
+				File fp = File.createTempFile(appId.toString(), null);
+				fp.deleteOnExit();
 				FileOutputStream input = new FileOutputStream(fp);
 				ObjectOutputStream obInput = new ObjectOutputStream(input);
 				obInput.writeObject(jobGraph);
@@ -690,7 +691,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				localResources.put("job.graph", jobgraph);
 				paths.add(remoteJobGraph);
 				classPathBuilder.append("job.graph").append(File.pathSeparator);
-				fp.delete();
 			} catch (Exception e) {
 				LOG.warn("Add job graph to local resource fail");
 				throw e;
