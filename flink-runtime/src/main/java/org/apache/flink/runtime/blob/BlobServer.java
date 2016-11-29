@@ -299,11 +299,12 @@ public class BlobServer extends Thread implements BlobService {
 	 * (local or distributed depending on the HA mode).
 	 *
 	 * @param key associated with the file to be deleted
-	 * @throws IOException
+	 * @return <tt>true</tt> if the delete was successful or the file never
+	 *         existed; <tt>false</tt> otherwise
 	 */
 	@Override
-	public void delete(BlobKey key) throws IOException {
-		blobStore.delete(key);
+	public boolean delete(BlobKey key) {
+		return blobStore.delete(key);
 	}
 
 	/**

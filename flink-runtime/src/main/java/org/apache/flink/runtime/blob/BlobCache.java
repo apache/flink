@@ -217,11 +217,14 @@ public final class BlobCache implements BlobService {
 
 	/**
 	 * Deletes the file associated with the given key from the BLOB cache.
+	 *
 	 * @param key referring to the file to be deleted
+	 * @return <tt>true</tt> if the delete was successful or the file never
+	 *         existed; <tt>false</tt> otherwise
 	 */
 	@Override
-	public void delete(BlobKey key) throws IOException{
-		blobStore.delete(key);
+	public boolean delete(BlobKey key) {
+		return blobStore.delete(key);
 	}
 
 	/**
