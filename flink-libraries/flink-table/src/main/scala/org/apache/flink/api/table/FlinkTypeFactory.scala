@@ -72,6 +72,26 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     }
   }
 
+  /**
+    * Creates a struct type with the input fieldNames and input fieldTypes using FlinkTypeFactory
+    *
+    * @param fieldNames field names
+    * @param fieldTypes field types, every element is Flink's [[TypeInformation]]
+    * @return a struct type with the input fieldNames and input fieldTypes
+    */
+  def buildRowDataType(
+      fieldNames: Array[String],
+      fieldTypes: Array[TypeInformation[_]])
+    : RelDataType = {
+    val rowDataTypeBuilder = builder
+    fieldNames
+      .zip(fieldTypes)
+      .foreach { f =>
+        rowDataTypeBuilder.add(f._1, createTypeFromTypeInfo(f._2)).nullable(true)
+      }
+    rowDataTypeBuilder.build
+  }
+
   override def createSqlType(typeName: SqlTypeName, precision: Int): RelDataType = {
     // it might happen that inferred VARCHAR types overflow as we set them to Int.MaxValue
     // always set those to default value
