@@ -124,13 +124,21 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 							gen.writeNumberField("totalUsed", heapUsed + nonHeapUsed);
 							gen.writeNumberField("totalMax", heapTotal + nonHeapTotal);
 
-							gen.writeStringField("directCount", metrics.getMetric("Status.JVM.Memory.Direct.Count", "0"));
-							gen.writeStringField("directUsed", metrics.getMetric("Status.JVM.Memory.Direct.MemoryUsed", "0"));
-							gen.writeStringField("directMax", metrics.getMetric("Status.JVM.Memory.Direct.TotalCapacity", "0"));
+							long directCount = Long.valueOf(metrics.getMetric("Status.JVM.Memory.direct.Count", "0"));
+							long directUsed = Long.valueOf(metrics.getMetric("Status.JVM.Memory.direct.MemoryUsed", "0"));
+							long directMax = Long.valueOf(metrics.getMetric("Status.JVM.Memory.direct.TotalCapacity", "0"));
 
-							gen.writeStringField("mappedCount", metrics.getMetric("Status.JVM.Memory.Mapped.Count", "0"));
-							gen.writeStringField("mappedUsed", metrics.getMetric("Status.JVM.Memory.Mapped.MemoryUsed", "0"));
-							gen.writeStringField("mappedMax", metrics.getMetric("Status.JVM.Memory.Mapped.TotalCapacity", "0"));
+							gen.writeNumberField("directCount", directCount);
+							gen.writeNumberField("directUsed", directUsed);
+							gen.writeNumberField("directMax", directMax);
+
+							long mappedCount = Long.valueOf(metrics.getMetric("Status.JVM.Memory.mapped.Count", "0"));
+							long mappedUsed = Long.valueOf(metrics.getMetric("Status.JVM.Memory.mapped.MemoryUsed", "0"));
+							long mappedMax = Long.valueOf(metrics.getMetric("Status.JVM.Memory.mapped.TotalCapacity", "0"));
+
+							gen.writeNumberField("mappedCount", mappedCount);
+							gen.writeNumberField("mappedUsed", mappedUsed);
+							gen.writeNumberField("mappedMax", mappedMax);
 
 							gen.writeStringField("memorySegmentsAvailable", metrics.getMetric("Status.Network.AvailableMemorySegments", "0"));
 							gen.writeStringField("memorySegmentsTotal", metrics.getMetric("Status.Network.TotalMemorySegments", "0"));

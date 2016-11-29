@@ -46,13 +46,16 @@ public class MetricUtils {
 		final NetworkEnvironment network) {
 		MetricGroup status = metrics.addGroup(METRIC_GROUP_STATUS_NAME);
 
-		status.gauge("TotalMemorySegments", new Gauge<Integer>() {
+		MetricGroup networkGroup = status
+			.addGroup("Network");
+
+		networkGroup.gauge("TotalMemorySegments", new Gauge<Integer>() {
 			@Override
 			public Integer getValue() {
 				return network.getNetworkBufferPool().getTotalNumberOfMemorySegments();
 			}
 		});
-		status.gauge("AvailableMemorySegments", new Gauge<Integer>() {
+		networkGroup.gauge("AvailableMemorySegments", new Gauge<Integer>() {
 			@Override
 			public Integer getValue() {
 				return network.getNetworkBufferPool().getNumberOfAvailableMemorySegments();
