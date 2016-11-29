@@ -135,21 +135,20 @@ public class BlobCacheSuccessTest {
 				}
 			}
 
+			// just in case parameters are still read from the server,
+			// create a separate configuration object for the cache
+			final Configuration cacheConfig = new Configuration(config);
+			if (!cacheHasAccessToFs) {
+				cacheConfig.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+					temporaryFolder.getRoot().getPath() + "/does-not-exist");
+			}
+
 			if (cacheWorksWithoutServer) {
+				// fake non-HA mode so the BLOB server does not remove files
+				config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 				// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
 				blobServer.shutdown();
 				blobServer = null;
-			}
-
-			final Configuration cacheConfig;
-			if (cacheHasAccessToFs) {
-				cacheConfig = config;
-			} else {
-				// just in case parameters are still read from the server,
-				// create a separate configuration object for the cache
-				cacheConfig = new Configuration(config);
-				cacheConfig.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
-					temporaryFolder.getRoot().getPath() + "/does-not-exist");
 			}
 
 			blobCache = new BlobCache(serverAddress, cacheConfig);

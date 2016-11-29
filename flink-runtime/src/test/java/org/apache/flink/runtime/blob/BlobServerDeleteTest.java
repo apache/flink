@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Test;
 
@@ -38,7 +38,11 @@ import static org.junit.Assume.assumeTrue;
  */
 public class BlobServerDeleteTest {
 
-	private final Random rnd = new Random();
+	protected final Random rnd = new Random();
+
+	protected Configuration getConfiguration() {
+		return new Configuration();
+	}
 
 	@Test
 	public void testDeleteSingle() {
@@ -46,7 +50,7 @@ public class BlobServerDeleteTest {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			Configuration config = getConfiguration();
 			server = new BlobServer(config);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -95,7 +99,7 @@ public class BlobServerDeleteTest {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			Configuration config = getConfiguration();
 			server = new BlobServer(config);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -158,7 +162,7 @@ public class BlobServerDeleteTest {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			Configuration config = getConfiguration();
 			server = new BlobServer(config);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -197,7 +201,7 @@ public class BlobServerDeleteTest {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			Configuration config = getConfiguration();
 			server = new BlobServer(config);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -239,7 +243,7 @@ public class BlobServerDeleteTest {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			Configuration config = getConfiguration();
 			server = new BlobServer(config);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -280,7 +284,7 @@ public class BlobServerDeleteTest {
 		}
 	}
 
-	private void cleanup(BlobServer server, BlobClient client) {
+	protected void cleanup(BlobServer server, BlobClient client) {
 		if (client != null) {
 			try {
 				client.close();
