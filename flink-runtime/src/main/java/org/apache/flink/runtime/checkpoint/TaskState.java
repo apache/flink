@@ -168,4 +168,21 @@ public class TaskState implements Serializable {
 	public int hashCode() {
 		return parallelism + 31 * Objects.hash(jobVertexID, subtaskStates, kvStates);
 	}
+
+	@Override
+	public String toString() {
+		long stateSize = 0L;
+		for (SubtaskState subtaskState : subtaskStates.values()) {
+			stateSize += subtaskState.getStateSize();
+		}
+
+		// KvStates are always null in 1.1. Don't print this as it might
+		// confuse users that don't care about how we store it internally.
+		return "TaskState(" +
+			"jobVertexID: " + jobVertexID +
+			", parallelism: " + parallelism +
+			", sub task states: " + subtaskStates.size() +
+			", total size (bytes): " + stateSize +
+			')';
+	}
 }

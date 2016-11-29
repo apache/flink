@@ -693,9 +693,13 @@ public class CheckpointCoordinator {
 
 							if (LOG.isDebugEnabled()) {
 								StringBuilder builder = new StringBuilder();
-								for (Map.Entry<JobVertexID, TaskState> entry : completed.getTaskStates().entrySet()) {
-									builder.append("JobVertexID: ").append(entry.getKey()).append(" {").append(entry.getValue()).append("}");
+								builder.append("Checkpoint state: ");
+								for (TaskState state : completed.getTaskStates().values()) {
+									builder.append(state);
+									builder.append(", ");
 								}
+								// Remove last two chars ", "
+								builder.delete(builder.length() - 2, builder.length());
 
 								LOG.debug(builder.toString());
 							}
