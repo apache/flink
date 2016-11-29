@@ -81,7 +81,7 @@ public final class BlobCache implements BlobService {
 		this.blobClientConfig = blobClientConfig;
 
 		// configure and create the storage directory
-		this.blobStore = new FileSystemBlobStore(blobClientConfig, true);
+		this.blobStore = new FileSystemBlobStore(blobClientConfig, false);
 
 		// configure the number of fetch retries
 		final int fetchRetries = blobClientConfig.getInteger(
