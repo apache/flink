@@ -399,6 +399,5 @@ class AggregationsITCase(
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
-
 }
 
