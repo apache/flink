@@ -927,7 +927,7 @@ class JobManager(
       )
 
     case Heartbeat(instanceID, metricsReport, accumulators) =>
-      log.debug(s"Received heartbeat message from $instanceID.")
+      log.trace(s"Received heartbeat message from $instanceID.")
 
       updateAccumulators(accumulators)
 
