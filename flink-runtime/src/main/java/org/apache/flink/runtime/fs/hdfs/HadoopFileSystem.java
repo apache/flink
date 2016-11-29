@@ -17,25 +17,23 @@
  */
 package org.apache.flink.runtime.fs.hdfs;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.Method;
-import java.net.URI;
-import java.net.UnknownHostException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.apache.flink.core.fs.HadoopFileSystemWrapper;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.HadoopFileSystemWrapper;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.InstantiationUtil;
-
 import org.apache.hadoop.conf.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.net.URI;
+import java.net.UnknownHostException;
 
 /**
  * Concrete implementation of the {@link FileSystem} base class for the Hadoop File System. The
@@ -186,14 +184,14 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 		if (hdfsDefaultPath != null) {
 			retConf.addResource(new org.apache.hadoop.fs.Path(hdfsDefaultPath));
 		} else {
-			LOG.debug("Cannot find hdfs-default configuration file");
+			LOG.trace("{} configuration key for hdfs-default configuration file not set", ConfigConstants.HDFS_DEFAULT_CONFIG);
 		}
 
 		final String hdfsSitePath = GlobalConfiguration.getString(ConfigConstants.HDFS_SITE_CONFIG, null);
 		if (hdfsSitePath != null) {
 			retConf.addResource(new org.apache.hadoop.fs.Path(hdfsSitePath));
 		} else {
-			LOG.debug("Cannot find hdfs-site configuration file");
+			LOG.trace("{} configuration key for hdfs-site configuration file not set", ConfigConstants.HDFS_SITE_CONFIG);
 		}
 		
 		// 2. Approach environment variables
@@ -211,17 +209,14 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 				if (new File(possibleHadoopConfPath).exists()) {
 					if (new File(possibleHadoopConfPath + "/core-site.xml").exists()) {
 						retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/core-site.xml"));
-
-						if (LOG.isDebugEnabled()) {
-							LOG.debug("Adding " + possibleHadoopConfPath + "/core-site.xml to hadoop configuration");
-						}
+					} else {
+						LOG.debug("File " + possibleHadoopConfPath + "/core-site.xml not found.");
 					}
+
 					if (new File(possibleHadoopConfPath + "/hdfs-site.xml").exists()) {
 						retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/hdfs-site.xml"));
-
-						if (LOG.isDebugEnabled()) {
-							LOG.debug("Adding " + possibleHadoopConfPath + "/hdfs-site.xml to hadoop configuration");
-						}
+					} else {
+						LOG.debug("File " + possibleHadoopConfPath + "/hdfs-site.xml not found.");
 					}
 				}
 			}
