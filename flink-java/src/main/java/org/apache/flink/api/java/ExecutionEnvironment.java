@@ -53,6 +53,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
@@ -1189,7 +1190,27 @@ public abstract class ExecutionEnvironment {
 	public static LocalEnvironment createLocalEnvironment(Configuration customConfiguration) {
 		return new LocalEnvironment(customConfiguration);
 	}
-	
+
+	/**
+	 * Creates a local execution environment with enable running web UI
+	 *
+	 * @return [[StreamExecutionEnvironment]]
+	 */
+	public static ExecutionEnvironment createLocalEnvWithWebUI(Configuration conf) {
+		if (!conf.containsKey(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)) {
+			int port = ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT;
+			conf.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, port);
+		}
+
+		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
+		LocalEnvironment localEnv = new LocalEnvironment(conf);
+		if (localEnv.getConfig().getParallelism() < 0) {
+			localEnv.setParallelism(defaultLocalDop);
+		}
+
+		return localEnv;
+	}
+
 	/**
 	 * Creates a {@link RemoteEnvironment}. The remote environment sends (parts of) the program 
 	 * to a cluster for execution. Note that all file paths used in the program must be accessible from the

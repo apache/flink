@@ -25,6 +25,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStra
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
+import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.state.AbstractStateBackend
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source._
@@ -703,6 +704,28 @@ object StreamExecutionEnvironment {
     parallelism: Int =  Runtime.getRuntime.availableProcessors()):
   StreamExecutionEnvironment = {
     new StreamExecutionEnvironment(JavaEnv.createLocalEnvironment(parallelism))
+  }
+
+  /**
+   * Creates a local execution environment with enable running web UI
+   *
+   * @param confOps optional config of Flink
+   * @return [[StreamExecutionEnvironment]]
+   */
+  def createLocalEnvWithWebUI(confOps: Option[Configuration] = None): StreamExecutionEnvironment = {
+    val conf = confOps match {
+      case Some(cf) => cf
+      case None => new Configuration
+    }
+
+    conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true)
+    if (!conf.containsKey(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)) {
+      val port = ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT
+      conf.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, port)
+    }
+
+    val parallelism = Runtime.getRuntime.availableProcessors()
+    new StreamExecutionEnvironment(JavaEnv.createLocalEnvironment(parallelism, conf))
   }
 
   /**

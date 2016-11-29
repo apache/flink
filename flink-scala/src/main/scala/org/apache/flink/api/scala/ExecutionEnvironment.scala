@@ -30,7 +30,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfoBase, ValueTypeInfo}
 import org.apache.flink.api.java.{CollectionEnvironment, ExecutionEnvironment => JavaEnv}
 import org.apache.flink.api.scala.hadoop.{mapred, mapreduce}
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
 import org.apache.flink.util.{NumberSequenceIterator, Preconditions, SplittableIterator}
@@ -713,10 +713,30 @@ object ExecutionEnvironment {
   }
 
   /**
+   * Creates a local execution environment with enable running web UI
+   *
+   * @return [[ExecutionEnvironment]]
+   */
+  def createLocalEnvWithWebUI(confOps: Option[Configuration] = None): ExecutionEnvironment = {
+    val conf = confOps match {
+      case Some(cf) => cf
+      case None => new Configuration
+    }
+
+    conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true)
+    if (!conf.containsKey(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)) {
+      val port = ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT
+      conf.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, port)
+    }
+
+    new ExecutionEnvironment(JavaEnv.createLocalEnvironment(conf))
+  }
+
+  /**
    * Creates an execution environment that uses Java Collections underneath. This will execute in a
    * single thread in the current JVM. It is very fast but will fail if the data does not fit into
    * memory. This is useful during implementation and for debugging.
- *
+   *
    * @return
    */
   @PublicEvolving
