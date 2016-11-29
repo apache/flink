@@ -35,10 +35,18 @@ import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 
-public class BlobRecoveryITCase {
+public class BlobRecoveryITCaseHA {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	protected Configuration getConfiguration() {
+		Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, "dfs://" + temporaryFolder.getRoot().getPath());
+		return config;
+	}
 
 	/**
 	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from any
@@ -52,10 +60,7 @@ public class BlobRecoveryITCase {
 		InetSocketAddress[] serverAddress = new InetSocketAddress[2];
 		BlobClient client = null;
 
-		Configuration config = new Configuration();
-		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, "dfs://" + temporaryFolder.getRoot().getPath());
+		Configuration config = getConfiguration();
 
 		try {
 			for (int i = 0; i < server.length; i++) {
@@ -144,7 +149,15 @@ public class BlobRecoveryITCase {
 			}
 		}
 
-		// Verify everything is clean below recoveryDir/<cluster_id>
+		verifyClean(config);
+	}
+
+	/**
+	 * Verify everything is clean below <tt>recoveryDir/&lt;cluster_id&gt;</tt>.
+	 *
+	 * @param config
+	 */
+	protected void verifyClean(Configuration config) {
 		final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
 		File haBlobStoreDir = new File(temporaryFolder.getRoot(), clusterId);
 		File[] recoveryFiles = haBlobStoreDir.listFiles();

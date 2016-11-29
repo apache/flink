@@ -21,14 +21,14 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.configuration.Configuration;
 import org.junit.Test;
 
-import java.io.File;
 import java.io.IOException;
-
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.Random;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests how failing GET requests behave in the presence of failures.
@@ -39,13 +39,17 @@ public class BlobServerGetTest {
 
 	private final Random rnd = new Random();
 
+	protected Configuration getConfiguration() {
+		return new Configuration();
+	}
+
 	@Test
 	public void testGetFailsDuringLookup() {
 		BlobServer server = null;
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			Configuration config = getConfiguration();
 			server = new BlobServer(config);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -94,7 +98,7 @@ public class BlobServerGetTest {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
+			Configuration config = getConfiguration();
 			server = new BlobServer(config);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
