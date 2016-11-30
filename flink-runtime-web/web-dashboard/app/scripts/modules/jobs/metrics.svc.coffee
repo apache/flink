@@ -29,17 +29,16 @@ angular.module('flinkApp')
   }
 
   @refresh = $interval =>
-    angular.forEach @watched, (v, jobid) =>
-      angular.forEach v, (nodeid, nk) =>
-        @getAllAvailableMetrics(jobid, nodeid).then (data) =>
-          names = []
-          angular.forEach data, (metric, mk) =>
-            names.push metric.id
+    angular.forEach @metrics, (vertices, jobid) =>
+      angular.forEach vertices, (metrics, nodeid) =>
+        names = []
+        angular.forEach metrics, (metric, index) =>
+          names.push metric.id
 
-          if names.length > 0
-            @getMetrics(jobid, nodeid, names).then (values) =>
-              if jobid == @observer.jobid && nodeid == @observer.nodeid
-                @observer.callback(values) if @observer.callback
+        if names.length > 0
+          @getMetrics(jobid, nodeid, names).then (values) =>
+            if jobid == @observer.jobid && nodeid == @observer.nodeid
+              @observer.callback(values) if @observer.callback
 
 
   , flinkConfig["refresh-interval"]
