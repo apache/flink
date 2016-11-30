@@ -207,7 +207,7 @@ public class SingleInputGate implements InputGate {
 		return consumedResultId;
 	}
 
-	BufferProvider getBufferProvider() {
+	public BufferProvider getBufferProvider() {
 		return bufferPool;
 	}
 
@@ -543,7 +543,7 @@ public class SingleInputGate implements InputGate {
 	// ------------------------------------------------------------------------
 
 	@VisibleForTesting
-	Map<IntermediateResultPartitionID, InputChannel> getInputChannels() {
+	public Map<IntermediateResultPartitionID, InputChannel> getInputChannels() {
 		return inputChannels;
 	}
 

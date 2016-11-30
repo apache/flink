@@ -22,6 +22,9 @@ import com.google.common.collect.Lists;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -39,9 +42,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -287,6 +290,176 @@ public class RemoteInputChannelTest {
 
 		// Should throw an instance of CancelTaskException.
 		ch.getNextBuffer();
+	}
+
+	/**
+	 * Tests the capacity limit when queuing and consuming buffers.
+	 *
+	 * Queueing should respect the capacity limit for regular buffers, but
+	 * be ignored for event buffers. The callback should happen when we
+	 * fall back under the capacity limit.
+	 */
+	@Test
+	public void testCapacityLimit() throws Exception {
+		int capacityLimit = 3;
+
+		ConnectionManager connManager = mock(ConnectionManager.class);
+		when(connManager.createPartitionRequestClient(any(ConnectionID.class)))
+			.thenReturn(mock(PartitionRequestClient.class));
+
+		RemoteInputChannel channel = new RemoteInputChannel(
+			mock(SingleInputGate.class),
+			0,
+			new ResultPartitionID(),
+			mock(ConnectionID.class),
+			connManager,
+			new Tuple2<>(0, 0),
+			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup(),
+			capacityLimit);
+
+		// Fake request to satisfy internal channel logic
+		channel.requestSubpartition(0);
+
+		Buffer buffer = TestBufferFactory.getMockBuffer();
+		CapacityAvailabilityListener callback = mock(CapacityAvailabilityListener.class);
+
+		int seqNo = 0;
+
+		// Queue as many regular bufffers as allowed
+		for (int i = 0; i < capacityLimit; i++) {
+			assertTrue(channel.onBuffer(buffer, seqNo++, callback));
+		}
+
+		// This buffer is at the limit. Don't increment the sequence number.
+		assertFalse(channel.onBuffer(buffer, seqNo, callback));
+
+		// Events should be allowed though
+		Buffer eventBuffer = EventSerializer.toBuffer(new CheckpointBarrier(19292, 29292929));
+		assertTrue(channel.onBuffer(eventBuffer, seqNo++, callback));
+		assertTrue(channel.onBuffer(eventBuffer, seqNo++, callback));
+		assertTrue(channel.onBuffer(eventBuffer, seqNo++, callback));
+
+		// But really, no regular buffers, please
+		assertFalse(channel.onBuffer(buffer, seqNo, callback));
+
+		// The listener should only be notified when we are past
+		// the capacity and fall below it, which didn't happen so far
+		verify(callback, times(0)).capacityAvailable();
+
+		// Start consuming
+		// We have queued 6 buffers in total (3 regular buffers and 3 event buffers)
+		InputChannel.BufferAndAvailability baa;
+
+		// Consume buffer (5 remaining afterwards)
+		baa = channel.getNextBuffer();
+		assertTrue(baa.moreAvailable());
+		assertEquals(buffer, baa.buffer());
+
+		// Callback should not happen => 5 buffers remaining
+		verify(callback, times(0)).capacityAvailable();
+
+		// Consume buffer (4 remaining afterwards)
+		baa = channel.getNextBuffer();
+		assertTrue(baa.moreAvailable());
+		assertEquals(buffer, baa.buffer());
+
+		// Callback should not happen => 4 buffers remaining
+		verify(callback, times(0)).capacityAvailable();
+
+		// Consume buffer (3 remaining afterwards)
+		baa = channel.getNextBuffer();
+		assertTrue(baa.moreAvailable());
+		assertEquals(buffer, baa.buffer());
+
+		// Callback should not happen => 3 buffers remaining (still at limit)
+		verify(callback, times(0)).capacityAvailable();
+
+		// Consume buffer (2 remaining afterwards)
+		baa = channel.getNextBuffer();
+		assertTrue(baa.moreAvailable());
+		assertEquals(eventBuffer, baa.buffer());
+
+		// Callback should have happened now => we went below the limit
+		verify(callback, times(1)).capacityAvailable();
+
+		// Now we have space for another buffer => 3 buffers again in total
+		assertTrue(channel.onBuffer(buffer, seqNo++, callback));
+
+		// Consume buffer (2 remaining afterwards)
+		baa = channel.getNextBuffer();
+		assertTrue(baa.moreAvailable());
+		assertEquals(eventBuffer, baa.buffer());
+
+		// Consume buffer (1 remaining afterwards)
+		baa = channel.getNextBuffer();
+		assertTrue(baa.moreAvailable());
+		assertEquals(eventBuffer, baa.buffer());
+
+		// Consume buffer (0 remaining afterwards)
+		baa = channel.getNextBuffer();
+		assertFalse(baa.moreAvailable());
+		assertEquals(buffer, baa.buffer());
+
+		// We went over the limit _once_. Hence, only a single callback should have happened.
+		verify(callback, times(1)).capacityAvailable();
+	}
+
+	/**
+	 * Tests that the callback is cleared after falling under the limit.
+	 */
+	@Test
+	public void testCallbackClearedAfterCall() throws Exception {
+		int capacityLimit = 3;
+
+		ConnectionManager connManager = mock(ConnectionManager.class);
+		when(connManager.createPartitionRequestClient(any(ConnectionID.class)))
+			.thenReturn(mock(PartitionRequestClient.class));
+
+		RemoteInputChannel channel = new RemoteInputChannel(
+			mock(SingleInputGate.class),
+			0,
+			new ResultPartitionID(),
+			mock(ConnectionID.class),
+			connManager,
+			new Tuple2<>(0, 0),
+			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup(),
+			capacityLimit);
+
+		// Fake request to satisfy internal channel logic
+		channel.requestSubpartition(0);
+
+		Buffer buffer = TestBufferFactory.getMockBuffer();
+		CapacityAvailabilityListener callback = mock(CapacityAvailabilityListener.class);
+
+		int seqNo = 0;
+
+		// Queue high as limit
+		for (int i = 0; i < capacityLimit; i++) {
+			assertTrue(channel.onBuffer(buffer, seqNo++, callback));
+		}
+		assertFalse(channel.onBuffer(buffer, seqNo, callback));
+
+		// Consume
+		InputChannel.BufferAndAvailability baa;
+		baa = channel.getNextBuffer();
+		assertTrue(baa.moreAvailable());
+		assertEquals(buffer, baa.buffer());
+
+		// Callback should have happened now => we went below the limit
+		verify(callback, times(1)).capacityAvailable();
+
+		// Queue again (hit the limit)
+		assertTrue(channel.onBuffer(buffer, seqNo++, null));
+		assertFalse(channel.onBuffer(buffer, seqNo, null));
+
+		// Consume again
+		baa = channel.getNextBuffer();
+		assertTrue(baa.moreAvailable());
+		assertEquals(buffer, baa.buffer());
+
+		// Callback should not have happened again since we queued
+		// with null listener.
+		verify(callback, times(1)).capacityAvailable();
 	}
 
 	// ---------------------------------------------------------------------------------------------

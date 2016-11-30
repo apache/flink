@@ -30,7 +30,11 @@ import org.apache.flink.runtime.io.network.util.TestSubpartitionConsumer;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionProducer;
 import org.junit.AfterClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -45,10 +49,29 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+@RunWith(Parameterized.class)
 public class PipelinedSubpartitionTest extends SubpartitionTestBase {
+
+	@Parameterized.Parameters
+	public static Collection<Object[]> data() {
+		// The capacity limit tests are mostly
+		// relevant for the slow/fast consumer tests
+
+		return Arrays.asList(new Object[][]{
+			{0}, // unbounded
+			{1}, // single buffer capacity limit
+			{4} // 4 buffers capacity limit
+		});
+	}
 
 	/** Executor service for concurrent produce/consume tests */
 	private final static ExecutorService executorService = Executors.newCachedThreadPool();
+
+	private final int capacityLimit;
+
+	public PipelinedSubpartitionTest(int capacityLimit) {
+		this.capacityLimit = capacityLimit;
+	}
 
 	@AfterClass
 	public static void shutdownExecutorService() throws Exception {
@@ -59,7 +82,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 	PipelinedSubpartition createSubpartition() {
 		final ResultPartition parent = mock(ResultPartition.class);
 
-		return new PipelinedSubpartition(0, parent, 0);
+		return new PipelinedSubpartition(0, parent, capacityLimit);
 	}
 
 	@Test

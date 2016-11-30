@@ -48,9 +48,7 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 
 	/** The exception encountered in the flushing thread */
 	private Throwable flusherException;
-	
-	
-	
+
 	public StreamRecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector, long timeout) {
 		this(writer, channelSelector, timeout, null);
 	}

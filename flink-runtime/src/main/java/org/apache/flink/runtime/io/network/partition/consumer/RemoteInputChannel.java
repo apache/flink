@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
 import scala.Tuple2;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -68,6 +70,10 @@ public class RemoteInputChannel extends InputChannel {
 	/** Client to establish a (possibly shared) TCP connection and request the partition. */
 	private volatile PartitionRequestClient partitionRequestClient;
 
+	/**
+	 * Callback for capacity constrained input channels. Called when we fall
+	 * below the limit constraint when consuming a buffer.
+	 */
 	private volatile CapacityAvailabilityListener capacityCallback;
 
 	/**
@@ -95,6 +101,11 @@ public class RemoteInputChannel extends InputChannel {
 		this.capacityLimit = capacityLimit;
 	}
 
+	@VisibleForTesting
+	public int getCapacityLimit() {
+		return capacityLimit;
+	}
+
 	// ------------------------------------------------------------------------
 	// Consume
 	// ------------------------------------------------------------------------
@@ -103,7 +114,7 @@ public class RemoteInputChannel extends InputChannel {
 	 * Requests a remote subpartition.
 	 */
 	@Override
-	void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
+	public void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
 		if (partitionRequestClient == null) {
 			// Create a client and request the partition
 			partitionRequestClient = connectionManager
@@ -128,7 +139,7 @@ public class RemoteInputChannel extends InputChannel {
 	}
 
 	@Override
-	BufferAndAvailability getNextBuffer() throws IOException {
+	public BufferAndAvailability getNextBuffer() throws IOException {
 		checkState(!isReleased.get(), "Queried for a buffer after channel has been closed.");
 		checkState(partitionRequestClient != null, "Queried for a buffer before requesting a queue.");
 
@@ -236,7 +247,7 @@ public class RemoteInputChannel extends InputChannel {
 	}
 
 	/**
-	 * 
+	 * Queues a buffer from the network.
 	 * 
 	 * <p>If the channel is capacity constrained and the maximum capacity would be exceeded by this operation,
 	 * the method returns {@code false} and installs the provided callback. The callback will be called
@@ -245,18 +256,17 @@ public class RemoteInputChannel extends InputChannel {
 	 * @param buffer The buffer to add to the remote input channel.
 	 * @param sequenceNumber The sequence number of the buffer.
 	 * @param callback The callback that will be installed when the channel is capacity constrained and
-	 *                 the capacity is exceeded.   
+	 *                 the capacity is exceeded.
 	 * 
 	 * @return True, if the channel accepted and queued the buffer, false it it did not
 	 *         accept the buffer due to back pressure and installed the callback.
 	 */
-	public boolean onBuffer(Buffer buffer, int sequenceNumber, CapacityAvailabilityListener callback) {
+	public boolean onBuffer(Buffer buffer, int sequenceNumber, @Nullable CapacityAvailabilityListener callback) {
 		boolean success = false;
 
 		try {
 			synchronized (receivedBuffers) {
 				if (!isReleased.get()) {
-
 					// check if we would violate the capacity constraint and need to apply back pressure
 					if (capacityLimit > 0 && receivedBuffers.size() >= capacityLimit && buffer.isBuffer()) {
 						capacityCallback = callback;

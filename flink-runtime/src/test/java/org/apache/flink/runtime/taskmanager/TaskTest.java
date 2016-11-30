@@ -25,8 +25,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -36,13 +38,17 @@ import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.LocalConnectionManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.io.network.partition.PipelinedSubpartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -51,6 +57,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskMessages;
+import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.SerializedValue;
@@ -58,10 +65,12 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import scala.Tuple2;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -688,6 +697,10 @@ public class TaskTest extends TestLogger {
 		task.getExecutingThread().join();
 	}
 
+	/**
+	 * Tests that the configured capacity limit for bounded queues is correctly
+	 * forwarded to remote input channels and pipelined partitions.
+	 */
 	@Test
 	public void testPipelinedBoundedQueueLengthConfig() throws Exception {
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
@@ -695,8 +708,9 @@ public class TaskTest extends TestLogger {
 
 		{
 			// Custom config
+			int expectedCapacityLimit = 122;
 			Configuration taskManagerConfig = new Configuration();
-			taskManagerConfig.setInteger(ConfigConstants.NETWORK_PIPELINED_BOUNDED_QUEUE_LENGTH_KEY, 122);
+			taskManagerConfig.setInteger(ConfigConstants.NETWORK_PIPELINED_BOUNDED_QUEUE_LENGTH_KEY, expectedCapacityLimit);
 
 			List<ResultPartitionDeploymentDescriptor> rpdd = new ArrayList<>();
 			rpdd.add(new ResultPartitionDeploymentDescriptor(
@@ -706,9 +720,26 @@ public class TaskTest extends TestLogger {
 				1,
 				true));
 
+			IntermediateDataSetID dataSetId = new IntermediateDataSetID();
+			ResultPartitionID partitionId = new ResultPartitionID();
+
+			List<InputGateDeploymentDescriptor> igdd = new ArrayList<>();
+			igdd.add(new InputGateDeploymentDescriptor(
+				dataSetId,
+				0,
+				new InputChannelDeploymentDescriptor[]{
+					new InputChannelDeploymentDescriptor(
+						partitionId,
+						ResultPartitionLocation.createRemote(new ConnectionID(InetSocketAddress.createUnresolved("localhost", 12223), 102302)),
+						true)
+				}));
+
 			NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
 			when(networkEnvironment.getPartitionManager()).thenReturn(new ResultPartitionManager());
 			when(networkEnvironment.getPartitionConsumableNotifier()).thenReturn(mock(ResultPartitionConsumableNotifier.class));
+			when(networkEnvironment.getPartitionStateChecker()).thenReturn(mock(PartitionStateChecker.class));
+			when(networkEnvironment.getPartitionRequestInitialAndMaxBackoff()).thenReturn(new Tuple2<>(0, 0));
+			when(networkEnvironment.getConnectionManager()).thenReturn(new LocalConnectionManager());
 
 			Task task = createTask(
 				DummyInvokable.class,
@@ -716,14 +747,21 @@ public class TaskTest extends TestLogger {
 				networkEnvironment,
 				taskManagerConfig,
 				new ExecutionConfig(),
-				rpdd);
+				rpdd,
+				igdd);
 
 			ResultPartition partition = task.getProducedPartitions()[0];
 			PipelinedSubpartition subpartition = (PipelinedSubpartition) partition.getSubPartition(0);
-			assertEquals(122, subpartition.getMaxAllowedQueueLength());
+			assertEquals(expectedCapacityLimit, subpartition.getMaxAllowedQueueLength());
+
+			SingleInputGate gate = task.getInputGateById(dataSetId);
+			RemoteInputChannel inputChannel = (RemoteInputChannel) gate.getInputChannels().get(partitionId.getPartitionId());
+			assertEquals(expectedCapacityLimit, inputChannel.getCapacityLimit());
 		}
 
 		{
+			int expectedCapacityLimit = ConfigConstants.DEFAULT_NETWORK_PIPELINED_BOUNDED_QUEUE_LENGTH;
+
 			// Default config
 			List<ResultPartitionDeploymentDescriptor> rpdd = new ArrayList<>();
 			rpdd.add(new ResultPartitionDeploymentDescriptor(
@@ -733,9 +771,26 @@ public class TaskTest extends TestLogger {
 				1,
 				true));
 
+			IntermediateDataSetID dataSetId = new IntermediateDataSetID();
+			ResultPartitionID partitionId = new ResultPartitionID();
+
+			List<InputGateDeploymentDescriptor> igdd = new ArrayList<>();
+			igdd.add(new InputGateDeploymentDescriptor(
+				dataSetId,
+				0,
+				new InputChannelDeploymentDescriptor[]{
+					new InputChannelDeploymentDescriptor(
+						partitionId,
+						ResultPartitionLocation.createRemote(new ConnectionID(InetSocketAddress.createUnresolved("localhost", 12223), 102302)),
+						true)
+				}));
+
 			NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
 			when(networkEnvironment.getPartitionManager()).thenReturn(new ResultPartitionManager());
 			when(networkEnvironment.getPartitionConsumableNotifier()).thenReturn(mock(ResultPartitionConsumableNotifier.class));
+			when(networkEnvironment.getPartitionStateChecker()).thenReturn(mock(PartitionStateChecker.class));
+			when(networkEnvironment.getPartitionRequestInitialAndMaxBackoff()).thenReturn(new Tuple2<>(0, 0));
+			when(networkEnvironment.getConnectionManager()).thenReturn(new LocalConnectionManager());
 
 			Task task = createTask(
 				DummyInvokable.class,
@@ -743,11 +798,16 @@ public class TaskTest extends TestLogger {
 				networkEnvironment,
 				new Configuration(),
 				new ExecutionConfig(),
-				rpdd);
+				rpdd,
+				igdd);
 
 			ResultPartition partition = task.getProducedPartitions()[0];
 			PipelinedSubpartition subpartition = (PipelinedSubpartition) partition.getSubPartition(0);
-			assertEquals(ConfigConstants.DEFAULT_NETWORK_PIPELINED_BOUNDED_QUEUE_LENGTH, subpartition.getMaxAllowedQueueLength());
+			assertEquals(expectedCapacityLimit, subpartition.getMaxAllowedQueueLength());
+
+			SingleInputGate gate = task.getInputGateById(dataSetId);
+			RemoteInputChannel inputChannel = (RemoteInputChannel) gate.getInputChannels().get(partitionId.getPartitionId());
+			assertEquals(expectedCapacityLimit, inputChannel.getCapacityLimit());
 		}
 	}
 
@@ -830,7 +890,7 @@ public class TaskTest extends TestLogger {
 		Configuration taskManagerConfig,
 		ExecutionConfig execConfig) throws IOException {
 
-		return createTask(invokable, libCache, networkEnvironment, taskManagerConfig, execConfig, Collections.<ResultPartitionDeploymentDescriptor>emptyList());
+		return createTask(invokable, libCache, networkEnvironment, taskManagerConfig, execConfig, Collections.<ResultPartitionDeploymentDescriptor>emptyList(), Collections.<InputGateDeploymentDescriptor>emptyList());
 	}
 
 	private Task createTask(
@@ -839,7 +899,8 @@ public class TaskTest extends TestLogger {
 		NetworkEnvironment networkEnvironment,
 		Configuration taskManagerConfig,
 		ExecutionConfig execConfig,
-		Collection<ResultPartitionDeploymentDescriptor> rpdd) throws IOException {
+		Collection<ResultPartitionDeploymentDescriptor> rpdd,
+		Collection<InputGateDeploymentDescriptor> igdd) throws IOException {
 		
 		JobID jobId = new JobID();
 		JobVertexID jobVertexId = new JobVertexID();
@@ -861,6 +922,9 @@ public class TaskTest extends TestLogger {
 			1,
 			invokable.getName(),
 			new Configuration());
+
+		TaskMetricGroup metricGroup = mock(TaskMetricGroup.class);
+		when(metricGroup.getIOMetricGroup()).thenReturn(mock(IOMetricGroup.class));
 		
 		return new Task(
 			jobInformation,
@@ -869,7 +933,7 @@ public class TaskTest extends TestLogger {
 			0,
 			0,
 			rpdd,
-			Collections.<InputGateDeploymentDescriptor>emptyList(),
+			igdd,
 			0,
 			null,
 			mock(MemoryManager.class),
@@ -882,7 +946,7 @@ public class TaskTest extends TestLogger {
 			libCache,
 			mock(FileCache.class),
 			new TaskManagerRuntimeInfo("localhost", taskManagerConfig, System.getProperty("java.io.tmpdir")),
-			mock(TaskMetricGroup.class));
+			metricGroup);
 	}
 
 	// ------------------------------------------------------------------------

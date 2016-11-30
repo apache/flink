@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
 
 import java.io.IOException;
 
@@ -152,6 +152,15 @@ public class RecordWriter<T extends IOReadableWritable> {
 		targetPartition.writeEndOfSuperstep();
 	}
 
+	/**
+	 * Force flushes the serializers ignoring any capacity constraints of
+	 * the target partition.
+	 *
+	 * @throws IOException Exceptions are forwarded from the partition.
+	 * @throws InterruptedException In general, writing to a partition can block
+	 * due to capacity constraints, but force flushing should never be blocked,
+	 * but we have to forward this Exception declaration from the partition.
+	 */
 	public void flush() throws IOException, InterruptedException {
 		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
 			RecordSerializer<T> serializer = serializers[targetChannel];
@@ -170,6 +179,12 @@ public class RecordWriter<T extends IOReadableWritable> {
 		}
 	}
 
+	/**
+	 * Tries to flush the serializers iff the target partition has capacity to
+	 * take the buffer.
+	 *
+	 * @throws IOException Exceptions are forwarded from the partition.
+	 */
 	public void tryFlush() throws IOException {
 		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
 			RecordSerializer<T> serializer = serializers[targetChannel];
@@ -178,6 +193,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 				Buffer buffer = serializer.getCurrentBuffer();
 
 				if (buffer != null && targetPartition.tryWriteBuffer(buffer, targetChannel)) {
+					System.out.println("flushed");
 					serializer.clear();
 				}
 			}
