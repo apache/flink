@@ -314,8 +314,10 @@ public class DataSink<T> {
 	 * @return The data sink with set minimum and maximum resource.
 	 */
 	public DataSink<T> setResource(ResourceSpec minResource, ResourceSpec maxResource) {
-		Preconditions.checkArgument(minResource != null && maxResource != null && minResource.lessThanOrEqual(maxResource),
-			"The min and max resources must be not null and the max resource must be greater than the min resource.");
+		Preconditions.checkArgument(minResource != null && maxResource != null,
+			"The min and max resources must be not null.");
+		Preconditions.checkArgument(minResource.isValid() && maxResource.isValid() && minResource.lessThanOrEqual(maxResource),
+			"The values in resource must be not less than 0 and the max resource must be greater than the min resource.");
 
 		this.minResource = minResource;
 		this.maxResource = maxResource;

@@ -102,10 +102,10 @@ public class DataStreamSink<T> {
 	 * @return The sink with set minimum and maximum resource.
 	 */
 	public DataStreamSink<T> setResource(ResourceSpec minResource, ResourceSpec maxResource) {
-		requireNonNull(minResource, "minimum resource must not be null.");
-		requireNonNull(maxResource, "maximum resource must not be null.");
-		Preconditions.checkArgument(minResource.lessThanOrEqual(maxResource),
-			"The maximum resource must be greater than minimum resource.");
+		Preconditions.checkArgument(minResource != null && maxResource != null,
+			"The min and max resources must be not null.");
+		Preconditions.checkArgument(minResource.isValid() && maxResource.isValid() && minResource.lessThanOrEqual(maxResource),
+			"The values in resource must be not less than 0 and the max resource must be greater than the min resource.");
 
 		transformation.setResource(minResource, maxResource);
 
