@@ -88,13 +88,13 @@ limitations under the License.
     <tbody>
       <tr>
         <td>Direct</td>
-        <td>{{ metrics.metrics.directCount | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.directCount | toLocaleString }}</td>
         <td>{{ metrics.metrics.directUsed | humanizeBytes }}</td>
         <td>{{ metrics.metrics.directMax | humanizeBytes }}</td>
       </tr>
       <tr>
         <td>Mapped</td>
-        <td>{{ metrics.metrics.mappedCount | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.mappedCount | toLocaleString }}</td>
         <td>{{ metrics.metrics.mappedUsed | humanizeBytes }}</td>
         <td>{{ metrics.metrics.mappedMax | humanizeBytes }}</td>
       </tr>
@@ -112,11 +112,11 @@ limitations under the License.
     <tbody>
       <tr>
         <td>Available</td>
-        <td>{{ metrics.metrics.memorySegmentsAvailable }}</td>
+        <td>{{ metrics.metrics.memorySegmentsAvailable | toLocaleString }}</td>
       </tr>
       <tr>
         <td>Total</td>
-        <td>{{ metrics.metrics.memorySegmentsTotal }}</td>
+        <td>{{ metrics.metrics.memorySegmentsTotal | toLocaleString }}</td>
       </tr>
     </tbody>
   </table>
@@ -130,10 +130,10 @@ limitations under the License.
       </tr>
     </thead>
     <tbody ng-repeat="g in metrics.metrics.garbageCollectors">
-      <tr> 
+      <tr>
         <td>{{ g.name }}</td>
-        <td>{{ g.count }}</td>
-        <td>{{ g.time }}</td>
+        <td>{{ g.count | toLocaleString }}</td>
+        <td>{{ g.time | toLocaleString }}</td>
       </tr>
     </tbody>
   </table>

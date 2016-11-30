@@ -17,6 +17,7 @@
  */
 package org.apache.flink.runtime.metrics.util;
 
+import org.apache.commons.lang3.text.WordUtils;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
@@ -160,7 +161,7 @@ public class MetricUtils {
 		List<BufferPoolMXBean> bufferMxBeans = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
 
 		for (final BufferPoolMXBean bufferMxBean : bufferMxBeans) {
-			MetricGroup bufferGroup = metrics.addGroup(bufferMxBean.getName());
+			MetricGroup bufferGroup = metrics.addGroup(WordUtils.capitalize(bufferMxBean.getName()));
 			bufferGroup.gauge("Count", new Gauge<Long>() {
 				@Override
 				public Long getValue() {
