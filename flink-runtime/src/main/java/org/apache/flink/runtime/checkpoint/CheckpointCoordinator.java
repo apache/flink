@@ -117,7 +117,7 @@ public class CheckpointCoordinator {
 
 	/** The min time(in ms) to delay after a checkpoint could be triggered. Allows to
 	 * enforce minimum processing time between checkpoint attempts */
-	private final long minPauseBetweenCheckpoints;
+	private final long minPauseBetweenCheckpointsNanos;
 
 	/** The maximum number of checkpoints that may be in progress at the same time */
 	private final int maxConcurrentCheckpointAttempts;
@@ -133,7 +133,8 @@ public class CheckpointCoordinator {
 
 	private ScheduledTrigger currentPeriodicTrigger;
 
-	private long lastTriggeredCheckpoint;
+	/** The timestamp (via {@link System#nanoTime()}) when the last checkpoint completed */
+	private long lastCheckpointCompletionNanos;
 
 	/** Flag whether a triggered checkpoint should immediately schedule the next checkpoint.
 	 * Non-volatile, because only accessed in synchronized scope */
@@ -184,6 +185,11 @@ public class CheckpointCoordinator {
 					"configure configure one via key '" + ConfigConstants.CHECKPOINTS_DIRECTORY_KEY + "'.");
 		}
 
+		// max "in between duration" can be one year - this is to prevent numeric overflows
+		if (minPauseBetweenCheckpoints > 365L * 24 * 60 * 60 * 1_000) {
+			minPauseBetweenCheckpoints = 365L * 24 * 60 * 60 * 1_000;
+		}
+
 		// it does not make sense to schedule checkpoints more often then the desired
 		// time between checkpoints
 		if (baseInterval < minPauseBetweenCheckpoints) {
@@ -193,7 +199,7 @@ public class CheckpointCoordinator {
 		this.job = checkNotNull(job);
 		this.baseInterval = baseInterval;
 		this.checkpointTimeout = checkpointTimeout;
-		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
+		this.minPauseBetweenCheckpointsNanos = minPauseBetweenCheckpoints * 1_000_000;
 		this.maxConcurrentCheckpointAttempts = maxConcurrentCheckpointAttempts;
 		this.tasksToTrigger = checkNotNull(tasksToTrigger);
 		this.tasksToWaitFor = checkNotNull(tasksToWaitFor);
@@ -352,13 +358,10 @@ public class CheckpointCoordinator {
 				}
 
 				// make sure the minimum interval between checkpoints has passed
-				long nextCheckpointEarliest = lastTriggeredCheckpoint + minPauseBetweenCheckpoints;
-				if (nextCheckpointEarliest < 0) {
-					// overflow
-					nextCheckpointEarliest = Long.MAX_VALUE;
-				}
+				final long earliestNext = lastCheckpointCompletionNanos + minPauseBetweenCheckpointsNanos;
+				final long durationTillNextMillis = (earliestNext - System.nanoTime()) / 1_000_000;
 
-				if (nextCheckpointEarliest > timestamp) {
+				if (durationTillNextMillis > 0) {
 					if (currentPeriodicTrigger != null) {
 						currentPeriodicTrigger.cancel();
 						currentPeriodicTrigger = null;
@@ -366,8 +369,7 @@ public class CheckpointCoordinator {
 					ScheduledTrigger trigger = new ScheduledTrigger();
 					// Reassign the new trigger to the currentPeriodicTrigger
 					currentPeriodicTrigger = trigger;
-					long delay = nextCheckpointEarliest - timestamp;
-					timer.scheduleAtFixedRate(trigger, delay, baseInterval);
+					timer.scheduleAtFixedRate(trigger, durationTillNextMillis, baseInterval);
 					return new CheckpointTriggerResult(CheckpointDeclineReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS);
 				}
 			}
@@ -475,29 +477,25 @@ public class CheckpointCoordinator {
 						}
 
 						// make sure the minimum interval between checkpoints has passed
-						long nextCheckpointEarliest = lastTriggeredCheckpoint + minPauseBetweenCheckpoints;
-						if (nextCheckpointEarliest < 0) {
-							// overflow
-							nextCheckpointEarliest = Long.MAX_VALUE;
-						}
+						final long earliestNext = lastCheckpointCompletionNanos + minPauseBetweenCheckpointsNanos;
+						final long durationTillNextMillis = (earliestNext - System.nanoTime()) / 1_000_000;
 
-						if (nextCheckpointEarliest > timestamp) {
+						if (durationTillNextMillis > 0) {
 							if (currentPeriodicTrigger != null) {
 								currentPeriodicTrigger.cancel();
 								currentPeriodicTrigger = null;
 							}
+
 							ScheduledTrigger trigger = new ScheduledTrigger();
 							// Reassign the new trigger to the currentPeriodicTrigger
 							currentPeriodicTrigger = trigger;
-							long delay = nextCheckpointEarliest - timestamp;
-							timer.scheduleAtFixedRate(trigger, delay, baseInterval);
+							timer.scheduleAtFixedRate(trigger, durationTillNextMillis, baseInterval);
 							return new CheckpointTriggerResult(CheckpointDeclineReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS);
 						}
 					}
 
 					LOG.info("Triggering checkpoint " + checkpointID + " @ " + timestamp);
 
-					lastTriggeredCheckpoint = Math.max(timestamp, lastTriggeredCheckpoint);
 					pendingCheckpoints.put(checkpointID, checkpoint);
 					timer.schedule(canceller, checkpointTimeout);
 				}
@@ -644,8 +642,13 @@ public class CheckpointCoordinator {
 				switch (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getSubtaskState())) {
 					case SUCCESS:
 						if (checkpoint.isFullyAcknowledged()) {
-							completed = checkpoint.finalizeCheckpoint();
 
+							// record the time when this was completed, to calculate
+							// the 'min delay between checkpoints'
+							lastCheckpointCompletionNanos = System.nanoTime();
+
+							// complete the checkpoint structure
+							completed = checkpoint.finalizeCheckpoint();
 							completedCheckpointStore.addCheckpoint(completed);
 
 							LOG.info("Completed checkpoint " + checkpointId + " (in " +
