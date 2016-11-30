@@ -65,15 +65,13 @@ object TableTestUtil {
 
   def unaryNode(node: String, input: String, term: String*): String = {
     s"""$node(${term.mkString(", ")})
-       |$input
-       |""".stripMargin
+       |$input""".stripMargin
   }
 
   def binaryNode(node: String, left: String, right: String, term: String*): String = {
     s"""$node(${term.mkString(", ")})
        |$left
-       |$right
-       |""".stripMargin
+       |$right""".stripMargin
   }
 
   def term(term: AnyRef, value: AnyRef*): String = {
