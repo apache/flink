@@ -32,16 +32,13 @@ class BatchTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    tableSource: Option[BatchTableSource[_]] = None)
+    tableSource: BatchTableSource[_])
   extends BatchScan(cluster, traitSet, table) {
 
   override def deriveRowType() = {
-    tableSource match {
-      case Some(ts) =>
-        val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-        RowTypeBuilder.build(flinkTypeFactory, ts.getFieldsNames, ts.getFieldTypes)
-      case None => getTable.getRowType
-    }
+    val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    RowTypeBuilder.build(flinkTypeFactory, tableSource.getFieldsNames, tableSource.getFieldTypes)
+
   }
 
 
@@ -59,21 +56,11 @@ class BatchTableSourceScan(
                                 expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
     val config = tableEnv.getConfig
-
-    tableSource match {
-      case Some(ts) =>
-        val inputDs = ts.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
-        convertToExpectedType(inputDs, new TableSourceTable(ts), expectedType, config)
-      case None =>
-        val originTableSourceTable = getTable.unwrap(classOf[TableSourceTable])
-        val originTableSource = originTableSourceTable.tableSource.asInstanceOf[BatchTableSource[_]]
-        val originDs = originTableSource.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
-        convertToExpectedType(originDs, originTableSourceTable, expectedType, config)
-
-    }
+    val inputDs = tableSource.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
+    convertToExpectedType(inputDs, new TableSourceTable(tableSource), expectedType, config)
   }
 
   def actualTableSource() = {
-    tableSource.getOrElse(getTable.unwrap(classOf[TableSourceTable]).tableSource.asInstanceOf[BatchTableSource[_]])
+    tableSource
   }
 }
