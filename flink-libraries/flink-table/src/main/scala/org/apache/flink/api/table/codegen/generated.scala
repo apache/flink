@@ -41,5 +41,3 @@ object GeneratedExpression {
 }
 
 case class GeneratedFunction[T](name: String, returnType: TypeInformation[Any], code: String)
-
-case class GeneratedField(fieldName: String, fieldType: String)

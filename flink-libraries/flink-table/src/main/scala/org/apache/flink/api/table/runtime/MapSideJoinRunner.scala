@@ -35,7 +35,7 @@ abstract class MapSideJoinRunner[IN1, IN2, SINGLE_IN, MULTI_IN, OUT](
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
-  protected var function: FlatJoinFunction[IN1, IN2, OUT] = null
+  protected var function: FlatJoinFunction[IN1, IN2, OUT] = _
   protected var singleInput: SINGLE_IN = _
 
   override def open(parameters: Configuration): Unit = {

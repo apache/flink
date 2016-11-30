@@ -26,8 +26,6 @@ import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalJoin}
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetSingleRowJoin}
 
-import scala.collection.JavaConversions._
-
 class DataSetSingleRowJoinRule
   extends ConverterRule(
       classOf[LogicalJoin],
@@ -78,7 +76,6 @@ class DataSetSingleRowJoinRule
       rel.getRowType,
       join.getCondition,
       join.getRowType,
-      join.analyzeCondition.pairs.toList,
       description)
   }
 }

@@ -19,18 +19,17 @@
 package org.apache.flink.api.table.plan.nodes.dataset
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-import org.apache.calcite.util.mapping.IntPair
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.runtime.{MapJoinLeftRunner, MapJoinRightRunner}
 import org.apache.flink.api.table.typeutils.TypeConverter.determineReturnType
-import org.apache.flink.api.table.{BatchTableEnvironment, TableConfig, TableException}
+import org.apache.flink.api.table.{BatchTableEnvironment, TableConfig}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -47,7 +46,6 @@ class DataSetSingleRowJoin(
     rowRelDataType: RelDataType,
     joinCondition: RexNode,
     joinRowType: RelDataType,
-    keyPairs: List[IntPair],
     ruleDescription: String)
   extends BiRel(cluster, traitSet, leftNode, rightNode)
   with DataSetRel {
@@ -64,7 +62,6 @@ class DataSetSingleRowJoin(
       getRowType,
       joinCondition,
       joinRowType,
-      keyPairs,
       ruleDescription)
   }
 
@@ -80,52 +77,19 @@ class DataSetSingleRowJoin(
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
-    val children = this.getInputs
-    children.foldLeft(planner.getCostFactory.makeZeroCost()) { (cost, child) =>
-      if (leftIsSingle && child.equals(right) ||
-          !leftIsSingle && child.equals(left)) {
-        val rowCnt = metadata.getRowCount(child)
-        val rowSize = this.estimateRowSize(child.getRowType)
-        cost.plus(planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize))
-      } else {
-        cost
-      }
+    val child = if (leftIsSingle) {
+      this.getRight
+    } else {
+      this.getLeft
     }
+    val rowCnt = metadata.getRowCount(child)
+    val rowSize = this.estimateRowSize(child.getRowType)
+    planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize)
   }
 
   override def translateToPlan(
       tableEnv: BatchTableEnvironment,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
-
-    if (isConditionTypesCompatible(left.getRowType.getFieldList,
-                                   right.getRowType.getFieldList,
-                                   keyPairs)) {
-      createPlan(tableEnv, expectedType)
-    } else {
-      throw TableException(
-        "Join predicate on incompatible types.\n" +
-        s"\tLeft: ${left.toString},\n" +
-        s"\tRight: ${right.toString},\n" +
-        s"\tCondition: ($joinConditionToString)")
-    }
-  }
-
-  private def isConditionTypesCompatible(leftFields: java.util.List[RelDataTypeField],
-                                         rightFields: java.util.List[RelDataTypeField],
-                                         keyPairs: List[IntPair]): Boolean = {
-    keyPairs.foreach(pair => {
-      val leftKeyType = leftFields.get(pair.source).getType.getSqlTypeName
-      val rightKeyType = rightFields.get(pair.target).getType.getSqlTypeName
-      if (leftKeyType != rightKeyType) {
-        return false
-      }
-    })
-    true
-  }
-
-  private def createPlan(
-     tableEnv: BatchTableEnvironment,
-     expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
     val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
     val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
@@ -223,7 +187,7 @@ class DataSetSingleRowJoin(
   }
 
   private def joinTypeToString: String = {
-    "Join"
+    "NestedLoopJoin"
   }
 
 }
