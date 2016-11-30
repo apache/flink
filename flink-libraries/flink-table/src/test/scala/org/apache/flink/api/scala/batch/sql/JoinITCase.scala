@@ -23,9 +23,10 @@ import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.{ValidationException, Row, TableEnvironment, TableException}
+import org.apache.flink.api.table.{Row, TableEnvironment, TableException, ValidationException}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
+import org.junit.Assert._
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -313,5 +314,53 @@ class JoinITCase(
       "null,IJK\n" + "null,JKL\n" + "null,KLM"
     val results = tEnv.sql(sqlQuery).toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testCrossJoin(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val table1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a1, 'a2, 'a3)
+    val table2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('b1, 'b2, 'b3)
+    tEnv.registerTable("A", table1)
+    tEnv.registerTable("B", table2)
+
+    val sqlQuery = "SELECT a1, b1 FROM A CROSS JOIN B"
+    tEnv.sql(sqlQuery).count
+  }
+
+  @Test
+  def testCrossJoinWithLeftSingleRowInput(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val table = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a1, 'a2, 'a3)
+    tEnv.registerTable("A", table)
+
+    val sqlQuery2 = "SELECT * FROM (SELECT count(*) FROM A) CROSS JOIN A"
+    val expected =
+      "3,1,1,Hi\n" +
+      "3,2,2,Hello\n" +
+      "3,3,2,Hello world"
+    val result = tEnv.sql(sqlQuery2).collect()
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testCrossJoinWithRightSingleRowInput(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val table = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a1, 'a2, 'a3)
+    tEnv.registerTable("A", table)
+
+    val sqlQuery1 = "SELECT * FROM A CROSS JOIN (SELECT count(*) FROM A)"
+    val expected =
+      "1,1,Hi,3\n" +
+      "2,2,Hello,3\n" +
+      "3,2,Hello world,3"
+    val result = tEnv.sql(sqlQuery1).collect()
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
 }

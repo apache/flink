@@ -16,30 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.codegen
+package org.apache.flink.api.table.runtime
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.util.Collector
 
-/**
-  * Describes a generated expression.
-  *
-  * @param resultTerm term to access the result of the expression
-  * @param nullTerm boolean term that indicates if expression is null
-  * @param code code necessary to produce resultTerm and nullTerm
-  * @param resultType type of the resultTerm
-  */
-case class GeneratedExpression(
-    resultTerm: String,
-    nullTerm: String,
+class MapJoinRightRunner[IN1, IN2, OUT](
+    name: String,
     code: String,
-    resultType: TypeInformation[_])
+    @transient returnType: TypeInformation[OUT],
+    broadcastSetName: String)
+  extends MapSideJoinRunner[IN1, IN2, IN1, IN2, OUT](name, code, returnType, broadcastSetName) {
 
-object GeneratedExpression {
-  val ALWAYS_NULL = "true"
-  val NEVER_NULL = "false"
-  val NO_CODE = ""
+  override def flatMap(multiInput: IN2, out: Collector[OUT]): Unit =
+    function.join(singleInput, multiInput, out)
 }
-
-case class GeneratedFunction[T](name: String, returnType: TypeInformation[Any], code: String)
-
-case class GeneratedField(fieldName: String, fieldType: String)
