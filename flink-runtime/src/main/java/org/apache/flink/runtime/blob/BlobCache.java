@@ -47,6 +47,7 @@ public final class BlobCache implements BlobService {
 
 	private final InetSocketAddress serverAddress;
 
+	/** Root directory for local file storage */
 	private final File storageDir;
 
 	private final AtomicBoolean shutdownRequested = new AtomicBoolean();
@@ -60,7 +61,14 @@ public final class BlobCache implements BlobService {
 	/** Configuration for the blob client like ssl parameters required to connect to the blob server */
 	private final Configuration blobClientConfig;
 
-
+	/**
+	 * Instantiates a new BLOB cache.
+	 *
+	 * @param serverAddress
+	 * 		address of the {@link BlobServer} to use for fetching files from
+	 * @param blobClientConfig
+	 * 		global configuration
+	 */
 	public BlobCache(InetSocketAddress serverAddress, Configuration blobClientConfig) {
 		if (serverAddress == null || blobClientConfig == null) {
 			throw new NullPointerException();
@@ -202,8 +210,13 @@ public final class BlobCache implements BlobService {
 	}
 
 	/**
-	 * Deletes the file associated with the given key from the BLOB cache and BLOB server.
+	 * Deletes the file associated with the given key from the BLOB cache and
+	 * BLOB server.
+	 *
 	 * @param key referring to the file to be deleted
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while transferring the request to
+	 *         the BLOB server or if the BLOB server cannot delete the file
 	 */
 	public void deleteGlobal(BlobKey key) throws IOException {
 		BlobClient bc = createClient();

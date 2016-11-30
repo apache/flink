@@ -74,10 +74,10 @@ public class BlobServer extends Thread implements BlobService {
 	/** Indicates whether a shutdown of server component has been requested. */
 	private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
-	/** Is the root directory for file storage */
+	/** Root directory for local file storage */
 	private final File storageDir;
 
-	/** Blob store for HA */
+	/** Blob store for distributed file storage, e.g. in HA */
 	private final BlobStore blobStore;
 
 	/** Set of currently running threads */
@@ -96,7 +96,9 @@ public class BlobServer extends Thread implements BlobService {
 	 * Instantiates a new BLOB server and binds it to a free network port.
 	 *
 	 * @throws IOException
-	 *         thrown if the BLOB server cannot bind to a free network port
+	 * 		thrown if the BLOB server cannot bind to a free network port or if, in
+	 * 		HA mode, the (distributed) file storage cannot be created or is not
+	 * 		usable
 	 */
 	public BlobServer(Configuration config) throws IOException {
 		this(config, createBlobStoreFromConfig(config));
