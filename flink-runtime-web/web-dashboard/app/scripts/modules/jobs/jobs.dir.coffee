@@ -281,7 +281,7 @@ angular.module('flinkApp')
         # Otherwise add infos    
         labelValue += "<h5>" + info + " Node</h5>"  if isSpecialIterationNode(info)
         labelValue += "<h5>Parallelism: " + el.parallelism + "</h5>"  unless el.parallelism is ""
-        labelValue += "<h5>Operation: " + shortenString(el.operator_strategy) + "</h5>"  unless el.operator is `undefined`
+        labelValue += "<h5>Operation: " + shortenString(el.operator_strategy) + "</h5>" unless el.operator is `undefined` or not el.operator_strategy
       
       # labelValue += "</a>"
       labelValue += "</div>"
