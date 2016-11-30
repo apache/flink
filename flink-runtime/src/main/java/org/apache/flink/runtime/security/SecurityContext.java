@@ -56,7 +56,7 @@ public class SecurityContext {
 
 	public static final String JAAS_CONF_FILENAME = "flink-jaas.conf";
 
-	private static final String JAVA_SECURITY_AUTH_LOGIN_CONFIG = "java.security.auth.login.config";
+	public static final String JAVA_SECURITY_AUTH_LOGIN_CONFIG = "java.security.auth.login.config";
 
 	private static final String ZOOKEEPER_SASL_CLIENT = "zookeeper.sasl.client";
 
@@ -146,6 +146,8 @@ public class SecurityContext {
 			loginUser = UserGroupInformation.getLoginUser();
 			// note that the stored tokens are read automatically
 		}
+
+		LOG.info("Hadoop user set to {}", loginUser.toString());
 
 		boolean delegationToken = false;
 		final Text HDFS_DELEGATION_KIND = new Text("HDFS_DELEGATION_TOKEN");
@@ -237,6 +239,10 @@ public class SecurityContext {
 
 		public SecurityConfiguration() {
 			this.flinkConf = GlobalConfiguration.loadConfiguration();
+		}
+
+		public SecurityConfiguration(Configuration flinkConf) {
+			setFlinkConfiguration(flinkConf);
 		}
 
 		public String getKeytab() {

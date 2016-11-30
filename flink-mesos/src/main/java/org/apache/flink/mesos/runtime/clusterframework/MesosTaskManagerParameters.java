@@ -19,10 +19,12 @@
 package org.apache.flink.mesos.runtime.clusterframework;
 
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
  * This class describes the Mesos-specific parameters for launching a TaskManager process.
@@ -32,9 +34,21 @@ import static java.util.Objects.requireNonNull;
  */
 public class MesosTaskManagerParameters {
 
-	private double cpus;
+	public static final ConfigOption<Integer> MESOS_RM_TASKS_SLOTS =
+			key(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS)
+			.defaultValue(1);
 
-	private ContaineredTaskManagerParameters containeredParameters;
+	public static final ConfigOption<Integer> MESOS_RM_TASKS_MEMORY_MB =
+			key("mesos.resourcemanager.tasks.mem")
+			.defaultValue(1024);
+
+	public static final ConfigOption<Double> MESOS_RM_TASKS_CPUS =
+			key("mesos.resourcemanager.tasks.cpus")
+			.defaultValue(0.0);
+
+	private final double cpus;
+
+	private final ContaineredTaskManagerParameters containeredParameters;
 
 	public MesosTaskManagerParameters(double cpus, ContaineredTaskManagerParameters containeredParameters) {
 		requireNonNull(containeredParameters);
@@ -67,14 +81,19 @@ public class MesosTaskManagerParameters {
 	/**
 	 * Create the Mesos TaskManager parameters.
 	 * @param flinkConfig the TM configuration.
-	 * @param containeredParameters additional containered parameters.
      */
-	public static MesosTaskManagerParameters create(
-		Configuration flinkConfig,
-		ContaineredTaskManagerParameters containeredParameters) {
+	public static MesosTaskManagerParameters create(Configuration flinkConfig) {
 
-		double cpus = flinkConfig.getDouble(ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CPUS,
-			Math.max(containeredParameters.numSlots(), 1.0));
+		// parse the common parameters
+		ContaineredTaskManagerParameters containeredParameters = ContaineredTaskManagerParameters.create(
+			flinkConfig,
+			flinkConfig.getInteger(MESOS_RM_TASKS_MEMORY_MB),
+			flinkConfig.getInteger(MESOS_RM_TASKS_SLOTS));
+
+		double cpus = flinkConfig.getDouble(MESOS_RM_TASKS_CPUS);
+		if(cpus <= 0.0) {
+			cpus = Math.max(containeredParameters.numSlots(), 1.0);
+		}
 
 		return new MesosTaskManagerParameters(cpus, containeredParameters);
 	}
