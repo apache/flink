@@ -228,7 +228,6 @@
   overflow: hidden;
   padding: 2px 4px;
   font-size: 14px;
-  -webkit-border-radius: 2px;
   border-radius: 2px;
   margin-top: -3px;
 }
@@ -496,7 +495,6 @@ pre {
 }
 .nav-tabs.tabs-vertical li > a {
   margin-right: 0;
-  -webkit-border-radius: 0;
   border-radius: 0;
   border-bottom: none;
   border-left: 2px solid transparent;
@@ -541,7 +539,6 @@ livechart {
   padding-right: 0.4em;
   margin: 0;
   border-right: 1px solid #fff;
-  -webkit-border-radius: 0;
   border-radius: 0;
 }
 .label-group .label.label-black {
