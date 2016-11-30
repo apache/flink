@@ -19,7 +19,6 @@
 package org.apache.flink.api.table.plan.nodes.dataset
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.flink.api.common.typeinfo.TypeInformation

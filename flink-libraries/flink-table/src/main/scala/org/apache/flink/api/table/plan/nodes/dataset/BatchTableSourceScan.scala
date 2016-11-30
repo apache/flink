@@ -20,32 +20,26 @@ package org.apache.flink.api.table.plan.nodes.dataset
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.{BatchTableEnvironment, FlinkTypeFactory}
 import org.apache.flink.api.table.plan.schema.TableSourceTable
 import org.apache.flink.api.table.sources.BatchTableSource
+import org.apache.flink.api.table.typeutils.RowTypeBuilder
 
 /** Flink RelNode to read data from an external source defined by a [[BatchTableSource]]. */
 class BatchTableSourceScan(
-                            cluster: RelOptCluster,
-                            traitSet: RelTraitSet,
-                            table: RelOptTable,
-                            tableSource: Option[BatchTableSource[_]] = None)
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    table: RelOptTable,
+    tableSource: Option[BatchTableSource[_]] = None)
   extends BatchScan(cluster, traitSet, table) {
 
   override def deriveRowType() = {
     tableSource match {
       case Some(ts) =>
         val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-        val builder = flinkTypeFactory.builder
-        ts.getFieldsNames
-          .zip(ts.getFieldTypes)
-          .foreach { f =>
-            builder.add(f._1, flinkTypeFactory.createTypeFromTypeInfo(f._2)).nullable(true)
-          }
-        builder.build
+        RowTypeBuilder.build(flinkTypeFactory, ts.getFieldsNames, ts.getFieldTypes)
       case None => getTable.getRowType
     }
   }
@@ -77,5 +71,9 @@ class BatchTableSourceScan(
         convertToExpectedType(originDs, originTableSourceTable, expectedType, config)
 
     }
+  }
+
+  def actualTableSource() = {
+    tableSource.getOrElse(getTable.unwrap(classOf[TableSourceTable]).tableSource.asInstanceOf[BatchTableSource[_]])
   }
 }

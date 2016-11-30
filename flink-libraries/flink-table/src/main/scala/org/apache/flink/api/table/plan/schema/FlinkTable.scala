@@ -22,6 +22,7 @@ import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.table.typeutils.RowTypeBuilder
 import org.apache.flink.api.table.{FlinkTypeFactory, TableException}
 
 abstract class FlinkTable[T](
@@ -60,13 +61,8 @@ abstract class FlinkTable[T](
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
-    val builder = flinkTypeFactory.builder
-    fieldNames
-      .zip(fieldTypes)
-      .foreach { f =>
-        builder.add(f._1, flinkTypeFactory.createTypeFromTypeInfo(f._2)).nullable(true)
-      }
-    builder.build
+    RowTypeBuilder.build(flinkTypeFactory, fieldNames, fieldTypes)
+
   }
 
 }
