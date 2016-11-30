@@ -143,7 +143,7 @@ public class MiniClusterJobDispatcher {
 			if (!shutdown) {
 				shutdown = true;
 
-				LOG.info("Shutting down the dispatcher");
+				LOG.info("Shutting down the job dispatcher");
 
 				// in this shutdown code we copy the references to the stack first,
 				// to avoid concurrent modification

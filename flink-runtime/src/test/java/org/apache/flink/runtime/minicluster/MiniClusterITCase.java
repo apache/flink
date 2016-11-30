@@ -33,6 +33,10 @@ import org.junit.Test;
  */
 public class MiniClusterITCase extends TestLogger {
 
+	// ------------------------------------------------------------------------
+	//  Simple Job Running Tests
+	// ------------------------------------------------------------------------
+
 	@Test
 	public void runJobWithSingleRpcService() throws Exception {
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration();
@@ -62,6 +66,10 @@ public class MiniClusterITCase extends TestLogger {
 		MiniCluster miniCluster = new MiniCluster(cfg);
 		executeJob(miniCluster);
 	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
 
 	private static void executeJob(MiniCluster miniCluster) throws Exception {
 		miniCluster.start();

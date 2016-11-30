@@ -31,6 +31,7 @@ import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.LeaderIdMismatchException;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
@@ -500,6 +501,16 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	public void shutDownCluster(final ApplicationStatus finalStatus, final String optionalDiagnostics) {
 		log.info("shut down cluster because application is in {}, diagnostics {}", finalStatus, optionalDiagnostics);
 		shutDownApplication(finalStatus, optionalDiagnostics);
+	}
+
+	@RpcMethod
+	public Integer getNumberOfRegisteredTaskManagers(UUID leaderSessionId) throws LeaderIdMismatchException {
+		if (this.leaderSessionId != null && this.leaderSessionId.equals(leaderSessionId)) {
+			return taskExecutors.size();
+		}
+		else {
+			throw new LeaderIdMismatchException(this.leaderSessionId, leaderSessionId);
+		}
 	}
 
 	// ------------------------------------------------------------------------

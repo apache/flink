@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -30,6 +29,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,8 +67,9 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 					"The Flip6LocalStreamEnvironment cannot be used when submitting a program through a client, " +
 							"or running in a TestEnvironment context.");
 		}
-		
+
 		this.conf = config == null ? new Configuration() : config;
+		setParallelism(1);
 	}
 
 	/**
@@ -85,16 +86,11 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 		StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
 
+		// TODO - temp fix to enforce restarts due to a bug in the allocation protocol
+		streamGraph.getExecutionConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 5));
+
 		JobGraph jobGraph = streamGraph.getJobGraph();
-
 		jobGraph.setAllowQueuedScheduling(true);
-
-		// As jira FLINK-5140 described,
-		// we have to set restart strategy to handle NoResourceAvailableException.
-		ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.setRestartStrategy(
-			RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000));
-		jobGraph.setExecutionConfig(executionConfig);
 
 		Configuration configuration = new Configuration();
 		configuration.addAll(jobGraph.getJobConfiguration());
@@ -105,7 +101,8 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration(configuration);
 
-		// Currently we do not reuse slot anymore, so we need to sum all parallelism of vertices up.
+		// Currently we do not reuse slot anymore,
+		// so we need to sum up the parallelism of all vertices
 		int slotsCount = 0;
 		for (JobVertex jobVertex : jobGraph.getVertices()) {
 			slotsCount += jobVertex.getParallelism();
@@ -119,8 +116,10 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 		MiniCluster miniCluster = new MiniCluster(cfg);
 		try {
 			miniCluster.start();
+			miniCluster.waitUntilTaskManagerRegistrationsComplete();
 			return miniCluster.runJobBlocking(jobGraph);
-		} finally {
+		}
+		finally {
 			transformations.clear();
 			miniCluster.shutdown();
 		}
