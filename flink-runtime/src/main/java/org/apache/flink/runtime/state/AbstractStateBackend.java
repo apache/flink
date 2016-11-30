@@ -39,6 +39,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.execution.Environment;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
@@ -51,8 +52,8 @@ import java.util.Map;
 /**
  * A state backend defines how state is stored and snapshotted during checkpoints.
  */
-public abstract class AbstractStateBackend implements java.io.Serializable {
-	
+public abstract class AbstractStateBackend implements java.io.Serializable, Closeable {
+
 	private static final long serialVersionUID = 4620413814639220247L;
 
 	protected transient TypeSerializer<?> keySerializer;
@@ -102,23 +103,61 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	public abstract void disposeAllStateForCurrentJob() throws Exception;
 
 	/**
-	 * Closes the state backend, releasing all internal resources, but does not delete any persistent
-	 * checkpoint data.
+	 * Closes the state backend, dropping and aborting all I/O operations that are currently
+	 * pending.
 	 *
-	 * @throws Exception Exceptions can be forwarded and will be logged by the system
+	 * @throws IOException Exceptions can be forwarded and will be logged by the system
 	 */
-	public abstract void close() throws Exception;
+	public abstract void close() throws IOException;
 
-	public void dispose() {
+	/**
+	 * Releases all resources held by this state backend.
+	 * 
+	 * <p>This method must make sure that all resources are disposed, even if an exception happens
+	 * on the way.
+	 * 
+	 * @throws Exception This method should report exceptions that occur.
+	 */
+	public void dispose() throws Exception {
+		Throwable exception = null;
+
+		// make sure things are closed
+		try {
+			close();
+		}
+		catch (Throwable t) {
+			exception = t;
+		}
+
+		// now actually dispose things
 		lastName = null;
 		lastState = null;
 		if (keyValueStates != null) {
 			for (KvState<?, ?, ?, ?, ?> state : keyValueStates) {
-				state.dispose();
+				try {
+					state.dispose();
+				}
+				catch (Throwable t) {
+					if (exception == null) {
+						exception = t;
+					} else {
+						exception.addSuppressed(t);
+					}
+				}
 			}
 		}
 		keyValueStates = null;
 		keyValueStatesByName = null;
+
+		if (exception != null) {
+			if (exception instanceof Exception) {
+				throw (Exception) exception;
+			} else if (exception instanceof Error) {
+				throw (Error) exception;
+			} else {
+				throw new Exception(exception.getMessage(), exception);
+			}
+		}
 	}
 	
 	// ------------------------------------------------------------------------
@@ -444,6 +483,9 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 		 * @throws IOException Thrown, if the stream cannot be closed.
 		 */
 		public StateHandle<DataInputView> closeAndGetHandle() throws IOException {
+			// we do not flush() here, because that forces the 'CheckpointStateOutputStream' to files,
+			// even when it could stay in a 'small chunk' memory handle.
+			// the 'DataOutputViewStreamWrapper' does not buffer data anyways
 			return new DataInputViewHandle(out.closeAndGetHandle());
 		}
 

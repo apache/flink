@@ -33,9 +33,10 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.ExceptionUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,8 +45,12 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.UUID;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The file state backend is a state backend that stores the state of streaming jobs in a file system.
@@ -86,6 +91,10 @@ public class FsStateBackend extends AbstractStateBackend {
 	/** Cached handle to the file system for file operations */
 	private transient FileSystem filesystem;
 
+	/** Set of currently open streams */
+	private transient HashSet<FsCheckpointStateOutputStream> openStreams;
+
+	private transient volatile boolean closed;
 
 	/**
 	 * Creates a new state backend that stores its checkpoint data in the file system and location
@@ -236,9 +245,11 @@ public class FsStateBackend extends AbstractStateBackend {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void initializeForJob(Environment env,
-		String operatorIdentifier,
-		TypeSerializer<?> keySerializer) throws Exception {
+	public void initializeForJob(
+			Environment env,
+			String operatorIdentifier,
+			TypeSerializer<?> keySerializer) throws Exception {
+
 		super.initializeForJob(env, operatorIdentifier, keySerializer);
 
 		Path dir = new Path(basePath, env.getJobID().toString());
@@ -249,6 +260,7 @@ public class FsStateBackend extends AbstractStateBackend {
 		filesystem.mkdirs(dir);
 
 		checkpointDirectory = dir;
+		openStreams = new HashSet<>();
 	}
 
 	@Override
@@ -267,7 +279,42 @@ public class FsStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
-	public void close() throws Exception {}
+	public void close() throws IOException {
+		closed = true;
+
+		// cache a copy on the heap for safety 
+		final HashSet<FsCheckpointStateOutputStream> openStreams = this.openStreams;
+		if (openStreams != null) {
+
+			// we need to draw a copy of the set, since the closing concurrently modifies the set
+			final ArrayList<FsCheckpointStateOutputStream> streams;
+
+			//noinspection SynchronizationOnLocalVariableOrMethodParameter
+			synchronized (openStreams) {
+				streams = new ArrayList<>(openStreams);
+				openStreams.clear();
+			}
+
+			// close all the streams, collect exceptions and record all but the first as suppressed
+			Throwable exception = null;
+			for (FsCheckpointStateOutputStream stream : streams) {
+				try {
+					stream.close();
+				}
+				catch (Throwable t) {
+					if (exception == null) {
+						exception = t;
+					} else {
+						exception.addSuppressed(t);
+					}
+				}
+			}
+
+			if (exception != null) {
+				ExceptionUtils.rethrowIOException(exception);
+			}
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//  state backend operations
@@ -299,15 +346,22 @@ public class FsStateBackend extends AbstractStateBackend {
 			S state, long checkpointID, long timestamp) throws Exception
 	{
 		checkFileSystemInitialized();
-		
+
 		Path checkpointDir = createCheckpointDirPath(checkpointID);
 		int bufferSize = Math.max(DEFAULT_WRITE_BUFFER_SIZE, fileStateThreshold);
 
-		FsCheckpointStateOutputStream stream = 
-			new FsCheckpointStateOutputStream(checkpointDir, filesystem, bufferSize, fileStateThreshold);
-		
-		try (ObjectOutputStream os = new ObjectOutputStream(stream)) {
+		try (FsCheckpointStateOutputStream stream = new FsCheckpointStateOutputStream(
+				checkpointDir, filesystem, openStreams, bufferSize, fileStateThreshold))
+		{
+			// perform the closing double-check AFTER! the creation of the stream
+			if (closed) {
+				throw new IOException("closed");
+			}
+
+			ObjectOutputStream os = new ObjectOutputStream(stream);
 			os.writeObject(state);
+			os.flush();
+
 			return stream.closeAndGetHandle().toSerializableHandle();
 		}
 	}
@@ -318,7 +372,16 @@ public class FsStateBackend extends AbstractStateBackend {
 
 		Path checkpointDir = createCheckpointDirPath(checkpointID);
 		int bufferSize = Math.max(DEFAULT_WRITE_BUFFER_SIZE, fileStateThreshold);
-		return new FsCheckpointStateOutputStream(checkpointDir, filesystem, bufferSize, fileStateThreshold);
+		FsCheckpointStateOutputStream stream = new FsCheckpointStateOutputStream(
+				checkpointDir, filesystem, openStreams, bufferSize, fileStateThreshold);
+
+		// perform the closing double-check AFTER! the creation of the stream
+		if (closed) {
+			stream.close();
+			throw new IOException("closed");
+		}
+
+		return stream;
 	}
 
 	// ------------------------------------------------------------------------
@@ -426,29 +489,40 @@ public class FsStateBackend extends AbstractStateBackend {
 		private int pos;
 
 		private FSDataOutputStream outStream;
-		
+
 		private final int localStateThreshold;
 
 		private final Path basePath;
 
 		private final FileSystem fs;
-		
+
+		private final HashSet<FsCheckpointStateOutputStream> openStreams;
+
 		private Path statePath;
-		
-		private boolean closed;
+
+		private volatile boolean closed;
 
 		public FsCheckpointStateOutputStream(
-					Path basePath, FileSystem fs,
-					int bufferSize, int localStateThreshold)
+					Path basePath,
+					FileSystem fs,
+					HashSet<FsCheckpointStateOutputStream> openStreams,
+					int bufferSize,
+					int localStateThreshold)
 		{
 			if (bufferSize < localStateThreshold) {
 				throw new IllegalArgumentException();
 			}
-			
+
 			this.basePath = basePath;
 			this.fs = fs;
+			this.openStreams = checkNotNull(openStreams);
 			this.writeBuffer = new byte[bufferSize];
 			this.localStateThreshold = localStateThreshold;
+
+			//noinspection SynchronizationOnLocalVariableOrMethodParameter
+			synchronized (openStreams) {
+				openStreams.add(this);
+			}
 		}
 
 
@@ -519,6 +593,9 @@ public class FsStateBackend extends AbstractStateBackend {
 					pos = 0;
 				}
 			}
+			else {
+				throw new IOException("stream is closed");
+			}
 		}
 
 		/**
@@ -530,6 +607,16 @@ public class FsStateBackend extends AbstractStateBackend {
 		public void close() {
 			if (!closed) {
 				closed = true;
+
+				// make sure that the write() methods cannot succeed any more
+				pos = writeBuffer.length;
+
+				// remove the stream from the open streams set
+				synchronized (openStreams) {
+					openStreams.remove(this);
+				}
+
+				// close all resources
 				if (outStream != null) {
 					try {
 						outStream.close();
@@ -551,15 +638,24 @@ public class FsStateBackend extends AbstractStateBackend {
 		public StreamStateHandle closeAndGetHandle() throws IOException {
 			synchronized (this) {
 				if (!closed) {
+
+					// remove the stream from the open streams set
+					synchronized (openStreams) {
+						openStreams.remove(this);
+					}
+
+					// close all resources
 					if (outStream == null && pos <= localStateThreshold) {
 						closed = true;
 						byte[] bytes = Arrays.copyOf(writeBuffer, pos);
+						pos = writeBuffer.length;
 						return new ByteStreamStateHandle(bytes);
 					}
 					else {
 						flush();
 						outStream.close();
 						closed = true;
+						pos = writeBuffer.length;
 						return new FileStreamStateHandle(statePath);
 					}
 				}
@@ -577,15 +673,40 @@ public class FsStateBackend extends AbstractStateBackend {
 		public Path closeAndGetPath() throws IOException {
 			synchronized (this) {
 				if (!closed) {
-					closed = true;
+
+					// remove the stream from the open streams set
+					synchronized (openStreams) {
+						openStreams.remove(this);
+					}
+
+					// close all resources
 					flush();
 					outStream.close();
+					closed = true;
+					pos = writeBuffer.length;
 					return statePath;
 				}
 				else {
 					throw new IOException("Stream has already been closed and discarded.");
 				}
 			}
+		}
+
+		public boolean isClosed() {
+			return closed;
+		}
+
+		// we need referential identity on the streams for the closing set to work
+		// properly, so we implement that via final methods here
+
+		@Override
+		public final int hashCode() {
+			return super.hashCode();
+		}
+
+		@Override
+		public final boolean equals(Object obj) {
+			return this == obj;
 		}
 	}
 }

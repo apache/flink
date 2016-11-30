@@ -772,7 +772,14 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					}
 			}
 		}
+
 		stateBackend.initializeForJob(getEnvironment(), operatorIdentifier, keySerializer);
+
+		// make sure the state backend is closed eagerly in case of cancellation
+		synchronized (cancelables) {
+			cancelables.add(stateBackend);
+		}
+
 		return stateBackend;
 
 	}

@@ -78,7 +78,7 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
-	public void close() throws Exception {}
+	public void close() {}
 
 	// ------------------------------------------------------------------------
 	//  State backend operations

@@ -104,7 +104,7 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		public void disposeAllStateForCurrentJob() throws Exception {}
 
 		@Override
-		public void close() throws Exception {}
+		public void close() {}
 
 		@Override
 		protected <N, T> ValueState<T> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<T> stateDesc) throws Exception {

@@ -312,48 +312,72 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
-	public void dispose() {
-		super.dispose();
-		nonPartitionedStateBackend.dispose();
+	public void dispose() throws Exception {
+		Throwable exception = null;
+
+		// make sure the individual states are disposed
+		try {
+			super.dispose();
+		}
+		catch (Throwable t) {
+			exception = t;
+		}
+
+		try {
+			nonPartitionedStateBackend.dispose();
+		}
+		catch (Throwable t) {
+			if (exception == null) {
+				exception = t;
+			} else {
+				exception.addSuppressed(t);
+			}
+		}
 
 		// we have to lock because we might have an asynchronous checkpoint going on
-		synchronized (dbCleanupLock) {
-			if (db != null) {
-				if (this.dbOptions != null) {
-					this.dbOptions.dispose();
-					this.dbOptions = null;
-				}
+		// this must also happen in any case, regardless of earlier exceptions
+		try {
+			synchronized (dbCleanupLock) {
+				if (db != null) {
+					if (this.dbOptions != null) {
+						this.dbOptions.dispose();
+						this.dbOptions = null;
+					}
 
-				for (Tuple2<ColumnFamilyHandle, StateDescriptor> column : kvStateInformation.values()) {
-					column.f0.dispose();
-				}
+					for (Tuple2<ColumnFamilyHandle, StateDescriptor> column : kvStateInformation.values()) {
+						column.f0.dispose();
+					}
 
-				db.dispose();
-				db = null;
+					db.dispose();
+					db = null;
+				}
+			}
+		}
+		catch (Throwable t) {
+			if (exception == null) {
+				exception = t;
+			} else {
+				exception.addSuppressed(t);
+			}
+		}
+
+		if (exception != null) {
+			if (exception instanceof Exception) {
+				throw (Exception) exception;
+			} else if (exception instanceof Error) {
+				throw (Error) exception;
+			} else {
+				throw new Exception(exception.getMessage(), exception);
 			}
 		}
 	}
 
 	@Override
-	public void close() throws Exception {
+	public void close() throws IOException {
+		// we only close all I/O streams here and do not yet dispose of the native resources
+		// otherwise this can lead to SEGFAULT problems
+		// native resources must only be released in the 'dispose()' method.
 		nonPartitionedStateBackend.close();
-
-		// we have to lock because we might have an asynchronous checkpoint going on
-		synchronized (dbCleanupLock) {
-			if (db != null) {
-				if (this.dbOptions != null) {
-					this.dbOptions.dispose();
-					this.dbOptions = null;
-				}
-
-				for (Tuple2<ColumnFamilyHandle, StateDescriptor> column : kvStateInformation.values()) {
-					column.f0.dispose();
-				}
-
-				db.dispose();
-				db = null;
-			}
-		}
 	}
 
 	private File getDbPath(String stateName) {
