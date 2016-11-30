@@ -43,10 +43,18 @@ import static org.junit.Assert.fail;
 /**
  * This class contains unit tests for the {@link BlobCache}.
  */
-public class BlobCacheDeleteTest {
+public class BlobCacheHADeleteTest {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	protected Configuration getConfiguration() {
+		Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, "dfs://" + temporaryFolder.getRoot().getPath());
+		return config;
+	}
 
 	/**
 	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs
@@ -64,10 +72,7 @@ public class BlobCacheDeleteTest {
 		BlobClient client = null;
 		BlobCache cache = null;
 
-		Configuration config = new Configuration();
-		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getPath());
+		Configuration config = getConfiguration();
 
 		try {
 			server = new BlobServer(config);
@@ -124,7 +129,12 @@ public class BlobCacheDeleteTest {
 				cache.shutdown();
 			}
 		}
+		verifyClean(config);
 
+
+	}
+
+	protected void verifyClean(Configuration config) {
 		// Verify everything is clean below recoveryDir/<cluster_id>
 		final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
 		File haBlobStoreDir = new File(temporaryFolder.getRoot(), clusterId);

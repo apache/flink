@@ -20,37 +20,38 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
-import java.net.InetSocketAddress;
+import java.io.File;
+import java.util.Arrays;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertNull;
+
 
 /**
- * Tests how DELETE requests behave.
+ * This class contains unit tests for the {@link BlobCache}.
  */
-public class BlobServerDfsDeleteTest extends BlobServerDeleteTest {
-
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+public class BlobCacheDfsDeleteTest extends BlobCacheHADeleteTest {
 
 	@Override
 	protected Configuration getConfiguration() {
 		Configuration config = new Configuration();
 
+		// since this directory will be deleted, create an individual one below
+		// temporaryFolder:
 		config.setString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY,
-			"dfs://" + temporaryFolder.getRoot().getPath());
+			"dfs://" + temporaryFolder.getRoot().getPath() + "/default");
 		return config;
 	}
 
-	protected void cleanup(BlobServer server, BlobClient client, BlobCache cache) {
-		cleanup(server, client);
-		if (cache != null) {
-			cache.shutdown();
-		}
+	/**
+	 * Verify everything is clean below <tt>recoveryDir/default</tt>.
+	 *
+	 * @param config
+	 */
+	@Override
+	protected void verifyClean(Configuration config) {
+		File haBlobStoreDir = new File(temporaryFolder.getRoot(), "default");
+		File[] recoveryFiles = haBlobStoreDir.listFiles();
+		assertNull("Unclean state backend: " + Arrays.toString(recoveryFiles), recoveryFiles);
 	}
 }
