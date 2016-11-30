@@ -122,4 +122,12 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @param optionalDiagnostics
 	 */
 	void shutDownCluster(final ApplicationStatus finalStatus, final String optionalDiagnostics);
+
+	/**
+	 * Gets the currently registered number of TaskManagers.
+	 * 
+	 * @param leaderSessionId The leader session ID with which to address the ResourceManager.
+	 * @return The future to the number of registered TaskManagers.
+	 */
+	Future<Integer> getNumberOfRegisteredTaskManagers(UUID leaderSessionId);
 }
