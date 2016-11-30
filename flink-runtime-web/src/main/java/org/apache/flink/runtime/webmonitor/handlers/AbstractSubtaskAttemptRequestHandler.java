@@ -57,7 +57,13 @@ public abstract class AbstractSubtaskAttemptRequestHandler extends AbstractSubta
 		}
 		else if (attempt >= 0 && attempt < currentAttempt.getAttemptNumber()) {
 			AccessExecution exec = vertex.getPriorExecutionAttempt(attempt);
-			return handleRequest(exec, params);
+
+			if (exec != null) {
+				return handleRequest(exec, params);
+			} else {
+				throw new RequestHandlerException("Execution for attempt " + attempt +
+					" has already been deleted.");
+			}
 		}
 		else {
 			throw new RuntimeException("Attempt does not exist: " + attempt);

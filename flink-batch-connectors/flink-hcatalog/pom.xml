@@ -52,6 +52,12 @@ under the License.
 			<groupId>org.apache.hive.hcatalog</groupId>
 			<artifactId>hcatalog-core</artifactId>
 			<version>0.12.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.json</groupId>
+					<artifactId>json</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>

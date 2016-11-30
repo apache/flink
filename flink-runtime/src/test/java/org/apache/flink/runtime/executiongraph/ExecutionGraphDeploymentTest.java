@@ -89,7 +89,8 @@ public class ExecutionGraphDeploymentTest {
 			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
 
 			ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(), 
+				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutionContext(),
 				jobId, 
 				"some job", 
 				new Configuration(),
@@ -313,6 +314,7 @@ public class ExecutionGraphDeploymentTest {
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(
 			TestingUtils.directExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
 			jobId,
 			"failing test job",
 			new Configuration(),
@@ -356,7 +358,8 @@ public class ExecutionGraphDeploymentTest {
 
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.directExecutionContext(), 
+			TestingUtils.directExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
 			jobId, 
 			"some job", 
 			new Configuration(), 

@@ -103,7 +103,9 @@ class FlinkPlannerImpl(
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
         new ViewExpanderImpl, validator, createCatalogReader, cluster, convertletTable, config)
       root = sqlToRelConverter.convertQuery(validatedSqlNode, false, true)
-      root = root.withRel(sqlToRelConverter.flattenTypes(root.rel, true))
+      // we disable automatic flattening in order to let composite types pass without modification
+      // we might enable it again once Calcite has better support for structured types
+      // root = root.withRel(sqlToRelConverter.flattenTypes(root.rel, true))
       root = root.withRel(RelDecorrelator.decorrelateQuery(root.rel))
       root
     } catch {

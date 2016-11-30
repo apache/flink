@@ -21,6 +21,7 @@ package org.apache.flink.api.table.runtime
 import org.apache.flink.api.common.functions.{FlatJoinFunction, RichFlatJoinFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
+import org.apache.flink.api.table.codegen.Compiler
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.util.Collector
 import org.slf4j.LoggerFactory
@@ -31,7 +32,7 @@ class FlatJoinRunner[IN1, IN2, OUT](
     @transient returnType: TypeInformation[OUT])
   extends RichFlatJoinFunction[IN1, IN2, OUT]
   with ResultTypeQueryable[OUT]
-  with FunctionCompiler[FlatJoinFunction[IN1, IN2, OUT]] {
+  with Compiler[FlatJoinFunction[IN1, IN2, OUT]] {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 

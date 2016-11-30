@@ -195,8 +195,8 @@ public class MesosFlinkResourceManagerTest {
 			ContainerSpecification containerSpecification = new ContainerSpecification();
 			ContaineredTaskManagerParameters containeredParams =
 				new ContaineredTaskManagerParameters(1024, 768, 256, 4, new HashMap<String, String>());
-			MesosTaskManagerParameters tmParams = new MesosTaskManagerParameters(1.0, containeredParams);
-			Protos.TaskInfo.Builder taskInfo = Protos.TaskInfo.newBuilder();
+			MesosTaskManagerParameters tmParams = new MesosTaskManagerParameters(
+				1.0, MesosTaskManagerParameters.ContainerType.MESOS, Option.<String>empty(), containeredParams);
 
 			TestActorRef<TestingMesosFlinkResourceManager> resourceManagerRef =
 				TestActorRef.create(system, MesosFlinkResourceManager.createActorProps(

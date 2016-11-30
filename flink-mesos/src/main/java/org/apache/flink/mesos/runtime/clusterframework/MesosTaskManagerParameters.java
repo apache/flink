@@ -21,7 +21,9 @@ package org.apache.flink.mesos.runtime.clusterframework;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import scala.Option;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -46,13 +48,31 @@ public class MesosTaskManagerParameters {
 			key("mesos.resourcemanager.tasks.cpus")
 			.defaultValue(0.0);
 
+	public static final ConfigOption<String> MESOS_RM_CONTAINER_TYPE =
+		key("mesos.resourcemanager.tasks.container.type")
+			.defaultValue("mesos");
+
+	public static final ConfigOption<String> MESOS_RM_CONTAINER_IMAGE_NAME =
+		key("mesos.resourcemanager.tasks.container.image.name")
+			.noDefaultValue();
+
 	private final double cpus;
+
+	private final ContainerType containerType;
+
+	private final Option<String> containerImageName;
 
 	private final ContaineredTaskManagerParameters containeredParameters;
 
-	public MesosTaskManagerParameters(double cpus, ContaineredTaskManagerParameters containeredParameters) {
+	public MesosTaskManagerParameters(
+		double cpus,
+		ContainerType containerType,
+		Option<String> containerImageName,
+		ContaineredTaskManagerParameters containeredParameters) {
 		requireNonNull(containeredParameters);
 		this.cpus = cpus;
+		this.containerType = containerType;
+		this.containerImageName = containerImageName;
 		this.containeredParameters = containeredParameters;
 	}
 
@@ -61,6 +81,22 @@ public class MesosTaskManagerParameters {
      */
 	public double cpus() {
 		return cpus;
+	}
+
+	/**
+	 * Get the container type (Mesos or Docker).  The default is Mesos.
+	 *
+	 * Mesos provides a facility for a framework to specify which containerizer to use.
+     */
+	public ContainerType containerType() {
+		return containerType;
+	}
+
+	/**
+	 * Get the container image name.
+     */
+	public Option<String> containerImageName() {
+		return containerImageName;
 	}
 
 	/**
@@ -74,6 +110,8 @@ public class MesosTaskManagerParameters {
 	public String toString() {
 		return "MesosTaskManagerParameters{" +
 			"cpus=" + cpus +
+			", containerType=" + containerType +
+			", containerImageName=" + containerImageName +
 			", containeredParameters=" + containeredParameters +
 			'}';
 	}
@@ -95,6 +133,35 @@ public class MesosTaskManagerParameters {
 			cpus = Math.max(containeredParameters.numSlots(), 1.0);
 		}
 
-		return new MesosTaskManagerParameters(cpus, containeredParameters);
+		// parse the containerization parameters
+		String imageName = flinkConfig.getString(MESOS_RM_CONTAINER_IMAGE_NAME);
+
+		ContainerType containerType;
+		String containerTypeString = flinkConfig.getString(MESOS_RM_CONTAINER_TYPE);
+		switch(containerTypeString) {
+			case ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_MESOS:
+				containerType = ContainerType.MESOS;
+				break;
+			case ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_DOCKER:
+				containerType = ContainerType.DOCKER;
+				if(imageName == null || imageName.length() == 0) {
+					throw new IllegalConfigurationException(MESOS_RM_CONTAINER_IMAGE_NAME.key() +
+						" must be specified for docker container type");
+				}
+				break;
+			default:
+				throw new IllegalConfigurationException("invalid container type: " + containerTypeString);
+		}
+
+		return new MesosTaskManagerParameters(
+			cpus,
+			containerType,
+			Option.apply(imageName),
+			containeredParameters);
+	}
+
+	public enum ContainerType {
+		MESOS,
+		DOCKER
 	}
 }

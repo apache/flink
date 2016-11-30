@@ -114,6 +114,7 @@ public class RescalingITCase extends TestLogger {
 	public static void teardown() {
 		if (cluster != null) {
 			cluster.shutdown();
+			cluster.awaitTermination();
 		}
 	}
 
@@ -791,8 +792,8 @@ public class RescalingITCase extends TestLogger {
 
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
-			counter = context.getManagedKeyedStateStore().getState(new ValueStateDescriptor<>("counter", Integer.class, 0));
-			sum = context.getManagedKeyedStateStore().getState(new ValueStateDescriptor<>("sum", Integer.class, 0));
+			counter = context.getKeyedStateStore().getState(new ValueStateDescriptor<>("counter", Integer.class, 0));
+			sum = context.getKeyedStateStore().getState(new ValueStateDescriptor<>("sum", Integer.class, 0));
 		}
 	}
 
@@ -936,7 +937,7 @@ public class RescalingITCase extends TestLogger {
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
 			this.counterPartitions =
-					context.getManagedOperatorStateStore().getSerializableListState("counter_partitions");
+					context.getOperatorStateStore().getSerializableListState("counter_partitions");
 			if (context.isRestored()) {
 				for (int v : counterPartitions.get()) {
 					counter += v;

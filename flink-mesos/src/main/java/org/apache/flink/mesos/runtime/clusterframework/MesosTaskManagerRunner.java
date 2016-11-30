@@ -20,6 +20,7 @@ package org.apache.flink.mesos.runtime.clusterframework;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -32,7 +33,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
@@ -116,14 +117,14 @@ public class MesosTaskManagerRunner {
 		LOG.info("ResourceID assigned for this container: {}", resourceId);
 
 		// Run the TM in the security context
-		SecurityContext.SecurityConfiguration sc = new SecurityContext.SecurityConfiguration(configuration);
+		SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(configuration);
 		sc.setHadoopConfiguration(HadoopUtils.getHadoopConfiguration());
-		SecurityContext.install(sc);
+		SecurityUtils.install(sc);
 
 		try {
-			SecurityContext.getInstalled().runSecured(new SecurityContext.FlinkSecuredRunner<Integer>() {
+			SecurityUtils.getInstalledContext().runSecured(new Callable<Integer>() {
 				@Override
-				public Integer run() throws Exception {
+				public Integer call() throws Exception {
 					TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration, resourceId, taskManager);
 					return 0;
 				}

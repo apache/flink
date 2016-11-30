@@ -28,10 +28,8 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -39,13 +37,11 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
-import org.apache.flink.util.FutureUtil;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.InputStream;
 import java.util.BitSet;
-import java.util.Collections;
 
 public class StreamOperatorSnapshotRestoreTest {
 
@@ -173,8 +169,8 @@ public class StreamOperatorSnapshotRestoreTest {
 
 			Assert.assertEquals(verifyRestore, context.isRestored());
 
-			keyedState = context.getManagedKeyedStateStore().getState(new ValueStateDescriptor<>("managed-keyed", Integer.class, 0));
-			opState = context.getManagedOperatorStateStore().getSerializableListState("managed-op-state");
+			keyedState = context.getKeyedStateStore().getState(new ValueStateDescriptor<>("managed-keyed", Integer.class, 0));
+			opState = context.getOperatorStateStore().getSerializableListState("managed-op-state");
 
 			if (context.isRestored()) {
 				// check restored raw keyed state

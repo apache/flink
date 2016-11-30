@@ -26,7 +26,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -305,12 +305,19 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			throw new YarnDeploymentException("Flink configuration object has not been set");
 		}
 
+		// Check if we don't exceed YARN's maximum virtual cores.
+		// The number of cores can be configured in the config.
+		// If not configured, it is set to the number of task slots
 		int numYarnVcores = conf.getInt(YarnConfiguration.NM_VCORES, YarnConfiguration.DEFAULT_NM_VCORES);
+		int configuredVcores = flinkConfiguration.getInteger(ConfigConstants.YARN_VCORES, slots);
 		// don't configure more than the maximum configured number of vcores
-		if (slots > numYarnVcores) {
+		if (configuredVcores > numYarnVcores) {
 			throw new IllegalConfigurationException(
-				String.format("The number of task slots per node was configured with %d" +
-					" but Yarn only has %d virtual cores available.", slots, numYarnVcores));
+				String.format("The number of virtual cores per node were configured with %d" +
+						" but Yarn only has %d virtual cores available. Please note that the number" +
+						" of virtual cores is set to the number of task slots by default unless configured" +
+						" in the Flink config with '%s.'",
+					configuredVcores, numYarnVcores, ConfigConstants.YARN_VCORES));
 		}
 
 		// check if required Hadoop environment variables are set. If not, warn user
@@ -577,7 +584,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 
 		//check if there is a JAAS config file
-		File jaasConfigFile = new File(configurationDirectory + File.separator + SecurityContext.JAAS_CONF_FILENAME);
+		File jaasConfigFile = new File(configurationDirectory + File.separator + SecurityUtils.JAAS_CONF_FILENAME);
 		if (jaasConfigFile.exists() && jaasConfigFile.isFile()) {
 			effectiveShipFiles.add(jaasConfigFile);
 		}

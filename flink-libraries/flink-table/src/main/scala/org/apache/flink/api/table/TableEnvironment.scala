@@ -25,7 +25,7 @@ import org.apache.calcite.config.Lex
 import org.apache.calcite.plan.RelOptPlanner
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexExecutorImpl
-import org.apache.calcite.schema.{Schemas, SchemaPlus}
+import org.apache.calcite.schema.{SchemaPlus, Schemas}
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql.SqlOperatorTable
 import org.apache.calcite.sql.parser.SqlParser
@@ -38,6 +38,7 @@ import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
 import org.apache.flink.api.scala.table.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
+import org.apache.flink.api.table.codegen.ExpressionReducer
 import org.apache.flink.api.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.api.table.functions.{ScalarFunction, UserDefinedFunction}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
@@ -71,7 +72,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     .typeSystem(new FlinkTypeSystem)
     .operatorTable(getSqlOperatorTable)
     // set the executor to evaluate constant expressions
-    .executor(new RexExecutorImpl(Schemas.createDataContext(null)))
+    .executor(new ExpressionReducer(config))
     .build
 
   // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.

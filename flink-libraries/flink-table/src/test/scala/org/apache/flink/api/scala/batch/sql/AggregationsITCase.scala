@@ -258,4 +258,43 @@ class AggregationsITCase(
     // must fail. grouping sets are not supported
     tEnv.sql(sqlQuery).toDataSet[Row]
   }
+
+  @Test
+  def testAggregateEmptyDataSets(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT avg(a), sum(a), count(b) " +
+      "FROM MyTable where a = 4 group by a"
+
+    val sqlQuery2 = "SELECT avg(a), sum(a), count(b) " +
+      "FROM MyTable where a = 4"
+
+    val sqlQuery3 = "SELECT avg(a), sum(a), count(b) " +
+      "FROM MyTable"
+
+    val ds = env.fromElements(
+      (1: Byte, 1: Short),
+      (2: Byte, 2: Short))
+      .toTable(tEnv, 'a, 'b)
+
+    tEnv.registerTable("MyTable", ds)
+
+    val result = tEnv.sql(sqlQuery)
+    val result2 = tEnv.sql(sqlQuery2)
+    val result3 = tEnv.sql(sqlQuery3)
+
+    val results = result.toDataSet[Row].collect()
+    val expected = Seq.empty
+    val results2 =  result2.toDataSet[Row].collect()
+    val expected2 = "null,null,0"
+    val results3 = result3.toDataSet[Row].collect()
+    val expected3 = "1,3,2"
+
+    assert(results.equals(expected),
+      "Empty result is expected for grouped set, but actual: " + results)
+    TestBaseUtils.compareResultAsText(results2.asJava, expected2)
+    TestBaseUtils.compareResultAsText(results3.asJava, expected3)
+  }
 }

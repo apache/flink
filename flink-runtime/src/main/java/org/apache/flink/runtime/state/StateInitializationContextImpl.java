@@ -22,6 +22,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.util.Preconditions;
 
@@ -36,7 +37,7 @@ import java.util.Iterator;
 public class StateInitializationContextImpl implements StateInitializationContext {
 
 	/** Closable registry to participate in the operator's cancel/close methods */
-	private final ClosableRegistry closableRegistry;
+	private final CloseableRegistry closableRegistry;
 
 	/** Signal whether any state to restore was found */
 	private final boolean restored;
@@ -55,7 +56,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 			KeyedStateStore keyedStateStore,
 			Collection<KeyGroupsStateHandle> keyGroupsStateHandles,
 			Collection<OperatorStateHandle> operatorStateHandles,
-			ClosableRegistry closableRegistry) {
+			CloseableRegistry closableRegistry) {
 
 		this.restored = restored;
 		this.closableRegistry = Preconditions.checkNotNull(closableRegistry);
@@ -87,7 +88,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		return keyGroupsStateHandles;
 	}
 
-	public ClosableRegistry getClosableRegistry() {
+	public CloseableRegistry getClosableRegistry() {
 		return closableRegistry;
 	}
 
@@ -121,12 +122,12 @@ public class StateInitializationContextImpl implements StateInitializationContex
 	}
 
 	@Override
-	public OperatorStateStore getManagedOperatorStateStore() {
+	public OperatorStateStore getOperatorStateStore() {
 		return operatorStateStore;
 	}
 
 	@Override
-	public KeyedStateStore getManagedKeyedStateStore() {
+	public KeyedStateStore getKeyedStateStore() {
 		return keyedStateStore;
 	}
 
@@ -137,14 +138,14 @@ public class StateInitializationContextImpl implements StateInitializationContex
 	private static class KeyGroupStreamIterator implements Iterator<KeyGroupStatePartitionStreamProvider> {
 
 		private final Iterator<KeyGroupsStateHandle> stateHandleIterator;
-		private final ClosableRegistry closableRegistry;
+		private final CloseableRegistry closableRegistry;
 
 		private KeyGroupsStateHandle currentStateHandle;
 		private FSDataInputStream currentStream;
 		private Iterator<Tuple2<Integer, Long>> currentOffsetsIterator;
 
 		public KeyGroupStreamIterator(
-				Iterator<KeyGroupsStateHandle> stateHandleIterator, ClosableRegistry closableRegistry) {
+				Iterator<KeyGroupsStateHandle> stateHandleIterator, CloseableRegistry closableRegistry) {
 
 			this.stateHandleIterator = Preconditions.checkNotNull(stateHandleIterator);
 			this.closableRegistry = Preconditions.checkNotNull(closableRegistry);
@@ -200,7 +201,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		private final String stateName; //TODO since we only support a single named state in raw, this could be dropped
 
 		private final Iterator<OperatorStateHandle> stateHandleIterator;
-		private final ClosableRegistry closableRegistry;
+		private final CloseableRegistry closableRegistry;
 
 		private OperatorStateHandle currentStateHandle;
 		private FSDataInputStream currentStream;
@@ -210,7 +211,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		public OperatorStateStreamIterator(
 				String stateName,
 				Iterator<OperatorStateHandle> stateHandleIterator,
-				ClosableRegistry closableRegistry) {
+				CloseableRegistry closableRegistry) {
 
 			this.stateName = Preconditions.checkNotNull(stateName);
 			this.stateHandleIterator = Preconditions.checkNotNull(stateHandleIterator);

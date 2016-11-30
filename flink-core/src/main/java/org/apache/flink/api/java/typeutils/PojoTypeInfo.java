@@ -64,8 +64,8 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	private final static String REGEX_FIELD = "[\\p{L}_\\$][\\p{L}\\p{Digit}_\\$]*";
 	private final static String REGEX_NESTED_FIELDS = "("+REGEX_FIELD+")(\\.(.+))?";
 	private final static String REGEX_NESTED_FIELDS_WILDCARD = REGEX_NESTED_FIELDS
-			+"|\\"+ExpressionKeys.SELECT_ALL_CHAR
-			+"|\\"+ExpressionKeys.SELECT_ALL_CHAR_SCALA;
+					+"|\\"+ExpressionKeys.SELECT_ALL_CHAR
+					+"|\\"+ExpressionKeys.SELECT_ALL_CHAR_SCALA;
 
 	private static final Pattern PATTERN_NESTED_FIELDS = Pattern.compile(REGEX_NESTED_FIELDS);
 	private static final Pattern PATTERN_NESTED_FIELDS_WILDCARD = Pattern.compile(REGEX_NESTED_FIELDS_WILDCARD);
@@ -264,6 +264,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	}
 
 	@Override
+	@PublicEvolving
 	protected TypeComparatorBuilder<T> createTypeComparatorBuilder() {
 		return new PojoTypeComparatorBuilder();
 	}

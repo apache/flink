@@ -21,6 +21,7 @@ package org.apache.flink.api.table.runtime
 import org.apache.flink.api.common.functions.{FlatMapFunction, RichFlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
+import org.apache.flink.api.table.codegen.Compiler
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.util.Collector
 import org.slf4j.LoggerFactory
@@ -31,11 +32,11 @@ class FlatMapRunner[IN, OUT](
     @transient returnType: TypeInformation[OUT])
   extends RichFlatMapFunction[IN, OUT]
   with ResultTypeQueryable[OUT]
-  with FunctionCompiler[FlatMapFunction[IN, OUT]] {
+  with Compiler[FlatMapFunction[IN, OUT]] {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
-  private var function: FlatMapFunction[IN, OUT] = null
+  private var function: FlatMapFunction[IN, OUT] = _
 
   override def open(parameters: Configuration): Unit = {
     LOG.debug(s"Compiling FlatMapFunction: $name \n\n Code:\n$code")

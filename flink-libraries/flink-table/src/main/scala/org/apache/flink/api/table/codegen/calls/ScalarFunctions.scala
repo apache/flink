@@ -97,6 +97,12 @@ object ScalarFunctions {
     BOOLEAN_TYPE_INFO,
     BuiltInMethod.LIKE.method)
 
+  addSqlFunctionMethod(
+    LIKE,
+    Seq(STRING_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO),
+    BOOLEAN_TYPE_INFO,
+    BuiltInMethods.LIKE_WITH_ESCAPE)
+
   addSqlFunctionNotMethod(
     NOT_LIKE,
     Seq(STRING_TYPE_INFO, STRING_TYPE_INFO),
@@ -107,6 +113,12 @@ object ScalarFunctions {
     Seq(STRING_TYPE_INFO, STRING_TYPE_INFO),
     BOOLEAN_TYPE_INFO,
     BuiltInMethod.SIMILAR.method)
+
+  addSqlFunctionMethod(
+    SIMILAR_TO,
+    Seq(STRING_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO),
+    BOOLEAN_TYPE_INFO,
+    BuiltInMethods.SIMILAR_WITH_ESCAPE)
 
   addSqlFunctionNotMethod(
     NOT_SIMILAR_TO,

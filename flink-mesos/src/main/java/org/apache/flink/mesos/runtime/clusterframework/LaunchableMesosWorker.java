@@ -230,6 +230,37 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		launchCommand.append(ContainerSpecification.formatSystemProperties(dynamicProperties));
 		cmd.setValue(launchCommand.toString());
 
+		// build the container info
+		Protos.ContainerInfo.Builder containerInfo = null;
+		switch(params.containerType()) {
+			case MESOS:
+				if(params.containerImageName().isDefined()) {
+					containerInfo = Protos.ContainerInfo.newBuilder()
+						.setType(Protos.ContainerInfo.Type.MESOS)
+						.setMesos(Protos.ContainerInfo.MesosInfo.newBuilder()
+						.setImage(Protos.Image.newBuilder()
+							.setType(Protos.Image.Type.DOCKER)
+							.setDocker(Protos.Image.Docker.newBuilder()
+								.setName(params.containerImageName().get()))));
+				}
+				break;
+
+			case DOCKER:
+				assert(params.containerImageName().isDefined());
+				containerInfo = Protos.ContainerInfo.newBuilder()
+					.setType(Protos.ContainerInfo.Type.DOCKER)
+					.setDocker(Protos.ContainerInfo.DockerInfo.newBuilder()
+						.setNetwork(Protos.ContainerInfo.DockerInfo.Network.HOST)
+						.setImage(params.containerImageName().get()));
+				break;
+
+			default:
+				throw new IllegalStateException("unsupported container type");
+		}
+		if(containerInfo != null) {
+			taskInfo.setContainer(containerInfo);
+		}
+
 		return taskInfo.build();
 	}
 

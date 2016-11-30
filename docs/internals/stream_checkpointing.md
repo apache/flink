@@ -133,7 +133,6 @@ of the data after checkpoint *n*.
 Because of that, dataflows with only embarrassingly parallel streaming operations (`map()`, `flatMap()`, `filter()`, ...) actually give *exactly once* guarantees even
 in *at least once* mode.
 
-<!--
 
 ### Asynchronous State Snapshots
 
@@ -143,17 +142,7 @@ It is possible to let an operator continue processing while it stores its state 
 
 After receiving the checkpoint barriers on its inputs, the operator starts the asynchronous snapshot copying of its state. It immediately emits the barrier to its outputs and continues with the regular stream processing. Once the background copy process has completed, it acknowledges the checkpoint to the checkpoint coordinator (the JobManager). The checkpoint is now only complete after all sinks received the barriers and all stateful operators acknowledged their completed backup (which may be later than the barriers reaching the sinks).
 
-User-defined state that is used through the key/value state abstraction can be snapshotted *asynchronously*.
-User functions that implement the interface {% gh_link /flink-FIXME/flink-streaming/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/checkpoint/Checkpointed.java "Checkpointed" %} will be snapshotted *synchronously*, while functions that implement {% gh_link /flink-FIXME/flink-streaming/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/checkpoint/CheckpointedAsynchronously.java "CheckpointedAsynchronously" %} will be snapshotted *asynchronously*. Note that for the latter, the user function must guarantee that any future modifications to its state to not affect the state object returned by the `snapshotState()` method.
-
-
-
-### Incremental State Snapshots
-
-For large state, taking a snapshot copy of the entire state can be costly, and may prohibit very frequent checkpoints. This problem can be solved by drawing *incremental state snapshots*.
-For incremental snapshots, only the changes since the last snapshot are stored in the current snapshot. The state can then be reconstructed by taking the latest full snapshot and applying the incremental changes to the state.
-
--->
+See [State Backends]({{ site.baseurl }}/internals/state_backends.html) for details on the state snapshots.
 
 
 ## Recovery

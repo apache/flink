@@ -498,10 +498,6 @@ The following example shows how an incremental `FoldFunction` can be combined wi
 a `WindowFunction` to extract the number of events in the window and return also 
 the key and end time of the window. 
 
-Please note that the use of a `FoldFunction` in combination with `WindowFunction` is
-restricted in that the types of the `Iterable` and `Collector` arguments in
-`WindowFunction` must both correspond to the type of the accumulator in the `FoldFunction`.
-
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
@@ -510,7 +506,7 @@ DataStream<SensorReading> input = ...;
 input
   .keyBy(<key selector>)
   .timeWindow(<window assigner>)
-  .apply(new Tuple3<String, Long, Integer>("",0L, 0), new MyFoldFunction(), new MyWindowFunction())
+  .fold(new Tuple3<String, Long, Integer>("",0L, 0), new MyFoldFunction(), new MyWindowFunction())
 
 // Function definitions
 
@@ -546,7 +542,7 @@ val input: DataStream[SensorReading] = ...
 input
  .keyBy(<key selector>)
  .timeWindow(<window assigner>)
- .apply (
+ .fold (
     ("", 0L, 0), 
     (acc: (String, Long, Int), r: SensorReading) => { ("", 0L, acc._3 + 1) },
     ( key: String, 
@@ -577,7 +573,7 @@ DataStream<SensorReading> input = ...;
 input
   .keyBy(<key selector>)
   .timeWindow(<window assigner>)
-  .apply(new MyReduceFunction(), new MyWindowFunction());
+  .reduce(new MyReduceFunction(), new MyWindowFunction());
 
 // Function definitions
 
@@ -610,7 +606,7 @@ val input: DataStream[SensorReading] = ...
 input
   .keyBy(<key selector>)
   .timeWindow(<window assigner>)
-  .apply(
+  .reduce(
     (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
     ( key: String, 
       window: TimeWindow, 
@@ -631,8 +627,8 @@ input
 When working with event-time windowing it can happen that elements arrive late, i.e the
 watermark that Flink uses to keep track of the progress of event-time is already past the
 end timestamp of a window to which an element belongs. Please
-see [event time](/apis/streaming/event_time.html) and especially
-[late elements](/apis/streaming/event_time.html#late-elements) for a more thorough discussion of
+see [event time](./event_time.html) and especially
+[late elements](./event_time.html#late-elements) for a more thorough discussion of
 how Flink deals with event time.
 
 You can specify how a windowed transformation should deal with late elements and how much lateness

@@ -85,17 +85,22 @@ class DataSetAggregate(
   }
 
   override def translateToPlan(
-      tableEnv: BatchTableEnvironment,
-      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+    tableEnv: BatchTableEnvironment,
+    expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
     val config = tableEnv.getConfig
 
     val groupingKeys = grouping.indices.toArray
-    // add grouping fields, position keys in the input, and input type
-    val aggregateResult = AggregateUtil.createOperatorFunctionsForAggregates(
+
+    val mapFunction = AggregateUtil.createPrepareMapFunction(
+      namedAggregates,
+      grouping,
+      inputType)
+
+    val groupReduceFunction = AggregateUtil.createAggregateGroupReduceFunction(
       namedAggregates,
       inputType,
-      getRowType,
+      rowRelDataType,
       grouping)
 
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(
@@ -111,10 +116,9 @@ class DataSetAggregate(
     val aggString = aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)
     val prepareOpName = s"prepare select: ($aggString)"
     val mappedInput = inputDS
-      .map(aggregateResult._1)
+      .map(mapFunction)
       .name(prepareOpName)
 
-    val groupReduceFunction = aggregateResult._2
     val rowTypeInfo = new RowTypeInfo(fieldTypes)
 
     val result = {

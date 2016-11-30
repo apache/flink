@@ -32,6 +32,8 @@ import org.apache.flink.types.KeyFieldOutOfBoundsException
  * Comparator for [[Row]].
  */
 class RowComparator private (
+    /** the number of fields of the Row */
+    val numberOfFields: Int,
     /** key positions describe which fields are keys in what order */
     val keyPositions: Array[Int],
     /** null-aware comparators for the key fields, in the same order as the key fields */
@@ -43,8 +45,8 @@ class RowComparator private (
   extends CompositeTypeComparator[Row] with Serializable {
 
   // null masks for serialized comparison
-  private val nullMask1 = new Array[Boolean](serializers.length)
-  private val nullMask2 = new Array[Boolean](serializers.length)
+  private val nullMask1 = new Array[Boolean](numberOfFields)
+  private val nullMask2 = new Array[Boolean](numberOfFields)
 
   // cache for the deserialized key field objects
   @transient
@@ -63,10 +65,12 @@ class RowComparator private (
    * Intermediate constructor for creating auxiliary fields.
    */
   def this(
+      numberOfFields: Int,
       keyPositions: Array[Int],
       comparators: Array[NullAwareComparator[Any]],
       serializers: Array[TypeSerializer[Any]]) = {
     this(
+      numberOfFields,
       keyPositions,
       comparators,
       serializers,
@@ -76,6 +80,7 @@ class RowComparator private (
   /**
    * General constructor for RowComparator.
    *
+   * @param numberOfFields the number of fields of the Row
    * @param keyPositions key positions describe which fields are keys in what order
    * @param comparators non-null-aware comparators for the key fields, in the same order as
    *   the key fields
@@ -83,11 +88,13 @@ class RowComparator private (
    * @param orders sorting orders for the fields
    */
   def this(
+      numberOfFields: Int,
       keyPositions: Array[Int],
       comparators: Array[TypeComparator[Any]],
       serializers: Array[TypeSerializer[Any]],
       orders: Array[Boolean]) = {
     this(
+      numberOfFields,
       keyPositions,
       makeNullAware(comparators, orders),
       serializers)
@@ -133,8 +140,8 @@ class RowComparator private (
     val len = serializers.length
     val keyLen = keyPositions.length
 
-    readIntoNullMask(len, firstSource, nullMask1)
-    readIntoNullMask(len, secondSource, nullMask2)
+    readIntoNullMask(numberOfFields, firstSource, nullMask1)
+    readIntoNullMask(numberOfFields, secondSource, nullMask2)
 
     // deserialize
     var i = 0
@@ -217,6 +224,7 @@ class RowComparator private (
     val serializersCopy = serializers.map(_.duplicate())
 
     new RowComparator(
+      numberOfFields,
       keyPositions,
       comparatorsCopy,
       serializersCopy,

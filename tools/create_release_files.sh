@@ -70,7 +70,6 @@ OLD_VERSION=${OLD_VERSION:-1.1-SNAPSHOT}
 RELEASE_VERSION=${NEW_VERSION}
 RELEASE_CANDIDATE=${RELEASE_CANDIDATE:-rc1}
 RELEASE_BRANCH=${RELEASE_BRANCH:-master}
-NEW_VERSION_HADOOP1=${NEW_VERSION_HADOOP1:-"$RELEASE_VERSION-hadoop1"}
 USER_NAME=${USER_NAME:-yourapacheidhere}
 MVN=${MVN:-mvn}
 GPG=${GPG:-gpg}
@@ -115,7 +114,6 @@ make_source_release() {
   #change version of documentation
   cd docs
   perl -pi -e "s#^version: .*#version: ${NEW_VERSION}#" _config.yml
-  perl -pi -e "s#^version_hadoop1: .*#version_hadoop1: ${NEW_VERSION}-hadoop1#" _config.yml
   perl -pi -e "s#^version_short: .*#version_short: ${NEW_VERSION}#" _config.yml
   cd ..
 
@@ -185,14 +183,6 @@ deploy_to_maven() {
   echo "Deploying Scala 2.10 version"
   cd tools && ./change-scala-version.sh 2.10 && cd ..
   $MVN clean deploy -Dgpg.executable=$GPG -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
-
-
-  echo "Deploying Scala 2.10 / hadoop 1 version"
-  ../generate_specific_pom.sh $NEW_VERSION $NEW_VERSION_HADOOP1 pom.xml
-
-
-  sleep 4
-  $MVN clean deploy -Dgpg.executable=$GPG -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
 }
 
 copy_data() {
@@ -211,7 +201,6 @@ prepare
 
 make_source_release
 
-make_binary_release "hadoop1" "-Dhadoop.profile=1" 2.10
 make_binary_release "hadoop2" "" 2.10
 make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" 2.10
 make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" 2.10

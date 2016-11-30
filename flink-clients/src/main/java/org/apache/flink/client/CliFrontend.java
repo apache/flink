@@ -70,7 +70,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -97,6 +97,7 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
@@ -1111,11 +1112,11 @@ public class CliFrontend {
 
 		try {
 			final CliFrontend cli = new CliFrontend();
-			SecurityContext.install(new SecurityContext.SecurityConfiguration().setFlinkConfiguration(cli.config));
-			int retCode = SecurityContext.getInstalled()
-					.runSecured(new SecurityContext.FlinkSecuredRunner<Integer>() {
+			SecurityUtils.install(new SecurityUtils.SecurityConfiguration(cli.config));
+			int retCode = SecurityUtils.getInstalledContext()
+					.runSecured(new Callable<Integer>() {
 						@Override
-						public Integer run() {
+						public Integer call() {
 							return cli.parseParameters(args);
 						}
 					});

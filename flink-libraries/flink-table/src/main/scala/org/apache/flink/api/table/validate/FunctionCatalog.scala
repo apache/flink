@@ -281,7 +281,8 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.CAST,
     SqlStdOperatorTable.EXTRACT,
     SqlStdOperatorTable.QUARTER,
-    SqlStdOperatorTable.SCALAR_QUERY
+    SqlStdOperatorTable.SCALAR_QUERY,
+    SqlStdOperatorTable.EXISTS
   )
 
   builtInSqlOperators.foreach(register)

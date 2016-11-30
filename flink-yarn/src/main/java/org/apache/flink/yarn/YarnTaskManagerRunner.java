@@ -21,11 +21,12 @@ package org.apache.flink.yarn;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
@@ -110,7 +111,7 @@ public class YarnTaskManagerRunner {
 
 		try {
 
-			SecurityContext.SecurityConfiguration sc = new SecurityContext.SecurityConfiguration();
+			SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(configuration);
 
 			//To support Yarn Secure Integration Test Scenario
 			File krb5Conf = new File(currDir, Utils.KRB5_FILE_NAME);
@@ -128,11 +129,11 @@ public class YarnTaskManagerRunner {
 				configuration.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY, remoteKeytabPrincipal);
 			}
 
-			SecurityContext.install(sc.setFlinkConfiguration(configuration));
+			SecurityUtils.install(sc);
 
-			SecurityContext.getInstalled().runSecured(new SecurityContext.FlinkSecuredRunner<Integer>() {
+			SecurityUtils.getInstalledContext().runSecured(new Callable<Object>() {
 				@Override
-				public Integer run() {
+				public Integer call() {
 					try {
 						TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration, resourceId, taskManager);
 					}

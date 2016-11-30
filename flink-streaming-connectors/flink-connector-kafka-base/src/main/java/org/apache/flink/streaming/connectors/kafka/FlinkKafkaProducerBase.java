@@ -34,7 +34,6 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.NetUtils;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -46,8 +45,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Collections;
+import java.util.Comparator;
 
 import static java.util.Objects.requireNonNull;
 
@@ -76,7 +78,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	 * Array with the partition ids of the given defaultTopicId
 	 * The size of this array is the number of partitions
 	 */
-	protected final int[] partitions;
+	protected int[] partitions;
 
 	/**
 	 * User defined properties for the Producer
@@ -148,30 +150,22 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		this.schema = serializationSchema;
 		this.producerConfig = producerConfig;
 
-		// set the producer configuration properties.
-		if (!producerConfig.contains(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)) {
+		// set the producer configuration properties for kafka record key value serializers.
+		if (!producerConfig.containsKey(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)) {
 			this.producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getCanonicalName());
 		} else {
 			LOG.warn("Overwriting the '{}' is not recommended", ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG);
 		}
 
-		if (!producerConfig.contains(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG)) {
+		if (!producerConfig.containsKey(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG)) {
 			this.producerConfig.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getCanonicalName());
 		} else {
 			LOG.warn("Overwriting the '{}' is not recommended", ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG);
 		}
 
-
-		// create a local KafkaProducer to get the list of partitions.
-		// this will also ensure locally that all required ProducerConfig values are set.
-		try (Producer<Void, IN> getPartitionsProd = getKafkaProducer(this.producerConfig)) {
-			List<PartitionInfo> partitionsList = getPartitionsProd.partitionsFor(defaultTopicId);
-
-			this.partitions = new int[partitionsList.size()];
-			for (int i = 0; i < partitions.length; i++) {
-				partitions[i] = partitionsList.get(i).partition();
-			}
-			getPartitionsProd.close();
+		// eagerly ensure that bootstrap servers are set.
+		if (!this.producerConfig.containsKey(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)) {
+			throw new IllegalArgumentException(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG + " must be supplied in the producer config properties.");
 		}
 
 		this.partitioner = customPartitioner;
@@ -217,6 +211,22 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	@Override
 	public void open(Configuration configuration) {
 		producer = getKafkaProducer(this.producerConfig);
+
+		// the fetched list is immutable, so we're creating a mutable copy in order to sort it
+		List<PartitionInfo> partitionsList = new ArrayList<>(producer.partitionsFor(defaultTopicId));
+
+		// sort the partitions by partition id to make sure the fetched partition list is the same across subtasks
+		Collections.sort(partitionsList, new Comparator<PartitionInfo>() {
+			@Override
+			public int compare(PartitionInfo o1, PartitionInfo o2) {
+				return Integer.compare(o1.partition(), o2.partition());
+			}
+		});
+
+		partitions = new int[partitionsList.size()];
+		for (int i = 0; i < partitions.length; i++) {
+			partitions[i] = partitionsList.get(i).partition();
+		}
 
 		RuntimeContext ctx = getRuntimeContext();
 		if (partitioner != null) {
@@ -333,7 +343,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
-		this.stateStore = context.getManagedOperatorStateStore();
+		this.stateStore = context.getOperatorStateStore();
 	}
 
 	@Override

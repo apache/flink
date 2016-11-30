@@ -362,7 +362,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(WINDOW_SIZE, MILLISECONDS))
-					.apply(
+					.reduce(
 							new ReduceFunction<Tuple2<Long, IntType>>() {
 
 								@Override
@@ -435,7 +435,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(WINDOW_SIZE, MILLISECONDS), Time.of(WINDOW_SLIDE, MILLISECONDS))
-					.apply(
+					.reduce(
 							new ReduceFunction<Tuple2<Long, IntType>>() {
 
 								@Override

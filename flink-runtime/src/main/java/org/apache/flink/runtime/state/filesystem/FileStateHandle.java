@@ -43,9 +43,6 @@ public class FileStateHandle implements StreamStateHandle {
 	/** The size of the state in the file */
 	private final long stateSize;
 
-	/** Cached file system handle */
-	private transient FileSystem fs;
-
 	/**
 	 * Creates a new file state for the given file path.
 	 *
@@ -79,13 +76,17 @@ public class FileStateHandle implements StreamStateHandle {
 	 */
 	@Override
 	public void discardState() throws Exception {
-		getFileSystem().delete(filePath, false);
+
+		FileSystem fs = getFileSystem();
+
+		fs.delete(filePath, false);
 
 		// send a call to delete the checkpoint directory containing the file. This will
 		// fail (and be ignored) when some files still exist
 		try {
-			getFileSystem().delete(filePath.getParent(), false);
-		} catch (IOException ignored) {}
+			fs.delete(filePath.getParent(), false);
+		} catch (IOException ignored) {
+		}
 	}
 
 	/**
@@ -106,10 +107,7 @@ public class FileStateHandle implements StreamStateHandle {
 	 * @throws IOException Thrown if the file system cannot be accessed.
 	 */
 	private FileSystem getFileSystem() throws IOException {
-		if (fs == null) {
-			fs = FileSystem.get(filePath.toUri());
-		}
-		return fs;
+		return FileSystem.get(filePath.toUri());
 	}
 
 	// ------------------------------------------------------------------------

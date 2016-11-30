@@ -27,6 +27,9 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayDeque;
 
 /**
@@ -43,10 +46,14 @@ import java.util.ArrayDeque;
 @Internal
 public class BarrierTracker implements CheckpointBarrierHandler {
 
+	private static final Logger LOG = LoggerFactory.getLogger(BarrierTracker.class);
+
 	/** The tracker tracks a maximum number of checkpoints, for which some, but not all
 	 * barriers have yet arrived. */
 	private static final int MAX_CHECKPOINTS_TO_TRACK = 50;
-	
+
+	// ------------------------------------------------------------------------
+
 	/** The input gate, to draw the buffers and events from */
 	private final InputGate inputGate;
 	
@@ -81,10 +88,10 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 				return next;
 			}
 			else if (next.getEvent().getClass() == CheckpointBarrier.class) {
-				processBarrier((CheckpointBarrier) next.getEvent());
+				processBarrier((CheckpointBarrier) next.getEvent(), next.getChannelIndex());
 			}
 			else if (next.getEvent().getClass() == CancelCheckpointMarker.class) {
-				processCheckpointAbortBarrier((CancelCheckpointMarker) next.getEvent());
+				processCheckpointAbortBarrier((CancelCheckpointMarker) next.getEvent(), next.getChannelIndex());
 			}
 			else {
 				// some other event
@@ -119,7 +126,7 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 		return 0L;
 	}
 
-	private void processBarrier(CheckpointBarrier receivedBarrier) throws Exception {
+	private void processBarrier(CheckpointBarrier receivedBarrier, int channelIndex) throws Exception {
 		final long barrierId = receivedBarrier.getId();
 
 		// fast path for single channel trackers
@@ -129,8 +136,11 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 		}
 
 		// general path for multiple input channels
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Received barrier for checkpoint {} from channel {}", barrierId, channelIndex);
+		}
 
-		// find the checkpoint barrier in the queue of bending barriers
+		// find the checkpoint barrier in the queue of pending barriers
 		CheckpointBarrierCount cbc = null;
 		int pos = 0;
 
@@ -155,6 +165,10 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 
 				// notify the listener
 				if (!cbc.isAborted()) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Received all barriers for checkpoint {}", barrierId);
+					}
+
 					notifyCheckpoint(receivedBarrier.getId(), receivedBarrier.getTimestamp());
 				}
 			}
@@ -176,8 +190,13 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 		}
 	}
 
-	private void processCheckpointAbortBarrier(CancelCheckpointMarker barrier) throws Exception {
+
+	private void processCheckpointAbortBarrier(CancelCheckpointMarker barrier, int channelIndex) throws Exception {
 		final long checkpointId = barrier.getCheckpointId();
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Received cancellation barrier for checkpoint {} from channel {}", checkpointId, channelIndex);
+		}
 
 		// fast path for single channel trackers
 		if (totalNumberOfInputChannels == 1) {

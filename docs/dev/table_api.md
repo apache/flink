@@ -1470,7 +1470,7 @@ The Table API is built on top of Flink's DataSet and DataStream API. Internally,
 | `Types.INTERVAL_MONTHS`| `INTERVAL YEAR TO MONTH`    | `java.lang.Integer`    |
 | `Types.INTERVAL_MILLIS`| `INTERVAL DAY TO SECOND(3)` | `java.lang.Long`       |
 
-Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and arrays can be fields of a row but can not be accessed yet. They are treated like a black box within Table API and SQL.
+Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and arrays can be fields of a row. Generic types and arrays are treated as a black box within Table API and SQL yet. Composite types, however, are fully supported types where fields of a composite type can be accessed using the `.get()` operator in Table API and dot operator (e.g. `MyTable.pojoColumn.myField`) in SQL. Composite types can also be flattened using `.flatten()` in Table API or `MyTable.pojoColumn.*` in SQL.
 
 {% top %}
 
@@ -2004,6 +2004,29 @@ NUMERIC.rows
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight java %}
+ANY.flatten()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes into a flat representation where every subtype is a separate field. In most cases the fields of the flat representation are named similarly to the original fields but with a dollar separator (e.g. <code>mypojo$mytuple$f0</code>).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+COMPOSITE.get(STRING)
+COMPOSITE.get(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by index or name and returns it's value. E.g. <code>pojo.get('myField')</code> or <code>tuple.get(0)</code>.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 
@@ -2531,6 +2554,29 @@ NUMERIC.rows
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY.flatten()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes into a flat representation where every subtype is a separate field. In most cases the fields of the flat representation are named similarly to the original fields but with a dollar separator (e.g. <code>mypojo$mytuple$f0</code>).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+COMPOSITE.get(STRING)
+COMPOSITE.get(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by index or name and returns it's value. E.g. <code>'pojo.get("myField")</code> or <code>'tuple.get(0)</code>.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 </div>
@@ -2690,33 +2736,33 @@ value1 NOT BETWEEN value2 AND value3
     <tr>
       <td>
         {% highlight text %}
-string1 LIKE string2
+string1 LIKE string2 [ ESCAPE string3 ]
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>string1</i> matches pattern <i>string2</i>.</p>
+        <p>Whether <i>string1</i> matches pattern <i>string2</i>. An escape character can be defined if necessary.</p>
       </td>
     </tr>
 
     <tr>
       <td>
         {% highlight text %}
-string1 NOT LIKE string2
+string1 NOT LIKE string2 [ ESCAPE string3 ]
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>string1</i> does not match pattern <i>string2</i>.</p>
+        <p>Whether <i>string1</i> does not match pattern <i>string2</i>. An escape character can be defined if necessary.</p>
       </td>
     </tr>
 
     <tr>
       <td>
         {% highlight text %}
-string1 SIMILAR TO string2
+string1 SIMILAR TO string2 [ ESCAPE string3 ]
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>string1</i> matches regular expression <i>string2</i>.</p>
+        <p>Whether <i>string1</i> matches regular expression <i>string2</i>. An escape character can be defined if necessary.</p>
       </td>
     </tr>
 
@@ -2724,11 +2770,11 @@ string1 SIMILAR TO string2
     <tr>
       <td>
         {% highlight text %}
-string1 NOT SIMILAR TO string2
+string1 NOT SIMILAR TO string2 [ ESCAPE string3 ]
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>string1</i> does not match regular expression <i>string2</i>.</p>
+        <p>Whether <i>string1</i> does not match regular expression <i>string2</i>. An escape character can be defined if necessary.</p>
       </td>
     </tr>
 
@@ -2754,6 +2800,18 @@ value NOT IN (value [, value]* )
         <p>Whether <i>value</i> is not equal to every value in a list.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+EXISTS (sub-query)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Whether <i>sub-query</i> returns at least one row. Only supported if the operation can be rewritten in a join and group operation.</p>
+      </td>
+    </tr>
+
 <!-- NOT SUPPORTED SO FAR
     <tr>
       <td>
@@ -2776,17 +2834,7 @@ value NOT IN (sub-query)
         <p>Whether <i>value</i> is not equal to every row returned by sub-query.</p>
       </td>
     </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-EXISTS (sub-query)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Whether sub-query returns at least one row.</p>
-      </td>
-    </tr>-->
+    -->
 
   </tbody>
 </table>
@@ -3298,6 +3346,8 @@ CAST(value AS type)
   </tbody>
 </table>
 
+
+<!-- Disabled temporarily in favor of composite type support
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -3330,6 +3380,7 @@ ROW (value [, value]* )
     </tr>
   </tbody>
 </table>
+-->
 
 <table class="table table-bordered">
   <thead>
@@ -3546,6 +3597,39 @@ MIN(value)
       </td>
       <td>
         <p>Returns the minimum value of <i>value</i> across all input values.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Value access functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight text %}
+tableName.compositeType.field
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by name and returns it's value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+tableName.compositeType.*
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes into a flat representation where every subtype is a separate field.</p>
       </td>
     </tr>
   </tbody>

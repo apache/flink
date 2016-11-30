@@ -20,13 +20,13 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.state.ClosableRegistry;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
@@ -58,7 +58,7 @@ public class StateInitializationContextImplTest {
 	static final int NUM_HANDLES = 10;
 
 	private StateInitializationContextImpl initializationContext;
-	private ClosableRegistry closableRegistry;
+	private CloseableRegistry closableRegistry;
 
 	private int writtenKeyGroups;
 	private Set<Integer> writtenOperatorStates;
@@ -70,7 +70,7 @@ public class StateInitializationContextImplTest {
 		this.writtenKeyGroups = 0;
 		this.writtenOperatorStates = new HashSet<>();
 
-		this.closableRegistry = new ClosableRegistry();
+		this.closableRegistry = new CloseableRegistry();
 		OperatorStateStore stateStore = mock(OperatorStateStore.class);
 
 		ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos(64);

@@ -22,7 +22,6 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Address;
 import akka.actor.Props;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Options;
@@ -42,8 +41,8 @@ import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.mesos.util.ZooKeeperUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.clusterframework.overlays.CompositeContainerOverlay;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+import org.apache.flink.runtime.clusterframework.overlays.CompositeContainerOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.FlinkDistributionOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.HadoopConfOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.HadoopUserOverlay;
@@ -55,17 +54,17 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.process.ProcessReaper;
-import org.apache.flink.runtime.security.SecurityContext;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.runtime.util.NamedThreadFactory;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
-
 import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -74,13 +73,16 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This class is the executable entry point for the Mesos Application Master.
- * It starts actor system and the actors for {@link org.apache.flink.runtime.jobmanager.JobManager}
+ * It starts actor system and the actors for {@link JobManager}
  * and {@link MesosFlinkResourceManager}.
  *
  * The JobManager handles Flink job execution, while the MesosFlinkResourceManager handles container
@@ -136,7 +138,7 @@ public class MesosApplicationMasterRunner {
 
 	/**
 	 * The instance entry point for the Mesos AppMaster. Obtains user group
-	 * information and calls the main work method {@link #runPrivileged} as a
+	 * information and calls the main work method {@link #runPrivileged(Configuration,Configuration)} as a
 	 * privileged action.
 	 *
 	 * @param args The command line arguments.
@@ -165,14 +167,14 @@ public class MesosApplicationMasterRunner {
 			}
 
 			// configure security
-			SecurityContext.SecurityConfiguration sc = new SecurityContext.SecurityConfiguration(config);
+			SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(config);
 			sc.setHadoopConfiguration(HadoopUtils.getHadoopConfiguration());
-			SecurityContext.install(sc);
+			SecurityUtils.install(sc);
 
 			// run the actual work in the installed security context
-			return SecurityContext.getInstalled().runSecured(new SecurityContext.FlinkSecuredRunner<Integer>() {
+			return SecurityUtils.getInstalledContext().runSecured(new Callable<Integer>() {
 				@Override
-				public Integer run() throws Exception {
+				public Integer call() throws Exception {
 					return runPrivileged(config, dynamicProperties);
 				}
 			});
@@ -198,6 +200,8 @@ public class MesosApplicationMasterRunner {
 		ActorSystem actorSystem = null;
 		WebMonitor webMonitor = null;
 		MesosArtifactServer artifactServer = null;
+		ExecutorService futureExecutor = null;
+		ExecutorService ioExecutor = null;
 
 		try {
 			// ------- (1) load and parse / validate all configurations -------
@@ -210,6 +214,18 @@ public class MesosApplicationMasterRunner {
 			// Mesos configuration
 			final MesosConfiguration mesosConfig = createMesosConfig(config, appMasterHostname);
 
+			// JM configuration
+			int numberProcessors = Hardware.getNumberCPUCores();
+
+			futureExecutor = Executors.newFixedThreadPool(
+				numberProcessors,
+				new NamedThreadFactory("mesos-jobmanager-future-", "-thread-"));
+
+			ioExecutor = Executors.newFixedThreadPool(
+				numberProcessors,
+				new NamedThreadFactory("mesos-jobmanager-io-", "-thread-"));
+
+			// TM configuration
 			final MesosTaskManagerParameters taskManagerParameters = MesosTaskManagerParameters.create(config);
 
 			LOG.info("TaskManagers will be created with {} task slots",
@@ -244,7 +260,7 @@ public class MesosApplicationMasterRunner {
 			final int artifactServerPort = config.getInteger(ConfigConstants.MESOS_ARTIFACT_SERVER_PORT_KEY,
 				ConfigConstants.DEFAULT_MESOS_ARTIFACT_SERVER_PORT);
 			final String artifactServerPrefix = UUID.randomUUID().toString();
-			artifactServer = new MesosArtifactServer(artifactServerPrefix, akkaHostname, artifactServerPort);
+			artifactServer = new MesosArtifactServer(artifactServerPrefix, akkaHostname, artifactServerPort, config);
 
 			// ----------------- (3) Generate the configuration for the TaskManagers -------------------
 
@@ -278,7 +294,10 @@ public class MesosApplicationMasterRunner {
 
 			// we start the JobManager with its standard name
 			ActorRef jobManager = JobManager.startJobManagerActors(
-				config, actorSystem,
+				config,
+				actorSystem,
+				futureExecutor,
+				ioExecutor,
 				new scala.Some<>(JobManager.JOB_MANAGER_NAME()),
 				scala.Option.<String>empty(),
 				getJobManagerClass(),
@@ -360,6 +379,22 @@ public class MesosApplicationMasterRunner {
 				}
 			}
 
+			if(futureExecutor != null) {
+				try {
+					futureExecutor.shutdownNow();
+				} catch (Throwable tt) {
+					LOG.error("Error shutting down future executor", tt);
+				}
+			}
+
+			if(ioExecutor != null) {
+				try {
+					ioExecutor.shutdownNow();
+				} catch (Throwable tt) {
+					LOG.error("Error shutting down io executor", tt);
+				}
+			}
+
 			return INIT_ERROR_EXIT_CODE;
 		}
 
@@ -383,6 +418,12 @@ public class MesosApplicationMasterRunner {
 		} catch (Throwable t) {
 			LOG.error("Failed to stop the artifact server", t);
 		}
+
+		org.apache.flink.runtime.concurrent.Executors.gracefulShutdown(
+			AkkaUtils.getTimeout(config).toMillis(),
+			TimeUnit.MILLISECONDS,
+			futureExecutor,
+			ioExecutor);
 
 		return 0;
 	}

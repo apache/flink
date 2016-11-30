@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework
 
-import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executor
 
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
@@ -45,8 +45,9 @@ import scala.language.postfixOps
   * to start/administer/stop the session.
   *
   * @param flinkConfiguration Configuration object for the actor
-  * @param executorService Execution context which is used to execute concurrent tasks in the
+  * @param futureExecutor Execution context which is used to execute concurrent tasks in the
   *                         [[org.apache.flink.runtime.executiongraph.ExecutionGraph]]
+  * @param ioExecutor to execute blocking io operations
   * @param instanceManager Instance manager to manage the registered
   *                        [[org.apache.flink.runtime.taskmanager.TaskManager]]
   * @param scheduler Scheduler to schedule Flink jobs
@@ -58,7 +59,8 @@ import scala.language.postfixOps
   */
 abstract class ContaineredJobManager(
     flinkConfiguration: Configuration,
-    executorService: ExecutorService,
+    futureExecutor: Executor,
+    ioExecutor: Executor,
     instanceManager: InstanceManager,
     scheduler: FlinkScheduler,
     libraryCacheManager: BlobLibraryCacheManager,
@@ -72,7 +74,8 @@ abstract class ContaineredJobManager(
     metricsRegistry: Option[FlinkMetricRegistry])
   extends JobManager(
     flinkConfiguration,
-    executorService,
+    futureExecutor,
+    ioExecutor,
     instanceManager,
     scheduler,
     libraryCacheManager,
