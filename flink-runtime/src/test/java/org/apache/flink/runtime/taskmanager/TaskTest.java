@@ -53,6 +53,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import scala.concurrent.ExecutionContext$;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -533,7 +534,7 @@ public class TaskTest extends TestLogger {
 		// Set the mock input gate
 		setInputGate(task, inputGate);
 
-		// Expected task state for each partition state
+		// Expected task state for each producer state
 		final Map<ExecutionState, ExecutionState> expected = new HashMap<>(ExecutionState.values().length);
 
 		// Fail the task for unexpected states
@@ -553,7 +554,7 @@ public class TaskTest extends TestLogger {
 		for (ExecutionState state : ExecutionState.values()) {
 			setState(task, ExecutionState.RUNNING);
 
-			task.onPartitionStateUpdate(resultId, partitionId.getPartitionId(), state);
+			task.onPartitionStateUpdate(resultId, partitionId, state);
 
 			ExecutionState newTaskState = task.getExecutionState();
 
@@ -781,15 +782,15 @@ public class TaskTest extends TestLogger {
 			new Configuration());
 		
 		return new Task(
-			jobInformation,
-			taskInformation,
-			executionAttemptId,
-			0,
-			0,
-			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-			Collections.<InputGateDeploymentDescriptor>emptyList(),
-			0,
-			null,
+				jobInformation,
+				taskInformation,
+				executionAttemptId,
+				0,
+				0,
+				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+				Collections.<InputGateDeploymentDescriptor>emptyList(),
+				0,
+				null,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				networkEnvironment,
@@ -800,7 +801,8 @@ public class TaskTest extends TestLogger {
 				libCache,
 				mock(FileCache.class),
 				new TaskManagerRuntimeInfo("localhost", taskManagerConfig, System.getProperty("java.io.tmpdir")),
-				mock(TaskMetricGroup.class));
+				mock(TaskMetricGroup.class),
+				ExecutionContext$.MODULE$.global());
 	}
 
 

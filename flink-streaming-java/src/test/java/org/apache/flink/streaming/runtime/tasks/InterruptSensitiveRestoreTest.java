@@ -49,9 +49,8 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.SerializedValue;
-
 import org.junit.Test;
-
+import scala.concurrent.ExecutionContext$;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -60,8 +59,10 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 /**
  * This test checks that task restores that get stuck in the presence of interrupts
@@ -129,28 +130,30 @@ public class InterruptSensitiveRestoreTest {
 			SourceStreamTask.class.getName(),
 			taskConfig);
 		return new Task(
-			jobInformation,
-			taskInformation,
-			new ExecutionAttemptID(),
-			0,
-			0,
-			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-			Collections.<InputGateDeploymentDescriptor>emptyList(),
-			0,
-			new SerializedValue<StateHandle<?>>(state),
-			mock(MemoryManager.class),
-			mock(IOManager.class),
+				jobInformation,
+				taskInformation,
+				new ExecutionAttemptID(),
+				0,
+				0,
+				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+				Collections.<InputGateDeploymentDescriptor>emptyList(),
+				0,
+				new SerializedValue<StateHandle<?>>(state),
+				mock(MemoryManager.class),
+				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
-			mock(BroadcastVariableManager.class),
+				mock(BroadcastVariableManager.class),
 				mock(ActorGateway.class),
 				mock(ActorGateway.class),
 				new FiniteDuration(10, TimeUnit.SECONDS),
-			new FallbackLibraryCacheManager(),
-			new FileCache(new Configuration()),
-			new TaskManagerRuntimeInfo(
-					"localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
-				new UnregisteredTaskMetricsGroup());
-		
+				new FallbackLibraryCacheManager(),
+				new FileCache(new Configuration()),
+				new TaskManagerRuntimeInfo(
+				"localhost",
+				new Configuration(),
+				EnvironmentInformation.getTemporaryFileDirectory()),
+				new UnregisteredTaskMetricsGroup(),
+				ExecutionContext$.MODULE$.global());
 	}
 
 	// ------------------------------------------------------------------------

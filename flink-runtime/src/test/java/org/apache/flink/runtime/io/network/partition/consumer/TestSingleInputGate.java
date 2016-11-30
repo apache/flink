@@ -19,11 +19,10 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
+import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -55,11 +54,10 @@ public class TestSingleInputGate {
 		SingleInputGate realGate = new SingleInputGate(
 			"Test Task Name",
 			new JobID(),
-			new ExecutionAttemptID(),
 			new IntermediateDataSetID(),
 			0,
 			numberOfInputChannels,
-			mock(PartitionStateChecker.class),
+			mock(TaskActions.class),
 			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		this.inputGate = spy(realGate);

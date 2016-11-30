@@ -19,12 +19,10 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -32,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup.DummyIOMetricGroup;
+import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.junit.Test;
 import scala.Tuple2;
 
@@ -62,10 +61,9 @@ public class InputGateConcurrentTest {
 		final SingleInputGate gate = new SingleInputGate(
 				"Test Task Name",
 				new JobID(),
-				new ExecutionAttemptID(),
 				new IntermediateDataSetID(),
 				0, numChannels,
-				mock(PartitionStateChecker.class),
+				mock(TaskActions.class),
 				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		for (int i = 0; i < numChannels; i++) {
@@ -98,11 +96,10 @@ public class InputGateConcurrentTest {
 		final SingleInputGate gate = new SingleInputGate(
 				"Test Task Name",
 				new JobID(),
-				new ExecutionAttemptID(),
 				new IntermediateDataSetID(),
 				0,
 				numChannels,
-				mock(PartitionStateChecker.class),
+				mock(TaskActions.class),
 				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		for (int i = 0; i < numChannels; i++) {
@@ -148,11 +145,10 @@ public class InputGateConcurrentTest {
 		final SingleInputGate gate = new SingleInputGate(
 				"Test Task Name",
 				new JobID(),
-				new ExecutionAttemptID(),
 				new IntermediateDataSetID(),
 				0,
 				numChannels,
-				mock(PartitionStateChecker.class),
+				mock(TaskActions.class),
 				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		for (int i = 0, local = 0; i < numChannels; i++) {

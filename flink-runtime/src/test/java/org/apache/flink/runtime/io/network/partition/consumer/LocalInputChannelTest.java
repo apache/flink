@@ -430,11 +430,10 @@ public class LocalInputChannelTest {
 			this.inputGate = new SingleInputGate(
 					"Test Name",
 					new JobID(),
-					new ExecutionAttemptID(),
 					new IntermediateDataSetID(),
 					subpartitionIndex,
 					numberOfInputChannels,
-					mock(PartitionStateChecker.class),
+					mock(TaskActions.class),
 					new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 			// Set buffer pool

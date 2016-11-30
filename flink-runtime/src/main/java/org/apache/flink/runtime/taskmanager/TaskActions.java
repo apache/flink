@@ -16,19 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.netty;
+package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
-public interface PartitionStateChecker {
+/**
+ * Actions which can be performed on a {@link Task}.
+ */
+public interface TaskActions {
 
-	void triggerPartitionStateCheck(
-			JobID jobId,
-			ExecutionAttemptID executionId,
-			IntermediateDataSetID resultId,
-			ResultPartitionID partitionId);
+	/**
+	 * Check the execution state of the execution producing a result partition.
+	 *
+	 * @param jobId ID of the job the partition belongs to.
+	 * @param intermediateDataSetId ID of the parent intermediate data set.
+	 * @param resultPartitionId ID of the result partition to check. This
+	 * identifies the producing execution and partition.
+	 */
+	void triggerPartitionProducerStateCheck(
+		JobID jobId,
+		IntermediateDataSetID intermediateDataSetId,
+		ResultPartitionID resultPartitionId);
 
+	/**
+	 * Fail the owning task with the given throwable.
+	 *
+	 * @param cause of the failure
+	 */
+	void failExternally(Throwable cause);
 }
