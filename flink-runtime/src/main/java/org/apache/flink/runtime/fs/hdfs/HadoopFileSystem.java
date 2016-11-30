@@ -97,7 +97,7 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 					fsClass = ((Class<?>) fsHandle).asSubclass(org.apache.hadoop.fs.FileSystem.class);
 
 					if (LOG.isDebugEnabled()) {
-						LOG.debug("Loaded '" + fsClass.getName() + "' as HDFS class.");
+						LOG.debug("Loaded '{}' as HDFS class.", fsClass.getName());
 					}
 				}
 				else {
@@ -112,8 +112,8 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 		{
 			// first of all, check for a user-defined hdfs class
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Falling back to loading HDFS class old Hadoop style. Looking for HDFS class configuration entry '"
-						+ HDFS_IMPLEMENTATION_KEY + "'.");
+				LOG.debug("Falling back to loading HDFS class old Hadoop style. Looking for HDFS class configuration entry '{}'.",
+						HDFS_IMPLEMENTATION_KEY);
 			}
 
 			Class<?> classFromConfig = conf.getClass(HDFS_IMPLEMENTATION_KEY, null);
@@ -124,12 +124,12 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 					fsClass = classFromConfig.asSubclass(org.apache.hadoop.fs.FileSystem.class);
 
 					if (LOG.isDebugEnabled()) {
-						LOG.debug("Loaded HDFS class '" + fsClass.getName() + "' as specified in configuration.");
+						LOG.debug("Loaded HDFS class '{}' as specified in configuration.", fsClass.getName() );
 					}
 				}
 				else {
 					if (LOG.isDebugEnabled()) {
-						LOG.debug("HDFS class specified by " + HDFS_IMPLEMENTATION_KEY + " is of wrong type.");
+						LOG.debug("HDFS class specified by {} is of wrong type.", HDFS_IMPLEMENTATION_KEY);
 					}
 
 					throw new IOException("HDFS class specified by " + HDFS_IMPLEMENTATION_KEY +
@@ -139,7 +139,7 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 			else {
 				// load the default HDFS class
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Trying to load default HDFS implementation " + DEFAULT_HDFS_CLASS);
+					LOG.debug("Trying to load default HDFS implementation {}.", DEFAULT_HDFS_CLASS);
 				}
 
 				try {
@@ -210,13 +210,13 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 					if (new File(possibleHadoopConfPath + "/core-site.xml").exists()) {
 						retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/core-site.xml"));
 					} else {
-						LOG.debug("File " + possibleHadoopConfPath + "/core-site.xml not found.");
+						LOG.debug("File {}/core-site.xml not found.", possibleHadoopConfPath);
 					}
 
 					if (new File(possibleHadoopConfPath + "/hdfs-site.xml").exists()) {
 						retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/hdfs-site.xml"));
 					} else {
-						LOG.debug("File " + possibleHadoopConfPath + "/hdfs-site.xml not found.");
+						LOG.debug("File {}/hdfs-site.xml not found.", possibleHadoopConfPath);
 					}
 				}
 			}
@@ -280,7 +280,7 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 			}
 			
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("fs.defaultFS is set to " + configEntry);
+				LOG.debug("fs.defaultFS is set to {}", configEntry);
 			}
 			
 			if (configEntry == null) {
@@ -455,7 +455,7 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 		clazz = hadoopConf.getClass("fs." + scheme + ".impl", null, org.apache.hadoop.fs.FileSystem.class);
 
 		if(clazz != null && LOG.isDebugEnabled()) {
-			LOG.debug("Flink supports "+scheme+" with the Hadoop file system wrapper, impl "+clazz);
+			LOG.debug("Flink supports {} with the Hadoop file system wrapper, impl {}", scheme, clazz);
 		}
 		return clazz;
 	}
