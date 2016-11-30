@@ -38,6 +38,7 @@ import java.util.Arrays;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -150,6 +151,7 @@ public class BlobRecoveryITCase {
 			client.delete(jobId[1], testKey[1]);
 
 			// Verify everything is clean
+			assertTrue("HA storage directory does not exist", fs.exists(new Path(storagePath)));
 			if (fs.exists(blobServerPath)) {
 				final org.apache.flink.core.fs.FileStatus[] recoveryFiles =
 					fs.listStatus(blobServerPath);
