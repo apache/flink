@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 public class BlobLibraryCacheRecoveryITCase {
 
@@ -164,6 +165,8 @@ public class BlobLibraryCacheRecoveryITCase {
 		final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
 		File haBlobStoreDir = new File(temporaryFolder.getRoot(), clusterId);
 		File[] recoveryFiles = haBlobStoreDir.listFiles();
-		assertEquals("Unclean state backend: " + Arrays.toString(recoveryFiles), 0, recoveryFiles.length);
+		assertNotNull("HA storage directory does not exist", recoveryFiles);
+		assertEquals("Unclean state backend: " + Arrays.toString(recoveryFiles),
+			0, recoveryFiles.length);
 	}
 }
