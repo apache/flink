@@ -131,7 +131,14 @@ under the License.
 			<artifactId>flink-statebackend-rocksdb_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-dist-opt_2.10</artifactId>
+			<version>${project.version}</version>
+			<type>pom</type>
+			<scope>provided</scope>
+		</dependency>
 	</dependencies>
 
 	<profiles>

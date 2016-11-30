@@ -173,6 +173,13 @@ under the License.
 			<outputDirectory>resources/python</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
+
+		<!-- copy optional packages -->
+		<fileSet>
+			<directory>../flink-dist-opt/target/flink-${project.version}-opt/flink-${project.version}/opt</directory>
+			<outputDirectory>opt</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
 	</fileSets>
 
 </assembly>
