@@ -228,8 +228,13 @@ public final class BlobCache implements BlobService {
 	}
 
 	/**
-	 * Deletes the file associated with the given key from the BLOB cache and BLOB server.
+	 * Deletes the file associated with the given key from the BLOB cache and
+	 * BLOB server.
+	 *
 	 * @param key referring to the file to be deleted
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while transferring the request to
+	 *         the BLOB server or if the BLOB server cannot delete the file
 	 */
 	public void deleteGlobal(BlobKey key) throws IOException {
 		BlobClient bc = createClient();

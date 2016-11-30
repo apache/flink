@@ -590,7 +590,8 @@ public final class BlobClient implements Closeable {
 	 * @param key
 	 *        the key to identify the BLOB
 	 * @throws IOException
-	 *         thrown if an I/O error occurs while transferring the request to the BLOB server
+	 *         thrown if an I/O error occurs while transferring the request to
+	 *         the BLOB server or if the BLOB server cannot delete the file
 	 */
 	public void delete(BlobKey key) throws IOException {
 		if (key == null) {
