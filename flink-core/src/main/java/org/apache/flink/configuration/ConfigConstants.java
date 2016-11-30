@@ -133,6 +133,12 @@ public final class ConfigConstants {
 	 * The config parameter defining the storage directory to be used by the
 	 * blob server and the blob caches. This may also point to a distributed
 	 * file system in which case only the blob server may make changes.
+	 *
+	 * A distributed file system may use either an explicit form, e.g.
+	 * <tt>hdfs:///flink/data/</tt>, or be a locally-mounted distributed file
+	 * system which needs to be hinted to Flink for the best performance, e.g.
+	 * <tt>dfs:///flink/data/</tt> for a file system mounted to
+	 * <tt>/flink/data/</tt>.
 	 */
 	public static final String BLOB_STORAGE_DIRECTORY_KEY = "blob.storage.directory";
 
