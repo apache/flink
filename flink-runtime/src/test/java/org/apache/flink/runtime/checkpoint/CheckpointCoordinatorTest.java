@@ -70,7 +70,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executor;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -1229,82 +1231,72 @@ public class CheckpointCoordinatorTest {
 	 * another is triggered.
 	 */
 	@Test
-	public void testMinInterval() {
-		try {
-			final JobID jid = new JobID();
+	public void testMinTimeBetweenCheckpointsInterval() throws Exception {
+		final JobID jid = new JobID();
 
-			// create some mock execution vertices and trigger some checkpoint
-			final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
-			ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
+		// create some mock execution vertices and trigger some checkpoint
+		final ExecutionAttemptID attemptID = new ExecutionAttemptID();
+		final ExecutionVertex vertex = mockExecutionVertex(attemptID);
+		final Execution executionAttempt = vertex.getCurrentExecutionAttempt();
 
-			final AtomicInteger numCalls = new AtomicInteger();
-			final Execution execution = vertex1.getCurrentExecutionAttempt();
+		final BlockingQueue<Long> triggerCalls = new LinkedBlockingQueue<>();
 
-			doAnswer(new Answer<Void>() {
-				@Override
-				public Void answer(InvocationOnMock invocation) throws Throwable {
-					numCalls.incrementAndGet();
-					return null;
-				}
-			}).when(execution).triggerCheckpoint(anyLong(), anyLong());
+		doAnswer(new Answer<Void>() {
+			@Override
+			public Void answer(InvocationOnMock invocation) throws Throwable {
+				triggerCalls.add((Long) invocation.getArguments()[0]);
+				return null;
+			}
+		}).when(executionAttempt).triggerCheckpoint(anyLong(), anyLong());
 
-			CheckpointCoordinator coord = new CheckpointCoordinator(
+		final long delay = 50;
+
+		final CheckpointCoordinator coord = new CheckpointCoordinator(
 				jid,
-				10,        // periodic interval is 10 ms
-				200000,    // timeout is very long (200 s)
-				500,    // 500ms delay between checkpoints
-				10,
+				2,           // periodic interval is 2 ms
+				200_000,     // timeout is very long (200 s)
+				delay,       // 50 ms delay between checkpoints
+				1,
 				ExternalizedCheckpointSettings.none(),
-				new ExecutionVertex[] { vertex1 },
-				new ExecutionVertex[] { vertex1 },
-				new ExecutionVertex[] { vertex1 },
+				new ExecutionVertex[] { vertex },
+				new ExecutionVertex[] { vertex },
+				new ExecutionVertex[] { vertex },
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(2),
-				null,
+				"dummy-path",
 				new DisabledCheckpointStatsTracker(),
 				Executors.directExecutor());
 
+		try {
 			coord.startCheckpointScheduler();
 
-			//wait until the first checkpoint was triggered
-			for (int x=0; x<20; x++) {
-				Thread.sleep(100);
-				if (numCalls.get() > 0) {
-					break;
-				}
+			// wait until the first checkpoint was triggered
+			Long firstCallId = triggerCalls.take();
+			assertEquals(1L, firstCallId.longValue());
+
+			AcknowledgeCheckpoint ackMsg = new AcknowledgeCheckpoint(
+					jid, attemptID, new CheckpointMetaData(1L, System.currentTimeMillis()));
+
+			// tell the coordinator that the checkpoint is done
+			final long ackTime = System.nanoTime();
+			coord.receiveAcknowledgeMessage(ackMsg);
+
+			// wait until the next checkpoint is triggered
+			Long nextCallId = triggerCalls.take();
+			final long nextCheckpointTime = System.nanoTime();
+			assertEquals(2L, nextCallId.longValue());
+
+			final long delayMillis = (nextCheckpointTime - ackTime) / 1_000_000;
+
+			// we need to add one ms here to account for rounding errors
+			if (delayMillis + 1 < delay) {
+				fail("checkpoint came too early: delay was " + delayMillis + " but should have been at least " + delay);
 			}
-
-			if (numCalls.get() == 0) {
-				fail("No checkpoint was triggered within the first 2000 ms.");
-			}
-			
-			long start = System.currentTimeMillis();
-
-			for (int x = 0; x < 20; x++) {
-				Thread.sleep(100);
-				int triggeredCheckpoints = numCalls.get();
-				long curT = System.currentTimeMillis();
-
-				/**
-				 * Within a given time-frame T only T/500 checkpoints may be triggered due to the configured minimum
-				 * interval between checkpoints. This value however does not not take the first triggered checkpoint
-				 * into account (=> +1). Furthermore we have to account for the mis-alignment between checkpoints
-				 * being triggered and our time measurement (=> +1); for T=1200 a total of 3-4 checkpoints may have been
-				 * triggered depending on whether the end of the minimum interval for the first checkpoints ends before
-				 * or after T=200.
-				 */
-				long maxAllowedCheckpoints = (curT - start) / 500 + 2;
-				assertTrue(maxAllowedCheckpoints >= triggeredCheckpoints);
-			}
-
+		}
+		finally {
 			coord.stopCheckpointScheduler();
-
 			coord.shutdown(JobStatus.FINISHED);
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}		
 	}
 
 	@Test
