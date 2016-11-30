@@ -506,11 +506,8 @@ public class JobVertex implements java.io.Serializable {
 		return maxResource;
 	}
 
-	public void setMinResource(ResourceSpec minResource) {
+	public void setResource(ResourceSpec minResource, ResourceSpec maxResource) {
 		this.minResource = minResource;
-	}
-
-	public void setMaxResource(ResourceSpec maxResource) {
 		this.maxResource = maxResource;
 	}
 

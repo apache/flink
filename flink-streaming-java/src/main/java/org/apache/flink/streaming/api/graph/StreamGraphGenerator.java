@@ -18,8 +18,10 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
@@ -210,8 +212,13 @@ public class StreamGraphGenerator {
 		if (transform.getUid() != null) {
 			streamGraph.setTransformationId(transform.getId(), transform.getUid());
 		}
-
 		if (transform.getMinResource() != null && transform.getMaxResource() != null) {
+			AbstractStateBackend stateBackend = env.getStateBackend();
+			if (stateBackend != null) {
+				ResourceSpec minStateResource = stateBackend.estimateResource(transform.getMinResource().getStateSize());
+				ResourceSpec maxStateResource = stateBackend.estimateResource(transform.getMaxResource().getStateSize());
+				transform.setResource(transform.getMinResource().merge(minStateResource), transform.getMaxResource().merge(maxStateResource));
+			}
 			streamGraph.setResource(transform.getId(), transform.getMinResource(), transform.getMaxResource());
 		}
 

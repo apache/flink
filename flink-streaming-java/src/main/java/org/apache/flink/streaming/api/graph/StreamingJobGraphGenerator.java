@@ -268,7 +268,7 @@ public class StreamingJobGraphGenerator {
 	private ResourceSpec createChainedMinResource(Integer vertexID, List<StreamEdge> chainedOutputs) {
 		ResourceSpec minResource = streamGraph.getStreamNode(vertexID).getMinResource();
 		for (StreamEdge chainable : chainedOutputs) {
-			minResource.merge(chainedMinResource.get(chainable.getTargetId()));
+			minResource = minResource.merge(chainedMinResource.get(chainable.getTargetId()));
 		}
 		return minResource;
 	}
@@ -276,7 +276,7 @@ public class StreamingJobGraphGenerator {
 	private ResourceSpec createChainedMaxResource(Integer vertexID, List<StreamEdge> chainedOutputs) {
 		ResourceSpec maxResource = streamGraph.getStreamNode(vertexID).getMaxResource();
 		for (StreamEdge chainable : chainedOutputs) {
-			maxResource.merge(chainedMaxResource.get(chainable.getTargetId()));
+			maxResource = maxResource.merge(chainedMaxResource.get(chainable.getTargetId()));
 		}
 		return maxResource;
 	}
@@ -309,8 +309,7 @@ public class StreamingJobGraphGenerator {
 					jobVertexId);
 		}
 
-		jobVertex.setMinResource(chainedMinResource.get(streamNodeId));
-		jobVertex.setMaxResource(chainedMaxResource.get(streamNodeId));
+		jobVertex.setResource(chainedMinResource.get(streamNodeId), chainedMaxResource.get(streamNodeId));
 
 		jobVertex.setInvokableClass(streamNode.getJobVertexClass());
 

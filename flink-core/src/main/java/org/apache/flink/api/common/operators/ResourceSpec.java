@@ -26,7 +26,7 @@ import java.io.Serializable;
  * Describe the different resource factors of the operator.
  * The resource may be merged for chained operators when generating job graph.
  *
- * <p>Resource provides {@link #lessThan(ResourceSpec)} method to compare these fields in sequence:
+ * <p>Resource provides {@link #lessThanOrEqual(ResourceSpec)} method to compare these fields in sequence:
  * <ol>
  *     <li>CPU cores</li>
  *     <li>Heap Memory Size</li>
@@ -40,22 +40,22 @@ public class ResourceSpec implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	public static final ResourceSpec UNKNOWN = new ResourceSpec(-1.0, -1L, -1L, -1L, -1L);
+	public static final ResourceSpec UNKNOWN = new ResourceSpec(0, 0, 0, 0, 0);
 
 	/** How many cpu cores are needed, use double so we can specify cpu like 0.1 */
-	private double cpuCores;
+	private final double cpuCores;
 
 	/** How many java heap memory in mb are needed */
-	private long heapMemoryInMB;
+	private final long heapMemoryInMB;
 
 	/** How many nio direct memory in mb are needed */
-	private long directMemoryInMB;
+	private final long directMemoryInMB;
 
 	/** How many native memory in mb are needed */
-	private long nativeMemoryInMB;
+	private final long nativeMemoryInMB;
 
-	/** How many state size are used */
-	private long stateSize;
+	/** How many state size in mb are used */
+	private final long stateSizeInMB;
 
 	/**
 	 * Creates a new ResourceSpec with basic common resources.
@@ -66,6 +66,9 @@ public class ResourceSpec implements Serializable {
 	public ResourceSpec(double cpuCores, long heapMemoryInMB) {
 		this.cpuCores = cpuCores;
 		this.heapMemoryInMB = heapMemoryInMB;
+		this.directMemoryInMB = 0;
+		this.nativeMemoryInMB = 0;
+		this.stateSizeInMB = 0;
 	}
 
 	/**
@@ -75,27 +78,36 @@ public class ResourceSpec implements Serializable {
 	 * @param heapMemoryInMB The size of the java heap memory, in megabytes.
 	 * @param directMemoryInMB The size of the java nio direct memory, in megabytes.
 	 * @param nativeMemoryInMB The size of the native memory, in megabytes.
-	 * @param stateSize The state size for storing in checkpoint.
+	 * @param stateSizeInMB The state size for storing in checkpoint.
 	 */
 	public ResourceSpec(
 			double cpuCores,
 			long heapMemoryInMB,
 			long directMemoryInMB,
 			long nativeMemoryInMB,
-			long stateSize) {
+			long stateSizeInMB) {
 		this.cpuCores = cpuCores;
 		this.heapMemoryInMB = heapMemoryInMB;
 		this.directMemoryInMB = directMemoryInMB;
 		this.nativeMemoryInMB = nativeMemoryInMB;
-		this.stateSize = stateSize;
+		this.stateSizeInMB = stateSizeInMB;
 	}
 
-	public void merge(ResourceSpec other) {
-		this.cpuCores = Math.max(this.cpuCores, other.getCpuCores());
-		this.heapMemoryInMB += other.getHeapMemory();
-		this.directMemoryInMB += other.getDirectMemory();
-		this.nativeMemoryInMB += other.getNativeMemory();
-		this.stateSize += other.getStateSize();
+	/**
+	 * Used by system internally to merge the other resources of chained operators
+	 * when generating the job graph or merge the resource consumed by state backend.
+	 *
+	 * @param other Reference to resource to merge in.
+	 * @return The new resource with merged values.
+	 */
+	public ResourceSpec merge(ResourceSpec other) {
+		ResourceSpec result = new ResourceSpec(
+			Math.max(this.cpuCores, other.cpuCores),
+			this.heapMemoryInMB + other.heapMemoryInMB,
+			this.directMemoryInMB + other.directMemoryInMB,
+			this.nativeMemoryInMB + other.nativeMemoryInMB,
+			this.stateSizeInMB + other.stateSizeInMB);
+		return  result;
 	}
 
 	public double getCpuCores() {
@@ -115,15 +127,36 @@ public class ResourceSpec implements Serializable {
 	}
 
 	public long getStateSize() {
-		return this.stateSize;
+		return this.stateSizeInMB;
 	}
 
-	public boolean lessThan(@Nonnull ResourceSpec other) {
+	/**
+	 * Check whether all the field values are valid.
+	 *
+	 * @return True if all the values are equal or greater than 0, otherwise false.
+	 */
+	public boolean isValid() {
+		if (this.cpuCores >= 0 && this.heapMemoryInMB >= 0 && this.directMemoryInMB >= 0 &&
+			this.nativeMemoryInMB >= 0 && this.stateSizeInMB >= 0) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	/**
+	 * Checks the current resource less than or equal with the other resource by comparing
+	 * all the fields in the resource.
+	 *
+	 * @param other The resource to compare
+	 * @return True if current resource is less than or equal with the other resource, otherwise return false.
+	 */
+	public boolean lessThanOrEqual(@Nonnull ResourceSpec other) {
 		int cmp1 = Double.compare(this.cpuCores, other.cpuCores);
 		int cmp2 = Long.compare(this.heapMemoryInMB, other.heapMemoryInMB);
 		int cmp3 = Long.compare(this.directMemoryInMB, other.directMemoryInMB);
 		int cmp4 = Long.compare(this.nativeMemoryInMB, other.nativeMemoryInMB);
-		int cmp5 = Long.compare(this.stateSize, other.stateSize);
+		int cmp5 = Long.compare(this.stateSizeInMB, other.stateSizeInMB);
 		if (cmp1 <= 0 && cmp2 <= 0 && cmp3 <= 0 && cmp4 <= 0 && cmp5 <= 0) {
 			return true;
 		} else {
@@ -141,7 +174,7 @@ public class ResourceSpec implements Serializable {
 				this.heapMemoryInMB == that.heapMemoryInMB &&
 				this.directMemoryInMB == that.directMemoryInMB &&
 				this.nativeMemoryInMB == that.nativeMemoryInMB &&
-				this.stateSize == that.stateSize;
+				this.stateSizeInMB == that.stateSizeInMB;
 		} else {
 			return false;
 		}
@@ -154,7 +187,7 @@ public class ResourceSpec implements Serializable {
 			", heapMemoryInMB=" + heapMemoryInMB +
 			", directMemoryInMB=" + directMemoryInMB +
 			", nativeMemoryInMB=" + nativeMemoryInMB +
-			", stateSize=" + stateSize +
+			", stateSizeInMB=" + stateSizeInMB +
 			'}';
 	}
 }
