@@ -41,6 +41,8 @@ import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -50,6 +52,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -1193,102 +1196,92 @@ public class CheckpointCoordinatorTest {
 	 * another is triggered.
 	 */
 	@Test
-	public void testMinInterval() {
+	public void testMinTimeBetweenCheckpointsInterval() throws Exception {
+		final JobID jid = new JobID();
+
+		// create some mock execution vertices and trigger some checkpoint
+		final ExecutionAttemptID attemptID = new ExecutionAttemptID();
+		ExecutionVertex vertex = mockExecutionVertex(attemptID);
+
+		final BlockingQueue<TriggerCheckpoint> calls = new LinkedBlockingQueue<>();
+
+		doAnswer(new Answer<Void>() {
+			@Override
+			public Void answer(InvocationOnMock invocation) throws Throwable {
+				calls.add((TriggerCheckpoint) invocation.getArguments()[0]);
+				return null;
+			}
+		}).when(vertex).sendMessageToCurrentExecution(isA(TriggerCheckpoint.class), eq(attemptID));
+
+		final long delay = 50;
+
+		final CheckpointCoordinator coord = new CheckpointCoordinator(
+			jid,
+			2,           // periodic interval is 2 ms
+			200_000,     // timeout is very long (200 s)
+			delay,       // 50ms delay between checkpoints
+			1,
+			42,
+			new ExecutionVertex[] { vertex },
+			new ExecutionVertex[] { vertex },
+			new ExecutionVertex[] { vertex },
+			cl,
+			new StandaloneCheckpointIDCounter(),
+			new StandaloneCompletedCheckpointStore(2, cl),
+			RecoveryMode.STANDALONE,
+			new DisabledCheckpointStatsTracker(),
+			TestExecutors.directExecutor());
+
 		try {
-			final JobID jid = new JobID();
-
-			// create some mock execution vertices and trigger some checkpoint
-			final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
-			ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
-
-			final AtomicInteger numCalls = new AtomicInteger();
-
-			doAnswer(new Answer<Void>() {
-				@Override
-				public Void answer(InvocationOnMock invocation) throws Throwable {
-					if (invocation.getArguments()[0] instanceof TriggerCheckpoint) {
-						numCalls.incrementAndGet();
-					}
-					return null;
-				}
-			}).when(vertex1).sendMessageToCurrentExecution(any(Serializable.class), any(ExecutionAttemptID.class));
-
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				10,		// periodic interval is 10 ms
-				200000,	// timeout is very long (200 s)
-				500,	// 500ms delay between checkpoints
-				10,
-				42,
-				new ExecutionVertex[] { vertex1 },
-				new ExecutionVertex[] { vertex1 },
-				new ExecutionVertex[] { vertex1 },
-				cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(2, cl),
-				RecoveryMode.STANDALONE,
-				new DisabledCheckpointStatsTracker(),
-				TestExecutors.directExecutor());
-
 			coord.startCheckpointScheduler();
 
-			//wait until the first checkpoint was triggered
-			for (int x=0; x<20; x++) {
-				Thread.sleep(100);
-				if (numCalls.get() > 0) {
-					break;
-				}
+			// wait until the first checkpoint was triggered
+			TriggerCheckpoint call = calls.take();
+			assertEquals(1L, call.getCheckpointId());
+			assertEquals(jid, call.getJob());
+			assertEquals(attemptID, call.getTaskExecutionId());
+
+			// tell the coordinator that the checkpoint is done
+			final long ackTime = System.nanoTime();
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID, 1L));
+
+			// wait until the next checkpoint is triggered
+			TriggerCheckpoint nextCall = calls.take();
+			final long nextCheckpointTime = System.nanoTime();
+
+			assertEquals(2L, nextCall.getCheckpointId());
+			assertEquals(jid, nextCall.getJob());
+			assertEquals(attemptID, nextCall.getTaskExecutionId());
+
+			final long delayMillis = (nextCheckpointTime - ackTime) / 1_000_000;
+
+			// we need to add one ms here to account for rounding errors
+			if (delayMillis + 1 < delay) {
+				fail("checkpoint came too early: delay was " + delayMillis + " but should have been at least " + delay);
 			}
-
-			if (numCalls.get() == 0) {
-				fail("No checkpoint was triggered within the first 2000 ms.");
-			}
-			
-			long start = System.currentTimeMillis();
-
-			for (int x = 0; x < 20; x++) {
-				Thread.sleep(100);
-				int triggeredCheckpoints = numCalls.get();
-				long curT = System.currentTimeMillis();
-
-				/**
-				 * Within a given time-frame T only T/500 checkpoints may be triggered due to the configured minimum
-				 * interval between checkpoints. This value however does not not take the first triggered checkpoint
-				 * into account (=> +1). Furthermore we have to account for the mis-alignment between checkpoints
-				 * being triggered and our time measurement (=> +1); for T=1200 a total of 3-4 checkpoints may have been
-				 * triggered depending on whether the end of the minimum interval for the first checkpoints ends before
-				 * or after T=200.
-				 */
-				long maxAllowedCheckpoints = (curT - start) / 500 + 2;
-				assertTrue(maxAllowedCheckpoints >= triggeredCheckpoints);
-			}
-
+		}
+		finally {
 			coord.stopCheckpointScheduler();
-
 			coord.shutdown();
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}		
 	}
 
 	@Test
 	public void testMaxConcurrentAttempts1() {
-		testMaxConcurrentAttemps(1);
+		testMaxConcurrentAttempts(1);
 	}
 
 	@Test
 	public void testMaxConcurrentAttempts2() {
-		testMaxConcurrentAttemps(2);
+		testMaxConcurrentAttempts(2);
 	}
 
 	@Test
 	public void testMaxConcurrentAttempts5() {
-		testMaxConcurrentAttemps(5);
+		testMaxConcurrentAttempts(5);
 	}
 	
-	private void testMaxConcurrentAttemps(int maxConcurrentAttempts) {
+	private void testMaxConcurrentAttempts(int maxConcurrentAttempts) {
 		try {
 			final JobID jid = new JobID();
 

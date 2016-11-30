@@ -117,7 +117,7 @@ public class CheckpointCoordinator {
 
 	/** The min time(in ms) to delay after a checkpoint could be triggered. Allows to
 	 * enforce minimum processing time between checkpoint attempts */
-	private final long minPauseBetweenCheckpoints;
+	private final long minPauseBetweenCheckpointsNanos;
 
 	/** The maximum number of checkpoints that may be in progress at the same time */
 	private final int maxConcurrentCheckpointAttempts;
@@ -133,7 +133,8 @@ public class CheckpointCoordinator {
 
 	private ScheduledTrigger currentPeriodicTrigger;
 
-	private long lastTriggeredCheckpoint;
+	/** The timestamp (via {@link System#nanoTime()}) when the last checkpoint completed */
+	private long lastCheckpointCompletionNanos;
 
 	/** Flag whether a triggered checkpoint should immediately schedule the next checkpoint.
 	 * Non-volatile, because only accessed in synchronized scope */
@@ -201,10 +202,16 @@ public class CheckpointCoordinator {
 		checkArgument(minPauseBetweenCheckpoints >= 0, "minPauseBetweenCheckpoints must be >= 0");
 		checkArgument(maxConcurrentCheckpointAttempts >= 1, "maxConcurrentCheckpointAttempts must be >= 1");
 
+		// max "in between duration" can be one year - this is to prevent numeric overflows
+		if (minPauseBetweenCheckpoints > 365L * 24 * 60 * 60 * 1_000) {
+			minPauseBetweenCheckpoints = 365L * 24 * 60 * 60 * 1_000;
+			LOG.warn("Reducing minimum pause between checkpoints to " + minPauseBetweenCheckpoints + " ms (1 year)");
+		}
+
 		this.job = checkNotNull(job);
 		this.baseInterval = baseInterval;
 		this.checkpointTimeout = checkpointTimeout;
-		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
+		this.minPauseBetweenCheckpointsNanos = minPauseBetweenCheckpoints * 1_000_000;
 		this.maxConcurrentCheckpointAttempts = maxConcurrentCheckpointAttempts;
 		this.tasksToTrigger = checkNotNull(tasksToTrigger);
 		this.tasksToWaitFor = checkNotNull(tasksToWaitFor);
@@ -417,13 +424,16 @@ public class CheckpointCoordinator {
 				return false;
 			}
 
-			//make sure the minimum interval between checkpoints has passed
-			if (lastTriggeredCheckpoint + minPauseBetweenCheckpoints > timestamp && baseInterval != Long.MAX_VALUE) {
+			// make sure the minimum interval between checkpoints has passed
+			final long earliestNext = lastCheckpointCompletionNanos + minPauseBetweenCheckpointsNanos;
+			final long durationTillNextMillis = (earliestNext - System.nanoTime()) / 1_000_000;
+
+			if (durationTillNextMillis > 0 && baseInterval != Long.MAX_VALUE) {
 				if (currentPeriodicTrigger != null) {
 					currentPeriodicTrigger.cancel();
 				}
 				currentPeriodicTrigger = new ScheduledTrigger();
-				timer.scheduleAtFixedRate(currentPeriodicTrigger, minPauseBetweenCheckpoints, baseInterval);
+				timer.scheduleAtFixedRate(currentPeriodicTrigger, durationTillNextMillis, baseInterval);
 				return false;
 			}
 		}
@@ -458,8 +468,6 @@ public class CheckpointCoordinator {
 		}
 
 		// we will actually trigger this checkpoint!
-
-		lastTriggeredCheckpoint = timestamp;
 		final long checkpointID;
 		if (nextCheckpointId < 0) {
 			try {
@@ -529,6 +537,19 @@ public class CheckpointCoordinator {
 						currentPeriodicTrigger.cancel();
 						currentPeriodicTrigger = null;
 					}
+					return false;
+				}
+
+				// make sure the minimum interval between checkpoints has passed
+				final long earliestNext = lastCheckpointCompletionNanos + minPauseBetweenCheckpointsNanos;
+				final long durationTillNextMillis = (earliestNext - System.nanoTime()) / 1_000_000;
+
+				if (durationTillNextMillis > 0 && baseInterval != Long.MAX_VALUE) {
+					if (currentPeriodicTrigger != null) {
+						currentPeriodicTrigger.cancel();
+					}
+					currentPeriodicTrigger = new ScheduledTrigger();
+					timer.scheduleAtFixedRate(currentPeriodicTrigger, durationTillNextMillis, baseInterval);
 					return false;
 				}
 
@@ -682,8 +703,10 @@ public class CheckpointCoordinator {
 
 				switch (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getState(), message.getStateSize(), null)) {
 					case SUCCESS:
-						// TODO: Give KV-state to the acknowledgeTask method
+
 						if (checkpoint.isFullyAcknowledged()) {
+
+							lastCheckpointCompletionNanos = System.nanoTime();
 							completed = checkpoint.finalizeCheckpoint();
 
 							completedCheckpointStore.addCheckpoint(completed);
@@ -805,6 +828,8 @@ public class CheckpointCoordinator {
 	 * <p>NOTE: The caller of this method must hold the lock when invoking the method!
 	 */
 	private void triggerQueuedRequests() {
+		assert Thread.holdsLock(lock);
+
 		if (triggerRequestQueued) {
 			triggerRequestQueued = false;
 
