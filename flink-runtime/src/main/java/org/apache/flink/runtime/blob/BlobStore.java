@@ -68,14 +68,18 @@ public interface BlobStore {
 	void get(JobID jobId, String key, File localFile) throws Exception;
 
 	/**
-	 * Deletes a blob.
+	 * Tries to delete a blob from storage.
+	 *
+	 * <p>NOTE: This also tries to delete any created directories if empty.</p>
 	 *
 	 * @param blobKey The blob ID
 	 */
 	void delete(BlobKey blobKey);
 
 	/**
-	 * Deletes a blob.
+	 * Tries to delete a blob from storage.
+	 *
+	 * <p>NOTE: This also tries to delete any created directories if empty.</p>
 	 *
 	 * @param jobId The JobID part of ID for the blob
 	 * @param key   The String part of ID for the blob
@@ -83,7 +87,9 @@ public interface BlobStore {
 	void delete(JobID jobId, String key);
 
 	/**
-	 * Deletes blobs.
+	 * Tries to delete all blobs for the given job from storage.
+	 *
+	 * <p>NOTE: This also tries to delete any created directories if empty.</p>
 	 *
 	 * @param jobId The JobID part of all blobs to delete
 	 */
