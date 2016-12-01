@@ -215,14 +215,15 @@ public final class IOUtils {
 		}
 	}
 
+	/**
+	 * <p><b>Important:</b> This method is expected to never throw an exception.
+	 */
 	public static void closeQuietly(Closeable closeable) {
 		try {
 			if (closeable != null) {
 				closeable.close();
 			}
-		} catch (IOException ignored) {
-
-		}
+		} catch (Throwable ignored) {}
 	}
 	
 	// ------------------------------------------------------------------------
