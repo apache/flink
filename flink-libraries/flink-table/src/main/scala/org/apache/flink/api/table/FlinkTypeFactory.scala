@@ -79,7 +79,10 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     * @param fieldTypes field types, every element is Flink's [[TypeInformation]]
     * @return a struct type with the input fieldNames and input fieldTypes
     */
-  def buildRowDataType(fieldNames: Array[String], fieldTypes: Array[TypeInformation[_]]): RelDataType = {
+  def buildRowDataType(
+      fieldNames: Array[String],
+      fieldTypes: Array[TypeInformation[_]])
+    : RelDataType = {
     val rowDataTypeBuilder = builder
     fieldNames
       .zip(fieldTypes)
