@@ -37,16 +37,19 @@ public abstract class VersionedIOReadableWritable implements IOReadableWritable,
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		checkFoundVersion(in.readInt());
+		int foundVersion = in.readInt();
+		resolveVersionRead(foundVersion);
 	}
 
 	/**
-	 * Checks the compatibility of a version number against the own version.
+	 * This method is a hook to react on the version tag that we find during read. This can also be used to initialize
+	 * further read logic w.r.t. the version at hand.
+	 * Default implementation of this method just checks the compatibility of a version number against the own version.
 	 *
 	 * @param foundVersion the version found from reading the input stream
 	 * @throws VersionMismatchException thrown when serialization versions mismatch
 	 */
-	protected void checkFoundVersion(int foundVersion) throws VersionMismatchException {
+	protected void resolveVersionRead(int foundVersion) throws VersionMismatchException {
 		if (!isCompatibleVersion(foundVersion)) {
 			long expectedVersion = getVersion();
 			throw new VersionMismatchException(

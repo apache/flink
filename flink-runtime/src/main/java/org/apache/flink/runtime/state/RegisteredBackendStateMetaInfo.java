@@ -34,6 +34,12 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 	private final TypeSerializer<N> namespaceSerializer;
 	private final TypeSerializer<S> stateSerializer;
 
+	public RegisteredBackendStateMetaInfo(KeyedBackendSerializationProxy.StateMetaInfo<N, S> metaInfoProxy) {
+		this.name = metaInfoProxy.getName();
+		this.namespaceSerializer = metaInfoProxy.getNamespaceSerializerSerializationProxy().getTypeSerializer();
+		this.stateSerializer = metaInfoProxy.getStateSerializerSerializationProxy().getTypeSerializer();
+	}
+
 	public RegisteredBackendStateMetaInfo(String name, TypeSerializer<N> namespaceSerializer, TypeSerializer<S> stateSerializer) {
 		this.name = Preconditions.checkNotNull(name);
 		this.namespaceSerializer = namespaceSerializer;
@@ -66,19 +72,32 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 			return false;
 		}
 
-		if (namespaceSerializer != other.namespaceSerializer) {
-			if (namespaceSerializer == null || !namespaceSerializer.isCompatibleWith(other.namespaceSerializer)) {
-				return false;
-			}
+		if (!checkTypeSerializersCompatible(namespaceSerializer, other.namespaceSerializer)) {
+			return false;
 		}
 
-		if (stateSerializer != other.stateSerializer) {
-			if (stateSerializer == null || !stateSerializer.isCompatibleWith(other.stateSerializer)) {
-				return false;
-			}
+		if (!checkTypeSerializersCompatible(stateSerializer, other.stateSerializer)) {
+			return false;
 		}
 
 		return true;
+	}
+
+	public boolean checkTypeSerializersCompatible(TypeSerializer<?> a, TypeSerializer<?> b) {
+
+		if (a == b) {
+			return true;
+		}
+
+		if (null == a || null == b) {
+			return false;
+		}
+
+		if (a.getCanonicalClassName().equals(b.getCanonicalClassName()) && a.getVersion() == b.getVersion()) {
+			return true;
+		}
+
+		return false;
 	}
 
 	@Override

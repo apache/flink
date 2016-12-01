@@ -499,7 +499,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private void writeKVStateMetaData() throws IOException, InterruptedException {
 
-			List<KeyedBackendSerializationProxy.StateMetaInfo> metaInfoList =
+			List<KeyedBackendSerializationProxy.StateMetaInfo<?, ?>> metaInfoList =
 					new ArrayList<>(stateBackend.kvStateInformation.size());
 
 			KeyedBackendSerializationProxy serializationProxy =
@@ -511,10 +511,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				RegisteredBackendStateMetaInfo<?, ?> metaInfo = column.getValue().f1;
 
-				KeyedBackendSerializationProxy.StateMetaInfo metaInfoProxy = new KeyedBackendSerializationProxy.StateMetaInfo(
-						metaInfo.getName(),
-						metaInfo.getNamespaceSerializer(),
-						metaInfo.getStateSerializer());
+				KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoProxy =
+						new KeyedBackendSerializationProxy.StateMetaInfo<>(
+								metaInfo.getName(),
+								metaInfo.getNamespaceSerializer(),
+								metaInfo.getStateSerializer());
 
 				metaInfoList.add(metaInfoProxy);
 
@@ -712,12 +713,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			serializationProxy.read(currentStateHandleInView);
 
-			List<KeyedBackendSerializationProxy.StateMetaInfo> metaInfoProxyList =
+			List<KeyedBackendSerializationProxy.StateMetaInfo<?, ?>> metaInfoProxyList =
 					serializationProxy.getNamedStateSerializationProxies();
 
 			currentStateHandleKVStateColumnFamilies = new ArrayList<>(metaInfoProxyList.size());
 
-			for (KeyedBackendSerializationProxy.StateMetaInfo metaInfoProxy : metaInfoProxyList) {
+			for (KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoProxy : metaInfoProxyList) {
 				Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>> columnFamily =
 						rocksDBKeyedStateBackend.kvStateInformation.get(metaInfoProxy.getName());
 
@@ -725,16 +726,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(
 							metaInfoProxy.getName().getBytes(), rocksDBKeyedStateBackend.columnOptions);
 
-					RegisteredBackendStateMetaInfo<?, ?> stateMetaInfo = new RegisteredBackendStateMetaInfo<>(
-							metaInfoProxy.getName(),
-							metaInfoProxy.getNamespaceSerializer(),
-							metaInfoProxy.getStateSerializer());
+					RegisteredBackendStateMetaInfo<?, ?> stateMetaInfo =
+							new RegisteredBackendStateMetaInfo<>(metaInfoProxy);
 
 					columnFamily = new Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>>(
 							rocksDBKeyedStateBackend.db.createColumnFamily(columnFamilyDescriptor),
 							stateMetaInfo);
 
 					rocksDBKeyedStateBackend.kvStateInformation.put(stateMetaInfo.getName(), columnFamily);
+				} else {
+					//TODO we could check here for incompatible serializer versions between previous tasks
 				}
 
 				currentStateHandleKVStateColumnFamilies.add(columnFamily.f0);

@@ -19,7 +19,7 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.io.Compatible;
+import org.apache.flink.core.io.Versioned;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -37,9 +37,10 @@ import java.io.Serializable;
  * @param <T> The data type that the serializer serializes.
  */
 @PublicEvolving
-public abstract class TypeSerializer<T> implements Serializable, Compatible<TypeSerializer<?>> {
+public abstract class TypeSerializer<T> implements Versioned, Serializable {
 	
 	private static final long serialVersionUID = 1L;
+	private static final int VERSION = 1;
 
 	// --------------------------------------------------------------------------------------------
 	// General information about the type and the serializer
@@ -162,17 +163,12 @@ public abstract class TypeSerializer<T> implements Serializable, Compatible<Type
 
 	public abstract int hashCode();
 
-	/**
-	 * Checks if this is compatible with the given {@link TypeSerializer}. This returns true, in case this can read
-	 * all serialized objects written trough the given serializer. This relationship is between two
-	 * {@link TypeSerializer} is not  required to be commutative or transitive.
-	 *
-	 * @param other the type serializer to check for compatibility
-	 * @return true iff this can read serialized objects written through the passed argument (always true for null)
-	 */
 	@Override
-	public boolean isCompatibleWith(TypeSerializer<?> other) {
-		// base implementation assumes compatibility only on equal serializers and that we are compatible to null
-		return other == null || equals(other);
+	public int getVersion() {
+		return VERSION;
+	}
+
+	public String getCanonicalClassName() {
+		return getClass().getCanonicalName();
 	}
 }

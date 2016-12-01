@@ -19,16 +19,12 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
-import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -42,13 +38,10 @@ import java.util.Map;
  */
 public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable {
 
-	private static final Logger LOG = LoggerFactory.getLogger(KeyedBackendSerializationProxy.class);
-
 	private static final int VERSION = 1;
 
-	private TypeSerializer<?> keySerializer;
-
-	private List<StateMetaInfo> namedStateSerializationProxies;
+	private TypeSerializerSerializationProxy<?> keySerializerProxy;
+	private List<StateMetaInfo<?, ?>> namedStateSerializationProxies;
 
 	private ClassLoader userCodeClassLoader;
 
@@ -56,18 +49,18 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 	}
 
-	public KeyedBackendSerializationProxy(TypeSerializer<?> keySerializer, List<StateMetaInfo> namedStateSerializationProxies) {
-		this.keySerializer = Preconditions.checkNotNull(keySerializer);
+	public KeyedBackendSerializationProxy(TypeSerializer<?> keySerializer, List<StateMetaInfo<?, ?>> namedStateSerializationProxies) {
+		this.keySerializerProxy = new TypeSerializerSerializationProxy<>(Preconditions.checkNotNull(keySerializer));
 		this.namedStateSerializationProxies = Preconditions.checkNotNull(namedStateSerializationProxies);
 		Preconditions.checkArgument(namedStateSerializationProxies.size() <= Short.MAX_VALUE);
 	}
 
-	public List<StateMetaInfo> getNamedStateSerializationProxies() {
+	public List<StateMetaInfo<?, ?>> getNamedStateSerializationProxies() {
 		return namedStateSerializationProxies;
 	}
 
-	public TypeSerializer<?> getKeySerializer() {
-		return keySerializer;
+	public TypeSerializerSerializationProxy<?> getKeySerializerProxy() {
+		return keySerializerProxy;
 	}
 
 	@Override
@@ -79,36 +72,29 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
 
-		DataOutputViewStream dos = new DataOutputViewStream(out);
-		InstantiationUtil.serializeObject(dos, keySerializer);
+		keySerializerProxy.write(out);
 
 		out.writeShort(namedStateSerializationProxies.size());
 		Map<String, Integer> kVStateToId = new HashMap<>(namedStateSerializationProxies.size());
 
-		for (StateMetaInfo kvState : namedStateSerializationProxies) {
+		for (StateMetaInfo<?, ?> kvState : namedStateSerializationProxies) {
 			kvState.write(out);
 			kVStateToId.put(kvState.getName(), kVStateToId.size());
 		}
 	}
 
 	@Override
-	public void read(DataInputView inView) throws IOException {
-		super.read(inView);
+	public void read(DataInputView in) throws IOException {
+		super.read(in);
 
-		DataInputViewStream dis = new DataInputViewStream(inView);
+		keySerializerProxy = new TypeSerializerSerializationProxy<>(userCodeClassLoader);
+		keySerializerProxy.read(in);
 
-		try {
-			keySerializer = InstantiationUtil.deserializeObject(dis, userCodeClassLoader);
-		} catch (ClassNotFoundException e) {
-			keySerializer = null;
-			LOG.warn("Could not find class for key TypeSerializer", e);
-		}
-
-		int numKvStates = inView.readShort();
+		int numKvStates = in.readShort();
 		namedStateSerializationProxies = new ArrayList<>(numKvStates);
 		for (int i = 0; i < numKvStates; ++i) {
-			StateMetaInfo stateSerializationProxy = new StateMetaInfo(userCodeClassLoader);
-			stateSerializationProxy.read(inView);
+			StateMetaInfo<?, ?> stateSerializationProxy = new StateMetaInfo<>(userCodeClassLoader);
+			stateSerializationProxy.read(in);
 			namedStateSerializationProxies.add(stateSerializationProxy);
 		}
 	}
@@ -119,11 +105,12 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 	 * This is the serialization proxy for {@link RegisteredBackendStateMetaInfo} for a single registered state in a
 	 * keyed backend.
 	 */
-	public static class StateMetaInfo implements IOReadableWritable {
+	public static class StateMetaInfo<N, S> implements IOReadableWritable {
 
 		private String name;
-		private TypeSerializer<?> namespaceSerializer;
-		private TypeSerializer<?> stateSerializer;
+		private TypeSerializerSerializationProxy<N> namespaceSerializerSerializationProxy;
+		private TypeSerializerSerializationProxy<S> stateSerializerSerializationProxy;
+
 		private ClassLoader userClassLoader;
 
 		private StateMetaInfo(ClassLoader userClassLoader) {
@@ -131,11 +118,11 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		}
 
 		public StateMetaInfo(
-				String name, TypeSerializer<?> namespaceSerializer, TypeSerializer<?> stateSerializer) {
+				String name, TypeSerializer<N> namespaceSerializer, TypeSerializer<S> stateSerializer) {
 
 			this.name = Preconditions.checkNotNull(name);
-			this.namespaceSerializer = Preconditions.checkNotNull(namespaceSerializer);
-			this.stateSerializer = Preconditions.checkNotNull(stateSerializer);
+			this.namespaceSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(Preconditions.checkNotNull(namespaceSerializer));
+			this.stateSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(Preconditions.checkNotNull(stateSerializer));
 		}
 
 		public String getName() {
@@ -146,50 +133,39 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 			this.name = name;
 		}
 
-		public TypeSerializer<?> getNamespaceSerializer() {
-			return namespaceSerializer;
+		public TypeSerializerSerializationProxy<N> getNamespaceSerializerSerializationProxy() {
+			return namespaceSerializerSerializationProxy;
 		}
 
-		public void setNamespaceSerializer(TypeSerializer<?> namespaceSerializer) {
-			this.namespaceSerializer = namespaceSerializer;
+		public void setNamespaceSerializerSerializationProxy(TypeSerializerSerializationProxy<N> namespaceSerializerSerializationProxy) {
+			this.namespaceSerializerSerializationProxy = namespaceSerializerSerializationProxy;
 		}
 
-		public TypeSerializer<?> getStateSerializer() {
-			return stateSerializer;
+		public TypeSerializerSerializationProxy<S> getStateSerializerSerializationProxy() {
+			return stateSerializerSerializationProxy;
 		}
 
-		public void setStateSerializer(TypeSerializer<?> stateSerializer) {
-			this.stateSerializer = stateSerializer;
+		public void setStateSerializerSerializationProxy(TypeSerializerSerializationProxy<S> stateSerializerSerializationProxy) {
+			this.stateSerializerSerializationProxy = stateSerializerSerializationProxy;
 		}
 
 		@Override
 		public void write(DataOutputView out) throws IOException {
 			out.writeUTF(getName());
-			DataOutputViewStream dos = new DataOutputViewStream(out);
-			InstantiationUtil.serializeObject(dos, getNamespaceSerializer());
-			InstantiationUtil.serializeObject(dos, getStateSerializer());
+
+			getNamespaceSerializerSerializationProxy().write(out);
+			getStateSerializerSerializationProxy().write(out);
 		}
 
 		@Override
 		public void read(DataInputView in) throws IOException {
 			setName(in.readUTF());
-			DataInputViewStream dis = new DataInputViewStream(in);
 
-			try {
-				TypeSerializer<?> namespaceSerializer = InstantiationUtil.deserializeObject(dis, userClassLoader);
-				setNamespaceSerializer(namespaceSerializer);
-			} catch (ClassNotFoundException exception) {
-				setNamespaceSerializer(null);
-				LOG.warn("Could not find class for namespace TypeSerializer", exception);
-			}
+			namespaceSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(userClassLoader);
+			namespaceSerializerSerializationProxy.read(in);
 
-			try {
-				TypeSerializer<?> stateSerializer = InstantiationUtil.deserializeObject(dis, userClassLoader);
-				setStateSerializer(stateSerializer);
-			} catch (ClassNotFoundException exception) {
-				setStateSerializer(null);
-				LOG.warn("Could not find class for state TypeSerializer", exception);
-			}
+			stateSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(userClassLoader);
+			stateSerializerSerializationProxy.read(in);
 		}
 	}
 }

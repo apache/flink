@@ -38,14 +38,14 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 
 	private static final int VERSION = 1;
 
-	private List<StateMetaInfo> namedStateSerializationProxies;
+	private List<StateMetaInfo<?>> namedStateSerializationProxies;
 	private ClassLoader userCodeClassLoader;
 
 	public OperatorBackendSerializationProxy(ClassLoader userCodeClassLoader) {
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 	}
 
-	public OperatorBackendSerializationProxy(List<StateMetaInfo> namedStateSerializationProxies) {
+	public OperatorBackendSerializationProxy(List<StateMetaInfo<?>> namedStateSerializationProxies) {
 		this.namedStateSerializationProxies = Preconditions.checkNotNull(namedStateSerializationProxies);
 		Preconditions.checkArgument(namedStateSerializationProxies.size() <= Short.MAX_VALUE);
 	}
@@ -62,7 +62,7 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 		out.writeShort(namedStateSerializationProxies.size());
 		Map<String, Integer> kVStateToId = new HashMap<>(namedStateSerializationProxies.size());
 
-		for (StateMetaInfo kvState : namedStateSerializationProxies) {
+		for (StateMetaInfo<?> kvState : namedStateSerializationProxies) {
 			kvState.write(out);
 			kVStateToId.put(kvState.getName(), kVStateToId.size());
 		}
@@ -75,7 +75,7 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 		int numKvStates = out.readShort();
 		namedStateSerializationProxies = new ArrayList<>(numKvStates);
 		for (int i = 0; i < numKvStates; ++i) {
-			StateMetaInfo stateSerializationProxy = new StateMetaInfo(userCodeClassLoader);
+			StateMetaInfo<?> stateSerializationProxy = new StateMetaInfo<>(userCodeClassLoader);
 			stateSerializationProxy.read(out);
 			namedStateSerializationProxies.add(stateSerializationProxy);
 		}
@@ -83,17 +83,17 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 
 //----------------------------------------------------------------------------------------------------------------------
 
-	public static class StateMetaInfo implements IOReadableWritable {
+	public static class StateMetaInfo<S> implements IOReadableWritable {
 
 		private String name;
-		private TypeSerializer<?> stateSerializer;
+		private TypeSerializer<S> stateSerializer;
 		private ClassLoader userClassLoader;
 
 		private StateMetaInfo(ClassLoader userClassLoader) {
 			this.userClassLoader = Preconditions.checkNotNull(userClassLoader);
 		}
 
-		public StateMetaInfo(String name, TypeSerializer<?> stateSerializer) {
+		public StateMetaInfo(String name, TypeSerializer<S> stateSerializer) {
 			this.name = Preconditions.checkNotNull(name);
 			this.stateSerializer = Preconditions.checkNotNull(stateSerializer);
 		}
@@ -106,11 +106,11 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 			this.name = name;
 		}
 
-		public TypeSerializer<?> getStateSerializer() {
+		public TypeSerializer<S> getStateSerializer() {
 			return stateSerializer;
 		}
 
-		public void setStateSerializer(TypeSerializer<?> stateSerializer) {
+		public void setStateSerializer(TypeSerializer<S> stateSerializer) {
 			this.stateSerializer = stateSerializer;
 		}
 
@@ -126,7 +126,7 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 			setName(in.readUTF());
 			DataInputViewStream dis = new DataInputViewStream(in);
 			try {
-				TypeSerializer<?> stateSerializer = InstantiationUtil.deserializeObject(dis, userClassLoader);
+				TypeSerializer<S> stateSerializer = InstantiationUtil.deserializeObject(dis, userClassLoader);
 				setStateSerializer(stateSerializer);
 			} catch (ClassNotFoundException exception) {
 				throw new IOException(exception);

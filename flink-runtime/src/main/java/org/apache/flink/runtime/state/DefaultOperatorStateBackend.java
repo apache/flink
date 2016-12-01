@@ -140,18 +140,18 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		if (registeredStates.isEmpty()) {
 			return new DoneFuture<>(null);
 		}
-
-		List<OperatorBackendSerializationProxy.StateMetaInfo> metaInfoList = new ArrayList<>(registeredStates.size());
-		OperatorBackendSerializationProxy backendSerializationProxy =
-				new OperatorBackendSerializationProxy(metaInfoList);
+//TODO
+//		List<OperatorBackendSerializationProxy.StateMetaInfo<?>> metaInfoList = new ArrayList<>(registeredStates.size());
+//		OperatorBackendSerializationProxy backendSerializationProxy =
+//				new OperatorBackendSerializationProxy(metaInfoList);
 
 		for (Map.Entry<String, PartitionableListState<?>> entry : registeredStates.entrySet()) {
 			PartitionableListState<?> state = entry.getValue();
-			OperatorBackendSerializationProxy.StateMetaInfo metaInfo =
-					new OperatorBackendSerializationProxy.StateMetaInfo(
+			OperatorBackendSerializationProxy.StateMetaInfo<?> metaInfo =
+					new OperatorBackendSerializationProxy.StateMetaInfo<>(
 							state.getName(),
 							state.getPartitionStateSerializer());
-			metaInfoList.add(metaInfo);
+//			metaInfoList.add(metaInfo);
 		}
 
 		Map<String, long[]> writtenStatesMetaData = new HashMap<>(registeredStates.size());

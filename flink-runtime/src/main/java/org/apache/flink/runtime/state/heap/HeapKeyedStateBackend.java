@@ -215,7 +215,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					"Too many KV-States: " + stateTables.size() +
 							". Currently at most " + Short.MAX_VALUE + " states are supported");
 
-			List<KeyedBackendSerializationProxy.StateMetaInfo> metaInfoProxyList = new ArrayList<>(stateTables.size());
+			List<KeyedBackendSerializationProxy.StateMetaInfo<?, ?>> metaInfoProxyList = new ArrayList<>(stateTables.size());
 
 			KeyedBackendSerializationProxy serializationProxy =
 					new KeyedBackendSerializationProxy(keySerializer, metaInfoProxyList);
@@ -225,7 +225,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			for (Map.Entry<String, StateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
 
 				RegisteredBackendStateMetaInfo<?, ?> metaInfo = kvState.getValue().getMetaInfo();
-				KeyedBackendSerializationProxy.StateMetaInfo metaInfoProxy = new KeyedBackendSerializationProxy.StateMetaInfo(
+				KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoProxy = new KeyedBackendSerializationProxy.StateMetaInfo(
 						metaInfo.getName(),
 						metaInfo.getNamespaceSerializer(),
 						metaInfo.getStateSerializer());
@@ -310,24 +310,22 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				serializationProxy.read(inView);
 
-				List<KeyedBackendSerializationProxy.StateMetaInfo> metaInfoList =
+				List<KeyedBackendSerializationProxy.StateMetaInfo<?, ?>> metaInfoList =
 						serializationProxy.getNamedStateSerializationProxies();
 
-				for (KeyedBackendSerializationProxy.StateMetaInfo metaInfo : metaInfoList) {
+				for (KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoSerializationProxy : metaInfoList) {
 
-					StateTable<K, ?, ?> stateTable = stateTables.get(metaInfo.getName());
+					StateTable<K, ?, ?> stateTable = stateTables.get(metaInfoSerializationProxy.getName());
 
 					//important: only create a new table we did not already create it previously
 					if (null == stateTable) {
+
 						RegisteredBackendStateMetaInfo<?, ?> registeredBackendStateMetaInfo =
-								new RegisteredBackendStateMetaInfo<>(
-										metaInfo.getName(),
-										metaInfo.getNamespaceSerializer(),
-										metaInfo.getStateSerializer());
+								new RegisteredBackendStateMetaInfo<>(metaInfoSerializationProxy);
 
 						stateTable = new StateTable<>(registeredBackendStateMetaInfo, keyGroupRange);
-						stateTables.put(metaInfo.getName(), stateTable);
-						kvStatesById.put(numRegisteredKvStates, metaInfo.getName());
+						stateTables.put(metaInfoSerializationProxy.getName(), stateTable);
+						kvStatesById.put(numRegisteredKvStates, metaInfoSerializationProxy.getName());
 						++numRegisteredKvStates;
 					}
 				}
