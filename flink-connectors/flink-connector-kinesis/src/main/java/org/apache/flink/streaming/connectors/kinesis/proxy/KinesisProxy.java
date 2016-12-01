@@ -29,13 +29,13 @@ import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.model.StreamStatus;
 import com.amazonaws.services.kinesis.model.Shard;
 import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
+import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -232,25 +232,23 @@ public class KinesisProxy implements KinesisProxyInterface {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nullable String startingSeqNum) throws InterruptedException {
+	public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nullable Object startingMarker) throws InterruptedException {
 		GetShardIteratorRequest getShardIteratorRequest = new GetShardIteratorRequest()
 			.withStreamName(shard.getStreamName())
 			.withShardId(shard.getShard().getShardId())
-			.withShardIteratorType(shardIteratorType)
-			.withStartingSequenceNumber(startingSeqNum);
-		return getShardIterator(getShardIteratorRequest);
-	}
+			.withShardIteratorType(shardIteratorType);
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nonnull final Date startingTimestamp) throws InterruptedException {
-		GetShardIteratorRequest getShardIteratorRequest = new GetShardIteratorRequest()
-			.withStreamName(shard.getStreamName())
-			.withShardId(shard.getShard().getShardId())
-			.withShardIteratorType(shardIteratorType)
-			.withTimestamp(startingTimestamp);
+		switch (ShardIteratorType.fromValue(shardIteratorType)) {
+			case TRIM_HORIZON:
+			case LATEST:
+				break;
+			case AT_TIMESTAMP:
+				getShardIteratorRequest.setTimestamp((Date) startingMarker);
+				break;
+			case AT_SEQUENCE_NUMBER:
+			case AFTER_SEQUENCE_NUMBER:
+				getShardIteratorRequest.setStartingSequenceNumber((String) startingMarker);
+		}
 		return getShardIterator(getShardIteratorRequest);
 	}
 

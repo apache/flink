@@ -57,7 +57,7 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final String STREAM_INITIAL_POSITION = "flink.stream.initpos";
 
 	/** The initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION */
-	public static final String STREAM_INITIAL_TIMESTAMP = "flink.stream.init.timestamp";
+	public static final String STREAM_INITIAL_TIMESTAMP = "flink.stream.initpos.timestamp";
 
 	/** The base backoff time between each describeStream attempt */
 	public static final String STREAM_DESCRIBE_BACKOFF_BASE = "flink.stream.describe.backoff.base";

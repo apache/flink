@@ -25,7 +25,6 @@ import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 
-import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
 import java.util.Date;
 import java.util.HashMap;
@@ -55,12 +54,7 @@ public class FakeKinesisBehavioursFactory {
 			}
 
 			@Override
-			public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) {
-				return null;
-			}
-
-			@Override
-			public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nonnull final Date startingTimestamp) {
+			public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, Object startingMarker) {
 				return null;
 			}
 
@@ -127,7 +121,7 @@ public class FakeKinesisBehavioursFactory {
 		}
 
 		@Override
-		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) {
+		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, Object startingMarker) {
 			if (!expiredOnceAlready) {
 				// for the first call, just return the iterator of the first batch of records
 				return "0";
@@ -186,14 +180,9 @@ public class FakeKinesisBehavioursFactory {
 		}
 
 		@Override
-		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) {
+		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, Object startingMarker) {
 			// this will be called only one time per ShardConsumer;
 			// so, simply return the iterator of the first batch of records
-			return "0";
-		}
-
-		@Override
-		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nonnull final Date startingTimestamp) {
 			return "0";
 		}
 
@@ -261,12 +250,7 @@ public class FakeKinesisBehavioursFactory {
 		}
 
 		@Override
-		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) {
-			return null;
-		}
-
-		@Override
-		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nonnull final Date startingTimestamp) {
+		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, Object startingMarker) {
 			return null;
 		}
 

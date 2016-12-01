@@ -163,8 +163,7 @@ public class FlinkKinesisConsumerTest {
 	@Test
 	public void testUnparsableDateForInitialTimestampInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream. "
-			+ "Must be a valid format: yyyy-MM-dd'T'HH:mm:ss.SSSXXX or non-negative double value. For example, 2016-04-04T19:58:46.480-00:00 or 1459799926.480 .");
+		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
 
 		Properties testConfig = new Properties();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
