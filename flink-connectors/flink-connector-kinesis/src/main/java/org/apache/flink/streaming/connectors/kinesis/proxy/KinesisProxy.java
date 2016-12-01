@@ -29,6 +29,8 @@ import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededExcepti
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.model.StreamStatus;
 import com.amazonaws.services.kinesis.model.Shard;
+import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
+import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
@@ -42,6 +44,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Map;
 import java.util.Random;
+import java.util.Date;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -234,14 +237,41 @@ public class KinesisProxy implements KinesisProxyInterface {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nullable String startingSeqNum) throws InterruptedException {
+	public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nullable Object startingMarker) throws InterruptedException {
+		GetShardIteratorRequest getShardIteratorRequest = new GetShardIteratorRequest()
+			.withStreamName(shard.getStreamName())
+			.withShardId(shard.getShard().getShardId())
+			.withShardIteratorType(shardIteratorType);
+
+		switch (ShardIteratorType.fromValue(shardIteratorType)) {
+			case TRIM_HORIZON:
+			case LATEST:
+				break;
+			case AT_TIMESTAMP:
+				if (startingMarker instanceof Date) {
+					getShardIteratorRequest.setTimestamp((Date) startingMarker);
+				} else {
+					throw new IllegalArgumentException("Invalid object given for GetShardIteratorRequest() when ShardIteratorType is AT_TIMESTAMP. Must be a Date object.");
+				}
+				break;
+			case AT_SEQUENCE_NUMBER:
+			case AFTER_SEQUENCE_NUMBER:
+				if (startingMarker instanceof String) {
+					getShardIteratorRequest.setStartingSequenceNumber((String) startingMarker);
+				} else {
+					throw new IllegalArgumentException("Invalid object given for GetShardIteratorRequest() when ShardIteratorType is AT_SEQUENCE_NUMBER or AFTER_SEQUENCE_NUMBER. Must be a String.");
+				}
+		}
+		return getShardIterator(getShardIteratorRequest);
+	}
+
+	private String getShardIterator(GetShardIteratorRequest getShardIteratorRequest) throws InterruptedException {
 		GetShardIteratorResult getShardIteratorResult = null;
 
 		int attempt = 0;
 		while (attempt <= getShardIteratorMaxAttempts && getShardIteratorResult == null) {
 			try {
-				getShardIteratorResult =
-					kinesisClient.getShardIterator(shard.getStreamName(), shard.getShard().getShardId(), shardIteratorType, startingSeqNum);
+					getShardIteratorResult = kinesisClient.getShardIterator(getShardIteratorRequest);
 			} catch (AmazonServiceException ex) {
 				if (isRecoverableException(ex)) {
 					long backoffMillis = fullJitterBackoff(
