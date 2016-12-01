@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.avro.Schema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.sources.StreamTableSource;
@@ -37,14 +38,16 @@ public class Kafka09AvroTableSource extends KafkaAvroTableSource {
 	 * @param properties Properties for the Kafka consumer.
 	 * @param fieldNames Row field names.
 	 * @param fieldTypes Row field types.
+	 * @param schema     Avro schema.
 	 */
 	public Kafka09AvroTableSource(
 		String topic,
 		Properties properties,
 		String[] fieldNames,
-		TypeInformation<?>[] fieldTypes) {
+		TypeInformation<?>[] fieldTypes,
+		Schema schema) {
 
-		super(topic, properties, fieldNames, fieldTypes);
+		super(topic, properties, fieldNames, fieldTypes, schema);
 	}
 
 	/**
@@ -54,14 +57,16 @@ public class Kafka09AvroTableSource extends KafkaAvroTableSource {
 	 * @param properties Properties for the Kafka consumer.
 	 * @param fieldNames Row field names.
 	 * @param fieldTypes Row field types.
+	 * @param schema     Avro schema.
 	 */
 	public Kafka09AvroTableSource(
 		String topic,
 		Properties properties,
 		String[] fieldNames,
-		Class<?>[] fieldTypes) {
+		Class<?>[] fieldTypes,
+		Schema schema) {
 
-		super(topic, properties, fieldNames, fieldTypes);
+		super(topic, properties, fieldNames, fieldTypes, schema);
 	}
 
 	@Override

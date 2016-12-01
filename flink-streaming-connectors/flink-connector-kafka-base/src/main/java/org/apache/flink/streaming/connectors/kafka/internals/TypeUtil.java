@@ -23,6 +23,8 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
+import java.util.Arrays;
+
 public class TypeUtil {
 	private TypeUtil() {}
 
@@ -50,9 +52,12 @@ public class TypeUtil {
 			.record("Row").namespace("org.apache.flink.streaming")
 			.fields();
 
+		final Schema nullSchema = Schema.create(Schema.Type.NULL);
+
 		for (int i = 0; i < fieldNames.length; i++) {
 			Schema schema = ReflectData.get().getSchema(fieldTypes[i].getTypeClass());
-			fieldAssembler.name(fieldNames[i]).type(schema).noDefault();
+			Schema unionSchema = Schema.createUnion(Arrays.asList(nullSchema, schema));
+			fieldAssembler.name(fieldNames[i]).type(unionSchema).noDefault();
 		}
 
 		return fieldAssembler.endRecord();

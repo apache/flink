@@ -18,18 +18,16 @@ package org.apache.flink.streaming.util.serialization;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.table.Row;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-
-import static org.apache.flink.streaming.connectors.kafka.internals.TypeUtil.createRowAvroSchema;
 
 /**
  * Deserialization schema from Avro to {@link Row}.
@@ -55,14 +53,15 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	/**
 	 * Creates a Avro deserializtion schema for the given type classes.
 	 *
-	 * @param fieldNames
+	 * @param fieldNames Field names to parse Avro fields as.
 	 * @param fieldTypes Type classes to parse Avro fields as.
+	 * @param schema Avro schema used to deserialize Row record
 	 */
-	public AvroRowDeserializationSchema(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		this.schema = createRowAvroSchema(fieldNames, fieldTypes);
+	public AvroRowDeserializationSchema(String[] fieldNames, TypeInformation<?>[] fieldTypes, Schema schema) {
+		this.schema = schema;
 		this.fieldNames = fieldNames;
 		this.fieldTypes = fieldTypes;
-		this.datumReader = new GenericDatumReader<>(schema);
+		this.datumReader = new ReflectDatumReader<>(schema);
 		this.record = new GenericData.Record(schema);
 	}
 
@@ -84,7 +83,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		for (int i = 0; i < fieldNames.length; i++) {
 			Object val = record.get(fieldNames[i]);
 			// Avro deserializes strings into Utf8 type
-			if (fieldTypes[i].getTypeClass().equals(String.class)) {
+			if (fieldTypes[i].getTypeClass().equals(String.class) && val != null) {
 				val = val.toString();
 			}
 			row.setField(i, val);

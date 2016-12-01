@@ -19,18 +19,15 @@ package org.apache.flink.streaming.util.serialization;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.flink.api.table.Row;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-
-import static org.apache.flink.streaming.connectors.kafka.internals.TypeUtil.createRowAvroSchema;
 
 /**
  * Serialization schema that serializes an object into a Avro bytes.
@@ -51,11 +48,16 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
 	/** Record that Avro serializes into a byte array */
 	private final GenericRecord record;
 
-	public AvroRowSerializationSchema(String[] fieldNames, TypeInformation[] types) {
+	/**
+	 * Create AvroRowSerializationSchema
+	 * @param fieldNames Field names to parse Avro fields as.
+	 * @param schema Avro schema used to deserialize Row record
+     */
+	public AvroRowSerializationSchema(String[] fieldNames, Schema schema) {
 		this.fieldNames = fieldNames;
-		this.schema = createRowAvroSchema(fieldNames, types);
-		this.datumWriter = new GenericDatumWriter<>(schema);
-		this.record = new GenericData.Record(schema);
+		this.schema = schema;
+		this.datumWriter = new ReflectDatumWriter<>(this.schema);
+		this.record = new GenericData.Record(this.schema);
 	}
 
 	@Override

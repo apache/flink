@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.avro.Schema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.table.sources.StreamTableSource;
 import org.apache.flink.streaming.connectors.kafka.internals.TypeUtil;
@@ -43,14 +44,16 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource {
 	 * @param properties Properties for the Kafka consumer.
 	 * @param fieldNames Row field names.
 	 * @param fieldTypes Row field types.
+	 * @param schema     Avro schema.
 	 */
 	KafkaAvroTableSource(
 		String topic,
 		Properties properties,
 		String[] fieldNames,
-		Class<?>[] fieldTypes) {
+		Class<?>[] fieldTypes,
+		Schema schema) {
 
-		super(topic, properties, createDeserializationSchema(fieldTypes), fieldNames, fieldTypes);
+		super(topic, properties, createDeserializationSchema(fieldNames, fieldTypes, schema), fieldNames, fieldTypes);
 	}
 
 	/**
@@ -60,25 +63,27 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource {
 	 * @param properties Properties for the Kafka consumer.
 	 * @param fieldNames Row field names.
 	 * @param fieldTypes Row field types.
+	 * @param schema     Avro schema.
 	 */
 	KafkaAvroTableSource(
 		String topic,
 		Properties properties,
 		String[] fieldNames,
-		TypeInformation<?>[] fieldTypes) {
+		TypeInformation<?>[] fieldTypes,
+		Schema schema) {
 
-		super(topic, properties, createDeserializationSchema(fieldTypes), fieldNames, fieldTypes);
+		super(topic, properties, createDeserializationSchema(fieldNames, fieldTypes, schema), fieldNames, fieldTypes);
 	}
 
 	private static AvroRowDeserializationSchema createDeserializationSchema(
-		TypeInformation<?>[] fieldTypes) {
+		String[] fieldNames, TypeInformation<?>[] fieldTypes, Schema schema) {
 
-		return new AvroRowDeserializationSchema(new String[]{"f1", "f2", "f3"}, fieldTypes);
+		return new AvroRowDeserializationSchema(fieldNames, fieldTypes, schema);
 	}
 
 	private static AvroRowDeserializationSchema createDeserializationSchema(
-		Class<?>[] fieldTypes) {
+		String[] fieldNames, Class<?>[] fieldTypes, Schema schema) {
 
-		return new AvroRowDeserializationSchema(new String[]{"f1", "f2", "f3"}, TypeUtil.toTypeInfo(fieldTypes));
+		return new AvroRowDeserializationSchema(fieldNames, TypeUtil.toTypeInfo(fieldTypes), schema);
 	}
 }
