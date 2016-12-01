@@ -21,12 +21,14 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.CollectorWrapper;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -37,9 +39,12 @@ import org.junit.Test;
  *     <li>RichFunction methods are called correctly</li>
  *     <li>Timestamps of processed elements match the input timestamp</li>
  *     <li>Watermarks are correctly forwarded</li>
+ *     <li>sideOutput are correctly processed</li>
  * </ul>
  */
 public class StreamFlatMapTest {
+
+	private static final OutputTag<Integer> sideOutputTag = new OutputTag<Integer>() {};
 
 	public static final class MyFlatMap implements FlatMapFunction<Integer, Integer> {
 
@@ -104,6 +109,7 @@ public class StreamFlatMapTest {
 
 		Assert.assertTrue("RichFunction methods where not called.", TestOpenCloseFlatMapFunction.closeCalled);
 		Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
+		Assert.assertTrue("SideOutput contains no elements.", testHarness.getSideOutput(sideOutputTag).size() > 0);
 	}
 
 	// This must only be used in one test, otherwise the static fields will be changed
@@ -138,6 +144,9 @@ public class StreamFlatMapTest {
 				Assert.fail("Open was not called before run.");
 			}
 			out.collect(value);
+
+			CollectorWrapper<String> wrapper = new CollectorWrapper<>(out);
+			wrapper.collect(sideOutputTag, 1);
 		}
 	}
 }

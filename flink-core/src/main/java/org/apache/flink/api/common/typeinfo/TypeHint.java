@@ -38,7 +38,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 public abstract class TypeHint<T> {
 	
 	/** The type information described by the hint */
-	protected TypeInformation<T> typeInfo;
+	private final TypeInformation<T> typeInfo;
 
 	/**
 	 * Creates a hint for the generic type in the class signature.

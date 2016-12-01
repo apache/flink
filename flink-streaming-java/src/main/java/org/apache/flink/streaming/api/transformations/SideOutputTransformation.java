@@ -17,6 +17,8 @@
  */
 package org.apache.flink.streaming.api.transformations;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.Lists;
 import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -24,6 +26,15 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import java.util.Collection;
 import java.util.List;
 
+
+/**
+ * This transformation represents a selection of only upstream elements with one outputTag.
+ * <p>
+ * This does not create a physical operation, it only affects how upstream operations are
+ * connected to downstream operations.
+ *
+ * @param <T> The type of the elements that result from this {@code SideOutputTransformation}
+ */
 public class SideOutputTransformation<T> extends StreamTransformation<T> {
 	private final StreamTransformation<T> input;
 	private final OutputTag<T> tag;
@@ -31,7 +42,7 @@ public class SideOutputTransformation<T> extends StreamTransformation<T> {
 	public SideOutputTransformation(StreamTransformation input, final OutputTag<T> tag) {
 		super("SideOutput", tag.getTypeInfo(), input.getParallelism());
 		this.input = input;
-		this.tag = tag;
+		this.tag = requireNonNull(tag);
 	}
 
 	/**
@@ -55,6 +66,6 @@ public class SideOutputTransformation<T> extends StreamTransformation<T> {
 
 	@Override
 	public final void setChainingStrategy(ChainingStrategy strategy) {
-		throw new UnsupportedOperationException("Cannot set chaining strategy on Select Transformation.");
+		throw new UnsupportedOperationException("Cannot set chaining strategy on SideOutput Transformation.");
 	}
 }

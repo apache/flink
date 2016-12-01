@@ -21,7 +21,7 @@ import java.io.Serializable;
 import java.util.List;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 /**
@@ -44,23 +44,22 @@ public class StreamEdge implements Serializable {
 	 */
 	final private int typeNumber;
 
-	private final TypeInformation outputType;
-
 	/**
 	 * A list of output names that the target vertex listens to (if there is
 	 * output selection).
 	 */
 	private final List<String> selectedNames;
+	private final OutputTag outputTag;
 	private StreamPartitioner<?> outputPartitioner;
 
 	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
-			List<String> selectedNames, StreamPartitioner<?> outputPartitioner, TypeInformation outputType) {
+			List<String> selectedNames, StreamPartitioner<?> outputPartitioner, OutputTag outputTag) {
 		this.sourceVertex = sourceVertex;
 		this.targetVertex = targetVertex;
 		this.typeNumber = typeNumber;
 		this.selectedNames = selectedNames;
 		this.outputPartitioner = outputPartitioner;
-		this.outputType = outputType;
+		this.outputTag = outputTag;
 
 		this.edgeId = sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + selectedNames
 				+ "_" + outputPartitioner;
@@ -90,7 +89,9 @@ public class StreamEdge implements Serializable {
 		return selectedNames;
 	}
 
-	public TypeInformation getOutputType() { return outputType; }
+	public String getSideOutputTypeName() { return outputTag == null ? null : outputTag.getTypeInfo().toString();}
+
+	public OutputTag getOutputTag() {return this.outputTag;}
 
 	public StreamPartitioner<?> getPartitioner() {
 		return outputPartitioner;
@@ -123,6 +124,6 @@ public class StreamEdge implements Serializable {
 	public String toString() {
 		return "(" + sourceVertex + " -> " + targetVertex + ", typeNumber=" + typeNumber
 				+ ", selectedNames=" + selectedNames + ", outputPartitioner=" + outputPartitioner
-				+ ')';
+				+ ", outputTag=" + outputTag + ')';
 	}
 }

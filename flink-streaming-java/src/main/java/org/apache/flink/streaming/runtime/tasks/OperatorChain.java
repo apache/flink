@@ -17,7 +17,15 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
@@ -44,13 +52,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.XORShiftRandom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
 
 
 /**
@@ -323,7 +324,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 			StreamEdge edge, StreamConfig upStreamConfig, int outputIndex,
 			Environment taskEnvironment,
 			String taskName) {
-		TypeSerializer<T> outSerializer = upStreamConfig.getTypeSerializerOut(taskEnvironment.getUserClassLoader());
+		OutputTag sideOutputTag = edge.getOutputTag(); // OutputTag, return null if not sideOutput
+		TypeSerializer outSerializer = upStreamConfig.getTypeSerializerOut(edge.getSideOutputTypeName(),
+			taskEnvironment.getUserClassLoader());
 
 		@SuppressWarnings("unchecked")
 		StreamPartitioner<T> outputPartitioner = (StreamPartitioner<T>) edge.getPartitioner();
@@ -336,7 +339,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 				new StreamRecordWriter<>(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
 		output.setMetricGroup(taskEnvironment.getMetricGroup().getIOMetricGroup());
 		
-		return new RecordWriterOutput<>(output, outSerializer);
+		return new RecordWriterOutput<>(output, sideOutputTag, outSerializer);
 	}
 	
 	// ------------------------------------------------------------------------
@@ -407,18 +410,16 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 
 		@Override
 		public void collect(StreamRecord<T> record) {
-			//Hack, shoud do better type check
-			if(record.getValue().getClass() == serializer.createInstance().getClass()) {
-				try {
+			try {
+				// sideOutput still not support chainning yet, filter out sideoutputs
+				if (record.getOutputTag() == null) {
 					numRecordsIn.inc();
 					StreamRecord<T> copy = record.copy(serializer.copy(record.getValue()));
 					operator.setKeyContextElement1(copy);
 					operator.processElement(copy);
-				} catch (Exception e) {
-					throw new RuntimeException("Could not forward element to next operator", e);
 				}
-			} else {
-				LOG.info("{} {}",record.getValue().getClass().toString(), serializer.createInstance().getClass().toString());
+			} catch (Exception e) {
+				throw new RuntimeException("Could not forward element to next operator", e);
 			}
 		}
 	}

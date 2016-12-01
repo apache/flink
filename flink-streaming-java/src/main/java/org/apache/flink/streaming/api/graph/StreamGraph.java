@@ -32,8 +32,8 @@ import java.util.Set;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.OutputTagUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -86,6 +86,7 @@ public class StreamGraph extends StreamingPlan {
 	private Set<Integer> sources;
 	private Set<Integer> sinks;
 	private Map<Integer, Tuple2<Integer, List<String>>> virtualSelectNodes;
+	private Map<Integer, Tuple2<Integer, OutputTag>> virtualOutputNodes;
 	private Map<Integer, Tuple2<Integer, StreamPartitioner<?>>> virtuaPartitionNodes;
 
 	protected Map<Integer, String> vertexIDtoBrokerID;
@@ -109,6 +110,7 @@ public class StreamGraph extends StreamingPlan {
 	public void clear() {
 		streamNodes = new HashMap<>();
 		virtualSelectNodes = new HashMap<>();
+		virtualOutputNodes = new HashMap<>();
 		virtuaPartitionNodes = new HashMap<>();
 		vertexIDtoBrokerID = new HashMap<>();
 		vertexIDtoLoopTimeout  = new HashMap<>();
@@ -293,6 +295,21 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	/**
+	 * Adds a new virtual node that is used to connect a downstream vertex to only outputs with OutputTag
+	 * @param originalId ID of the node that should be connected to.
+	 * @param virtualId ID of the virtual node.
+	 * @param outputTag assigned OutputTag to elements
+	 */
+	public void addVirtualOutputNode(Integer originalId, Integer virtualId, OutputTag outputTag) {
+
+		if (virtualOutputNodes.containsKey(virtualId)) {
+			throw new IllegalStateException("Already has virtual output node with id " + virtualId);
+		}
+
+		virtualOutputNodes.put(virtualId, new Tuple2<>(originalId, outputTag));
+	}
+
+	/**
 	 * Adds a new virtual node that is used to connect a downstream vertex to an input with a certain
 	 * partitioning.
 	 *
@@ -317,7 +334,10 @@ public class StreamGraph extends StreamingPlan {
 	 * Determines the slot sharing group of an operation across virtual nodes.
 	 */
 	public String getSlotSharingGroup(Integer id) {
-		if (virtualSelectNodes.containsKey(id)) {
+		if (virtualOutputNodes.containsKey(id)) {
+			Integer mappedId = virtualOutputNodes.get(id).f0;
+			return getSlotSharingGroup(mappedId);
+		} else if (virtualSelectNodes.containsKey(id)) {
 			Integer mappedId = virtualSelectNodes.get(id).f0;
 			return getSlotSharingGroup(mappedId);
 		} else if (virtuaPartitionNodes.containsKey(id)) {
@@ -334,7 +354,7 @@ public class StreamGraph extends StreamingPlan {
 				downStreamVertexID,
 				typeNumber,
 				null,
-				new ArrayList<String>());
+				new ArrayList<String>(), null);
 
 	}
 
@@ -342,17 +362,25 @@ public class StreamGraph extends StreamingPlan {
 			Integer downStreamVertexID,
 			int typeNumber,
 			StreamPartitioner<?> partitioner,
-			List<String> outputNames) {
+			List<String> outputNames,
+			OutputTag outputTag) {
 
-
-		if (virtualSelectNodes.containsKey(upStreamVertexID)) {
+		if (virtualOutputNodes.containsKey(upStreamVertexID)) {
+			int virtualId = upStreamVertexID;
+			upStreamVertexID = virtualOutputNodes.get(virtualId).f0;
+			if (outputTag == null) {
+				// selections that happen downstream override earlier selections
+				outputTag = virtualOutputNodes.get(virtualId).f1;
+			}
+			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, null, outputTag);
+		}else if (virtualSelectNodes.containsKey(upStreamVertexID)) {
 			int virtualId = upStreamVertexID;
 			upStreamVertexID = virtualSelectNodes.get(virtualId).f0;
 			if (outputNames.isEmpty()) {
 				// selections that happen downstream override earlier selections
 				outputNames = virtualSelectNodes.get(virtualId).f1;
 			}
-			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames);
+			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, null);
 		} else if (virtuaPartitionNodes.containsKey(upStreamVertexID)) {
 			int virtualId = upStreamVertexID;
 			upStreamVertexID = virtuaPartitionNodes.get(virtualId).f0;
@@ -371,7 +399,7 @@ public class StreamGraph extends StreamingPlan {
 				configurableStreamPartitioner.configure(downstreamNode.getMaxParallelism());
 			}
 
-			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames);
+			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, outputTag);
 		} else {
 			StreamNode upstreamNode = getStreamNode(upStreamVertexID);
 			StreamNode downstreamNode = getStreamNode(downStreamVertexID);
@@ -393,7 +421,7 @@ public class StreamGraph extends StreamingPlan {
 				}
 			}
 
-			StreamEdge edge = new StreamEdge(upstreamNode, downstreamNode, typeNumber, outputNames, partitioner, OutputTagUtil.getSideOutputTypeInfo(outputNames));
+			StreamEdge edge = new StreamEdge(upstreamNode, downstreamNode, typeNumber, outputNames, partitioner, outputTag);
 
 			getStreamNode(edge.getSourceId()).addOutEdge(edge);
 			getStreamNode(edge.getTargetId()).addInEdge(edge);

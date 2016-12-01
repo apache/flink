@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.OutputTagUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -310,10 +309,10 @@ public class StreamGraphGenerator {
 	}
 
 	/**
-	 * Transforms a {@code SelectTransformation}.
+	 * Transforms a {@code SideOutputTransformation}.
 	 *
 	 * <p>
-	 * For this we create a virtual node in the {@code StreamGraph} holds the selected names.
+	 * For this we create a virtual node in the {@code StreamGraph} holds the output node accepts one outputtag.
 	 * @see org.apache.flink.streaming.api.graph.StreamGraphGenerator
 	 */
 	private <T> Collection<Integer> transformSideOutput(SideOutputTransformation<T> sideOutput) {
@@ -330,7 +329,7 @@ public class StreamGraphGenerator {
 
 		for (int inputId : resultIds) {
 			int virtualId = StreamTransformation.getNewNodeId();
-			streamGraph.addVirtualSelectNode(inputId, virtualId, OutputTagUtil.getOutputTagName(sideOutput.getOutputTag()));
+			streamGraph.addVirtualOutputNode(inputId, virtualId, sideOutput.getOutputTag());
 			virtualResultIds.add(virtualId);
 		}
 		return virtualResultIds;

@@ -18,17 +18,19 @@
 package org.apache.flink.streaming.examples.wordcount;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.CollectorWrapper;
 
 /**
  * Implements the "WordCount" program that computes a simple word occurrence
- * histogram over text files in a streaming fashion.
- *
+ * histogram over text files in a streaming fashion. At same time, write input
+ * to sideOutput channel and write to another stream
  * <p>
  * The input is a plain text file with lines separated by newline characters.
  *
@@ -46,7 +48,7 @@ import org.apache.flink.util.Collector;
  * </ul>
  *
  */
-public class WordCount {
+public class SideOutputExample {
 
 	// *************************************************************************
 	// PROGRAM
@@ -75,23 +77,21 @@ public class WordCount {
 			text = env.fromElements(WordCountData.WORDS);
 		}
 
-		DataStream<Tuple2<String, Integer>> counts =
-			// split up the lines in pairs (2-tuples) containing: (word,1)
-			text.flatMap(new Tokenizer())
-				// group by the tuple field "0" and sum up tuple field "1"
-				.keyBy(0).sum(1);
+		DataStream<String> sideOutput = text.flatMap(new Tokenizer()).getSideOutput(sideOutTag);
 
 		// emit result
 		if (params.has("output")) {
-			counts.writeAsText(params.get("output"));
+			sideOutput.writeAsText(params.get("sideoutput"));
 		} else {
 			System.out.println("Printing result to stdout. Use --output to specify output path.");
-			counts.print();
+			sideOutput.print();
 		}
 
 		// execute program
-		env.execute("Streaming WordCount");
+		env.execute("Streaming WordCount SideOutput");
 	}
+
+	static final OutputTag<String> sideOutTag = new OutputTag<String>("sideout") {};
 
 	// *************************************************************************
 	// USER FUNCTIONS
@@ -109,14 +109,16 @@ public class WordCount {
 		@Override
 		public void flatMap(String value, Collector<Tuple2<String, Integer>> out)
 			throws Exception {
+			CollectorWrapper wrapper = new CollectorWrapper<>(out);
 			// normalize and split the line
 			String[] tokens = value.toLowerCase().split("\\W+");
 
 			// emit the pairs
 			for (String token : tokens) {
 				if (token.length() > 0) {
-					out.collect(new Tuple2<String, Integer>(token, 1));
+					wrapper.collect(new Tuple2<String, Integer>(token, 1));
 				}
+				wrapper.collect(sideOutTag, token);
 			}
 		}
 	}

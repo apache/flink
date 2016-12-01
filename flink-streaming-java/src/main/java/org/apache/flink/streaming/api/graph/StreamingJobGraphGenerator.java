@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import com.google.common.collect.Iterables;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
@@ -334,6 +335,16 @@ public class StreamingJobGraphGenerator {
 		config.setTypeSerializerIn2(vertex.getTypeSerializerIn2());
 		config.setTypeSerializerOut(vertex.getTypeSerializerOut());
 
+		// iterate edges, find sideOutput edges create and save serializers for each outputTag type
+		for(StreamEdge edge : Iterables.concat(nonChainableOutputs, chainableOutputs)) {
+			if(edge.getOutputTag() != null) {
+				config.setTypeSerializerSideOuts(
+					edge.getSideOutputTypeName(),
+					edge.getOutputTag().getTypeInfo().createSerializer(streamGraph.getExecutionConfig())
+				);
+			}
+		}
+
 		config.setStreamOperator(vertex.getOperator());
 		config.setOutputSelectors(vertex.getOutputSelectors());
 
@@ -429,6 +440,7 @@ public class StreamingJobGraphGenerator {
 					headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS)
 				&& (edge.getPartitioner() instanceof ForwardPartitioner)
 				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
+				&& edge.getOutputTag() == null //disable chain for sideouput
 				&& streamGraph.isChainingEnabled();
 	}
 

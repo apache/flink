@@ -51,6 +51,7 @@ import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.outputtags.LateArrivingOutputTag;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -220,6 +221,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		Collection<W> elementWindows = windowAssigner.assignWindows(
 			element.getValue(), element.getTimestamp(), windowAssignerContext);
 
+		//if element is handled by none of assigned elementWindows
+		boolean isSkippedElement = true;
+
 		final K key = (K) getKeyedStateBackend().getCurrentKey();
 
 		if (windowAssigner instanceof MergingWindowAssigner) {
@@ -260,6 +264,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					mergingWindows.retireWindow(actualWindow);
 					continue;
 				}
+				isSkippedElement = false;
 
 				W stateWindow = mergingWindows.getStateWindow(actualWindow);
 				if (stateWindow == null) {
@@ -299,6 +304,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				if (isLate(window)) {
 					continue;
 				}
+				isSkippedElement = false;
 
 				AppendingState<IN, ACC> windowState =
 						getPartitionedState(window, windowSerializer, windowStateDescriptor);
@@ -323,6 +329,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					registerCleanupTimer(window);
 				}
 			}
+		}
+
+		if(isSkippedElement && isLate(element)) {
+			sideOutput(element);
 		}
 	}
 
@@ -432,6 +442,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	/**
+	 * write skipped late arriving element to SideOutput
+	 * @param element element to side output
+	 */
+	private void sideOutput(StreamRecord<IN> element){
+		timestampedCollector.collect(new LateArrivingOutputTag<IN>(), element);
+	}
+
+	/**
 	 * Retrieves the {@link MergingWindowSet} for the currently active key.
 	 * The caller must ensure that the correct key is set in the state backend.
 	 *
@@ -458,6 +476,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 */
 	protected boolean isLate(W window) {
 		return (windowAssigner.isEventTime() && (cleanupTime(window) <= internalTimerService.currentWatermark()));
+	}
+
+	/**
+	 * Decide if a record is currently late, based on current watermark and allowed lateness
+	 * @param element The element to check
+	 * @return The element for which should be considered when sideoutput
+	 */
+	protected boolean isLate(StreamRecord<IN> element){
+		return (windowAssigner.isEventTime()) &&
+			(element.getTimestamp() + allowedLateness <= internalTimerService.currentWatermark());
 	}
 
 	/**

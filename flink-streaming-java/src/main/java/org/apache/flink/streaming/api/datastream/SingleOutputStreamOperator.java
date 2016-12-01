@@ -344,8 +344,28 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 		return this;
 	}
 
-	public <X> DataStream<X> getOutput(OutputTag<X> tag){
-		SideOutputTransformation<X> sideOutputTransformation = new SideOutputTransformation<>(this.getTransformation(), tag);
-		return new DataStream<X>(this.getExecutionEnvironment(), sideOutputTransformation);
+	/**
+	 * Gets DataStream of elements with sideOutputTag attached.
+	 * @param sideOutputTag OutputTag used to sideOutput elements
+	 * @param <X> type of sideOutputTag same as elements type
+	 * @return DataStream of sideoutput elements
+	 * Example:
+	 * <code>
+	 * static final OutputTag&lt;X&gt; sideOutputTag = new OutputTag&lt;X&gt;() {};
+	 * public void flatMap(X value, Collector&lt;String&gt; out) throws Exception {
+	 *      CollectorWrapper wrapper = new CollectorWrapper&lt;&gt;(out);
+	 *      try{
+	 *      	...
+	 *      	wrapper.collect(value.toString());
+	 *      } catch(Exception e) {
+	 *          wrapper.collect(sideOutputTag, value);
+	 *      }
+	 * }
+	 * DataStream&lt;X&gt; sideOutputStream = ...flatMap(...).getSideOutput(sideOut);
+	 * </code>
+	 */
+	public <X> DataStream<X> getSideOutput(OutputTag<X> sideOutputTag){
+		SideOutputTransformation<X> sideOutputTransformation = new SideOutputTransformation<>(this.getTransformation(), requireNonNull(sideOutputTag));
+		return new DataStream<>(this.getExecutionEnvironment(), sideOutputTransformation);
 	}
 }

@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,22 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.flink.util;
+package org.apache.flink.streaming.api.functions.windowing;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.OutputTag;
+import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.Collector;
 
 /**
- * extend support collect with outputtag
+ * discard non sideoutputs
  */
 @Internal
-public interface RichCollector<T> extends Collector<T>{
-	/**
-	 * collect side output element with a specific outputtag
-	 * @param tag side output outputtag
-	 * @param value side output element
-	 * @param <S> sideoutput class type information
-	 */
-	<S> void collect(OutputTag<S> tag, S value);
+public class DiscardAllWindowFunction<T, W extends Window> implements AllWindowFunction<T, StreamRecord, W>{
+	@Override
+	public void apply(W window, Iterable<T> values, Collector<StreamRecord> out) throws Exception {}
 }

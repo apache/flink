@@ -17,6 +17,14 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -30,14 +38,6 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
 import org.apache.flink.util.InstantiationUtil;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @Internal
 public class StreamConfig implements Serializable {
@@ -63,7 +63,7 @@ public class StreamConfig implements Serializable {
 	private static final String TYPE_SERIALIZER_IN_1 = "typeSerializer_in_1";
 	private static final String TYPE_SERIALIZER_IN_2 = "typeSerializer_in_2";
 	private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out";
-	private static final String TYPE_SERIALIZER_OUT_PREFIX = "typeSerializer_";
+	private static final String TYPE_SERIALIZER_SIDEOUT_PREFIX = "typeSerializer_sideout_";
 	private static final String ITERATON_WAIT = "iterationWait";
 	private static final String NONCHAINED_OUTPUTS = "nonChainedOutputs";
 	private static final String EDGES_IN_ORDER = "edgesInOrder";
@@ -140,6 +140,10 @@ public class StreamConfig implements Serializable {
 	public void setTypeSerializerOut(TypeSerializer<?> serializer) {
 		setTypeSerializer(TYPE_SERIALIZER_OUT_1, serializer);
 	}
+
+	public void setTypeSerializerSideOuts(String typeString, TypeSerializer<?> serializer) {
+		setTypeSerializer(TYPE_SERIALIZER_SIDEOUT_PREFIX + typeString, serializer);
+	}
 	
 	public <T> TypeSerializer<T> getTypeSerializerIn1(ClassLoader cl) {
 		try {
@@ -157,9 +161,10 @@ public class StreamConfig implements Serializable {
 		}
 	}
 	
-	public <T> TypeSerializer<T> getTypeSerializerOut(ClassLoader cl) {
+	public <T> TypeSerializer<T> getTypeSerializerOut(String typeString, ClassLoader cl) {
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_OUT_1, cl);
+			return InstantiationUtil.readObjectFromConfig(this.config, typeString == null
+				? TYPE_SERIALIZER_OUT_1 : TYPE_SERIALIZER_SIDEOUT_PREFIX + typeString, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate serializer.", e);
 		}

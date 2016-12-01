@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
+import org.apache.flink.streaming.api.functions.windowing.DiscardWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.FoldApplyWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyWindowFunction;
@@ -59,6 +60,7 @@ import org.apache.flink.streaming.runtime.operators.windowing.functions.Internal
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.outputtags.LateArrivingOutputTag;
 
 /**
  * A {@code WindowedStream} represents a data stream where elements are grouped by
@@ -721,6 +723,14 @@ public class WindowedStream<T, K, W extends Window> {
 		}
 
 		return input.transform(opName, resultType, operator);
+	}
+
+	/**
+	 * Applies a DiscardWindowFunction that only returns late arriving events
+	 * @return the data stream considered too late to be evaluated by any windows assigned
+	 */
+	public DataStream<StreamRecord<T>> tooLateEvents() {
+		return apply(new DiscardWindowFunction<T, K, W>()).getSideOutput(new LateArrivingOutputTag<T>());
 	}
 
 	// ------------------------------------------------------------------------

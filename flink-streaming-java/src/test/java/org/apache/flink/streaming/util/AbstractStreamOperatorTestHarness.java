@@ -19,6 +19,7 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
@@ -78,6 +79,8 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 	final protected ConcurrentLinkedQueue<Object> outputList;
 
+	final protected ConcurrentLinkedQueue<Object> sideOutputList;
+
 	final protected StreamConfig config;
 
 	final protected ExecutionConfig executionConfig;
@@ -113,6 +116,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 			int subtaskIndex) throws Exception {
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<>();
+		this.sideOutputList = new ConcurrentLinkedQueue<>();
 		Configuration underlyingConfig = new Configuration();
 		this.config = new StreamConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
@@ -214,6 +218,17 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	 */
 	public ConcurrentLinkedQueue<Object> getOutput() {
 		return outputList;
+	}
+
+	//TODO: FIX ME
+	public ConcurrentLinkedQueue<Object> getSideOutput(OutputTag tag) {
+		ConcurrentLinkedQueue<Object> matchList = new ConcurrentLinkedQueue<Object>();
+		for(Object item : sideOutputList){
+			if(item instanceof StreamRecord && tag.equals(((StreamRecord)item).getOutputTag())){
+				matchList.add(item);
+			}
+		}
+		return matchList;
 	}
 
 	/**
@@ -503,6 +518,8 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 		private TypeSerializer<OUT> outputSerializer;
 
+		private TypeSerializer sideOutputSerializer;
+
 		MockOutput() {
 			this(null);
 		}
@@ -523,13 +540,25 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 		@Override
 		public void collect(StreamRecord<OUT> element) {
-			if (outputSerializer == null) {
-				outputSerializer = TypeExtractor.getForObject(element.getValue()).createSerializer(executionConfig);
-			}
-			if (element.hasTimestamp()) {
-				outputList.add(new StreamRecord<>(outputSerializer.copy(element.getValue()),element.getTimestamp()));
+			if (element.getOutputTag() != null) {
+				StreamRecord record = element.getValue() instanceof StreamRecord ? (StreamRecord) element.getValue() : element;
+				if (sideOutputSerializer == null) {
+					sideOutputSerializer = TypeExtractor.getForObject(record.getValue()).createSerializer(executionConfig);
+				}
+				if (element.hasTimestamp()) {
+					sideOutputList.add(new StreamRecord<>(sideOutputSerializer.copy(record.getValue()), record.getTimestamp(), element.getOutputTag()));
+				} else {
+					sideOutputList.add(new StreamRecord<>(sideOutputSerializer.copy(record.getValue()), element.getOutputTag()));
+				}
 			} else {
-				outputList.add(new StreamRecord<>(outputSerializer.copy(element.getValue())));
+				if (outputSerializer == null) {
+					outputSerializer = TypeExtractor.getForObject(element.getValue()).createSerializer(executionConfig);
+				}
+				if (element.hasTimestamp()) {
+					outputList.add(new StreamRecord<>(outputSerializer.copy(element.getValue()), element.getTimestamp()));
+				} else {
+					outputList.add(new StreamRecord<>(outputSerializer.copy(element.getValue())));
+				}
 			}
 		}
 
