@@ -23,12 +23,18 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.elasticsearch2.helper.ElasticSearchHelper;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
+import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesRequest;
+import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
+import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeBuilder;
@@ -73,7 +79,7 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 		Map<String, String> config = new HashMap<>();
 		// This instructs the sink to emit after every element, otherwise they would be buffered
 		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		config.put("cluster.name", "my-transport-client-cluster");
+		config.put(ClusterName.SETTING, "my-transport-client-cluster");
 
 		// Can't use {@link TransportAddress} as its not Serializable in Elasticsearch 2.x
 		List<InetSocketAddress> transports = new ArrayList<>();
@@ -115,7 +121,7 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 	Map<String, String> config = new HashMap<>();
 	// This instructs the sink to emit after every element, otherwise they would be buffered
 	config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-	config.put("cluster.name", "my-transport-client-cluster");
+	config.put(ClusterName.SETTING, "my-transport-client-cluster");
 
 	source.addSink(new ElasticsearchSink<>(config, null, new TestElasticsearchSinkFunction()));
 
@@ -153,7 +159,7 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 	Map<String, String> config = new HashMap<>();
 	// This instructs the sink to emit after every element, otherwise they would be buffered
 	config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-	config.put("cluster.name", "my-transport-client-cluster");
+	config.put(ClusterName.SETTING, "my-transport-client-cluster");
 
 	source.addSink(new ElasticsearchSink<>(config, new ArrayList<InetSocketAddress>(), new TestElasticsearchSinkFunction()));
 
@@ -183,7 +189,7 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 		Map<String, String> config = new HashMap<>();
 		// This instructs the sink to emit after every element, otherwise they would be buffered
 		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		config.put("cluster.name", "my-node-client-cluster");
+		config.put(ClusterName.SETTING, "my-node-client-cluster");
 
 		List<InetSocketAddress> transports = new ArrayList<>();
 		transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
@@ -209,6 +215,122 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 		public void cancel() {
 			running = false;
 		}
+	}
+	
+	@Test
+	public void testTemplateCreation() throws Exception {
+		// Settings.Builder settings=Settings.settingsBuilder().put("","");
+
+		Map<String, String> config = new HashMap<>();
+		// This instructs the sink to emit after every element, otherwise they
+		// would be buffered
+		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
+		config.put(ClusterName.SETTING, "my-transport-client-cluster");
+
+		File dataDir = tempFolder.newFolder();
+		Node node = NodeBuilder.nodeBuilder()
+				.settings(Settings.settingsBuilder().put("path.home", dataDir.getParent()).put("http.enabled", false)
+						.put("path.data", dataDir.getAbsolutePath()))
+				// set a custom cluster name to verify that user config works
+				// correctly
+				.clusterName("my-transport-client-cluster").node();
+
+		// Can't use {@link TransportAddress} as its not Serializable in
+		// Elasticsearch 2.x
+		List<InetSocketAddress> transports = new ArrayList<>();
+		transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
+
+		String templateName = "my-template";
+		String templateReq = "{\"template\":\"te*\",\"settings\":{\"number_of_shards\":1},"
+				+ "\"mappings\":{\"type1\":{\"_source\":{\"enabled\":false},"
+				+ "\"properties\":{\"host_name\":{\"type\":\"keyword\"},"
+				+ "\"created_at\":{\"type\":\"date\",\"format\":\"EEE MMM dd HH:mm:ss Z YYYY\"}}}}}";
+		ElasticSearchHelper esHelper = new ElasticSearchHelper(config, transports);
+		esHelper.initTemplate(templateName, templateReq);
+
+		// verify the results
+		Client client = node.client();
+		GetIndexTemplatesResponse response = client.admin().indices()
+				.getTemplates(new GetIndexTemplatesRequest(templateName)).get();
+		Assert.assertTrue(response.getIndexTemplates().size() == 1);
+
+		node.close();
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testTemplateCreationFailed() throws Exception {
+		// Settings.Builder settings=Settings.settingsBuilder().put("","");
+
+		Map<String, String> config = new HashMap<>();
+		// This instructs the sink to emit after every element, otherwise they
+		// would be buffered
+		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
+		config.put(ClusterName.SETTING, "my-transport-client-cluster");
+
+		File dataDir = tempFolder.newFolder();
+		Node node = NodeBuilder.nodeBuilder()
+				.settings(Settings.settingsBuilder().put("path.home", dataDir.getParent()).put("http.enabled", false)
+						.put("path.data", dataDir.getAbsolutePath()))
+				// set a custom cluster name to verify that user config works
+				// correctly
+				.clusterName("my-transport-client-cluster").node();
+
+		// Can't use {@link TransportAddress} as its not Serializable in
+		// Elasticsearch 2.x
+		List<InetSocketAddress> transports = new ArrayList<>();
+		transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
+
+		String templateName = "my-template";
+		// Wrong template syntax
+		String templateReq = "*this is wrong*";
+		
+		ElasticSearchHelper esHelper = new ElasticSearchHelper(config, transports);
+		esHelper.initTemplate(templateName, templateReq);
+
+		// verify the results
+		Client client = node.client();
+		GetIndexTemplatesResponse response = client.admin().indices()
+				.getTemplates(new GetIndexTemplatesRequest(templateName)).get();
+		Assert.assertTrue(response.getIndexTemplates().size() == 0);
+
+		node.close();
+	}
+
+	@Test
+	public void testMappingsCreation() throws Exception {
+
+		Map<String, String> config = new HashMap<>();
+		// This instructs the sink to emit after every element, otherwise they
+		// would be buffered
+		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
+		config.put(ClusterName.SETTING, "my-transport-client-cluster");
+		
+		File dataDir = tempFolder.newFolder();
+		Node node = NodeBuilder.nodeBuilder()
+				.settings(Settings.settingsBuilder().put("path.home", dataDir.getParent()).put("http.enabled", false)
+						.put("path.data", dataDir.getAbsolutePath()))
+				// set a custom cluster name to verify that user config works
+				// correctly
+				.clusterName("my-transport-client-cluster").node();
+
+		// Can't use {@link TransportAddress} as its not Serializable in
+		// Elasticsearch 2.x
+		List<InetSocketAddress> transports = new ArrayList<>();
+		transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
+
+		String indexName = "twitter";
+		String docType = "tweet";
+		String mappingsReq = "{\"tweet\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}";
+
+		ElasticSearchHelper esHelper = new ElasticSearchHelper(config, transports);
+		esHelper.initIndexMapping(indexName, docType, mappingsReq);
+
+		// verify the results
+		Client client = node.client();
+		GetMappingsResponse response = client.admin().indices().getMappings(new GetMappingsRequest()).actionGet();
+		Assert.assertTrue(response.getMappings().size() > 0);
+
+		node.close();
 	}
 
 	private static class TestElasticsearchSinkFunction implements ElasticsearchSinkFunction<Tuple2<Integer, String>> {
