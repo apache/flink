@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -31,8 +32,14 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
@@ -47,6 +54,7 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.util.FutureUtil;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -69,10 +77,21 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests for asynchronous RocksDB Key/Value state checkpoints.
@@ -182,7 +201,7 @@ public class RocksDBAsyncSnapshotTest {
 
 		testHarness.waitForTaskCompletion();
 		if (mockEnv.wasFailedExternally()) {
-			Assert.fail("Unexpected exception during execution.");
+			fail("Unexpected exception during execution.");
 		}
 	}
 
@@ -259,7 +278,7 @@ public class RocksDBAsyncSnapshotTest {
 			if (mockEnv.wasFailedExternally()) {
 				throw new AsynchronousException(new InterruptedException("Exception was thrown as expected."));
 			}
-			Assert.fail("Operation completed. Cancel failed.");
+			fail("Operation completed. Cancel failed.");
 		} catch (Exception expected) {
 			AsynchronousException asynchronousException = null;
 
@@ -268,7 +287,7 @@ public class RocksDBAsyncSnapshotTest {
 			} else if (expected.getCause() instanceof AsynchronousException) {
 				asynchronousException = (AsynchronousException) expected.getCause();
 			} else {
-				Assert.fail("Unexpected exception: " + expected);
+				fail("Unexpected exception: " + expected);
 			}
 
 			// we expect the exception from canceling snapshots
@@ -277,6 +296,58 @@ public class RocksDBAsyncSnapshotTest {
 					innerCause instanceof CancellationException //future canceled
 							|| innerCause instanceof InterruptedException); //thread interrupted
 		}
+	}
+
+	/**
+	 * Test that the snapshot files are cleaned up in case of a failure during the snapshot
+	 * procedure.
+	 */
+	@Test
+	public void testCleanupOfSnapshotsInFailureCase() throws Exception {
+		long checkpointId = 1L;
+		long timestamp = 42L;
+
+		Environment env = new DummyEnvironment("test task", 1, 0);
+
+		CheckpointStreamFactory.CheckpointStateOutputStream outputStream = mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
+		CheckpointStreamFactory checkpointStreamFactory = mock(CheckpointStreamFactory.class);
+		AbstractStateBackend stateBackend = mock(AbstractStateBackend.class);
+
+		final IOException testException = new IOException("Test exception");
+
+		doReturn(checkpointStreamFactory).when(stateBackend).createStreamFactory(any(JobID.class), anyString());
+		doThrow(testException).when(outputStream).write(anyInt());
+		doReturn(outputStream).when(checkpointStreamFactory).createCheckpointStateOutputStream(eq(checkpointId), eq(timestamp));
+
+		RocksDBStateBackend backend = new RocksDBStateBackend(stateBackend);
+
+		backend.setDbStoragePath("file:///tmp/foobar");
+
+		AbstractKeyedStateBackend<Void> keyedStateBackend = backend.createKeyedStateBackend(
+			env,
+			new JobID(),
+			"test operator",
+			VoidSerializer.INSTANCE,
+			1,
+			new KeyGroupRange(0, 0),
+			null);
+
+		// register a state so that the state backend has to checkpoint something
+		keyedStateBackend.getPartitionedState(
+			"namespace",
+			StringSerializer.INSTANCE,
+			new ValueStateDescriptor<>("foobar", String.class));
+
+		RunnableFuture<KeyGroupsStateHandle> snapshotFuture = keyedStateBackend.snapshot(checkpointId, timestamp, checkpointStreamFactory);
+
+		try {
+			FutureUtil.runIfNotDoneAndGet(snapshotFuture);
+			fail("Expected an exception to be thrown here.");
+		} catch (ExecutionException e) {
+			Assert.assertEquals(testException, e.getCause());
+		}
+
+		verify(outputStream).close();
 	}
 
 	@Test

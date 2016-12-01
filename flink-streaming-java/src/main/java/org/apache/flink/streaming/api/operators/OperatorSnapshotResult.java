@@ -20,8 +20,10 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FutureUtil;
 
-import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 
 /**
@@ -81,16 +83,54 @@ public class OperatorSnapshotResult {
 		this.operatorStateRawFuture = operatorStateRawFuture;
 	}
 
-	public void cancel() {
-		cancelIfNotNull(getKeyedStateManagedFuture());
-		cancelIfNotNull(getOperatorStateManagedFuture());
-		cancelIfNotNull(getKeyedStateRawFuture());
-		cancelIfNotNull(getOperatorStateRawFuture());
+	public void cancel() throws Exception {
+		Exception exception = null;
+
+		try {
+			cancelIfNotNull(getKeyedStateManagedFuture());
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(
+				new Exception("Could not properly cancel managed keyed state future.", e),
+				exception);
+		}
+
+		try {
+			cancelIfNotNull(getOperatorStateManagedFuture());
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(
+				new Exception("Could not properly cancel managed operator state future.", e),
+				exception);
+		}
+
+		try {
+			cancelIfNotNull(getKeyedStateRawFuture());
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(
+				new Exception("Could not properly cancel raw keyed state future.", e),
+				exception);
+		}
+
+		try {
+			cancelIfNotNull(getOperatorStateRawFuture());
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(
+				new Exception("Could not properly cancel raw operator state future.", e),
+				exception);
+		}
+
+		if (exception != null) {
+			throw exception;
+		}
 	}
 
-	private static void cancelIfNotNull(Future<?> future) {
+	private static <T extends StreamStateHandle> void cancelIfNotNull(RunnableFuture<T> future) throws Exception {
 		if (null != future) {
-			future.cancel(true);
+			if (!future.cancel(true)) {
+				// the cancellation was not successful because it might have been completed before
+				StreamStateHandle streamStateHandle = FutureUtil.runIfNotDoneAndGet(future);
+
+				streamStateHandle.discardState();
+			}
 		}
 	}
 }

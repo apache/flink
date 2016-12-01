@@ -284,8 +284,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							}
 						}
 
-						LOG.info("Asynchronous RocksDB snapshot (" + streamFactory + ", asynchronous part) in thread " +
-								Thread.currentThread() + " took " + (System.currentTimeMillis() - startTime) + " ms.");
+						LOG.info("Asynchronous RocksDB snapshot ({}, asynchronous part) in thread {} took {} ms.",
+							streamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
 
 						return snapshotOperation.getSnapshotResultStateHandle();
 					}
@@ -346,7 +346,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 * @param checkpointId id of the checkpoint for which we take the snapshot
 		 * @param checkpointTimeStamp timestamp of the checkpoint for which we take the snapshot
 		 */
-		public void takeDBSnapShot(long checkpointId, long checkpointTimeStamp) throws IOException {
+		public void takeDBSnapShot(long checkpointId, long checkpointTimeStamp) {
 			Preconditions.checkArgument(snapshot == null, "Only one ongoing snapshot allowed!");
 			this.kvStateIterators = new ArrayList<>(stateBackend.kvStateInformation.size());
 			this.checkpointId = checkpointId;
@@ -427,8 +427,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					if (null != snapshotResultStateHandle) {
 						snapshotResultStateHandle.discardState();
 					}
-				} catch (Exception ignored) {
-					LOG.warn("Exception occurred during snapshot state handle cleanup: " + ignored);
+				} catch (Exception e) {
+					LOG.warn("Exception occurred during snapshot state handle cleanup.", e);
 				}
 			}
 		}
@@ -452,7 +452,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			return snapshotResultStateHandle;
 		}
 
-		private void writeKVStateMetaData() throws IOException, InterruptedException {
+		private void writeKVStateMetaData() throws IOException {
 
 			List<KeyedBackendSerializationProxy.StateMetaInfo<?, ?>> metaInfoList =
 					new ArrayList<>(stateBackend.kvStateInformation.size());
