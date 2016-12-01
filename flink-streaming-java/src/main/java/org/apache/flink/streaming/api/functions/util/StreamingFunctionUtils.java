@@ -131,8 +131,15 @@ public final class StreamingFunctionUtils {
 			listState.clear();
 
 			if (null != partitionableState) {
-				for (Serializable statePartition : partitionableState) {
-					listState.add(statePartition);
+				try {
+					for (Serializable statePartition : partitionableState) {
+						listState.add(statePartition);
+					}
+				} catch (Exception e) {
+					listState.clear();
+
+					throw new Exception("Could not write partitionable state to operator " +
+						"state backend.", e);
 				}
 			}
 
