@@ -18,11 +18,15 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AsynchronousBufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.util.TestInfiniteBufferProvider;
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -36,12 +40,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class SpillableSubpartitionTest extends SubpartitionTestBase {
@@ -152,5 +160,127 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		partition.release();
 
 		assertNull(readView.getNextBuffer());
+	}
+
+	/**
+	 * Tests that a spilled partition is correctly read back in via a spilled
+	 * read view.
+	 */
+	@Test
+	public void testConsumeSpilledPartition() throws Exception {
+		ResultPartition parent = mock(ResultPartition.class);
+		SpillableSubpartition partition = new SpillableSubpartition(
+			0,
+			parent,
+			ioManager);
+
+		Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096), FreeingBufferRecycler.INSTANCE);
+		buffer.retain();
+		buffer.retain();
+
+		partition.add(buffer);
+		partition.add(buffer);
+		partition.add(buffer);
+
+		assertEquals(3, partition.releaseMemory());
+
+		partition.finish();
+
+		BufferAvailabilityListener listener = mock(BufferAvailabilityListener.class);
+		SpilledSubpartitionView reader = (SpilledSubpartitionView) partition.createReadView(new TestInfiniteBufferProvider(), listener);
+
+		verify(listener, times(1)).notifyBuffersAvailable(eq(4L));
+
+		Buffer read = reader.getNextBuffer();
+		assertNotNull(read);
+		read.recycle();
+
+		read = reader.getNextBuffer();
+		assertNotNull(read);
+		read.recycle();
+
+		read = reader.getNextBuffer();
+		assertNotNull(read);
+		read.recycle();
+
+		// End of partition
+		read = reader.getNextBuffer();
+		assertNotNull(read);
+		assertEquals(EndOfPartitionEvent.class, EventSerializer.fromBuffer(read, ClassLoader.getSystemClassLoader()).getClass());
+		read.recycle();
+	}
+
+	/**
+	 * Tests that a spilled partition is correctly read back in via a spilled
+	 * read view.
+	 */
+	@Test
+	public void testConsumeSpillablePartitionSpilledDuringConsume() throws Exception {
+		ResultPartition parent = mock(ResultPartition.class);
+		SpillableSubpartition partition = new SpillableSubpartition(
+			0,
+			parent,
+			ioManager);
+
+		Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096), FreeingBufferRecycler.INSTANCE);
+		buffer.retain();
+		buffer.retain();
+
+		partition.add(buffer);
+		partition.add(buffer);
+		partition.add(buffer);
+		partition.finish();
+
+		AwaitableBufferAvailablityListener listener = new AwaitableBufferAvailablityListener();
+		SpillableSubpartitionView reader = (SpillableSubpartitionView) partition.createReadView(new TestInfiniteBufferProvider(), listener);
+
+		// Initial notification
+		assertEquals(1, listener.getNumNotifiedBuffers());
+
+		Buffer read = reader.getNextBuffer();
+		assertNotNull(read);
+		read.recycle();
+		assertEquals(2, listener.getNumNotifiedBuffers());
+
+		// Spill now
+		assertEquals(2, partition.releaseMemory());
+
+		listener.awaitNotifications(4, 30_000);
+		assertEquals(4, listener.getNumNotifiedBuffers());
+
+		read = reader.getNextBuffer();
+		assertNotNull(read);
+		read.recycle();
+
+		read = reader.getNextBuffer();
+		assertNotNull(read);
+		read.recycle();
+
+		// End of partition
+		read = reader.getNextBuffer();
+		assertNotNull(read);
+		assertEquals(EndOfPartitionEvent.class, EventSerializer.fromBuffer(read, ClassLoader.getSystemClassLoader()).getClass());
+		read.recycle();
+	}
+
+	private static class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {
+
+		private long numNotifiedBuffers;
+
+		@Override
+		public void notifyBuffersAvailable(long numBuffers) {
+			numNotifiedBuffers += numBuffers;
+		}
+
+		long getNumNotifiedBuffers() {
+			return numNotifiedBuffers;
+		}
+
+		void awaitNotifications(long awaitedNumNotifiedBuffers, long timeoutMillis) throws InterruptedException {
+			long deadline = System.currentTimeMillis() + timeoutMillis;
+			while (numNotifiedBuffers < awaitedNumNotifiedBuffers && System.currentTimeMillis() < deadline) {
+				Thread.sleep(1);
+			}
+		}
 	}
 }

@@ -21,6 +21,8 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -29,6 +31,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 class SpillableSubpartitionView implements ResultSubpartitionView {
+
+	private static final Logger LOG = LoggerFactory.getLogger(SpillableSubpartitionView.class);
 
 	/** The subpartition this view belongs to. */
 	private final SpillableSubpartition parent;
@@ -50,6 +54,9 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	private final BufferAvailabilityListener listener;
 
 	private final AtomicBoolean isReleased = new AtomicBoolean(false);
+
+	/** Remember the number of buffers this view was created with. */
+	private final long numBuffers;
 
 	/**
 	 * The next buffer to hand out. Everytime this is set to a non-null value,
@@ -73,6 +80,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		this.listener = checkNotNull(listener);
 
 		synchronized (buffers) {
+			numBuffers = buffers.size();
 			nextBuffer = buffers.poll();
 		}
 
@@ -94,9 +102,12 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 				// Create the spill writer and write all buffers to disk
 				BufferFileWriter spillWriter = ioManager.createBufferFileWriter(ioManager.createChannel());
 
+				long spilledBytes = 0;
+
 				int numBuffers = buffers.size();
 				for (int i = 0; i < numBuffers; i++) {
 					Buffer buffer = buffers.remove();
+					spilledBytes += buffer.getSize();
 					try {
 						spillWriter.writeBlock(buffer);
 					} finally {
@@ -110,6 +121,11 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 					spillWriter,
 					numBuffers,
 					listener);
+
+				LOG.debug("Spilling {} bytes for sub partition {} of {}.",
+					spilledBytes,
+					parent.index,
+					parent.parent.getPartitionId());
 
 				return numBuffers;
 			}
@@ -188,8 +204,12 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 
 	@Override
 	public String toString() {
-		return String.format("SpillableSubpartitionView(index: %d) of ResultPartition %s",
+		boolean hasSpilled = spilledView != null;
+
+		return String.format("SpillableSubpartitionView(index: %d, buffers: %d, spilled? {}) of ResultPartition %s",
 			parent.index,
+			numBuffers,
+			hasSpilled,
 			parent.parent.getPartitionId());
 	}
 }

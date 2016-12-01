@@ -91,6 +91,11 @@ class SpillableSubpartition extends ResultSubpartition {
 				return false;
 			}
 
+			// The number of buffers are needed later when creating
+			// the read views. If you ever remove this line here,
+			// make sure to still count the number of buffers.
+			updateStatistics(buffer);
+
 			if (spillWriter == null) {
 				buffers.add(buffer);
 
