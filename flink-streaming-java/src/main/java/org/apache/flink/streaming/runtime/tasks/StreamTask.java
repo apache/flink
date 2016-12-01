@@ -58,6 +58,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -591,8 +592,20 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				// we cannot broadcast the cancellation markers on the 'operator chain', because it may not
 				// yet be created
 				final CancelCheckpointMarker message = new CancelCheckpointMarker(checkpointMetaData.getCheckpointId());
+				Exception exception = null;
+
 				for (ResultPartitionWriter output : getEnvironment().getAllWriters()) {
-					output.writeBufferToAllChannels(EventSerializer.toBuffer(message));
+					try {
+						output.writeBufferToAllChannels(EventSerializer.toBuffer(message));
+					} catch (Exception e) {
+						exception = ExceptionUtils.firstOrSuppressed(
+							new Exception("Could not send cancel checkpoint marker to downstream tasks.", e),
+							exception);
+					}
+				}
+
+				if (exception != null) {
+					throw exception;
 				}
 
 				return false;
@@ -958,7 +971,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// cleanup/release ongoing snapshot operations
 			for (OperatorSnapshotResult snapshotResult : snapshotInProgressList) {
 				if (null != snapshotResult) {
-					snapshotResult.cancel();
+					try {
+						snapshotResult.cancel();
+					} catch (Exception e) {
+						LOG.warn("Could not properly cancel operator snapshot result in async " +
+							"checkpoint runnable.", e);
+					}
 				}
 			}
 		}
@@ -1022,24 +1040,30 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("{} - finished synchronous part of checkpoint {}." +
-									"Alignment duration: {} ms, snapshot duration {} ms",
-							owner.getName(), checkpointMetaData.getCheckpointId(),
-							checkpointMetaData.getAlignmentDurationNanos() / 1_000_000,
-							checkpointMetaData.getSyncDurationMillis());
+							"Alignment duration: {} ms, snapshot duration {} ms",
+						owner.getName(), checkpointMetaData.getCheckpointId(),
+						checkpointMetaData.getAlignmentDurationNanos() / 1_000_000,
+						checkpointMetaData.getSyncDurationMillis());
 				}
 			} finally {
 				if (failed) {
 					// Cleanup to release resources
 					for (OperatorSnapshotResult operatorSnapshotResult : snapshotInProgressList) {
 						if (null != operatorSnapshotResult) {
-							operatorSnapshotResult.cancel();
+							try {
+								operatorSnapshotResult.cancel();
+							} catch (Exception e) {
+								LOG.warn("Could not properly cancel an operator snapshot result.", e);
+							}
 						}
 					}
 
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("{} - did NOT finish synchronous part of checkpoint {}." +
-										"Alignment duration: {} ms, snapshot duration {} ms",
-								owner.getName(), checkpointMetaData.getCheckpointId());
+								"Alignment duration: {} ms, snapshot duration {} ms",
+							owner.getName(), checkpointMetaData.getCheckpointId(),
+							checkpointMetaData.getAlignmentDurationNanos() / 1_000_000,
+							checkpointMetaData.getSyncDurationMillis());
 					}
 				}
 			}
