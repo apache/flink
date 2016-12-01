@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.migration.runtime.checkpoint.KeyGroupState;
 import org.apache.flink.migration.runtime.checkpoint.SubtaskState;
 import org.apache.flink.migration.runtime.checkpoint.TaskState;
+import org.apache.flink.migration.runtime.state.AbstractStateBackend;
 import org.apache.flink.migration.runtime.state.KvStateSnapshot;
 import org.apache.flink.migration.runtime.state.StateHandle;
 import org.apache.flink.migration.runtime.state.filesystem.AbstractFileStateHandle;
@@ -340,6 +341,9 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 			byte[] data =
 					((org.apache.flink.migration.runtime.state.memory.ByteStreamStateHandle) oldStateHandle).getData();
 			return new ByteStreamStateHandle(String.valueOf(System.identityHashCode(data)), data);
+		} else if (oldStateHandle instanceof AbstractStateBackend.DataInputViewHandle) {
+			return convertStateHandle(
+					((AbstractStateBackend.DataInputViewHandle) oldStateHandle).getStreamStateHandle());
 		}
 		throw new IllegalArgumentException("Unknown state handle type: " + oldStateHandle);
 	}
