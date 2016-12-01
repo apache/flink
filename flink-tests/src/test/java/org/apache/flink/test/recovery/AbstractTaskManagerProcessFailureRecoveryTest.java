@@ -75,6 +75,8 @@ import static org.junit.Assert.fail;
  */
 public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends TestLogger {
 
+	protected final Logger LOG = LoggerFactory.getLogger(getClass());
+
 	protected static final String READY_MARKER_FILE_PREFIX = "ready_";
 	protected static final String PROCEED_MARKER_FILE = "proceed";
 	protected static final String FINISH_MARKER_FILE_PREFIX = "finish_";
@@ -276,12 +278,13 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 	protected void waitUntilNumTaskManagersAreRegistered(ActorRef jobManager, int numExpected, long maxDelayMillis)
 			throws Exception
 	{
-		final long interval = maxDelayMillis * 1_000_000;
-		final long deadline = System.nanoTime() + interval;
-		long remaining = interval;
+		final long pollInterval = 10_000_000; // 10 ms = 10,000,000 nanos
+		final long deadline = System.nanoTime() + maxDelayMillis * 1_000_000;
 
-		while (remaining > 0) {
-			FiniteDuration timeout = new FiniteDuration(remaining, TimeUnit.NANOSECONDS);
+		long time;
+
+		while ((time = System.nanoTime()) < deadline) {
+			FiniteDuration timeout = new FiniteDuration(pollInterval, TimeUnit.NANOSECONDS);
 
 			try {
 				Future<?> result = Patterns.ask(jobManager,
@@ -301,7 +304,11 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 				fail("Wrong response: " + e.getMessage());
 			}
 
-			remaining = deadline - System.nanoTime();
+			long timePassed = System.nanoTime() - time;
+			long remainingMillis = (pollInterval - timePassed) / 1_000_000;
+			if (remainingMillis > 0) {
+				Thread.sleep(remainingMillis);
+			}
 		}
 
 		fail("The TaskManagers did not register within the expected time (" + maxDelayMillis + "msecs)");
