@@ -219,6 +219,6 @@ class JoinedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
    * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
    */
   private[flink] def clean[F <: AnyRef](f: F): F = {
-    new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaClean(f)
+    new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaCheckAndClean(f)
   }
 }

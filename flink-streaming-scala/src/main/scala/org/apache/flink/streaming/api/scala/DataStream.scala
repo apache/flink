@@ -967,7 +967,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
    */
   private[flink] def clean[F <: AnyRef](f: F): F = {
-    new StreamExecutionEnvironment(stream.getExecutionEnvironment).scalaClean(f)
+    new StreamExecutionEnvironment(stream.getExecutionEnvironment).scalaCheckAndClean(f)
   }
 
   /**

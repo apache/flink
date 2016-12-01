@@ -24,7 +24,7 @@ import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFor
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
-import org.apache.flink.api.scala.ClosureCleaner
+import org.apache.flink.api.scala.{ClosureCleaner, ScalaObjectChecker}
 import org.apache.flink.runtime.state.AbstractStateBackend
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source._
@@ -592,7 +592,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def addSource[T: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
     require(function != null, "Function must not be null.")
     
-    val cleanFun = scalaClean(function)
+    val cleanFun = scalaCheckAndClean(function)
     val typeInfo = implicitly[TypeInformation[T]]
     asScalaStream(javaEnv.addSource(cleanFun).returns(typeInfo))
   }
@@ -604,7 +604,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def addSource[T: TypeInformation](function: SourceContext[T] => Unit): DataStream[T] = {
     require(function != null, "Function must not be null.")
     val sourceFunction = new SourceFunction[T] {
-      val cleanFun = scalaClean(function)
+      val cleanFun = scalaCheckAndClean(function)
       override def run(ctx: SourceContext[T]) {
         cleanFun(ctx)
       }
@@ -617,7 +617,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Triggers the program execution. The environment will execute all parts of
    * the program that have resulted in a "sink" operation. Sink operations are
    * for example printing results or forwarding them to a message queue.
-   * 
+   *
    * The program execution will be logged and displayed with a generated
    * default name.
    */
@@ -627,7 +627,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Triggers the program execution. The environment will execute all parts of
    * the program that have resulted in a "sink" operation. Sink operations are
    * for example printing results or forwarding them to a message queue.
-   * 
+   *
    * The program execution will be logged and displayed with the provided name.
    */
   def execute(jobName: String) = javaEnv.execute(jobName)
@@ -657,10 +657,18 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def getWrappedStreamExecutionEnvironment = javaEnv
 
   /**
-   * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
-   * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]]
+    * 1. Check if the function is implemented by a scala object. Checks only if scala object function forbidden
+    *    is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]]
+    *
+   *  2. Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
+   *     is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]]
    */
-  private[flink] def scalaClean[F <: AnyRef](f: F): F = {
+  private[flink] def scalaCheckAndClean[F <: AnyRef](f: F): F = {
+
+    if (getConfig.isScalaObjectFunctionForbidden) {
+      ScalaObjectChecker.assertScalaForbidScalaObjectFunction(f)
+    }
+
     if (getConfig.isClosureCleanerEnabled) {
       ClosureCleaner.clean(f, true)
     } else {

@@ -91,6 +91,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	private boolean useClosureCleaner = true;
 
+	private boolean scalaObjectFunctionForbidden = true;
+
 	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
@@ -162,6 +164,34 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	private LinkedHashSet<Class<?>> registeredPojoTypes = new LinkedHashSet<>();
 
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Forbid Scala Object function,since for user defined functions defined by Scala Object,
+	 * Flink could use them across several operator instances, which leads to job failures.
+	 */
+	public ExecutionConfig forbidScalaObjectFunction() {
+		scalaObjectFunctionForbidden = true;
+		return this;
+	}
+
+	/**
+	 * allow use Scala Object function
+	 *
+	 * @see #forbidScalaObjectFunction()
+	 */
+	public ExecutionConfig allowScalaObjectFunction() {
+		scalaObjectFunctionForbidden = false;
+		return this;
+	}
+
+	/**
+	 * Returns whether Scala Object function is forbidden
+	 *
+	 * @see #forbidScalaObjectFunction()
+	 */
+	public boolean isScalaObjectFunctionForbidden() {
+		return scalaObjectFunctionForbidden;
+	}
 
 	/**
 	 * Enables the ClosureCleaner. This analyzes user code functions and sets fields to null

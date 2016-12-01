@@ -299,7 +299,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]]
    */
   private[flink] def clean[F <: AnyRef](f: F): F = {
-    new StreamExecutionEnvironment(javaStream.getExecutionEnvironment).scalaClean(f)
+    new StreamExecutionEnvironment(javaStream.getExecutionEnvironment).scalaCheckAndClean(f)
   }
 
   @PublicEvolving
