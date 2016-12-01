@@ -21,10 +21,8 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.datastream.AllWindowedStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
@@ -34,6 +32,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.streaming.util.outputtags.LateArrivingOutputTag;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.CollectorWrapper;
 import org.junit.Test;
@@ -149,25 +148,25 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase{
 		see.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Integer> dataStream = see.fromCollection(elements);
-		AllWindowedStream<Integer, TimeWindow> allWindowedStream = dataStream.assignTimestampsAndWatermarks(
-			new TestWatermarkAssigner()).timeWindowAll(Time.milliseconds(1), Time.milliseconds(1));
 
-		allWindowedStream.apply(new AllWindowFunction<Integer, Integer, TimeWindow>() {
-			@Override
-			public void apply(TimeWindow window, Iterable<Integer> values, Collector<Integer> out) throws Exception {
-				for(Integer val : values) {
-					out.collect(val);
+		SingleOutputStreamOperator<Integer> outputStreamOperator = dataStream.assignTimestampsAndWatermarks(
+			new TestWatermarkAssigner()).timeWindowAll(Time.milliseconds(1), Time.milliseconds(1))
+				.apply(new AllWindowFunction<Integer, Integer, TimeWindow>() {
+					@Override
+					public void apply(TimeWindow window, Iterable<Integer> values, Collector<Integer> out) throws Exception {
+							for(Integer val : values) {
+								out.collect(val);
+							}
+					}
+				});
+
+		outputStreamOperator.getSideOutput(new LateArrivingOutputTag<Integer>())
+			.flatMap(new FlatMapFunction<StreamRecord<Integer>, String>() {
+				@Override
+				public void flatMap(StreamRecord<Integer> value, Collector<String> out) throws Exception {
+					out.collect("late-" + String.valueOf(value.getValue()) + "-ts" + String.valueOf(value.getTimestamp()));
 				}
-			}
-		}).print();
-
-		allWindowedStream.tooLateEvents().flatMap(new FlatMapFunction<StreamRecord<Integer>, String>() {
-			@Override
-			public void flatMap(StreamRecord<Integer> value, Collector<String> out) throws Exception {
-				out.collect("late-" + String.valueOf(value.getValue()) + "-ts" + String.valueOf(value.getTimestamp()));
-			}
-		}).print();
-
+			}).print();
 		see.execute();
 	}
 
@@ -179,25 +178,29 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase{
 		see.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Integer> dataStream = see.fromCollection(elements);
-		WindowedStream<Integer, Integer, TimeWindow> windowStream = dataStream.assignTimestampsAndWatermarks(
-			new TestWatermarkAssigner()).keyBy(new TestKeySelector()).timeWindow(Time.milliseconds(1), Time.milliseconds(1));
 
-		windowStream.apply(new WindowFunction<Integer, String, Integer, TimeWindow>() {
+		SingleOutputStreamOperator<String> outputStreamOperator = dataStream.assignTimestampsAndWatermarks(
+			new TestWatermarkAssigner()).keyBy(new TestKeySelector()).timeWindow(Time.milliseconds(1), Time.milliseconds(1))
+				.apply(new WindowFunction<Integer, String, Integer, TimeWindow>() {
 			@Override
 			public void apply(Integer key, TimeWindow window, Iterable<Integer> input, Collector<String> out) throws Exception {
+				CollectorWrapper<String> sideOuput = new CollectorWrapper<String>(out);
 				for(Integer val : input) {
 					out.collect(String.valueOf(key) + "-"+String.valueOf(val));
+					sideOuput.collect(new SideOutputTag("applySideOutput"), "apply-" + String.valueOf(val));
 				}
 			}
-		}).print();
+		});
 
-		windowStream.tooLateEvents().flatMap(new FlatMapFunction<StreamRecord<Integer>, String>() {
-			@Override
-			public void flatMap(StreamRecord<Integer> value, Collector<String> out) throws Exception {
-				out.collect("late-" + String.valueOf(value.getValue()) + "-ts" + String.valueOf(value.getTimestamp()));
-			}
-		}).print();
+		outputStreamOperator.getSideOutput(new SideOutputTag("applySideOutput")).print();
 
+		outputStreamOperator.getSideOutput(new LateArrivingOutputTag<Integer>())
+			.flatMap(new FlatMapFunction<StreamRecord<Integer>, String>() {
+				@Override
+				public void flatMap(StreamRecord<Integer> value, Collector<String> out) throws Exception {
+					out.collect("late-" + String.valueOf(value.getValue()) + "-ts" + String.valueOf(value.getTimestamp()));
+				}
+		}).print();
 		see.execute();
 	}
 
