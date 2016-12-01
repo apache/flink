@@ -25,22 +25,19 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.{BatchTableEnvironment, FlinkTypeFactory}
 import org.apache.flink.api.table.plan.schema.TableSourceTable
 import org.apache.flink.api.table.sources.BatchTableSource
-import org.apache.flink.api.table.typeutils.RowTypeBuilder
 
 /** Flink RelNode to read data from an external source defined by a [[BatchTableSource]]. */
 class BatchTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    tableSource: BatchTableSource[_])
+    val tableSource: BatchTableSource[_])
   extends BatchScan(cluster, traitSet, table) {
 
   override def deriveRowType() = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    RowTypeBuilder.build(flinkTypeFactory, tableSource.getFieldsNames, tableSource.getFieldTypes)
-
+    flinkTypeFactory.buildRowDataType(tableSource.getFieldsNames, tableSource.getFieldTypes)
   }
-
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new BatchTableSourceScan(
@@ -52,15 +49,12 @@ class BatchTableSourceScan(
   }
 
   override def translateToPlan(
-                                tableEnv: BatchTableEnvironment,
-                                expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+      tableEnv: BatchTableEnvironment,
+      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
     val config = tableEnv.getConfig
-    val inputDs = tableSource.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
-    convertToExpectedType(inputDs, new TableSourceTable(tableSource), expectedType, config)
-  }
+    val inputDataSet = tableSource.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
 
-  def actualTableSource() = {
-    tableSource
+    convertToExpectedType(inputDataSet, new TableSourceTable(tableSource), expectedType, config)
   }
 }
