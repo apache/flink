@@ -29,17 +29,6 @@ import org.junit.{Ignore, Test}
 
 class GroupWindowTest extends TableTestBase {
 
-  // batch windows are not supported yet
-  @Test(expected = classOf[ValidationException])
-  def testInvalidBatchWindow(): Unit = {
-    val util = batchTestUtil()
-    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
-
-    table
-      .groupBy('string)
-      .window(Session withGap 100.milli as 'string)
-  }
-
   @Test(expected = classOf[ValidationException])
   def testInvalidWindowProperty(): Unit = {
     val util = streamTestUtil()

@@ -32,12 +32,20 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class AggregationsITCase(
     mode: TestExecutionMode,
     configMode: TableConfigMode)
   extends TableProgramsTestBase(mode, configMode) {
+
+  val data = new mutable.MutableList[(Long, String)]
+  data.+=((1L, "Hi"))
+  data.+=((4L, "Hello"))
+  data.+=((2L, "Hello"))
+  data.+=((17L, "Hello world"))
+  data.+=((8L, "Hello world"))
 
   @Test
   def testAggregationTypes(): Unit = {
@@ -400,5 +408,46 @@ class AggregationsITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testEventTimeSessionGroupWindow(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val table = env.fromCollection(data).toTable(tEnv, 'rowtime, 'string)
+    val windowedTable = table
+      .groupBy('string)
+      .window(Session withGap 7.milli on 'rowtime as 'w)
+      .select('string, 'string.count, 'w.start, 'w.end)
+
+    val results = windowedTable.toDataSet[Row].collect()
+
+    val expected = "Hello world,1,1970-01-01 00:00:00.008,1970-01-01 00:00:00.015\nHello world,1," +
+      "1970-01-01 00:00:00.017,1970-01-01 00:00:00.024\nHello,2,1970-01-01 00:00:00.002," +
+      "1970-01-01 00:00:00.011\nHi,1,1970-01-01 00:00:00.001,1970-01-01 00:00:00.008"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test(expected = classOf[UnsupportedOperationException])
+  def testAlldEventTimeSessionGroupWindow(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val table = env.fromCollection(data).toTable(tEnv, 'rowtime, 'string)
+    val windowedTable =table
+      .window(Session withGap 7.milli on 'rowtime as 'w)
+      .select('string.count).toDataSet[Row].collect()
+  }
+
+  @Test(expected = classOf[UnsupportedOperationException])
+  def testProcessingTimeSessionGroupWindow(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val table = env.fromCollection(data).toTable(tEnv, 'rowtime, 'string)
+    val windowedTable =table
+      .groupBy('string)
+      .window(Session withGap 7.milli as 'w)
+      .select('string.count).toDataSet[Row].collect()
+  }
+
 }
+
 

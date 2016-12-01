@@ -107,6 +107,7 @@ object FlinkRuleSets {
     DataSetMinusRule.INSTANCE,
     DataSetSortRule.INSTANCE,
     DataSetValuesRule.INSTANCE,
+    DataSetWindowAggregateRule.INSTANCE,
     BatchTableSourceScanRule.INSTANCE
   )
 

@@ -649,9 +649,6 @@ class Table(
     * @return A windowed table.
     */
   def window(groupWindow: GroupWindow): GroupWindowedTable = {
-    if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
-      throw new ValidationException(s"Windows on batch tables are currently not supported.")
-    }
     new GroupWindowedTable(this, Seq(), groupWindow)
   }
 }
@@ -722,9 +719,6 @@ class GroupedTable(
     * @return A windowed table.
     */
   def window(groupWindow: GroupWindow): GroupWindowedTable = {
-    if (table.tableEnv.isInstanceOf[BatchTableEnvironment]) {
-      throw new ValidationException(s"Windows on batch tables are currently not supported.")
-    }
     new GroupWindowedTable(table, groupKey, groupWindow)
   }
 }
