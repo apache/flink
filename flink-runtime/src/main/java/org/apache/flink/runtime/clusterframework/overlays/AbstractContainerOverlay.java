@@ -51,21 +51,6 @@ abstract class AbstractContainerOverlay implements ContainerOverlay {
 		final java.nio.file.Path sourceRoot = sourcePath.toPath().getParent();
 
 		Files.walkFileTree(sourcePath.toPath(), new SimpleFileVisitor<java.nio.file.Path>() {
-//			@Override
-//			public FileVisitResult preVisitDirectory(java.nio.file.Path dir, BasicFileAttributes attrs)
-//				throws IOException {
-//				super.preVisitDirectory(dir, attrs);
-//
-//				if (addToClasspath) {
-//					// TODO - deprecated, container should use config.sh to produce a classpath
-//
-//					java.nio.file.Path relativePath = sourceRoot.relativize(dir);
-//					env.getClasspath().add(new Path(targetPath, relativePath.resolve("*").toString()).toString());
-//				}
-//
-//				return FileVisitResult.CONTINUE;
-//			}
-
 			@Override
 			public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs) throws IOException {
 
