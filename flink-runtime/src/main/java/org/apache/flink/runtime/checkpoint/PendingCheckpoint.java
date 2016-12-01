@@ -150,6 +150,10 @@ public class PendingCheckpoint {
 		return numAcknowledgedTasks;
 	}
 
+	public Map<ExecutionAttemptID, ExecutionVertex> getNotYetAcknowledgedTasks() {
+		return notYetAcknowledgedTasks;
+	}
+
 	public Map<JobVertexID, TaskState> getTaskStates() {
 		return taskStates;
 	}

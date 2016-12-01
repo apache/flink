@@ -24,6 +24,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -109,6 +110,8 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			ClassLoader.getSystemClassLoader(),
 			new UnregisteredMetricsGroup());
 
+		MetricGroup metricGroup = mock(MetricGroup.class);
+
 		executionGraph.enableSnapshotCheckpointing(
 				100,
 				100,
@@ -121,7 +124,8 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 				counter,
 				store,
 				null,
-				new DisabledCheckpointStatsTracker());
+				new DisabledCheckpointStatsTracker(),
+				metricGroup);
 
 		JobVertex jobVertex = new JobVertex("MockVertex");
 		jobVertex.setInvokableClass(AbstractInvokable.class);

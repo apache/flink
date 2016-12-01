@@ -348,7 +348,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore checkpointStore,
 			String checkpointDir,
-			CheckpointStatsTracker statsTracker) {
+			CheckpointStatsTracker statsTracker,
+			MetricGroup metrics) {
 
 		// simple sanity checks
 		if (interval < 10 || checkpointTimeout < 10) {
@@ -386,7 +387,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			checkpointStore,
 			checkpointDir,
 			checkpointStatsTracker,
-			ioExecutor);
+			ioExecutor,
+			metrics);
 
 		// interval of max long value indicates disable periodic checkpoint,
 		// the CheckpointActivatorDeactivator should be created only if the interval is not max value

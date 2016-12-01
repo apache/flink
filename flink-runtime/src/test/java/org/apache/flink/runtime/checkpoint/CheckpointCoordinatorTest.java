@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.Future;
@@ -115,6 +116,8 @@ public class CheckpointCoordinatorTest {
 			ExecutionVertex ackVertex1 = mockExecutionVertex(ackAttemptID1);
 			ExecutionVertex ackVertex2 = mockExecutionVertex(ackAttemptID2);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
 				jid,
@@ -130,7 +133,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(1),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -169,6 +173,8 @@ public class CheckpointCoordinatorTest {
 			ExecutionVertex ackVertex1 = mockExecutionVertex(ackAttemptID1);
 			ExecutionVertex ackVertex2 = mockExecutionVertex(ackAttemptID2);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
 				jid,
@@ -184,7 +190,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(1),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -221,6 +228,8 @@ public class CheckpointCoordinatorTest {
 			ExecutionVertex ackVertex1 = mock(ExecutionVertex.class);
 			ExecutionVertex ackVertex2 = mock(ExecutionVertex.class);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
 				jid,
@@ -236,7 +245,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(1),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -274,6 +284,8 @@ public class CheckpointCoordinatorTest {
 			ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 			ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
 				jid,
@@ -289,7 +301,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(1),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -373,6 +386,8 @@ public class CheckpointCoordinatorTest {
 			ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 			ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
 				jid,
@@ -388,7 +403,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(1),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -491,6 +507,8 @@ public class CheckpointCoordinatorTest {
 			ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 			ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
 				jid,
@@ -506,7 +524,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(1),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -638,6 +657,8 @@ public class CheckpointCoordinatorTest {
 
 			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
 				jid,
@@ -653,7 +674,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(2),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -773,6 +795,8 @@ public class CheckpointCoordinatorTest {
 
 			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
 				jid,
@@ -788,7 +812,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(10),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -893,6 +918,8 @@ public class CheckpointCoordinatorTest {
 
 			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			// set up the coordinator
 			// the timeout for the checkpoint is a 200 milliseconds
 
@@ -910,7 +937,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(2),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			// trigger a checkpoint, partially acknowledged
 			assertTrue(coord.triggerCheckpoint(timestamp, false));
@@ -965,6 +993,8 @@ public class CheckpointCoordinatorTest {
 			ExecutionVertex ackVertex2 = mockExecutionVertex(ackAttemptID2);
 			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			CheckpointCoordinator coord = new CheckpointCoordinator(
 				jid,
 				200000,
@@ -979,7 +1009,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(2),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			assertTrue(coord.triggerCheckpoint(timestamp, false));
 
@@ -1031,6 +1062,8 @@ public class CheckpointCoordinatorTest {
 
 		final long timestamp = 1L;
 
+		MetricGroup metricGroup = mock(MetricGroup.class);
+
 		CheckpointCoordinator coord = new CheckpointCoordinator(
 			jobId,
 			20000L,
@@ -1045,7 +1078,8 @@ public class CheckpointCoordinatorTest {
 			new StandaloneCompletedCheckpointStore(1),
 			null,
 			new DisabledCheckpointStatsTracker(),
-			Executors.directExecutor());
+			Executors.directExecutor(),
+			metricGroup);
 
 		assertTrue(coord.triggerCheckpoint(timestamp, false));
 
@@ -1131,6 +1165,8 @@ public class CheckpointCoordinatorTest {
 			ExecutionVertex ackVertex = mockExecutionVertex(ackAttemptID);
 			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			final AtomicInteger numCalls = new AtomicInteger();
 
 			final Execution execution = triggerVertex.getCurrentExecutionAttempt();
@@ -1170,7 +1206,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(2),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			
 			coord.startCheckpointScheduler();
@@ -1240,6 +1277,8 @@ public class CheckpointCoordinatorTest {
 			final AtomicInteger numCalls = new AtomicInteger();
 			final Execution execution = vertex1.getCurrentExecutionAttempt();
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			doAnswer(new Answer<Void>() {
 				@Override
 				public Void answer(InvocationOnMock invocation) throws Throwable {
@@ -1262,7 +1301,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(2),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			coord.startCheckpointScheduler();
 
@@ -1333,6 +1373,8 @@ public class CheckpointCoordinatorTest {
 		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 		ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
+		MetricGroup metricGroup = mock(MetricGroup.class);
+
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinator coord = new CheckpointCoordinator(
 			jid,
@@ -1348,7 +1390,8 @@ public class CheckpointCoordinatorTest {
 			new StandaloneCompletedCheckpointStore(1),
 			null,
 			new DisabledCheckpointStatsTracker(),
-			Executors.directExecutor());
+			Executors.directExecutor(),
+			metricGroup);
 
 		assertEquals(0, coord.getNumberOfPendingCheckpoints());
 		assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -1467,6 +1510,8 @@ public class CheckpointCoordinatorTest {
 		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 		ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
+		MetricGroup metricGroup = mock(MetricGroup.class);
+
 		StandaloneCheckpointIDCounter counter = new StandaloneCheckpointIDCounter();
 
 		// set up the coordinator and validate the initial state
@@ -1484,7 +1529,8 @@ public class CheckpointCoordinatorTest {
 			new StandaloneCompletedCheckpointStore(10),
 			null,
 			new DisabledCheckpointStatsTracker(),
-			Executors.directExecutor());
+			Executors.directExecutor(),
+			metricGroup);
 
 		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
 
@@ -1554,6 +1600,8 @@ public class CheckpointCoordinatorTest {
 			ExecutionVertex ackVertex = mockExecutionVertex(ackAttemptID);
 			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			final AtomicInteger numCalls = new AtomicInteger();
 
 			final Execution execution = triggerVertex.getCurrentExecutionAttempt();
@@ -1588,7 +1636,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(2),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			coord.startCheckpointScheduler();
 
@@ -1648,6 +1697,8 @@ public class CheckpointCoordinatorTest {
 			ExecutionVertex ackVertex = mockExecutionVertex(ackAttemptID);
 			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			CheckpointCoordinator coord = new CheckpointCoordinator(
 				jid,
 				10,        // periodic interval is 10 ms
@@ -1662,7 +1713,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(2),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			coord.startCheckpointScheduler();
 
@@ -1722,6 +1774,8 @@ public class CheckpointCoordinatorTest {
 			ExecutionVertex ackVertex = mockExecutionVertex(ackAttemptID);
 			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			final AtomicReference<ExecutionState> currentState = new AtomicReference<>(ExecutionState.CREATED);
 			when(triggerVertex.getCurrentExecutionAttempt().getState()).thenAnswer(
 					new Answer<ExecutionState>() {
@@ -1745,7 +1799,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(2),
 				null,
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 			
 			coord.startCheckpointScheduler();
 
@@ -1784,6 +1839,8 @@ public class CheckpointCoordinatorTest {
 
 		StandaloneCheckpointIDCounter checkpointIDCounter = new StandaloneCheckpointIDCounter();
 
+		MetricGroup metricGroup = mock(MetricGroup.class);
+
 		CheckpointCoordinator coord = new CheckpointCoordinator(
 			jobId,
 			100000,
@@ -1798,7 +1855,8 @@ public class CheckpointCoordinatorTest {
 			new StandaloneCompletedCheckpointStore(2),
 			null,
 			new DisabledCheckpointStatsTracker(),
-			Executors.directExecutor());
+			Executors.directExecutor(),
+			metricGroup);
 
 		List<Future<CompletedCheckpoint>> savepointFutures = new ArrayList<>();
 
@@ -1838,6 +1896,8 @@ public class CheckpointCoordinatorTest {
 		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
 		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 
+		MetricGroup metricGroup = mock(MetricGroup.class);
+
 		CheckpointCoordinator coord = new CheckpointCoordinator(
 			jobId,
 			100000,
@@ -1852,7 +1912,8 @@ public class CheckpointCoordinatorTest {
 			new StandaloneCompletedCheckpointStore(2),
 			null,
 			new DisabledCheckpointStatsTracker(),
-			Executors.directExecutor());
+			Executors.directExecutor(),
+			metricGroup);
 
 		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
 
@@ -1898,6 +1959,8 @@ public class CheckpointCoordinatorTest {
 		ExecutionVertex[] arrayExecutionVertices = 
 				allExecutionVertices.toArray(new ExecutionVertex[allExecutionVertices.size()]);
 
+		MetricGroup metricGroup = mock(MetricGroup.class);
+
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinator coord = new CheckpointCoordinator(
 			jid,
@@ -1913,7 +1976,8 @@ public class CheckpointCoordinatorTest {
 			new StandaloneCompletedCheckpointStore(1),
 			null,
 			new DisabledCheckpointStatsTracker(),
-			Executors.directExecutor());
+			Executors.directExecutor(),
+			metricGroup);
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
@@ -2004,6 +2068,8 @@ public class CheckpointCoordinatorTest {
 
 		ExecutionVertex[] arrayExecutionVertices = allExecutionVertices.toArray(new ExecutionVertex[allExecutionVertices.size()]);
 
+		MetricGroup metricGroup = mock(MetricGroup.class);
+
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinator coord = new CheckpointCoordinator(
 			jid,
@@ -2019,7 +2085,8 @@ public class CheckpointCoordinatorTest {
 			new StandaloneCompletedCheckpointStore(1),
 			null,
 			new DisabledCheckpointStatsTracker(),
-			Executors.directExecutor());
+			Executors.directExecutor(),
+			metricGroup);
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
@@ -2120,6 +2187,8 @@ public class CheckpointCoordinatorTest {
 		ExecutionVertex[] arrayExecutionVertices = 
 				allExecutionVertices.toArray(new ExecutionVertex[allExecutionVertices.size()]);
 
+		MetricGroup metricGroup = mock(MetricGroup.class);
+
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinator coord = new CheckpointCoordinator(
 			jid,
@@ -2135,7 +2204,8 @@ public class CheckpointCoordinatorTest {
 			new StandaloneCompletedCheckpointStore(1),
 			null,
 			new DisabledCheckpointStatsTracker(),
-			Executors.directExecutor());
+			Executors.directExecutor(),
+			metricGroup);
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
@@ -2256,6 +2326,8 @@ public class CheckpointCoordinatorTest {
 		ExecutionVertex[] arrayExecutionVertices = 
 				allExecutionVertices.toArray(new ExecutionVertex[allExecutionVertices.size()]);
 
+		MetricGroup metricGroup = mock(MetricGroup.class);
+
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinator coord = new CheckpointCoordinator(
 			jid,
@@ -2271,7 +2343,8 @@ public class CheckpointCoordinatorTest {
 			new StandaloneCompletedCheckpointStore(1),
 			null,
 			new DisabledCheckpointStatsTracker(),
-			Executors.directExecutor());
+			Executors.directExecutor(),
+			metricGroup);
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
@@ -2388,6 +2461,8 @@ public class CheckpointCoordinatorTest {
 			final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
 			ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 
+			MetricGroup metricGroup = mock(MetricGroup.class);
+
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
 				jid,
@@ -2403,7 +2478,8 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(1),
 				"fake-directory",
 				new DisabledCheckpointStatsTracker(),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				metricGroup);
 
 			assertTrue(coord.triggerCheckpoint(timestamp, false));
 
@@ -2765,6 +2841,8 @@ public class CheckpointCoordinatorTest {
 		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
 		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 
+		MetricGroup metricGroup = mock(MetricGroup.class);
+
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinator coord = new CheckpointCoordinator(
 			new JobID(),
@@ -2780,7 +2858,8 @@ public class CheckpointCoordinatorTest {
 			new StandaloneCompletedCheckpointStore(1),
 			null,
 			new DisabledCheckpointStatsTracker(),
-			Executors.directExecutor());
+			Executors.directExecutor(),
+			metricGroup);
 
 		// Periodic
 		CheckpointTriggerResult triggerResult = coord.triggerCheckpoint(
