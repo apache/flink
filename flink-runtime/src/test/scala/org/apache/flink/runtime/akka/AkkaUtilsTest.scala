@@ -21,8 +21,9 @@ package org.apache.flink.runtime.akka
 import java.net.InetSocketAddress
 
 import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.util.NetUtils
 import org.junit.runner.RunWith
-import org.scalatest.{FunSuite, BeforeAndAfterAll, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
@@ -39,7 +40,7 @@ class AkkaUtilsTest
 
     val remoteAkkaURL = JobManager.getRemoteJobManagerAkkaURL(
       "akka.tcp",
-      address,
+      NetUtils.unresolvedHostAndPortToNormalizedString(host, port),
       Some("actor"))
 
     val result = AkkaUtils.getInetSockeAddressFromAkkaURL(remoteAkkaURL)

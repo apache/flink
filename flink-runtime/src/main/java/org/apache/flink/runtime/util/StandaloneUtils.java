@@ -22,11 +22,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.taskmanager.TaskManager;
+import org.apache.flink.util.NetUtils;
 import scala.Option;
 import scala.Tuple3;
 
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
 /**
@@ -64,22 +64,14 @@ public final class StandaloneUtils {
 			String jobManagerName)
 		throws UnknownHostException {
 
-
 		Tuple3<String, String, Object> stringIntPair = TaskManager.getAndCheckJobManagerAddress(configuration);
 
 		String protocol = stringIntPair._1();
 		String jobManagerHostname = stringIntPair._2();
 		int jobManagerPort = (Integer) stringIntPair._3();
-		InetSocketAddress hostPort;
 
-		try {
-			InetAddress inetAddress = InetAddress.getByName(jobManagerHostname);
-			hostPort = new InetSocketAddress(inetAddress, jobManagerPort);
-		}
-		catch (UnknownHostException e) {
-			throw new UnknownHostException("Cannot resolve the JobManager hostname '" + jobManagerHostname
-					+ "' specified in the configuration");
-		}
+		// Do not try to resolve a hostname to prevent resolving to the wrong IP address
+		String hostPort = NetUtils.unresolvedHostAndPortToNormalizedString(jobManagerHostname, jobManagerPort);
 
 		String jobManagerAkkaUrl = JobManager.getRemoteJobManagerAkkaURL(
 				protocol,

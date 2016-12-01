@@ -21,14 +21,16 @@
 # Common
 #==============================================================================
 
-# The host on which the JobManager runs. Only used in non-high-availability mode.
-# The JobManager process will use this hostname to bind the listening servers to.
-# The TaskManagers will try to connect to the JobManager on that host.
+# The external address of the host on which the JobManager runs and can be
+# reached by the TaskManagers. In high availability mode, this address is also
+# published to Zookeeper to make sure that the current leading JobManager can be
+# reached. If you use the `start-cluster.sh` script and setup the `masters` file,
+# this will be taken care of automatically. When running on YARN and Mesos, the
+# address will also be configured automatically.
 
 jobmanager.rpc.address: localhost
 
-
-# The port where the JobManager's main actor system listens for messages.
+# The RPC port where the JobManager is reachable.
 
 jobmanager.rpc.port: 6123
 
