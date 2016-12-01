@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.filesystem.FileStreamStateHandle;
@@ -25,33 +26,50 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend.FsCheckpointStateOutputStream;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.mockito.ArgumentCaptor;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashSet;
 import java.util.Random;
 
 import static org.junit.Assert.*;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class FsCheckpointStateOutputStreamTest {
 
-	/** The temp dir, obtained in a platform neutral way */
-	private static final Path TEMP_DIR_PATH = new Path(new File(System.getProperty("java.io.tmpdir")).toURI());
+	/** The temp dir */
+	private Path tempDirPath = null;
 
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	@Before
+	public void setup() throws IOException {
+		tempDirPath = new Path(temporaryFolder.newFolder().toURI());
+	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testWrongParameters() {
+	public void testWrongParameters() throws IOException {
 		// this should fail
 		new FsStateBackend.FsCheckpointStateOutputStream(
-			TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), new HashSet<FsCheckpointStateOutputStream>(), 4000, 5000);
+			tempDirPath, FileSystem.getLocalFileSystem(), new HashSet<FsCheckpointStateOutputStream>(), 4000, 5000);
 	}
 
 	@Test
 	public void testEmptyState() throws Exception {
 		AbstractStateBackend.CheckpointStateOutputStream stream = new FsStateBackend.FsCheckpointStateOutputStream(
-			TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), new HashSet<FsCheckpointStateOutputStream>(), 1024, 512);
+			tempDirPath, FileSystem.getLocalFileSystem(), new HashSet<FsCheckpointStateOutputStream>(), 1024, 512);
 		
 		StreamStateHandle handle = stream.closeAndGetHandle();
 		assertTrue(handle instanceof ByteStreamStateHandle);
@@ -63,7 +81,7 @@ public class FsCheckpointStateOutputStreamTest {
 	@Test
 	public void testCloseAndGetPath() throws Exception {
 		FsCheckpointStateOutputStream stream = new FsCheckpointStateOutputStream(
-				TEMP_DIR_PATH,
+				tempDirPath,
 				FileSystem.getLocalFileSystem(),
 				new HashSet<FsCheckpointStateOutputStream>(),
 				1024,
@@ -83,13 +101,13 @@ public class FsCheckpointStateOutputStreamTest {
 		final HashSet<FsCheckpointStateOutputStream> openStreams = new HashSet<>();
 
 		FsCheckpointStateOutputStream stream1 = new FsCheckpointStateOutputStream(
-				TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), openStreams, 1024, 512);
+				tempDirPath, FileSystem.getLocalFileSystem(), openStreams, 1024, 512);
 
 		FsCheckpointStateOutputStream stream2 = new FsCheckpointStateOutputStream(
-				TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), openStreams, 1024, 512);
+				tempDirPath, FileSystem.getLocalFileSystem(), openStreams, 1024, 512);
 
 		FsCheckpointStateOutputStream stream3 = new FsCheckpointStateOutputStream(
-				TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), openStreams, 1024, 512);
+				tempDirPath, FileSystem.getLocalFileSystem(), openStreams, 1024, 512);
 
 		assertFalse(stream1.isClosed());
 		assertFalse(stream2.isClosed());
@@ -122,13 +140,13 @@ public class FsCheckpointStateOutputStreamTest {
 		final HashSet<FsCheckpointStateOutputStream> openStreams = new HashSet<>();
 
 		FsCheckpointStateOutputStream stream1 = new FsCheckpointStateOutputStream(
-				TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), openStreams, 1024, 512);
+				tempDirPath, FileSystem.getLocalFileSystem(), openStreams, 1024, 512);
 
 		FsCheckpointStateOutputStream stream2 = new FsCheckpointStateOutputStream(
-				TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), openStreams, 1024, 512);
+				tempDirPath, FileSystem.getLocalFileSystem(), openStreams, 1024, 512);
 
 		FsCheckpointStateOutputStream stream3 = new FsCheckpointStateOutputStream(
-				TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), openStreams, 1024, 512);
+				tempDirPath, FileSystem.getLocalFileSystem(), openStreams, 1024, 512);
 
 		assertTrue(openStreams.contains(stream1));
 		assertTrue(openStreams.contains(stream2));
@@ -174,10 +192,110 @@ public class FsCheckpointStateOutputStreamTest {
 		runTest(16678, 4096, 0, true);
 	}
 
+	/**
+	 * Tests that the underlying stream file is deleted upon calling close.
+	 */
+	@Test
+	public void testCleanupWhenClosingStream() throws IOException {
+
+		final FileSystem fs = mock(FileSystem.class);
+		final FSDataOutputStream outputStream = mock(FSDataOutputStream.class);
+
+		final ArgumentCaptor<Path>  pathCaptor = ArgumentCaptor.forClass(Path.class);
+
+		when(fs.create(pathCaptor.capture(), anyBoolean())).thenReturn(outputStream);
+
+		AbstractStateBackend.CheckpointStateOutputStream stream = new FsStateBackend.FsCheckpointStateOutputStream(
+			tempDirPath,
+			fs,
+			new HashSet<FsCheckpointStateOutputStream>(),
+			4,
+			0);
+
+		// this should create the underlying file stream
+		stream.write(new byte[]{1,2,3,4,5});
+
+		verify(fs).create(any(Path.class), anyBoolean());
+
+		stream.close();
+
+		verify(fs).delete(eq(pathCaptor.getValue()), anyBoolean());
+	}
+
+	/**
+	 * Tests that the underlying stream file is deleted if the closeAndGetHandle method fails.
+	 */
+	@Test
+	public void testCleanupWhenFailingCloseAndGetHandle() throws IOException {
+		final FileSystem fs = mock(FileSystem.class);
+		final FSDataOutputStream outputStream = mock(FSDataOutputStream.class);
+
+		final ArgumentCaptor<Path>  pathCaptor = ArgumentCaptor.forClass(Path.class);
+
+		when(fs.create(pathCaptor.capture(), anyBoolean())).thenReturn(outputStream);
+		doThrow(new IOException("Test IOException.")).when(outputStream).close();
+
+		AbstractStateBackend.CheckpointStateOutputStream stream = new FsStateBackend.FsCheckpointStateOutputStream(
+			tempDirPath,
+			fs,
+			new HashSet<FsCheckpointStateOutputStream>(),
+			4,
+			0);
+
+		// this should create the underlying file stream
+		stream.write(new byte[]{1,2,3,4,5});
+
+		verify(fs).create(any(Path.class), anyBoolean());
+
+		try {
+			stream.closeAndGetHandle();
+			fail("Expected IOException");
+		} catch (IOException ioE) {
+			// expected exception
+		}
+
+		verify(fs).delete(eq(pathCaptor.getValue()), anyBoolean());
+	}
+
+	/**
+	 * Tests that the underlying stream file is deleted if the closeAndGetPath method fails.
+	 */
+	@Test
+	public void testCleanupWhenFailingCloseAndGetPath() throws IOException {
+		final FileSystem fs = mock(FileSystem.class);
+		final FSDataOutputStream outputStream = mock(FSDataOutputStream.class);
+
+		final ArgumentCaptor<Path>  pathCaptor = ArgumentCaptor.forClass(Path.class);
+
+		when(fs.create(pathCaptor.capture(), anyBoolean())).thenReturn(outputStream);
+		doThrow(new IOException("Test IOException.")).when(outputStream).close();
+
+		FsStateBackend.FsCheckpointStateOutputStream stream = new FsStateBackend.FsCheckpointStateOutputStream(
+			tempDirPath,
+			fs,
+			new HashSet<FsCheckpointStateOutputStream>(),
+			4,
+			0);
+
+		// this should create the underlying file stream
+		stream.write(new byte[]{1,2,3,4,5});
+
+		verify(fs).create(any(Path.class), anyBoolean());
+
+		try {
+			stream.closeAndGetPath();
+			fail("Expected IOException");
+		} catch (IOException ioE) {
+			// expected exception
+		}
+
+		verify(fs).delete(eq(pathCaptor.getValue()), anyBoolean());
+	}
+	
 	private void runTest(int numBytes, int bufferSize, int threshold, boolean expectFile) throws Exception {
 		AbstractStateBackend.CheckpointStateOutputStream stream =
 			new FsStateBackend.FsCheckpointStateOutputStream(
-					TEMP_DIR_PATH, FileSystem.getLocalFileSystem(),
+					tempDirPath, FileSystem.getLocalFileSystem(),
 					new HashSet<FsCheckpointStateOutputStream>(), bufferSize, threshold);
 		
 		Random rnd = new Random();

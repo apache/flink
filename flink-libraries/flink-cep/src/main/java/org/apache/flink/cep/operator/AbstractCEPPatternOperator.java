@@ -111,22 +111,67 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
 		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
 
-		final AbstractStateBackend.CheckpointStateOutputStream os = this.getStateBackend().createCheckpointStateOutputStream(
-			checkpointId,
-			timestamp);
+		final AbstractStateBackend.CheckpointStateOutputStream os;
 
-		final ObjectOutputStream oos = new ObjectOutputStream(os);
-		final AbstractStateBackend.CheckpointStateOutputView ov = new AbstractStateBackend.CheckpointStateOutputView(os);
+		try {
+			os = this.getStateBackend().createCheckpointStateOutputStream(
+				checkpointId,
+				timestamp);
+		} catch (Exception e) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard stream task state for {}.", getOperatorName(), discardException);
+			}
 
-		oos.writeObject(nfa);
-
-		ov.writeInt(priorityQueue.size());
-
-		for (StreamRecord<IN> streamRecord: priorityQueue) {
-			streamRecordSerializer.serialize(streamRecord, ov);
+			throw new Exception("Could not create checkpoint state output stream for " +
+				getOperatorName() + '.', e);
 		}
 
-		taskState.setOperatorState(os.closeAndGetHandle());
+		try {
+			final ObjectOutputStream oos = new ObjectOutputStream(os);
+			final AbstractStateBackend.CheckpointStateOutputView ov = new AbstractStateBackend.CheckpointStateOutputView(os);
+
+			oos.writeObject(nfa);
+			oos.writeInt(priorityQueue.size());
+			oos.flush();
+
+			for (StreamRecord<IN> streamRecord : priorityQueue) {
+				streamRecordSerializer.serialize(streamRecord, ov);
+			}
+
+			ov.flush();
+		} catch (Exception e) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard stream task state for {}.", getOperatorName(), discardException);
+			}
+
+			try {
+				// closing the output stream should delete the written data
+				os.close();
+			} catch (Exception closeException) {
+				LOG.warn("Could not close the checkpoint state output stream of {}. The written " +
+					"data might not be deleted.", getOperatorName(), closeException);
+			}
+
+			throw new Exception("Could not write state for " + getOperatorName() +
+				" to checkpoint state output stream.", e);
+		}
+
+		try {
+			taskState.setOperatorState(os.closeAndGetHandle());
+		} catch (Exception e) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard stream task state for {}.", getOperatorName(), discardException);
+			}
+
+			throw new Exception("Could not close and get state handle from checkpoint state " +
+				"output stream of " + getOperatorName() + '.', e);
+		}
 
 		return taskState;
 	}
@@ -144,7 +189,7 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 
 		nfa = (NFA<IN>)ois.readObject();
 
-		int numberPriorityQueueEntries = div.readInt();
+		int numberPriorityQueueEntries = ois.readInt();
 
 		priorityQueue = new PriorityQueue<StreamRecord<IN>>(numberPriorityQueueEntries, new StreamRecordComparator<IN>());
 

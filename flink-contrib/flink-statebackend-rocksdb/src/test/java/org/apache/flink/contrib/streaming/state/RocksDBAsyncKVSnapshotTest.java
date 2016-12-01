@@ -27,8 +27,13 @@ import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.AsynchronousKvStateSnapshot;
+import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -48,7 +53,9 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -56,12 +63,22 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests for asynchronous RocksDB Key/Value state checkpoints.
@@ -72,13 +89,16 @@ import static org.junit.Assert.assertTrue;
 @SuppressWarnings("serial")
 public class RocksDBAsyncKVSnapshotTest {
 
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	@Before
 	public void checkOperatingSystem() {
 		Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows());
 	}
 
 	/**
-	 * This ensures that asynchronous state handles are actually materialized asynchonously.
+	 * This ensures that asynchronous state handles are actually materialized asynchronously.
 	 *
 	 * <p>We use latches to block at various stages and see if the code still continues through
 	 * the parts that are not asynchronous. If the checkpoint is not done asynchronously the
@@ -180,7 +200,7 @@ public class RocksDBAsyncKVSnapshotTest {
 	}
 
 	/**
-	 * This ensures that asynchronous state handles are actually materialized asynchonously.
+	 * This ensures that asynchronous state handles are actually materialized asynchronously.
 	 *
 	 * <p>We use latches to block at various stages and see if the code still continues through
 	 * the parts that are not asynchronous. If the checkpoint is not done asynchronously the
@@ -280,6 +300,49 @@ public class RocksDBAsyncKVSnapshotTest {
 
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion();
+	}
+
+	@Test
+	public void testCleanupOfFullyAsyncSnapshotsInFailureCase() throws Exception {
+		long checkpointId = 1L;
+		long timestamp = 42L;
+
+		File chkDir = temporaryFolder.newFolder();
+		File dbDir = temporaryFolder.newFolder();
+
+		Environment env = new DummyEnvironment("test task", 1, 0);
+		AbstractStateBackend.CheckpointStateOutputStream outputStream = mock(AbstractStateBackend.CheckpointStateOutputStream.class);
+		doThrow(new IOException("Test exception")).when(outputStream).write(anyInt());
+
+		RocksDBStateBackend backend = spy(new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), new MemoryStateBackend()));
+		doReturn(outputStream).when(backend).createCheckpointStateOutputStream(anyLong(), anyLong());
+		backend.setDbStoragePath(dbDir.getAbsolutePath());
+		backend.enableFullyAsyncSnapshots();
+
+		backend.initializeForJob(
+			env,
+			"test operator",
+			VoidSerializer.INSTANCE
+		);
+		backend.getPartitionedState(null, VoidSerializer.INSTANCE, new ValueStateDescriptor<>("foobar", Object.class, new Object()));
+
+		Map<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStateSnapshotHashMap = backend.snapshotPartitionedState(checkpointId, timestamp);
+
+		for (KvStateSnapshot<?, ?, ?, ?, ?> kvStateSnapshot : kvStateSnapshotHashMap.values()) {
+			if (kvStateSnapshot instanceof AsynchronousKvStateSnapshot) {
+				AsynchronousKvStateSnapshot<?, ?, ?, ?, ?> asynchronousKvStateSnapshot = (AsynchronousKvStateSnapshot<?, ?, ?, ?, ?>) kvStateSnapshot;
+				try {
+					asynchronousKvStateSnapshot.materialize();
+					fail("Expected an Exception here.");
+				} catch (Exception expected) {
+					//expected exception
+				}
+			} else {
+				fail("Expected an asynchronous kv state snapshot.");
+			}
+		}
+
+		verify(outputStream).close();
 	}
 
 

@@ -406,29 +406,75 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
 		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
 
-		final AbstractStateBackend.CheckpointStateOutputStream os =
-			this.getStateBackend().createCheckpointStateOutputStream(checkpointId, timestamp);
+		final AbstractStateBackend.CheckpointStateOutputStream os;
 
-		final ObjectOutputStream oos = new ObjectOutputStream(os);
-		final AbstractStateBackend.CheckpointStateOutputView ov = new AbstractStateBackend.CheckpointStateOutputView(os);
+		try {
+			os = this.getStateBackend().createCheckpointStateOutputStream(checkpointId, timestamp);
+		} catch (Exception e) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard stream task state of {}.", getOperatorName(), discardException);
+			}
 
-		Tuple3<List<FileInputSplit>, FileInputSplit, S> readerState = this.reader.getReaderState();
-		List<FileInputSplit> pendingSplits = readerState.f0;
-		FileInputSplit currSplit = readerState.f1;
-		S formatState = readerState.f2;
-
-		// write the current split
-		oos.writeObject(currSplit);
-
-		// write the pending ones
-		ov.writeInt(pendingSplits.size());
-		for (FileInputSplit split : pendingSplits) {
-			oos.writeObject(split);
+			throw new Exception("Could not create the checkpoint state output stream for " +
+				getOperatorName() + '.', e);
 		}
 
-		// write the state of the reading channel
-		oos.writeObject(formatState);
-		taskState.setOperatorState(os.closeAndGetHandle());
+		try {
+			final ObjectOutputStream oos = new ObjectOutputStream(os);
+			final AbstractStateBackend.CheckpointStateOutputView ov = new AbstractStateBackend.CheckpointStateOutputView(os);
+
+			Tuple3<List<FileInputSplit>, FileInputSplit, S> readerState = this.reader.getReaderState();
+			List<FileInputSplit> pendingSplits = readerState.f0;
+			FileInputSplit currSplit = readerState.f1;
+			S formatState = readerState.f2;
+
+			// write the current split
+			oos.writeObject(currSplit);
+
+			// write the pending ones
+			ov.writeInt(pendingSplits.size());
+			for (FileInputSplit split : pendingSplits) {
+				oos.writeObject(split);
+			}
+
+			// write the state of the reading channel
+			oos.writeObject(formatState);
+
+			oos.flush();
+		} catch (Exception exception) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard the stream task state of {}.", getOperatorName(), discardException);
+			}
+
+			try {
+				// closing the checkpoint output stream should delete the written data
+				os.close();
+			} catch (Exception closingException) {
+				LOG.warn("Could not close the checkpoint state output stream belonging to " +
+					"{}. The written data might not be deleted.", getOperatorName(), closingException);
+			}
+
+			throw new Exception("Could not write the stream task state of " + getOperatorName()
+				+ " into the checkpoint state output view.", exception);
+		}
+
+		try {
+			taskState.setOperatorState(os.closeAndGetHandle());
+		} catch (Exception e) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard stream task state of {}.", getOperatorName(), discardException);
+			}
+
+			throw new Exception("Could not close and get state handle from checkpoint state " +
+				"output stream belonging to " + getOperatorName() + '.', e);
+		}
+
 		return taskState;
 	}
 

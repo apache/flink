@@ -363,6 +363,8 @@ public class FsStateBackend extends AbstractStateBackend {
 			os.flush();
 
 			return stream.closeAndGetHandle().toSerializableHandle();
+		} catch (IOException ioE) {
+			throw new IOException("Could not serialize state.", ioE);
 		}
 	}
 
@@ -602,6 +604,8 @@ public class FsStateBackend extends AbstractStateBackend {
 		 * If the stream is only closed, we remove the produced file (cleanup through the auto close
 		 * feature, for example). This method throws no exception if the deletion fails, but only
 		 * logs the error.
+		 *
+		 * Important: This method should never throw any {@link Throwable}.
 		 */
 		@Override
 		public void close() {
@@ -620,15 +624,19 @@ public class FsStateBackend extends AbstractStateBackend {
 				if (outStream != null) {
 					try {
 						outStream.close();
-						fs.delete(statePath, false);
-
-						// attempt to delete the parent (will fail and be ignored if the parent has more files)
+					} catch (Throwable e) {
+						LOG.warn("Cannot delete closed and discarded state stream for {}.", statePath, e);
+					} finally {
 						try {
-							fs.delete(basePath, false);
-						} catch (IOException ignored) {}
-					}
-					catch (Exception e) {
-						LOG.warn("Cannot delete closed and discarded state stream for " + statePath, e);
+							fs.delete(statePath, false);
+
+							// attempt to delete the parent (will fail and be ignored if the parent has more files)
+							try {
+								fs.delete(basePath, false);
+							} catch (Throwable ignored) {}
+						} catch (Throwable ioE) {
+							LOG.warn("Could not delete stream file for {}.", statePath, ioE);
+						}
 					}
 				}
 			}
@@ -650,12 +658,29 @@ public class FsStateBackend extends AbstractStateBackend {
 						byte[] bytes = Arrays.copyOf(writeBuffer, pos);
 						pos = writeBuffer.length;
 						return new ByteStreamStateHandle(bytes);
-					}
-					else {
-						flush();
-						outStream.close();
-						closed = true;
-						pos = writeBuffer.length;
+					} else {
+						try {
+							flush();
+							outStream.close();
+						} catch (Exception exception) {
+							LOG.warn("Could not close the file system output stream. Trying to delete the underlying file.");
+
+							try {
+								fs.delete(statePath, false);
+
+								try {
+									fs.delete(basePath, false);
+								} catch (Throwable ignored) {}
+							} catch (Throwable deleteException) {
+								LOG.warn("Could not delete close and discarded state stream for {}.", statePath, deleteException);
+							}
+
+							throw new IOException("Could not close the file system output stream.", exception);
+						} finally {
+							closed = true;
+							pos = writeBuffer.length;
+						}
+
 						return new FileStreamStateHandle(statePath);
 					}
 				}
@@ -680,10 +705,28 @@ public class FsStateBackend extends AbstractStateBackend {
 					}
 
 					// close all resources
-					flush();
-					outStream.close();
-					closed = true;
-					pos = writeBuffer.length;
+					try {
+						flush();
+						outStream.close();
+					} catch (Exception exception) {
+						LOG.warn("Could not close the file system output stream. Trying to delete the underlying file.");
+
+						try {
+							fs.delete(statePath, false);
+
+							try {
+								fs.delete(basePath, false);
+							} catch (Throwable ignored) {}
+						} catch (Throwable deleteException) {
+							LOG.warn("Could not delete close and discarded state stream for {}.", statePath, deleteException);
+						}
+
+						throw new IOException("Could not close the file system output stream.", exception);
+					} finally {
+						closed = true;
+						pos = writeBuffer.length;
+					}
+
 					return statePath;
 				}
 				else {

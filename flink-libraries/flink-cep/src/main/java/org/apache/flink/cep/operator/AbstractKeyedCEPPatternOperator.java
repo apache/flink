@@ -191,15 +191,58 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
 		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
 
-		AbstractStateBackend.CheckpointStateOutputView ov = getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
+		final AbstractStateBackend.CheckpointStateOutputView ov;
 
-		ov.writeInt(keys.size());
+		try {
+			ov = getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
+		} catch (Exception e) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard stream task state of {}.", getOperatorName(), discardException);
+			}
 
-		for (KEY key: keys) {
-			keySerializer.serialize(key, ov);
+			throw new Exception("Could not create checkpoint state output view for " +
+				getOperatorName() + '.', e);
 		}
 
-		taskState.setOperatorState(ov.closeAndGetHandle());
+		try {
+			ov.writeInt(keys.size());
+
+			for (KEY key : keys) {
+				keySerializer.serialize(key, ov);
+			}
+		} catch (Exception exception) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard stream task state of {}.", getOperatorName(), discardException);
+			}
+
+			try {
+				// closing the output view should delete any written data
+				ov.close();
+			} catch (IOException closingException) {
+				LOG.warn("Could not close the checkpoint state output view of {}. The written data " +
+					"might not be deleted.", getOperatorName(), closingException);
+			}
+
+			throw new Exception("Could not write state of " + getOperatorName() +
+				" to the checkpoint state output view.", exception);
+		}
+
+		try {
+			taskState.setOperatorState(ov.closeAndGetHandle());
+		} catch (Exception e) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard stream task state of {}.", getOperatorName(), discardException);
+			}
+
+			throw new Exception("Could not close and get state handle from checkpoint state " +
+				"output view of " + getOperatorName() + '.', e);
+		}
 
 		return taskState;
 	}

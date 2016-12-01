@@ -248,15 +248,58 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
 		
 		// we write the panes with the key/value maps into the stream, as well as when this state
-		// should have triggered and slided
-		AbstractStateBackend.CheckpointStateOutputView out =
-				getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
+		// should have triggered and slidedq
+		AbstractStateBackend.CheckpointStateOutputView out;
 
-		out.writeLong(nextEvaluationTime);
-		out.writeLong(nextSlideTime);
-		panes.writeToOutput(out, keySerializer, stateTypeSerializer);
-		
-		taskState.setOperatorState(out.closeAndGetHandle());
+		try {
+			out = getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
+		} catch (Exception e) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard stream task state for {}.", getOperatorName(), discardException);
+			}
+
+			throw new Exception("Could not create checkpoint state output view to write the " +
+				getOperatorName() + " state into.", e);
+		}
+
+		try {
+			out.writeLong(nextEvaluationTime);
+			out.writeLong(nextSlideTime);
+			panes.writeToOutput(out, keySerializer, stateTypeSerializer);
+		} catch (Exception ioE) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard stream task state for {}.", getOperatorName(), discardException);
+			}
+
+			try {
+				// closing the checkpoint output view stream should delete the written data
+				out.close();
+			} catch (Exception closingException) {
+				LOG.warn("Could not close the checkpointed output view for {}. The written data " +
+					"might not be deleted.", getOperatorName(), closingException);
+			}
+
+			throw new Exception("Could not write the state for " + getOperatorName() +
+				" into the checkpoint state output view.", ioE);
+		}
+
+		try {
+			taskState.setOperatorState(out.closeAndGetHandle());
+		} catch (Exception ioE) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard stream task state for {}.", getOperatorName(), discardException);
+			}
+
+			throw new Exception("Could not close and obtain the state handle from the checkpoint " +
+				"output view of " + getOperatorName() + '.', ioE);
+		}
+
 		return taskState;
 	}
 

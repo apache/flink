@@ -50,6 +50,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -602,7 +603,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			throw e;
 		}
 		catch (Exception e) {
-			throw new Exception("Error while performing a checkpoint", e);
+			throw new Exception("Error while performing checkpoint " + checkpointId + '.', e);
 		}
 	}
 
@@ -671,7 +672,12 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				if (allStates.isEmpty()) {
 					getEnvironment().acknowledgeCheckpoint(checkpointId);
 				} else if (!hasAsyncStates) {
-					this.lastCheckpointSize = allStates.getStateSize();
+					try {
+						this.lastCheckpointSize = allStates.getStateSize();
+					} catch (Exception ioE) {
+						LOG.warn("Could not calculate the total state size for checkpoint {}.", checkpointId, ioE);
+					}
+
 					getEnvironment().acknowledgeCheckpoint(checkpointId, allStates);
 				} else {
 					// start a Thread that does the asynchronous materialization and
@@ -694,11 +700,26 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				// we cannot broadcast the cancellation markers on the 'operator chain', because it may not
 				// yet be created
 				final CancelCheckpointMarker message = new CancelCheckpointMarker(checkpointId);
+
+				Exception exception = null;
+
 				for (ResultPartitionWriter output : getEnvironment().getAllWriters()) {
-					output.writeEventToAllChannels(message);
+					try {
+						output.writeEventToAllChannels(message);
+					} catch (IOException ioE) {
+						if (exception == null) {
+							exception = new Exception("Could not send CancelCheckpointMarker to downstream tasks.", ioE);
+						} else {
+							exception.addSuppressed(ioE);
+						}
+					}
 				}
 
-				return false;
+				if (exception == null) {
+					return false;
+				} else {
+					throw exception;
+				}
 			}
 		}
 	}

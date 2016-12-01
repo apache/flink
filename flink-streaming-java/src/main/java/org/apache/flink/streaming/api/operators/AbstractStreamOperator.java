@@ -181,10 +181,16 @@ public abstract class AbstractStreamOperator<OUT>
 		StreamTaskState state = new StreamTaskState();
 
 		if (stateBackend != null) {
-			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> partitionedSnapshots =
-				stateBackend.snapshotPartitionedState(checkpointId, timestamp);
-			if (partitionedSnapshots != null) {
-				state.setKvStates(partitionedSnapshots);
+			try {
+				HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> partitionedSnapshots =
+					stateBackend.snapshotPartitionedState(checkpointId, timestamp);
+
+				if (partitionedSnapshots != null) {
+					state.setKvStates(partitionedSnapshots);
+				}
+			} catch (Exception e) {
+				throw new Exception("Failed to snapshot partitioned state for operator " +
+					getOperatorName() + '.', e);
 			}
 		}
 
@@ -233,6 +239,21 @@ public abstract class AbstractStreamOperator<OUT>
 	
 	public ClassLoader getUserCodeClassloader() {
 		return container.getUserCodeClassLoader();
+	}
+
+	/**
+	 * Return the operator name. If the runtime context has been set, then the task name with
+	 * subtask index is returned. Otherwise, the simple class name is returned.
+	 *
+	 * @return If runtime context is set, then return task name with subtask index. Otherwise return
+	 * 			simple class name.
+	 */
+	protected String getOperatorName() {
+		if (runtimeContext != null) {
+			return runtimeContext.getTaskNameWithSubtasks();
+		} else {
+			return getClass().getSimpleName();
+		}
 	}
 	
 	/**

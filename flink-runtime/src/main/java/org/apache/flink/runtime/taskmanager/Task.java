@@ -1008,8 +1008,8 @@ public class Task implements Runnable {
 						catch (Throwable t) {
 							if (getExecutionState() == ExecutionState.RUNNING) {
 								failExternally(new Exception(
-									"Error while triggering checkpoint for " + taskName,
-									t));
+									"Error while triggering checkpoint " + checkpointID + " for " +
+										taskName, t));
 							}
 						}
 					}

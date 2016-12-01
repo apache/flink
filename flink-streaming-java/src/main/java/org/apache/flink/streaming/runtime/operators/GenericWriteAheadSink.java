@@ -89,14 +89,32 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	private void saveHandleInState(final long checkpointId, final long timestamp) throws Exception {
 		//only add handle if a new OperatorState was created since the last snapshot
 		if (out != null) {
-			StateHandle<DataInputView> handle = out.closeAndGetHandle();
+			StateHandle<DataInputView> handle;
+
+			try {
+				handle = out.closeAndGetHandle();
+			} catch (Exception e) {
+				throw new Exception("Could not close and get state handle from checkpoint " +
+					"state output view belonging to " +
+					getOperatorName() + '.', e);
+			}
+
 			if (state.pendingHandles.containsKey(checkpointId)) {
 				//we already have a checkpoint stored for that ID that may have been partially written,
 				//so we discard this "alternate version" and use the stored checkpoint
-				handle.discardState();
+				try {
+					handle.discardState();
+				} catch (Exception exception) {
+					LOG.warn("Could not discard state handle for checkpoint {} of {}, " +
+						"which already has been stored.", checkpointId,
+						getOperatorName(), exception);
+				}
 			} else {
 				state.pendingHandles.put(checkpointId, new Tuple2<>(timestamp, handle));
 			}
+
+			// only set out stream to null in case that we could obtain a state handle
+			// otherwise we might lose some data if we allow failing checkpoints
 			out = null;
 		}
 	}
@@ -104,7 +122,20 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	@Override
 	public StreamTaskState snapshotOperatorState(final long checkpointId, final long timestamp) throws Exception {
 		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
-		saveHandleInState(checkpointId, timestamp);
+
+		try {
+			saveHandleInState(checkpointId, timestamp);
+		} catch (Exception e) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard stream task state of {}.", getOperatorName(), discardException);
+			}
+
+			throw new Exception("Could not save handle in state of " +
+				getOperatorName() + '.', e);
+		}
+
 		taskState.setFunctionState(state);
 		return taskState;
 	}

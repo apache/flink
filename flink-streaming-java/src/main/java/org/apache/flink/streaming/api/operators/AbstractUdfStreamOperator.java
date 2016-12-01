@@ -129,7 +129,14 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 				udfState = chkFunction.snapshotState(checkpointId, timestamp);
 			} 
 			catch (Exception e) {
-				throw new Exception("Failed to draw state snapshot from function: " + e.getMessage(), e);
+				try {
+					state.discardState();
+				} catch (Exception discardException) {
+					LOG.warn("Could not discard stream task state of {}.", getOperatorName(), discardException);
+				}
+
+				throw new Exception("Failed to snapshot function state of " +
+					getOperatorName() + '.', e);
 			}
 			
 			if (udfState != null) {
@@ -140,8 +147,14 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 					state.setFunctionState(handle);
 				}
 				catch (Exception e) {
-					throw new Exception("Failed to add the state snapshot of the function to the checkpoint: "
-							+ e.getMessage(), e);
+					try {
+						state.discardState();
+					} catch (Exception discardException) {
+						LOG.warn("Could not discard stream task state of {}.", getOperatorName(), discardException);
+					}
+
+					throw new Exception("Failed to add the function state snapshot of " +
+						getOperatorName() + " to the checkpoint.", e);
 				}
 			}
 		}

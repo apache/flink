@@ -37,7 +37,7 @@ public class StreamTaskStateList implements StateHandle<StreamTaskState[]> {
 	/** The states for all operator */
 	private final StreamTaskState[] states;
 
-	public StreamTaskStateList(StreamTaskState[] states) throws Exception {
+	public StreamTaskStateList(StreamTaskState[] states) {
 		this.states = states;
 	}
 

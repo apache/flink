@@ -38,6 +38,8 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.execution.Environment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -55,6 +57,8 @@ import java.util.Map;
 public abstract class AbstractStateBackend implements java.io.Serializable, Closeable {
 
 	private static final long serialVersionUID = 4620413814639220247L;
+
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractStateBackend.class);
 
 	protected transient TypeSerializer<?> keySerializer;
 
@@ -354,10 +358,25 @@ public abstract class AbstractStateBackend implements java.io.Serializable, Clos
 		if (keyValueStates != null) {
 			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshots = new HashMap<>(keyValueStatesByName.size());
 
-			for (Map.Entry<String, KvState<?, ?, ?, ?, ?>> entry : keyValueStatesByName.entrySet()) {
-				KvStateSnapshot<?, ?, ?, ?, ?> snapshot = entry.getValue().snapshot(checkpointId, timestamp);
-				snapshots.put(entry.getKey(), snapshot);
+			try {
+				for (Map.Entry<String, KvState<?, ?, ?, ?, ?>> entry : keyValueStatesByName.entrySet()) {
+					KvStateSnapshot<?, ?, ?, ?, ?> snapshot = entry.getValue().snapshot(checkpointId, timestamp);
+					snapshots.put(entry.getKey(), snapshot);
+				}
+			} catch (Exception e) {
+				for (Map.Entry<String, KvStateSnapshot<?, ?, ?, ?, ?>> entry : snapshots.entrySet()) {
+					KvStateSnapshot<?, ?, ?, ?, ?> kvStateSnapshot = entry.getValue();
+
+					try {
+						kvStateSnapshot.discardState();
+					} catch (Exception discardException) {
+						LOG.warn("Could not discard partitioned state {}.", entry.getKey(), discardException);
+					}
+				}
+
+				throw new Exception("Could not create a partitioned state snapshot.", e);
 			}
+
 			return snapshots;
 		}
 

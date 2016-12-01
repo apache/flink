@@ -32,13 +32,14 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
@@ -70,7 +71,11 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -81,7 +86,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.whenNew;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(AbstractStreamOperator.class)
 public class WindowOperatorTest {
 
 	// For counting if close() is called the correct number of times on the SumReducer
@@ -2389,6 +2403,178 @@ public class WindowOperatorTest {
 		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple2ResultSortComparator());
 		testHarness.close();
+	}
+
+	/**
+	 * Tests that the StreamTaskState and the CheckpointStateOutputStream are discarded and closed
+	 * in case of a failure while writing to the CheckpointStateOutputStream.
+	 */
+	@Test
+	public void testCleanupInCaseOfFailingSnapshotCall() throws Exception {
+		final int WINDOW_SIZE = 10;
+		final long checkpointId = 1L;
+		final long timestamp = 42L;
+
+		StreamTaskState streamTaskState = mock(StreamTaskState.class);
+		AbstractStateBackend stateBackend = mock(AbstractStateBackend.class);
+		AbstractStateBackend.CheckpointStateOutputStream outputStream = mock(AbstractStateBackend.CheckpointStateOutputStream.class);
+
+		doThrow(new IOException("Test Exception")).when(outputStream).write(anyInt());
+
+		when(stateBackend.createCheckpointStateOutputView(anyLong(), anyLong())).thenCallRealMethod();
+		when(stateBackend.createCheckpointStateOutputStream(anyLong(), anyLong())).thenReturn(outputStream);
+		whenNew(StreamTaskState.class).withAnyArguments().thenReturn(streamTaskState);
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
+			new SumReducer(),
+			inputType.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new WindowOperator<>(
+			GlobalWindows.create(),
+			new GlobalWindow.Serializer(),
+			new TupleKeySelector(),
+			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+			stateDesc,
+			new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, GlobalWindow, Tuple2<String, Integer>>()),
+			PurgingTrigger.of(CountTrigger.of(WINDOW_SIZE)),
+			0);
+
+		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse(
+			"Tuple2<String, Integer>"), new ExecutionConfig());
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			new OneInputStreamOperatorTestHarness<>(operator);
+
+		testHarness.setStateBackend(stateBackend);
+
+		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness.open();
+
+		try {
+			testHarness.snapshot(checkpointId, timestamp);
+			fail("Expected Exception here.");
+		} catch (Exception expected) {
+			// expected the exception here
+		}
+
+		verify(outputStream).close();
+		verify(streamTaskState).discardState();
+	}
+
+	/**
+	 * Tests that the StreamTaskState is discarded in case of a failure while obtaining the
+	 * CheckpointStateOutputStream.
+	 */
+	@Test
+	public void testCleanupInCaseOfFailingCheckpointStateOutputStreamCreation() throws Exception {
+		final int WINDOW_SIZE = 10;
+		final long checkpointId = 1L;
+		final long timestamp = 42L;
+
+		StreamTaskState streamTaskState = mock(StreamTaskState.class);
+		AbstractStateBackend stateBackend = mock(AbstractStateBackend.class);
+
+		when(stateBackend.createCheckpointStateOutputView(anyLong(), anyLong())).thenThrow(new IOException("Test Exception"));
+		whenNew(StreamTaskState.class).withAnyArguments().thenReturn(streamTaskState);
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
+			new SumReducer(),
+			inputType.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new WindowOperator<>(
+			GlobalWindows.create(),
+			new GlobalWindow.Serializer(),
+			new TupleKeySelector(),
+			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+			stateDesc,
+			new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, GlobalWindow, Tuple2<String, Integer>>()),
+			PurgingTrigger.of(CountTrigger.of(WINDOW_SIZE)),
+			0);
+
+		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse(
+			"Tuple2<String, Integer>"), new ExecutionConfig());
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			new OneInputStreamOperatorTestHarness<>(operator);
+
+		testHarness.setStateBackend(stateBackend);
+
+		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness.open();
+
+		try {
+			testHarness.snapshot(checkpointId, timestamp);
+			fail("Expected Exception here.");
+		} catch (Exception expected) {
+			// expected the exception here
+		}
+
+		verify(streamTaskState).discardState();
+	}
+
+	/**
+	 * Tests that the StreamTaskState is discarded in case of a failure while closing and getting
+	 * the state handle from the CheckpointStateOutputStream.
+	 */
+	@Test
+	public void testCleanupInCaseOfFailingCloseAndGetHandleInSnapshotMethod() throws Exception {
+		final int WINDOW_SIZE = 10;
+		final long checkpointId = 1L;
+		final long timestamp = 42L;
+
+		StreamTaskState streamTaskState = mock(StreamTaskState.class);
+		AbstractStateBackend stateBackend = mock(AbstractStateBackend.class);
+		AbstractStateBackend.CheckpointStateOutputStream outputStream = mock(AbstractStateBackend.CheckpointStateOutputStream.class);
+
+		doThrow(new IOException("Test Exception")).when(outputStream).closeAndGetHandle();
+
+		when(stateBackend.createCheckpointStateOutputView(anyLong(), anyLong())).thenCallRealMethod();
+		when(stateBackend.createCheckpointStateOutputStream(anyLong(), anyLong())).thenReturn(outputStream);
+		whenNew(StreamTaskState.class).withAnyArguments().thenReturn(streamTaskState);
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
+			new SumReducer(),
+			inputType.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new WindowOperator<>(
+			GlobalWindows.create(),
+			new GlobalWindow.Serializer(),
+			new TupleKeySelector(),
+			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+			stateDesc,
+			new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, GlobalWindow, Tuple2<String, Integer>>()),
+			PurgingTrigger.of(CountTrigger.of(WINDOW_SIZE)),
+			0);
+
+		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse(
+			"Tuple2<String, Integer>"), new ExecutionConfig());
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			new OneInputStreamOperatorTestHarness<>(operator);
+
+		testHarness.setStateBackend(stateBackend);
+
+		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness.open();
+
+		try {
+			testHarness.snapshot(checkpointId, timestamp);
+			fail("Expected Exception here.");
+		} catch (Exception expected) {
+			// expected the exception here
+		}
+
+		verify(outputStream).closeAndGetHandle();
+		verify(streamTaskState).discardState();
 	}
 
 	// ------------------------------------------------------------------------

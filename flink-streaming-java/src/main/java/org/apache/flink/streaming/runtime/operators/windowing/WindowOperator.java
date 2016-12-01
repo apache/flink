@@ -871,12 +871,54 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
 
-		AbstractStateBackend.CheckpointStateOutputView out =
-			getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
+		final AbstractStateBackend.CheckpointStateOutputView out;
 
-		snapshotTimers(out);
+		try {
+			out = getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
+		} catch (Exception ioE) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard stream task state of {}.", getOperatorName(), discardException);
+			}
 
-		taskState.setOperatorState(out.closeAndGetHandle());
+			throw new Exception("Could not create checkpoint state output view for " +
+				getOperatorName() + '.', ioE);
+		}
+
+		try {
+			snapshotTimers(out);
+		} catch (Exception e) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard stream task state of {}.", getOperatorName(), discardException);
+			}
+
+			try {
+				// closing the checkpoint output stream should delete the written data
+				out.close();
+			} catch (Exception closingException) {
+				LOG.warn("Could not close the checkpoint state output view of {}. The written data " +
+					"might not be deleted.", getOperatorName(), closingException);
+			}
+
+			throw new Exception("Could not snapshot the window operators timers of " +
+				getOperatorName() + '.', e);
+		}
+
+		try {
+			taskState.setOperatorState(out.closeAndGetHandle());
+		} catch (Exception e) {
+			try {
+				taskState.discardState();
+			} catch (Exception discardException) {
+				LOG.warn("Could not discard stream task state of {}.", getOperatorName(), discardException);
+			}
+
+			throw new Exception("Could not close and get state handle from checkpoint output view of " +
+				getOperatorName() + '.', e);
+		}
 
 		return taskState;
 	}

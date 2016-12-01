@@ -17,17 +17,28 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 /**
  * Tests for {@link StreamMap}. These test that:
@@ -38,6 +49,8 @@ import org.junit.Test;
  *     <li>Watermarks are correctly forwarded</li>
  * </ul>
  */
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(AbstractStreamOperator.class)
 public class StreamMapTest {
 
 	private static class Map implements MapFunction<Integer, String> {
@@ -91,6 +104,51 @@ public class StreamMapTest {
 		Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
 	}
 
+	@Test
+	public void testFailingSnapshot() throws Exception {
+		final long checkpointId = 1L;
+		final long timestamp = 42L;
+
+		StreamTaskState streamTaskState = mock(StreamTaskState.class);
+		whenNew(StreamTaskState.class).withAnyArguments().thenReturn(streamTaskState);
+
+		StreamMap<String, String> operator = new StreamMap<>(new TestCheckpointedMapFunction());
+
+		OneInputStreamOperatorTestHarness<String, String> testHarness = new OneInputStreamOperatorTestHarness<String, String>(operator);
+
+		testHarness.open();
+
+		try {
+			testHarness.snapshot(checkpointId, timestamp);
+
+			fail("Expected exception here.");
+		} catch (Exception expected) {
+			// expected exception
+		}
+
+		verify(streamTaskState).discardState();
+	}
+
+	private static class TestCheckpointedMapFunction implements MapFunction<String, String>, Checkpointed<String> {
+
+		private static final long serialVersionUID = 2353250741656753525L;
+
+		@Override
+		public String map(String value) throws Exception {
+			return value;
+		}
+
+		@Override
+		public String snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+			throw new IOException("Test exception.");
+		}
+
+		@Override
+		public void restoreState(String state) throws Exception {
+			// noop
+		}
+	}
+
 	// This must only be used in one test, otherwise the static fields will be changed
 	// by several tests concurrently
 	private static class TestOpenCloseMapFunction extends RichMapFunction<String, String> {
@@ -103,7 +161,7 @@ public class StreamMapTest {
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
 			if (closeCalled) {
-				Assert.fail("Close called before open.");
+				fail("Close called before open.");
 			}
 			openCalled = true;
 		}
@@ -112,7 +170,7 @@ public class StreamMapTest {
 		public void close() throws Exception {
 			super.close();
 			if (!openCalled) {
-				Assert.fail("Open was not called before close.");
+				fail("Open was not called before close.");
 			}
 			closeCalled = true;
 		}
@@ -120,7 +178,7 @@ public class StreamMapTest {
 		@Override
 		public String map(String value) throws Exception {
 			if (!openCalled) {
-				Assert.fail("Open was not called before run.");
+				fail("Open was not called before run.");
 			}
 			return value;
 		}

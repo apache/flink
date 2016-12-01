@@ -750,59 +750,72 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 		@Override
 		public KvStateSnapshot<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> materialize() throws Exception {
+			long startTime = System.currentTimeMillis();
+			CheckpointStateOutputView outputView;
+
 			try {
-				long startTime = System.currentTimeMillis();
-
-				CheckpointStateOutputView outputView = backend.createCheckpointStateOutputView(checkpointId, startTime);
-
-				outputView.writeInt(columnFamilies.size());
-
-				// we don't know how many key/value pairs there are in each column family.
-				// We prefix every written element with a byte that signifies to which
-				// column family it belongs, this way we can restore the column families
-				byte count = 0;
-				Map<String, Byte> columnFamilyMapping = new HashMap<>();
-				for (Map.Entry<String, Tuple2<ColumnFamilyHandle, StateDescriptor>> column: columnFamilies.entrySet()) {
-					columnFamilyMapping.put(column.getKey(), count);
-
-					outputView.writeByte(count);
-
-					ObjectOutputStream ooOut = new ObjectOutputStream(outputView);
-					ooOut.writeObject(column.getValue().f1);
-					ooOut.flush();
-
-					count++;
+				try {
+					outputView = backend.createCheckpointStateOutputView(checkpointId, startTime);
+				} catch (Exception e) {
+					throw new Exception("Could not create a checkpoint state output view to " +
+						"materialize the checkpoint data into.", e);
 				}
 
-				ReadOptions readOptions = new ReadOptions();
-				readOptions.setSnapshot(snapshot);
+				try {
+					outputView.writeInt(columnFamilies.size());
 
-				for (Map.Entry<String, Tuple2<ColumnFamilyHandle, StateDescriptor>> column: columnFamilies.entrySet()) {
-					byte columnByte = columnFamilyMapping.get(column.getKey());
+					// we don't know how many key/value pairs there are in each column family.
+					// We prefix every written element with a byte that signifies to which
+					// column family it belongs, this way we can restore the column families
+					byte count = 0;
+					Map<String, Byte> columnFamilyMapping = new HashMap<>();
+					for (Map.Entry<String, Tuple2<ColumnFamilyHandle, StateDescriptor>> column : columnFamilies.entrySet()) {
+						columnFamilyMapping.put(column.getKey(), count);
 
-					synchronized (dbCleanupLock) {
-						if (db == null) {
-							throw new RuntimeException("RocksDB instance was disposed. This happens " +
+						outputView.writeByte(count);
+
+						ObjectOutputStream ooOut = new ObjectOutputStream(outputView);
+						ooOut.writeObject(column.getValue().f1);
+						ooOut.flush();
+
+						count++;
+					}
+
+					ReadOptions readOptions = new ReadOptions();
+					readOptions.setSnapshot(snapshot);
+
+					for (Map.Entry<String, Tuple2<ColumnFamilyHandle, StateDescriptor>> column : columnFamilies.entrySet()) {
+						byte columnByte = columnFamilyMapping.get(column.getKey());
+
+						synchronized (dbCleanupLock) {
+							if (db == null) {
+								throw new RuntimeException("RocksDB instance was disposed. This happens " +
 									"when we are in the middle of a checkpoint and the job fails.");
-						}
-						RocksIterator iterator = db.newIterator(column.getValue().f0, readOptions);
-						iterator.seekToFirst();
-						while (iterator.isValid()) {
-							outputView.writeByte(columnByte);
-							BytePrimitiveArraySerializer.INSTANCE.serialize(iterator.key(),
+							}
+							RocksIterator iterator = db.newIterator(column.getValue().f0, readOptions);
+							iterator.seekToFirst();
+							while (iterator.isValid()) {
+								outputView.writeByte(columnByte);
+								BytePrimitiveArraySerializer.INSTANCE.serialize(iterator.key(),
 									outputView);
-							BytePrimitiveArraySerializer.INSTANCE.serialize(iterator.value(),
+								BytePrimitiveArraySerializer.INSTANCE.serialize(iterator.value(),
 									outputView);
-							iterator.next();
+								iterator.next();
+							}
 						}
 					}
+				} catch (Exception e) {
+					try {
+						// closing the output view deletes the underlying data
+						outputView.close();
+					} catch (Exception closingException) {
+						LOG.warn("Could not close the checkpoint state output view. The " +
+							"written data might not be deleted.", closingException);
+					}
+
+					throw new Exception("Could not write the checkpoint data into the checkpoint " +
+						"state output view.", e);
 				}
-
-				StateHandle<DataInputView> stateHandle = outputView.closeAndGetHandle();
-
-				long endTime = System.currentTimeMillis();
-				LOG.info("Fully asynchronous RocksDB materialization to " + backupUri + " (asynchronous part) took " + (endTime - startTime) + " ms.");
-				return new FinalFullyAsyncSnapshot(stateHandle, checkpointId);
 			} finally {
 				synchronized (dbCleanupLock) {
 					if (db != null) {
@@ -811,6 +824,19 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				}
 				snapshot = null;
 			}
+
+			StateHandle<DataInputView> stateHandle;
+
+			try {
+				stateHandle = outputView.closeAndGetHandle();
+			} catch (Exception ioE) {
+				throw new Exception("Could not close the checkpoint state output view and " +
+					"obtain the state handle.", ioE);
+			}
+
+			long endTime = System.currentTimeMillis();
+			LOG.info("Fully asynchronous RocksDB materialization to {} (asynchronous part) took {} ms.", backupUri, (endTime - startTime));
+			return new FinalFullyAsyncSnapshot(stateHandle, checkpointId);
 		}
 
 	}
