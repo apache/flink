@@ -231,18 +231,25 @@ public class AsyncWaitOperator<IN, OUT>
 		super.snapshotState(context);
 
 		ListState<StreamElement> partitionableState =
-				getOperatorStateBackend().getOperatorState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
+			getOperatorStateBackend().getOperatorState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
 		partitionableState.clear();
 
 		Collection<StreamElementQueueEntry<?>> values = queue.values();
 
-		for (StreamElementQueueEntry<?> value : values) {
-			partitionableState.add(value.getStreamElement());
-		}
+		try {
+			for (StreamElementQueueEntry<?> value : values) {
+				partitionableState.add(value.getStreamElement());
+			}
 
-		// add the pending stream element queue entry if the stream element queue is currently full
-		if (pendingStreamElementQueueEntry != null) {
-			partitionableState.add(pendingStreamElementQueueEntry.getStreamElement());
+			// add the pending stream element queue entry if the stream element queue is currently full
+			if (pendingStreamElementQueueEntry != null) {
+				partitionableState.add(pendingStreamElementQueueEntry.getStreamElement());
+			}
+		} catch (Exception e) {
+			partitionableState.clear();
+
+			throw new Exception("Could not add stream element queue entries to operator state " +
+				"backend of operator " + getOperatorName() + '.', e);
 		}
 	}
 

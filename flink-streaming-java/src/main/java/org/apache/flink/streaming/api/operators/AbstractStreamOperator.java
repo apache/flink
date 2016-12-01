@@ -66,6 +66,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
@@ -342,21 +343,50 @@ public abstract class AbstractStreamOperator<OUT>
 		StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
 				checkpointId, timestamp, streamFactory, keyGroupRange, getContainingTask().getCancelables());
 
-		snapshotState(snapshotContext);
+		try {
+			snapshotState(snapshotContext);
+		} catch (Exception e) {
+			try {
+				snapshotContext.close();
+			} catch (IOException closingException) {
+				e.addSuppressed(closingException);
+			}
+
+			throw new Exception("Could not snapshot the operator " + getOperatorName() +
+				" for checkpoint " + checkpointId + '.', e);
+		}
 
 		OperatorSnapshotResult snapshotInProgress = new OperatorSnapshotResult();
 
-		snapshotInProgress.setKeyedStateRawFuture(snapshotContext.getKeyedStateStreamFuture());
-		snapshotInProgress.setOperatorStateRawFuture(snapshotContext.getOperatorStateStreamFuture());
+		try {
+			snapshotInProgress.setKeyedStateRawFuture(snapshotContext.getKeyedStateStreamFuture());
+			snapshotInProgress.setOperatorStateRawFuture(snapshotContext.getOperatorStateStreamFuture());
 
-		if (null != operatorStateBackend) {
-			snapshotInProgress.setOperatorStateManagedFuture(
+			if (null != operatorStateBackend) {
+				snapshotInProgress.setOperatorStateManagedFuture(
 					operatorStateBackend.snapshot(checkpointId, timestamp, streamFactory));
-		}
+			}
 
-		if (null != keyedStateBackend) {
-			snapshotInProgress.setKeyedStateManagedFuture(
+			if (null != keyedStateBackend) {
+				snapshotInProgress.setKeyedStateManagedFuture(
 					keyedStateBackend.snapshot(checkpointId, timestamp, streamFactory));
+			}
+		} catch (Exception snapshotException) {
+			try {
+				snapshotInProgress.cancel();
+			} catch (Exception e) {
+				snapshotException.addSuppressed(e);
+			}
+
+			throw new Exception("Could not complete snapshot " + checkpointId + " for operator " +
+				getOperatorName() + '.', snapshotException);
+		} finally {
+			try {
+				snapshotContext.close();
+			} catch (IOException e) {
+				LOG.warn("Could not close the snapshot context for checkpoint {} and operator {}.",
+					checkpointId, getOperatorName(), e);
+			}
 		}
 
 		return snapshotInProgress;
@@ -369,21 +399,40 @@ public abstract class AbstractStreamOperator<OUT>
 	 */
 	public void snapshotState(StateSnapshotContext context) throws Exception {
 		if (getKeyedStateBackend() != null) {
-			KeyedStateCheckpointOutputStream out = context.getRawKeyedOperatorStateOutput();
+			KeyedStateCheckpointOutputStream out;
 
-			KeyGroupsList allKeyGroups = out.getKeyGroupList();
-			for (int keyGroupIdx : allKeyGroups) {
-				out.startNewKeyGroup(keyGroupIdx);
+			try {
+				out = context.getRawKeyedOperatorStateOutput();
+			} catch (Exception exception) {
+				throw new Exception("Could not open raw keyed operator state stream for " +
+					getOperatorName() + '.', exception);
+			}
 
-				DataOutputViewStreamWrapper dov = new DataOutputViewStreamWrapper(out);
-				dov.writeInt(timerServices.size());
+			try {
+				KeyGroupsList allKeyGroups = out.getKeyGroupList();
+				for (int keyGroupIdx : allKeyGroups) {
+					out.startNewKeyGroup(keyGroupIdx);
 
-				for (Map.Entry<String, HeapInternalTimerService<?, ?>> entry : timerServices.entrySet()) {
-					String serviceName = entry.getKey();
-					HeapInternalTimerService<?, ?> timerService = entry.getValue();
+					DataOutputViewStreamWrapper dov = new DataOutputViewStreamWrapper(out);
+					dov.writeInt(timerServices.size());
 
-					dov.writeUTF(serviceName);
-					timerService.snapshotTimersForKeyGroup(dov, keyGroupIdx);
+					for (Map.Entry<String, HeapInternalTimerService<?, ?>> entry : timerServices.entrySet()) {
+						String serviceName = entry.getKey();
+						HeapInternalTimerService<?, ?> timerService = entry.getValue();
+
+						dov.writeUTF(serviceName);
+						timerService.snapshotTimersForKeyGroup(dov, keyGroupIdx);
+					}
+				}
+			} catch (Exception exception) {
+				throw new Exception("Could not write timer service of " + getOperatorName() +
+					" to checkpoint state stream.", exception);
+			} finally {
+				try {
+					out.close();
+				} catch (Exception closeException) {
+					LOG.warn("Could not close raw keyed operator state stream for {}. This " +
+						"might have prevented deleting some state data.", getOperatorName(), closeException);
 				}
 			}
 		}
@@ -456,6 +505,21 @@ public abstract class AbstractStreamOperator<OUT>
 	
 	public ClassLoader getUserCodeClassloader() {
 		return container.getUserCodeClassLoader();
+	}
+
+	/**
+	 * Return the operator name. If the runtime context has been set, then the task name with
+	 * subtask index is returned. Otherwise, the simple class name is returned.
+	 *
+	 * @return If runtime context is set, then return task name with subtask index. Otherwise return
+	 * 			simple class name.
+	 */
+	protected String getOperatorName() {
+		if (runtimeContext != null) {
+			return runtimeContext.getTaskNameWithSubtasks();
+		} else {
+			return getClass().getSimpleName();
+		}
 	}
 	
 	/**

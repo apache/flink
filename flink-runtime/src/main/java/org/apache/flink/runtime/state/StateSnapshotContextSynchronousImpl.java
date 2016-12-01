@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -127,4 +128,38 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 		return new DoneFuture<>(stream.closeAndGetHandle());
 	}
 
+	private <T extends StreamStateHandle> void closeAndUnregisterStream(NonClosingCheckpointOutputStream<T> stream) throws IOException {
+		Preconditions.checkNotNull(stream);
+
+		closableRegistry.unregisterClosable(stream.getDelegate());
+		stream.getDelegate().close();
+	}
+
+	public void close() throws IOException {
+		IOException exception = null;
+
+		if (keyedStateCheckpointOutputStream != null) {
+			try {
+				closeAndUnregisterStream(keyedStateCheckpointOutputStream);
+			} catch (IOException e) {
+				exception = ExceptionUtils.firstOrSuppressed(
+					new IOException("Could not close the raw keyed state checkpoint output stream.", e),
+					exception);
+			}
+		}
+
+		if (operatorStateCheckpointOutputStream != null) {
+			try {
+				closeAndUnregisterStream(operatorStateCheckpointOutputStream);
+			} catch (IOException e) {
+				exception = ExceptionUtils.firstOrSuppressed(
+					new IOException("Could not close the raw operator state checkpoint output stream.", e),
+					exception);
+			}
+		}
+
+		if (exception != null) {
+			throw exception;
+		}
+	}
 }
