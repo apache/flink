@@ -47,6 +47,7 @@ import java.util.UUID;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -94,11 +95,9 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 		catch (Exception ignored) {}
 	}
 
-	private URI stateBaseURI;
-
 	@Override
 	protected FsStateBackend getStateBackend() throws Exception {
-		stateBaseURI = new URI(HDFS_ROOT_URI + UUID.randomUUID().toString());
+		URI stateBaseURI = new URI(HDFS_ROOT_URI + UUID.randomUUID().toString());
 		return new FsStateBackend(stateBaseURI);
 
 	}
@@ -191,8 +190,8 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 			validateBytesInStream(handle2.openInputStream(), state2);
 			handle2.discardState();
 
-			validateBytesInStream(handle3.openInputStream(), state3);
-			handle3.discardState();
+			// stream 3 has zero bytes, so it should not return anything
+			assertNull(handle3);
 
 			validateBytesInStream(handle4.openInputStream(), state4);
 			handle4.discardState();
