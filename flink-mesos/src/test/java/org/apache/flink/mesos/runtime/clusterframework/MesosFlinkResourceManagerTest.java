@@ -81,6 +81,7 @@ public class MesosFlinkResourceManagerTest {
 
 	private static Configuration config = new Configuration() {{
 		setInteger(ConfigConstants.MESOS_MAX_FAILED_TASKS, -1);
+		setInteger(ConfigConstants.MESOS_INITIAL_TASKS, 0);
 	}};
 
 	@BeforeClass

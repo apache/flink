@@ -752,14 +752,14 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	{
 
 		final int numInitialTaskManagers = flinkConfig.getInteger(
-			ConfigConstants.MESOS_INITIAL_TASKS, 1);
-		if (numInitialTaskManagers >= 1) {
+			ConfigConstants.MESOS_INITIAL_TASKS, 0);
+		if (numInitialTaskManagers >= 0) {
 			log.info("Mesos framework to allocate {} initial tasks",
 				numInitialTaskManagers);
 		}
 		else {
 			throw new IllegalConfigurationException("Invalid value for " +
-				ConfigConstants.MESOS_INITIAL_TASKS + ", which must be at least one.");
+				ConfigConstants.MESOS_INITIAL_TASKS + ", which must be at least zero.");
 		}
 
 		final int maxFailedTasks = flinkConfig.getInteger(
