@@ -31,47 +31,76 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
   it should "train a SVM" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val svm = SVM().
-    setBlocks(env.getParallelism).
-    setIterations(100).
-    setLocalIterations(100).
-    setRegularization(0.002).
-    setStepsize(0.1).
-    setSeed(0)
+    val svm = SVM( ).
+      setBlocks( env.getParallelism ).
+      setIterations( 100 ).
+      setLocalIterations( 100 ).
+      setRegularization( 0.002 ).
+      setStepsize( 0.1 ).
+      setSeed( 0 )
 
-    val trainingDS = env.fromCollection(Classification.trainingData)
+    val trainingDS = env.fromCollection( Classification.trainingData )
 
-    svm.fit(trainingDS)
+    svm.fit( trainingDS )
 
-    val weightVector = svm.weightsOption.get.collect().head
+    val weightVector = svm.weightsOption.get.collect( ).head
 
-    weightVector.valueIterator.zip(Classification.expectedWeightVector.valueIterator).foreach {
+    weightVector.valueIterator.zip( Classification.expectedWeightVector.valueIterator ).foreach {
       case (weight, expectedWeight) =>
-        weight should be(expectedWeight +- 0.1)
+        weight should be( expectedWeight +- 0.1 )
     }
   }
+
+  it should "evaluate with LabeledDataPoint" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val svm = SVM( ).
+      setBlocks( env.getParallelism ).
+      setIterations( 100 ).
+      setLocalIterations( 100 ).
+      setRegularization( 0.002 ).
+      setStepsize( 0.1 ).
+      setSeed( 0 )
+
+    val trainingDS = env.fromCollection( Classification.trainingData )
+
+    val test = trainingDS
+
+    svm.fit( trainingDS )
+
+    val predictionPairs = svm.evaluate( test )
+
+    val absoluteErrorSum = predictionPairs.collect( ).map {
+      case (truth, prediction) => Math.abs( truth - prediction )
+    }.sum
+
+    absoluteErrorSum should be < 15.0
+  }
+
+
 
   it should "make (mostly) correct predictions" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val svm = SVM().
-      setBlocks(env.getParallelism).
-      setIterations(100).
-      setLocalIterations(100).
-      setRegularization(0.002).
-      setStepsize(0.1).
-      setSeed(0)
+    val svm = SVM( ).
+      setBlocks( env.getParallelism ).
+      setIterations( 100 ).
+      setLocalIterations( 100 ).
+      setRegularization( 0.002 ).
+      setStepsize( 0.1 ).
+      setSeed( 0 )
 
-    val trainingDS = env.fromCollection(Classification.trainingData)
+    val trainingDS = env.fromCollection( Classification.trainingData )
 
-    val test = trainingDS.map(x => (x.vector, x.label))
+    val test = trainingDS.map( x => (x.vector, x.label) )
 
-    svm.fit(trainingDS)
+    svm.fit( trainingDS )
 
-    val predictionPairs = svm.evaluate(test)
+    val predictionPairs = svm.evaluate( test )
 
-    val absoluteErrorSum = predictionPairs.collect().map{
-      case (truth, prediction) => Math.abs(truth - prediction)}.sum
+    val absoluteErrorSum = predictionPairs.collect( ).map {
+      case (truth, prediction) => Math.abs( truth - prediction )
+    }.sum
 
     absoluteErrorSum should be < 15.0
   }
@@ -79,25 +108,25 @@ class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
   it should "be possible to get the raw decision function values" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val svm = SVM().
-      setBlocks(env.getParallelism)
-      .setOutputDecisionFunction(false)
+    val svm = SVM( ).
+      setBlocks( env.getParallelism )
+      .setOutputDecisionFunction( false )
 
-    val customWeights = env.fromElements(DenseVector(1.0, 1.0, 1.0))
+    val customWeights = env.fromElements( DenseVector( 1.0, 1.0, 1.0 ) )
 
-    svm.weightsOption = Option(customWeights)
+    svm.weightsOption = Option( customWeights )
 
-    val test = env.fromElements(DenseVector(5.0, 5.0, 5.0))
+    val test = env.fromElements( DenseVector( 5.0, 5.0, 5.0 ) )
 
-    val thresholdedPrediction = svm.predict(test).map(vectorLabel => vectorLabel._2).collect().head
+    val thresholdedPrediction = svm.predict( test ).map( vectorLabel => vectorLabel._2 ).collect( ).head
 
-    thresholdedPrediction should be (1.0 +- 1e-9)
+    thresholdedPrediction should be( 1.0 +- 1e-9 )
 
-    svm.setOutputDecisionFunction(true)
+    svm.setOutputDecisionFunction( true )
 
-    val rawPrediction = svm.predict(test).map(vectorLabel => vectorLabel._2).collect().head
+    val rawPrediction = svm.predict( test ).map( vectorLabel => vectorLabel._2 ).collect( ).head
 
-    rawPrediction should be (15.0 +- 1e-9)
+    rawPrediction should be( 15.0 +- 1e-9 )
 
 
   }
