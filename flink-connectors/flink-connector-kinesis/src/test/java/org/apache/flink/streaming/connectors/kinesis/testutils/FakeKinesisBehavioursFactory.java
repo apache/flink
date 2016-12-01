@@ -25,6 +25,7 @@ import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 
+import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
 import java.util.Date;
 import java.util.HashMap;
@@ -55,6 +56,11 @@ public class FakeKinesisBehavioursFactory {
 
 			@Override
 			public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) {
+				return null;
+			}
+
+			@Override
+			public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nonnull final Date startingTimestamp) {
 				return null;
 			}
 
@@ -187,6 +193,11 @@ public class FakeKinesisBehavioursFactory {
 		}
 
 		@Override
+		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nonnull final Date startingTimestamp) {
+			return "0";
+		}
+
+		@Override
 		public GetShardListResult getShardList(Map<String, String> streamNamesWithLastSeenShardIds) {
 			return null;
 		}
@@ -251,6 +262,11 @@ public class FakeKinesisBehavioursFactory {
 
 		@Override
 		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) {
+			return null;
+		}
+
+		@Override
+		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nonnull final Date startingTimestamp) {
 			return null;
 		}
 

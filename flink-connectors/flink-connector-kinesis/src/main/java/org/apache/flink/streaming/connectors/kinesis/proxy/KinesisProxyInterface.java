@@ -20,6 +20,8 @@ package org.apache.flink.streaming.connectors.kinesis.proxy;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 
+import javax.annotation.Nonnull;
+import java.util.Date;
 import java.util.Map;
 
 /**
@@ -42,6 +44,22 @@ public interface KinesisProxyInterface {
 	 *                              if the backoff is interrupted.
 	 */
 	String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) throws InterruptedException;
+
+	/**
+	 * Get a shard iterator from the specified timestamp in a shard.
+	 * The retrieved shard iterator can be used in {@link KinesisProxyInterface#getRecords(String, int)}}
+	 * to read data from the Kinesis shard.
+	 *
+	 * @param shard the shard to get the iterator
+	 * @param shardIteratorType the iterator type, defining how the shard is to be iterated
+	 *                          (one of: TRIM_HORIZON, LATEST, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER)
+	 * @param startingTimestamp java.util.Date, must be non-null is shardIteratorType is AT_TIMESTAMP
+	 * @return shard iterator which can be used to read data from Kinesis
+	 * @throws InterruptedException this method will retry with backoff if AWS Kinesis complains that the
+	 *                              operation has exceeded the rate limit; this exception will be thrown
+	 *                              if the backoff is interrupted.
+	 */
+	String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nonnull final Date startingTimestamp) throws InterruptedException;
 
 	/**
 	 * Get the next batch of data records using a specific shard iterator

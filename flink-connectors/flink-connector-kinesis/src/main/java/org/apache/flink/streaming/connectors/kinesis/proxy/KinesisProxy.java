@@ -28,12 +28,14 @@ import com.amazonaws.services.kinesis.model.LimitExceededException;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.model.StreamStatus;
 import com.amazonaws.services.kinesis.model.Shard;
+import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -41,6 +43,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Map;
 import java.util.Random;
+import java.util.Date;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -230,13 +233,34 @@ public class KinesisProxy implements KinesisProxyInterface {
 	 */
 	@Override
 	public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nullable String startingSeqNum) throws InterruptedException {
+		GetShardIteratorRequest getShardIteratorRequest = new GetShardIteratorRequest()
+			.withStreamName(shard.getStreamName())
+			.withShardId(shard.getShard().getShardId())
+			.withShardIteratorType(shardIteratorType)
+			.withStartingSequenceNumber(startingSeqNum);
+		return getShardIterator(getShardIteratorRequest);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nonnull final Date startingTimestamp) throws InterruptedException {
+		GetShardIteratorRequest getShardIteratorRequest = new GetShardIteratorRequest()
+			.withStreamName(shard.getStreamName())
+			.withShardId(shard.getShard().getShardId())
+			.withShardIteratorType(shardIteratorType)
+			.withTimestamp(startingTimestamp);
+		return getShardIterator(getShardIteratorRequest);
+	}
+
+	private String getShardIterator(GetShardIteratorRequest getShardIteratorRequest) throws InterruptedException {
 		GetShardIteratorResult getShardIteratorResult = null;
 
 		int attempt = 0;
 		while (attempt <= getShardIteratorMaxAttempts && getShardIteratorResult == null) {
 			try {
-				getShardIteratorResult =
-					kinesisClient.getShardIterator(shard.getStreamName(), shard.getShard().getShardId(), shardIteratorType, startingSeqNum);
+				getShardIteratorResult = kinesisClient.getShardIterator(getShardIteratorRequest);
 			} catch (ProvisionedThroughputExceededException ex) {
 				long backoffMillis = fullJitterBackoff(
 					getShardIteratorBaseBackoffMillis, getShardIteratorMaxBackoffMillis, getShardIteratorExpConstant, attempt++);
