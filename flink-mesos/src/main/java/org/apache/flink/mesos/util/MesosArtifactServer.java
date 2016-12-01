@@ -240,7 +240,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 
 	@Override
 	public synchronized Option<URL> resolve(Path remoteFile) {
-		Option<URL> resolved = Option.apply(paths.getOrDefault(remoteFile, null));
+		Option<URL> resolved = Option.apply(paths.get(remoteFile));
 		return resolved;
 	}
 
