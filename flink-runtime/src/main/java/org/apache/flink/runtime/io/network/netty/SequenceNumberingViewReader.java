@@ -127,4 +127,14 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener {
 			requestQueue.notifyReaderNonEmpty(this);
 		}
 	}
+
+	@Override
+	public String toString() {
+		return "SequenceNumberingViewReader{" +
+			"requestLock=" + requestLock +
+			", receiverId=" + receiverId +
+			", numBuffersAvailable=" + numBuffersAvailable.get() +
+			", sequenceNumber=" + sequenceNumber +
+			'}';
+	}
 }

@@ -26,6 +26,8 @@ import org.apache.flink.runtime.io.disk.iomanager.SynchronousBufferFileReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.util.event.NotificationListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -45,6 +47,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Reads of the spilled file are done in synchronously.
  */
 class SpilledSubpartitionView implements ResultSubpartitionView, NotificationListener {
+
+	private static final Logger LOG = LoggerFactory.getLogger(SpilledSubpartitionView.class);
 
 	/** The subpartition this view belongs to. */
 	private final ResultSubpartition parent;
@@ -91,6 +95,9 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		if (!spillWriter.registerAllRequestsProcessedListener(this)) {
 			isSpillInProgress = false;
 			availabilityListener.notifyBuffersAvailable(numberOfSpilledBuffers);
+			LOG.debug("No spilling in progress. Notified about {} available buffers.", numberOfSpilledBuffers);
+		} else {
+			LOG.debug("Spilling in progress. Waiting with notification about {} available buffers.", numberOfSpilledBuffers);
 		}
 	}
 
@@ -103,6 +110,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	public void onNotification() {
 		isSpillInProgress = false;
 		availabilityListener.notifyBuffersAvailable(numberOfSpilledBuffers);
+		LOG.debug("Finished spilling. Notified about {} available buffers.", numberOfSpilledBuffers);
 	}
 
 	@Override
@@ -158,7 +166,10 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 
 	@Override
 	public String toString() {
-		return String.format("SpilledSubpartitionView[sync](index: %d) of ResultPartition %s", parent.index, parent.parent.getPartitionId());
+		return String.format("SpilledSubpartitionView(index: %d, buffers: {}) of ResultPartition %s",
+			parent.index,
+			numberOfSpilledBuffers,
+			parent.parent.getPartitionId());
 	}
 
 	/**
