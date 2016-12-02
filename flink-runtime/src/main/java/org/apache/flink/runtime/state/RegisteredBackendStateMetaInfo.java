@@ -81,9 +81,9 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 			return false;
 		}
 
-		if (stateType.equals(StateDescriptor.Type.UNKNOWN)
-				|| other.stateType.equals(StateDescriptor.Type.UNKNOWN)
-				|| !stateType.equals(other.stateType)) {
+		if (!stateType.equals(StateDescriptor.Type.UNKNOWN)
+				&& !other.stateType.equals(StateDescriptor.Type.UNKNOWN)
+				&& !stateType.equals(other.stateType)) {
 			return false;
 		}
 
