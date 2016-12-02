@@ -49,6 +49,10 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	private final DatumReader<GenericRecord> datumReader;
 	/** Record to deserialize byte array to */
 	private final GenericRecord record;
+	/** Input stream to read message from */
+	private final MutableByteArrayInputStream inputStream;
+	/** Avro decoder that decodes binary data */
+	private final Decoder decoder;
 
 	/**
 	 * Creates a Avro deserializtion schema for the given type classes.
@@ -63,6 +67,8 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		this.fieldTypes = fieldTypes;
 		this.datumReader = new ReflectDatumReader<>(schema);
 		this.record = new GenericData.Record(schema);
+		this.inputStream = new MutableByteArrayInputStream();
+		this.decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
 	}
 
 	@Override
@@ -72,8 +78,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	}
 
 	private void readRecord(byte[] message) throws IOException {
-		ByteArrayInputStream arrayInputStream =  new ByteArrayInputStream(message);
-		Decoder decoder = DecoderFactory.get().directBinaryDecoder(arrayInputStream, null);
+		inputStream.setBuffer(message);
 		datumReader.read(record, decoder);
 	}
 
@@ -90,5 +95,31 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		}
 
 		return row;
+	}
+
+	/**
+	 * An extension of the ByteArrayInputStream that allows to change a buffer that should be
+	 * read without creating a new ByteArrayInputStream instance. This allows to re-use the same
+	 * InputStream instance, copying message to process, and creation of Decoder on every new message.
+	 */
+	private static final class MutableByteArrayInputStream extends ByteArrayInputStream {
+		/**
+		 * Create MutableByteArrayInputStream
+		 */
+		public MutableByteArrayInputStream() {
+			super(new byte[0]);
+		}
+
+		/**
+		 * Set buffer that can be read via the InputStream interface and reset the input stream.
+		 * This has the same effect as creating a new ByteArrayInputStream with a new buffer.
+		 *
+		 * @param buf the new buffer to read.
+		 */
+		public void setBuffer(byte[] buf) {
+			this.buf = buf;
+			this.pos = 0;
+			this.count = buf.length;
+		}
 	}
 }
