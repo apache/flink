@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.Migration;
 
 @Internal
 @Deprecated
@@ -29,7 +30,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
  * This class is just a KeyGroupsStateHandle that is tagged as migration, to figure out which restore logic to apply,
  * e.g. when restoring backend data from a state handle.
  */
-public class MigrationKeyGroupStateHandle extends KeyGroupsStateHandle {
+public class MigrationKeyGroupStateHandle extends KeyGroupsStateHandle implements Migration {
 
 	private static final long serialVersionUID = -8554427169776881697L;
 
