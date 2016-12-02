@@ -56,7 +56,10 @@ public class EmbeddedNonHaServices extends AbstractNonHaServices implements High
 
 	@Override
 	public void shutdown() throws Exception {
-		super.shutdown();
-		resourceManagerLeaderService.shutdown();
+		try {
+			super.shutdown();
+		} finally {
+			resourceManagerLeaderService.shutdown();
+		}
 	}
 }
