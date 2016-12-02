@@ -24,6 +24,8 @@ import org.apache.flink.api.table.sources.StreamTableSource;
 import org.apache.flink.streaming.connectors.kafka.internals.TypeUtil;
 import org.apache.flink.streaming.util.serialization.AvroRowDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.streaming.util.serialization.GenericRecordToRowConverter;
+import org.apache.flink.streaming.util.serialization.GenericRecordToRowConverterFactory;
 
 import java.util.Properties;
 
@@ -45,15 +47,18 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource {
 	 * @param fieldNames Row field names.
 	 * @param fieldTypes Row field types.
 	 * @param schema     Avro schema.
+	 * @param factory    Avro GenericRecord converter factory.
 	 */
 	KafkaAvroTableSource(
 		String topic,
 		Properties properties,
 		String[] fieldNames,
 		Class<?>[] fieldTypes,
-		Schema schema) {
+		Schema schema,
+		GenericRecordToRowConverterFactory factory) {
 
-		super(topic, properties, createDeserializationSchema(fieldNames, fieldTypes, schema), fieldNames, fieldTypes);
+		super(topic, properties, createDeserializationSchema(fieldNames, fieldTypes, schema, factory),
+			fieldNames, fieldTypes);
 	}
 
 	/**
@@ -64,26 +69,31 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource {
 	 * @param fieldNames Row field names.
 	 * @param fieldTypes Row field types.
 	 * @param schema     Avro schema.
+	 * @param factory    Avro GenericRecord converter factory.
 	 */
 	KafkaAvroTableSource(
 		String topic,
 		Properties properties,
 		String[] fieldNames,
 		TypeInformation<?>[] fieldTypes,
-		Schema schema) {
+		Schema schema,
+		GenericRecordToRowConverterFactory factory) {
 
-		super(topic, properties, createDeserializationSchema(fieldNames, fieldTypes, schema), fieldNames, fieldTypes);
+		super(topic, properties, createDeserializationSchema(fieldNames, fieldTypes, schema, factory),
+			fieldNames, fieldTypes);
 	}
 
 	private static AvroRowDeserializationSchema createDeserializationSchema(
-		String[] fieldNames, TypeInformation<?>[] fieldTypes, Schema schema) {
+		String[] fieldNames, TypeInformation<?>[] fieldTypes, Schema schema, GenericRecordToRowConverterFactory converterFactory) {
 
-		return new AvroRowDeserializationSchema(fieldNames, fieldTypes, schema);
+		GenericRecordToRowConverter converter = converterFactory.create(fieldNames, fieldTypes);
+		return new AvroRowDeserializationSchema(converter, schema);
 	}
 
 	private static AvroRowDeserializationSchema createDeserializationSchema(
-		String[] fieldNames, Class<?>[] fieldTypes, Schema schema) {
+		String[] fieldNames, Class<?>[] fieldTypes, Schema schema, GenericRecordToRowConverterFactory converterFactory) {
 
-		return new AvroRowDeserializationSchema(fieldNames, TypeUtil.toTypeInfo(fieldTypes), schema);
+		GenericRecordToRowConverter converter = converterFactory.create(fieldNames, TypeUtil.toTypeInfo(fieldTypes));
+		return new AvroRowDeserializationSchema(converter, schema);
 	}
 }

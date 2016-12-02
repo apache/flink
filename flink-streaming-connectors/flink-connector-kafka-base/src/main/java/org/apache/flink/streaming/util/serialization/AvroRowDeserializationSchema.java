@@ -23,7 +23,6 @@ import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.table.Row;
 
 import java.io.ByteArrayInputStream;
@@ -39,10 +38,8 @@ import java.io.IOException;
  */
 public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<Row> {
 
-	/** Field names in a row */
-	private final String[] fieldNames;
-	/** Types to parse fields as. Indices match fieldNames indices. */
-	private final TypeInformation[] fieldTypes;
+	/** Converts GenericRecord into a Row instance */
+	private final GenericRecordToRowConverter converter;
 	/** Avro deserialization schema */
 	private final Schema schema;
 	/** Reader that deserializes byte array into a record */
@@ -57,14 +54,12 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	/**
 	 * Creates a Avro deserializtion schema for the given type classes.
 	 *
-	 * @param fieldNames Field names to parse Avro fields as.
-	 * @param fieldTypes Type classes to parse Avro fields as.
+	 * @param converter converter for transforming GenericRecord into a Row instance
 	 * @param schema Avro schema used to deserialize Row record
 	 */
-	public AvroRowDeserializationSchema(String[] fieldNames, TypeInformation<?>[] fieldTypes, Schema schema) {
+	public AvroRowDeserializationSchema(GenericRecordToRowConverter converter, Schema schema) {
+		this.converter = converter;
 		this.schema = schema;
-		this.fieldNames = fieldNames;
-		this.fieldTypes = fieldTypes;
 		this.datumReader = new ReflectDatumReader<>(schema);
 		this.record = new GenericData.Record(schema);
 		this.inputStream = new MutableByteArrayInputStream();
@@ -74,27 +69,12 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	@Override
 	public Row deserialize(byte[] message) throws IOException {
 		readRecord(message);
-		return convertRecordToRow();
+		return converter.convert(record);
 	}
 
 	private void readRecord(byte[] message) throws IOException {
 		inputStream.setBuffer(message);
 		datumReader.read(record, decoder);
-	}
-
-	private Row convertRecordToRow() {
-		Row row = new Row(fieldNames.length);
-
-		for (int i = 0; i < fieldNames.length; i++) {
-			Object val = record.get(fieldNames[i]);
-			// Avro deserializes strings into Utf8 type
-			if (fieldTypes[i].getTypeClass().equals(String.class) && val != null) {
-				val = val.toString();
-			}
-			row.setField(i, val);
-		}
-
-		return row;
 	}
 
 	/**

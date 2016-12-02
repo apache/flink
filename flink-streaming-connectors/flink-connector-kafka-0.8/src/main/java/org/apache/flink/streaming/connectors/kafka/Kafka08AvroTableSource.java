@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.sources.StreamTableSource;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.streaming.util.serialization.GenericRecordToRowConverterFactory;
 
 import java.util.Properties;
 
@@ -39,15 +40,17 @@ public class Kafka08AvroTableSource extends KafkaAvroTableSource {
 	 * @param fieldNames Row field names.
 	 * @param fieldTypes Row field types.
 	 * @param schema     Avro schema.
+	 * @param factory    Avro GenericRecord converter factory.
 	 */
 	public Kafka08AvroTableSource(
 		String topic,
 		Properties properties,
 		String[] fieldNames,
 		TypeInformation<?>[] fieldTypes,
-		Schema schema) {
+		Schema schema,
+		GenericRecordToRowConverterFactory factory) {
 
-		super(topic, properties, fieldNames, fieldTypes, schema);
+		super(topic, properties, fieldNames, fieldTypes, schema, factory);
 	}
 
 	/**
@@ -58,15 +61,17 @@ public class Kafka08AvroTableSource extends KafkaAvroTableSource {
 	 * @param fieldNames Row field names.
 	 * @param fieldTypes Row field types.
 	 * @param schema     Avro schema.
+	 * @param factory    Avro GenericRecord converter factory.
 	 */
 	public Kafka08AvroTableSource(
 		String topic,
 		Properties properties,
 		String[] fieldNames,
 		Class<?>[] fieldTypes,
-		Schema schema) {
+		Schema schema,
+		GenericRecordToRowConverterFactory factory) {
 
-		super(topic, properties, fieldNames, fieldTypes, schema);
+		super(topic, properties, fieldNames, fieldTypes, schema, factory);
 	}
 
 	@Override

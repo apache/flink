@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.streaming.util.serialization.AvroRowDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.AvroRowSerializationSchema;
+import org.apache.flink.streaming.util.serialization.DefaultGenericRecordToRowConverter;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -45,7 +46,7 @@ public class AvroDeserializationSchemaTest {
 		FIELD_NAMES, SCHEMA
 	);
 	private AvroRowDeserializationSchema deserializationSchema = new AvroRowDeserializationSchema(
-		FIELD_NAMES, FIELD_TYPES, SCHEMA
+		new DefaultGenericRecordToRowConverter(FIELD_NAMES, FIELD_TYPES), SCHEMA
 	);
 
 	@Test
@@ -108,7 +109,7 @@ public class AvroDeserializationSchemaTest {
 			fieldNames, schema
 		);
 		AvroRowDeserializationSchema deserializationSchema = new AvroRowDeserializationSchema(
-			fieldNames, fieldTypes, schema
+			new DefaultGenericRecordToRowConverter(fieldNames, fieldTypes), schema
 		);
 
 		byte[] bytes = serializationSchema.serialize(row);
@@ -132,7 +133,7 @@ public class AvroDeserializationSchemaTest {
 			fieldNames, schema
 		);
 		AvroRowDeserializationSchema deserializationSchema = new AvroRowDeserializationSchema(
-			fieldNames, fieldTypes, schema
+			new DefaultGenericRecordToRowConverter(fieldNames, fieldTypes), schema
 		);
 
 		byte[] bytes = serializationSchema.serialize(row);
