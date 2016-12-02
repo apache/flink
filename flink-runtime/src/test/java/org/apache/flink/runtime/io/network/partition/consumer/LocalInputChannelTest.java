@@ -29,8 +29,8 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
-import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -252,6 +252,96 @@ public class LocalInputChannelTest {
 
 		// Should throw an instance of CancelTaskException.
 		ch.getNextBuffer();
+	}
+
+	/**
+	 * Verifies that concurrent release via the SingleInputGate and re-triggering
+	 * of a partition request works smoothly.
+	 *
+	 * - SingleInputGate acquires its request lock and tries to release all
+	 * registered channels. When releasing a channel, it needs to acquire
+	 * the channel's shared request-release lock.
+	 * - If a LocalInputChannel concurrently retriggers a partition request via
+	 * a Timer Thread it acquires the channel's request-release lock and calls
+	 * the retrigger callback on the SingleInputGate, which again tries to
+	 * acquire the gate's request lock.
+	 *
+	 * For certain timings this obviously leads to a deadlock. This test reliably
+	 * reproduced such a timing (reported in FLINK-5228). This test is pretty much
+	 * testing the buggy implementation and has not much more general value. If it
+	 * becomes obsolete at some point (future greatness ;)), feel free to remove it.
+	 *
+	 * The fix in the end was to to not acquire the channels lock when releasing it
+	 * and/or not doing any input gate callbacks while holding the channel's lock.
+	 * I decided to do both.
+	 */
+	@Test
+	public void testConcurrentReleaseAndRetriggerPartitionRequest() throws Exception {
+		final SingleInputGate gate = new SingleInputGate(
+			"test task name",
+			new JobID(),
+			new ExecutionAttemptID(),
+			new IntermediateDataSetID(),
+			0,
+			1,
+			mock(PartitionStateChecker.class),
+			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup()
+		);
+
+		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
+		when(partitionManager
+			.createSubpartitionView(
+				any(ResultPartitionID.class),
+				anyInt(),
+				any(BufferProvider.class),
+				any(BufferAvailabilityListener.class)))
+			.thenAnswer(new Answer<ResultSubpartitionView>() {
+				@Override
+				public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
+					// Sleep here a little to give the releaser Thread
+					// time to acquire the input gate lock. We throw
+					// the Exception to retrigger the request.
+					Thread.sleep(100);
+					throw new PartitionNotFoundException(new ResultPartitionID());
+				}
+			});
+
+		final LocalInputChannel channel = new LocalInputChannel(
+			gate,
+			0,
+			new ResultPartitionID(),
+			partitionManager,
+			new TaskEventDispatcher(),
+			new Tuple2<>(1, 1),
+			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+
+		gate.setInputChannel(new IntermediateResultPartitionID(), channel);
+
+		Thread releaser = new Thread() {
+			@Override
+			public void run() {
+				try {
+					gate.releaseAllResources();
+				} catch (IOException ignored) {
+				}
+			}
+		};
+
+		Thread requester = new Thread() {
+			@Override
+			public void run() {
+				try {
+					channel.requestSubpartition(0);
+				} catch (IOException | InterruptedException ignored) {
+				}
+			}
+		};
+
+		requester.start();
+		releaser.start();
+
+		releaser.join();
+		requester.join();
 	}
 
 	// ---------------------------------------------------------------------------------------------
