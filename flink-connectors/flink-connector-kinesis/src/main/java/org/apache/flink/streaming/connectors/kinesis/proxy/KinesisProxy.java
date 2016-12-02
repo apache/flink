@@ -243,11 +243,19 @@ public class KinesisProxy implements KinesisProxyInterface {
 			case LATEST:
 				break;
 			case AT_TIMESTAMP:
-				getShardIteratorRequest.setTimestamp((Date) startingMarker);
+				if (startingMarker instanceof Date) {
+					getShardIteratorRequest.setTimestamp((Date) startingMarker);
+				} else {
+					throw new IllegalArgumentException("Invalid object given for GetShardIteratorRequest() when ShardIteratorType is AT_TIMESTAMP. Must be a Date object.");
+				}
 				break;
 			case AT_SEQUENCE_NUMBER:
 			case AFTER_SEQUENCE_NUMBER:
-				getShardIteratorRequest.setStartingSequenceNumber((String) startingMarker);
+				if (startingMarker instanceof String) {
+					getShardIteratorRequest.setStartingSequenceNumber((String) startingMarker);
+				} else {
+					throw new IllegalArgumentException("Invalid object given for GetShardIteratorRequest() when ShardIteratorType is AT_SEQUENCE_NUMBER or AFTER_SEQUENCE_NUMBER. Must be a String.");
+				}
 		}
 		return getShardIterator(getShardIteratorRequest);
 	}

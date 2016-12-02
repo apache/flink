@@ -35,9 +35,9 @@ public interface KinesisProxyInterface {
 	 * @param shard the shard to get the iterator
 	 * @param shardIteratorType the iterator type, defining how the shard is to be iterated
 	 *                          (one of: TRIM_HORIZON, LATEST, AT_TIMESTAMP, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER)
-	 * @param startingMarker is null if shardIteratorType is TRIM_HORIZON or LATEST,
-	 *                       is as a timestamp if shardIteratorType is AT_TIMESTAMP,
-	 *                       is as a sequence number if shardIteratorType is AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER
+	 * @param startingMarker should be {@code null} if shardIteratorType is TRIM_HORIZON or LATEST,
+	 *                       should be a {@code Date} value if shardIteratorType is AT_TIMESTAMP,
+	 *                       should be a {@code String} representing the sequence number if shardIteratorType is AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER
 	 * @return shard iterator which can be used to read data from Kinesis
 	 * @throws InterruptedException this method will retry with backoff if AWS Kinesis complains that the
 	 *                              operation has exceeded the rate limit; this exception will be thrown
