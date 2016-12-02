@@ -213,6 +213,12 @@ public class StreamGraphGenerator {
 			streamGraph.setTransformationId(transform.getId(), transform.getUid());
 		}
 		if (transform.getMinResource() != null && transform.getMaxResource() != null) {
+			AbstractStateBackend stateBackend = env.getStateBackend();
+			if (stateBackend != null) {
+				ResourceSpec minStateResource = stateBackend.estimateResource(transform.getMinResource().getStateSize());
+				ResourceSpec maxStateResource = stateBackend.estimateResource(transform.getMaxResource().getStateSize());
+				transform.setResource(transform.getMinResource().merge(minStateResource), transform.getMaxResource().merge(maxStateResource));
+			}
 			streamGraph.setResource(transform.getId(), transform.getMinResource(), transform.getMaxResource());
 		}
 

@@ -26,8 +26,6 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.util.Preconditions;
 
-import static java.util.Objects.requireNonNull;
-
 /**
  * A Stream Sink. This is used for emitting elements from a streaming topology.
  *

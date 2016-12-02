@@ -46,16 +46,16 @@ public class ResourceSpec implements Serializable {
 	private final double cpuCores;
 
 	/** How many java heap memory in mb are needed */
-	private final long heapMemoryInMB;
+	private final int heapMemoryInMB;
 
 	/** How many nio direct memory in mb are needed */
-	private final long directMemoryInMB;
+	private final int directMemoryInMB;
 
 	/** How many native memory in mb are needed */
-	private final long nativeMemoryInMB;
+	private final int nativeMemoryInMB;
 
 	/** How many state size in mb are used */
-	private final long stateSizeInMB;
+	private final int stateSizeInMB;
 
 	/**
 	 * Creates a new ResourceSpec with basic common resources.
@@ -63,7 +63,7 @@ public class ResourceSpec implements Serializable {
 	 * @param cpuCores The number of CPU cores (possibly fractional, i.e., 0.2 cores)
 	 * @param heapMemoryInMB The size of the java heap memory, in megabytes.
 	 */
-	public ResourceSpec(double cpuCores, long heapMemoryInMB) {
+	public ResourceSpec(double cpuCores, int heapMemoryInMB) {
 		this.cpuCores = cpuCores;
 		this.heapMemoryInMB = heapMemoryInMB;
 		this.directMemoryInMB = 0;
@@ -82,10 +82,10 @@ public class ResourceSpec implements Serializable {
 	 */
 	public ResourceSpec(
 			double cpuCores,
-			long heapMemoryInMB,
-			long directMemoryInMB,
-			long nativeMemoryInMB,
-			long stateSizeInMB) {
+			int heapMemoryInMB,
+			int directMemoryInMB,
+			int nativeMemoryInMB,
+			int stateSizeInMB) {
 		this.cpuCores = cpuCores;
 		this.heapMemoryInMB = heapMemoryInMB;
 		this.directMemoryInMB = directMemoryInMB;
@@ -114,19 +114,19 @@ public class ResourceSpec implements Serializable {
 		return this.cpuCores;
 	}
 
-	public long getHeapMemory() {
+	public int getHeapMemory() {
 		return this.heapMemoryInMB;
 	}
 
-	public long getDirectMemory() {
+	public int getDirectMemory() {
 		return this.directMemoryInMB;
 	}
 
-	public long getNativeMemory() {
+	public int getNativeMemory() {
 		return this.nativeMemoryInMB;
 	}
 
-	public long getStateSize() {
+	public int getStateSize() {
 		return this.stateSizeInMB;
 	}
 
@@ -153,10 +153,10 @@ public class ResourceSpec implements Serializable {
 	 */
 	public boolean lessThanOrEqual(@Nonnull ResourceSpec other) {
 		int cmp1 = Double.compare(this.cpuCores, other.cpuCores);
-		int cmp2 = Long.compare(this.heapMemoryInMB, other.heapMemoryInMB);
-		int cmp3 = Long.compare(this.directMemoryInMB, other.directMemoryInMB);
-		int cmp4 = Long.compare(this.nativeMemoryInMB, other.nativeMemoryInMB);
-		int cmp5 = Long.compare(this.stateSizeInMB, other.stateSizeInMB);
+		int cmp2 = Integer.compare(this.heapMemoryInMB, other.heapMemoryInMB);
+		int cmp3 = Integer.compare(this.directMemoryInMB, other.directMemoryInMB);
+		int cmp4 = Integer.compare(this.nativeMemoryInMB, other.nativeMemoryInMB);
+		int cmp5 = Integer.compare(this.stateSizeInMB, other.stateSizeInMB);
 		if (cmp1 <= 0 && cmp2 <= 0 && cmp3 <= 0 && cmp4 <= 0 && cmp5 <= 0) {
 			return true;
 		} else {
