@@ -194,6 +194,11 @@ public class StreamTaskAsyncCheckpointTest {
 		}
 
 		@Override
+		public void discardState() throws Exception {
+			// noop
+		}
+
+		@Override
 		public long getStateSize() {
 			return 0;
 		}

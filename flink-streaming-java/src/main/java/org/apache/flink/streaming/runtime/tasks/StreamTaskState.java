@@ -102,12 +102,24 @@ public class StreamTaskState implements Serializable, Closeable {
 		this.operatorState = null;
 		this.functionState = null;
 		this.kvStates = null;
+
+		Exception discardException = null;
 	
 		if (operatorState != null) {
-			operatorState.discardState();
+			try {
+				operatorState.discardState();
+			} catch (Exception exception) {
+				discardException = new Exception("Could not discard operator state.", exception);
+			}
 		}
 		if (functionState != null) {
-			functionState.discardState();
+			try {
+				functionState.discardState();
+			} catch (Exception exception) {
+				Exception newException = new Exception("Could not discard function state.", exception);
+
+				ExceptionUtils.firstOrSuppressed(newException, discardException);
+			}
 		}
 		if (kvStates != null) {
 			while (kvStates.size() > 0) {
@@ -115,7 +127,13 @@ public class StreamTaskState implements Serializable, Closeable {
 					Iterator<KvStateSnapshot<?, ?, ?, ?, ?>> values = kvStates.values().iterator();
 					while (values.hasNext()) {
 						KvStateSnapshot<?, ?, ?, ?, ?> s = values.next();
-						s.discardState();
+						try {
+							s.discardState();
+						} catch (Exception exception) {
+							Exception newException = new Exception("Could not discard key value state.", exception);
+
+							ExceptionUtils.firstOrSuppressed(newException, discardException);
+						}
 						values.remove();
 					}
 				}
@@ -123,6 +141,10 @@ public class StreamTaskState implements Serializable, Closeable {
 					// fall through the loop
 				}
 			}
+		}
+
+		if(discardException != null) {
+			throw discardException;
 		}
 	}
 

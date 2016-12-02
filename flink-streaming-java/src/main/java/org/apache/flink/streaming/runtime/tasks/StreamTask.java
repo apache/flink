@@ -642,7 +642,24 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				for (int i = 0; i < states.length; i++) {
 					StreamOperator<?> operator = allOperators[i];
 					if (operator != null) {
-						StreamTaskState state = operator.snapshotOperatorState(checkpointId, timestamp);
+						StreamTaskState state;
+						try {
+							state = operator.snapshotOperatorState(checkpointId, timestamp);
+						} catch (Exception exception) {
+							for (int j = 0; j < i; j++) {
+								if (states[j] != null) {
+									try {
+										states[j].discardState();
+									} catch (Exception discardException) {
+										LOG.warn("Could not discard " + j + "th operator state.", discardException);
+									}
+								}
+							}
+
+							throw new Exception("Could not perform the checkpoint for " + i +
+								"th operator in chain.", exception);
+						}
+
 						if (state.getOperatorState() instanceof AsynchronousStateHandle) {
 							hasAsyncStates = true;
 						}
@@ -876,7 +893,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 	// ------------------------------------------------------------------------
 	
-	private static class AsyncCheckpointThread extends Thread implements Closeable {
+	static class AsyncCheckpointThread extends Thread implements Closeable {
 
 		private final StreamTask<?, ?> owner;
 
@@ -900,29 +917,43 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		@Override
 		public void run() {
 			try {
-				for (StreamTaskState state : states) {
+				for (int i = 0; i < states.length; i++) {
+					StreamTaskState state = states[i];
+
 					if (state != null) {
-						if (state.getFunctionState() instanceof AsynchronousStateHandle) {
-							AsynchronousStateHandle<Serializable> asyncState = (AsynchronousStateHandle<Serializable>) state.getFunctionState();
-							state.setFunctionState(asyncState.materialize());
-						}
-						if (state.getOperatorState() instanceof AsynchronousStateHandle) {
-							AsynchronousStateHandle<?> asyncState = (AsynchronousStateHandle<?>) state.getOperatorState();
-							state.setOperatorState(asyncState.materialize());
-						}
-						if (state.getKvStates() != null) {
-							Set<String> keys = state.getKvStates().keySet();
-							HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates = state.getKvStates();
-							for (String key: keys) {
-								if (kvStates.get(key) instanceof AsynchronousKvStateSnapshot) {
-									AsynchronousKvStateSnapshot<?, ?, ?, ?, ?> asyncHandle = (AsynchronousKvStateSnapshot<?, ?, ?, ?, ?>) kvStates.get(key);
-									kvStates.put(key, asyncHandle.materialize());
+						try {
+							if (state.getFunctionState() instanceof AsynchronousStateHandle) {
+								AsynchronousStateHandle<Serializable> asyncState = (AsynchronousStateHandle<Serializable>) state.getFunctionState();
+								state.setFunctionState(asyncState.materialize());
+							}
+							if (state.getOperatorState() instanceof AsynchronousStateHandle) {
+								AsynchronousStateHandle<?> asyncState = (AsynchronousStateHandle<?>) state.getOperatorState();
+								state.setOperatorState(asyncState.materialize());
+							}
+							if (state.getKvStates() != null) {
+								Set<String> keys = state.getKvStates().keySet();
+								HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates = state.getKvStates();
+								for (String key : keys) {
+									if (kvStates.get(key) instanceof AsynchronousKvStateSnapshot) {
+										AsynchronousKvStateSnapshot<?, ?, ?, ?, ?> asyncHandle = (AsynchronousKvStateSnapshot<?, ?, ?, ?, ?>) kvStates.get(key);
+										kvStates.put(key, asyncHandle.materialize());
+									}
 								}
 							}
-						}
+						} catch (Exception exception) {
+							for (int j = 0; j < states.length; j++) {
+								try {
+									states[j].discardState();
+								} catch (Exception discardException) {
+									LOG.warn("Could not discard the " + j + "th operator state.", discardException);
+								}
+							}
 
+							throw new Exception("Could not materialize the " + i + "th operator state.", exception);
+						}
 					}
 				}
+
 				StreamTaskStateList allStates = new StreamTaskStateList(states);
 				owner.lastCheckpointSize = allStates.getStateSize();
 				owner.getEnvironment().acknowledgeCheckpoint(checkpointId, allStates);

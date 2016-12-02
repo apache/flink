@@ -237,21 +237,23 @@ public class PendingCheckpoint {
 					executor.execute(new Runnable() {
 						@Override
 						public void run() {
-							try {
-								for (TaskState taskState: taskStates.values()) {
+							for (TaskState taskState: taskStates.values()) {
+								try {
 									taskState.discard(userClassLoader);
+								} catch (Exception e) {
+									LOG.warn("Could not properly dispose the task state " +
+										"belonging to vertex {} of checkpoint {} and job {}.",
+										taskState.getJobVertexID(), checkpointId, jobId, e);
 								}
-							} catch (Exception e) {
-								LOG.warn("Could not properly dispose the pending checkpoint " +
-									"{} of job {}.", checkpointId, jobId, e);
 							}
+
+							taskStates.clear();
 						}
 					});
 
 				}
 			} finally {
 				discarded = true;
-				taskStates.clear();
 				notYetAcknowledgedTasks.clear();
 				acknowledgedTasks.clear();
 			}

@@ -35,9 +35,4 @@ public abstract class AsynchronousStateHandle<T> implements StateHandle<T> {
 	public final T getState(ClassLoader userCodeClassLoader) throws Exception {
 		throw new UnsupportedOperationException("This must not be called. This is likely an internal bug.");
 	}
-
-	@Override
-	public final void discardState() throws Exception {
-		throw new UnsupportedOperationException("This must not be called. This is likely an internal bug.");
-	}
 }

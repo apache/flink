@@ -43,8 +43,10 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.AsynchronousStateHandle;
 import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
@@ -53,6 +55,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.ExceptionUtils;
@@ -60,6 +63,7 @@ import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
 
+import org.mockito.internal.util.reflection.Whitebox;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -69,12 +73,17 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import static org.junit.Assert.assertEquals;
@@ -189,6 +198,73 @@ public class StreamTaskTest {
 		task.getExecutingThread().join();
 
 		assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+	}
+
+	/**
+	 * Tests that all created StreamTaskStates are properly cleaned up when a snapshotting method
+	 * of an operator fails.
+	 */
+	@Test
+	public void testStateCleanupWhenFailingCheckpoint() throws Exception {
+		final long checkpointId = 1L;
+		final long timestamp = 42L;
+
+		StreamTask<Integer, StreamOperator<Integer>> streamTask = new TestingStreamTask();
+		streamTask.setEnvironment(new DummyEnvironment("test task", 1, 0));
+
+		OperatorChain<Integer> operatorChain = mock(OperatorChain.class);
+
+		StreamOperator<Integer> firstOperator = mock(StreamOperator.class);
+		StreamTaskState firstStreamTaskState = mock(StreamTaskState.class);
+		StreamOperator<Integer> secondOperator = mock(StreamOperator.class);
+
+		doReturn(firstStreamTaskState).when(firstOperator).snapshotOperatorState(anyLong(), anyLong());
+		doThrow(new Exception("Test Exception")).when(secondOperator).snapshotOperatorState(anyLong(), anyLong());
+
+		doReturn(new StreamOperator<?>[]{firstOperator, secondOperator}).when(operatorChain).getAllOperators();
+
+		Whitebox.setInternalState(streamTask, "operatorChain", operatorChain);
+		Whitebox.setInternalState(streamTask, "isRunning", true);
+
+		try {
+			streamTask.triggerCheckpoint(checkpointId, timestamp);
+			fail("Expected exception here.");
+		} catch (Exception expected) {
+			// expected failing trigger checkpoint here
+		}
+
+		verify(firstStreamTaskState).discardState();
+	}
+
+	/**
+	 * Tests that the AsyncCheckpointThread discards the given StreamTaskStates in case a failure
+	 * occurs while materializing the asynchronous state handles.
+	 */
+	@Test
+	public void testAsyncCheckpointThreadStateCleanup() throws Exception {
+		final long checkpointId = 1L;
+		StreamTaskState firstState = mock(StreamTaskState.class);
+		StreamTaskState secondState = mock(StreamTaskState.class);
+		AsynchronousStateHandle<Integer> functionStateHandle = mock(AsynchronousStateHandle.class);
+
+		doReturn(functionStateHandle).when(firstState).getFunctionState();
+		doThrow(new Exception("Test exception")).when(functionStateHandle).materialize();
+
+		StreamTask<Integer, StreamOperator<Integer>> owner = mock(StreamTask.class);
+		StreamTaskState[] states = {firstState, secondState};
+
+		StreamTask.AsyncCheckpointThread asyncCheckpointThread = new StreamTask.AsyncCheckpointThread(
+			"AsyncCheckpointThread",
+			owner,
+			new HashSet<Closeable>(),
+			states,
+			checkpointId);
+
+		asyncCheckpointThread.run();
+
+		for (StreamTaskState streamTaskState : states) {
+			verify(streamTaskState).discardState();
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -487,6 +563,35 @@ public class StreamTaskTest {
 		public void close() {
 			canceled = true;
 			interrupt();
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Testing class for StreamTask methods
+	 */
+	private static class TestingStreamTask extends StreamTask<Integer, StreamOperator<Integer>> {
+
+		@Override
+		protected void init() throws Exception {
+
+		}
+
+		@Override
+		protected void run() throws Exception {
+
+		}
+
+		@Override
+		protected void cleanup() throws Exception {
+
+		}
+
+		@Override
+		protected void cancelTask() throws Exception {
+
 		}
 	}
 }

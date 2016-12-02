@@ -52,11 +52,6 @@ public abstract class AsynchronousKvStateSnapshot<K, N, S extends State, SD exte
 	}
 
 	@Override
-	public void discardState() throws Exception {
-		throw new RuntimeException("This should never be called and probably points to a bug.");
-	}
-
-	@Override
 	public long getStateSize() throws Exception {
 		throw new RuntimeException("This should never be called and probably points to a bug.");
 	}
