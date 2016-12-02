@@ -50,11 +50,9 @@ import static java.util.Objects.requireNonNull;
  * This is used as the base class for operators that have a user-defined
  * function. This class handles the opening and closing of the user-defined functions,
  * as part of the operator life cycle.
- * 
- * @param <OUT>
- *            The output type of the operator
- * @param <F>
- *            The type of the user function
+ *
+ * @param <OUT> The output type of the operator
+ * @param <F>   The type of the user function
  */
 @PublicEvolving
 public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
@@ -63,14 +61,18 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 		StreamCheckpointedOperator {
 
 	private static final long serialVersionUID = 1L;
-	
-	
-	/** the user function */
+
+
+	/**
+	 * the user function
+	 */
 	protected final F userFunction;
-	
-	/** Flag to prevent duplicate function.close() calls in close() and dispose() */
+
+	/**
+	 * Flag to prevent duplicate function.close() calls in close() and dispose()
+	 */
 	private transient boolean functionsClosed = false;
-	
+
 	public AbstractUdfStreamOperator(F userFunction) {
 		this.userFunction = requireNonNull(userFunction);
 		checkUdfCheckpointingPreconditions();
@@ -78,12 +80,13 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 
 	/**
 	 * Gets the user function executed in this operator.
+	 *
 	 * @return The user function of this operator.
 	 */
 	public F getUserFunction() {
 		return userFunction;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  operator life cycle
 	// ------------------------------------------------------------------------
@@ -92,7 +95,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	@Override
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		super.setup(containingTask, config, output);
-		
+
 		FunctionUtils.setFunctionRuntimeContext(userFunction, getRuntimeContext());
 
 	}
@@ -106,7 +109,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 		} else if (userFunction instanceof ListCheckpointed) {
 			@SuppressWarnings("unchecked")
 			List<Serializable> partitionableState = ((ListCheckpointed<Serializable>) userFunction).
-							snapshotState(context.getCheckpointId(), context.getCheckpointTimestamp());
+					snapshotState(context.getCheckpointId(), context.getCheckpointTimestamp());
 
 			ListState<Serializable> listState = getOperatorStateBackend().
 					getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
@@ -117,7 +120,6 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 				listState.add(statePartition);
 			}
 		}
-
 	}
 
 	@Override
@@ -173,7 +175,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	// ------------------------------------------------------------------------
 	//  checkpointing and recovery
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
 		if (userFunction instanceof Checkpointed) {
@@ -192,6 +194,8 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 			} catch (Exception e) {
 				throw new Exception("Failed to draw state snapshot from function: " + e.getMessage(), e);
 			}
+		} else if (userFunction instanceof CheckpointedRestoring) {
+			out.write(0);
 		}
 	}
 
@@ -202,7 +206,6 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 			CheckpointedRestoring<Serializable> chkFunction = (CheckpointedRestoring<Serializable>) userFunction;
 
 			int hasUdfState = in.read();
-
 			if (hasUdfState == 1) {
 				Serializable functionState = InstantiationUtil.deserializeObject(in, getUserCodeClassloader());
 				if (functionState != null) {
@@ -244,10 +247,9 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	// ------------------------------------------------------------------------
 
 	/**
-	 * 
 	 * Since the streaming API does not implement any parametrization of functions via a
 	 * configuration, the config returned here is actually empty.
-	 * 
+	 *
 	 * @return The user function parameters (currently empty)
 	 */
 	public Configuration getUserFunctionParameters() {
