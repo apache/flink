@@ -180,6 +180,6 @@ are very important configuration values.
 
 You can easily deploy Flink on your existing __YARN cluster__.
 
-1. Download the __Flink Hadoop2 package__: [Flink with Hadoop 2]({{site.FLINK_DOWNLOAD_URL_HADOOP2_STABLE}})
+1. Download the __Flink Hadoop2 package__ from the [downloads page](https://flink.apache.org/downloads.html)
 2. Make sure your __HADOOP_HOME__ (or _YARN_CONF_DIR_ or _HADOOP_CONF_DIR_) __environment variable__ is set to read your YARN and HDFS configuration.
 3. Run the __YARN client__ with: `./bin/yarn-session.sh`. You can run the client with options `-n 10 -tm 8192` to allocate 10 TaskManagers with 8GB of memory each.
