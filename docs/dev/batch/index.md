@@ -3,7 +3,7 @@ title: "Flink DataSet API Programming Guide"
 nav-id: batch
 nav-title: Batch (DataSet API)
 nav-parent_id: dev
-nav-pos: 70
+nav-pos: 30
 nav-show_overview: true
 ---
 <!--
@@ -780,7 +780,7 @@ is not supported by the API out-of-the-box. To use this feature, you should use 
 </div>
 </div>
 
-The [parallelism]({{ site.baseurl }}/dev/api_concepts.html#parallel-execution) of a transformation can be defined by `setParallelism(int)` while
+The [parallelism]({{ site.baseurl }}/dev/parallel) of a transformation can be defined by `setParallelism(int)` while
 `name(String)` assigns a custom name to a transformation which is helpful for debugging. The same is
 possible for [Data Sources](#data-sources) and [Data Sinks](#data-sinks).
 

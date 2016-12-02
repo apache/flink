@@ -1,7 +1,7 @@
 ---
 title: "Best Practices"
-nav-parent_id: monitoring
-nav-pos: 5
+nav-parent_id: dev
+nav-pos: 90
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -179,96 +179,6 @@ public static class CustomType extends Tuple11<String, String, ..., String> {
     // constructor matching super
 }
 ~~~
-
-
-## Register a custom serializer for your Flink program
-
-If you use a custom type in your Flink program which cannot be serialized by the
-Flink type serializer, Flink falls back to using the generic Kryo
-serializer. You may register your own serializer or a serialization system like
-Google Protobuf or Apache Thrift with Kryo. To do that, simply register the type
-class and the serializer in the `ExecutionConfig` of your Flink program.
-
-
-{% highlight java %}
-final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-// register the class of the serializer as serializer for a type
-env.getConfig().registerTypeWithKryoSerializer(MyCustomType.class, MyCustomSerializer.class);
-
-// register an instance as serializer for a type
-MySerializer mySerializer = new MySerializer();
-env.getConfig().registerTypeWithKryoSerializer(MyCustomType.class, mySerializer);
-{% endhighlight %}
-
-Note that your custom serializer has to extend Kryo's Serializer class. In the
-case of Google Protobuf or Apache Thrift, this has already been done for
-you:
-
-{% highlight java %}
-
-final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-// register the Google Protobuf serializer with Kryo
-env.getConfig().registerTypeWithKryoSerializer(MyCustomType.class, ProtobufSerializer.class);
-
-// register the serializer included with Apache Thrift as the standard serializer
-// TBaseSerializer states it should be initialized as a default Kryo serializer
-env.getConfig().addDefaultKryoSerializer(MyCustomType.class, TBaseSerializer.class);
-
-{% endhighlight %}
-
-For the above example to work, you need to include the necessary dependencies in
-your Maven project file (pom.xml). In the dependency section, add the following
-for Apache Thrift:
-
-{% highlight xml %}
-
-<dependency>
-	<groupId>com.twitter</groupId>
-	<artifactId>chill-thrift</artifactId>
-	<version>0.5.2</version>
-</dependency>
-<!-- libthrift is required by chill-thrift -->
-<dependency>
-	<groupId>org.apache.thrift</groupId>
-	<artifactId>libthrift</artifactId>
-	<version>0.6.1</version>
-	<exclusions>
-		<exclusion>
-			<groupId>javax.servlet</groupId>
-			<artifactId>servlet-api</artifactId>
-		</exclusion>
-		<exclusion>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpclient</artifactId>
-		</exclusion>
-	</exclusions>
-</dependency>
-
-{% endhighlight %}
-
-For Google Protobuf you need the following Maven dependency:
-
-{% highlight xml %}
-
-<dependency>
-	<groupId>com.twitter</groupId>
-	<artifactId>chill-protobuf</artifactId>
-	<version>0.5.2</version>
-</dependency>
-<!-- We need protobuf for chill-protobuf -->
-<dependency>
-	<groupId>com.google.protobuf</groupId>
-	<artifactId>protobuf-java</artifactId>
-	<version>2.5.0</version>
-</dependency>
-
-{% endhighlight %}
-
-
-Please adjust the versions of both libraries as needed.
-
 
 ## Using Logback instead of Log4j
 

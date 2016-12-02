@@ -1,7 +1,9 @@
 ---
 title: "Flink DataStream API Programming Guide"
 nav-title: Streaming (DataStream API)
+nav-id: streaming
 nav-parent_id: dev
+nav-show_overview: true
 nav-pos: 10
 ---
 <!--
@@ -1609,7 +1611,7 @@ Execution Parameters
 
 The `StreamExecutionEnvironment` contains the `ExecutionConfig` which allows to set job specific configuration values for the runtime.
 
-Please refer to [execution configuration]({{ site.baseurl }}/dev/api_concepts.html#execution-configuration)
+Please refer to [execution configuration]({{ site.baseurl }}/dev/execution_configuration)
 for an explanation of most parameters. These parameters pertain specifically to the DataStream API:
 
 - `enableTimestamps()` / **`disableTimestamps()`**: Attach a timestamp to each event emitted from a source.
