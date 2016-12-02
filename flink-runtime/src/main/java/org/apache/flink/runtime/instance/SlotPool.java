@@ -93,8 +93,6 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 	// ------------------------------------------------------------------------
 
-	private final Object lock = new Object();
-
 	private final JobID jobId;
 
 	private final ProviderAndOwner providerAndOwner;
@@ -110,6 +108,9 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 	/** All pending requests waiting for slots */
 	private final HashMap<AllocationID, PendingRequest> pendingRequests;
+
+	/** The requests that are waiting for the resource manager to be connected */
+	private final HashMap<AllocationID, PendingRequest> waitingForResourceManager;
 
 	/** Timeout for request calls to the ResourceManager */
 	private final Time resourceManagerRequestsTimeout;
@@ -154,6 +155,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 		this.allocatedSlots = new AllocatedSlots();
 		this.availableSlots = new AvailableSlots();
 		this.pendingRequests = new HashMap<>();
+		this.waitingForResourceManager = new HashMap<>();
 
 		this.providerAndOwner = new ProviderAndOwner(getSelf(), slotRequestTimeout);
 	}
@@ -239,6 +241,14 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 	public void connectToResourceManager(UUID resourceManagerLeaderId, ResourceManagerGateway resourceManagerGateway) {
 		this.resourceManagerLeaderId = checkNotNull(resourceManagerLeaderId);
 		this.resourceManagerGateway = checkNotNull(resourceManagerGateway);
+
+		// work on all slots waiting for this connection
+		for (PendingRequest pending : waitingForResourceManager.values()) {
+			requestSlotFromResourceManager(pending.allocationID(), pending.future(), pending.resourceProfile());
+		}
+
+		// all sent off
+		waitingForResourceManager.clear();
 	}
 
 	@RpcMethod
@@ -279,16 +289,27 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 			return FlinkCompletableFuture.completed(slot);
 		}
 
-		// (2) no slot available, and no resource manager connection
+		// the request will be completed by a future
+		final AllocationID allocationID = new AllocationID();
+		final FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
+
+		// (2) need to request a slot
+
 		if (resourceManagerGateway == null) {
-			return FlinkCompletableFuture.completedExceptionally(
-					new NoResourceAvailableException("not connected to ResourceManager and no slot available"));
-			
+			// no slot available, and no resource manager connection
+			stashRequestWaitingForResourceManager(allocationID, resources, future);
+		} else {
+			// we have a resource manager connection, so let's ask it for more resources
+			requestSlotFromResourceManager(allocationID, future, resources);
 		}
 
-		// (3) we have a resource manager connection, so let's ask it for more resources
-		final FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
-		final AllocationID allocationID = new AllocationID();
+		return future;
+	}
+
+	private void requestSlotFromResourceManager(
+			final AllocationID allocationID,
+			final FlinkCompletableFuture<SimpleSlot> future,
+			final ResourceProfile resources) {
 
 		LOG.info("Requesting slot with profile {} from resource manager (request = {}).", resources, allocationID);
 
@@ -333,8 +354,6 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 				return null;
 			}
 		}, getMainThreadExecutor());
-
-		return future;
 	}
 
 	private void slotRequestToResourceManagerSuccess(final AllocationID allocationID) {
@@ -360,6 +379,32 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 		PendingRequest request = pendingRequests.remove(allocationID);
 		if (request != null && !request.future().isDone()) {
 			request.future().completeExceptionally(new TimeoutException("Slot allocation request timed out"));
+		}
+	}
+
+	private void stashRequestWaitingForResourceManager(
+			final AllocationID allocationID,
+			final ResourceProfile resources,
+			final FlinkCompletableFuture<SimpleSlot> future) {
+
+		LOG.info("Cannot serve slot request, no ResourceManager connected. " +
+				"Adding as pending request {}",  allocationID);
+
+		waitingForResourceManager.put(allocationID, new PendingRequest(allocationID, future, resources));
+
+		scheduleRunAsync(new Runnable() {
+			@Override
+			public void run() {
+				checkTimeoutRequestWaitingForResourceManager(allocationID);
+			}
+		}, resourceManagerRequestsTimeout);
+	}
+
+	private void checkTimeoutRequestWaitingForResourceManager(AllocationID allocationID) {
+		PendingRequest request = waitingForResourceManager.remove(allocationID);
+		if (request != null && !request.future().isDone()) {
+			request.future().completeExceptionally(new NoResourceAvailableException(
+					"No slot available and no connection to Resource Manager established."));
 		}
 	}
 
@@ -407,9 +452,18 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 	private PendingRequest pollMatchingPendingRequest(final AllocatedSlot slot) {
 		final ResourceProfile slotResources = slot.getResourceProfile();
 
+		// try the requests sent to the resource manager first
 		for (PendingRequest request : pendingRequests.values()) {
 			if (slotResources.isMatching(request.resourceProfile())) {
 				pendingRequests.remove(request.allocationID());
+				return request;
+			}
+		}
+
+		// try the requests waiting for a resource manager connection next
+		for (PendingRequest request : waitingForResourceManager.values()) {
+			if (slotResources.isMatching(request.resourceProfile())) {
+				waitingForResourceManager.remove(request.allocationID());
 				return request;
 			}
 		}
