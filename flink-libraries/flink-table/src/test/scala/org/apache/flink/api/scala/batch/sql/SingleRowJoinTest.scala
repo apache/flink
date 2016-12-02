@@ -48,20 +48,23 @@ class SingleRowJoinTest extends TableTestBase {
               "DataSetUnion",
               unaryNode(
                 "DataSetValues",
-                batchTableNode(0),
-                tuples(List(null, null)),
-                term("values", "a1", "a2")
+                unaryNode(
+                  "DataSetCalc",
+                  batchTableNode(0),
+                  term("select", "a1")
+                ),
+                tuples(List(null)),
+                term("values", "a1")
               ),
-              term("union","a1","a2")
+              term("union","a1")
             ),
             term("select", "COUNT(a1) AS cnt")
           ),
-          term("where", "true"),
+          term("where", "=(CAST(a1), cnt)"),
           term("join", "a1", "a2", "cnt"),
           term("joinType", "NestedLoopJoin")
         ),
-        term("select", "a1", "a2"),
-        term("where", "=(CAST(a1), cnt)")
+        term("select", "a1", "a2")
       )
 
     util.verifySql(query, expected)
@@ -89,20 +92,23 @@ class SingleRowJoinTest extends TableTestBase {
               "DataSetUnion",
               unaryNode(
                 "DataSetValues",
-                batchTableNode(0),
-                tuples(List(null, null)),
-                term("values", "a1", "a2")
+                unaryNode(
+                  "DataSetCalc",
+                  batchTableNode(0),
+                  term("select", "a1")
+                ),
+                tuples(List(null)),
+                term("values", "a1")
               ),
-              term("union","a1","a2")
+              term("union", "a1")
             ),
             term("select", "COUNT(a1) AS cnt")
           ),
-          term("where", "true"),
+          term("where", "<(a1, cnt)"),
           term("join", "a1", "a2", "cnt"),
           term("joinType", "NestedLoopJoin")
         ),
-        term("select", "a1", "a2"),
-        term("where", "<(a1, cnt)")
+        term("select", "a1", "a2")
       )
 
     util.verifySql(query, expected)
