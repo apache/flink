@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework.types;
 
 import javax.annotation.Nonnull;
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * Describe the resource profile of the slot, either when requiring or offering it. The profile can be
@@ -36,7 +37,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 
 	private static final long serialVersionUID = 1L;
 
-	public static final ResourceProfile UNKNOWN = new ResourceProfile(-1.0, -1L, -1L, -1L);
+	public static final ResourceProfile UNKNOWN = new ResourceProfile(-1.0, -1, -1, -1);
 
 	// ------------------------------------------------------------------------
 
@@ -44,13 +45,13 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	private final double cpuCores;
 
 	/** How many heap memory in mb are needed */
-	private final long heapMemoryInMB;
+	private final int heapMemoryInMB;
 
 	/** How many direct memory in mb are needed */
-	private final long directMemoryInMB;
+	private final int directMemoryInMB;
 
 	/** How many native memory in mb are needed */
-	private final long nativeMemoryInMB;
+	private final int nativeMemoryInMB;
 
 	// ------------------------------------------------------------------------
 
@@ -62,7 +63,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	 * @param directMemoryInMB The size of the direct memory, in megabytes.
 	 * @param nativeMemoryInMB The size of the native memory, in megabytes.
 	 */
-	public ResourceProfile(double cpuCores, long heapMemoryInMB, long directMemoryInMB, long nativeMemoryInMB) {
+	public ResourceProfile(double cpuCores, int heapMemoryInMB, int directMemoryInMB, int nativeMemoryInMB) {
 		this.cpuCores = cpuCores;
 		this.heapMemoryInMB = heapMemoryInMB;
 		this.directMemoryInMB = directMemoryInMB;
@@ -75,7 +76,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	 * @param cpuCores The number of CPU cores (possibly fractional, i.e., 0.2 cores)
 	 * @param heapMemoryInMB The size of the heap memory, in megabytes.
 	 */
-	public ResourceProfile(double cpuCores, long heapMemoryInMB) {
+	public ResourceProfile(double cpuCores, int heapMemoryInMB) {
 		this.cpuCores = cpuCores;
 		this.heapMemoryInMB = heapMemoryInMB;
 		this.directMemoryInMB = 0;
@@ -108,7 +109,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	 * Get the heap memory needed in MB
 	 * @return The heap memory in MB
 	 */
-	public long getHeapMemoryInMB() {
+	public int getHeapMemoryInMB() {
 		return heapMemoryInMB;
 	}
 
@@ -116,7 +117,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	 * Get the direct memory needed in MB
 	 * @return The direct memory in MB
 	 */
-	public long getDirectMemoryInMB() {
+	public int getDirectMemoryInMB() {
 		return directMemoryInMB;
 	}
 
@@ -124,7 +125,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	 * Get the native memory needed in MB
 	 * @return The native memory in MB
 	 */
-	public long getNativeMemoryInMB() {
+	public int getNativeMemoryInMB() {
 		return nativeMemoryInMB;
 	}
 
@@ -143,7 +144,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 
 	@Override
 	public int compareTo(@Nonnull ResourceProfile other) {
-		int cmp1 = Long.compare(this.heapMemoryInMB + this.directMemoryInMB + this.nativeMemoryInMB,
+		int cmp1 = Integer.compare(this.heapMemoryInMB + this.directMemoryInMB + this.nativeMemoryInMB,
 			other.heapMemoryInMB + other.directMemoryInMB + other.nativeMemoryInMB);
 		int cmp2 = Double.compare(this.cpuCores, other.cpuCores);
 		return (cmp1 != 0) ? cmp1 : cmp2; 
@@ -153,11 +154,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 
 	@Override
 	public int hashCode() {
-		long cpuBits = Double.doubleToRawLongBits(cpuCores);
-		return (int) (cpuBits ^ (cpuBits >>> 32) ^
-			heapMemoryInMB ^ (heapMemoryInMB >> 32) ^
-			directMemoryInMB ^ (directMemoryInMB >> 32) ^
-			nativeMemoryInMB ^ (nativeMemoryInMB >> 32));
+		return Objects.hash(cpuCores, heapMemoryInMB, directMemoryInMB, nativeMemoryInMB);
 	}
 
 	@Override
