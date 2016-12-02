@@ -34,7 +34,7 @@ import static org.mockito.Mockito.verify;
 public abstract class KafkaTableSourceTestBase {
 
 	private static final String TOPIC = "testTopic";
-	private static final String[] FIELD_NAMES = new String[] { "long", "string", "boolean", "double", "missing-field" };
+	private static final String[] FIELD_NAMES = new String[] { "long", "string", "boolean", "double", "missingField" };
 	private static final TypeInformation<?>[] FIELD_TYPES = new TypeInformation<?>[] {
 		BasicTypeInfo.LONG_TYPE_INFO,
 		BasicTypeInfo.STRING_TYPE_INFO,
