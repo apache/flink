@@ -18,12 +18,13 @@
 
 package org.apache.flink.api.common.io;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.Path;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -37,13 +38,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileInputSplit;
-import org.apache.flink.core.fs.Path;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class DelimitedInputFormatTest {
 	
@@ -198,6 +198,30 @@ public class DelimitedInputFormatTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testReadCustomDelimiterWithCharset() throws IOException {
+		// Unicode row fragments
+		String[] records = new String[]{"\u020e\u021f\u05c0\u020b\u020f", "Apache", "\nFlink", "\u0000", "\u05c0"};
+
+		// Unicode delimiter
+		String delimiter = "\u05c0\u05c0";
+
+		String myString = StringUtils.join(records, delimiter);
+		final FileInputSplit split = createTempFile(myString);
+
+		format.setDelimiter(delimiter);
+		format.configure(new Configuration());
+		format.open(split);
+
+		for (String record : records) {
+			String value = format.nextRecord(null);
+			assertEquals(record, value);
+		}
+
+		assertNull(format.nextRecord(null));
+		assertTrue(format.reachedEnd());
 	}
 
 	/**

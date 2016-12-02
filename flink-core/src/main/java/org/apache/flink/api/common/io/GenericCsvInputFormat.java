@@ -25,7 +25,6 @@ import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.StringParser;
 import org.apache.flink.types.parser.StringValueParser;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,10 +44,6 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	
 	
 	private static final Logger LOG = LoggerFactory.getLogger(GenericCsvInputFormat.class);
-
-	// The charset used to convert strings to bytes; stored as String since
-	// since java.nio.charset.Charset is not serializable
-	private String charsetName = "UTF-8";
 
 	private static final Class<?>[] EMPTY_TYPES = new Class<?>[0];
 	
@@ -271,30 +266,6 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
 		this.fieldTypes = types.toArray(new Class<?>[types.size()]);
 		this.fieldIncluded = includedMask;
-	}
-
-	/**
-	 * Get the name of the character set used for the comment string, field
-	 * delimiter, and {@link FieldParser}.
-	 *
-	 * @return name of the charset
-	 */
-	public String getCharset() {
-		return this.charsetName;
-	}
-
-	/**
-	 * Set the name of the character set used for the comment string, field
-	 * delimiter, and {@link FieldParser}.
-	 *
-	 * The comment string and delimiter are interpreted when set. Each
-	 * {@link FieldParser} is configured in {@link #open(FileInputSplit)}.
-	 * Changing the charset thereafter may cause unexpected results.
-	 *
-	 * @param charset name of the charset
-	 */
-	public void setCharset(String charset) {
-		this.charsetName = Preconditions.checkNotNull(charset);
 	}
 
 	// --------------------------------------------------------------------------------------------

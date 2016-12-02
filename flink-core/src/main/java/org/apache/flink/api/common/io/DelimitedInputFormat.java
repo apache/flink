@@ -20,17 +20,18 @@ package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.types.parser.FieldParser;
+import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -56,8 +57,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	 */
 	private static final Logger LOG = LoggerFactory.getLogger(DelimitedInputFormat.class);
 
-	/** The default charset  to convert strings to bytes */
-	private static final Charset UTF_8_CHARSET = Charset.forName("UTF-8");
+	// The charset used to convert strings to bytes; stored as String since
+	// since java.nio.charset.Charset is not serializable
+	protected String charsetName = "UTF-8";
 
 	/**
 	 * The default read buffer size = 1MB.
@@ -182,8 +184,31 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		}
 		loadConfigParameters(configuration);
 	}
-	
-	
+
+	/**
+	 * Get the name of the character set used for the row delimiter, field
+	 * delimiter, comment string, and {@link FieldParser}.
+	 *
+	 * @return name of the charset
+	 */
+	public String getCharset() {
+		return this.charsetName;
+	}
+
+	/**
+	 * Set the name of the character set used for the row delimiter, field
+	 * delimiter, comment string, and {@link FieldParser}.
+	 *
+	 * The delimeters and comment string are interpreted when set. Each
+	 * {@link FieldParser} is configured in {@link #open(FileInputSplit)}.
+	 * Changing the charset thereafter may cause unexpected results.
+	 *
+	 * @param charset name of the charset
+	 */
+	public void setCharset(String charset) {
+		this.charsetName = Preconditions.checkNotNull(charset);
+	}
+
 	public byte[] getDelimiter() {
 		return delimiter;
 	}
@@ -203,7 +228,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		if (delimiter == null) {
 			throw new IllegalArgumentException("Delimiter must not be null");
 		}
-		this.delimiter = delimiter.getBytes(UTF_8_CHARSET);
+		this.delimiter = delimiter.getBytes(Charset.forName(charsetName));
 	}
 	
 	public int getLineLengthLimit() {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.io;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
@@ -551,14 +552,12 @@ public class GenericCsvInputFormatTest {
 	@Test
 	public void testReadWithCharset() throws IOException {
 		// Unicode row fragments
-		String prefix = "\u020e\u021f";
-		String stem = "Flink";
-		String postfix = "\u020b\u020f";
+		String[] records = new String[]{"\u020e\u021f", "Flink", "\u020b\u020f"};
 
 		// Unicode delimiter
 		String delimiter = "\u05c0";
 
-		String fileContent = prefix + delimiter + stem + delimiter + postfix;
+		String fileContent = StringUtils.join(records, delimiter);
 
 		// StringValueParser is not configurable with a Charset so rely on StringParser
 		GenericCsvInputFormat<String[]> format = new GenericCsvInputFormat<String[]>() {
@@ -593,9 +592,9 @@ public class GenericCsvInputFormatTest {
 
 			// validate results
 			assertNotNull(values);
-			assertEquals(prefix, values[0]);
-			assertEquals(stem, values[1]);
-			assertEquals(postfix, values[2]);
+			for (int i = 0 ; i < records.length ; i++) {
+				assertEquals(records[i], values[i]);
+			}
 
 			assertNull(format.nextRecord(values));
 			assertTrue(format.reachedEnd());
