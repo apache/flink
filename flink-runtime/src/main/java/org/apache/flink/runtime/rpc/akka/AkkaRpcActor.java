@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -180,8 +181,19 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 				if (rpcMethod.getReturnType().equals(Void.TYPE)) {
 					// No return value to send back
 					rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());
-				} else {
-					Object result = rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());
+				}
+				else {
+					final Object result;
+					try {
+						result = rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());
+					}
+					catch (InvocationTargetException e) {
+						LOG.trace("Reporting back error thrown in remote procedure {}", rpcMethod, e);
+
+						// tell the sender about the failure
+						getSender().tell(new Status.Failure(e.getTargetException()), getSelf());
+						return;
+					}
 
 					if (result instanceof Future) {
 						final Future<?> future = (Future<?>) result;
