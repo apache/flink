@@ -695,7 +695,6 @@ public class CheckpointCoordinator {
 
 				switch (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getState(), message.getStateSize(), null)) {
 					case SUCCESS:
-
 						if (checkpoint.isFullyAcknowledged()) {
 							completePendingCheckpoint(checkpoint);
 							
@@ -1114,16 +1113,17 @@ public class CheckpointCoordinator {
 	}
 
 	private void discardState(final SerializedValue<StateHandle<?>> stateObject) {
-
-		executor.execute(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					stateObject.deserializeValue(userClassLoader).discardState();
-				} catch (Exception e) {
-					LOG.warn("Could not properly discard state object.", e);
+		if (stateObject != null) {
+			executor.execute(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						stateObject.deserializeValue(userClassLoader).discardState();
+					} catch (Exception e) {
+						LOG.warn("Could not properly discard state object.", e);
+					}
 				}
-			}
-		});
+			});
+		}
 	}
 }
