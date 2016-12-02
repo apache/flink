@@ -78,4 +78,11 @@ public class OperatorSnapshotResult {
 	public void setOperatorStateRawFuture(RunnableFuture<OperatorStateHandle> operatorStateRawFuture) {
 		this.operatorStateRawFuture = operatorStateRawFuture;
 	}
+
+	public void cancel() {
+		getKeyedStateManagedFuture().cancel(true);
+		getOperatorStateManagedFuture().cancel(true);
+		getKeyedStateRawFuture().cancel(true);
+		getOperatorStateRawFuture().cancel(true);
+	}
 }
