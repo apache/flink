@@ -1497,15 +1497,5 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		public int hashCode() {
 			return 0;
 		}
-
-		@Override
-		public int getVersion() {
-			return -1;
-		}
-
-		@Override
-		public String getCanonicalClassName() {
-			return StringSerializer.class.getCanonicalName();
-		}
 	};
 }

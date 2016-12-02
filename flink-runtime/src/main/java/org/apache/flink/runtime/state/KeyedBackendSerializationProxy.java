@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
 import org.apache.flink.core.io.IOReadableWritable;
@@ -79,7 +80,7 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 
 		for (StateMetaInfo<?, ?> kvState : namedStateSerializationProxies) {
 			kvState.write(out);
-			kVStateToId.put(kvState.getName(), kVStateToId.size());
+			kVStateToId.put(kvState.getStateName(), kVStateToId.size());
 		}
 	}
 
@@ -107,7 +108,8 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 	 */
 	public static class StateMetaInfo<N, S> implements IOReadableWritable {
 
-		private String name;
+		private StateDescriptor.Type stateType;
+		private String stateName;
 		private TypeSerializerSerializationProxy<N> namespaceSerializerSerializationProxy;
 		private TypeSerializerSerializationProxy<S> stateSerializerSerializationProxy;
 
@@ -118,19 +120,31 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		}
 
 		public StateMetaInfo(
-				String name, TypeSerializer<N> namespaceSerializer, TypeSerializer<S> stateSerializer) {
+				StateDescriptor.Type stateType,
+				String name,
+				TypeSerializer<N> namespaceSerializer,
+				TypeSerializer<S> stateSerializer) {
 
-			this.name = Preconditions.checkNotNull(name);
+			this.stateType = Preconditions.checkNotNull(stateType);
+			this.stateName = Preconditions.checkNotNull(name);
 			this.namespaceSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(Preconditions.checkNotNull(namespaceSerializer));
 			this.stateSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(Preconditions.checkNotNull(stateSerializer));
 		}
 
-		public String getName() {
-			return name;
+		public StateDescriptor.Type getStateType() {
+			return stateType;
 		}
 
-		public void setName(String name) {
-			this.name = name;
+		public void setStateType(StateDescriptor.Type stateType) {
+			this.stateType = stateType;
+		}
+
+		public String getStateName() {
+			return stateName;
+		}
+
+		public void setStateName(String stateName) {
+			this.stateName = stateName;
 		}
 
 		public TypeSerializerSerializationProxy<N> getNamespaceSerializerSerializationProxy() {
@@ -151,7 +165,8 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 
 		@Override
 		public void write(DataOutputView out) throws IOException {
-			out.writeUTF(getName());
+			out.writeInt(getStateType().ordinal());
+			out.writeUTF(getStateName());
 
 			getNamespaceSerializerSerializationProxy().write(out);
 			getStateSerializerSerializationProxy().write(out);
@@ -159,7 +174,9 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 
 		@Override
 		public void read(DataInputView in) throws IOException {
-			setName(in.readUTF());
+			int enumOrdinal = in.readInt();
+			setStateType(StateDescriptor.Type.values()[enumOrdinal]);
+			setStateName(in.readUTF());
 
 			namespaceSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(userClassLoader);
 			namespaceSerializerSerializationProxy.read(in);
@@ -180,7 +197,7 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 
 			StateMetaInfo<?, ?> that = (StateMetaInfo<?, ?>) o;
 
-			if (!getName().equals(that.getName())) {
+			if (!getStateName().equals(that.getStateName())) {
 				return false;
 			}
 
@@ -193,7 +210,7 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 
 		@Override
 		public int hashCode() {
-			int result = getName().hashCode();
+			int result = getStateName().hashCode();
 			result = 31 * result + getNamespaceSerializerSerializationProxy().hashCode();
 			result = 31 * result + getStateSerializerSerializationProxy().hashCode();
 			return result;

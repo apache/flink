@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWritable {
 
@@ -38,29 +39,24 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 
 	private TypeSerializer<T> typeSerializer;
 
-	private String typeSerializerClassName;
-	private int typeSerializerVersion;
+	private boolean ignoreClassNotFound;
+
+	public TypeSerializerSerializationProxy(ClassLoader userClassLoader, boolean ignoreClassNotFound) {
+		this.userClassLoader = userClassLoader;
+		this.ignoreClassNotFound = ignoreClassNotFound;
+	}
 
 	public TypeSerializerSerializationProxy(ClassLoader userClassLoader) {
-		this.userClassLoader = userClassLoader;
+		this(userClassLoader, false);
 	}
 
 	public TypeSerializerSerializationProxy(TypeSerializer<T> typeSerializer) {
 		this.typeSerializer = Preconditions.checkNotNull(typeSerializer);
-		this.typeSerializerVersion = typeSerializer.getVersion();
-		this.typeSerializerClassName = typeSerializer.getCanonicalClassName();
+		this.ignoreClassNotFound = false;
 	}
 
 	public TypeSerializer<T> getTypeSerializer() {
 		return typeSerializer;
-	}
-
-	public String getTypeSerializerClassName() {
-		return typeSerializerClassName;
-	}
-
-	public int getTypeSerializerVersion() {
-		return typeSerializerVersion;
 	}
 
 	@Override
@@ -71,9 +67,6 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 	@Override
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
-
-		out.writeUTF(typeSerializerClassName);
-		out.writeInt(typeSerializerVersion);
 
 		if (typeSerializer instanceof ClassNotFoundDummyTypeSerializer) {
 			ClassNotFoundDummyTypeSerializer<T> dummyTypeSerializer =
@@ -96,9 +89,6 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
 
-		this.typeSerializerClassName = in.readUTF();
-		this.typeSerializerVersion = in.readInt();
-
 		// read in a way that allows the stream to recover from exceptions
 		int serializerBytes = in.readInt();
 		byte[] buffer = new byte[serializerBytes];
@@ -106,11 +96,15 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 		try {
 			typeSerializer = InstantiationUtil.deserializeObject(buffer, userClassLoader);
 		} catch (ClassNotFoundException e) {
-			// we create a dummy so that all the information is not lost when we get a new checkpoint before receiving
-			// a proper typeserializer from the user
-			typeSerializer =
-					new ClassNotFoundDummyTypeSerializer<>(typeSerializerClassName, typeSerializerVersion, buffer);
-			LOG.warn("Could not find requested TypeSerializer class in classpath. Created dummy.", e);
+			if (ignoreClassNotFound) {
+				// we create a dummy so that all the information is not lost when we get a new checkpoint before receiving
+				// a proper typeserializer from the user
+				typeSerializer =
+						new ClassNotFoundDummyTypeSerializer<>(buffer);
+				LOG.warn("Could not find requested TypeSerializer class in classpath. Created dummy.", e);
+			} else {
+				throw new IOException("Missing class for type serializer.", e);
+			}
 		}
 	}
 
@@ -119,23 +113,27 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 		if (this == o) {
 			return true;
 		}
+
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
 
 		TypeSerializerSerializationProxy<?> that = (TypeSerializerSerializationProxy<?>) o;
 
-		if (getTypeSerializerVersion() != that.getTypeSerializerVersion()) {
-			return false;
-		}
-		return getTypeSerializerClassName().equals(that.getTypeSerializerClassName());
+		return getTypeSerializer() != null ? getTypeSerializer().equals(that.getTypeSerializer()) : that.getTypeSerializer() == null;
 	}
 
 	@Override
 	public int hashCode() {
-		int result = getTypeSerializerClassName().hashCode();
-		result = 31 * result + getTypeSerializerVersion();
-		return result;
+		return getTypeSerializer() != null ? getTypeSerializer().hashCode() : 0;
+	}
+
+	public boolean isIgnoreClassNotFound() {
+		return ignoreClassNotFound;
+	}
+
+	public void setIgnoreClassNotFound(boolean ignoreClassNotFound) {
+		this.ignoreClassNotFound = ignoreClassNotFound;
 	}
 
 	/**
@@ -144,24 +142,11 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 	 */
 	static final class ClassNotFoundDummyTypeSerializer<T> extends TypeSerializer<T> {
 
-		private final String actualCanonicalClassName;
-		private final int actualVersion;
+		private static final long serialVersionUID = 2526330533671642711L;
 		private final byte[] actualBytes;
 
-		public ClassNotFoundDummyTypeSerializer(
-				String actualCanonicalClassName, int actualVersion, byte[] actualBytes) {
-
-			this.actualCanonicalClassName = Preconditions.checkNotNull(actualCanonicalClassName);
+		public ClassNotFoundDummyTypeSerializer(byte[] actualBytes) {
 			this.actualBytes = Preconditions.checkNotNull(actualBytes);
-			this.actualVersion = actualVersion;
-		}
-
-		public String getActualCanonicalClassName() {
-			return actualCanonicalClassName;
-		}
-
-		public int getActualVersion() {
-			return actualVersion;
 		}
 
 		public byte[] getActualBytes() {
@@ -220,17 +205,7 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 
 		@Override
 		public boolean canEqual(Object obj) {
-			throw new UnsupportedOperationException("This object is a dummy TypeSerializer.");
-		}
-
-		@Override
-		public int getVersion() {
-			return getActualVersion();
-		}
-
-		@Override
-		public String getCanonicalClassName() {
-			return actualCanonicalClassName;
+			return false;
 		}
 
 		@Override
@@ -238,23 +213,19 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 			if (this == o) {
 				return true;
 			}
+
 			if (o == null || getClass() != o.getClass()) {
 				return false;
 			}
 
 			ClassNotFoundDummyTypeSerializer<?> that = (ClassNotFoundDummyTypeSerializer<?>) o;
 
-			if (actualVersion != that.actualVersion) {
-				return false;
-			}
-			return actualCanonicalClassName.equals(that.actualCanonicalClassName);
+			return Arrays.equals(getActualBytes(), that.getActualBytes());
 		}
 
 		@Override
 		public int hashCode() {
-			int result = actualCanonicalClassName.hashCode();
-			result = 31 * result + actualVersion;
-			return result;
+			return Arrays.hashCode(getActualBytes());
 		}
 	}
 }

@@ -135,7 +135,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) stateTables.get(name);
 
 		RegisteredBackendStateMetaInfo<N, V> newMetaInfo =
-				new RegisteredBackendStateMetaInfo<>(name, namespaceSerializer, stateDesc.getSerializer());
+				new RegisteredBackendStateMetaInfo<>(stateDesc.getType(), name, namespaceSerializer, stateDesc.getSerializer());
 
 		return tryRegisterStateTable(stateTable, newMetaInfo);
 	}
@@ -156,8 +156,6 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return stateTable;
 	}
 
-
-
 	@SuppressWarnings("unchecked")
 	@Override
 	public <N, V> ValueState<V> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<V> stateDesc) throws Exception {
@@ -172,7 +170,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		StateTable<K, N, ArrayList<T>> stateTable = (StateTable<K, N, ArrayList<T>>) stateTables.get(name);
 
 		RegisteredBackendStateMetaInfo<N, ArrayList<T>> newMetaInfo =
-				new RegisteredBackendStateMetaInfo<>(name, namespaceSerializer, new ArrayListSerializer<>(stateDesc.getSerializer()));
+				new RegisteredBackendStateMetaInfo<>(stateDesc.getType(), name, namespaceSerializer, new ArrayListSerializer<>(stateDesc.getSerializer()));
 
 		stateTable = tryRegisterStateTable(stateTable, newMetaInfo);
 		return new HeapListState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
@@ -222,6 +220,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				RegisteredBackendStateMetaInfo<?, ?> metaInfo = kvState.getValue().getMetaInfo();
 				KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoProxy = new KeyedBackendSerializationProxy.StateMetaInfo(
+						metaInfo.getStateType(),
 						metaInfo.getName(),
 						metaInfo.getNamespaceSerializer(),
 						metaInfo.getStateSerializer());
@@ -311,7 +310,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				for (KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoSerializationProxy : metaInfoList) {
 
-					StateTable<K, ?, ?> stateTable = stateTables.get(metaInfoSerializationProxy.getName());
+					StateTable<K, ?, ?> stateTable = stateTables.get(metaInfoSerializationProxy.getStateName());
 
 					//important: only create a new table we did not already create it previously
 					if (null == stateTable) {
@@ -320,8 +319,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 								new RegisteredBackendStateMetaInfo<>(metaInfoSerializationProxy);
 
 						stateTable = new StateTable<>(registeredBackendStateMetaInfo, keyGroupRange);
-						stateTables.put(metaInfoSerializationProxy.getName(), stateTable);
-						kvStatesById.put(numRegisteredKvStates, metaInfoSerializationProxy.getName());
+						stateTables.put(metaInfoSerializationProxy.getStateName(), stateTable);
+						kvStatesById.put(numRegisteredKvStates, metaInfoSerializationProxy.getStateName());
 						++numRegisteredKvStates;
 					}
 				}
@@ -447,7 +446,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 
 			RegisteredBackendStateMetaInfo<?, ?> registeredBackendStateMetaInfo =
-					new RegisteredBackendStateMetaInfo<>(nameToState.getKey(), namespaceSerializer, stateSerializer);
+					new RegisteredBackendStateMetaInfo<>(
+							StateDescriptor.Type.UNKNOWN,
+							nameToState.getKey(),
+							namespaceSerializer,
+							stateSerializer);
 
 			StateTable<K, ?, ?> stateTable = new StateTable<>(registeredBackendStateMetaInfo, keyGroupRange);
 			stateTable.getState().set(0, rawResultMap);

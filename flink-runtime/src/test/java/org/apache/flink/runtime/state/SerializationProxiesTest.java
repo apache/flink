@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -44,11 +45,11 @@ public class SerializationProxiesTest {
 		List<KeyedBackendSerializationProxy.StateMetaInfo<?, ?>> stateMetaInfoList = new ArrayList<>();
 
 		stateMetaInfoList.add(
-				new KeyedBackendSerializationProxy.StateMetaInfo<>("a", namespaceSerializer, stateSerializer));
+				new KeyedBackendSerializationProxy.StateMetaInfo<>(StateDescriptor.Type.VALUE, "a", namespaceSerializer, stateSerializer));
 		stateMetaInfoList.add(
-				new KeyedBackendSerializationProxy.StateMetaInfo<>("b", namespaceSerializer, stateSerializer));
+				new KeyedBackendSerializationProxy.StateMetaInfo<>(StateDescriptor.Type.VALUE, "b", namespaceSerializer, stateSerializer));
 		stateMetaInfoList.add(
-				new KeyedBackendSerializationProxy.StateMetaInfo<>("c", namespaceSerializer, stateSerializer));
+				new KeyedBackendSerializationProxy.StateMetaInfo<>(StateDescriptor.Type.VALUE, "c", namespaceSerializer, stateSerializer));
 
 		KeyedBackendSerializationProxy serializationProxy =
 				new KeyedBackendSerializationProxy(keySerializer, stateMetaInfoList);
@@ -79,7 +80,7 @@ public class SerializationProxiesTest {
 		TypeSerializer<?> stateSerializer = DoubleSerializer.INSTANCE;
 
 		KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfo =
-				new KeyedBackendSerializationProxy.StateMetaInfo<>(name, namespaceSerializer, stateSerializer);
+				new KeyedBackendSerializationProxy.StateMetaInfo<>(StateDescriptor.Type.VALUE, name, namespaceSerializer, stateSerializer);
 
 		byte[] serialized;
 		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
@@ -93,22 +94,6 @@ public class SerializationProxiesTest {
 			metaInfo.read(new DataInputViewStreamWrapper(in));
 		}
 
-		Assert.assertEquals(name, metaInfo.getName());
-
-		Assert.assertEquals(
-				namespaceSerializer.getCanonicalClassName(),
-				metaInfo.getNamespaceSerializerSerializationProxy().getTypeSerializerClassName());
-
-		Assert.assertEquals(
-				stateSerializer.getCanonicalClassName(),
-				metaInfo.getStateSerializerSerializationProxy().getTypeSerializerClassName());
-
-		Assert.assertEquals(
-				namespaceSerializer.getVersion(),
-				metaInfo.getNamespaceSerializerSerializationProxy().getVersion());
-
-		Assert.assertEquals(
-				stateSerializer.getVersion(),
-				metaInfo.getStateSerializerSerializationProxy().getVersion());
+		Assert.assertEquals(name, metaInfo.getStateName());
 	}
 }

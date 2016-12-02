@@ -271,6 +271,7 @@ public class QueryableStateClientTest {
 						new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null);
 
 				RegisteredBackendStateMetaInfo<VoidNamespace, Integer> registeredBackendStateMetaInfo = new RegisteredBackendStateMetaInfo<>(
+						descriptor.getType(),
 						descriptor.getName(),
 						VoidNamespaceSerializer.INSTANCE,
 						IntSerializer.INSTANCE);

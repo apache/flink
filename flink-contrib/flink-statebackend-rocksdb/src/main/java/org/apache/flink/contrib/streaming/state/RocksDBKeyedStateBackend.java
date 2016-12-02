@@ -513,6 +513,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoProxy =
 						new KeyedBackendSerializationProxy.StateMetaInfo<>(
+								metaInfo.getStateType(),
 								metaInfo.getName(),
 								metaInfo.getNamespaceSerializer(),
 								metaInfo.getStateSerializer());
@@ -720,11 +721,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			for (KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoProxy : metaInfoProxyList) {
 				Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>> columnFamily =
-						rocksDBKeyedStateBackend.kvStateInformation.get(metaInfoProxy.getName());
+						rocksDBKeyedStateBackend.kvStateInformation.get(metaInfoProxy.getStateName());
 
 				if (null == columnFamily) {
 					ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(
-							metaInfoProxy.getName().getBytes(), rocksDBKeyedStateBackend.columnOptions);
+							metaInfoProxy.getStateName().getBytes(), rocksDBKeyedStateBackend.columnOptions);
 
 					RegisteredBackendStateMetaInfo<?, ?> stateMetaInfo =
 							new RegisteredBackendStateMetaInfo<>(metaInfoProxy);
@@ -804,6 +805,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				kvStateInformation.get(descriptor.getName());
 
 		RegisteredBackendStateMetaInfo<N, S> newMetaInfo = new RegisteredBackendStateMetaInfo<>(
+				descriptor.getType(),
 				descriptor.getName(),
 				namespaceSerializer,
 				descriptor.getSerializer());

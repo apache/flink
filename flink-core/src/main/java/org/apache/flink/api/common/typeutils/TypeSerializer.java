@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.io.Versioned;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -37,10 +36,9 @@ import java.io.Serializable;
  * @param <T> The data type that the serializer serializes.
  */
 @PublicEvolving
-public abstract class TypeSerializer<T> implements Versioned, Serializable {
+public abstract class TypeSerializer<T> implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
-	private static final int VERSION = 1;
 
 	// --------------------------------------------------------------------------------------------
 	// General information about the type and the serializer
@@ -163,25 +161,7 @@ public abstract class TypeSerializer<T> implements Versioned, Serializable {
 
 	public abstract int hashCode();
 
-	@Override
-	public int getVersion() {
-		return VERSION;
-	}
-
-	public String getCanonicalClassName() {
-		return getClass().getCanonicalName();
-	}
-
 	public boolean isCompatibleWith(TypeSerializer<?> other) {
-
-		if (this == other) {
-			return true;
-		}
-
-		if (null == other) {
-			return false;
-		}
-
-		return getCanonicalClassName().equals(other.getCanonicalClassName()) && getVersion() == other.getVersion();
+		return equals(other);
 	}
 }

@@ -126,4 +126,9 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
 				", reduceFunction=" + reduceFunction +
 				'}';
 	}
+
+	@Override
+	public Type getType() {
+		return Type.REDUCING;
+	}
 }

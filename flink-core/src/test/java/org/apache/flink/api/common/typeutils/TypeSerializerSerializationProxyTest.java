@@ -27,8 +27,11 @@ import org.apache.flink.util.InstantiationUtil;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+
+import static org.junit.Assert.fail;
 
 public class TypeSerializerSerializationProxyTest {
 
@@ -51,8 +54,6 @@ public class TypeSerializerSerializationProxyTest {
 			proxy.read(new DataInputViewStreamWrapper(in));
 		}
 
-		Assert.assertEquals(serializer.getCanonicalClassName(), proxy.getTypeSerializerClassName());
-		Assert.assertEquals(serializer.getVersion(), proxy.getTypeSerializerVersion());
 		Assert.assertEquals(serializer, proxy.getTypeSerializer());
 	}
 
@@ -73,14 +74,21 @@ public class TypeSerializerSerializationProxyTest {
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			proxy.read(new DataInputViewStreamWrapper(in));
+			fail("ClassNotFoundException expected, leading to IOException");
+		} catch (IOException expected) {
+
 		}
 
-		Assert.assertEquals(serializer.getCanonicalClassName(), proxy.getTypeSerializerClassName());
-		Assert.assertEquals(serializer.getVersion(), proxy.getTypeSerializerVersion());
+		proxy = new TypeSerializerSerializationProxy<>(new URLClassLoader(new URL[0], null), true);
+
+		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
+			proxy.read(new DataInputViewStreamWrapper(in));
+		}
+
 		Assert.assertTrue(proxy.getTypeSerializer() instanceof TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer);
 
 		Assert.assertArrayEquals(
 				InstantiationUtil.serializeObject(serializer),
-				((TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer) proxy.getTypeSerializer()).getActualBytes());
+				((TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer<?>) proxy.getTypeSerializer()).getActualBytes());
 	}
 }

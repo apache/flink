@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.Preconditions;
 
@@ -30,20 +31,32 @@ import org.apache.flink.util.Preconditions;
  */
 public class RegisteredBackendStateMetaInfo<N, S> {
 
+	private final StateDescriptor.Type stateType;
 	private final String name;
 	private final TypeSerializer<N> namespaceSerializer;
 	private final TypeSerializer<S> stateSerializer;
 
 	public RegisteredBackendStateMetaInfo(KeyedBackendSerializationProxy.StateMetaInfo<N, S> metaInfoProxy) {
-		this.name = metaInfoProxy.getName();
+		this.stateType = metaInfoProxy.getStateType();
+		this.name = metaInfoProxy.getStateName();
 		this.namespaceSerializer = metaInfoProxy.getNamespaceSerializerSerializationProxy().getTypeSerializer();
 		this.stateSerializer = metaInfoProxy.getStateSerializerSerializationProxy().getTypeSerializer();
 	}
 
-	public RegisteredBackendStateMetaInfo(String name, TypeSerializer<N> namespaceSerializer, TypeSerializer<S> stateSerializer) {
+	public RegisteredBackendStateMetaInfo(
+			StateDescriptor.Type stateType,
+			String name,
+			TypeSerializer<N> namespaceSerializer,
+			TypeSerializer<S> stateSerializer) {
+
+		this.stateType = Preconditions.checkNotNull(stateType);
 		this.name = Preconditions.checkNotNull(name);
 		this.namespaceSerializer = namespaceSerializer;
 		this.stateSerializer = stateSerializer;
+	}
+
+	public StateDescriptor.Type getStateType() {
+		return stateType;
 	}
 
 	public String getName() {
@@ -68,6 +81,12 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 			return false;
 		}
 
+		if (stateType.equals(StateDescriptor.Type.UNKNOWN)
+				|| other.stateType.equals(StateDescriptor.Type.UNKNOWN)
+				|| !stateType.equals(other.stateType)) {
+			return false;
+		}
+
 		if (!name.equals(other.getName())) {
 			return false;
 		}
@@ -88,6 +107,10 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 
 		RegisteredBackendStateMetaInfo<?, ?> that = (RegisteredBackendStateMetaInfo<?, ?>) o;
 
+		if (!stateType.equals(that.stateType)) {
+			return false;
+		}
+
 		if (!getName().equals(that.getName())) {
 			return false;
 		}
@@ -101,6 +124,7 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 	@Override
 	public int hashCode() {
 		int result = getName().hashCode();
+		result = 31 * result + getStateType().hashCode();
 		result = 31 * result + (getNamespaceSerializer() != null ? getNamespaceSerializer().hashCode() : 0);
 		result = 31 * result + (getStateSerializer() != null ? getStateSerializer().hashCode() : 0);
 		return result;
