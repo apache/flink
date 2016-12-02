@@ -50,7 +50,7 @@ public class SavepointStore {
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointStore.class);
 
 	/** Magic number for sanity checks against stored savepoints. */
-	private static final int MAGIC_NUMBER = 0x4960672d;
+	public static final int MAGIC_NUMBER = 0x4960672d;
 
 	/** Prefix for savepoint files. */
 	private static final String prefix = "savepoint-";
@@ -125,7 +125,7 @@ public class SavepointStore {
 	 * @return The loaded savepoint
 	 * @throws Exception Failures during load are forwared
 	 */
-	public static Savepoint loadSavepoint(String path) throws IOException {
+	public static Savepoint loadSavepoint(String path, ClassLoader userClassLoader) throws IOException {
 		Preconditions.checkNotNull(path, "Path");
 
 		try (DataInputStream dis = new DataInputViewStreamWrapper(createFsInputStream(new Path(path)))) {
@@ -135,7 +135,7 @@ public class SavepointStore {
 				int version = dis.readInt();
 
 				SavepointSerializer<?> serializer = SavepointSerializers.getSerializer(version);
-				return serializer.deserialize(dis);
+				return serializer.deserialize(dis, userClassLoader);
 			} else {
 				throw new RuntimeException("Unexpected magic number. This is most likely " +
 						"caused by trying to load a Flink 1.0 savepoint. You cannot load a " +

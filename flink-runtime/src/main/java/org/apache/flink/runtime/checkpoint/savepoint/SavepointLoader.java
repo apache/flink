@@ -46,6 +46,7 @@ public class SavepointLoader {
 	 * @param jobId          The JobID of the job to load the savepoint for.
 	 * @param tasks          Tasks that will possibly be reset
 	 * @param savepointPath  The path of the savepoint to rollback to
+	 * @param userClassLoader The user code classloader
 	 * @param allowNonRestoredState Allow to skip checkpoint state that cannot be mapped
 	 * to any job vertex in tasks.
 	 *
@@ -56,10 +57,11 @@ public class SavepointLoader {
 			JobID jobId,
 			Map<JobVertexID, ExecutionJobVertex> tasks,
 			String savepointPath,
+			ClassLoader userClassLoader,
 			boolean allowNonRestoredState) throws IOException {
 
 		// (1) load the savepoint
-		Savepoint savepoint = SavepointStore.loadSavepoint(savepointPath);
+		Savepoint savepoint = SavepointStore.loadSavepoint(savepointPath, userClassLoader);
 		final Map<JobVertexID, TaskState> taskStates = new HashMap<>(savepoint.getTaskStates().size());
 
 		// (2) validate it (parallelism, etc)
