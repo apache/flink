@@ -884,19 +884,29 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private MergeIterator currentSubIterator;
 
+		private static final List<Comparator<MergeIterator>> COMPARATORS;
+
+		static {
+			int maxBytes = 4;
+			COMPARATORS = new ArrayList<>(maxBytes);
+			for (int i = 0; i < maxBytes; ++i) {
+				final int currentBytes = i;
+				COMPARATORS.add(new Comparator<MergeIterator>() {
+					@Override
+					public int compare(MergeIterator o1, MergeIterator o2) {
+						int arrayCmpRes = compareKeyGroupsForByteArrays(
+								o1.currentKey, o2.currentKey, currentBytes);
+						return arrayCmpRes == 0 ? o1.getKvStateId() - o2.getKvStateId() : arrayCmpRes;
+					}
+				});
+			}
+		}
+
 		RocksDBMergeIterator(List<Tuple2<RocksIterator, Integer>> kvStateIterators, final int keyGroupPrefixByteCount) {
 			Preconditions.checkNotNull(kvStateIterators);
 			this.keyGroupPrefixByteCount = keyGroupPrefixByteCount;
 
-			//TODO make 2 static final variants
-			Comparator<MergeIterator> iteratorComparator = new Comparator<MergeIterator>() {
-				@Override
-				public int compare(MergeIterator o1, MergeIterator o2) {
-					int arrayCmpRes = compareKeyGroupsForByteArrays(
-							o1.currentKey, o2.currentKey, keyGroupPrefixByteCount);
-					return arrayCmpRes == 0 ? o1.getKvStateId() - o2.getKvStateId() : arrayCmpRes;
-				}
-			};
+			Comparator<MergeIterator> iteratorComparator = COMPARATORS.get(keyGroupPrefixByteCount);
 
 			if (kvStateIterators.size() > 0) {
 				this.heap = new PriorityQueue<>(kvStateIterators.size(), iteratorComparator);
