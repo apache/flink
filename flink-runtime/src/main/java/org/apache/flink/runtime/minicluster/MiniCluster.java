@@ -525,6 +525,7 @@ public class MiniCluster {
 			RpcService[] taskManagerRpcServices) throws Exception {
 
 		final TaskManagerRunner[] taskManagerRunners = new TaskManagerRunner[numTaskManagers];
+		final boolean localCommunication = numTaskManagers == 1;
 
 		for (int i = 0; i < numTaskManagers; i++) {
 			taskManagerRunners[i] = new TaskManagerRunner(
@@ -532,7 +533,8 @@ public class MiniCluster {
 				new ResourceID(UUID.randomUUID().toString()),
 				taskManagerRpcServices[i],
 				haServices,
-				metricRegistry);
+				metricRegistry,
+				localCommunication);
 
 			taskManagerRunners[i].start();
 		}

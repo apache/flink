@@ -66,11 +66,22 @@ public class TaskManagerRunner implements FatalErrorHandler {
 	private final TaskExecutor taskManager;
 
 	public TaskManagerRunner(
+			Configuration configuration,
+			ResourceID resourceID,
+			RpcService rpcService,
+			HighAvailabilityServices highAvailabilityServices,
+			MetricRegistry metricRegistry) throws Exception {
+
+		this(configuration, resourceID, rpcService, highAvailabilityServices, metricRegistry, false);
+	}
+
+	public TaskManagerRunner(
 		Configuration configuration,
 		ResourceID resourceID,
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices,
-		MetricRegistry metricRegistry) throws Exception {
+		MetricRegistry metricRegistry,
+		boolean localCommunicationOnly) throws Exception {
 
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.resourceID = Preconditions.checkNotNull(resourceID);
@@ -80,10 +91,11 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 		InetAddress remoteAddress = InetAddress.getByName(rpcService.getAddress());
 
-		TaskManagerServicesConfiguration taskManagerServicesConfiguration = TaskManagerServicesConfiguration.fromConfiguration(
-			configuration,
-			remoteAddress,
-			false);
+		TaskManagerServicesConfiguration taskManagerServicesConfiguration = 
+				TaskManagerServicesConfiguration.fromConfiguration(
+						configuration,
+						remoteAddress,
+						localCommunicationOnly);
 
 		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
 			taskManagerServicesConfiguration,
