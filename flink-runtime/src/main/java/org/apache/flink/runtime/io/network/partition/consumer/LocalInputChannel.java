@@ -48,7 +48,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
 	// ------------------------------------------------------------------------
 
-	private final Object requestReleaseLock = new Object();
+	private final Object requestLock = new Object();
 
 	/** The local partition manager. */
 	private final ResultPartitionManager partitionManager;
@@ -99,9 +99,12 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
 	@Override
 	void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
+
+		boolean retriggerRequest = false;
+
 		// The lock is required to request only once in the presence of retriggered requests.
-		synchronized (requestReleaseLock) {
-			checkState(!isReleased, "released");
+		synchronized (requestLock) {
+			checkState(!isReleased, "LocalInputChannel has been released already");
 
 			if (subpartitionView == null) {
 				LOG.debug("{}: Requesting LOCAL subpartition {} of partition {}.",
@@ -125,12 +128,19 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 					}
 				} catch (PartitionNotFoundException notFound) {
 					if (increaseBackoff()) {
-						inputGate.retriggerPartitionRequest(partitionId.getPartitionId());
+						retriggerRequest = true;
 					} else {
 						throw notFound;
 					}
 				}
 			}
+		}
+
+		// Do this outside of the lock scope as this might lead to a
+		// deadlock with a concurrent release of the channel via the
+		// input gate.
+		if (retriggerRequest) {
+			inputGate.retriggerPartitionRequest(partitionId.getPartitionId());
 		}
 	}
 
@@ -138,7 +148,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	 * Retriggers a subpartition request.
 	 */
 	void retriggerSubpartitionRequest(Timer timer, final int subpartitionIndex) {
-		synchronized (requestReleaseLock) {
+		synchronized (requestLock) {
 			checkState(subpartitionView == null, "already requested partition");
 
 			timer.schedule(new TimerTask() {
@@ -193,7 +203,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		// synchronizing on the request lock means this blocks until the asynchronous request
 		// for the partition view has been completed
 		// by then the subpartition view is visible or the channel is released
-		synchronized (requestReleaseLock) {
+		synchronized (requestLock) {
 			checkState(!isReleased, "released");
 			checkState(subpartitionView != null, "Queried for a buffer before requesting the subpartition.");
 			return subpartitionView;
@@ -231,19 +241,17 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	}
 
 	/**
-	 * Releases the look ahead {@link Buffer} instance and discards the queue
-	 * iterator.
+	 * Releases the partition reader
 	 */
 	@Override
 	void releaseAllResources() throws IOException {
-		synchronized (requestReleaseLock) {
-			if (!isReleased) {
-				isReleased = true;
+		if (!isReleased) {
+			isReleased = true;
 
-				if (subpartitionView != null) {
-					subpartitionView.releaseAllResources();
-					subpartitionView = null;
-				}
+			ResultSubpartitionView view = subpartitionView;
+			if (view != null) {
+				view.releaseAllResources();
+				subpartitionView = null;
 			}
 		}
 	}
