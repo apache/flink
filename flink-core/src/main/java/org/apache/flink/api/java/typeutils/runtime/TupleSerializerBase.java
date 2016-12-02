@@ -113,4 +113,31 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	public boolean canEqual(Object obj) {
 		return obj instanceof TupleSerializerBase;
 	}
+
+	@Override
+	public boolean isCompatibleWith(TypeSerializer<?> other) {
+
+		if (this == other) {
+			return true;
+		}
+
+		if (super.isCompatibleWith(other)) {
+			if (other instanceof TupleSerializerBase) {
+				TypeSerializer<Object>[] otherFieldSerializers = ((TupleSerializerBase<?>) other).fieldSerializers;
+
+				if (fieldSerializers.length != otherFieldSerializers.length) {
+					return false;
+				}
+
+				for (int i = 0; i < fieldSerializers.length; ++i) {
+					if (!fieldSerializers[i].isCompatibleWith(otherFieldSerializers[i])) {
+						return false;
+					}
+				}
+
+				return true;
+			}
+		}
+		return false;
+	}
 }
