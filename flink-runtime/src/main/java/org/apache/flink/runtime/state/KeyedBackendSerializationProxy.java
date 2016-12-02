@@ -113,7 +113,7 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 
 		private ClassLoader userClassLoader;
 
-		private StateMetaInfo(ClassLoader userClassLoader) {
+		StateMetaInfo(ClassLoader userClassLoader) {
 			this.userClassLoader = Preconditions.checkNotNull(userClassLoader);
 		}
 
@@ -166,6 +166,37 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 
 			stateSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(userClassLoader);
 			stateSerializerSerializationProxy.read(in);
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+
+			StateMetaInfo<?, ?> that = (StateMetaInfo<?, ?>) o;
+
+			if (!getName().equals(that.getName())) {
+				return false;
+			}
+
+			if (!getNamespaceSerializerSerializationProxy().equals(that.getNamespaceSerializerSerializationProxy())) {
+				return false;
+			}
+
+			return getStateSerializerSerializationProxy().equals(that.getStateSerializerSerializationProxy());
+		}
+
+		@Override
+		public int hashCode() {
+			int result = getName().hashCode();
+			result = 31 * result + getNamespaceSerializerSerializationProxy().hashCode();
+			result = 31 * result + getStateSerializerSerializationProxy().hashCode();
+			return result;
 		}
 	}
 }

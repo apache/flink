@@ -26,6 +26,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -125,26 +126,42 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	// ------------------------------------------------------------------------
 	//  state backend operations
 	// ------------------------------------------------------------------------
+
 	@SuppressWarnings("unchecked")
-	@Override
-	public <N, V> ValueState<V> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<V> stateDesc) throws Exception {
+	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
+			TypeSerializer<N> namespaceSerializer, StateDescriptor<?, V> stateDesc) {
+
 		String name = stateDesc.getName();
 		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) stateTables.get(name);
 
 		RegisteredBackendStateMetaInfo<N, V> newMetaInfo =
 				new RegisteredBackendStateMetaInfo<>(name, namespaceSerializer, stateDesc.getSerializer());
 
+		return tryRegisterStateTable(stateTable, newMetaInfo);
+	}
+
+	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
+			StateTable<K, N, V> stateTable, RegisteredBackendStateMetaInfo<N, V> newMetaInfo) {
+
 		if (stateTable == null) {
 			stateTable = new StateTable<>(newMetaInfo, keyGroupRange);
-			stateTables.put(stateDesc.getName(), stateTable);
+			stateTables.put(newMetaInfo.getName(), stateTable);
 		} else {
 			if (!newMetaInfo.isCompatibleWith(stateTable.getMetaInfo())) {
-				throw new RuntimeException("Trying to access state using wrong meta info, was " +
+				throw new RuntimeException("Trying to access state using incompatible meta info, was " +
 						stateTable.getMetaInfo() + " trying access with " + newMetaInfo);
 			}
 			stateTable.setMetaInfo(newMetaInfo);
 		}
+		return stateTable;
+	}
 
+
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <N, V> ValueState<V> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<V> stateDesc) throws Exception {
+		StateTable<K, N, V> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
 		return new HeapValueState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 
@@ -154,44 +171,23 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		String name = stateDesc.getName();
 		StateTable<K, N, ArrayList<T>> stateTable = (StateTable<K, N, ArrayList<T>>) stateTables.get(name);
 
-		if (stateTable == null) {
-			RegisteredBackendStateMetaInfo<N, ArrayList<T>> metaInfo =
-					new RegisteredBackendStateMetaInfo<>(name, namespaceSerializer, new ArrayListSerializer<>(stateDesc.getSerializer()));
+		RegisteredBackendStateMetaInfo<N, ArrayList<T>> newMetaInfo =
+				new RegisteredBackendStateMetaInfo<>(name, namespaceSerializer, new ArrayListSerializer<>(stateDesc.getSerializer()));
 
-			stateTable = new StateTable<>(metaInfo, keyGroupRange);
-			stateTables.put(stateDesc.getName(), stateTable);
-		}
-
+		stateTable = tryRegisterStateTable(stateTable, newMetaInfo);
 		return new HeapListState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception {
-		String name = stateDesc.getName();
-		StateTable<K, N, T> stateTable = (StateTable<K, N, T>) stateTables.get(name);
-
-		if (stateTable == null) {
-			RegisteredBackendStateMetaInfo<N, T> metaInfo =
-					new RegisteredBackendStateMetaInfo<>(name, namespaceSerializer, stateDesc.getSerializer());
-			stateTable = new StateTable<>(metaInfo, keyGroupRange);
-			stateTables.put(stateDesc.getName(), stateTable);
-		}
-
+		StateTable<K, N, T> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
 		return new HeapReducingState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 	@SuppressWarnings("unchecked")
 	@Override
 	protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer, FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
-		String name = stateDesc.getName();
-		StateTable<K, N, ACC> stateTable = (StateTable<K, N, ACC>) stateTables.get(name);
-
-		if (stateTable == null) {
-			RegisteredBackendStateMetaInfo<N, ACC> metaInfo =
-					new RegisteredBackendStateMetaInfo<>(name, namespaceSerializer, stateDesc.getSerializer());
-			stateTable = new StateTable<>(metaInfo, keyGroupRange);
-			stateTables.put(stateDesc.getName(), stateTable);
-		}
-
+		StateTable<K, N, ACC> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
 		return new HeapFoldingState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 

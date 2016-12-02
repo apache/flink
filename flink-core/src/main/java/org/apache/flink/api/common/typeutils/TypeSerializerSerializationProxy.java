@@ -114,6 +114,30 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 		}
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+
+		TypeSerializerSerializationProxy<?> that = (TypeSerializerSerializationProxy<?>) o;
+
+		if (getTypeSerializerVersion() != that.getTypeSerializerVersion()) {
+			return false;
+		}
+		return getTypeSerializerClassName().equals(that.getTypeSerializerClassName());
+	}
+
+	@Override
+	public int hashCode() {
+		int result = getTypeSerializerClassName().hashCode();
+		result = 31 * result + getTypeSerializerVersion();
+		return result;
+	}
+
 	/**
 	 * Dummy TypeSerializer to avoid that data is lost when checkpointing again a serializer for which we encountered
 	 * a {@link ClassNotFoundException}.

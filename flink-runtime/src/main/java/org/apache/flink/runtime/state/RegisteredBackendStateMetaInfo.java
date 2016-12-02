@@ -72,32 +72,8 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 			return false;
 		}
 
-		if (!checkTypeSerializersCompatible(namespaceSerializer, other.namespaceSerializer)) {
-			return false;
-		}
-
-		if (!checkTypeSerializersCompatible(stateSerializer, other.stateSerializer)) {
-			return false;
-		}
-
-		return true;
-	}
-
-	public boolean checkTypeSerializersCompatible(TypeSerializer<?> a, TypeSerializer<?> b) {
-
-		if (a == b) {
-			return true;
-		}
-
-		if (null == a || null == b) {
-			return false;
-		}
-
-		if (a.getCanonicalClassName().equals(b.getCanonicalClassName()) && a.getVersion() == b.getVersion()) {
-			return true;
-		}
-
-		return false;
+		return namespaceSerializer.isCompatibleWith(other.namespaceSerializer)
+				&& stateSerializer.isCompatibleWith(other.stateSerializer);
 	}
 
 	@Override

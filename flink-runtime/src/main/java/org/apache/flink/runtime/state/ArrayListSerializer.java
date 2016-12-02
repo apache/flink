@@ -122,4 +122,14 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	public int hashCode() {
 		return elementSerializer.hashCode();
 	}
+
+	@Override
+	public boolean isCompatibleWith(TypeSerializer<?> other) {
+		if (super.isCompatibleWith(other)) {
+			if (other instanceof ArrayListSerializer<?>) {
+				return elementSerializer.isCompatibleWith(((ArrayListSerializer<?>) other).elementSerializer);
+			}
+		}
+		return false;
+	}
 }

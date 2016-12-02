@@ -171,4 +171,17 @@ public abstract class TypeSerializer<T> implements Versioned, Serializable {
 	public String getCanonicalClassName() {
 		return getClass().getCanonicalName();
 	}
+
+	public boolean isCompatibleWith(TypeSerializer<?> other) {
+
+		if (this == other) {
+			return true;
+		}
+
+		if (null == other) {
+			return false;
+		}
+
+		return getCanonicalClassName().equals(other.getCanonicalClassName()) && getVersion() == other.getVersion();
+	}
 }
