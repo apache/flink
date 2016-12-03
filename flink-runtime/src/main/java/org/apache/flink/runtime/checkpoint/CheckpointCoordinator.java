@@ -735,14 +735,14 @@ public class CheckpointCoordinator {
 				if (recentPendingCheckpoints.contains(checkpointId)) {
 					wasPendingCheckpoint = true;
 					LOG.warn("Received late message for now expired checkpoint attempt {}.", checkpointId);
+
+					// try to discard the state so that we don't have lingering state lying around
+					discardState(message.getState());
 				}
 				else {
 					LOG.debug("Received message for an unknown checkpoint {}.", checkpointId);
 					wasPendingCheckpoint = false;
 				}
-
-				// try to discard the state so that we don't have lingering state lying around
-				discardState(message.getState());
 
 				return wasPendingCheckpoint;
 			}
