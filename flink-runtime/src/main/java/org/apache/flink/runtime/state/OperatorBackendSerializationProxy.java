@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
@@ -91,15 +92,19 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 
 		private String name;
 		private TypeSerializer<S> stateSerializer;
+		private OperatorStateHandle.Mode mode;
+
 		private ClassLoader userClassLoader;
 
-		private StateMetaInfo(ClassLoader userClassLoader) {
+		@VisibleForTesting
+		public StateMetaInfo(ClassLoader userClassLoader) {
 			this.userClassLoader = Preconditions.checkNotNull(userClassLoader);
 		}
 
-		public StateMetaInfo(String name, TypeSerializer<S> stateSerializer) {
+		public StateMetaInfo(String name, TypeSerializer<S> stateSerializer, OperatorStateHandle.Mode mode) {
 			this.name = Preconditions.checkNotNull(name);
 			this.stateSerializer = Preconditions.checkNotNull(stateSerializer);
+			this.mode = Preconditions.checkNotNull(mode);
 		}
 
 		public String getName() {
@@ -118,9 +123,18 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 			this.stateSerializer = stateSerializer;
 		}
 
+		public OperatorStateHandle.Mode getMode() {
+			return mode;
+		}
+
+		public void setMode(OperatorStateHandle.Mode mode) {
+			this.mode = mode;
+		}
+
 		@Override
 		public void write(DataOutputView out) throws IOException {
 			out.writeUTF(getName());
+			out.writeByte(getMode().ordinal());
 			DataOutputViewStream dos = new DataOutputViewStream(out);
 			InstantiationUtil.serializeObject(dos, getStateSerializer());
 		}
@@ -128,6 +142,7 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 		@Override
 		public void read(DataInputView in) throws IOException {
 			setName(in.readUTF());
+			setMode(OperatorStateHandle.Mode.values()[in.readByte()]);
 			DataInputViewStream dis = new DataInputViewStream(in);
 			try {
 				TypeSerializer<S> stateSerializer = InstantiationUtil.deserializeObject(dis, userClassLoader);
@@ -135,6 +150,38 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 			} catch (ClassNotFoundException exception) {
 				throw new IOException(exception);
 			}
+		}
+
+		@Override
+		public boolean equals(Object o) {
+
+			if (this == o) {
+				return true;
+			}
+
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+
+			StateMetaInfo<?> metaInfo = (StateMetaInfo<?>) o;
+
+			if (!getName().equals(metaInfo.getName())) {
+				return false;
+			}
+
+			if (!getStateSerializer().equals(metaInfo.getStateSerializer())) {
+				return false;
+			}
+
+			return getMode() == metaInfo.getMode();
+		}
+
+		@Override
+		public int hashCode() {
+			int result = getName().hashCode();
+			result = 31 * result + getStateSerializer().hashCode();
+			result = 31 * result + getMode().hashCode();
+			return result;
 		}
 	}
 }

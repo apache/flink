@@ -338,9 +338,22 @@ public class StateAssignmentOperation {
 					chainOpParallelStates,
 					newParallelism);
 		} else {
-
 			List<Collection<OperatorStateHandle>> repackStream = new ArrayList<>(newParallelism);
 			for (OperatorStateHandle operatorStateHandle : chainOpParallelStates) {
+
+				Map<String, OperatorStateHandle.StateMetaInfo> partitionOffsets =
+						operatorStateHandle.getStateNameToPartitionOffsets();
+
+				for (OperatorStateHandle.StateMetaInfo metaInfo : partitionOffsets.values()) {
+
+					// if we find any broadcast state, we cannot take the shortcut and need to go through repartitioning
+					if (OperatorStateHandle.Mode.BROADCAST.equals(metaInfo.getDistributionMode())) {
+						return opStateRepartitioner.repartitionState(
+								chainOpParallelStates,
+								newParallelism);
+					}
+				}
+
 				repackStream.add(Collections.singletonList(operatorStateHandle));
 			}
 			return repackStream;

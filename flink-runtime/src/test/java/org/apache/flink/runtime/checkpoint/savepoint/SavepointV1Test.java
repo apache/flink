@@ -99,9 +99,10 @@ public class SavepointV1Test {
 							new TestByteStreamStateHandleDeepCompare("b-" + chainIdx, ("Beautiful-" + chainIdx).getBytes());
 					StreamStateHandle operatorStateStream =
 							new TestByteStreamStateHandleDeepCompare("b-" + chainIdx, ("Beautiful-" + chainIdx).getBytes());
-					Map<String, long[]> offsetsMap = new HashMap<>();
-					offsetsMap.put("A", new long[]{0, 10, 20});
-					offsetsMap.put("B", new long[]{30, 40, 50});
+					Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap = new HashMap<>();
+					offsetsMap.put("A", new OperatorStateHandle.StateMetaInfo(new long[]{0, 10, 20}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
+					offsetsMap.put("B", new OperatorStateHandle.StateMetaInfo(new long[]{30, 40, 50}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
+					offsetsMap.put("C", new OperatorStateHandle.StateMetaInfo(new long[]{60, 70, 80}, OperatorStateHandle.Mode.BROADCAST));
 
 					if (chainIdx != noNonPartitionableStateAtIndex) {
 						nonPartitionableStates.add(nonPartitionableState);
