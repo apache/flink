@@ -1376,6 +1376,24 @@ class JobManager(
                     // addressed to the periodic checkpoint coordinator.
                     log.info("Received message for non-existing checkpoint " +
                       ackMessage.getCheckpointId)
+
+                    val classLoader = Option(libraryCacheManager.getClassLoader(jid)) match {
+                      case Some(userCodeClassLoader) => userCodeClassLoader
+                      case None => getClass.getClassLoader
+                    }
+
+                    future {
+                      Option(ackMessage.getState()) match {
+                        case Some(state) =>
+                          try {
+                            state.deserializeValue(classLoader).discardState()
+                          } catch {
+                            case e: Exception => log.warn("Could not discard orphaned checkpoint " +
+                                             "state.", e)
+                          }
+                        case None =>
+                      }
+                    }(ExecutionContext.fromExecutor(ioExecutor))
                   }
                 } catch {
                   case t: Throwable =>
