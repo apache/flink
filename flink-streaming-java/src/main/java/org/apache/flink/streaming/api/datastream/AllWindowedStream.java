@@ -123,9 +123,9 @@ public class AllWindowedStream<T, W extends Window> {
 	@PublicEvolving
 	public AllWindowedStream<T, W> allowedLateness(Time lateness) {
 		long millis = lateness.toMilliseconds();
-		if (allowedLateness < 0) {
+		if (millis < 0) {
 			throw new IllegalArgumentException("The allowed lateness cannot be negative.");
-		} else if (allowedLateness != 0 && !windowAssigner.isEventTime()) {
+		} else if (millis != 0 && !windowAssigner.isEventTime()) {
 			throw new IllegalArgumentException("Setting the allowed lateness is only valid for event-time windows.");
 		} else {
 			this.allowedLateness = millis;
