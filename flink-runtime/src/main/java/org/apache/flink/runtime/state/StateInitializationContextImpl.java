@@ -220,13 +220,21 @@ public class StateInitializationContextImpl implements StateInitializationContex
 
 			while (stateHandleIterator.hasNext()) {
 				currentStateHandle = stateHandleIterator.next();
-				long[] offsets = currentStateHandle.getStateNameToPartitionOffsets().get(stateName);
-				if (null != offsets && offsets.length > 0) {
+				OperatorStateHandle.StateMetaInfo metaInfo =
+						currentStateHandle.getStateNameToPartitionOffsets().get(stateName);
 
-					this.offsets = offsets;
-					this.offPos = 0;
+				if (null != metaInfo) {
+					long[] metaOffsets = metaInfo.getOffsets();
+					if (null != metaOffsets && metaOffsets.length > 0) {
+						this.offsets = metaOffsets;
+						this.offPos = 0;
 
-					return true;
+						closableRegistry.unregisterClosable(currentStream);
+						IOUtils.closeQuietly(currentStream);
+						currentStream = null;
+
+						return true;
+					}
 				}
 			}
 

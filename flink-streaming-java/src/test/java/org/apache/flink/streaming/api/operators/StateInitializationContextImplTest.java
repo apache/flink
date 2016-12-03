@@ -111,8 +111,10 @@ public class StateInitializationContextImplTest {
 				writtenOperatorStates.add(val);
 			}
 
-			Map<String, long[]> offsetsMap = new HashMap<>();
-			offsetsMap.put(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, offsets.toArray());
+			Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap = new HashMap<>();
+			offsetsMap.put(
+					DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME,
+					new OperatorStateHandle.StateMetaInfo(offsets.toArray(), OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
 			OperatorStateHandle operatorStateHandle =
 					new OperatorStateHandle(offsetsMap, new ByteStateHandleCloseChecking("os-" + i, out.toByteArray()));
 			operatorStateHandles.add(operatorStateHandle);
