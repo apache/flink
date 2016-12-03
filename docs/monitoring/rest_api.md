@@ -37,8 +37,6 @@ The monitoring API is backed by a web server that runs as part of the *JobManage
 
 In the case of multiple JobManagers (for high availability), each JobManager will run its own instance of the monitoring API, which offers information about completed and running job while that JobManager was elected the cluster leader.
 
-**NOTE:** Currently, the monitoring API is started together with the new web dashboard. To enable it, one need to add the following entry to the `flink-conf.yaml` in order to activate the new dashboard instead of the old dashboard: `jobmanager.new-web-frontend: true`
-
 
 ## Developing
 
