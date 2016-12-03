@@ -250,11 +250,18 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 
 		if (stateHandle != null) {
 			dos.writeByte(PARTITIONABLE_OPERATOR_STATE_HANDLE);
-			Map<String, long[]> partitionOffsetsMap = stateHandle.getStateNameToPartitionOffsets();
+			Map<String, OperatorStateHandle.StateMetaInfo> partitionOffsetsMap =
+					stateHandle.getStateNameToPartitionOffsets();
 			dos.writeInt(partitionOffsetsMap.size());
-			for (Map.Entry<String, long[]> entry : partitionOffsetsMap.entrySet()) {
+			for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> entry : partitionOffsetsMap.entrySet()) {
 				dos.writeUTF(entry.getKey());
-				long[] offsets = entry.getValue();
+
+				OperatorStateHandle.StateMetaInfo stateMetaInfo = entry.getValue();
+
+				int mode = stateMetaInfo.getDistributionMode().ordinal();
+				dos.writeByte(mode);
+
+				long[] offsets = stateMetaInfo.getOffsets();
 				dos.writeInt(offsets.length);
 				for (long offset : offsets) {
 					dos.writeLong(offset);
@@ -274,14 +281,21 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 			return null;
 		} else if (PARTITIONABLE_OPERATOR_STATE_HANDLE == type) {
 			int mapSize = dis.readInt();
-			Map<String, long[]> offsetsMap = new HashMap<>(mapSize);
+			Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap = new HashMap<>(mapSize);
 			for (int i = 0; i < mapSize; ++i) {
 				String key = dis.readUTF();
+
+				int modeOrdinal = dis.readByte();
+				OperatorStateHandle.Mode mode = OperatorStateHandle.Mode.values()[modeOrdinal];
+
 				long[] offsets = new long[dis.readInt()];
 				for (int j = 0; j < offsets.length; ++j) {
 					offsets[j] = dis.readLong();
 				}
-				offsetsMap.put(key, offsets);
+
+				OperatorStateHandle.StateMetaInfo metaInfo =
+						new OperatorStateHandle.StateMetaInfo(offsets, mode);
+				offsetsMap.put(key, metaInfo);
 			}
 			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis);
 			return new OperatorStateHandle(offsetsMap, stateHandle);

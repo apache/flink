@@ -941,7 +941,7 @@ public class CheckpointCoordinatorTest {
 	}
 
 	@Test
-	public void handleMessagesForNonExistingCheckpoints() {
+	public void testHandleMessagesForNonExistingCheckpoints() {
 		try {
 			final JobID jid = new JobID();
 			final long timestamp = System.currentTimeMillis();
@@ -1937,8 +1937,8 @@ public class CheckpointCoordinatorTest {
 		coord.restoreLatestCheckpointedState(tasks, true, false);
 
 		// verify the restored state
-		verifiyStateRestore(jobVertexID1, jobVertex1, keyGroupPartitions1);
-		verifiyStateRestore(jobVertexID2, jobVertex2, keyGroupPartitions2);
+		verifyStateRestore(jobVertexID1, jobVertex1, keyGroupPartitions1);
+		verifyStateRestore(jobVertexID2, jobVertex2, keyGroupPartitions2);
 	}
 
 	/**
@@ -2318,7 +2318,7 @@ public class CheckpointCoordinatorTest {
 		coord.restoreLatestCheckpointedState(tasks, true, false);
 
 		// verify the restored state
-		verifiyStateRestore(jobVertexID1, newJobVertex1, keyGroupPartitions1);
+		verifyStateRestore(jobVertexID1, newJobVertex1, keyGroupPartitions1);
 		List<List<Collection<OperatorStateHandle>>> actualOpStatesBackend = new ArrayList<>(newJobVertex2.getParallelism());
 		List<List<Collection<OperatorStateHandle>>> actualOpStatesRaw = new ArrayList<>(newJobVertex2.getParallelism());
 		for (int i = 0; i < newJobVertex2.getParallelism(); i++) {
@@ -2388,6 +2388,49 @@ public class CheckpointCoordinatorTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testReplicateModeStateHandle() {
+		Map<String, OperatorStateHandle.StateMetaInfo> metaInfoMap = new HashMap<>(1);
+		metaInfoMap.put("t-1", new OperatorStateHandle.StateMetaInfo(new long[]{0, 23}, OperatorStateHandle.Mode.BROADCAST));
+		metaInfoMap.put("t-2", new OperatorStateHandle.StateMetaInfo(new long[]{42, 64}, OperatorStateHandle.Mode.BROADCAST));
+		metaInfoMap.put("t-3", new OperatorStateHandle.StateMetaInfo(new long[]{72, 83}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
+		OperatorStateHandle osh = new OperatorStateHandle(metaInfoMap, new ByteStreamStateHandle("test", new byte[100]));
+
+		OperatorStateRepartitioner repartitioner = RoundRobinOperatorStateRepartitioner.INSTANCE;
+		List<Collection<OperatorStateHandle>> repartitionedStates =
+				repartitioner.repartitionState(Collections.singletonList(osh), 3);
+
+		Map<String, Integer> checkCounts = new HashMap<>(3);
+
+		for (Collection<OperatorStateHandle> operatorStateHandles : repartitionedStates) {
+			for (OperatorStateHandle operatorStateHandle : operatorStateHandles) {
+				for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> stateNameToMetaInfo :
+						operatorStateHandle.getStateNameToPartitionOffsets().entrySet()) {
+
+					String stateName = stateNameToMetaInfo.getKey();
+					Integer count = checkCounts.get(stateName);
+					if (null == count) {
+						checkCounts.put(stateName, 1);
+					} else {
+						checkCounts.put(stateName, 1 + count);
+					}
+
+					OperatorStateHandle.StateMetaInfo stateMetaInfo = stateNameToMetaInfo.getValue();
+					if (OperatorStateHandle.Mode.SPLIT_DISTRIBUTE.equals(stateMetaInfo.getDistributionMode())) {
+						Assert.assertEquals(1, stateNameToMetaInfo.getValue().getOffsets().length);
+					} else {
+						Assert.assertEquals(2, stateNameToMetaInfo.getValue().getOffsets().length);
+					}
+				}
+			}
+		}
+
+		Assert.assertEquals(3, checkCounts.size());
+		Assert.assertEquals(3, checkCounts.get("t-1").intValue());
+		Assert.assertEquals(3, checkCounts.get("t-2").intValue());
+		Assert.assertEquals(2, checkCounts.get("t-3").intValue());
 	}
 
 	// ------------------------------------------------------------------------
@@ -2520,11 +2563,15 @@ public class CheckpointCoordinatorTest {
 
 		Tuple2<byte[], List<long[]>> serializationWithOffsets = serializeTogetherAndTrackOffsets(namedStateSerializables);
 
-		Map<String, long[]> offsetsMap = new HashMap<>(states.size());
+		Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap = new HashMap<>(states.size());
 
 		int idx = 0;
 		for (Map.Entry<String, List<? extends Serializable>> entry : states.entrySet()) {
-			offsetsMap.put(entry.getKey(), serializationWithOffsets.f1.get(idx));
+			offsetsMap.put(
+					entry.getKey(),
+					new OperatorStateHandle.StateMetaInfo(
+							serializationWithOffsets.f1.get(idx),
+							OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
 			++idx;
 		}
 
@@ -2601,7 +2648,7 @@ public class CheckpointCoordinatorTest {
 		return vertex;
 	}
 
-	public static void verifiyStateRestore(
+	public static void verifyStateRestore(
 			JobVertexID jobVertexID, ExecutionJobVertex executionJobVertex,
 			List<KeyGroupRange> keyGroupPartitions) throws Exception {
 
@@ -2697,8 +2744,8 @@ public class CheckpointCoordinatorTest {
 
 	private static void collectResult(int opIdx, OperatorStateHandle operatorStateHandle, List<String> resultCollector) throws Exception {
 		try (FSDataInputStream in = operatorStateHandle.openInputStream()) {
-			for (Map.Entry<String, long[]> entry : operatorStateHandle.getStateNameToPartitionOffsets().entrySet()) {
-				for (long offset : entry.getValue()) {
+			for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> entry : operatorStateHandle.getStateNameToPartitionOffsets().entrySet()) {
+				for (long offset : entry.getValue().getOffsets()) {
 					in.seek(offset);
 					Integer state = InstantiationUtil.
 							deserializeObject(in, Thread.currentThread().getContextClassLoader());
@@ -2801,17 +2848,22 @@ public class CheckpointCoordinatorTest {
 
 		for (int i = 0; i < oldParallelism; ++i) {
 			Path fakePath = new Path("/fake-" + i);
-			Map<String, long[]> namedStatesToOffsets = new HashMap<>();
+			Map<String, OperatorStateHandle.StateMetaInfo> namedStatesToOffsets = new HashMap<>();
 			int off = 0;
 			for (int s = 0; s < numNamedStates; ++s) {
 				long[] offs = new long[1 + r.nextInt(maxPartitionsPerState)];
-				if (offs.length > 0) {
-					for (int o = 0; o < offs.length; ++o) {
-						offs[o] = off;
-						++off;
-					}
-					namedStatesToOffsets.put("State-" + s, offs);
+
+				for (int o = 0; o < offs.length; ++o) {
+					offs[o] = off;
+					++off;
 				}
+
+				OperatorStateHandle.Mode mode = r.nextInt(10) == 0 ?
+						OperatorStateHandle.Mode.BROADCAST : OperatorStateHandle.Mode.SPLIT_DISTRIBUTE;
+				namedStatesToOffsets.put(
+						"State-" + s,
+						new OperatorStateHandle.StateMetaInfo(offs, mode));
+
 			}
 
 			previousParallelOpInstanceStates.add(
@@ -2822,14 +2874,21 @@ public class CheckpointCoordinatorTest {
 
 		int expectedTotalPartitions = 0;
 		for (OperatorStateHandle psh : previousParallelOpInstanceStates) {
-			Map<String, long[]> offsMap = psh.getStateNameToPartitionOffsets();
+			Map<String, OperatorStateHandle.StateMetaInfo> offsMap = psh.getStateNameToPartitionOffsets();
 			Map<String, List<Long>> offsMapWithList = new HashMap<>(offsMap.size());
-			for (Map.Entry<String, long[]> e : offsMap.entrySet()) {
-				long[] offs = e.getValue();
-				expectedTotalPartitions += offs.length;
+			for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> e : offsMap.entrySet()) {
+
+				long[] offs = e.getValue().getOffsets();
+				int replication = e.getValue().getDistributionMode().equals(OperatorStateHandle.Mode.BROADCAST) ?
+						newParallelism : 1;
+
+				expectedTotalPartitions += replication * offs.length;
 				List<Long> offsList = new ArrayList<>(offs.length);
+
 				for (int i = 0; i < offs.length; ++i) {
-					offsList.add(i, offs[i]);
+					for(int p = 0; p < replication; ++p) {
+						offsList.add(offs[i]);
+					}
 				}
 				offsMapWithList.put(e.getKey(), offsList);
 			}
@@ -2851,25 +2910,25 @@ public class CheckpointCoordinatorTest {
 
 			Collection<OperatorStateHandle> pshc = pshs.get(p);
 			for (OperatorStateHandle sh : pshc) {
-				for (Map.Entry<String, long[]> namedState : sh.getStateNameToPartitionOffsets().entrySet()) {
+				for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> namedState : sh.getStateNameToPartitionOffsets().entrySet()) {
 
-					Map<String, List<Long>> x = actual.get(sh.getDelegateStateHandle());
-					if (x == null) {
-						x = new HashMap<>();
-						actual.put(sh.getDelegateStateHandle(), x);
+					Map<String, List<Long>> stateToOffsets = actual.get(sh.getDelegateStateHandle());
+					if (stateToOffsets == null) {
+						stateToOffsets = new HashMap<>();
+						actual.put(sh.getDelegateStateHandle(), stateToOffsets);
 					}
 
-					List<Long> actualOffs = x.get(namedState.getKey());
+					List<Long> actualOffs = stateToOffsets.get(namedState.getKey());
 					if (actualOffs == null) {
 						actualOffs = new ArrayList<>();
-						x.put(namedState.getKey(), actualOffs);
+						stateToOffsets.put(namedState.getKey(), actualOffs);
 					}
-					long[] add = namedState.getValue();
+					long[] add = namedState.getValue().getOffsets();
 					for (int i = 0; i < add.length; ++i) {
 						actualOffs.add(add[i]);
 					}
 
-					partitionCount += namedState.getValue().length;
+					partitionCount += namedState.getValue().getOffsets().length;
 				}
 			}
 

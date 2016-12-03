@@ -30,8 +30,22 @@ import java.util.Set;
 public interface OperatorStateStore {
 
 	/**
-	 * Creates a state descriptor of the given name that uses Java serialization to persist the
-	 * state.
+	 * Creates (or restores) a list state. Each state is registered under a unique name.
+	 * The provided serializer is used to de/serialize the state in case of checkpointing (snapshot/restore).
+	 *
+	 * The items in the list are repartitionable by the system in case of changed operator parallelism.
+	 *
+	 * @param stateDescriptor The descriptor for this state, providing a name and serializer.
+	 * @param <S> The generic type of the state
+	 *
+	 * @return A list for all state partitions.
+	 * @throws Exception
+	 */
+	<S> ListState<S> getOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception;
+
+	/**
+	 * Creates a state of the given name that uses Java serialization to persist the state. The items in the list
+	 * are repartitionable by the system in case of changed operator parallelism.
 	 * 
 	 * <p>This is a simple convenience method. For more flexibility on how state serialization
 	 * should happen, use the {@link #getOperatorState(ListStateDescriptor)} method.
@@ -46,13 +60,28 @@ public interface OperatorStateStore {
 	 * Creates (or restores) a list state. Each state is registered under a unique name.
 	 * The provided serializer is used to de/serialize the state in case of checkpointing (snapshot/restore).
 	 *
+	 * On restore, all items in the list are broadcasted to all parallel operator instances.
+	 *
 	 * @param stateDescriptor The descriptor for this state, providing a name and serializer.
 	 * @param <S> The generic type of the state
-	 * 
+	 *
 	 * @return A list for all state partitions.
 	 * @throws Exception
 	 */
-	<S> ListState<S> getOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception;
+	<S> ListState<S> getBroadcastOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception;
+
+	/**
+	 * Creates a state of the given name that uses Java serialization to persist the state. On restore, all items
+	 * in the list are broadcasted to all parallel operator instances.
+	 *
+	 * <p>This is a simple convenience method. For more flexibility on how state serialization
+	 * should happen, use the {@link #getBroadcastOperatorState(ListStateDescriptor)} method.
+	 *
+	 * @param stateName The name of state to create
+	 * @return A list state using Java serialization to serialize state objects.
+	 * @throws Exception
+	 */
+	<T extends Serializable> ListState<T> getBroadcastSerializableListState(String stateName) throws Exception;
 
 	/**
 	 * Returns a set with the names of all currently registered states.
