@@ -24,7 +24,6 @@ import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, 
 import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.api.table.expressions.TimePointUnit.TimePointUnit
 import org.apache.flink.api.table.expressions.TrimMode.TrimMode
-import org.apache.flink.api.table.plan.logical.{AliasNode, LogicalNode, UnresolvedTableFunctionCall}
 import org.apache.flink.api.table.typeutils.TimeIntervalTypeInfo
 
 import scala.language.implicitConversions
@@ -448,7 +447,9 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val alias: PackratParser[Expression] = logic ~ AS ~ fieldReference ^^ {
       case e ~ _ ~ name => Alias(e, name.name)
-    } | logic
+    } | logic ~ AS ~ "(" ~ rep1sep(fieldReference, ",") ~ ")" ^^ {
+    case e ~ _ ~ _ ~ names ~ _ => Alias(e, names.head.name, names.drop(1).map(_.name))
+  } | logic
 
   lazy val expression: PackratParser[Expression] = alias |
     failure("Invalid expression.")
@@ -466,28 +467,6 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   def parseExpression(exprString: String): Expression = {
     parseAll(expression, exprString) match {
-      case Success(lst, _) => lst
-
-      case NoSuccess(msg, next) =>
-        throwError(msg, next)
-    }
-  }
-
-  lazy val tableFunctionCall: PackratParser[LogicalNode] =
-    functionIdent ~ "(" ~ repsep(expression, ",") ~ ")" ^^ {
-    case name ~ _ ~ args ~ _ => UnresolvedTableFunctionCall(name.toUpperCase, args)
-  }
-
-  lazy val aliasNode: PackratParser[LogicalNode] =
-    tableFunctionCall ~ AS ~ "(" ~ repsep(fieldReference, ",") ~ ")" ^^ {
-    case e ~ _ ~ _ ~ names ~ _ => AliasNode(names, e)
-  } | tableFunctionCall
-
-  lazy val logicalNode: PackratParser[LogicalNode] = aliasNode |
-    failure("Invalid expression.")
-
-  def parseLogicalNode(nodeString: String): LogicalNode = {
-    parseAll(logicalNode, nodeString) match {
       case Success(lst, _) => lst
 
       case NoSuccess(msg, next) =>

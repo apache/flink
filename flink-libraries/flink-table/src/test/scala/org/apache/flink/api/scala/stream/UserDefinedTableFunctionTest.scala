@@ -138,7 +138,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
 
     //============ throw exception when table function is not registered =========
     // Java Table API call
-    expectExceptionThrown(t.crossApply("nonexist(a)"), "Undefined table function: NONEXIST")
+    expectExceptionThrown(t.crossApply("nonexist(a)"), "Undefined function: NONEXIST")
     // SQL API call
     expectExceptionThrown(
       util.tEnv.sql("SELECT * FROM MyTable, LATERAL TABLE(nonexist(a))"),
@@ -148,7 +148,10 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     //========= throw exception when the called function is a scalar function ====
     util.addFunction("func0", Func0)
     // Java Table API call
-    expectExceptionThrown(t.crossApply("func0(a)"), "is not a TableFunction")
+    expectExceptionThrown(
+      t.crossApply("func0(a)"),
+      "only accept TableFunction",
+      classOf[TableException])
     // SQL API call
     // NOTE: it doesn't throw an exception but an AssertionError, maybe a Calcite bug
     expectExceptionThrown(

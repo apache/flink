@@ -33,7 +33,7 @@ import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, Tuple
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.Indenter.toISC
-import org.apache.flink.api.table.codegen.calls.SqlFunctionUtils
+import org.apache.flink.api.table.codegen.calls.FunctionGenerator
 import org.apache.flink.api.table.codegen.calls.ScalarOperators._
 import org.apache.flink.api.table.typeutils.{RowTypeInfo, TypeConverter}
 import org.apache.flink.api.table.typeutils.TypeCheckUtils._
@@ -159,22 +159,22 @@ class CodeGenerator(
   /**
     * @return term of the (casted and possibly boxed) first input
     */
-  def input1Term = "in1"
+  var input1Term = "in1"
 
   /**
     * @return term of the (casted and possibly boxed) second input
     */
-  def input2Term = "in2"
+  var input2Term = "in2"
 
   /**
     * @return term of the (casted) output collector
     */
-  def collectorTerm = "c"
+  var collectorTerm = "c"
 
   /**
     * @return term of the output record (possibly defined in the member area e.g. Row, Tuple)
     */
-  def outRecordTerm = "out"
+  var outRecordTerm = "out"
 
   /**
     * @return returns if null checking is enabled
@@ -357,6 +357,8 @@ class CodeGenerator(
 
     val input2AccessExprs = input2 match {
       case Some(ti) => for (i <- 0 until ti.getArity)
+      // use generateFieldAccess instead of generateInputAccess to avoid the generated table
+      // function's field access code is put on the top of function body rather than the while loop
         yield generateFieldAccess(ti, input2Term, i, input2PojoFieldMapping)
       case None => throw new CodeGenException("type information of input2 must not be null")
     }
@@ -778,7 +780,7 @@ class CodeGenerator(
   }
 
   override def visitCorrelVariable(correlVariable: RexCorrelVariable): GeneratedExpression = {
-    GeneratedExpression(input1Term, "false", "", input1)
+    GeneratedExpression(input1Term, GeneratedExpression.NEVER_NULL, "", input1)
   }
 
   override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression =
@@ -973,7 +975,7 @@ class CodeGenerator(
 
       // advanced scalar functions
       case sqlOperator: SqlOperator =>
-        val callGen = SqlFunctionUtils.getCallGenerator(
+        val callGen = FunctionGenerator.getCallGenerator(
           sqlOperator,
           operands.map(_.resultType),
           resultType)

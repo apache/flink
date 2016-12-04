@@ -53,8 +53,6 @@ trait FlinkCorrelate {
       config.getEfficientTypeUsage)
 
     val (input1AccessExprs, input2AccessExprs) = generator.generateCorrelateAccessExprs
-    val crossResultExpr = generator.generateResultExpression(input1AccessExprs ++ input2AccessExprs,
-      returnType, rowType.getFieldNames.asScala)
 
     val call = generator.generateExpression(rexCall)
     var body =
@@ -73,8 +71,16 @@ trait FlinkCorrelate {
         """.stripMargin
     } else if (joinType == SemiJoinType.LEFT) {
       // outer apply
-      val input2NullExprs = input2AccessExprs.map(
-        x => GeneratedExpression(primitiveDefaultValue(x.resultType), "true", "", x.resultType))
+
+      // in case of outer apply and the returned row of table function is empty,
+      // fill null to all fields of the row
+      val input2NullExprs = input2AccessExprs.map { x =>
+        GeneratedExpression(
+          primitiveDefaultValue(x.resultType),
+          GeneratedExpression.ALWAYS_NULL,
+          "",
+          x.resultType)
+      }
       val outerResultExpr = generator.generateResultExpression(
         input1AccessExprs ++ input2NullExprs, returnType, rowType.getFieldNames.asScala)
       body +=
@@ -89,15 +95,19 @@ trait FlinkCorrelate {
       throw TableException(s"Unsupported SemiJoinType: $joinType for correlate join.")
     }
 
+    val crossResultExpr = generator.generateResultExpression(
+      input1AccessExprs ++ input2AccessExprs,
+      returnType,
+      rowType.getFieldNames.asScala)
+
     val projection = if (condition.isEmpty) {
       s"""
          |${crossResultExpr.code}
          |${generator.collectorTerm}.collect(${crossResultExpr.resultTerm});
        """.stripMargin
     } else {
-      val filterGenerator = new CodeGenerator(config, false, udtfTypeInfo) {
-        override def input1Term: String = input2Term
-      }
+      val filterGenerator = new CodeGenerator(config, false, udtfTypeInfo)
+      filterGenerator.input1Term = filterGenerator.input2Term
       val filterCondition = filterGenerator.generateExpression(condition.get)
       s"""
          |${filterGenerator.reuseInputUnboxingCode()}

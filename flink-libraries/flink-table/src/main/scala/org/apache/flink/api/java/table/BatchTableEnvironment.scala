@@ -165,7 +165,7 @@ class BatchTableEnvironment(
 
   /**
     * Registers a [[TableFunction]] under a unique name in the TableEnvironment's catalog.
-    * Registered functions can be referenced in SQL queries.
+    * Registered functions can be referenced in Table API and SQL queries.
     *
     * @param name The name under which the function is registered.
     * @param tf The TableFunction to register

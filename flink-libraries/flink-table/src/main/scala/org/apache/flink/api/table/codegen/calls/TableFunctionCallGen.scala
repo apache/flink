@@ -73,6 +73,10 @@ class TableFunctionCallGen(
         |""".stripMargin
 
     // has no result
-    GeneratedExpression(functionReference, "false", functionCallCode, returnType)
+    GeneratedExpression(
+      functionReference,
+      GeneratedExpression.NEVER_NULL,
+      functionCallCode,
+      returnType)
   }
 }

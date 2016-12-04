@@ -17,8 +17,6 @@
  */
 package org.apache.flink.api.table.plan.logical
 
-
-import com.google.common.collect.Sets
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.CorrelationId
@@ -220,7 +218,7 @@ case class Aggregate(
     relBuilder.aggregate(
       relBuilder.groupKey(groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
       aggregateExpressions.map {
-        case Alias(agg: Aggregation, name) => agg.toAggCall(name)(relBuilder)
+        case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
         case _ => throw new RuntimeException("This should never happen.")
       }.asJava)
   }
@@ -423,16 +421,16 @@ case class Join(
     left.construct(relBuilder)
     right.construct(relBuilder)
 
-    val corSet = Sets.newHashSet[CorrelationId]()
+    val corSet = mutable.Set[CorrelationId]()
 
     if (correlated) {
-      corSet.add(relBuilder.peek().getCluster.createCorrel())
+      corSet += relBuilder.peek().getCluster.createCorrel()
     }
 
     relBuilder.join(
       TypeConverter.flinkJoinTypeToRelType(joinType),
       condition.map(_.toRexNode(relBuilder)).getOrElse(relBuilder.literal(true)),
-      corSet)
+      corSet.asJava)
   }
 
   private def ambiguousName: Set[String] =
@@ -565,11 +563,11 @@ case class WindowAggregate(
       window,
       relBuilder.groupKey(groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
       propertyExpressions.map {
-        case Alias(prop: WindowProperty, name) => prop.toNamedWindowProperty(name)(relBuilder)
+        case Alias(prop: WindowProperty, name, _) => prop.toNamedWindowProperty(name)(relBuilder)
         case _ => throw new RuntimeException("This should never happen.")
       },
       aggregateExpressions.map {
-        case Alias(agg: Aggregation, name) => agg.toAggCall(name)(relBuilder)
+        case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
         case _ => throw new RuntimeException("This should never happen.")
       }.asJava)
   }

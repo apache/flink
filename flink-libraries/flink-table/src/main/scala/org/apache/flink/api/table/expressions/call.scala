@@ -19,10 +19,12 @@ package org.apache.flink.api.table.expressions
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.table.functions.ScalarFunction
-import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils.{getResultType, getSignature, signatureToString, signaturesToString, createScalarSqlFunction}
-import org.apache.flink.api.table.validate.{ValidationResult, ValidationFailure, ValidationSuccess}
-import org.apache.flink.api.table.{FlinkTypeFactory, UnresolvedException}
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.functions.{ScalarFunction, TableFunction}
+import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.api.table.plan.logical.{LogicalNode, LogicalTableFunctionCall}
+import org.apache.flink.api.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
+import org.apache.flink.api.table.{FlinkTypeFactory, UnresolvedException, ValidationException}
 
 /**
   * General expression for unresolved function calls. The function can be a built-in
@@ -88,4 +90,69 @@ case class ScalarFunctionCall(
     }
   }
 
+}
+
+
+/**
+  *
+  * Expression for calling a user-defined table function with actual parameters.
+  *
+  * @param functionName function name
+  * @param tableFunction user-defined table function
+  * @param parameters actual parameters of function
+  * @param resultType type information of returned table
+  */
+case class TableFunctionCall(
+    functionName: String,
+    tableFunction: TableFunction[_],
+    parameters: Seq[Expression],
+    resultType: TypeInformation[_])
+  extends Expression {
+
+  private var aliases: Option[Seq[String]] = None
+
+  override private[flink] def children: Seq[Expression] = parameters
+
+  /**
+    * Assigns an alias for this table function returned fields that the following `select()` clause
+    * can refer to.
+    *
+    * @param aliasList alias for this table function returned fields
+    * @return this table function call
+    */
+  private[flink] def as(aliasList: Option[Seq[String]]): TableFunctionCall = {
+    this.aliases = aliasList
+    this
+  }
+
+  /**
+    * Converts an API class to a logical node for planning.
+    */
+  private[flink] def toLogicalTableFunctionCall(child: LogicalNode): LogicalTableFunctionCall = {
+    val originNames = getFieldInfo(resultType)._1
+
+    // determine the final field names
+    val fieldNames = if (aliases.isDefined) {
+      val aliasList = aliases.get
+      if (aliasList.length != originNames.length) {
+        throw ValidationException(
+          s"List of column aliases must have same degree as table; " +
+            s"the returned table of function '$functionName' has ${originNames.length} " +
+            s"columns (${originNames.mkString(",")}), " +
+            s"whereas alias list has ${aliasList.length} columns")
+      } else {
+        aliasList.toArray
+      }
+    } else {
+      originNames
+    }
+
+    LogicalTableFunctionCall(
+      functionName,
+      tableFunction,
+      parameters,
+      resultType,
+      fieldNames,
+      child)
+  }
 }

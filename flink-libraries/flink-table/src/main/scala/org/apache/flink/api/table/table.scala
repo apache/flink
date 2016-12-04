@@ -21,7 +21,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.plan.logical.Minus
-import org.apache.flink.api.table.expressions.{Asc, Expression, ExpressionParser, Ordering}
+import org.apache.flink.api.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, Ordering, TableFunctionCall}
 import org.apache.flink.api.table.plan.ProjectionTranslator._
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
@@ -630,7 +630,7 @@ class Table(
     *   table.crossApply(split('c) as ('s)).select('a,'b,'c,'s)
     * }}}
     */
-  def crossApply(udtf: TableFunctionCall): Table = {
+  def crossApply(udtf: Expression): Table = {
     applyInternal(udtf, JoinType.INNER)
   }
 
@@ -678,7 +678,7 @@ class Table(
     *   table.outerApply(split('c) as ('s)).select('a,'b,'c,'s)
     * }}}
     */
-  def outerApply(udtf: TableFunctionCall): Table = {
+  def outerApply(udtf: Expression): Table = {
     applyInternal(udtf, JoinType.LEFT_OUTER)
   }
 
@@ -701,32 +701,33 @@ class Table(
   }
 
   private def applyInternal(udtfString: String, joinType: JoinType): Table = {
-    val node = ExpressionParser.parseLogicalNode(udtfString)
-    var alias: Option[Seq[Expression]] = None
-    val functionCall = node match {
-      case AliasNode(aliasList, child) =>
-        alias = Some(aliasList)
-        child
-      case _ => node
-    }
-
-    functionCall match {
-      case call @ UnresolvedTableFunctionCall(name, args) =>
-        val udtfCall = tableEnv.getFunctionCatalog.lookupTableFunction(name, args)
-        if (alias.isDefined) {
-          applyInternal(udtfCall.as(alias.get: _*), joinType)
-        } else {
-          applyInternal(udtfCall, joinType)
-        }
-      case _ => throw new TableException("Cross/Outer Apply only accept TableFunction")
-    }
+    val udtf = ExpressionParser.parseExpression(udtfString)
+    applyInternal(udtf, joinType)
   }
 
-  private def applyInternal(node: TableFunctionCall, joinType: JoinType): Table = {
-    val logicalCall = node.toLogicalTableFunctionCall(this.logicalPlan).validate(tableEnv)
+  private def applyInternal(udtf: Expression, joinType: JoinType): Table = {
+    var alias: Option[Seq[String]] = None
+
+    // unwrap an Expression until get a TableFunctionCall
+    def unwrap(expr: Expression): TableFunctionCall = expr match {
+      case Alias(child, name, extraNames) =>
+        alias = Some(Seq(name) ++ extraNames)
+        unwrap(child)
+      case Call(name, args) =>
+        val function = tableEnv.getFunctionCatalog.lookupFunction(name, args)
+        unwrap(function)
+      case c: TableFunctionCall => c
+      case _ => throw new TableException("Cross/Outer Apply only accept TableFunction")
+    }
+
+    val call = unwrap(udtf)
+      .as(alias)
+      .toLogicalTableFunctionCall(this.logicalPlan)
+      .validate(tableEnv)
+
     new Table(
       tableEnv,
-      Join(this.logicalPlan, logicalCall, joinType, None, correlated = true).validate(tableEnv))
+      Join(this.logicalPlan, call, joinType, None, correlated = true).validate(tableEnv))
   }
 
   /**
