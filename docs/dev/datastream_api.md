@@ -1008,19 +1008,18 @@ dataStream.rebalance();
             The subset of downstream operations to which the upstream operation sends
             elements depends on the degree of parallelism of both the upstream and downstream operation.
             For example, if the upstream operation has parallelism 2 and the downstream operation
-            has parallelism 4, then one upstream operation would distribute elements to two
+            has parallelism 6, then one upstream operation would distribute elements to three
             downstream operations while the other upstream operation would distribute to the other
-            two downstream operations. If, on the other hand, the downstream operation has parallelism
-            2 while the upstream operation has parallelism 4 then two upstream operations would
-            distribute to one downstream operation while the other two upstream operations would
-            distribute to the other downstream operations.
+            three downstream operations. If, on the other hand, the downstream operation has parallelism
+            2 while the upstream operation has parallelism 6 then three upstream operations would
+            distribute to one downstream operation while the other three upstream operations would
+            distribute to the other downstream operation.
         </p>
         <p>
             In cases where the different parallelisms are not multiples of each other one or several
             downstream operations will have a differing number of inputs from upstream operations.
-
         </p>
-        </p>
+        <p>
             Please see this figure for a visualization of the connection pattern in the above
             example:
         </p>
