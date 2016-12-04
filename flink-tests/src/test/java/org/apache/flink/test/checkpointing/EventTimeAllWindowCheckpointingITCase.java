@@ -53,7 +53,7 @@ import static org.junit.Assert.*;
  * This verfies that checkpointing works correctly with event time windows.
  *
  * <p>
- * This is a version of {@link EventTimeWindowCheckpointingITCase} for All-Windows.
+ * This is a version of {@link AbstractEventTimeWindowCheckpointingITCase} for All-Windows.
  */
 @SuppressWarnings("serial")
 public class EventTimeAllWindowCheckpointingITCase extends TestLogger {

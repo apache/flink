@@ -51,12 +51,8 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -69,10 +65,13 @@ import static org.junit.Assert.fail;
  * This verifies that checkpointing works correctly with event time windows. This is more
  * strict than {@link WindowCheckpointingITCase} because for event-time the contents
  * of the emitted windows are deterministic.
+ *
+ * <p>Split into multiple test classes in order to decrease the runtime per backend
+ * and not run into CI infrastructure limits like no std output being emitted for
+ * I/O heavy variants.
  */
 @SuppressWarnings("serial")
-@RunWith(Parameterized.class)
-public class EventTimeWindowCheckpointingITCase extends TestLogger {
+public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLogger {
 
 	private static final int MAX_MEM_STATE_SIZE = 10 * 1024 * 1024;
 	private static final int PARALLELISM = 4;
@@ -85,8 +84,12 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 	private StateBackendEnum stateBackendEnum;
 	private AbstractStateBackend stateBackend;
 
-	public EventTimeWindowCheckpointingITCase(StateBackendEnum stateBackendEnum) {
+	AbstractEventTimeWindowCheckpointingITCase(StateBackendEnum stateBackendEnum) {
 		this.stateBackendEnum = stateBackendEnum;
+	}
+
+	enum StateBackendEnum {
+		MEM, FILE, ROCKSDB_FULLY_ASYNC
 	}
 
 	@BeforeClass
@@ -763,27 +766,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			this.windowCounts.putAll(state);
 		}
 	}
-
-	// ------------------------------------------------------------------------
-	//  Parametrization for testing with different state backends
-	// ------------------------------------------------------------------------
-
-
-	@Parameterized.Parameters(name = "StateBackend = {0}")
-	@SuppressWarnings("unchecked,rawtypes")
-	public static Collection<Object[]> parameters(){
-		return Arrays.asList(new Object[][] {
-				{StateBackendEnum.MEM},
-				{StateBackendEnum.FILE},
-				{StateBackendEnum.ROCKSDB_FULLY_ASYNC}
-			}
-		);
-	}
-
-	private enum StateBackendEnum {
-		MEM, FILE, ROCKSDB_FULLY_ASYNC
-	}
-
 
 	// ------------------------------------------------------------------------
 	//  Utilities
