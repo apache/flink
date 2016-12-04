@@ -24,6 +24,7 @@ import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
+import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
@@ -159,11 +160,46 @@ object IncrementalLearningSkeleton {
     * Builds up-to-date partial models on new training data.
     */
   private class PartialModelBuilder extends AllWindowFunction[Int, Array[Double], TimeWindow] {
+
+    protected def buildPartialModel(values: Iterable[Int]): Array[Double] = Array[Double](1)
+
     override def apply(window: TimeWindow,
-                       input: Iterable[Int],
+                       values: Iterable[Int],
                        out: Collector[Array[Double]]): Unit = {
-      out.collect(Array[Double](1.0))
+      out.collect(buildPartialModel(values))
     }
+  }
+
+  /**
+    * Creates newData using the model produced in batch-processing and the
+    * up-to-date partial model.
+    * <p>
+    * By default emits the Integer 0 for every newData and the Integer 1
+    * for every model update.
+    * </p>
+    */
+  private class Predictor extends CoMapFunction[Int, Array[Double], Int] {
+
+    var batchModel: Array[Double] = null
+    var partialModel: Array[Double] = null
+
+    override def map1(value: Int): Int = {
+      // Return newData
+      predict(value)
+    }
+
+    override def map2(value: Array[Double]): Int = {
+      // Update model
+      partialModel = value
+      batchModel = getBatchModel()
+      1
+    }
+
+    // pulls model built with batch-job on the old training data
+    protected def getBatchModel(): Array[Double] = Array[Double](0)
+
+    // performs newData using the two models
+    protected def predict(inTuple: Int): Int = 0
   }
 
 }

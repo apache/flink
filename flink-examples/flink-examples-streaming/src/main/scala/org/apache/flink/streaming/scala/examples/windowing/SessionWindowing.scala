@@ -28,6 +28,10 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 
+/**
+  * An example of grouped stream windowing in session windows with session timeout of 3 msec.
+  * A source fetches elements with key, timestamp, and count.
+  */
 object SessionWindowing {
 
   def main(args: Array[String]): Unit = {
@@ -64,7 +68,7 @@ object SessionWindowing {
             println(s"Collected: ${value}")
           }
         })
-        ctx.emitWatermark(new Watermark((Long.MaxValue)))
+        ctx.emitWatermark(new Watermark(Long.MaxValue))
       }
 
       override def cancel(): Unit = {}

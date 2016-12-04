@@ -30,6 +30,10 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * An example of grouped stream windowing in session windows with session timeout of 3 msec.
+ * A source fetches elements with key, timestamp, and count.
+ */
 public class SessionWindowing {
 
 	@SuppressWarnings("serial")

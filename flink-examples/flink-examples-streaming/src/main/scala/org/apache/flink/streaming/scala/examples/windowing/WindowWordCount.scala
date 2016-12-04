@@ -37,7 +37,7 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
   * --slide &lt;n&gt;
   * </code><br>
   * If no parameters are provided, the program is run with default data from
-  * {@link org.apache.flink.examples.java.wordcount.util.WordCountData}.
+  * [[org.apache.flink.examples.java.wordcount.util.WordCountData]].
   *
   * <p>
   * This example shows how to:

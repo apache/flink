@@ -27,6 +27,10 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.windowing.time.Time
 
+/**
+  * An example of grouped stream windowing into sliding time windows.
+  * This example uses [[RichParallelSourceFunction]] to generate a list of key-value pair.
+  */
 object GroupedProcessingTimeWindowExample {
 
   def main(args: Array[String]): Unit = {
@@ -59,7 +63,7 @@ object GroupedProcessingTimeWindowExample {
         }
 
         val endTime = System.currentTimeMillis()
-        println(s"Took ${(endTime - startTime)} msecs for ${numElements} values")
+        println(s"Took ${endTime - startTime} msecs for ${numElements} values")
       }
 
       override def cancel(): Unit = running = false

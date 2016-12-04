@@ -33,7 +33,10 @@ import org.apache.flink.util.Collector;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-@SuppressWarnings("serial")
+/**
+ * An example of grouped stream windowing into sliding time windows.
+ * This example uses [[RichParallelSourceFunction]] to generate a list of key-value pair.
+ */
 public class GroupedProcessingTimeWindowExample {
 	
 	public static void main(String[] args) throws Exception {

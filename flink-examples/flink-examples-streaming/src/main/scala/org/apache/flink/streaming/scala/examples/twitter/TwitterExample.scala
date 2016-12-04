@@ -111,7 +111,9 @@ object TwitterExample {
 
           while (tokenizer.hasMoreTokens) {
             val token = tokenizer.nextToken().replaceAll("\\s*", "").toLowerCase()
-            if (token.nonEmpty) tokens += ((token, 1))
+            if (token.nonEmpty) {
+              tokens += ((token, 1))
+            }
           }
 
           tokens.toList
