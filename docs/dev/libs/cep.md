@@ -37,7 +37,7 @@ because these are used for comparing and matching events.
 
 ## Getting Started
 
-If you want to jump right in, you have to [set up a Flink program]({{ site.baseurl }}/dev/api_concepts.html#linking-with-flink).
+If you want to jump right in, you have to [set up a Flink program]({{ site.baseurl }}/dev/linking_with_flink).
 Next, you have to add the FlinkCEP dependency to the `pom.xml` of your project.
 
 <div class="codetabs" markdown="1">

@@ -68,7 +68,7 @@ FlinkML currently supports the following algorithms:
 You can check out our [quickstart guide](quickstart.html) for a comprehensive getting started
 example.
 
-If you want to jump right in, you have to [set up a Flink program]({{ site.baseurl }}/dev/api_concepts.html#linking-with-flink).
+If you want to jump right in, you have to [set up a Flink program]({{ site.baseurl }}/dev/linking_with_flink).
 Next, you have to add the FlinkML dependency to the `pom.xml` of your project.
 
 {% highlight xml %}
