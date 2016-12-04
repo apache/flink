@@ -210,7 +210,7 @@ dataStream.filter(new FilterFunction<Integer>() {
           <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
           <td>
             <p>Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
-            Internally, this is implemented with hash partitioning. See <a href="#specifying-keys">keys</a> on how to specify keys.
+            Internally, this is implemented with hash partitioning. See <a href="/dev/api_concepts#specifying-keys">keys</a> on how to specify keys.
             This transformation returns a KeyedDataStream.</p>
     {% highlight java %}
 dataStream.keyBy("someKey") // Key by field "someKey"
@@ -597,7 +597,7 @@ dataStream.filter { _ != 0 }
           <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
           <td>
             <p>Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
-            Internally, this is implemented with hash partitioning. See <a href="#specifying-keys">keys</a> on how to specify keys.
+            Internally, this is implemented with hash partitioning. See <a href="/dev/api_concepts#specifying-keys">keys</a> on how to specify keys.
             This transformation returns a KeyedDataStream.</p>
     {% highlight scala %}
 dataStream.keyBy("someKey") // Key by field "someKey"
@@ -1411,8 +1411,8 @@ Collection-based:
 
 Custom:
 
-- `addSource` - Attache a new source function. For example, to read from Apache Kafka you can use
-    `addSource(new FlinkKafkaConsumer08<>(...))`. See [connectors]({{ site.baseurl }}/apis/streaming/connectors/) for more details.
+- `addSource` - Attach a new source function. For example, to read from Apache Kafka you can use
+    `addSource(new FlinkKafkaConsumer08<>(...))`. See [connectors]({{ site.baseurl }}/dev/connectors/) for more details.
 
 </div>
 </div>

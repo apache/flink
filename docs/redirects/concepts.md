@@ -1,7 +1,7 @@
 ---
 title: "Concepts"
 layout: redirect
-redirect: /concepts/index.html
+redirect: /concepts/programming-model.html
 permalink: /concepts/concepts.html
 ---
 <!--

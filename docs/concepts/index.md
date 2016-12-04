@@ -5,6 +5,9 @@ nav-pos: 1
 nav-title: '<i class="fa fa-map-o title appetizer" aria-hidden="true"></i> Concepts'
 nav-parent_id: root
 section-break: true
+layout: redirect
+redirect: /concepts/programming-model.html
+permalink: /concepts/index.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
