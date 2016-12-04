@@ -1,8 +1,10 @@
 ---
+section-break: true
+nav-title: '<i class="fa fa-cogs title maindish" aria-hidden="true"></i> Installation & Setup'
 title: "Installation & Setup"
 nav-id: "start"
-nav-parent_id: dev
-nav-pos: 0
+nav-parent_id: root
+nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

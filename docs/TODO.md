@@ -1,34 +1,24 @@
 # TODO
 
-* give the quickstart more love
-  * move cluster setup out
-  * show the code
-  * default to scala
-* fix bugs
-  * find and fix broken links
-* the explanation of windowAll needs love
-* add more examples, eg
-  * wordcount (scala and java)
-  * connected streams (from training slides)
-  * point to the [blog post on kafka/elasticsearch/kibana](https://www.elastic.co/blog/building-real-time-dashboard-applications-with-apache-flink-elasticsearch-and-kibana)
-  * point to the training site
-* document StreamingExecutionContext#readFile with the connectors
-* checkpointing doc is incomplete
-
 # QUESTIONS
 
 * [fault tolerance](dev/batch/fault_tolerance) mixes batch and streaming in a confusing way
-* [rescaling figure is confusing](fig/rescale.svg)
 * the [info about mongodb](dev/batch/connectors) seems to be stale. There's an indirect pointer to https://flink.incubator.apache.org/news/2014/01/28/querying_mongodb.html which doesn't exist
-* [batch#dataset-transformations](http://localhost:4000/dev/batch/#dataset-transformations) has strong overlap with [batch/dataset_transformations](http://localhost:4000/dev/batch/dataset_transformations.html). Not sure what to do about it.
-* [local execution](dev/local_execution) and [cluster execution](dev/cluster_execution) have already been moved under batch, because their current content is batch specific. It's not clear these pages should still exist. Some of their content has already been generalized elsewhere (eg [linking with flink](dev/api_concepts.html#linking-with-flink)).
+* [batch#dataset-transformations](http://localhost:4000/dev/batch/#dataset-transformations) has strong overlap with [batch/dataset_transformations](http://localhost:4000/dev/batch/dataset_transformations.html). Don't like the duplication, but I'm not sure what to do about it.
+* [local execution](dev/local_execution) and [cluster execution](dev/cluster_execution) have already been moved under batch, because their current content is batch specific. It's not clear these pages should still exist. Some of their content has already been generalized elsewhere ([linking with flink](dev/linking_with_flink)).
 
 # NOT NOW
 
+* example with connected streams (from training slides)
+* document StreamingExecutionContext#readFile with the connectors
+* checkpointing doc is incomplete
+* the explanation of windowAll needs love
 * find a way to raise the visibility of rich functions
 * break up the streaming overview somewhat to better group material that goes with content on other pages, and to raise the discoverability of certain topics (since the sidebar navigation can only link to whole pages)
 * also break up and reorganize [Basic API Concepts](dev/api_concepts) somewhat
 * gather together (some of) the material on debugging
+* rewrite the wikipedia example in scala
+* make scala the default for all code examples
 
 # GOALS
 

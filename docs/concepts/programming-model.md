@@ -167,3 +167,7 @@ same way as well as they apply to streaming programs, with minor exceptions:
     bounded streams. For details, check out the [iteration docs]({{ site.baseurl }}/dev/batch/iterations.html).
 
 {% top %}
+
+## Next Steps
+
+Continue with the basic concepts in Flink's [Distributed Runtime]({{ site.baseurl }}/concepts/runtime).

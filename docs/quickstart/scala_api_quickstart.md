@@ -1,8 +1,8 @@
 ---
-title: "Quickstart: Projects using the Scala API"
-nav-title: Scala Projects
+title: "Sample Project using the Scala API"
+nav-title: Sample Project in Scala
 nav-parent_id: start
-nav-pos: 4
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -2,7 +2,7 @@
 title: "Monitoring the Wikipedia Edit Stream"
 nav-title: Monitoring Wikipedia Edits
 nav-parent_id: examples
-nav-pos: 1
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
