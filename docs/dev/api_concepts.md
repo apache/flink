@@ -26,15 +26,15 @@ under the License.
 
 Flink programs are regular programs that implement transformations on distributed collections
 (e.g., filtering, mapping, updating state, joining, grouping, defining windows, aggregating).
-Collections are initially created from sources (e.g., by reading files, kafka, or from local
+Collections are initially created from sources (e.g., by reading from files, kafka topics, or from local, in-memory
 collections). Results are returned via sinks, which may for example write the data to
-(distributed) files, or to standard output (for example the command line terminal).
+(distributed) files, or to standard output (for example, the command line terminal).
 Flink programs run in a variety of contexts, standalone, or embedded in other programs.
 The execution can happen in a local JVM, or on clusters of many machines.
 
-Depending on the type of data sources, i.e. bounded or unbounded sources you would either
-write a batch program or a streaming program where the DataSet API is used for the former
-and the DataStream API is used for the latter. This guide will introduce the basic concepts
+Depending on the type of data sources, i.e. bounded or unbounded sources, you would either
+write a batch program or a streaming program where the DataSet API is used for batch
+and the DataStream API is used for streaming. This guide will introduce the basic concepts
 that are common to both APIs but please see our
 [Streaming Guide]({{ site.baseurl }}/dev/datastream_api.html) and
 [Batch Guide]({{ site.baseurl }}/dev/batch/index.html) for concrete information about
@@ -875,7 +875,7 @@ different operator functions of your job. Flink will internally merge all accumu
 name.
 
 A note on accumulators and iterations: Currently the result of accumulators is only available after
-the overall job ended. We plan to also make the result of the previous iteration available in the
+the overall job has ended. We plan to also make the result of the previous iteration available in the
 next iteration. You can use
 {% gh_link /flink-java/src/main/java/org/apache/flink/api/java/operators/IterativeDataSet.java#L98 "Aggregators" %}
 to compute per-iteration statistics and base the termination of iterations on such statistics.

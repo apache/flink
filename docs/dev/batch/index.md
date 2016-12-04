@@ -2258,7 +2258,7 @@ Please note that you can also pass a custom class extending the `ExecutionConfig
 
 **Accessing values from the global configuration**
 
-Objects in the global job parameters are accessible in many places in the system. All user functions implementing a `Rich*Function` interface have access through the runtime context.
+Objects in the global job parameters are accessible in many places in the system. All user functions implementing a `RichFunction` interface have access through the runtime context.
 
 {% highlight java %}
 public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
