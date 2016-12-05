@@ -196,10 +196,10 @@ Each of these keys expect a format string that may contain constants (e.g. "task
 - `metrics.scope.tm.job`
   - Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;
   - Applied to all metrics that were scoped to a task manager and job.
-- `metrics.scope.tm.task`
+- `metrics.scope.task`
   - Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;task_name&gt;.&lt;subtask_index&gt;
    - Applied to all metrics that were scoped to a task.
-- `metrics.scope.tm.operator`
+- `metrics.scope.operator`
   - Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;operator_name&gt;.&lt;subtask_index&gt;
   - Applied to all metrics that were scoped to an operator.
 
