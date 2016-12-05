@@ -21,11 +21,11 @@ package org.apache.flink.dropwizard;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Reporter;
 import com.codahale.metrics.ScheduledReporter;
-
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.dropwizard.metrics.DropwizardHistogramWrapper;
 import org.apache.flink.dropwizard.metrics.DropwizardMeterWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkCounterWrapper;
-import org.apache.flink.dropwizard.metrics.DropwizardHistogramWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkGaugeWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkHistogramWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkMeterWrapper;
@@ -82,13 +82,24 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	//  Getters
 	// ------------------------------------------------------------------------
 
-	// used for testing purposes
+	@VisibleForTesting
 	Map<Counter, String> getCounters() {
 		return counters;
 	}
 
+	@VisibleForTesting
 	Map<Meter, String> getMeters() {
 		return meters;
+	}
+
+	@VisibleForTesting
+	Map<Gauge<?>, String> getGauges() {
+		return gauges;
+	}
+
+	@VisibleForTesting
+	Map<Histogram, String> getHistograms() {
+		return histograms;
 	}
 
 	// ------------------------------------------------------------------------
@@ -157,6 +168,8 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 				fullName = gauges.remove(metric);
 			} else if (metric instanceof Histogram) {
 				fullName = histograms.remove(metric);
+			} else if (metric instanceof Meter) {
+				fullName = meters.remove(metric);
 			} else {
 				fullName = null;
 			}
