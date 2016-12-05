@@ -28,14 +28,14 @@ import java.util.Map;
 public class TemperatureWarningPatternSelectFunction
 	implements PatternSelectFunction<MonitoringEvent, TemperatureWarning> {
 
-    @Override
-    public TemperatureWarning select(Map<String, MonitoringEvent> pattern) throws Exception {
-        TemperatureEvent first = (TemperatureEvent) pattern.get("first");
-        TemperatureEvent second = (TemperatureEvent) pattern.get("second");
+	@Override
+	public TemperatureWarning select(Map<String, MonitoringEvent> pattern) throws Exception {
+		TemperatureEvent first = (TemperatureEvent) pattern.get("first");
+		TemperatureEvent second = (TemperatureEvent) pattern.get("second");
 
-        return new TemperatureWarning(
-            first.getRackID(),
-            (first.getTemperature() + second.getTemperature()) / 2
-        );
-    }
+		return new TemperatureWarning(
+			first.getRackID(),
+			(first.getTemperature() + second.getTemperature()) / 2
+		);
+	}
 }

@@ -19,36 +19,36 @@
 package org.apache.flink.cep.examples.events;
 
 public abstract class MonitoringEvent {
-    private int rackID;
+	private int rackID;
 
-    public MonitoringEvent(int rackID) {
-        this.rackID = rackID;
-    }
+	public MonitoringEvent(int rackID) {
+		this.rackID = rackID;
+	}
 
-    public int getRackID() {
-        return rackID;
-    }
+	public int getRackID() {
+		return rackID;
+	}
 
-    public void setRackID(int rackID) {
-        this.rackID = rackID;
-    }
+	public void setRackID(int rackID) {
+		this.rackID = rackID;
+	}
 
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof MonitoringEvent) {
-            MonitoringEvent monitoringEvent = (MonitoringEvent) obj;
-            return monitoringEvent.canEquals(this) && rackID == monitoringEvent.rackID;
-        } else {
-            return false;
-        }
-    }
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof MonitoringEvent) {
+			MonitoringEvent monitoringEvent = (MonitoringEvent) obj;
+			return monitoringEvent.canEquals(this) && rackID == monitoringEvent.rackID;
+		} else {
+			return false;
+		}
+	}
 
-    @Override
-    public int hashCode() {
-        return rackID;
-    }
+	@Override
+	public int hashCode() {
+		return rackID;
+	}
 
-    public boolean canEquals(Object obj) {
-        return obj instanceof MonitoringEvent;
-    }
+	public boolean canEquals(Object obj) {
+		return obj instanceof MonitoringEvent;
+	}
 }

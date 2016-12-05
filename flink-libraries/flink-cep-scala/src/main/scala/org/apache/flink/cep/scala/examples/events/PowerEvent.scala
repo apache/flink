@@ -25,8 +25,8 @@ class PowerEvent(rackID: Int, voltage: Double) extends MonitoringEvent(rackID) {
   override def equals(obj: Any): Boolean = obj match {
     case powerEvent: PowerEvent =>
       powerEvent.canEquals(this) &&
-      super.equals(powerEvent) &&
-      voltage == powerEvent.getVoltage
+        super.equals(powerEvent) &&
+        voltage == powerEvent.getVoltage
 
     case _ => false
   }

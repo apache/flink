@@ -18,12 +18,12 @@
 
 package org.apache.flink.cep.scala.examples.sources
 
+import java.util.Random
+
 import org.apache.flink.cep.scala.examples.events.{MonitoringEvent, PowerEvent, TemperatureEvent}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
-
-import java.util.Random
 
 class MonitoringEventSource(maxRackId: Int,
                             pause: Long,
