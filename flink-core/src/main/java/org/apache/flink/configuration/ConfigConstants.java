@@ -440,6 +440,11 @@ public final class ConfigConstants {
 	// ------------------------ Mesos Configuration ------------------------
 
 	/**
+	 * The initial number of Mesos tasks to allocate.
+	 */
+	public static final String MESOS_INITIAL_TASKS = "mesos.initial-tasks";
+
+	/**
 	 * The maximum number of failed Mesos tasks before entirely stopping
 	 * the Mesos session / job on Mesos.
 	 *
@@ -483,6 +488,8 @@ public final class ConfigConstants {
 	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_PRINCIPAL = "mesos.resourcemanager.framework.principal";
 
 	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_SECRET = "mesos.resourcemanager.framework.secret";
+
+	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_USER = "mesos.resourcemanager.framework.user";
 
 	/**
 	 * The cpus to acquire from Mesos.
@@ -1186,6 +1193,8 @@ public final class ConfigConstants {
 
 	public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE = "*";
 
+	public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_USER = "";
+
 	/** Default value to override SSL support for the Artifact Server */
 	public static final boolean DEFAULT_MESOS_ARTIFACT_SERVER_SSL_ENABLED = true;
 
@@ -1404,6 +1413,12 @@ public final class ConfigConstants {
 
 	/** The environment variable name which contains the location of the lib folder */
 	public static final String ENV_FLINK_LIB_DIR = "FLINK_LIB_DIR";
+
+	/** The environment variable name which contains the location of the bin directory */
+	public static final String ENV_FLINK_BIN_DIR = "FLINK_BIN_DIR";
+
+	/** The environment variable name which contains the Flink installation root directory */
+	public static final String ENV_FLINK_HOME_DIR = "FLINK_HOME";
 
 	// -------------------------------- Security -------------------------------
 

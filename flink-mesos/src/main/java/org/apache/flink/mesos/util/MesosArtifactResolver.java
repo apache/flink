@@ -16,31 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.mesos.runtime.clusterframework;
+package org.apache.flink.mesos.util;
+
+import org.apache.flink.core.fs.Path;
+import scala.Option;
+
+import java.net.URL;
 
 /**
- * The Mesos environment variables used for settings of the containers.
+ * An interface for resolving artifact URIs.
  */
-public class MesosConfigKeys {
-	// ------------------------------------------------------------------------
-	//  Environment variable names
-	// ------------------------------------------------------------------------
-
-	/**
-	 * The Mesos task ID, used by the TM for informational purposes
-	 */
-	public static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
-
-	/**
-	 * Reserved for future enhancement
-	 */
-	public static final String ENV_FLINK_TMP_DIR = "_FLINK_TMP_DIR";
-
-	/**
-	 * JVM arguments, used by the JM and TM
-	 */
-	public static final String ENV_JVM_ARGS = "JVM_ARGS";
-
-	/** Private constructor to prevent instantiation */
-	private MesosConfigKeys() {}
+public interface MesosArtifactResolver {
+	Option<URL> resolve(Path remoteFile);
 }

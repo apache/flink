@@ -16,31 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.mesos.runtime.clusterframework;
+package org.apache.flink.runtime.clusterframework.overlays;
+
+import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+
+import java.io.IOException;
 
 /**
- * The Mesos environment variables used for settings of the containers.
+ * A container overlay to produce a container specification.
+ *
+ * An overlay applies configuration elements, environment variables,
+ * system properties, and artifacts to a container specification.
  */
-public class MesosConfigKeys {
-	// ------------------------------------------------------------------------
-	//  Environment variable names
-	// ------------------------------------------------------------------------
+public interface ContainerOverlay {
 
 	/**
-	 * The Mesos task ID, used by the TM for informational purposes
-	 */
-	public static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
-
-	/**
-	 * Reserved for future enhancement
-	 */
-	public static final String ENV_FLINK_TMP_DIR = "_FLINK_TMP_DIR";
-
-	/**
-	 * JVM arguments, used by the JM and TM
-	 */
-	public static final String ENV_JVM_ARGS = "JVM_ARGS";
-
-	/** Private constructor to prevent instantiation */
-	private MesosConfigKeys() {}
+	 * Configure the given container specification.
+     */
+	void configure(ContainerSpecification containerSpecification) throws IOException;
 }

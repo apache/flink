@@ -22,14 +22,17 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Address;
 import akka.actor.Props;
-
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.PosixParser;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.mesos.cli.FlinkMesosSessionCli;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.runtime.clusterframework.store.StandaloneMesosWorkerStore;
 import org.apache.flink.mesos.runtime.clusterframework.store.ZooKeeperMesosWorkerStore;
@@ -38,14 +41,20 @@ import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.mesos.util.ZooKeeperUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+import org.apache.flink.runtime.clusterframework.overlays.CompositeContainerOverlay;
+import org.apache.flink.runtime.clusterframework.overlays.FlinkDistributionOverlay;
+import org.apache.flink.runtime.clusterframework.overlays.HadoopConfOverlay;
+import org.apache.flink.runtime.clusterframework.overlays.HadoopUserOverlay;
+import org.apache.flink.runtime.clusterframework.overlays.KeytabOverlay;
+import org.apache.flink.runtime.clusterframework.overlays.Krb5ConfOverlay;
+import org.apache.flink.runtime.clusterframework.overlays.SSLStoreOverlay;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.security.SecurityUtils;
-import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
@@ -53,30 +62,21 @@ import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.NamedThreadFactory;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
-
-import org.apache.hadoop.security.UserGroupInformation;
-
 import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import scala.Option;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.File;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URL;
-import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
-import static org.apache.flink.mesos.Utils.uri;
-import static org.apache.flink.mesos.Utils.variable;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -106,6 +106,18 @@ public class MesosApplicationMasterRunner {
 	private static final int ACTOR_DIED_EXIT_CODE = 32;
 
 	// ------------------------------------------------------------------------
+	//  Command-line options
+	// ------------------------------------------------------------------------
+
+	private static final Options ALL_OPTIONS;
+
+	static {
+		ALL_OPTIONS =
+			new Options()
+			.addOption(BootstrapTools.newDynamicPropertiesOption());
+	}
+
+	// ------------------------------------------------------------------------
 	//  Program entry point
 	// ------------------------------------------------------------------------
 
@@ -126,36 +138,44 @@ public class MesosApplicationMasterRunner {
 
 	/**
 	 * The instance entry point for the Mesos AppMaster. Obtains user group
-	 * information and calls the main work method {@link #runPrivileged(Configuration)} as a
+	 * information and calls the main work method {@link #runPrivileged(Configuration,Configuration)} as a
 	 * privileged action.
 	 *
 	 * @param args The command line arguments.
 	 * @return The process exit code.
 	 */
-	protected int run(String[] args) {
+	protected int run(final String[] args) {
 		try {
 			LOG.debug("All environment variables: {}", ENV);
 
-			final String workingDir = ENV.get(MesosConfigKeys.ENV_MESOS_SANDBOX);
-			checkState(workingDir != null, "Sandbox directory variable (%s) not set", MesosConfigKeys.ENV_MESOS_SANDBOX);
+			// loading all config values here has the advantage that the program fails fast, if any
+			// configuration problem occurs
 
-			// Flink configuration
-			final Configuration dynamicProperties =
-					FlinkMesosSessionCli.decodeDynamicProperties(ENV.get(MesosConfigKeys.ENV_DYNAMIC_PROPERTIES));
-			LOG.debug("Mesos dynamic properties: {}", dynamicProperties);
+			CommandLineParser parser = new PosixParser();
+			CommandLine cmd = parser.parse(ALL_OPTIONS, args);
 
-			final Configuration configuration = createConfiguration(workingDir, dynamicProperties);
+			final Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
+			GlobalConfiguration.setDynamicProperties(dynamicProperties);
+			final Configuration config = GlobalConfiguration.loadConfiguration();
 
-			SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(configuration);
+			// configure the default filesystem
+			try {
+				FileSystem.setDefaultScheme(config);
+			} catch (IOException e) {
+				throw new IOException("Error while setting the default " +
+					"filesystem scheme from configuration.", e);
+			}
+
+			// configure security
+			SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(config);
 			sc.setHadoopConfiguration(HadoopUtils.getHadoopConfiguration());
 			SecurityUtils.install(sc);
 
-			LOG.info("Running Flink as user {}", UserGroupInformation.getCurrentUser().getShortUserName());
-
+			// run the actual work in the installed security context
 			return SecurityUtils.getInstalledContext().runSecured(new Callable<Integer>() {
 				@Override
-				public Integer call() {
-					return runPrivileged(configuration);
+				public Integer call() throws Exception {
+					return runPrivileged(config, dynamicProperties);
 				}
 			});
 		}
@@ -175,78 +195,38 @@ public class MesosApplicationMasterRunner {
 	 *
 	 * @return The return code for the Java process.
 	 */
-	protected int runPrivileged(Configuration config) {
+	protected int runPrivileged(Configuration config, Configuration dynamicProperties) {
 
 		ActorSystem actorSystem = null;
 		WebMonitor webMonitor = null;
 		MesosArtifactServer artifactServer = null;
-
-		// ------- (1) load and parse / validate all configurations -------
-
-		// loading all config values here has the advantage that the program fails fast, if any
-		// configuration problem occurs
-
-		final String workingDir = ENV.get(MesosConfigKeys.ENV_MESOS_SANDBOX);
-
-		final String sessionID = ENV.get(MesosConfigKeys.ENV_SESSION_ID);
-		checkState(sessionID != null, "Session ID (%s) not set", MesosConfigKeys.ENV_SESSION_ID);
-
-		// Note that we use the "appMasterHostname" given by the system, to make sure
-		// we use the hostnames consistently throughout akka.
-		// for akka "localhost" and "localhost.localdomain" are different actors.
-		final String appMasterHostname;
+		ExecutorService futureExecutor = null;
+		ExecutorService ioExecutor = null;
 
 		try {
-			appMasterHostname = InetAddress.getLocalHost().getHostName();
-		} catch (UnknownHostException uhe) {
-			LOG.error("Could not retrieve the local hostname.", uhe);
+			// ------- (1) load and parse / validate all configurations -------
 
-			return INIT_ERROR_EXIT_CODE;
-		}
+			// Note that we use the "appMasterHostname" given by the system, to make sure
+			// we use the hostnames consistently throughout akka.
+			// for akka "localhost" and "localhost.localdomain" are different actors.
+			final String appMasterHostname = InetAddress.getLocalHost().getHostName();
 
-		// Mesos configuration
-		final MesosConfiguration mesosConfig = createMesosConfig(config, appMasterHostname);
+			// Mesos configuration
+			final MesosConfiguration mesosConfig = createMesosConfig(config, appMasterHostname);
 
-		int numberProcessors = Hardware.getNumberCPUCores();
+			// JM configuration
+			int numberProcessors = Hardware.getNumberCPUCores();
 
-		final ExecutorService futureExecutor = Executors.newFixedThreadPool(
-			numberProcessors,
-			new NamedThreadFactory("mesos-jobmanager-future-", "-thread-"));
+			futureExecutor = Executors.newFixedThreadPool(
+				numberProcessors,
+				new NamedThreadFactory("mesos-jobmanager-future-", "-thread-"));
 
-		final ExecutorService ioExecutor = Executors.newFixedThreadPool(
-			numberProcessors,
-			new NamedThreadFactory("mesos-jobmanager-io-", "-thread-"));
+			ioExecutor = Executors.newFixedThreadPool(
+				numberProcessors,
+				new NamedThreadFactory("mesos-jobmanager-io-", "-thread-"));
 
-		try {
-			// environment values related to TM
-			final int taskManagerContainerMemory;
-			final int numInitialTaskManagers;
-			final int slotsPerTaskManager;
-
-			try {
-				taskManagerContainerMemory = Integer.parseInt(ENV.get(MesosConfigKeys.ENV_TM_MEMORY));
-			} catch (NumberFormatException e) {
-				throw new RuntimeException("Invalid value for " + MesosConfigKeys.ENV_TM_MEMORY + " : "
-					+ e.getMessage());
-			}
-			try {
-				numInitialTaskManagers = Integer.parseInt(ENV.get(MesosConfigKeys.ENV_TM_COUNT));
-			} catch (NumberFormatException e) {
-				throw new RuntimeException("Invalid value for " + MesosConfigKeys.ENV_TM_COUNT + " : "
-					+ e.getMessage());
-			}
-			try {
-				slotsPerTaskManager = Integer.parseInt(ENV.get(MesosConfigKeys.ENV_SLOTS));
-			} catch (NumberFormatException e) {
-				throw new RuntimeException("Invalid value for " + MesosConfigKeys.ENV_SLOTS + " : "
-					+ e.getMessage());
-			}
-
-			final ContaineredTaskManagerParameters containeredParameters =
-				ContaineredTaskManagerParameters.create(config, taskManagerContainerMemory, slotsPerTaskManager);
-
-			final MesosTaskManagerParameters taskManagerParameters =
-				MesosTaskManagerParameters.create(config, containeredParameters);
+			// TM configuration
+			final MesosTaskManagerParameters taskManagerParameters = MesosTaskManagerParameters.create(config);
 
 			LOG.info("TaskManagers will be created with {} task slots",
 				taskManagerParameters.containeredParameters().numSlots());
@@ -257,7 +237,7 @@ public class MesosApplicationMasterRunner {
 				taskManagerParameters.containeredParameters().taskManagerDirectMemoryLimitMB(),
 				taskManagerParameters.cpus());
 
-			// JM endpoint, which should be explicitly configured by the dispatcher (based on acquired net resources)
+			// JM endpoint, which should be explicitly configured based on acquired net resources
 			final int listeningPort = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 			checkState(listeningPort >= 0 && listeningPort <= 65536, "Config parameter \"" +
@@ -279,18 +259,28 @@ public class MesosApplicationMasterRunner {
 			LOG.debug("Starting Artifact Server");
 			final int artifactServerPort = config.getInteger(ConfigConstants.MESOS_ARTIFACT_SERVER_PORT_KEY,
 				ConfigConstants.DEFAULT_MESOS_ARTIFACT_SERVER_PORT);
-			artifactServer = new MesosArtifactServer(sessionID, akkaHostname, artifactServerPort, config);
+			final String artifactServerPrefix = UUID.randomUUID().toString();
+			artifactServer = new MesosArtifactServer(artifactServerPrefix, akkaHostname, artifactServerPort, config);
 
 			// ----------------- (3) Generate the configuration for the TaskManagers -------------------
 
-			final Configuration taskManagerConfig = BootstrapTools.generateTaskManagerConfiguration(
-				config, akkaHostname, akkaPort, slotsPerTaskManager, TASKMANAGER_REGISTRATION_TIMEOUT);
-			LOG.debug("TaskManager configuration: {}", taskManagerConfig);
+			// generate a container spec which conveys the artifacts/vars needed to launch a TM
+			ContainerSpecification taskManagerContainerSpec = new ContainerSpecification();
 
-			final Protos.TaskInfo.Builder taskManagerContext = createTaskManagerContext(
-				config, ENV,
-				taskManagerParameters, taskManagerConfig,
-				workingDir, getTaskManagerClass(), artifactServer, LOG);
+			// propagate the AM dynamic configuration to the TM
+			taskManagerContainerSpec.getDynamicConfiguration().addAll(dynamicProperties);
+
+			// propagate newly-generated configuration elements
+			final Configuration taskManagerConfig = BootstrapTools.generateTaskManagerConfiguration(
+				new Configuration(), akkaHostname, akkaPort, taskManagerParameters.containeredParameters().numSlots(),
+				TASKMANAGER_REGISTRATION_TIMEOUT);
+			taskManagerContainerSpec.getDynamicConfiguration().addAll(taskManagerConfig);
+
+			// apply the overlays
+			applyOverlays(config, taskManagerContainerSpec);
+
+			// configure the artifact server to serve the specified artifacts
+			configureArtifactServer(artifactServer, taskManagerContainerSpec);
 
 			// ----------------- (4) start the actors -------------------
 
@@ -341,8 +331,8 @@ public class MesosApplicationMasterRunner {
 				workerStore,
 				leaderRetriever,
 				taskManagerParameters,
-				taskManagerContext,
-				numInitialTaskManagers,
+				taskManagerContainerSpec,
+				artifactServer,
 				LOG);
 
 			ActorRef resourceMaster = actorSystem.actorOf(resourceMasterProps, "Mesos_Resource_Master");
@@ -389,8 +379,21 @@ public class MesosApplicationMasterRunner {
 				}
 			}
 
-			futureExecutor.shutdownNow();
-			ioExecutor.shutdownNow();
+			if(futureExecutor != null) {
+				try {
+					futureExecutor.shutdownNow();
+				} catch (Throwable tt) {
+					LOG.error("Error shutting down future executor", tt);
+				}
+			}
+
+			if(ioExecutor != null) {
+				try {
+					ioExecutor.shutdownNow();
+				} catch (Throwable tt) {
+					LOG.error("Error shutting down io executor", tt);
+				}
+			}
 
 			return INIT_ERROR_EXIT_CODE;
 		}
@@ -442,35 +445,12 @@ public class MesosApplicationMasterRunner {
 		return MemoryArchivist.class;
 	}
 
-	protected Class<? extends TaskManager> getTaskManagerClass() {
-		return MesosTaskManager.class;
-	}
-
-	/**
-	 *
-	 * @param baseDirectory
-	 * @param additional
-	 *
-	 * @return The configuration to be used by the TaskManagers.
-	 */
-	private static Configuration createConfiguration(String baseDirectory, Configuration additional) {
-		LOG.info("Loading config from directory {}", baseDirectory);
-
-		Configuration configuration = GlobalConfiguration.loadConfiguration();
-
-		// add dynamic properties to JobManager configuration.
-		configuration.addAll(additional);
-
-		return configuration;
-	}
-
 	/**
 	 * Loads and validates the ResourceManager Mesos configuration from the given Flink configuration.
 	 */
 	public static MesosConfiguration createMesosConfig(Configuration flinkConfig, String hostname) {
 
 		Protos.FrameworkInfo.Builder frameworkInfo = Protos.FrameworkInfo.newBuilder()
-			.setUser("")
 			.setHostname(hostname);
 		Protos.Credential.Builder credential = null;
 
@@ -494,6 +474,10 @@ public class MesosApplicationMasterRunner {
 			ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE,
 			ConfigConstants.DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE));
 
+		frameworkInfo.setUser(flinkConfig.getString(
+			ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_USER,
+			ConfigConstants.DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_USER));
+
 		if(flinkConfig.containsKey(ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_PRINCIPAL)) {
 			frameworkInfo.setPrincipal(flinkConfig.getString(
 				ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_PRINCIPAL, null));
@@ -501,15 +485,16 @@ public class MesosApplicationMasterRunner {
 			credential = Protos.Credential.newBuilder();
 			credential.setPrincipal(frameworkInfo.getPrincipal());
 
-			if(!flinkConfig.containsKey(ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_SECRET)) {
-				throw new IllegalConfigurationException(ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_SECRET + " must be configured.");
+			// some environments use a side-channel to communicate the secret to Mesos,
+			// and thus don't set the 'secret' configuration setting
+			if(flinkConfig.containsKey(ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_SECRET)) {
+				credential.setSecret(flinkConfig.getString(
+					ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_SECRET, null));
 			}
-			credential.setSecret(flinkConfig.getString(
-				ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_SECRET, null));
 		}
 
 		MesosConfiguration mesos =
-			new MesosConfiguration(masterUrl, frameworkInfo, Option.apply(credential));
+			new MesosConfiguration(masterUrl, frameworkInfo, scala.Option.apply(credential));
 
 		return mesos;
 	}
@@ -533,203 +518,34 @@ public class MesosApplicationMasterRunner {
 	}
 
 	/**
-	 * Creates a Mesos task info template, which describes how to bring up a TaskManager process as
-	 * a Mesos task.
+	 * Generate a container specification as a TaskManager template.
 	 *
 	 * <p>This code is extremely Mesos-specific and registers all the artifacts that the TaskManager
-	 * needs (such as JAR file, config file, ...) and all environment variables in a task info record.
+	 * needs (such as JAR file, config file, ...) and all environment variables into a container specification.
 	 * The Mesos fetcher then ensures that those artifacts will be copied into the task's sandbox directory.
 	 * A lightweight HTTP server serves the artifacts to the fetcher.
-	 *
-	 * <p>We do this work before we start the ResourceManager actor in order to fail early if
-	 * any of the operations here fail.
-	 *
-	 * @param flinkConfig
-	 *         The Flink configuration object.
-	 * @param env
-	 *         The environment variables.
-	 * @param tmParams
-	 *         The TaskManager container memory parameters.
-	 * @param taskManagerConfig
-	 *         The configuration for the TaskManagers.
-	 * @param workingDirectory
-	 *         The current application master container's working directory.
-	 * @param taskManagerMainClass
-	 *         The class with the main method.
-	 * @param artifactServer
-	 *         The artifact server.
-	 * @param log
-	 *         The logger.
-	 *
-	 * @return The task info template for the TaskManager processes.
-	 *
-	 * @throws Exception Thrown if the task info could not be created, for example if
-	 *                   the resources could not be copied.
-	 */
-	public static Protos.TaskInfo.Builder createTaskManagerContext(
-		Configuration flinkConfig,
-		Map<String, String> env,
-		MesosTaskManagerParameters tmParams,
-		Configuration taskManagerConfig,
-		String workingDirectory,
-		Class<?> taskManagerMainClass,
-		MesosArtifactServer artifactServer,
-		Logger log) throws Exception {
+     */
+	private static void applyOverlays(
+		Configuration globalConfiguration, ContainerSpecification containerSpec) throws IOException {
 
+		// create the overlays that will produce the specification
+		CompositeContainerOverlay overlay = new CompositeContainerOverlay(
+			FlinkDistributionOverlay.newBuilder().fromEnvironment(globalConfiguration).build(),
+			HadoopConfOverlay.newBuilder().fromEnvironment(globalConfiguration).build(),
+			HadoopUserOverlay.newBuilder().fromEnvironment(globalConfiguration).build(),
+			KeytabOverlay.newBuilder().fromEnvironment(globalConfiguration).build(),
+			Krb5ConfOverlay.newBuilder().fromEnvironment(globalConfiguration).build(),
+			SSLStoreOverlay.newBuilder().fromEnvironment(globalConfiguration).build()
+		);
 
-		Protos.TaskInfo.Builder info = Protos.TaskInfo.newBuilder();
-		Protos.CommandInfo.Builder cmd = Protos.CommandInfo.newBuilder();
+		// apply the overlays
+		overlay.configure(containerSpec);
+	}
 
-		log.info("Setting up artifacts for TaskManagers");
-
-		String shipListString = env.get(MesosConfigKeys.ENV_CLIENT_SHIP_FILES);
-		checkState(shipListString != null, "Environment variable %s not set", MesosConfigKeys.ENV_CLIENT_SHIP_FILES);
-
-		String classPathString = env.get(MesosConfigKeys.ENV_FLINK_CLASSPATH);
-		checkState(classPathString != null, "Environment variable %s not set", MesosConfigKeys.ENV_FLINK_CLASSPATH);
-
-		// register the Flink jar
-		final File flinkJarFile = new File(workingDirectory, "flink.jar");
-		cmd.addUris(uri(artifactServer.addFile(flinkJarFile, "flink.jar"), true));
-
-		String hadoopConfDir = env.get("HADOOP_CONF_DIR");
-		LOG.debug("ENV: hadoopConfDir = {}", hadoopConfDir);
-
-		//upload Hadoop configurations to artifact server
-		boolean hadoopConf = false;
-		if(hadoopConfDir != null && hadoopConfDir.length() != 0) {
-			File source = new File(hadoopConfDir);
-			if(source.exists() && source.isDirectory()) {
-				hadoopConf = true;
-				File[] fileList = source.listFiles();
-				for(File file: fileList) {
-					if(file.getName().equals("core-site.xml") || file.getName().equals("hdfs-site.xml")) {
-						LOG.debug("Adding local file: [{}] to artifact server", file);
-						File f = new File(hadoopConfDir, file.getName());
-						cmd.addUris(uri(artifactServer.addFile(f, file.getName()), true));
-					}
-				}
-			}
+	private static void configureArtifactServer(MesosArtifactServer server, ContainerSpecification container) throws IOException {
+		// serve the artifacts associated with the container environment
+		for(ContainerSpecification.Artifact artifact : container.getArtifacts()) {
+			server.addPath(artifact.source, artifact.dest);
 		}
-
-		//upload keytab to the artifact server
-		String keytabFileName = null;
-		String keytab = flinkConfig.getString(ConfigConstants.SECURITY_KEYTAB_KEY, null);
-		if(keytab != null) {
-			File source = new File(keytab);
-			if(source.exists()) {
-				LOG.debug("Adding keytab file: [{}] to artifact server", source);
-				keytabFileName = source.getName();
-				cmd.addUris(uri(artifactServer.addFile(source, source.getName()), true));
-			}
-		}
-
-		String principal = flinkConfig.getString(ConfigConstants.SECURITY_PRINCIPAL_KEY, null);
-		if(keytabFileName != null && principal != null) {
-			//reset the configurations since we will use in-memory reference from within the TM instance
-			taskManagerConfig.setString(ConfigConstants.SECURITY_KEYTAB_KEY,"");
-			taskManagerConfig.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY,"");
-		}
-
-		// register the TaskManager configuration
-		final File taskManagerConfigFile =
-			new File(workingDirectory, UUID.randomUUID() + "-taskmanager-conf.yaml");
-		LOG.debug("Writing TaskManager configuration to {}", taskManagerConfigFile.getAbsolutePath());
-		BootstrapTools.writeConfiguration(taskManagerConfig, taskManagerConfigFile);
-		cmd.addUris(uri(artifactServer.addFile(taskManagerConfigFile, GlobalConfiguration.FLINK_CONF_FILENAME), true));
-
-		// prepare additional files to be shipped
-		for (String pathStr : shipListString.split(",")) {
-			if (!pathStr.isEmpty()) {
-				File shipFile = new File(workingDirectory, pathStr);
-				cmd.addUris(uri(artifactServer.addFile(shipFile, shipFile.getName()), true));
-			}
-		}
-
-		log.info("Creating task info for TaskManagers");
-
-		// build the launch command
-		boolean hasLogback = new File(workingDirectory, "logback.xml").exists();
-		boolean hasLog4j = new File(workingDirectory, "log4j.properties").exists();
-		boolean hasKrb5 = false;
-
-		String launchCommand = BootstrapTools.getTaskManagerShellCommand(
-			flinkConfig, tmParams.containeredParameters(), ".", ".",
-			hasLogback, hasLog4j, hasKrb5, taskManagerMainClass);
-		cmd.setValue(launchCommand);
-
-		// build the environment variables
-		Protos.Environment.Builder envBuilder = Protos.Environment.newBuilder();
-		for (Map.Entry<String, String> entry : tmParams.containeredParameters().taskManagerEnv().entrySet()) {
-			envBuilder.addVariables(variable(entry.getKey(), entry.getValue()));
-		}
-		envBuilder.addVariables(variable(MesosConfigKeys.ENV_CLASSPATH, classPathString));
-
-		//add hadoop config directory to the environment
-		if(hadoopConf) {
-			envBuilder.addVariables(variable(MesosConfigKeys.ENV_HADOOP_CONF_DIR, "."));
-		}
-
-		//add keytab and principal to environment
-		if(keytabFileName != null && principal != null) {
-			envBuilder.addVariables(variable(MesosConfigKeys.ENV_KEYTAB, keytabFileName));
-			envBuilder.addVariables(variable(MesosConfigKeys.ENV_KEYTAB_PRINCIPAL, principal));
-		}
-
-		envBuilder.addVariables(variable(MesosConfigKeys.ENV_HADOOP_USER_NAME,
-				UserGroupInformation.getCurrentUser().getUserName()));
-
-		cmd.setEnvironment(envBuilder);
-
-		info.setCommand(cmd);
-
-		// Set container for task manager if specified in configs.
-		String tmImageName = flinkConfig.getString(
-			ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_IMAGE_NAME, "");
-
-		if (tmImageName.length() > 0) {
-			String taskManagerContainerType = flinkConfig.getString(
-				ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE,
-				ConfigConstants.DEFAULT_MESOS_RESOURCEMANAGER_TASKS_CONTAINER_IMAGE_TYPE);
-
-			Protos.ContainerInfo.Builder containerInfo;
-
-			switch (taskManagerContainerType) {
-				case ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_MESOS:
-					containerInfo = Protos.ContainerInfo.newBuilder()
-						.setType(Protos.ContainerInfo.Type.MESOS)
-						.setMesos(Protos.ContainerInfo.MesosInfo.newBuilder()
-							.setImage(Protos.Image.newBuilder()
-								.setType(Protos.Image.Type.DOCKER)
-								.setDocker(Protos.Image.Docker.newBuilder()
-									.setName(tmImageName))));
-					break;
-				case ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_DOCKER:
-					containerInfo = Protos.ContainerInfo.newBuilder()
-						.setType(Protos.ContainerInfo.Type.DOCKER)
-						.setDocker(Protos.ContainerInfo.DockerInfo.newBuilder()
-							.setNetwork(Protos.ContainerInfo.DockerInfo.Network.HOST)
-							.setImage(tmImageName));
-					break;
-				default:
-					LOG.warn(
-						"Invalid container type '{}' provided for setting {}. Valid values are '{}' or '{}'. " +
-							"Starting task managers now without container.",
-						taskManagerContainerType,
-						ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE,
-						ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_MESOS,
-						ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_DOCKER);
-
-					containerInfo = null;
-
-					break;
-			}
-
-			if (containerInfo != null) {
-				info.setContainer(containerInfo);
-			}
-		}
-
-		return info;
 	}
 }
