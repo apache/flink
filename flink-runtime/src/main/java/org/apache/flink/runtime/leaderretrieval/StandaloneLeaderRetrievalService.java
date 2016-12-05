@@ -51,6 +51,7 @@ public class StandaloneLeaderRetrievalService implements LeaderRetrievalService 
 	 *
 	 * @param leaderAddress The leader's pre-configured address
 	 */
+	@Deprecated
 	public StandaloneLeaderRetrievalService(String leaderAddress) {
 		this.leaderAddress = checkNotNull(leaderAddress);
 		this.leaderId = null;

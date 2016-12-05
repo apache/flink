@@ -25,19 +25,17 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.ServicesThreadFactory;
 import org.apache.flink.runtime.jobmanager.StandaloneSubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
-import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -132,7 +130,7 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void shutdown() throws Exception {
+	public void close() throws Exception {
 		synchronized (lock) {
 			if (!shutdown) {
 				shutdown = true;
@@ -149,6 +147,12 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
 		}
 	}
 
+	@Override
+	public void closeAndCleanupAllData() throws Exception {
+		// this stores no data, so this method is the same as 'close()'
+		close();
+	}
+
 	private void checkNotShutdown() {
 		checkState(!shutdown, "high availability services are shut down");
 	}
@@ -159,22 +163,5 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
 
 	protected ExecutorService getExecutorService() {
 		return executor;
-	}
-
-	private static final class ServicesThreadFactory implements ThreadFactory {
-
-		private AtomicInteger enumerator = new AtomicInteger();
-
-		@Override
-		public Thread newThread(@Nonnull Runnable r) {
-			Thread thread = new Thread(r, "Flink HA Services Thread #" + enumerator.incrementAndGet());
-
-			// HA threads should have a very high priority, but not
-			// keep the JVM running by themselves
-			thread.setPriority(Thread.MAX_PRIORITY);
-			thread.setDaemon(true);
-
-			return thread;
-		}
 	}
 }

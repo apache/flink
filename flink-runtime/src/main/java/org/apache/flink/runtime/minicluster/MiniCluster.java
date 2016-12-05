@@ -345,7 +345,7 @@ public class MiniCluster {
 		// shut down high-availability services
 		if (haServices != null) {
 			try {
-				haServices.shutdown();
+				haServices.closeAndCleanupAllData();
 			} catch (Exception e) {
 				exception = firstOrSuppressed(e, exception);
 			}

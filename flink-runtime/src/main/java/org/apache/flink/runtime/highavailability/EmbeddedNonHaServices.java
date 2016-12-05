@@ -43,6 +43,12 @@ public class EmbeddedNonHaServices extends AbstractNonHaServices implements High
 	// ------------------------------------------------------------------------
 
 	@Override
+	public String getResourceManagerEndpointName() {
+		// dynamic actor name
+		return null;
+	}
+
+	@Override
 	public LeaderRetrievalService getResourceManagerLeaderRetriever() {
 		return resourceManagerLeaderService.createLeaderRetrievalService();
 	}
@@ -55,11 +61,16 @@ public class EmbeddedNonHaServices extends AbstractNonHaServices implements High
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void shutdown() throws Exception {
+	public void close() throws Exception {
 		try {
-			super.shutdown();
+			super.close();
 		} finally {
 			resourceManagerLeaderService.shutdown();
 		}
+	}
+
+	@Override
+	public void closeAndCleanupAllData() throws Exception {
+		close();
 	}
 }

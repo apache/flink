@@ -461,7 +461,7 @@ public class EmbeddedLeaderService {
 				contender.grantLeadership(leaderSessionId);
 			}
 			catch (Throwable t) {
-				logger.warn("Error notifying leader listener about new leader", t);
+				logger.warn("Error granting leadership to contender", t);
 				contender.handleError(t instanceof Exception ? (Exception) t : new Exception(t));
 			}
 		}
