@@ -21,12 +21,11 @@ package org.apache.flink.dropwizard;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Reporter;
 import com.codahale.metrics.ScheduledReporter;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.dropwizard.metrics.DropwizardHistogramWrapper;
 import org.apache.flink.dropwizard.metrics.DropwizardMeterWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkCounterWrapper;
-import org.apache.flink.dropwizard.metrics.DropwizardHistogramWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkGaugeWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkHistogramWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkMeterWrapper;
