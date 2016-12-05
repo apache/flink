@@ -20,7 +20,7 @@ package org.apache.flink.runtime.rpc.akka;
 
 import akka.actor.ActorRef;
 import akka.actor.Status;
-import akka.actor.UntypedActorWithStash;
+import akka.actor.UntypedActor;
 import akka.dispatch.Futures;
 import akka.japi.Procedure;
 import akka.pattern.Patterns;
@@ -30,6 +30,7 @@ import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.akka.messages.CallAsync;
 import org.apache.flink.runtime.rpc.akka.messages.LocalRpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.Processing;
@@ -43,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -60,14 +62,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * in the context of the actor thread.
  * <p>
  * The {@link Processing} message controls the processing behaviour of the akka rpc actor. A
- * {@link Processing#START} message unstashes all stashed messages and starts processing incoming
- * messages. A {@link Processing#STOP} message stops processing messages and stashes incoming
- * messages.
+ * {@link Processing#START} starts processing incoming messages. A {@link Processing#STOP} message
+ * stops processing messages. All messages which arrive when the processing is stopped, will be
+ * discarded.
  *
  * @param <C> Type of the {@link RpcGateway} associated with the {@link RpcEndpoint}
  * @param <T> Type of the {@link RpcEndpoint}
  */
-class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends UntypedActorWithStash {
+class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends UntypedActor {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcActor.class);
 
@@ -86,7 +88,7 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 	}
 
 	@Override
-	public void postStop() {
+	public void postStop() throws Exception {
 		super.postStop();
 
 		// IMPORTANT: This only works if we don't use a restarting supervisor strategy. Otherwise
@@ -99,7 +101,6 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 	@Override
 	public void onReceive(final Object message) {
 		if (message.equals(Processing.START)) {
-			unstashAll();
 			getContext().become(new Procedure<Object>() {
 				@Override
 				public void apply(Object msg) throws Exception {
@@ -111,10 +112,15 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 				}
 			});
 		} else {
-			LOG.info("The rpc endpoint {} has not been started yet. Stashing message {} until processing is started.",
+			LOG.info("The rpc endpoint {} has not been started yet. Discarding message {} until processing is started.",
 				rpcEndpoint.getClass().getName(),
 				message.getClass().getName());
-			stash();
+
+			if (!getSender().equals(ActorRef.noSender())) {
+				// fail a possible future if we have a sender
+				getSender().tell(new Status.Failure(new AkkaRpcException("Discard message, because " +
+					"the rpc endpoint has not been started yet.")), getSelf());
+			}
 		}
 	}
 
@@ -175,8 +181,19 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 				if (rpcMethod.getReturnType().equals(Void.TYPE)) {
 					// No return value to send back
 					rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());
-				} else {
-					Object result = rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());
+				}
+				else {
+					final Object result;
+					try {
+						result = rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());
+					}
+					catch (InvocationTargetException e) {
+						LOG.trace("Reporting back error thrown in remote procedure {}", rpcMethod, e);
+
+						// tell the sender about the failure
+						getSender().tell(new Status.Failure(e.getTargetException()), getSelf());
+						return;
+					}
 
 					if (result instanceof Future) {
 						final Future<?> future = (Future<?>) result;

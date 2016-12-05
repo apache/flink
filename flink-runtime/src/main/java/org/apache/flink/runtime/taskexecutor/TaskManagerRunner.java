@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -66,11 +67,22 @@ public class TaskManagerRunner implements FatalErrorHandler {
 	private final TaskExecutor taskManager;
 
 	public TaskManagerRunner(
+			Configuration configuration,
+			ResourceID resourceID,
+			RpcService rpcService,
+			HighAvailabilityServices highAvailabilityServices,
+			MetricRegistry metricRegistry) throws Exception {
+
+		this(configuration, resourceID, rpcService, highAvailabilityServices, metricRegistry, false);
+	}
+
+	public TaskManagerRunner(
 		Configuration configuration,
 		ResourceID resourceID,
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices,
-		MetricRegistry metricRegistry) throws Exception {
+		MetricRegistry metricRegistry,
+		boolean localCommunicationOnly) throws Exception {
 
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.resourceID = Preconditions.checkNotNull(resourceID);
@@ -80,10 +92,11 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 		InetAddress remoteAddress = InetAddress.getByName(rpcService.getAddress());
 
-		TaskManagerServicesConfiguration taskManagerServicesConfiguration = TaskManagerServicesConfiguration.fromConfiguration(
-			configuration,
-			remoteAddress,
-			false);
+		TaskManagerServicesConfiguration taskManagerServicesConfiguration = 
+				TaskManagerServicesConfiguration.fromConfiguration(
+						configuration,
+						remoteAddress,
+						localCommunicationOnly);
 
 		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
 			taskManagerServicesConfiguration,
@@ -139,6 +152,11 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		}
 	}
 
+	// export the termination future for caller to know it is terminated
+	public Future<Void> getTerminationFuture() {
+		return taskManager.getTerminationFuture();
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  FatalErrorHandler methods
 	// --------------------------------------------------------------------------------------------
@@ -185,7 +203,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 		final int rpcPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0);
 
-		Preconditions.checkState(rpcPort < 0 || rpcPort >65535, "Invalid value for " +
+		Preconditions.checkState(rpcPort >= 0 && rpcPort <= 65535, "Invalid value for " +
 				"'%s' (port for the TaskManager actor system) : %d - Leave config parameter empty or " +
 				"use 0 to let the system choose port automatically.",
 			ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, rpcPort);

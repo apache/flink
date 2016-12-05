@@ -55,7 +55,7 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
 
 	private final HashMap<JobID, EmbeddedLeaderService> jobManagerLeaderServices;
 
-	private final RunningJobsRegistry runningJobsRegistry;
+	private final NonHaRegistry runningJobsRegistry;
 
 	private boolean shutdown;
 
@@ -167,8 +167,13 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
 
 		@Override
 		public Thread newThread(@Nonnull Runnable r) {
-			Thread thread = new Thread(r, "Flink HA services thread #" + enumerator.incrementAndGet());
+			Thread thread = new Thread(r, "Flink HA Services Thread #" + enumerator.incrementAndGet());
+
+			// HA threads should have a very high priority, but not
+			// keep the JVM running by themselves
+			thread.setPriority(Thread.MAX_PRIORITY);
 			thread.setDaemon(true);
+
 			return thread;
 		}
 	}

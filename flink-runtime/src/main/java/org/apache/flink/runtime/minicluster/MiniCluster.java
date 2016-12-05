@@ -27,11 +27,15 @@ import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.leaderelection.LeaderAddressAndId;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRunner;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
@@ -169,6 +173,7 @@ public class MiniCluster {
 			final boolean singleRpc = config.getUseSingleRpcSystem();
 
 			try {
+				LOG.info("Starting Metrics Registry");
 				metricRegistry = createMetricRegistry(configuration);
 
 				RpcService[] jobManagerRpcServices = new RpcService[numJobManagers];
@@ -176,10 +181,12 @@ public class MiniCluster {
 				RpcService[] resourceManagerRpcServices = new RpcService[numResourceManagers];
 
 				// bring up all the RPC services
-				if (singleRpc) {
-					// one common RPC for all
-					commonRpcService = createRpcService(configuration, rpcTimeout, false, null);
+				LOG.info("Starting RPC Service(s)");
 
+				// we always need the 'commonRpcService' for auxiliary calls
+				commonRpcService = createRpcService(configuration, rpcTimeout, false, null);
+
+				if (singleRpc) {
 					// set that same RPC service for all JobManagers and TaskManagers
 					for (int i = 0; i < numJobManagers; i++) {
 						jobManagerRpcServices[i] = commonRpcService;
@@ -236,7 +243,7 @@ public class MiniCluster {
 						configuration, haServices, metricRegistry, numTaskManagers, taskManagerRpcServices);
 
 				// bring up the dispatcher that launches JobManagers when jobs submitted
-				LOG.info("Starting job dispatcher for {} JobManger(s)", numJobManagers);
+				LOG.info("Starting job dispatcher(s) for {} JobManger(s)", numJobManagers);
 				jobDispatcher = new MiniClusterJobDispatcher(
 						configuration, haServices, metricRegistry, numJobManagers, jobManagerRpcServices);
 			}
@@ -312,6 +319,19 @@ public class MiniCluster {
 			resourceManagerRunners = null;
 		}
 
+		if (taskManagerRunners != null) {
+			for (TaskManagerRunner tm : taskManagerRunners) {
+				if (tm != null) {
+					try {
+						tm.shutDown(null);
+					} catch (Throwable t) {
+						exception = firstOrSuppressed(t, exception);
+					}
+				}
+			}
+			taskManagerRunners = null;
+		}
+
 		// shut down the RpcServices
 		exception = shutDownRpc(commonRpcService, exception);
 		exception = shutDownRpcs(jobManagerRpcServices, exception);
@@ -341,6 +361,49 @@ public class MiniCluster {
 		// if anything went wrong, throw the first error with all the additional suppressed exceptions
 		if (exception != null) {
 			ExceptionUtils.rethrowException(exception, "Error while shutting down mini cluster");
+		}
+	}
+
+	public void waitUntilTaskManagerRegistrationsComplete() throws Exception {
+		LeaderRetrievalService rmMasterListener = null;
+		Future<LeaderAddressAndId> addressAndIdFuture;
+
+		try {
+			synchronized (lock) {
+				checkState(running, "FlinkMiniCluster is not running");
+
+				OneTimeLeaderListenerFuture listenerFuture = new OneTimeLeaderListenerFuture();
+				rmMasterListener = haServices.getResourceManagerLeaderRetriever();
+				rmMasterListener.start(listenerFuture);
+				addressAndIdFuture = listenerFuture.future(); 
+			}
+
+			final LeaderAddressAndId addressAndId = addressAndIdFuture.get();
+
+			final ResourceManagerGateway resourceManager = 
+					commonRpcService.connect(addressAndId.leaderAddress(), ResourceManagerGateway.class).get();
+
+			final int numTaskManagersToWaitFor = taskManagerRunners.length;
+
+			// poll and wait until enough TaskManagers are available
+			while (true) {
+				int numTaskManagersAvailable = 
+						resourceManager.getNumberOfRegisteredTaskManagers(addressAndId.leaderId()).get();
+
+				if (numTaskManagersAvailable >= numTaskManagersToWaitFor) {
+					break;
+				}
+				Thread.sleep(2);
+			}
+		}
+		finally {
+			try {
+				if (rmMasterListener != null) {
+					rmMasterListener.stop();
+				}
+			} catch (Exception e) {
+				LOG.warn("Error shutting down leader listener for ResourceManager");
+			}
 		}
 	}
 
@@ -462,6 +525,7 @@ public class MiniCluster {
 			RpcService[] taskManagerRpcServices) throws Exception {
 
 		final TaskManagerRunner[] taskManagerRunners = new TaskManagerRunner[numTaskManagers];
+		final boolean localCommunication = numTaskManagers == 1;
 
 		for (int i = 0; i < numTaskManagers; i++) {
 			taskManagerRunners[i] = new TaskManagerRunner(
@@ -469,7 +533,8 @@ public class MiniCluster {
 				new ResourceID(UUID.randomUUID().toString()),
 				taskManagerRpcServices[i],
 				haServices,
-				metricRegistry);
+				metricRegistry,
+				localCommunication);
 
 			taskManagerRunners[i].start();
 		}

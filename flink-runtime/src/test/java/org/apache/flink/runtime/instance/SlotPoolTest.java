@@ -23,7 +23,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
@@ -42,17 +41,13 @@ import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.instance.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -120,28 +115,6 @@ public class SlotPoolTest extends TestLogger {
 		assertEquals(resourceID, slot.getTaskManagerID());
 		assertEquals(jobId, slot.getJobID());
 		assertEquals(slotPool.getSlotOwner(), slot.getOwner());
-	}
-
-	@Test
-	public void testAllocateSlotWithoutResourceManager() throws Exception {
-		slotPool.disconnectResourceManager();
-		Future<SimpleSlot> future = slotPool.allocateSlot(mock(ScheduledUnit.class),DEFAULT_TESTING_PROFILE, null);
-		future.handleAsync(
-			new BiFunction<SimpleSlot, Throwable, Void>() {
-				@Override
-				public Void apply(SimpleSlot simpleSlot, Throwable throwable) {
-					assertNull(simpleSlot);
-					assertNotNull(throwable);
-					return null;
-				}
-			},
-			rpcService.getExecutor());
-		try {
-			future.get(1, TimeUnit.SECONDS);
-			fail("We expected a ExecutionException.");
-		} catch (ExecutionException ex) {
-			// we expect the exception
-		}
 	}
 
 	@Test

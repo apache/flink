@@ -22,13 +22,16 @@ import akka.actor.ActorSystem;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.TestLogger;
+
 import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -85,7 +88,7 @@ public class AkkaRpcActorTest extends TestLogger {
 		Future<DummyRpcGateway> futureRpcGateway = akkaRpcService.connect("foobar", DummyRpcGateway.class);
 
 		try {
-			DummyRpcGateway gateway = futureRpcGateway.get(timeout.getSize(), timeout.getUnit());
+			futureRpcGateway.get(timeout.getSize(), timeout.getUnit());
 
 			fail("The rpc connection resolution should have failed.");
 		} catch (ExecutionException exception) {
@@ -95,26 +98,38 @@ public class AkkaRpcActorTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the {@link AkkaRpcActor} stashes messages until the corresponding
+	 * Tests that the {@link AkkaRpcActor} discards messages until the corresponding
 	 * {@link RpcEndpoint} has been started.
 	 */
 	@Test
-	public void testMessageStashing() throws Exception {
+	public void testMessageDiscarding() throws Exception {
 		int expectedValue = 1337;
 
 		DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
 
 		DummyRpcGateway rpcGateway = rpcEndpoint.getSelf();
 
-		// this message should not be processed until we've started the rpc endpoint
+		// this message should be discarded and completed with an AkkaRpcException
 		Future<Integer> result = rpcGateway.foobar();
+
+		try {
+			result.get(timeout.getSize(), timeout.getUnit());
+			fail("Expected an AkkaRpcException.");
+		} catch (ExecutionException ee) {
+			// expected this exception, because the endpoint has not been started
+			assertTrue(ee.getCause() instanceof AkkaRpcException);
+		}
 
 		// set a new value which we expect to be returned
 		rpcEndpoint.setFoobar(expectedValue);
 
-		// now process the rpc
+		// start the endpoint so that it can process messages
 		rpcEndpoint.start();
 
+		// send the rpc again
+		result = rpcGateway.foobar();
+
+		// now we should receive a result :-)
 		Integer actualValue = result.get(timeout.getSize(), timeout.getUnit());
 
 		assertThat("The new foobar value should have been returned.", actualValue, Is.is(expectedValue));
@@ -179,6 +194,48 @@ public class AkkaRpcActorTest extends TestLogger {
 		terminationFuture.get();
 	}
 
+	@Test
+	public void testExceptionPropagation() throws Exception {
+		ExceptionalEndpoint rpcEndpoint = new ExceptionalEndpoint(akkaRpcService);
+		rpcEndpoint.start();
+
+		ExceptionalGateway rpcGateway = rpcEndpoint.getSelf();
+		Future<Integer> result = rpcGateway.doStuff();
+
+		try {
+			result.get(timeout.getSize(), timeout.getUnit());
+			fail("this should fail with an exception");
+		}
+		catch (ExecutionException e) {
+			Throwable cause = e.getCause();
+			assertEquals(RuntimeException.class, cause.getClass());
+			assertEquals("my super specific test exception", cause.getMessage());
+		}
+	}
+
+	@Test
+	public void testExceptionPropagationFuturePiping() throws Exception {
+		ExceptionalFutureEndpoint rpcEndpoint = new ExceptionalFutureEndpoint(akkaRpcService);
+		rpcEndpoint.start();
+
+		ExceptionalGateway rpcGateway = rpcEndpoint.getSelf();
+		Future<Integer> result = rpcGateway.doStuff();
+
+		try {
+			result.get(timeout.getSize(), timeout.getUnit());
+			fail("this should fail with an exception");
+		}
+		catch (ExecutionException e) {
+			Throwable cause = e.getCause();
+			assertEquals(Exception.class, cause.getClass());
+			assertEquals("some test", cause.getMessage());
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Test Actors and Interfaces
+	// ------------------------------------------------------------------------
+
 	private interface DummyRpcGateway extends RpcGateway {
 		Future<Integer> foobar();
 	}
@@ -203,6 +260,49 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		public void setFoobar(int value) {
 			_foobar = value;
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	private interface ExceptionalGateway extends RpcGateway {
+		Future<Integer> doStuff();
+	}
+
+	private static class ExceptionalEndpoint extends RpcEndpoint<ExceptionalGateway> {
+
+		protected ExceptionalEndpoint(RpcService rpcService) {
+			super(rpcService);
+		}
+
+		@RpcMethod
+		public int doStuff() {
+			throw new RuntimeException("my super specific test exception");
+		}
+	}
+
+	private static class ExceptionalFutureEndpoint extends RpcEndpoint<ExceptionalGateway> {
+
+		protected ExceptionalFutureEndpoint(RpcService rpcService) {
+			super(rpcService);
+		}
+
+		@RpcMethod
+		public Future<Integer> doStuff() {
+			final FlinkCompletableFuture<Integer> future = new FlinkCompletableFuture<>();
+
+			// complete the future slightly in the, well, future...
+			new Thread() {
+				@Override
+				public void run() {
+					try {
+						Thread.sleep(10);
+					} catch (InterruptedException ignored) {}
+					future.completeExceptionally(new Exception("some test"));
+				}
+			}.start();
+
+			return future;
 		}
 	}
 }

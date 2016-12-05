@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.HybridMemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -35,6 +36,7 @@ import java.io.File;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -57,6 +59,8 @@ public class TaskManagerServicesConfiguration {
 
 	private final float memoryFraction;
 
+	private final long timerServiceShutdownTimeout;
+
 	public TaskManagerServicesConfiguration(
 		InetAddress taskManagerAddress,
 		String[] tmpDirPaths,
@@ -64,7 +68,8 @@ public class TaskManagerServicesConfiguration {
 		int numberOfSlots,
 		long configuredMemory,
 		boolean preAllocateMemory,
-		float memoryFraction) {
+		float memoryFraction,
+		long timerServiceShutdownTimeout) {
 
 		this.taskManagerAddress = checkNotNull(taskManagerAddress);
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
@@ -74,6 +79,10 @@ public class TaskManagerServicesConfiguration {
 		this.configuredMemory = configuredMemory;
 		this.preAllocateMemory = preAllocateMemory;
 		this.memoryFraction = memoryFraction;
+
+		checkArgument(timerServiceShutdownTimeout >= 0L, "The timer " +
+			"service shutdown timeout must be greater or equal to 0.");
+		this.timerServiceShutdownTimeout = timerServiceShutdownTimeout;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -105,6 +114,10 @@ public class TaskManagerServicesConfiguration {
 
 	public boolean isPreAllocateMemory() {
 		return preAllocateMemory;
+	}
+
+	public long getTimerServiceShutdownTimeout() {
+		return timerServiceShutdownTimeout;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -161,6 +174,8 @@ public class TaskManagerServicesConfiguration {
 			ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
 			"MemoryManager fraction of the free memory must be between 0.0 and 1.0");
 
+		long timerServiceShutdownTimeout = AkkaUtils.getTimeout(configuration).toMillis();
+
 		return new TaskManagerServicesConfiguration(
 			remoteAddress,
 			tmpDirs,
@@ -168,7 +183,8 @@ public class TaskManagerServicesConfiguration {
 			slots,
 			configuredMemory,
 			preAllocateMemory,
-			memoryFraction);
+			memoryFraction,
+			timerServiceShutdownTimeout);
 	}
 
 	// --------------------------------------------------------------------------

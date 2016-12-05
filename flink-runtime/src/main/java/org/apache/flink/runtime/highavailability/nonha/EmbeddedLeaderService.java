@@ -225,7 +225,7 @@ public class EmbeddedLeaderService {
 				// check if the confirmation is for the same grant, or whether it is a stale grant 
 				if (service == currentLeaderProposed && currentLeaderSessionId.equals(leaderSessionId)) {
 					final String address = service.contender.getAddress();
-					LOG.info("Received confirmation of leadership for leader {} / session={}", address, leaderSessionId);
+					LOG.info("Received confirmation of leadership for leader {} , session={}", address, leaderSessionId);
 
 					// mark leadership
 					currentLeaderConfirmed = service;
@@ -270,6 +270,9 @@ public class EmbeddedLeaderService {
 
 				currentLeaderSessionId = leaderSessionId;
 				currentLeaderProposed = leaderService;
+
+				LOG.info("Proposing leadership to contender {} @ {}",
+						leaderService.contender, leaderService.contender.getAddress());
 
 				notificationExecutor.execute(
 						new GrantLeadershipCall(leaderService.contender, leaderSessionId, LOG));
