@@ -27,7 +27,7 @@ class TemperatureWarning(rackID: Int = -1, averageTemperature: Double = -1) {
   override def equals(obj: Any): Boolean = obj match {
     case other: TemperatureWarning =>
       rackID == other.getRackID &&
-      averageTemperature == other.getAverageTemperature
+        averageTemperature == other.getAverageTemperature
 
     case _ => false
   }

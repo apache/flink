@@ -28,15 +28,15 @@ import java.util.Map;
 public class TemperatureAlertPatternFlatSelectFunction
 	implements PatternFlatSelectFunction<TemperatureWarning, TemperatureAlert> {
 
-    @Override
-    public void flatSelect(Map<String, TemperatureWarning> pattern,
-                           Collector<TemperatureAlert> out) throws Exception {
+	@Override
+	public void flatSelect(Map<String, TemperatureWarning> pattern,
+						   Collector<TemperatureAlert> out) throws Exception {
 
-        TemperatureWarning first = pattern.get("first");
-        TemperatureWarning second = pattern.get("second");
+		TemperatureWarning first = pattern.get("first");
+		TemperatureWarning second = pattern.get("second");
 
-        if (first.getAverageTemperature() < second.getAverageTemperature()) {
-            out.collect(new TemperatureAlert(first.getRackID()));
-        }
-    }
+		if (first.getAverageTemperature() < second.getAverageTemperature()) {
+			out.collect(new TemperatureAlert(first.getRackID()));
+		}
+	}
 }

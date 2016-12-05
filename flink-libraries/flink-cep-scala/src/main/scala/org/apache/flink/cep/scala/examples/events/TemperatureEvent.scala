@@ -25,8 +25,8 @@ class TemperatureEvent(rackID: Int, temperature: Double) extends MonitoringEvent
   override def equals(obj: Any): Boolean = obj match {
     case other: TemperatureEvent =>
       other.canEquals(this) &&
-      super.equals(other) &&
-      temperature == other.getTemperature
+        super.equals(other) &&
+        temperature == other.getTemperature
 
     case _ => false
   }
