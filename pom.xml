@@ -63,15 +63,15 @@ under the License.
 		<module>flink-optimizer</module>
 		<module>flink-streaming-java</module>
 		<module>flink-streaming-scala</module>
-		<module>flink-streaming-connectors</module>
+        <module>flink-streaming-connectors</module>
 		<module>flink-batch-connectors</module>
 		<module>flink-examples</module>
 		<module>flink-clients</module>
-		<module>flink-tests</module>
+	    <module>flink-tests</module>
 		<module>flink-test-utils-parent</module>
 		<module>flink-libraries</module>
 		<module>flink-scala-shell</module>
-		<module>flink-quickstart</module>
+		<module>flink-quickstart</module>-->
 		<module>flink-contrib</module>
 		<module>flink-dist</module>
 		<module>flink-mesos</module>
@@ -122,7 +122,7 @@ under the License.
 			<groupId>com.google.code.findbugs</groupId>
 			<artifactId>jsr305</artifactId>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
@@ -150,7 +150,7 @@ under the License.
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>${junit.version}</version>
+			<version>${junit.versionStormFieldsGroupingITCase}</version>
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -190,9 +190,9 @@ under the License.
 
 	<!-- this section defines the module versions that are used if nothing else is specified. -->
 	<dependencyManagement>
-		<!-- WARN: 
-			DO NOT put 	guava, 
-						protobuf, 
+		<!-- WARN:
+			DO NOT put 	guava,
+						protobuf,
 						asm,
 						netty
 					here. It will overwrite Hadoop's guava dependency (even though we handle it
@@ -207,14 +207,14 @@ under the License.
 				<artifactId>jsr305</artifactId>
 				<version>1.3.9</version>
 			</dependency>
-			
+
 			<!-- Make sure we use a consistent avro version throughout the project -->
 			<dependency>
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro</artifactId>
 				<version>1.7.6</version>
 			</dependency>
-			
+
 			<dependency>
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro-ipc</artifactId>
@@ -287,7 +287,7 @@ under the License.
 				<artifactId>joda-convert</artifactId>
 				<version>1.7</version>
 			</dependency>
-			
+
 			<!-- kryo used in different versions by Flink an chill -->
 			<dependency>
 				<groupId>com.esotericsoftware.kryo</groupId>
@@ -410,7 +410,7 @@ under the License.
 	</dependencyManagement>
 
 	<profiles>
-		
+
 		<!-- Profile to switch to Scala Version 2.11 -->
 		<profile>
 			<id>scala-2.11</id>
@@ -469,7 +469,7 @@ under the License.
 				<module>flink-yarn-tests</module>
 			</modules>
 		</profile>
-		
+
 		<profile>
 			<id>vendor-repos</id>
 			<!-- Add vendor maven repositories -->
@@ -657,7 +657,7 @@ under the License.
 				</dependency>
 			</dependencies>
 		</profile>
-		
+
 		<profile>
 			<id>release</id>
 			<build>
@@ -1076,7 +1076,7 @@ under the License.
 
 		</plugins>
 
-		<!-- Plugin configurations for plugins activated in sub-projects --> 
+		<!-- Plugin configurations for plugins activated in sub-projects -->
 
 		<pluginManagement>
 			<plugins>
@@ -1087,7 +1087,7 @@ under the License.
 					<artifactId>maven-shade-plugin</artifactId>
 					<version>2.4.1</version>
 				</plugin>
-				
+
 				<!-- Disable certain plugins in Eclipse -->
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>

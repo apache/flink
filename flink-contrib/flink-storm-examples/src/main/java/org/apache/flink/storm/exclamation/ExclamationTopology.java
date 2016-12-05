@@ -17,7 +17,7 @@
 
 package org.apache.flink.storm.exclamation;
 
-import backtype.storm.topology.TopologyBuilder;
+import org.apache.storm.topology.TopologyBuilder;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.exclamation.operators.ExclamationBolt;
 import org.apache.flink.storm.util.BoltFileSink;
@@ -29,7 +29,7 @@ import org.apache.flink.storm.util.SimpleOutputFormatter;
 
 /**
  * Implements the "Exclamation" program that attaches two exclamation marks to every line of a text files in a streaming
- * fashion. The program is constructed as a regular {@link backtype.storm.generated.StormTopology}.
+ * fashion. The program is constructed as a regular {@link org.apache.storm.generated.StormTopology}.
  * <p>
  * The input is a plain text file with lines separated by newline characters.
  * <p>
