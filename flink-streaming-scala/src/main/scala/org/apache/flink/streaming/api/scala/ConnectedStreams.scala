@@ -127,7 +127,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
       throw new NullPointerException("CoProcessFunction function must not be null.")
     }
 
-    check(coFlatMapper)
+    check(coProcessFunction)
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
 
