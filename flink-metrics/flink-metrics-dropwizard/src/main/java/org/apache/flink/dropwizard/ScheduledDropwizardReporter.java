@@ -93,11 +93,15 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 		return meters;
 	}
 
-	Map<Gauge<?>, String> getGauges() { return gauges; }
 	@VisibleForTesting
+	Map<Gauge<?>, String> getGauges() {
+		return gauges;
+	}
 
-	Map<Histogram, String> getHistograms() { return histograms; }
 	@VisibleForTesting
+	Map<Histogram, String> getHistograms() {
+		return histograms;
+	}
 
 	// ------------------------------------------------------------------------
 	//  life cycle
