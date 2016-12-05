@@ -29,7 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.TreeMap;
@@ -117,7 +116,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
 	public void setCommentPrefix(String commentPrefix) {
 		if (commentPrefix != null) {
-			this.commentPrefix = commentPrefix.getBytes(Charset.forName(charsetName));
+			this.commentPrefix = commentPrefix.getBytes(getCharset());
 		} else {
 			this.commentPrefix = null;
 		}
@@ -128,7 +127,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	}
 
 	public void setFieldDelimiter(String delimiter) {
-		this.fieldDelim = delimiter.getBytes(Charset.forName(charsetName));
+		this.fieldDelim = delimiter.getBytes(getCharset());
 	}
 
 	public boolean isLenient() {
@@ -276,8 +275,6 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
 
-		Charset charset = Charset.forName(charsetName);
-
 		// instantiate the parsers
 		FieldParser<?>[] parsers = new FieldParser<?>[fieldTypes.length];
 		
@@ -290,7 +287,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
 				FieldParser<?> p = InstantiationUtil.instantiate(parserType, FieldParser.class);
 
-				p.setCharset(charset);
+				p.setCharset(getCharset());
 				if (this.quotedStringParsing) {
 					if (p instanceof StringParser) {
 						((StringParser)p).enableQuotedStringParsing(this.quoteCharacter);

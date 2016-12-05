@@ -57,9 +57,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	 */
 	private static final Logger LOG = LoggerFactory.getLogger(DelimitedInputFormat.class);
 
-	// The charset used to convert strings to bytes; stored as String since
-	// since java.nio.charset.Charset is not serializable
-	protected String charsetName = "UTF-8";
+	// The charset used to convert strings to bytes
+	private String charsetName = "UTF-8";
+
+	// Charset is not serializable
+	private transient Charset charset;
 
 	/**
 	 * The default read buffer size = 1MB.
@@ -186,13 +188,17 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	}
 
 	/**
-	 * Get the name of the character set used for the row delimiter, field
-	 * delimiter, comment string, and {@link FieldParser}.
+	 * Get the character set used for the row delimiter, field delimiter,
+	 * comment string, and {@link FieldParser}.
 	 *
-	 * @return name of the charset
+	 * @return the charset
 	 */
-	public String getCharset() {
-		return this.charsetName;
+	@PublicEvolving
+	public Charset getCharset() {
+		if (this.charset == null) {
+			this.charset = Charset.forName(charsetName);
+		}
+		return this.charset;
 	}
 
 	/**
@@ -205,8 +211,10 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	 *
 	 * @param charset name of the charset
 	 */
+	@PublicEvolving
 	public void setCharset(String charset) {
 		this.charsetName = Preconditions.checkNotNull(charset);
+		this.charset = null;
 	}
 
 	public byte[] getDelimiter() {
