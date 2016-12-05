@@ -92,6 +92,7 @@ public class Hardware {
 	public static void shutdown() {
 		if (cpuStatServiceForLinux != null) {
 			cpuStatServiceForLinux.shutdown();
+			cpuStatServiceForLinux = null;
 		}
 	}
 	
@@ -416,7 +417,7 @@ public class Hardware {
 	 * @return the process status value which pattern matched or {@code ""}, if
 	 *         the pattern unmatched
 	 */
-    private static String getProcessStatusForLinux(Pattern pattern) {
+	private static String getProcessStatusForLinux(Pattern pattern) {
 		try (BufferedReader lineReader = new BufferedReader(new FileReader(LINUX_PROCESS_STATUS_PATH))) {
 			String line;
 			while ((line = lineReader.readLine()) != null) {
@@ -468,7 +469,7 @@ public class Hardware {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Util class to extract CPU specifics on Linux host.
+	 * Service to extract CPU specifics on Linux host.
 	 */
 	private static class CpuStatServiceForLinux {
 
