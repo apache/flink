@@ -48,7 +48,7 @@ import org.apache.flink.api.table.{FlinkTypeFactory, ValidationException}
   * recommended to declare parameters and result types as primitive types instead of their boxed
   * classes. DATE/TIME is equal to int, TIMESTAMP is equal to long.
   */
-abstract class ScalarFunction {
+abstract class ScalarFunction extends UserDefinedFunction {
 
   /**
     * Creates a call to a [[ScalarFunction]] in Scala Table API.

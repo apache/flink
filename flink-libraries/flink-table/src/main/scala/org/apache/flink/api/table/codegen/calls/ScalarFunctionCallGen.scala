@@ -42,7 +42,7 @@ class ScalarFunctionCallGen(
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
     // determine function signature and result class
-    val matchingSignature = getSignature(scalarFunction.getClass, signature)
+    val matchingSignature = getSignature(scalarFunction, signature)
       .getOrElse(throw new CodeGenException("No matching signature found."))
     val resultClass = getResultTypeClass(scalarFunction, matchingSignature)
 
@@ -65,7 +65,7 @@ class ScalarFunctionCallGen(
         }
 
     // generate function call
-    val functionReference = codeGenerator.addReusableInstance(scalarFunction)
+    val functionReference = codeGenerator.addReusableFunction(scalarFunction)
     val resultTypeTerm = if (resultClass.isPrimitive) {
       primitiveTypeTermForTypeInfo(returnType)
     } else {

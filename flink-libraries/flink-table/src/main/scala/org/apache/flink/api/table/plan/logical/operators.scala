@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table._
 import org.apache.flink.api.table.expressions._
-
 import org.apache.flink.api.table.typeutils.TypeConverter
 import org.apache.flink.api.table.validate.{ValidationFailure, ValidationSuccess}
 

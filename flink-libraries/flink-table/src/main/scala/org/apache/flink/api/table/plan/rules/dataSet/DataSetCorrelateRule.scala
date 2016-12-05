@@ -64,8 +64,9 @@ class DataSetCorrelateRule
             convertToCorrelate(rel.getRelList.get(0), condition)
 
           case filter: LogicalFilter =>
-            convertToCorrelate(filter.getInput.asInstanceOf[RelSubset].getOriginal,
-                               Some(filter.getCondition))
+            convertToCorrelate(
+              filter.getInput.asInstanceOf[RelSubset].getOriginal,
+              Some(filter.getCondition))
 
           case scan: LogicalTableFunctionScan =>
             new DataSetCorrelate(

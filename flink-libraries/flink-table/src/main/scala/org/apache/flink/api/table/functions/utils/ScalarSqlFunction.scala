@@ -76,12 +76,12 @@ object ScalarSqlFunction {
               FlinkTypeFactory.toTypeInfo(operandType)
             }
           }
-        val foundSignature = getSignature(scalarFunction.getClass, parameters)
+        val foundSignature = getSignature(scalarFunction, parameters)
         if (foundSignature.isEmpty) {
           throw new ValidationException(
             s"Given parameters of function '$name' do not match any signature. \n" +
               s"Actual: ${signatureToString(parameters)} \n" +
-              s"Expected: ${signaturesToString(scalarFunction.getClass)}")
+              s"Expected: ${signaturesToString(scalarFunction)}")
         }
         val resultType = getResultType(scalarFunction, foundSignature.get)
         typeFactory.createTypeFromTypeInfo(resultType)
@@ -104,7 +104,7 @@ object ScalarSqlFunction {
 
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 
-        val foundSignature = getSignature(scalarFunction.getClass, operandTypeInfo)
+        val foundSignature = getSignature(scalarFunction, operandTypeInfo)
           .getOrElse(throw new ValidationException(s"Operand types of could not be inferred."))
 
         val inferredTypes = scalarFunction
@@ -124,13 +124,13 @@ object ScalarSqlFunction {
       scalarFunction: ScalarFunction)
     : SqlOperandTypeChecker = {
 
-    val signatures = getSignatures(scalarFunction.getClass)
+    val signatures = getSignatures(scalarFunction)
     /**
       * Operand type checker based on [[ScalarFunction]] given information.
       */
     new SqlOperandTypeChecker {
       override def getAllowedSignatures(op: SqlOperator, opName: String): String = {
-        s"$opName[${signaturesToString(scalarFunction.getClass)}]"
+        s"$opName[${signaturesToString(scalarFunction)}]"
       }
 
       override def getOperandCountRange: SqlOperandCountRange = {
@@ -144,14 +144,14 @@ object ScalarSqlFunction {
         : Boolean = {
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 
-        val foundSignature = getSignature(scalarFunction.getClass, operandTypeInfo)
+        val foundSignature = getSignature(scalarFunction, operandTypeInfo)
 
         if (foundSignature.isEmpty) {
           if (throwOnFailure) {
             throw new ValidationException(
               s"Given parameters of function '$name' do not match any signature. \n" +
                 s"Actual: ${signatureToString(operandTypeInfo)} \n" +
-                s"Expected: ${signaturesToString(scalarFunction.getClass)}")
+                s"Expected: ${signaturesToString(scalarFunction)}")
           } else {
             false
           }

@@ -49,8 +49,8 @@ class DataSetCorrelate(
   extends SingleRel(cluster, traitSet, inputNode)
   with FlinkCorrelate
   with DataSetRel {
-  override def deriveRowType() = relRowType
 
+  override def deriveRowType() = relRowType
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val rowCnt = metadata.getRowCount(getInput) * 1.5
@@ -86,7 +86,6 @@ class DataSetCorrelate(
       .item("joinType", joinType)
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
-
 
   override def translateToPlan(
       tableEnv: BatchTableEnvironment,
@@ -137,5 +136,4 @@ class DataSetCorrelate(
 
     inputDS.flatMap(mapFunc).name(correlateOpName(rexCall, sqlFunction, relRowType))
   }
-
 }

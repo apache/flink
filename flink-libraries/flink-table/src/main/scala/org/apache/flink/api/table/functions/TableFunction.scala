@@ -80,7 +80,7 @@ import org.apache.flink.api.table.ValidationException
   *
   * @tparam T The type of the output row
   */
-abstract class TableFunction[T] {
+abstract class TableFunction[T] extends UserDefinedFunction {
 
   private val rows: util.ArrayList[T] = new util.ArrayList[T]()
 

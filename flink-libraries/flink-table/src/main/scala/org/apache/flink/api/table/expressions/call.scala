@@ -80,11 +80,11 @@ case class ScalarFunctionCall(
   override private[flink] def validateInput(): ValidationResult = {
     val signature = children.map(_.resultType)
     // look for a signature that matches the input types
-    foundSignature = getSignature(scalarFunction.getClass, signature)
+    foundSignature = getSignature(scalarFunction, signature)
     if (foundSignature.isEmpty) {
       ValidationFailure(s"Given parameters do not match any signature. \n" +
         s"Actual: ${signatureToString(signature)} \n" +
-        s"Expected: ${signaturesToString(scalarFunction.getClass)}")
+        s"Expected: ${signaturesToString(scalarFunction)}")
     } else {
       ValidationSuccess
     }

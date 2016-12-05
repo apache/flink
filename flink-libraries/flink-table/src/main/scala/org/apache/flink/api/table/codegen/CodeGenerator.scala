@@ -35,6 +35,7 @@ import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.Indenter.toISC
 import org.apache.flink.api.table.codegen.calls.FunctionGenerator
 import org.apache.flink.api.table.codegen.calls.ScalarOperators._
+import org.apache.flink.api.table.functions.UserDefinedFunction
 import org.apache.flink.api.table.typeutils.{RowTypeInfo, TypeConverter}
 import org.apache.flink.api.table.typeutils.TypeCheckUtils._
 import org.apache.flink.api.table.{FlinkTypeFactory, TableConfig}
@@ -1362,17 +1363,16 @@ class CodeGenerator(
   }
 
   /**
-    * Adds a reusable instance (a [[org.apache.flink.api.table.functions.TableFunction]] or
-    * [[org.apache.flink.api.table.functions.ScalarFunction]]) to the member area of the generated
-    * [[Function]]. The instance class must have a default constructor, however, it does not have
+    * Adds a reusable [[UserDefinedFunction]] to the member area of the generated [[Function]].
+    * The [[UserDefinedFunction]] must have a default constructor, however, it does not have
     * to be public.
     *
-    * @param instance object to be instantiated during runtime
+    * @param function [[UserDefinedFunction]] object to be instantiated during runtime
     * @return member variable term
     */
-  def addReusableInstance(instance: Any): String = {
-    val classQualifier = instance.getClass.getCanonicalName
-    val fieldTerm = s"instance_${classQualifier.replace('.', '$')}"
+  def addReusableFunction(function: UserDefinedFunction): String = {
+    val classQualifier = function.getClass.getCanonicalName
+    val fieldTerm = s"function_${classQualifier.replace('.', '$')}"
 
     val fieldFunction =
       s"""

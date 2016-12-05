@@ -29,43 +29,41 @@ import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.table.{FlinkTypeFactory, TableException, ValidationException}
-import org.apache.flink.api.table.functions.{ScalarFunction, TableFunction}
+import org.apache.flink.api.table.functions.{ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.api.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
 
 object UserDefinedFunctionUtils {
 
   /**
-    * Instantiates a class.
+    * Instantiates a user-defined function.
     */
-  def instantiate[T](clazz: Class[T]): T = {
+  def instantiate[T <: UserDefinedFunction](clazz: Class[T]): T = {
     val constructor = clazz.getDeclaredConstructor()
     constructor.setAccessible(true)
     constructor.newInstance()
   }
 
   /**
-    * Checks if a class can be easily instantiated.
+    * Checks if a user-defined function can be easily instantiated.
     */
   def checkForInstantiation(clazz: Class[_]): Unit = {
     if (!InstantiationUtil.isPublic(clazz)) {
-      throw ValidationException(s"Function class ${clazz.getCanonicalName} is not public.")
+      throw ValidationException("Function class is not public.")
     }
     else if (!InstantiationUtil.isProperClass(clazz)) {
-      throw ValidationException(s"Function class ${clazz.getCanonicalName} is no proper class, " +
-                                  s"it is either abstract, an interface, or a primitive type.")
+      throw ValidationException("Function class is no proper class, it is either abstract," +
+        " an interface, or a primitive type.")
     }
     else if (InstantiationUtil.isNonStaticInnerClass(clazz)) {
-      throw ValidationException(s"The class ${clazz.getCanonicalName} is an inner class, " +
-                                  s"but not statically accessible.")
+      throw ValidationException("The class is an inner class, but not statically accessible.")
     }
 
     // check for default constructor (can be private)
     clazz
       .getDeclaredConstructors
       .find(_.getParameterTypes.isEmpty)
-      .getOrElse(throw ValidationException(
-        s"Function class ${clazz.getCanonicalName} needs a default constructor."))
+      .getOrElse(throw ValidationException("Function class needs a default constructor."))
   }
 
   /**
@@ -90,7 +88,7 @@ object UserDefinedFunctionUtils {
     * Elements of the signature can be null (act as a wildcard).
     */
   def getSignature(
-      function: Class[_],
+      function: UserDefinedFunction,
       signature: Seq[TypeInformation[_]])
     : Option[Array[Class[_]]] = {
     // We compare the raw Java classes not the TypeInformation.
@@ -113,7 +111,7 @@ object UserDefinedFunctionUtils {
     * Returns eval method matching the given signature of [[TypeInformation]].
     */
   def getEvalMethod(
-      function: Class[_],
+      function: UserDefinedFunction,
       signature: Seq[TypeInformation[_]])
     : Option[Method] = {
     // We compare the raw Java classes not the TypeInformation.
@@ -137,8 +135,9 @@ object UserDefinedFunctionUtils {
     * Extracts "eval" methods and throws a [[ValidationException]] if no implementation
     * can be found.
     */
-  def checkAndExtractEvalMethods(function: Class[_]): Array[Method] = {
+  def checkAndExtractEvalMethods(function: UserDefinedFunction): Array[Method] = {
     val methods = function
+      .getClass
       .getDeclaredMethods
       .filter { m =>
         val modifiers = m.getModifiers
@@ -147,14 +146,14 @@ object UserDefinedFunctionUtils {
 
     if (methods.isEmpty) {
       throw new ValidationException(
-        s"Function class '${function.getCanonicalName}' does not implement at least " +
+        s"Function class '${function.getClass.getCanonicalName}' does not implement at least " +
           s"one method named 'eval' which is public and not abstract.")
     } else {
       methods
     }
   }
 
-  def getSignatures(function: Class[_]): Array[Array[Class[_]]] = {
+  def getSignatures(function: UserDefinedFunction): Array[Array[Class[_]]] = {
     checkAndExtractEvalMethods(function).map(_.getParameterTypes)
   }
 
@@ -192,7 +191,7 @@ object UserDefinedFunctionUtils {
       typeFactory: FlinkTypeFactory)
     : Seq[SqlFunction] = {
     val (fieldNames, fieldIndexes, _) = UserDefinedFunctionUtils.getFieldInfo(resultType)
-    val evalMethods = checkAndExtractEvalMethods(tableFunction.getClass)
+    val evalMethods = checkAndExtractEvalMethods(tableFunction)
 
     evalMethods.map { method =>
       val function = new FlinkTableFunctionImpl(resultType, fieldIndexes, fieldNames, method)
@@ -213,7 +212,7 @@ object UserDefinedFunctionUtils {
       signature: Array[Class[_]])
     : TypeInformation[_] = {
     // find method for signature
-    val evalMethod = checkAndExtractEvalMethods(function.getClass)
+    val evalMethod = checkAndExtractEvalMethods(function)
       .find(m => signature.sameElements(m.getParameterTypes))
       .getOrElse(throw new ValidationException("Given signature is invalid."))
 
@@ -240,7 +239,7 @@ object UserDefinedFunctionUtils {
       signature: Array[Class[_]])
     : Class[_] = {
     // find method for signature
-    val evalMethod = checkAndExtractEvalMethods(function.getClass)
+    val evalMethod = checkAndExtractEvalMethods(function)
       .find(m => signature.sameElements(m.getParameterTypes))
       .getOrElse(throw new IllegalArgumentException("Given signature is invalid."))
     evalMethod.getReturnType
@@ -303,7 +302,7 @@ object UserDefinedFunctionUtils {
   /**
     * Prints all eval methods signatures of a class.
     */
-  def signaturesToString(function: Class[_]): String = {
+  def signaturesToString(function: UserDefinedFunction): String = {
     getSignatures(function).map(signatureToString).mkString(", ")
   }
 
