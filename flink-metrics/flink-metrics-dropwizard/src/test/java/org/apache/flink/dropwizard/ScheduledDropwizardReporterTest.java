@@ -129,6 +129,10 @@ public class ScheduledDropwizardReporterTest {
 		metricRegistry.shutdown();
 	}
 
+	/**
+	 * This test verifies that metrics are properly added and removed to/from the ScheduledDropwizardReporter and
+	 * the underlying Dropwizard MetricRegistry.
+	 */
 	@Test
 	public void testMetricCleanup() {
 		TestingScheduledDropwizardReporter rep = new TestingScheduledDropwizardReporter();
