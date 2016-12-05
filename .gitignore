@@ -17,6 +17,5 @@ tmp
 .DS_Store
 /docs/api
 /docs/content
-/docs/Gemfile.lock
 /docs/.bundle
 /docs/.rubydeps
