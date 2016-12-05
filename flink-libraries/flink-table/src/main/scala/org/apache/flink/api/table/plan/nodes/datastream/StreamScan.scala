@@ -37,12 +37,9 @@ import scala.collection.JavaConverters._
 abstract class StreamScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    table: RelOptTable,
-    rowRelDataType: RelDataType)
+    table: RelOptTable)
   extends TableScan(cluster, traitSet, table)
   with DataStreamRel {
-
-  override def deriveRowType() = rowRelDataType
 
   protected def convertToExpectedType(
       input: DataStream[Any],
