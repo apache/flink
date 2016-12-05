@@ -18,13 +18,11 @@
 
 package org.apache.flink.runtime.highavailability;
 
+import org.apache.flink.runtime.highavailability.leaderelection.SingleLeaderElectionService;
 import org.apache.flink.runtime.highavailability.nonha.AbstractNonHaServices;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
-
-import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -38,6 +36,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * on a local file system and therefore in a storage without guarantees.
  */
 public class NonHaServices extends AbstractNonHaServices implements HighAvailabilityServices {
+
+	/** The constant name of the ResourceManager RPC endpoint */
+	private static final String RESOURCE_MANAGER_RPC_ENDPOINT_NAME = "resource_manager";
 
 	/** The fix address of the ResourceManager */
 	private final String resourceManagerAddress;
@@ -53,16 +54,26 @@ public class NonHaServices extends AbstractNonHaServices implements HighAvailabi
 	}
 
 	// ------------------------------------------------------------------------
+	//  Names
+	// ------------------------------------------------------------------------
+
+	@Override
+	public String getResourceManagerEndpointName() {
+		return RESOURCE_MANAGER_RPC_ENDPOINT_NAME;
+	}
+
+
+	// ------------------------------------------------------------------------
 	//  Services
 	// ------------------------------------------------------------------------
 
 	@Override
 	public LeaderRetrievalService getResourceManagerLeaderRetriever() {
-		return new StandaloneLeaderRetrievalService(resourceManagerAddress, new UUID(0, 0));
+		return new StandaloneLeaderRetrievalService(resourceManagerAddress, DEFAULT_LEADER_ID);
 	}
 
 	@Override
 	public LeaderElectionService getResourceManagerLeaderElectionService() {
-		return new StandaloneLeaderElectionService();
+		return new SingleLeaderElectionService(getExecutorService(), DEFAULT_LEADER_ID);
 	}
 }

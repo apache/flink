@@ -240,7 +240,7 @@ public class YarnTaskExecutorRunner {
 			}
 			if (haServices != null) {
 				try {
-					haServices.shutdown();
+					haServices.close();
 				} catch (Throwable tt) {
 					LOG.warn("Failed to stop the HA service", tt);
 				}

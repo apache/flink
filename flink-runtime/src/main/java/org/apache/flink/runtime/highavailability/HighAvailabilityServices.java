@@ -26,19 +26,45 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 import java.io.IOException;
+import java.util.UUID;
 
 /**
- * This class gives access to all services needed for
- *
+ * The HighAvailabilityServices give access to all services needed for a highly-available
+ * setup. In particular, the services provide access to highly available storage and
+ * registries, as well as distributed counters and leader election.
+ * 
  * <ul>
  *     <li>ResourceManager leader election and leader retrieval</li>
  *     <li>JobManager leader election and leader retrieval</li>
  *     <li>Persistence for checkpoint metadata</li>
  *     <li>Registering the latest completed checkpoint(s)</li>
- *     <li>Persistence for submitted job graph</li>
+ *     <li>Persistence for the BLOB store</li>
+ *     <li>Registry that marks a job's status</li>
+ *     <li>Naming of RPC endpoints</li>
  * </ul>
  */
-public interface HighAvailabilityServices {
+public interface HighAvailabilityServices extends AutoCloseable {
+
+	// ------------------------------------------------------------------------
+	//  Constants
+	// ------------------------------------------------------------------------
+
+	/**
+	 * This UUID should be used when no proper leader election happens, but a simple
+	 * pre-configured leader is used. That is for example the case in non-highly-available
+	 * standalone setups.
+	 */
+	UUID DEFAULT_LEADER_ID = new UUID(0, 0);
+
+	// ------------------------------------------------------------------------
+	//  Endpoint Naming
+	// ------------------------------------------------------------------------
+
+	String getResourceManagerEndpointName();
+
+	// ------------------------------------------------------------------------
+	//  Services
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Gets the leader retriever for the cluster's resource manager.
@@ -88,7 +114,7 @@ public interface HighAvailabilityServices {
 	 *
 	 * @return Running job registry to retrieve running jobs
 	 */
-	RunningJobsRegistry getRunningJobsRegistry();
+	RunningJobsRegistry getRunningJobsRegistry() throws Exception;
 
 	/**
 	 * Creates the BLOB store in which BLOBs are stored in a highly-available fashion.
@@ -99,11 +125,38 @@ public interface HighAvailabilityServices {
 	BlobStore createBlobStore() throws IOException;
 
 	// ------------------------------------------------------------------------
+	//  Shutdown and Cleanup
+	// ------------------------------------------------------------------------
 
 	/**
-	 * Shut the high availability service down.
+	 * Closes the high availability services, releasing all resources.
+	 * 
+	 * <p>This method <b>does not delete or clean up</b> any data stored in external stores
+	 * (file systems, ZooKeeper, etc). Another instance of the high availability
+	 * services will be able to recover the job.
+	 * 
+	 * <p>If an exception occurs during closing services, this method will attempt to
+	 * continue closing other services and report exceptions only after all services
+	 * have been attempted to be closed.
 	 *
-	 * @throws Exception if the shut down fails
+	 * @throws Exception Thrown, if an exception occurred while closing these services.
 	 */
-	void shutdown() throws Exception;
+	@Override
+	void close() throws Exception;
+
+	/**
+	 * Closes the high availability services (releasing all resources) and deletes
+	 * all data stored by these services in external stores.
+	 * 
+	 * <p>After this method was called, the any job or session that was managed by
+	 * these high availability services will be unrecoverable.
+	 * 
+	 * <p>If an exception occurs during cleanup, this method will attempt to
+	 * continue the cleanup and report exceptions only after all cleanup steps have
+	 * been attempted.
+	 * 
+	 * @throws Exception Thrown, if an exception occurred while closing these services
+	 *                   or cleaning up data stored by them.
+	 */
+	void closeAndCleanupAllData() throws Exception;
 }

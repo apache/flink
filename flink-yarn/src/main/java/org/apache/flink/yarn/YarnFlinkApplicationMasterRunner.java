@@ -37,7 +37,6 @@ import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
-import org.apache.flink.runtime.resourcemanager.exceptions.ConfigurationException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultSlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -57,7 +56,12 @@ import java.io.FileInputStream;
 import java.io.ObjectInputStream;
 
 /**
- * This class is the executable entry point for the YARN application master.
+ * This class is the executable entry point for the YARN Application Master that
+ * executes a single Flink job and then shuts the YARN application down.
+ * 
+ * <p>The lifetime of the YARN application bound to that of the Flink job. Other
+ * YARN Application Master implementations are for example the YARN session.
+ * 
  * It starts actor system and the actors for {@link org.apache.flink.runtime.jobmaster.JobManagerRunner}
  * and {@link org.apache.flink.yarn.YarnResourceManager}.
  *
@@ -73,6 +77,8 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 
 	/** The job graph file path */
 	private static final String JOB_GRAPH_FILE_PATH = "flink.jobgraph.path";
+
+	// ------------------------------------------------------------------------
 
 	/** The lock to guard startup / shutdown / manipulation methods */
 	private final Object lock = new Object();
@@ -105,7 +111,7 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	 * @param args The command line arguments.
 	 */
 	public static void main(String[] args) {
-		EnvironmentInformation.logEnvironmentInfo(LOG, "YARN ApplicationMaster runner", args);
+		EnvironmentInformation.logEnvironmentInfo(LOG, "YARN ApplicationMaster / ResourceManager / JobManager", args);
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
@@ -127,7 +133,9 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 					ConfigConstants.DEFAULT_YARN_JOB_MANAGER_PORT);
 
 			synchronized (lock) {
+				LOG.info("Starting High Availability Services");
 				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config);
+				
 				metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 				commonRpcService = createRpcService(config, appMasterHostname, amPortRange);
 
@@ -176,7 +184,7 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 		return new AkkaRpcService(actorSystem, Time.of(duration.length(), duration.unit()));
 	}
 
-	private ResourceManager createResourceManager(Configuration config) throws ConfigurationException {
+	private ResourceManager<?> createResourceManager(Configuration config) throws Exception {
 		final ResourceManagerConfiguration resourceManagerConfiguration = ResourceManagerConfiguration.fromConfiguration(config);
 		final SlotManagerFactory slotManagerFactory = new DefaultSlotManager.Factory();
 		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(haServices);
@@ -242,7 +250,7 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 			}
 			if (haServices != null) {
 				try {
-					haServices.shutdown();
+					haServices.close();
 				} catch (Throwable tt) {
 					LOG.warn("Failed to stop the HA service", tt);
 				}
