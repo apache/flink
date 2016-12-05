@@ -25,7 +25,6 @@ atlassian-ide-plugin.xml
 out/
 /docs/api
 /docs/content
-/docs/Gemfile.lock
 /docs/.bundle
 /docs/.rubydeps
 *.ipr
