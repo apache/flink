@@ -34,5 +34,6 @@ class TemperatureWarning(rackID: Int = -1, averageTemperature: Double = -1) {
 
   override def hashCode: Int = 41 * rackID + averageTemperature.hashCode()
 
-  override def toString: String = "TemperatureWarning(" + getRackID + ", " + averageTemperature + ")"
+  override def toString: String =
+    "TemperatureWarning(" + getRackID + ", " + averageTemperature + ")"
 }

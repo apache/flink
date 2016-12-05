@@ -55,8 +55,8 @@ object CEPMonitoringExample {
       TEMP_MEAN)
     ).assignTimestampsAndWatermarks(new IngestionTimeExtractor[MonitoringEvent])
 
-    // Warning pattern: Two consecutive temperature events whose temperature is higher than the given threshold
-    // appearing within a time interval of 10 seconds
+    // Warning pattern: Two consecutive temperature events whose temperature is higher
+    // than the given threshold appearing within a time interval of 10 seconds
     val warningPattern = Pattern
       .begin[MonitoringEvent]("first")
       .subtype(classOf[TemperatureEvent])
@@ -78,7 +78,8 @@ object CEPMonitoringExample {
       }
     )
 
-    // Alert pattern: Two consecutive temperature warnings appearing within a time interval of 20 seconds
+    // Alert pattern: Two consecutive temperature warnings
+    // appearing within a time interval of 20 seconds
     val alertPattern = Pattern
       .begin[TemperatureWarning]("first")
       .next("second")
@@ -87,8 +88,8 @@ object CEPMonitoringExample {
     // Create a pattern stream from our alert pattern
     val alertPatternStream = CEP.pattern(warnings.keyBy(_.getRackID), alertPattern)
 
-    // Generate a temperature alert only iff the second temperature warning's average temperature is higher than
-    // first warning's temperature
+    // Generate a temperature alert only iff the second temperature warning's average temperature
+    // is higher than first warning's temperature
     val alerts: DataStream[TemperatureAlert] = alertPatternStream.flatSelect((pattern, out) => {
       val first = pattern("first")
       val second = pattern("second")
