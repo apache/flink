@@ -91,6 +91,10 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 		return meters;
 	}
 
+	Map<Gauge<?>, String> getGauges() { return gauges; }
+
+	Map<Histogram, String> getHistograms() { return histograms; }
+
 	// ------------------------------------------------------------------------
 	//  life cycle
 	// ------------------------------------------------------------------------
@@ -157,6 +161,8 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 				fullName = gauges.remove(metric);
 			} else if (metric instanceof Histogram) {
 				fullName = histograms.remove(metric);
+			} else if (metric instanceof Meter) {
+				fullName = meters.remove(metric);
 			} else {
 				fullName = null;
 			}
