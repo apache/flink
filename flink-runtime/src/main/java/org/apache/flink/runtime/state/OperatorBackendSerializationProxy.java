@@ -81,7 +81,11 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 		}
 	}
 
-//----------------------------------------------------------------------------------------------------------------------
+	public List<StateMetaInfo<?>> getNamedStateSerializationProxies() {
+		return namedStateSerializationProxies;
+	}
+
+	//----------------------------------------------------------------------------------------------------------------------
 
 	public static class StateMetaInfo<S> implements IOReadableWritable {
 

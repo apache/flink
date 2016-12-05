@@ -25,7 +25,6 @@ import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -34,15 +33,7 @@ import java.io.Serializable;
 @Internal
 final class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
 
-	private final ClassLoader userClassLoader;
-
-	public JavaSerializer() {
-		this(Thread.currentThread().getContextClassLoader());
-	}
-
-	public JavaSerializer(ClassLoader userClassLoader) {
-		this.userClassLoader = Preconditions.checkNotNull(userClassLoader);
-	}
+	private static final long serialVersionUID = 5067491650263321234L;
 
 	@Override
 	public boolean isImmutableType() {
@@ -87,7 +78,8 @@ final class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
 		try {
-			return InstantiationUtil.deserializeObject(new DataInputViewStream(source), userClassLoader);
+			return InstantiationUtil.deserializeObject(
+					new DataInputViewStream(source), Thread.currentThread().getContextClassLoader());
 		} catch (ClassNotFoundException e) {
 			throw new IOException("Could not deserialize object.", e);
 		}
@@ -107,7 +99,7 @@ final class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
 
 	@Override
 	public boolean equals(Object obj) {
-		return obj instanceof JavaSerializer && userClassLoader.equals(((JavaSerializer<T>) obj).userClassLoader);
+		return obj instanceof JavaSerializer;
 	}
 
 	@Override
