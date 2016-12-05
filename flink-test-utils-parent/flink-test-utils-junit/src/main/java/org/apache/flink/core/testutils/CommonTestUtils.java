@@ -29,6 +29,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.UUID;
 
 import static org.junit.Assert.fail;
 
@@ -39,7 +40,7 @@ public class CommonTestUtils {
 
 	/**
 	 * Reads the path to the directory for temporary files from the configuration and returns it.
-	 * 
+	 *
 	 * @return the path to the directory for temporary files
 	 */
 	public static String getTempDir() {
@@ -78,9 +79,9 @@ public class CommonTestUtils {
 	/**
 	 * Creates a temporary file that contains the given string.
 	 * The file is written with the platform's default encoding.
-	 * 
+	 *
 	 * <p>The temp file is automatically deleted on JVM exit.
-	 * 
+	 *
 	 * @param contents The contents to be written to the file.
 	 * @return The temp file URI.
 	 */
@@ -92,6 +93,25 @@ public class CommonTestUtils {
 			out.write(contents);
 		}
 		return f.toURI().toString();
+	}
+
+	/**
+	 * Create a temporary directory, automatically delete it on exit jvm.
+	 * @return The created directory
+	 * @throws IOException
+	 */
+	public static File createTempDirectory() throws IOException {
+		String path = System.getProperty("java.io.tmpdir");
+		File tempDir = new File(path);
+		for (int i = 0; i < 100; i++) {
+			File dir = new File(tempDir, UUID.randomUUID().toString());
+			if (!dir.exists() && dir.mkdirs()) {
+				dir.deleteOnExit();
+				return dir;
+			}
+		}
+
+		throw new IOException("Could not create temporary file directory");
 	}
 
 	/**

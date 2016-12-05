@@ -33,11 +33,13 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.junit.Test;
 
 public class TextInputFormatTest {
@@ -45,40 +47,40 @@ public class TextInputFormatTest {
 	public void testSimpleRead() {
 		final String FIRST = "First line";
 		final String SECOND = "Second line";
-		
+
 		try {
 			// create input file
 			File tempFile = File.createTempFile("TextInputFormatTest", "tmp");
 			tempFile.deleteOnExit();
 			tempFile.setWritable(true);
-			
+
 			PrintStream ps = new  PrintStream(tempFile);
 			ps.println(FIRST);
 			ps.println(SECOND);
 			ps.close();
-			
+
 			TextInputFormat inputFormat = new TextInputFormat(new Path(tempFile.toURI().toString()));
-			
-			Configuration parameters = new Configuration(); 
+
+			Configuration parameters = new Configuration();
 			inputFormat.configure(parameters);
-			
+
 			FileInputSplit[] splits = inputFormat.createInputSplits(1);
 			assertTrue("expected at least one input split", splits.length >= 1);
-			
+
 			inputFormat.open(splits[0]);
-			
+
 			String result = "";
-			
+
 			assertFalse(inputFormat.reachedEnd());
 			result = inputFormat.nextRecord("");
 			assertNotNull("Expecting first record here", result);
 			assertEquals(FIRST, result);
-			
+
 			assertFalse(inputFormat.reachedEnd());
 			result = inputFormat.nextRecord(result);
 			assertNotNull("Expecting second record here", result);
 			assertEquals(SECOND, result);
-			
+
 			assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
 		}
 		catch (Throwable t) {
@@ -90,15 +92,15 @@ public class TextInputFormatTest {
 
 	@Test
 	public void testNestedFileRead() {
-		String[] dirs = new String[] {"tmp/first/", "tmp/second/"};
-		List<String> expectedFiles = new ArrayList<>();
-
 		try {
-			for (String dir: dirs) {
+			String tmpDirPath = CommonTestUtils.createTempDirectory().getPath();
+			String[] dirs = new String[]{tmpDirPath + "/first/", tmpDirPath + "/second/"};
+			List<String> expectedFiles = new ArrayList<>();
+			for (String dir : dirs) {
 				// create input file
 				File tmpDir = new File(dir);
-				if (!tmpDir.exists()) {
-					tmpDir.mkdirs();
+				if (!tmpDir.exists() && tmpDir.mkdirs()) {
+					tmpDir.deleteOnExit();
 				}
 
 				File tempFile = File.createTempFile("TextInputFormatTest", ".tmp", tmpDir);
@@ -106,7 +108,7 @@ public class TextInputFormatTest {
 
 				expectedFiles.add(new Path(tempFile.getAbsolutePath()).makeQualified(FileSystem.getLocalFileSystem()).toString());
 			}
-			File parentDir = new File("tmp");
+			File parentDir = new File(tmpDirPath);
 
 			TextInputFormat inputFormat = new TextInputFormat(new Path(parentDir.toURI().toString()));
 			inputFormat.setNestedFileEnumeration(true);
@@ -124,7 +126,7 @@ public class TextInputFormatTest {
 			FileInputSplit[] splits = inputFormat.createInputSplits(expectedFiles.size());
 
 			List<String> paths = new ArrayList<>();
-			for (FileInputSplit split: splits) {
+			for (FileInputSplit split : splits) {
 				paths.add(split.getPath().toString());
 			}
 
@@ -146,66 +148,66 @@ public class TextInputFormatTest {
 	 */
 	@Test
 	public void testRemovingTrailingCR() {
-		
+
 		testRemovingTrailingCR("\n","\n");
 		testRemovingTrailingCR("\r\n","\n");
-		
+
 		testRemovingTrailingCR("|","|");
 		testRemovingTrailingCR("|","\n");
 	}
-	
+
 	private void testRemovingTrailingCR(String lineBreaker,String delimiter) {
 		File tempFile=null;
-		
+
 		String FIRST = "First line";
 		String SECOND = "Second line";
 		String CONTENT = FIRST + lineBreaker + SECOND + lineBreaker;
-		
+
 		try {
 			// create input file
 			tempFile = File.createTempFile("TextInputFormatTest", "tmp");
 			tempFile.deleteOnExit();
 			tempFile.setWritable(true);
-			
+
 			OutputStreamWriter wrt = new OutputStreamWriter(new FileOutputStream(tempFile));
 			wrt.write(CONTENT);
 			wrt.close();
-			
+
 			TextInputFormat inputFormat = new TextInputFormat(new Path(tempFile.toURI().toString()));
 			inputFormat.setFilePath(tempFile.toURI().toString());
-			
-			Configuration parameters = new Configuration(); 
+
+			Configuration parameters = new Configuration();
 			inputFormat.configure(parameters);
-			
+
 			inputFormat.setDelimiter(delimiter);
-			
+
 			FileInputSplit[] splits = inputFormat.createInputSplits(1);
-						
+
 			inputFormat.open(splits[0]);
-			
+
 
 			String result = "";
-			if (  (delimiter.equals("\n") && (lineBreaker.equals("\n") || lineBreaker.equals("\r\n") ) ) 
+			if (  (delimiter.equals("\n") && (lineBreaker.equals("\n") || lineBreaker.equals("\r\n") ) )
 					|| (lineBreaker.equals(delimiter)) ){
-				
+
 				result = inputFormat.nextRecord("");
 				assertNotNull("Expecting first record here", result);
 				assertEquals(FIRST, result);
-				
+
 				result = inputFormat.nextRecord(result);
 				assertNotNull("Expecting second record here", result);
 				assertEquals(SECOND, result);
-				
+
 				result = inputFormat.nextRecord(result);
 				assertNull("The input file is over", result);
-				
+
 			} else {
 				result = inputFormat.nextRecord("");
 				assertNotNull("Expecting first record here", result);
 				assertEquals(CONTENT, result);
 			}
-			
-			
+
+
 		}
 		catch (Throwable t) {
 			System.err.println("test failed with exception: " + t.getMessage());
