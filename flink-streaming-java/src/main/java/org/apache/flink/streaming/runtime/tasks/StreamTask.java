@@ -396,7 +396,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		// We need to close them first to last, since upstream operators in the chain might emit
 		// elements in their close methods.
 		StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
-		for (int i = 0; i < allOperators.length; i++) {
+		for (int i = allOperators.length - 1; i >= 0; i--) {
 			StreamOperator<?> operator = allOperators[i];
 			if (operator != null) {
 				operator.close();
@@ -876,7 +876,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			if (!snapshotInProgressList.isEmpty()) {
 				// TODO Currently only the head operator of a chain can have keyed state, so simply access it directly.
-				int headIndex = 0;
+				int headIndex = snapshotInProgressList.size() - 1;
 				OperatorSnapshotResult snapshotInProgress = snapshotInProgressList.get(headIndex);
 				if (null != snapshotInProgress) {
 					this.futureKeyedBackendStateHandles = snapshotInProgress.getKeyedStateManagedFuture();
@@ -983,12 +983,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			startSyncPartNano = System.nanoTime();
 
-			// perform the snapshots from head operator so that all parent operators can do snapshot before their
-			// children. for chained operators without any future wait operator/async wait operator, the order
-			// is not a concern. when it comes to chained operator with those operators, all the operators acting as
-			// wait operators' children should have received all their inputs while doing snapshot.
-			for (int i = 0; i < allOperators.length; i++) {
-				StreamOperator<?> op = allOperators[i];
+			for (StreamOperator<?> op : allOperators) {
 
 				createStreamFactory(op);
 				snapshotNonPartitionableState(op);

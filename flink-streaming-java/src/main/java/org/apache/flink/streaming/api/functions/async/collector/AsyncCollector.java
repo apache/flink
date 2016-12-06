@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators.async;
+package org.apache.flink.streaming.api.functions.async.collector;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
@@ -39,13 +39,13 @@ public class AsyncCollector<IN, OUT> {
 
 	private final AsyncCollectorBuffer<IN, OUT> buffer;
 
-	public AsyncCollector(AsyncCollectorBuffer<IN, OUT> buffer) {
+	protected AsyncCollector(AsyncCollectorBuffer<IN, OUT> buffer) {
 		Preconditions.checkNotNull(buffer, "Reference to AsyncCollectorBuffer should not be null");
 
 		this.buffer = buffer;
 	}
 
-	public AsyncCollector(AsyncCollectorBuffer<IN, OUT> buffer, boolean isDone) {
+	protected AsyncCollector(AsyncCollectorBuffer<IN, OUT> buffer, boolean isDone) {
 		this(buffer);
 		this.isDone = isDone;
 	}
@@ -86,7 +86,7 @@ public class AsyncCollector<IN, OUT> {
 	 * @return A List of result.
 	 * @throws IOException IOException wrapping errors from user codes.
 	 */
-	public List<OUT> getResult() throws IOException {
+	protected List<OUT> getResult() throws IOException {
 		if (error != null) {
 			throw new IOException(error);
 		}
