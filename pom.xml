@@ -831,6 +831,11 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/assets/fonts/FontAwesome.otf</exclude>
 						<exclude>flink-runtime-web/web-dashboard/assets/fonts/fontawesome*</exclude>
 
+						<!-- web dashboard non-binary image assets -->
+						<exclude>flink-runtime-web/web-dashboard/assets/images/browserconfig.xml</exclude>
+						<exclude>flink-runtime-web/web-dashboard/assets/images/manifest.json</exclude>
+						<exclude>flink-runtime-web/web-dashboard/assets/images/safari-pinned-tab.svg</exclude>
+
 						<!-- generated contents -->
 						<exclude>flink-runtime-web/web-dashboard/web/**</exclude>
 
