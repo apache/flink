@@ -150,7 +150,35 @@ class Table(
     * }}}
     */
   def filter(predicate: Expression): Table = {
-    new Table(tableEnv, Filter(predicate, logicalPlan).validate(tableEnv))
+
+    predicate match {
+      case subQuery: InSub =>
+        var table: Table = subQuery.table
+
+        val leftSideColumn = subQuery.expression.toString.replaceAll("\"", "")
+        var rightSideColumn = table.logicalPlan.output.head.name
+
+        if (rightSideColumn == leftSideColumn) {
+          table = table.select(rightSideColumn).as(rightSideColumn + "_sub")
+          rightSideColumn = rightSideColumn + "_sub"
+        }
+
+        val predicateExpression =
+          ExpressionParser.parseExpression(s"$rightSideColumn = $leftSideColumn")
+
+        val originalQueryFields: String = this.logicalPlan.output.map(_.name).mkString(",")
+
+        new Table(tableEnv,
+          Join(this.logicalPlan,
+            table.logicalPlan,
+            JoinType.INNER,
+            Some(predicateExpression))
+            .validate(tableEnv))
+          .select(originalQueryFields)
+
+      case _ =>
+        new Table(tableEnv, Filter(predicate, logicalPlan).validate(tableEnv))
+    }
   }
 
   /**
