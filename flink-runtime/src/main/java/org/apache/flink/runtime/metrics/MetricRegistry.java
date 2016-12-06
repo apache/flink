@@ -185,6 +185,15 @@ public class MetricRegistry {
 	}
 
 	/**
+	 * Returns whether this registry has been shutdown.
+	 *
+	 * @return true, if this registry was shutdown, otherwise false
+	 */
+	public boolean isShutdown() {
+		return reporters == null && executor.isShutdown();
+	}
+
+	/**
 	 * Shuts down this registry and the associated {@link MetricReporter}.
 	 */
 	public void shutdown() {
