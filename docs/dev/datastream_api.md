@@ -342,7 +342,7 @@ allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, 
           <td>
             <p>Applies a functional reduce function to the window and returns the reduced value.</p>
     {% highlight java %}
-windowedStream.reduce (new ReduceFunction<Tuple2<String,Integer>() {
+windowedStream.reduce (new ReduceFunction<Tuple2<String,Integer>>() {
     public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1, Tuple2<String, Integer> value2) throws Exception {
         return new Tuple2<String,Integer>(value1.f0, value1.f1 + value2.f1);
     }
@@ -388,7 +388,7 @@ windowedStream.maxBy("key");
         <tr>
           <td><strong>Union</strong><br>DataStream* &rarr; DataStream</td>
           <td>
-            <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Node: If you union a data stream
+            <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Note: If you union a data stream
             with itself you will get each element twice in the resulting stream.</p>
     {% highlight java %}
 dataStream.union(otherStream1, otherStream2, ...);
@@ -737,7 +737,7 @@ windowedStream.maxBy("key")
         <tr>
           <td><strong>Union</strong><br>DataStream* &rarr; DataStream</td>
           <td>
-            <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Node: If you union a data stream
+            <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Note: If you union a data stream
             with itself you will get each element twice in the resulting stream.</p>
     {% highlight scala %}
 dataStream.union(otherStream1, otherStream2, ...)

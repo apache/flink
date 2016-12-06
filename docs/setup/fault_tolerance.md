@@ -45,9 +45,6 @@ To enable checkpointing, call `enableCheckpointing(n)` on the `StreamExecutionEn
 
 Other parameters for checkpointing include:
 
-- *Number of retries*: The `setNumberOfExecutionRerties()` method defines how many times the job is restarted after a failure.
-  When checkpointing is activated, but this value is not explicitly set, the job is restarted infinitely often.
-
 - *exactly-once vs. at-least-once*: You can optionally pass a mode to the `enableCheckpointing(n)` method to choose between the two guarantee levels.
   Exactly-once is preferrable for most applications. At-least-once may be relevant for certain super-low-latency (consistently few milliseconds) applications.
 
@@ -306,12 +303,12 @@ restart-strategy: fixed-delay
   <tbody>
     <tr>
         <td><it>restart-strategy.fixed-delay.attempts</it></td>
-        <td>Number of restart attempts</td>
+        <td>The number of times that Flink retries the execution before the job is declared as failed</td>
         <td>1</td>
     </tr>
     <tr>
         <td><it>restart-strategy.fixed-delay.delay</it></td>
-        <td>Delay between two consecutive restart attempts</td>
+        <td>Delay between two consecutive restart attempts. Delaying the retry means that after a failed execution, the re-execution does not start immediately, but only after a certain delay. Delaying the retries can be helpful when the program interacts with external systems where for example connections or pending transactions should reach a timeout before re-execution is attempted.</td>
         <td><it>akka.ask.timeout</it></td>
     </tr>
   </tbody>
@@ -344,20 +341,6 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 {% endhighlight %}
 </div>
 </div>
-
-#### Restart Attempts
-
-The number of times that Flink retries the execution before the job is declared as failed is configurable via the *restart-strategy.fixed-delay.attempts* parameter.
-
-The default value is **1**.
-
-#### Retry Delays
-
-Execution retries can be configured to be delayed. Delaying the retry means that after a failed execution, the re-execution does not start immediately, but only after a certain delay.
-
-Delaying the retries can be helpful when the program interacts with external systems where for example connections or pending transactions should reach a timeout before re-execution is attempted.
-
-The default value is the value of *akka.ask.timeout*.
 
 {% top %}
 
