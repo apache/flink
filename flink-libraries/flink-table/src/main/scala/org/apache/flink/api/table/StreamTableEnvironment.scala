@@ -32,8 +32,8 @@ import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamConvention, DataStreamRel}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
+import org.apache.flink.api.table.plan.schema.{DataStreamTable, TableSourceTable}
 import org.apache.flink.api.table.sinks.{StreamTableSink, TableSink}
-import org.apache.flink.api.table.plan.schema.{TableSourceTable, DataStreamTable}
 import org.apache.flink.api.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
@@ -291,12 +291,24 @@ abstract class StreamTableEnvironment(
     * @return The [[DataStream]] that corresponds to the translated [[Table]].
     */
   protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataStream[A] = {
+    val dataStreamPlan = optimize(table.getRelNode)
+    translate(dataStreamPlan)
+  }
+
+  /**
+    * Translates a logical [[RelNode]] into a [[DataStream]].
+    *
+    * @param logicalPlan The root node of the relational expression tree.
+    * @param tpe         The [[TypeInformation]] of the resulting [[DataStream]].
+    * @tparam A The type of the resulting [[DataStream]].
+    * @return The [[DataStream]] that corresponds to the translated [[Table]].
+    */
+  protected def translate[A]
+      (logicalPlan: RelNode)(implicit tpe: TypeInformation[A]): DataStream[A] = {
 
     validateType(tpe)
 
-   val dataStreamPlan = optimize(table.getRelNode)
-
-    dataStreamPlan match {
+    logicalPlan match {
       case node: DataStreamRel =>
         node.translateToPlan(
           this,
@@ -304,7 +316,6 @@ abstract class StreamTableEnvironment(
         ).asInstanceOf[DataStream[A]]
       case _ => ???
     }
-
   }
 
   /**
@@ -314,10 +325,9 @@ abstract class StreamTableEnvironment(
     * @param table The table for which the AST and execution plan will be returned.
     */
   def explain(table: Table): String = {
-
-    val ast = RelOptUtil.toString(table.getRelNode)
-
-    val dataStream = translate[Row](table)(TypeExtractor.createTypeInfo(classOf[Row]))
+    val ast = table.getRelNode
+    val optimizedPlan = optimize(ast)
+    val dataStream = translate[Row](optimizedPlan)(TypeExtractor.createTypeInfo(classOf[Row]))
 
     val env = dataStream.getExecutionEnvironment
     val jsonSqlPlan = env.getExecutionPlan
@@ -325,12 +335,16 @@ abstract class StreamTableEnvironment(
     val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jsonSqlPlan, false)
 
     s"== Abstract Syntax Tree ==" +
-      System.lineSeparator +
-      s"$ast" +
-      System.lineSeparator +
-      s"== Physical Execution Plan ==" +
-      System.lineSeparator +
-      s"$sqlPlan"
+        System.lineSeparator +
+        s"${RelOptUtil.toString(ast)}" +
+        System.lineSeparator +
+        s"== Optimized Logical Plan ==" +
+        System.lineSeparator +
+        s"${RelOptUtil.toString(optimizedPlan)}" +
+        System.lineSeparator +
+        s"== Physical Execution Plan ==" +
+        System.lineSeparator +
+        s"$sqlPlan"
   }
 
 }

@@ -2,6 +2,10 @@
 LogicalFilter(condition=[=(MOD($0, 2), 0)])
   LogicalTableScan(table=[[_DataStreamTable_0]])
 
+== Optimized Logical Plan ==
+DataStreamCalc(select=[a, b], where=[=(MOD(a, 2), 0)])
+  DataStreamScan(table=[[_DataStreamTable_0]])
+
 == Physical Execution Plan ==
 Stage 1 : Data Source
 	content : collect elements with CollectionInputFormat
