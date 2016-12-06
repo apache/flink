@@ -224,6 +224,7 @@ In case that the job is submitted with a restart strategy, this strategy overrid
 The default restart strategy is set via Flink's configuration file `flink-conf.yaml`.
 The configuration parameter *restart-strategy* defines which strategy is taken.
 Per default, the no-restart strategy is used.
+When checkpointing is activated and no restart strategy has been configured, the job will be restarted infinitely often.
 See the following list of available restart strategies to learn what values are supported.
 
 Each restart strategy comes with its own set of parameters which control its behaviour.
