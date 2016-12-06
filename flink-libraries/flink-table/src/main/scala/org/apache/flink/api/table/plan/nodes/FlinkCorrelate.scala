@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression, GeneratedFunction}
 import org.apache.flink.api.table.codegen.CodeGenUtils.primitiveDefaultValue
+import org.apache.flink.api.table.codegen.GeneratedExpression.{ALWAYS_NULL, NO_CODE}
 import org.apache.flink.api.table.functions.utils.TableSqlFunction
 import org.apache.flink.api.table.runtime.FlatMapRunner
 import org.apache.flink.api.table.typeutils.TypeConverter._
@@ -73,12 +74,12 @@ trait FlinkCorrelate {
       // outer apply
 
       // in case of outer apply and the returned row of table function is empty,
-      // fill null to all fields of the row
+      // fill all fields of row with null
       val input2NullExprs = input2AccessExprs.map { x =>
         GeneratedExpression(
           primitiveDefaultValue(x.resultType),
-          GeneratedExpression.ALWAYS_NULL,
-          "",
+          ALWAYS_NULL,
+          NO_CODE,
           x.resultType)
       }
       val outerResultExpr = generator.generateResultExpression(

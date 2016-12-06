@@ -45,9 +45,10 @@ class TableTestBase {
   }
 
   def verifyTableEquals(expected: Table, actual: Table): Unit = {
-    assertEquals("Logical Plan do not match",
-                 RelOptUtil.toString(expected.getRelNode),
-                 RelOptUtil.toString(actual.getRelNode))
+    assertEquals(
+      "Logical plans do not match",
+      RelOptUtil.toString(expected.getRelNode),
+      RelOptUtil.toString(actual.getRelNode))
   }
 
 }
@@ -61,7 +62,7 @@ abstract class TableTestUtil {
   }
 
   def addTable[T: TypeInformation](name: String, fields: Expression*): Table
-  def addFunction[T: TypeInformation](name: String, function: TableFunction[T]): Unit
+  def addFunction[T: TypeInformation](name: String, function: TableFunction[T]): TableFunction[T]
   def addFunction(name: String, function: ScalarFunction): Unit
 
   def verifySql(query: String, expected: String): Unit
@@ -132,8 +133,9 @@ case class BatchTableTestUtil() extends TableTestUtil {
   def addFunction[T: TypeInformation](
       name: String,
       function: TableFunction[T])
-    : Unit = {
+    : TableFunction[T] = {
     tEnv.registerFunction(name, function)
+    function
   }
 
   def addFunction(name: String, function: ScalarFunction): Unit = {
@@ -188,8 +190,9 @@ case class StreamTableTestUtil() extends TableTestUtil {
   def addFunction[T: TypeInformation](
       name: String,
       function: TableFunction[T])
-    : Unit = {
+    : TableFunction[T] = {
     tEnv.registerFunction(name, function)
+    function
   }
 
   def addFunction(name: String, function: ScalarFunction): Unit = {

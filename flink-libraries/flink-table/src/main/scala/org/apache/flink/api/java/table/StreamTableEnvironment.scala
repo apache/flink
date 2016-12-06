@@ -170,7 +170,8 @@ class StreamTableEnvironment(
     * Registered functions can be referenced in Table API and SQL queries.
     *
     * @param name The name under which the function is registered.
-    * @param tf The TableFunction to register
+    * @param tf The TableFunction to register.
+    * @tparam T The type of the output row.
     */
   def registerFunction[T](name: String, tf: TableFunction[T]): Unit = {
     implicit val typeInfo: TypeInformation[T] = TypeExtractor

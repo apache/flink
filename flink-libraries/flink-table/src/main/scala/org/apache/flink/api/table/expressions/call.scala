@@ -89,9 +89,7 @@ case class ScalarFunctionCall(
       ValidationSuccess
     }
   }
-
 }
-
 
 /**
   *
@@ -114,10 +112,10 @@ case class TableFunctionCall(
   override private[flink] def children: Seq[Expression] = parameters
 
   /**
-    * Assigns an alias for this table function returned fields that the following `select()` clause
+    * Assigns an alias for this table function's returned fields that the following operator
     * can refer to.
     *
-    * @param aliasList alias for this table function returned fields
+    * @param aliasList alias for this table function's returned fields
     * @return this table function call
     */
   private[flink] def as(aliasList: Option[Seq[String]]): TableFunctionCall = {
@@ -155,4 +153,7 @@ case class TableFunctionCall(
       fieldNames,
       child)
   }
+
+  override def toString =
+    s"${tableFunction.getClass.getCanonicalName}(${parameters.mkString(", ")})"
 }

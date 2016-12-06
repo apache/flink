@@ -47,16 +47,18 @@ class FunctionCatalog {
     sqlFunctions += sqlFunction
   }
 
-  /** Register multiple sql functions at one time. The functions has the same name. **/
+  /**
+    * Register multiple SQL functions at the same time. The functions have the same name.
+    */
   def registerSqlFunctions(functions: Seq[SqlFunction]): Unit = {
     if (functions.nonEmpty) {
       val name = functions.head.getName
-      // check all name is the same in the functions
+      // check that all functions have the same name
       if (functions.forall(_.getName == name)) {
         sqlFunctions --= sqlFunctions.filter(_.getName == name)
         sqlFunctions ++= functions
       } else {
-        throw ValidationException("The sql functions request to register have different name.")
+        throw ValidationException("The SQL functions to be registered have different names.")
       }
     }
   }
@@ -88,7 +90,7 @@ class FunctionCatalog {
       case tf if classOf[TableFunction[_]].isAssignableFrom(tf) =>
         val tableSqlFunction = sqlFunctions
           .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[TableSqlFunction])
-          .getOrElse(throw ValidationException(s"Unregistered table sql function: $name"))
+          .getOrElse(throw ValidationException(s"Undefined table function: $name"))
           .asInstanceOf[TableSqlFunction]
         val typeInfo = tableSqlFunction.getRowTypeInfo
         val function = tableSqlFunction.getTableFunction

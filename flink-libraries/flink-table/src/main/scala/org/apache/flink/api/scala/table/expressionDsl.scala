@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.api.table.expressions._
-import org.apache.flink.api.table.functions.TableFunction
 
 import scala.language.implicitConversions
 
@@ -98,6 +97,13 @@ trait ImplicitExpressionOperations {
 
   def cast(toType: TypeInformation[_]) = Cast(expr, toType)
 
+  /**
+    * Specifies a name for an expression i.e. a field.
+    *
+    * @param name name for one field
+    * @param extraNames additional names if the expression expands to multiple fields
+    * @return field with an alias
+    */
   def as(name: Symbol, extraNames: Symbol*) = Alias(expr, name.name, extraNames.map(_.name))
 
   def asc = Asc(expr)
@@ -540,8 +546,6 @@ trait ImplicitExpressionConversions {
   implicit def sqlDate2Literal(sqlDate: Date): Expression = Literal(sqlDate)
   implicit def sqlTime2Literal(sqlTime: Time): Expression = Literal(sqlTime)
   implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression = Literal(sqlTimestamp)
-  implicit def UDTF2TableFunctionCall[T: TypeInformation](udtf: TableFunction[T]):
-    TableFunctionCallBuilder[T] = TableFunctionCallBuilder(udtf)
 }
 
 // ------------------------------------------------------------------------------------------------

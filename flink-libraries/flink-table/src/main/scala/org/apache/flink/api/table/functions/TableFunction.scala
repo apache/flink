@@ -20,18 +20,16 @@ package org.apache.flink.api.table.functions
 
 import java.util
 
-import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.api.table.ValidationException
+import org.apache.flink.api.table.expressions.{Expression, TableFunctionCall}
 
 /**
   * Base class for a user-defined table function (UDTF). A user-defined table functions works on
   * zero, one, or multiple scalar values as input and returns multiple rows as output.
   *
   * The behavior of a [[TableFunction]] can be defined by implementing a custom evaluation
-  * method. An evaluation method must be declared publicly and named "eval". Evaluation methods
-  * can also be overloaded by implementing multiple methods named "eval".
+  * method. An evaluation method must be declared publicly, not static and named "eval".
+  * Evaluation methods can also be overloaded by implementing multiple methods named "eval".
   *
   * User-defined functions must have a default constructor and must be instantiable during runtime.
   *
@@ -51,14 +49,14 @@ import org.apache.flink.api.table.ValidationException
   *
   *   public class Split extends TableFunction<String> {
   *
-  *     // implement an "eval" method with several parameters you want
+  *     // implement an "eval" method with as many parameters as you want
   *     public void eval(String str) {
   *       for (String s : str.split(" ")) {
   *         collect(s);   // use collect(...) to emit an output row
   *       }
   *     }
   *
-  *     // can overloading eval method here ...
+  *     // you can overload the eval method here ...
   *   }
   *
   *   val tEnv: TableEnvironment = ...
@@ -81,6 +79,25 @@ import org.apache.flink.api.table.ValidationException
   * @tparam T The type of the output row
   */
 abstract class TableFunction[T] extends UserDefinedFunction {
+
+  /**
+    * Creates a call to a [[TableFunction]] in Scala Table API.
+    *
+    * @param params actual parameters of function
+    * @return [[Expression]] in form of a [[TableFunctionCall]]
+    */
+  final def apply(params: Expression*)(implicit typeInfo: TypeInformation[T]): Expression = {
+    val resultType = if (getResultType == null) {
+      typeInfo
+    } else {
+      getResultType
+    }
+    TableFunctionCall(getClass.getSimpleName, this, params, resultType)
+  }
+
+  override def toString: String = getClass.getCanonicalName
+
+  // ----------------------------------------------------------------------------------------------
 
   private val rows: util.ArrayList[T] = new util.ArrayList[T]()
 

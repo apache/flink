@@ -15,102 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.scala.batch
 
+package org.apache.flink.api.scala.batch.sql
+
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment => ScalaExecutionEnv, _}
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.{DataSet => JDataSet, ExecutionEnvironment => JavaExecutionEnv}
-import org.apache.flink.api.table.expressions.utils.{HierarchyTableFunction, PojoTableFunc, TableFunc1, TableFunc2}
-import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.utils.TableTestBase
+import org.apache.flink.api.table.utils.{HierarchyTableFunction, PojoTableFunc, TableFunc2}
+import org.apache.flink.api.table.utils._
 import org.apache.flink.api.table.utils.TableTestUtil._
-import org.apache.flink.api.table.{Row, TableEnvironment, Types}
 import org.junit.Test
-import org.mockito.Mockito._
-
 
 class UserDefinedTableFunctionTest extends TableTestBase {
 
   @Test
-  def testTableAPI(): Unit = {
-    // mock
-    val ds = mock(classOf[DataSet[Row]])
-    val jDs = mock(classOf[JDataSet[Row]])
-    val typeInfo: TypeInformation[Row] = new RowTypeInfo(Seq(Types.INT, Types.LONG, Types.STRING))
-    when(ds.javaSet).thenReturn(jDs)
-    when(jDs.getType).thenReturn(typeInfo)
-
-    // Scala environment
-    val env = mock(classOf[ScalaExecutionEnv])
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
-    val in1 = ds.toTable(tableEnv).as('a, 'b, 'c)
-
-    // Java environment
-    val javaEnv = mock(classOf[JavaExecutionEnv])
-    val javaTableEnv = TableEnvironment.getTableEnvironment(javaEnv)
-    val in2 = javaTableEnv.fromDataSet(jDs).as("a, b, c")
-    javaTableEnv.registerTable("MyTable", in2)
-
-    // test cross apply
-    val func1 = new TableFunc1
-    javaTableEnv.registerFunction("func1", func1)
-    var scalaTable = in1.crossApply(func1('c) as ('s)).select('c, 's)
-    var javaTable = in2.crossApply("func1(c) as (s)").select("c, s")
-    verifyTableEquals(scalaTable, javaTable)
-
-    // test outer apply
-    scalaTable = in1.outerApply(func1('c) as ('s)).select('c, 's)
-    javaTable = in2.outerApply("func1(c) as (s)").select("c, s")
-    verifyTableEquals(scalaTable, javaTable)
-
-    // test overloading
-    scalaTable = in1.crossApply(func1('c, "$") as ('s)).select('c, 's)
-    javaTable = in2.crossApply("func1(c, '$') as (s)").select("c, s")
-    verifyTableEquals(scalaTable, javaTable)
-
-    // test custom result type
-    val func2 = new TableFunc2
-    javaTableEnv.registerFunction("func2", func2)
-    scalaTable = in1.crossApply(func2('c) as ('name, 'len)).select('c, 'name, 'len)
-    javaTable = in2.crossApply("func2(c) as (name, len)").select("c, name, len")
-    verifyTableEquals(scalaTable, javaTable)
-
-    // test hierarchy generic type
-    val hierarchy = new HierarchyTableFunction
-    javaTableEnv.registerFunction("hierarchy", hierarchy)
-    scalaTable = in1.crossApply(hierarchy('c) as ('name, 'adult, 'len))
-      .select('c, 'name, 'len, 'adult)
-    javaTable = in2.crossApply("hierarchy(c) as (name, adult, len)")
-      .select("c, name, len, adult")
-    verifyTableEquals(scalaTable, javaTable)
-
-    // test pojo type
-    val pojo = new PojoTableFunc
-    javaTableEnv.registerFunction("pojo", pojo)
-    scalaTable = in1.crossApply(pojo('c))
-      .select('c, 'name, 'age)
-    javaTable = in2.crossApply("pojo(c)")
-      .select("c, name, age")
-    verifyTableEquals(scalaTable, javaTable)
-
-    // test with filter
-    scalaTable = in1.crossApply(func2('c) as ('name, 'len))
-      .select('c, 'name, 'len).filter('len > 2)
-    javaTable = in2.crossApply("func2(c) as (name, len)")
-      .select("c, name, len").filter("len > 2")
-    verifyTableEquals(scalaTable, javaTable)
-
-    // test with scalar function
-    scalaTable = in1.crossApply(func1('c.substring(2)) as ('s))
-      .select('a, 'c, 's)
-    javaTable = in2.crossApply("func1(substring(c, 2)) as (s)")
-      .select("a, c, s")
-    verifyTableEquals(scalaTable, javaTable)
-  }
-
-  @Test
-  def testSQLWithCrossApply(): Unit = {
+  def testCrossApply(): Unit = {
     val util = batchTestUtil()
     val func1 = new TableFunc1
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -156,7 +74,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
   }
 
   @Test
-  def testSQLWithOuterApply(): Unit = {
+  def testOuterApply(): Unit = {
     val util = batchTestUtil()
     val func1 = new TableFunc1
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -182,7 +100,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
   }
 
   @Test
-  def testSQLWithCustomType(): Unit = {
+  def testCustomType(): Unit = {
     val util = batchTestUtil()
     val func2 = new TableFunc2
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -209,7 +127,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
   }
 
   @Test
-  def testSQLWithHierarchyType(): Unit = {
+  def testHierarchyType(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = new HierarchyTableFunction
@@ -236,7 +154,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
   }
 
   @Test
-  def testSQLWithPojoType(): Unit = {
+  def testPojoType(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = new PojoTableFunc
@@ -263,7 +181,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
   }
 
   @Test
-  def testSQLWithFilter(): Unit = {
+  def testFilter(): Unit = {
     val util = batchTestUtil()
     val func2 = new TableFunc2
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -293,7 +211,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
 
 
   @Test
-  def testSQLWithScalarFunction(): Unit = {
+  def testScalarFunction(): Unit = {
     val util = batchTestUtil()
     val func1 = new TableFunc1
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)

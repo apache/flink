@@ -33,8 +33,7 @@ class DataSetCorrelateRule
       classOf[LogicalCorrelate],
       Convention.NONE,
       DataSetConvention.INSTANCE,
-      "DataSetCorrelateRule")
-  {
+      "DataSetCorrelateRule") {
 
     override def matches(call: RelOptRuleCall): Boolean = {
       val join: LogicalCorrelate = call.rel(0).asInstanceOf[LogicalCorrelate]
@@ -46,7 +45,9 @@ class DataSetCorrelateRule
         case scan: LogicalTableFunctionScan => true
         // a filter is pushed above the table function
         case filter: LogicalFilter =>
-          filter.getInput.asInstanceOf[RelSubset].getOriginal
+          filter
+            .getInput.asInstanceOf[RelSubset]
+            .getOriginal
             .isInstanceOf[LogicalTableFunctionScan]
         case _ => false
       }

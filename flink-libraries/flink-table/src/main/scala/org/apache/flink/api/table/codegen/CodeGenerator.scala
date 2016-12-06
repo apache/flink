@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.codegen.CodeGenUtils._
+import org.apache.flink.api.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.api.table.codegen.Indenter.toISC
 import org.apache.flink.api.table.codegen.calls.FunctionGenerator
 import org.apache.flink.api.table.codegen.calls.ScalarOperators._
@@ -358,10 +359,11 @@ class CodeGenerator(
 
     val input2AccessExprs = input2 match {
       case Some(ti) => for (i <- 0 until ti.getArity)
-      // use generateFieldAccess instead of generateInputAccess to avoid the generated table
-      // function's field access code is put on the top of function body rather than the while loop
+        // use generateFieldAccess instead of generateInputAccess to avoid the generated table
+        // function's field access code is put on the top of function body rather than
+        // the while loop
         yield generateFieldAccess(ti, input2Term, i, input2PojoFieldMapping)
-      case None => throw new CodeGenException("type information of input2 must not be null")
+      case None => throw new CodeGenException("Type information of input2 must not be null.")
     }
     (input1AccessExprs, input2AccessExprs)
   }
@@ -781,7 +783,7 @@ class CodeGenerator(
   }
 
   override def visitCorrelVariable(correlVariable: RexCorrelVariable): GeneratedExpression = {
-    GeneratedExpression(input1Term, GeneratedExpression.NEVER_NULL, "", input1)
+    GeneratedExpression(input1Term, NEVER_NULL, NO_CODE, input1)
   }
 
   override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression =
@@ -1019,8 +1021,7 @@ class CodeGenerator(
       case None =>
         val expr = if (nullableInput) {
           generateNullableInputFieldAccess(inputType, inputTerm, index, pojoFieldMapping)
-        }
-        else {
+        } else {
           generateFieldAccess(inputType, inputTerm, index, pojoFieldMapping)
         }
 

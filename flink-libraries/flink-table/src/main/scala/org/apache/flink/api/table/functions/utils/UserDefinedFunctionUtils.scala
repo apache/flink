@@ -141,13 +141,17 @@ object UserDefinedFunctionUtils {
       .getDeclaredMethods
       .filter { m =>
         val modifiers = m.getModifiers
-        m.getName == "eval" && Modifier.isPublic(modifiers) && !Modifier.isAbstract(modifiers)
+        m.getName == "eval" &&
+          Modifier.isPublic(modifiers) &&
+          !Modifier.isAbstract(modifiers) &&
+          !(function.isInstanceOf[TableFunction[_]] && Modifier.isStatic(modifiers))
       }
 
     if (methods.isEmpty) {
       throw new ValidationException(
         s"Function class '${function.getClass.getCanonicalName}' does not implement at least " +
-          s"one method named 'eval' which is public and not abstract.")
+          s"one method named 'eval' which is public, not abstract and " +
+          s"(in case of table functions) not static.")
     } else {
       methods
     }
@@ -158,7 +162,7 @@ object UserDefinedFunctionUtils {
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Utilities for sql functions
+  // Utilities for SQL functions
   // ----------------------------------------------------------------------------------------------
 
   /**
@@ -255,7 +259,7 @@ object UserDefinedFunctionUtils {
     * Field names are automatically extracted for
     * [[org.apache.flink.api.common.typeutils.CompositeType]].
     *
-    * @param inputType The TypeInformation extract the field names and positions from.
+    * @param inputType The TypeInformation to extract the field names and positions from.
     * @return A tuple of two arrays holding the field names and corresponding field positions.
     */
   def getFieldInfo(inputType: TypeInformation[_])
@@ -265,8 +269,8 @@ object UserDefinedFunctionUtils {
       case t: CompositeType[_] => t.getFieldNames
       case a: AtomicType[_] => Array("f0")
       case tpe =>
-        throw new TableException(s"Currently only support CompositeType and AtomicType. " +
-                                   s"Type $tpe lacks explicit field naming")
+        throw new TableException(s"Currently only CompositeType and AtomicType are supported. " +
+          s"Type $tpe lacks explicit field naming")
     }
     val fieldIndexes = fieldNames.indices.toArray
     val fieldTypes: Array[TypeInformation[_]] = fieldNames.map { i =>
@@ -274,7 +278,7 @@ object UserDefinedFunctionUtils {
         case t: CompositeType[_] => t.getTypeAt(i).asInstanceOf[TypeInformation[_]]
         case a: AtomicType[_] => a.asInstanceOf[TypeInformation[_]]
         case tpe =>
-          throw new TableException(s"Currently only support CompositeType and AtomicType.")
+          throw new TableException(s"Currently only CompositeType and AtomicType are supported.")
       }
     }
     (fieldNames, fieldIndexes, fieldTypes)

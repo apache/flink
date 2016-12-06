@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.expressions.utils
+package org.apache.flink.api.table.utils
 
 import java.lang.Boolean
+
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple3
 import org.apache.flink.api.table.Row

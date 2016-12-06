@@ -49,9 +49,7 @@ object ProjectionTranslator {
 
     val replaced = exprs
       .map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
-      .map {
-        case e: Expression => UnresolvedAlias(e)
-      }
+      .map(UnresolvedAlias)
     val aggs = aggNames.map( a => Alias(a._1, a._2)).toSeq
     val props = propNames.map( p => Alias(p._1, p._2)).toSeq
 

@@ -20,6 +20,7 @@ package org.apache.flink.api.table.codegen.calls
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.codegen.CodeGenUtils._
+import org.apache.flink.api.table.codegen.GeneratedExpression.NEVER_NULL
 import org.apache.flink.api.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
 import org.apache.flink.api.table.functions.TableFunction
 import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils._
@@ -75,7 +76,7 @@ class TableFunctionCallGen(
     // has no result
     GeneratedExpression(
       functionReference,
-      GeneratedExpression.NEVER_NULL,
+      NEVER_NULL,
       functionCallCode,
       returnType)
   }

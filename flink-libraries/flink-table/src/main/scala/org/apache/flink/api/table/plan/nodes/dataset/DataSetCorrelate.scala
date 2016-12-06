@@ -99,7 +99,7 @@ class DataSetCorrelate(
       config.getNullCheck,
       config.getEfficientTypeUsage)
 
-    // do not need to specify input type
+    // we do not need to specify input type
     val inputDS = inputNode.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     val funcRel = scan.asInstanceOf[LogicalTableFunctionScan]

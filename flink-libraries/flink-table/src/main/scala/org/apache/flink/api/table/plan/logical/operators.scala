@@ -428,7 +428,6 @@ case class Join(
     right.construct(relBuilder)
 
     val corSet = mutable.Set[CorrelationId]()
-
     if (correlated) {
       corSet += relBuilder.peek().getCluster.createCorrel()
     }
@@ -624,9 +623,9 @@ case class WindowAggregate(
   }
 }
 
-
 /**
   * LogicalNode for calling a user-defined table functions.
+  *
   * @param functionName function name
   * @param tableFunction table function to be called (might be overloaded)
   * @param parameters actual parameters
@@ -634,16 +633,16 @@ case class WindowAggregate(
   * @param child child logical node
   */
 case class LogicalTableFunctionCall(
-  functionName: String,
-  tableFunction: TableFunction[_],
-  parameters: Seq[Expression],
-  resultType: TypeInformation[_],
-  fieldNames: Array[String],
-  child: LogicalNode)
+    functionName: String,
+    tableFunction: TableFunction[_],
+    parameters: Seq[Expression],
+    resultType: TypeInformation[_],
+    fieldNames: Array[String],
+    child: LogicalNode)
   extends UnaryNode {
 
-  val (_, fieldIndexes, fieldTypes) = getFieldInfo(resultType)
-  var evalMethod: Method = _
+  private val (_, fieldIndexes, fieldTypes) = getFieldInfo(resultType)
+  private var evalMethod: Method = _
 
   override def output: Seq[Attribute] = fieldNames.zip(fieldTypes).map {
     case (n, t) => ResolvedFieldReference(n, t)
@@ -651,9 +650,9 @@ case class LogicalTableFunctionCall(
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     val node = super.validate(tableEnv).asInstanceOf[LogicalTableFunctionCall]
-    // check not Scala object
+    // check if not Scala object
     checkNotSingleton(tableFunction.getClass)
-    // check could be instantiated
+    // check if class could be instantiated
     checkForInstantiation(tableFunction.getClass)
     // look for a signature that matches the input types
     val signature = node.parameters.map(_.resultType)

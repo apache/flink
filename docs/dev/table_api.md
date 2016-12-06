@@ -1494,6 +1494,17 @@ Both the Table API and SQL come with a set of built-in functions for data transf
     <tr>
       <td>
         {% highlight java %}
+ANY.as(name [, name ]* )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Specifies a name for an expression i.e. a field. Additional names can be specified if the expression expands to multiple fields.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 ANY.isNull
 {% endhighlight %}
       </td>
@@ -2042,6 +2053,17 @@ COMPOSITE.get(INT)
   </thead>
 
   <tbody>
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY.as(name [, name ]* )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Specifies a name for an expression i.e. a field. Additional names can be specified if the expression expands to multiple fields.</p>
+      </td>
+    </tr>
+
     <tr>
       <td>
         {% highlight scala %}

@@ -48,6 +48,7 @@ class DataStreamCorrelate(
   extends SingleRel(cluster, traitSet, inputNode)
   with FlinkCorrelate
   with DataStreamRel {
+
   override def deriveRowType() = relRowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
@@ -92,7 +93,7 @@ class DataStreamCorrelate(
       config.getNullCheck,
       config.getEfficientTypeUsage)
 
-    // do not need to specify input type
+    // we do not need to specify input type
     val inputDS = inputNode.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
 
     val funcRel = scan.asInstanceOf[LogicalTableFunctionScan]

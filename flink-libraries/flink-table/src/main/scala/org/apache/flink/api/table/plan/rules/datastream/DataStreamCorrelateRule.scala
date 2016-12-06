@@ -33,8 +33,7 @@ class DataStreamCorrelateRule
     classOf[LogicalCorrelate],
     Convention.NONE,
     DataStreamConvention.INSTANCE,
-    "DataStreamCorrelateRule")
-{
+    "DataStreamCorrelateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: LogicalCorrelate = call.rel(0).asInstanceOf[LogicalCorrelate]
@@ -45,7 +44,9 @@ class DataStreamCorrelateRule
       case scan: LogicalTableFunctionScan => true
       // a filter is pushed above the table function
       case filter: LogicalFilter =>
-        filter.getInput.asInstanceOf[RelSubset].getOriginal
+        filter
+          .getInput.asInstanceOf[RelSubset]
+          .getOriginal
           .isInstanceOf[LogicalTableFunctionScan]
       case _ => false
     }
@@ -63,8 +64,9 @@ class DataStreamCorrelateRule
           convertToCorrelate(rel.getRelList.get(0), condition)
 
         case filter: LogicalFilter =>
-          convertToCorrelate(filter.getInput.asInstanceOf[RelSubset].getOriginal,
-                             Some(filter.getCondition))
+          convertToCorrelate(
+            filter.getInput.asInstanceOf[RelSubset].getOriginal,
+            Some(filter.getCondition))
 
         case scan: LogicalTableFunctionScan =>
           new DataStreamCorrelate(

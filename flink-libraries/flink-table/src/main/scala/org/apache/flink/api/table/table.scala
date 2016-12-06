@@ -611,9 +611,9 @@ class Table(
   }
 
   /**
-    * The Cross Apply returns rows from the outer table (table on the left of the Apply operator)
-    * that produces matching values from the table-valued function (which is on the right side of
-    * the operator).
+    * The Cross Apply operator returns rows from the outer table (table on the left of the
+    * operator) that produces matching values from the table-valued function (which is defined in
+    * the expression on the right side of the operator).
     *
     * The Cross Apply is equivalent to Inner Join, but it works with a table-valued function.
     *
@@ -635,23 +635,25 @@ class Table(
   }
 
   /**
-    * The Cross Apply returns rows from the outer table (table on the left of the Apply operator)
-    * that produces matching values from the table-valued function (which is on the right side of
-    * the operator).
+    * The Cross Apply operator returns rows from the outer table (table on the left of the
+    * operator) that produces matching values from the table-valued function (which is defined in
+    * the expression on the right side of the operator).
     *
     * The Cross Apply is equivalent to Inner Join, but it works with a table-valued function.
     *
     * Example:
     *
     * {{{
-    *   class MySplitUDTF extends TableFunction[String] {
-    *     def eval(str: String): Unit = {
-    *       str.split("#").foreach(collect)
+    *   class MySplitUDTF extends TableFunction<String> {
+    *     public void eval(String str) {
+    *       str.split("#").forEach(this::collect);
     *     }
     *   }
     *
-    *   val split = new MySplitUDTF()
-    *   table.crossApply("split(c) as (s)").select("a, b, c, s")
+    *   TableFunction<String> split = new MySplitUDTF();
+    *   tableEnv.registerFunction("split", split);
+    *
+    *   table.crossApply("split(c) as (s)").select("a, b, c, s");
     * }}}
     */
   def crossApply(udtf: String): Table = {
@@ -659,9 +661,10 @@ class Table(
   }
 
   /**
-    * The Outer Apply returns all the rows from the outer table (table on the left of the Apply
-    * operator), and rows that do not matches the condition from the table-valued function (which
-    * is on the right side of the operator), NULL values are displayed.
+    * The Outer Apply operator returns all the rows from the outer table (table on the left of the
+    * Apply operator), and rows that do not match the condition from the table-valued function
+    * (which is defined in the expression on the right side of the operator).
+    * Rows with no matching condition are filled with null values.
     *
     * The Outer Apply is equivalent to Left Outer Join, but it works with a table-valued function.
     *
@@ -683,17 +686,26 @@ class Table(
   }
 
   /**
-    * The Outer Apply returns all the rows from the outer table (table on the left of the Apply
-    * operator), and rows that do not matches the condition from the table-valued function (which
-    * is on the right side of the operator), NULL values are displayed.
+    * The Outer Apply operator returns all the rows from the outer table (table on the left of the
+    * Apply operator), and rows that do not match the condition from the table-valued function
+    * (which is defined in the expression on the right side of the operator).
+    * Rows with no matching condition are filled with null values.
     *
     * The Outer Apply is equivalent to Left Outer Join, but it works with a table-valued function.
     *
     * Example:
     *
     * {{{
-    *   val split = new MySplitUDTF()
-    *   table.outerApply("split(c) as (s)").select("a, b, c, s")
+    *   class MySplitUDTF extends TableFunction<String> {
+    *     public void eval(String str) {
+    *       str.split("#").forEach(this::collect);
+    *     }
+    *   }
+    *
+    *   TableFunction<String> split = new MySplitUDTF();
+    *   tableEnv.registerFunction("split", split);
+    *
+    *   table.outerApply("split(c) as (s)").select("a, b, c, s");
     * }}}
     */
   def outerApply(udtf: String): Table = {
@@ -708,7 +720,7 @@ class Table(
   private def applyInternal(udtf: Expression, joinType: JoinType): Table = {
     var alias: Option[Seq[String]] = None
 
-    // unwrap an Expression until get a TableFunctionCall
+    // unwrap an Expression until we get a TableFunctionCall
     def unwrap(expr: Expression): TableFunctionCall = expr match {
       case Alias(child, name, extraNames) =>
         alias = Some(Seq(name) ++ extraNames)
@@ -717,7 +729,9 @@ class Table(
         val function = tableEnv.getFunctionCatalog.lookupFunction(name, args)
         unwrap(function)
       case c: TableFunctionCall => c
-      case _ => throw new TableException("Cross/Outer Apply only accept TableFunction")
+      case _ =>
+        throw new TableException(
+          "Cross/Outer Apply operators only accept expressions that define table functions.")
     }
 
     val call = unwrap(udtf)

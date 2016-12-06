@@ -125,6 +125,7 @@ object ScalarSqlFunction {
     : SqlOperandTypeChecker = {
 
     val signatures = getSignatures(scalarFunction)
+
     /**
       * Operand type checker based on [[ScalarFunction]] given information.
       */
@@ -178,5 +179,4 @@ object ScalarSqlFunction {
       }
     }
   }
-
 }
