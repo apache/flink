@@ -92,6 +92,13 @@ under the License.
 			<groupId>com.netflix.fenzo</groupId>
 			<artifactId>fenzo-core</artifactId>
 			<version>0.9.3</version>
+			<exclusions>
+				<!-- exclude mesos here to override -->
+				<exclusion>
+					<groupId>org.apache.mesos</groupId>
+					<artifactId>mesos</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -265,6 +272,9 @@ under the License.
 								<includes combine.children="append">
 									<include>org.apache.flink:flink-shaded-curator-recipes</include>
 									<include>com.google.protobuf:*</include>
+									<include>com.google.guava:guava</include>
+									<include>org.apache.mesos:*</include>
+									<include>com.netflix.fenzo:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="override">
@@ -273,8 +283,8 @@ under the License.
 									<shadedPattern>org.apache.flink.mesos.shaded.org.apache.curator</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>com.google.protobuf</pattern>
-									<shadedPattern>org.apache.flink.mesos.shaded.com.google.protobuf</shadedPattern>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.apache.flink.mesos.shaded.com.google</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
