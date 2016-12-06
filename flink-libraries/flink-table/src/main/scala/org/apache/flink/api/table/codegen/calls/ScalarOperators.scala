@@ -88,38 +88,41 @@ object ScalarOperators {
     val resultTerm = newName("result")
     val isNull = newName("isNull")
 
-    val castNumeric = if (isNumeric(left.resultType) || isNumeric(right.head.resultType)) {
-      (value: String) => s"""new java.math.BigDecimal("" + $value).stripTrailingZeros()"""
-    } else {
-      (value: String) => value
+    val topNumericalType: Option[TypeInformation[_]] = {
+      if (isDecimal(left.resultType) || isDecimal(right.head.resultType)) {
+        Some(BIG_DEC_TYPE_INFO)
+      } else if (isNumeric(left.resultType) || isNumeric(right.head.resultType)) {
+        Some(DOUBLE_TYPE_INFO)
+      } else {
+        None
+      }
     }
 
-    val valuesInitialization = if (right.size >= 20) {
-      "//literals were initialized in constructor\n"
+    val castNumeric = if (topNumericalType.isEmpty) {
+      (value: GeneratedExpression) => value.resultTerm
     } else {
+      (value: GeneratedExpression) =>
+        numericCasting(value.resultType, topNumericalType.get)(value.resultTerm)
+    }
+
+    val valuesInitialization = "//literals were initialized in constructor\n"
+
+    val hashSetVariable = newName("set")
+
+    addReusableCodeCallback(
+      s"""
+         |private java.util.Set $hashSetVariable = new java.util.HashSet();
+         """.stripMargin,
       s"""
          |${right.map(_.code).mkString("")}
+         |
+         |${right.map(element =>
+          s"$hashSetVariable.add(${castNumeric(element)});").mkString("\n")
+          }
          |""".stripMargin
-    }
+    )
 
-    val comparison = if (right.size >= 20) {
-      val hashSetVariable = newName("set")
-      addReusableCodeCallback(
-        s"""
-           |private java.util.Set $hashSetVariable = new java.util.HashSet();
-         """.stripMargin,
-        s"""
-           |${right.map(_.code).mkString("")}
-           |
-           |${right.map(element =>
-          s"$hashSetVariable.add(${castNumeric(element.resultTerm)});").mkString("\n\t")}
-           |""".stripMargin
-      )
-      s"$resultTerm = $hashSetVariable.contains(${castNumeric(left.resultTerm)});"
-    } else {
-      s"$resultTerm = ${right.map(element => "" + castNumeric(left.resultTerm) +
-        ".equals(" + castNumeric(element.resultTerm) + ")").mkString(" || ")};"
-    }
+    val comparison = s"$resultTerm = $hashSetVariable.contains(${castNumeric(left)});"
 
     val code = if (nullCheck) {
       s"""
@@ -1065,12 +1068,17 @@ object ScalarOperators {
     val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
     // no casting necessary
     if (operandType == resultType) {
-      (operandTerm) => s"$operandTerm"
+      if (isDecimal(operandType)) {
+        (operandTerm) => s"$operandTerm.stripTrailingZeros()"
+      } else {
+        (operandTerm) => s"$operandTerm"
+      }
     }
     // result type is decimal but numeric operand is not
     else if (isDecimal(resultType) && !isDecimal(operandType) && isNumeric(operandType)) {
       (operandTerm) =>
-        s"java.math.BigDecimal.valueOf((${superPrimitive(operandType)}) $operandTerm)"
+        s"java.math.BigDecimal.valueOf((${superPrimitive(operandType)}) $operandTerm)" +
+          s".stripTrailingZeros()"
     }
     // numeric result type is not decimal but operand is
     else if (isNumeric(resultType) && !isDecimal(resultType) && isDecimal(operandType) ) {

@@ -111,7 +111,7 @@ trait ImplicitExpressionOperations {
   def desc = Desc(expr)
 
 
-  def in(subquery: Expression*) = In(expr +: subquery)
+  def in(subquery: Expression*) = In(expr, subquery)
 
   /**
     * Returns the start time of a window when applied on a window reference.

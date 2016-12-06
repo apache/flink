@@ -27,16 +27,17 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.typeutils.TypeCheckUtils._
 import org.apache.flink.api.table.validate.{ValidationResult, ValidationFailure, ValidationSuccess}
 
-case class In(expressions: Seq[Expression]) extends Expression {
-  override def toString = s"${expressions.head}.in(${expressions.tail.mkString(", ")})"
+case class In(expression: Expression, subquery: Seq[Expression]) extends Expression {
+
+  def this(expressions: Seq[Expression]) = this(expressions.head, expressions.tail)
+
+  override def toString = s"$expression.in(${subquery.mkString(", ")})"
 
   /**
     * List of child nodes that should be considered when doing transformations. Other values
     * in the Product will not be transformed, only handed through.
     */
-  override private[flink] def children: Seq[Expression] = expressions
-
-  private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.IN
+  override private[flink] def children: Seq[Expression] = expression +: subquery.distinct
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.IN, children.map(_.toRexNode): _*)
