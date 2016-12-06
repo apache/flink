@@ -26,9 +26,9 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.{Programs, RuleSet}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.api.table.explain.PlanJsonParser
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
@@ -166,22 +166,25 @@ abstract class BatchTableEnvironment(
     * @param extended Flag to include detailed optimizer estimates.
     */
   private[flink] def explain(table: Table, extended: Boolean): String = {
-
-    val ast = RelOptUtil.toString(table.getRelNode)
-    val dataSet = translate[Row](table)(TypeExtractor.createTypeInfo(classOf[Row]))
+    val ast = table.getRelNode
+    val optimizedPlan = optimize(ast)
+    val dataSet = translate[Row](optimizedPlan)(TypeExtractor.createTypeInfo(classOf[Row]))
     dataSet.output(new DiscardingOutputFormat[Row])
     val env = dataSet.getExecutionEnvironment
     val jasonSqlPlan = env.getExecutionPlan
     val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)
 
     s"== Abstract Syntax Tree ==" +
-    System.lineSeparator +
-    s"$ast" +
-    System.lineSeparator +
-    s"== Physical Execution Plan ==" +
-    System.lineSeparator +
-    s"$sqlPlan"
-
+        System.lineSeparator +
+        s"${RelOptUtil.toString(ast)}" +
+        System.lineSeparator +
+        s"== Optimized Logical Plan ==" +
+        System.lineSeparator +
+        s"${RelOptUtil.toString(optimizedPlan)}" +
+        System.lineSeparator +
+        s"== Physical Execution Plan ==" +
+        System.lineSeparator +
+        s"$sqlPlan"
   }
 
   /**
@@ -275,17 +278,27 @@ abstract class BatchTableEnvironment(
     * Table API calls and / or SQL queries and generating corresponding [[DataSet]] operators.
     *
     * @param table The root node of the relational expression tree.
-    * @param tpe The [[TypeInformation]] of the resulting [[DataSet]].
+    * @param tpe   The [[TypeInformation]] of the resulting [[DataSet]].
     * @tparam A The type of the resulting [[DataSet]].
     * @return The [[DataSet]] that corresponds to the translated [[Table]].
     */
   protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataSet[A] = {
+    val dataSetPlan = optimize(table.getRelNode)
+    translate(dataSetPlan)
+  }
 
+  /**
+    * Translates a logical [[RelNode]] into a [[DataSet]].
+    *
+    * @param logicalPlan The root node of the relational expression tree.
+    * @param tpe         The [[TypeInformation]] of the resulting [[DataSet]].
+    * @tparam A The type of the resulting [[DataSet]].
+    * @return The [[DataSet]] that corresponds to the translated [[Table]].
+    */
+  protected def translate[A](logicalPlan: RelNode)(implicit tpe: TypeInformation[A]): DataSet[A] = {
     validateType(tpe)
 
-    val dataSetPlan = optimize(table.getRelNode)
-
-    dataSetPlan match {
+    logicalPlan match {
       case node: DataSetRel =>
         node.translateToPlan(
           this,
@@ -294,5 +307,4 @@ abstract class BatchTableEnvironment(
       case _ => ???
     }
   }
-
 }

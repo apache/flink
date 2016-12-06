@@ -2,6 +2,10 @@
 LogicalFilter(condition=[=(MOD($0, 2), 0)])
   LogicalTableScan(table=[[_DataSetTable_0]])
 
+== Optimized Logical Plan ==
+DataSetCalc(select=[a, b], where=[=(MOD(a, 2), 0)])
+  DataSetScan(table=[[_DataSetTable_0]])
+
 == Physical Execution Plan ==
 Stage 3 : Data Source
 	content : collect elements with CollectionInputFormat
