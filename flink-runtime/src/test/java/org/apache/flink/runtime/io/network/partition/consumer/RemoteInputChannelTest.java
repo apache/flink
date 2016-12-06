@@ -70,7 +70,7 @@ public class RemoteInputChannelTest {
 
 		// Need to notify the input gate for the out-of-order buffer as well. Otherwise the
 		// receiving task will not notice the error.
-		verify(inputGate, times(2)).onAvailableBuffer(eq(inputChannel));
+		verify(inputGate, times(2)).notifyChannelNonEmpty(eq(inputChannel));
 	}
 
 	@Test

@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.util.event.NotificationListener;
 
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -33,23 +33,25 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 	/** The subpartition this view belongs to. */
 	private final PipelinedSubpartition parent;
 
-	/** Flag indicating whether this view has been released. */
-	private AtomicBoolean isReleased = new AtomicBoolean();
+	private final BufferAvailabilityListener availabilityListener;
 
-	PipelinedSubpartitionView(PipelinedSubpartition parent) {
+	/** Flag indicating whether this view has been released. */
+	private final AtomicBoolean isReleased;
+
+	PipelinedSubpartitionView(PipelinedSubpartition parent, BufferAvailabilityListener listener) {
 		this.parent = checkNotNull(parent);
+		this.availabilityListener = checkNotNull(listener);
+		this.isReleased = new AtomicBoolean();
 	}
 
 	@Override
 	public Buffer getNextBuffer() {
-		synchronized (parent.buffers) {
-			return parent.buffers.poll();
-		}
+		return parent.pollBuffer();
 	}
 
 	@Override
-	public boolean registerListener(NotificationListener listener) {
-		return !isReleased.get() && parent.registerListener(listener);
+	public void notifyBuffersAvailable(long numBuffers) throws IOException {
+		availabilityListener.notifyBuffersAvailable(numBuffers);
 	}
 
 	@Override

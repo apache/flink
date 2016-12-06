@@ -129,6 +129,10 @@ case class Minus(left: Expression, right: Expression) extends BinaryArithmetic {
   override private[flink] def validateInput(): ValidationResult = {
     if (isTimeInterval(left.resultType) && left.resultType == right.resultType) {
       ValidationSuccess
+    } else if (isTimePoint(left.resultType) && isTimeInterval(right.resultType)) {
+      ValidationSuccess
+    } else if (isTimeInterval(left.resultType) && isTimePoint(right.resultType)) {
+      ValidationSuccess
     } else {
       super.validateInput()
     }

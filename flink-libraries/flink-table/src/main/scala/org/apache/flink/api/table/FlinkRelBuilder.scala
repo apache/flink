@@ -80,6 +80,7 @@ object FlinkRelBuilder {
 
     // create context instances with Flink type factory
     val planner = new VolcanoPlanner(Contexts.empty())
+    planner.setExecutor(config.getExecutor)
     planner.addRelTraitDef(ConventionTraitDef.INSTANCE)
     val cluster = RelOptCluster.create(planner, new RexBuilder(typeFactory))
     val calciteSchema = CalciteSchema.from(config.getDefaultSchema)

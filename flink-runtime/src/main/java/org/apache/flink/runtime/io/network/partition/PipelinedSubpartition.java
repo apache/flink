@@ -22,7 +22,7 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.util.event.NotificationListener;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A pipelined in-memory only subpartition, which can be consumed once.
@@ -38,51 +39,47 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PipelinedSubpartition.class);
 
+	// ------------------------------------------------------------------------
+
+	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
+	private final ArrayDeque<Buffer> buffers = new ArrayDeque<>();
+
+	/** The read view to consume this subpartition. */
+	private PipelinedSubpartitionView readView;
+
 	/** Flag indicating whether the subpartition has been finished. */
 	private boolean isFinished;
 
 	/** Flag indicating whether the subpartition has been released. */
 	private volatile boolean isReleased;
 
-	/**
-	 * A data availability listener. Registered, when the consuming task is faster than the
-	 * producing task.
-	 */
-	private NotificationListener registeredListener;
-
-	/** The read view to consume this subpartition. */
-	private PipelinedSubpartitionView readView;
-
-	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
-	final ArrayDeque<Buffer> buffers = new ArrayDeque<Buffer>();
+	// ------------------------------------------------------------------------
 
 	PipelinedSubpartition(int index, ResultPartition parent) {
 		super(index, parent);
 	}
 
 	@Override
-	public boolean add(Buffer buffer) {
+	public boolean add(Buffer buffer) throws IOException {
 		checkNotNull(buffer);
 
-		final NotificationListener listener;
+		// view reference accessible outside the lock, but assigned inside the locked scope
+		final PipelinedSubpartitionView reader;
 
 		synchronized (buffers) {
-			if (isReleased || isFinished) {
+			if (isFinished || isReleased) {
 				return false;
 			}
 
 			// Add the buffer and update the stats
 			buffers.add(buffer);
+			reader = readView;
 			updateStatistics(buffer);
-
-			// Get the listener...
-			listener = registeredListener;
-			registeredListener = null;
 		}
 
 		// Notify the listener outside of the synchronized block
-		if (listener != null) {
-			listener.onNotification();
+		if (reader != null) {
+			reader.notifyBuffersAvailable(1);
 		}
 
 		return true;
@@ -90,36 +87,34 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	@Override
 	public void finish() throws IOException {
-		final NotificationListener listener;
+		final Buffer buffer = EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE);
+
+		// view reference accessible outside the lock, but assigned inside the locked scope
+		final PipelinedSubpartitionView reader;
 
 		synchronized (buffers) {
-			if (isReleased || isFinished) {
+			if (isFinished || isReleased) {
 				return;
 			}
 
-			final Buffer buffer = EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE);
-
 			buffers.add(buffer);
+			reader = readView;
 			updateStatistics(buffer);
 
 			isFinished = true;
-
-			LOG.debug("Finished {}.", this);
-
-			// Get the listener...
-			listener = registeredListener;
-			registeredListener = null;
 		}
 
+		LOG.debug("Finished {}.", this);
+
 		// Notify the listener outside of the synchronized block
-		if (listener != null) {
-			listener.onNotification();
+		if (reader != null) {
+			reader.notifyBuffersAvailable(1);
 		}
 	}
 
 	@Override
 	public void release() {
-		final NotificationListener listener;
+		// view reference accessible outside the lock, but assigned inside the locked scope
 		final PipelinedSubpartitionView view;
 
 		synchronized (buffers) {
@@ -130,40 +125,35 @@ class PipelinedSubpartition extends ResultSubpartition {
 			// Release all available buffers
 			Buffer buffer;
 			while ((buffer = buffers.poll()) != null) {
-				if (!buffer.isRecycled()) {
-					buffer.recycle();
-				}
+				buffer.recycle();
 			}
 
 			// Get the view...
 			view = readView;
 			readView = null;
 
-			// Get the listener...
-			listener = registeredListener;
-			registeredListener = null;
-
 			// Make sure that no further buffers are added to the subpartition
 			isReleased = true;
-
-			LOG.debug("Released {}.", this);
 		}
+
+		LOG.debug("Released {}.", this);
 
 		// Release all resources of the view
 		if (view != null) {
 			view.releaseAllResources();
 		}
+	}
 
-		// Notify the listener outside of the synchronized block
-		if (listener != null) {
-			listener.onNotification();
+	Buffer pollBuffer() {
+		synchronized (buffers) {
+			return buffers.pollFirst();
 		}
 	}
 
 	@Override
 	public int releaseMemory() {
-		// The pipelined subpartition does not react to memory release requests. The buffers will be
-		// recycled by the consuming task.
+		// The pipelined subpartition does not react to memory release requests.
+		// The buffers will be recycled by the consuming task.
 		return 0;
 	}
 
@@ -173,53 +163,51 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public PipelinedSubpartitionView createReadView(BufferProvider bufferProvider) {
+	public PipelinedSubpartitionView createReadView(BufferProvider bufferProvider, BufferAvailabilityListener availabilityListener) throws IOException {
+		final int queueSize;
+
 		synchronized (buffers) {
-			if (readView != null) {
-				throw new IllegalStateException("Subpartition " + index + " of "
-						+ parent.getPartitionId() + " is being or already has been " +
-						"consumed, but pipelined subpartitions can only be consumed once.");
-			}
+			checkState(!isReleased);
+			checkState(readView == null,
+					"Subpartition %s of is being (or already has been) consumed, " +
+					"but pipelined subpartitions can only be consumed once.", index, parent.getPartitionId());
 
-			readView = new PipelinedSubpartitionView(this);
+			LOG.debug("Creating read view for subpartition {} of partition {}.", index, parent.getPartitionId());
 
-			LOG.debug("Created read view for subpartition {} of partition {}.", index, parent.getPartitionId());
-
-			return readView;
+			queueSize = buffers.size();
+			readView = new PipelinedSubpartitionView(this, availabilityListener);
 		}
+
+		readView.notifyBuffersAvailable(queueSize);
+
+		return readView;
 	}
+
+	// ------------------------------------------------------------------------
+
+	int getCurrentNumberOfBuffers() {
+		return buffers.size();
+	}
+
+	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
+		final long numBuffers;
+		final long numBytes;
+		final boolean finished;
+		final boolean hasReadView;
+
 		synchronized (buffers) {
-			return String.format("PipelinedSubpartition [number of buffers: %d (%d bytes), " +
-							"finished? %s, read view? %s]",
-					getTotalNumberOfBuffers(), getTotalNumberOfBytes(), isFinished, readView != null);
+			numBuffers = getTotalNumberOfBuffers();
+			numBytes = getTotalNumberOfBytes();
+			finished = isFinished;
+			hasReadView = readView != null;
 		}
-	}
 
-	/**
-	 * Registers a listener with this subpartition and returns whether the registration was
-	 * successful.
-	 *
-	 * <p> A registered listener is notified when the state of the subpartition changes. After a
-	 * notification, the listener is unregistered. Only a single listener is allowed to be
-	 * registered.
-	 */
-	boolean registerListener(NotificationListener listener) {
-		synchronized (buffers) {
-			if (!buffers.isEmpty() || isReleased) {
-				return false;
-			}
-
-			if (registeredListener == null) {
-				registeredListener = listener;
-
-				return true;
-			}
-
-			throw new IllegalStateException("Already registered listener.");
-		}
+		return String.format(
+				"PipelinedSubpartition [number of buffers: %d (%d bytes), finished? %s, read view? %s]",
+				numBuffers, numBytes, finished, hasReadView);
 	}
 
 	@Override

@@ -37,7 +37,7 @@ import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.TimelyFlatMapFunction;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -47,7 +47,7 @@ import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.operators.StreamTimelyFlatMap;
+import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
@@ -547,18 +547,19 @@ public class DataStreamTest {
 	}
 
 	/**
-	 * Verify that a timely flat map call is correctly translated to an operator.
+	 * Verify that a {@link KeyedStream#process(ProcessFunction)} call is correctly translated to
+	 * an operator.
 	 */
 	@Test
-	public void testTimelyFlatMapTranslation() {
+	public void testProcessTranslation() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStreamSource<Long> src = env.generateSequence(0, 0);
 
-		TimelyFlatMapFunction<Long, Integer> timelyFlatMapFunction = new TimelyFlatMapFunction<Long, Integer>() {
+		ProcessFunction<Long, Integer> processFunction = new ProcessFunction<Long, Integer>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public void flatMap(
+			public void processElement(
 					Long value,
 					Context ctx,
 					Collector<Integer> out) throws Exception {
@@ -574,14 +575,14 @@ public class DataStreamTest {
 			}
 		};
 
-		DataStream<Integer> flatMapped = src
+		DataStream<Integer> processed = src
 				.keyBy(new IdentityKeySelector<Long>())
-				.flatMap(timelyFlatMapFunction);
+				.process(processFunction);
 
-		flatMapped.addSink(new DiscardingSink<Integer>());
+		processed.addSink(new DiscardingSink<Integer>());
 
-		assertEquals(timelyFlatMapFunction, getFunctionForDataStream(flatMapped));
-		assertTrue(getOperatorForDataStream(flatMapped) instanceof StreamTimelyFlatMap);
+		assertEquals(processFunction, getFunctionForDataStream(processed));
+		assertTrue(getOperatorForDataStream(processed) instanceof ProcessOperator);
 	}
 
 	@Test

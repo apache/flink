@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -40,7 +41,6 @@ import org.hamcrest.Description;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -97,19 +97,20 @@ public class CheckpointStateRestoreTest {
 			map.put(statelessId, stateless);
 
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-					jid,
-					200000L,
-					200000L,
-					0,
-					Integer.MAX_VALUE,
-					ExternalizedCheckpointSettings.none(),
-					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
-					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
-					new ExecutionVertex[0],
-					new StandaloneCheckpointIDCounter(),
-					new StandaloneCompletedCheckpointStore(1),
-					null,
-					new DisabledCheckpointStatsTracker());
+				jid,
+				200000L,
+				200000L,
+				0,
+				Integer.MAX_VALUE,
+				ExternalizedCheckpointSettings.none(),
+				new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
+				new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
+				new ExecutionVertex[0],
+				new StandaloneCheckpointIDCounter(),
+				new StandaloneCompletedCheckpointStore(1),
+				null,
+				new DisabledCheckpointStatsTracker(),
+				Executors.directExecutor());
 
 			// create ourselves a checkpoint with state
 			final long timestamp = 34623786L;
@@ -172,19 +173,20 @@ public class CheckpointStateRestoreTest {
 	public void testNoCheckpointAvailable() {
 		try {
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-					new JobID(),
-					200000L,
-					200000L,
-					0,
-					Integer.MAX_VALUE,
-					ExternalizedCheckpointSettings.none(),
-					new ExecutionVertex[] { mock(ExecutionVertex.class) },
-					new ExecutionVertex[] { mock(ExecutionVertex.class) },
-					new ExecutionVertex[0],
-					new StandaloneCheckpointIDCounter(),
-					new StandaloneCompletedCheckpointStore(1),
-					null,
-					new DisabledCheckpointStatsTracker());
+				new JobID(),
+				200000L,
+				200000L,
+				0,
+				Integer.MAX_VALUE,
+				ExternalizedCheckpointSettings.none(),
+				new ExecutionVertex[] { mock(ExecutionVertex.class) },
+				new ExecutionVertex[] { mock(ExecutionVertex.class) },
+				new ExecutionVertex[0],
+				new StandaloneCheckpointIDCounter(),
+				new StandaloneCompletedCheckpointStore(1),
+				null,
+				new DisabledCheckpointStatsTracker(),
+				Executors.directExecutor());
 
 			try {
 				coord.restoreLatestCheckpointedState(new HashMap<JobVertexID, ExecutionJobVertex>(), true, false);
@@ -227,19 +229,20 @@ public class CheckpointStateRestoreTest {
 		tasks.put(jobVertexId2, jobVertex2);
 
 		CheckpointCoordinator coord = new CheckpointCoordinator(
-				new JobID(),
-				Integer.MAX_VALUE,
-				Integer.MAX_VALUE,
-				0,
-				Integer.MAX_VALUE,
-				ExternalizedCheckpointSettings.none(),
-				new ExecutionVertex[] {},
-				new ExecutionVertex[] {},
-				new ExecutionVertex[] {},
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(1),
-				null,
-				new DisabledCheckpointStatsTracker());
+			new JobID(),
+			Integer.MAX_VALUE,
+			Integer.MAX_VALUE,
+			0,
+			Integer.MAX_VALUE,
+			ExternalizedCheckpointSettings.none(),
+			new ExecutionVertex[] {},
+			new ExecutionVertex[] {},
+			new ExecutionVertex[] {},
+			new StandaloneCheckpointIDCounter(),
+			new StandaloneCompletedCheckpointStore(1),
+			null,
+			new DisabledCheckpointStatsTracker(),
+			Executors.directExecutor());
 
 		ChainedStateHandle<StreamStateHandle> serializedState = CheckpointCoordinatorTest
 				.generateChainedStateHandle(new SerializableObject());

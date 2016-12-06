@@ -25,20 +25,20 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.netty.CancelPartitionRequestTest.InfiniteSubpartitionView;
-import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
+import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.io.network.netty.NettyMessage.NettyMessageEncoder;
-import static org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.connect;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.createConfig;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
@@ -63,36 +63,43 @@ public class ServerTransportErrorHandlingTest {
 		final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 
 		when(partitionManager
-				.createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferProvider.class)))
-				.thenReturn(new InfiniteSubpartitionView(outboundBuffers, sync));
+			.createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferProvider.class), any(BufferAvailabilityListener.class)))
+			.thenAnswer(new Answer<ResultSubpartitionView>() {
+				@Override
+				public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
+					BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[3];
+					listener.notifyBuffersAvailable(Long.MAX_VALUE);
+					return new CancelPartitionRequestTest.InfiniteSubpartitionView(outboundBuffers, sync);
+				}
+			});
 
 		NettyProtocol protocol = new NettyProtocol() {
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				return new PartitionRequestProtocol(
-						partitionManager,
-						mock(TaskEventDispatcher.class),
-						mock(NetworkBufferPool.class)).getServerChannelHandlers();
+					partitionManager,
+					mock(TaskEventDispatcher.class),
+					mock(NetworkBufferPool.class)).getServerChannelHandlers();
 			}
 
 			@Override
 			public ChannelHandler[] getClientChannelHandlers() {
-				return new ChannelHandler[] {
-						new NettyMessageEncoder(),
-						// Close on read
-						new ChannelInboundHandlerAdapter() {
-							@Override
-							public void channelRead(ChannelHandlerContext ctx, Object msg)
-									throws Exception {
+				return new ChannelHandler[]{
+					new NettyMessage.NettyMessageEncoder(),
+					// Close on read
+					new ChannelInboundHandlerAdapter() {
+						@Override
+						public void channelRead(ChannelHandlerContext ctx, Object msg)
+							throws Exception {
 
-								ctx.channel().close();
-							}
+							ctx.channel().close();
 						}
+					}
 				};
 			}
 		};
 
-		NettyServerAndClient serverAndClient = null;
+		NettyTestUtil.NettyServerAndClient serverAndClient = null;
 
 		try {
 			serverAndClient = initServerAndClient(protocol, createConfig());
@@ -100,15 +107,14 @@ public class ServerTransportErrorHandlingTest {
 			Channel ch = connect(serverAndClient);
 
 			// Write something to trigger close by server
-			ch.writeAndFlush(new PartitionRequest(new ResultPartitionID(), 0, new InputChannelID()));
+			ch.writeAndFlush(new NettyMessage.PartitionRequest(new ResultPartitionID(), 0, new InputChannelID()));
 
 			// Wait for the notification
 			if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
 				fail("Timed out after waiting for " + TestingUtils.TESTING_DURATION().toMillis() +
-						" ms to be notified about released partition.");
+					" ms to be notified about released partition.");
 			}
-		}
-		finally {
+		} finally {
 			shutdown(serverAndClient);
 		}
 	}

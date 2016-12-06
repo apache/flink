@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.junit.Test;
@@ -73,22 +72,32 @@ public class UnionInputGateTest {
 		inputChannels[1][1].readEndOfPartitionEvent(); // 0 => 3
 		inputChannels[1][0].readEndOfPartitionEvent(); // 0 => 3
 
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 0);
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 0);
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 5);
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 5);
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 3);
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 4);
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 1);
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 6);
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 1);
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 6);
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 2);
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 2);
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 7);
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 7);
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 4);
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 3);
+		ig1.notifyChannelNonEmpty(inputChannels[0][0].getInputChannel());
+		ig1.notifyChannelNonEmpty(inputChannels[0][1].getInputChannel());
+		ig1.notifyChannelNonEmpty(inputChannels[0][2].getInputChannel());
+
+		ig2.notifyChannelNonEmpty(inputChannels[1][0].getInputChannel());
+		ig2.notifyChannelNonEmpty(inputChannels[1][1].getInputChannel());
+		ig2.notifyChannelNonEmpty(inputChannels[1][2].getInputChannel());
+		ig2.notifyChannelNonEmpty(inputChannels[1][3].getInputChannel());
+		ig2.notifyChannelNonEmpty(inputChannels[1][4].getInputChannel());
+
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 0); // gate 1, channel 0
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 3); // gate 2, channel 0
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 1); // gate 1, channel 1
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 4); // gate 2, channel 1
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 2); // gate 1, channel 2
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 5); // gate 2, channel 1
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 0); // gate 1, channel 0
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 6); // gate 2, channel 1
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 1); // gate 1, channel 1
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 7); // gate 2, channel 1
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 2); // gate 1, channel 2
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 3); // gate 2, channel 0
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 4); // gate 2, channel 1
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 5); // gate 2, channel 2
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 6); // gate 2, channel 3
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 7); // gate 2, channel 4
 
 		// Return null when the input gate has received all end-of-partition events
 		assertTrue(union.isFinished());

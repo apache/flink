@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
@@ -57,7 +58,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode.ASYNC;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -93,11 +93,11 @@ public class LocalInputChannelTest {
 		final ExecutorService executor = Executors.newFixedThreadPool(2 * parallelism);
 
 		final NetworkBufferPool networkBuffers = new NetworkBufferPool(
-				(parallelism * producerBufferPoolSize) + (parallelism * parallelism),
-				TestBufferFactory.BUFFER_SIZE, MemoryType.HEAP);
+			(parallelism * producerBufferPoolSize) + (parallelism * parallelism),
+			TestBufferFactory.BUFFER_SIZE, MemoryType.HEAP);
 
 		final ResultPartitionConsumableNotifier partitionConsumableNotifier =
-				mock(ResultPartitionConsumableNotifier.class);
+			mock(ResultPartitionConsumableNotifier.class);
 
 		final TaskActions taskActions = mock(TaskActions.class);
 
@@ -124,21 +124,20 @@ public class LocalInputChannelTest {
 				partitionManager,
 				partitionConsumableNotifier,
 				ioManager,
-				ASYNC,
 				true);
 
 			// Create a buffer pool for this partition
 			partition.registerBufferPool(
-					networkBuffers.createBufferPool(producerBufferPoolSize, true));
+				networkBuffers.createBufferPool(producerBufferPoolSize, true));
 
 			// Create the producer
 			partitionProducers[i] = new TestPartitionProducer(
-					partition,
-					false,
-					new TestPartitionProducerBufferSource(
-							parallelism,
-							partition.getBufferProvider(),
-							numberOfBuffersPerChannel)
+				partition,
+				false,
+				new TestPartitionProducerBufferSource(
+					parallelism,
+					partition.getBufferProvider(),
+					numberOfBuffersPerChannel)
 			);
 
 			// Register with the partition manager in order to allow the local input channels to
@@ -150,7 +149,7 @@ public class LocalInputChannelTest {
 		try {
 			// Submit producer tasks
 			List<Future<?>> results = Lists.newArrayListWithCapacity(
-					parallelism + 1);
+				parallelism + 1);
 
 			for (int i = 0; i < parallelism; i++) {
 				results.add(executor.submit(partitionProducers[i]));
@@ -159,14 +158,14 @@ public class LocalInputChannelTest {
 			// Submit consumer
 			for (int i = 0; i < parallelism; i++) {
 				results.add(executor.submit(
-						new TestLocalInputChannelConsumer(
-								i,
-								parallelism,
-								numberOfBuffersPerChannel,
-								networkBuffers.createBufferPool(parallelism, true),
-								partitionManager,
-								new TaskEventDispatcher(),
-								partitionIds)));
+					new TestLocalInputChannelConsumer(
+						i,
+						parallelism,
+						numberOfBuffersPerChannel,
+						networkBuffers.createBufferPool(parallelism, true),
+						partitionManager,
+						new TaskEventDispatcher(),
+						partitionIds)));
 			}
 
 			// Wait for all to finish
@@ -183,7 +182,7 @@ public class LocalInputChannelTest {
 	@Test
 	public void testPartitionRequestExponentialBackoff() throws Exception {
 		// Config
-		Tuple2<Integer, Integer> backoff = new Tuple2<Integer, Integer>(500, 3000);
+		Tuple2<Integer, Integer> backoff = new Tuple2<>(500, 3000);
 
 		// Start with initial backoff, then keep doubling, and cap at max.
 		int[] expectedDelays = {backoff._1(), 1000, 2000, backoff._2()};
@@ -199,7 +198,7 @@ public class LocalInputChannelTest {
 		LocalInputChannel ch = createLocalInputChannel(inputGate, partitionManager, backoff);
 
 		when(partitionManager
-				.createSubpartitionView(eq(ch.partitionId), eq(0), eq(bufferProvider)))
+				.createSubpartitionView(eq(ch.partitionId), eq(0), eq(bufferProvider), any(BufferAvailabilityListener.class)))
 				.thenThrow(new PartitionNotFoundException(ch.partitionId));
 
 		Timer timer = mock(Timer.class);
@@ -215,7 +214,7 @@ public class LocalInputChannelTest {
 		// Initial request
 		ch.requestSubpartition(0);
 		verify(partitionManager)
-				.createSubpartitionView(eq(ch.partitionId), eq(0), eq(bufferProvider));
+				.createSubpartitionView(eq(ch.partitionId), eq(0), eq(bufferProvider), any(BufferAvailabilityListener.class));
 
 		// Request subpartition and verify that the actual requests are delayed.
 		for (long expected : expectedDelays) {
@@ -236,14 +235,13 @@ public class LocalInputChannelTest {
 
 	@Test(expected = CancelTaskException.class)
 	public void testProducerFailedException() throws Exception {
-
 		ResultSubpartitionView view = mock(ResultSubpartitionView.class);
 		when(view.isReleased()).thenReturn(true);
 		when(view.getFailureCause()).thenReturn(new Exception("Expected test exception"));
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		when(partitionManager
-				.createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferProvider.class)))
+				.createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferProvider.class), any(BufferAvailabilityListener.class)))
 				.thenReturn(view);
 
 		SingleInputGate inputGate = mock(SingleInputGate.class);
@@ -251,12 +249,102 @@ public class LocalInputChannelTest {
 		when(inputGate.getBufferProvider()).thenReturn(bufferProvider);
 
 		LocalInputChannel ch = createLocalInputChannel(
-				inputGate, partitionManager, new Tuple2<Integer, Integer>(0, 0));
+				inputGate, partitionManager, new Tuple2<>(0, 0));
 
 		ch.requestSubpartition(0);
 
 		// Should throw an instance of CancelTaskException.
 		ch.getNextBuffer();
+	}
+
+	/**
+	 * Verifies that concurrent release via the SingleInputGate and re-triggering
+	 * of a partition request works smoothly.
+	 *
+	 * - SingleInputGate acquires its request lock and tries to release all
+	 * registered channels. When releasing a channel, it needs to acquire
+	 * the channel's shared request-release lock.
+	 * - If a LocalInputChannel concurrently retriggers a partition request via
+	 * a Timer Thread it acquires the channel's request-release lock and calls
+	 * the retrigger callback on the SingleInputGate, which again tries to
+	 * acquire the gate's request lock.
+	 *
+	 * For certain timings this obviously leads to a deadlock. This test reliably
+	 * reproduced such a timing (reported in FLINK-5228). This test is pretty much
+	 * testing the buggy implementation and has not much more general value. If it
+	 * becomes obsolete at some point (future greatness ;)), feel free to remove it.
+	 *
+	 * The fix in the end was to to not acquire the channels lock when releasing it
+	 * and/or not doing any input gate callbacks while holding the channel's lock.
+	 * I decided to do both.
+	 */
+	@Test
+	public void testConcurrentReleaseAndRetriggerPartitionRequest() throws Exception {
+		final SingleInputGate gate = new SingleInputGate(
+			"test task name",
+			new JobID(),
+			new ExecutionAttemptID(),
+			new IntermediateDataSetID(),
+			0,
+			1,
+			mock(TaskActions.class),
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup()
+		);
+
+		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
+		when(partitionManager
+			.createSubpartitionView(
+				any(ResultPartitionID.class),
+				anyInt(),
+				any(BufferProvider.class),
+				any(BufferAvailabilityListener.class)))
+			.thenAnswer(new Answer<ResultSubpartitionView>() {
+				@Override
+				public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
+					// Sleep here a little to give the releaser Thread
+					// time to acquire the input gate lock. We throw
+					// the Exception to retrigger the request.
+					Thread.sleep(100);
+					throw new PartitionNotFoundException(new ResultPartitionID());
+				}
+			});
+
+		final LocalInputChannel channel = new LocalInputChannel(
+			gate,
+			0,
+			new ResultPartitionID(),
+			partitionManager,
+			new TaskEventDispatcher(),
+			1, 1,
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+
+		gate.setInputChannel(new IntermediateResultPartitionID(), channel);
+
+		Thread releaser = new Thread() {
+			@Override
+			public void run() {
+				try {
+					gate.releaseAllResources();
+				} catch (IOException ignored) {
+				}
+			}
+		};
+
+		Thread requester = new Thread() {
+			@Override
+			public void run() {
+				try {
+					channel.requestSubpartition(0);
+				} catch (IOException | InterruptedException ignored) {
+				}
+			}
+		};
+
+		requester.start();
+		releaser.start();
+
+		releaser.join();
+		requester.join();
 	}
 
 	// ---------------------------------------------------------------------------------------------
@@ -268,14 +356,14 @@ public class LocalInputChannelTest {
 			throws IOException, InterruptedException {
 
 		return new LocalInputChannel(
-			inputGate,
-			0,
-			new ResultPartitionID(),
-			partitionManager,
-			mock(TaskEventDispatcher.class),
-			initialAndMaxRequestBackoff._1(),
-			initialAndMaxRequestBackoff._2(),
-			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+				inputGate,
+				0,
+				new ResultPartitionID(),
+				partitionManager,
+				mock(TaskEventDispatcher.class),
+				initialAndMaxRequestBackoff._1(),
+				initialAndMaxRequestBackoff._2(),
+				new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 	}
 
 	/**
@@ -344,14 +432,14 @@ public class LocalInputChannelTest {
 			checkArgument(numberOfExpectedBuffersPerChannel >= 1);
 
 			this.inputGate = new SingleInputGate(
-				"Test Name",
-				new JobID(),
-				new ExecutionAttemptID(),
-				new IntermediateDataSetID(),
-				subpartitionIndex,
-				numberOfInputChannels,
-				mock(TaskActions.class),
-				new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+					"Test Name",
+					new JobID(),
+					new ExecutionAttemptID(),
+					new IntermediateDataSetID(),
+					subpartitionIndex,
+					numberOfInputChannels,
+					mock(TaskActions.class),
+					new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 
 			// Set buffer pool
 			inputGate.setBufferPool(bufferPool);

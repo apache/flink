@@ -17,32 +17,37 @@
  */
 package org.apache.flink.core.fs;
 
+import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.util.WrappingProxyUtil;
+import org.junit.Test;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import org.apache.flink.core.fs.local.LocalFileSystem;
-import org.junit.Test;
-import static org.junit.Assert.*;
+
+import static org.junit.Assert.assertTrue;
 
 public class FileSystemTest {
+
 	@Test
 	public void testGet() throws URISyntaxException, IOException {
 		String scheme = "file";
-		
-		assertTrue(FileSystem.get(new URI(scheme + ":///test/test")) instanceof LocalFileSystem);
-		
+
+		assertTrue(WrappingProxyUtil.stripProxy(FileSystem.get(new URI(scheme + ":///test/test"))) instanceof LocalFileSystem);
+
 		try {
 			FileSystem.get(new URI(scheme + "://test/test"));
 		} catch (IOException ioe) {
 			assertTrue(ioe.getMessage().startsWith("Found local file path with authority '"));
 		}
 
-		assertTrue(FileSystem.get(new URI(scheme + ":/test/test")) instanceof LocalFileSystem);
-		
-		assertTrue(FileSystem.get(new URI(scheme + ":test/test")) instanceof LocalFileSystem);
+		assertTrue(WrappingProxyUtil.stripProxy(FileSystem.get(new URI(scheme + ":/test/test"))) instanceof LocalFileSystem);
 
-		assertTrue(FileSystem.get(new URI("/test/test")) instanceof LocalFileSystem);
-		
-		assertTrue(FileSystem.get(new URI("test/test")) instanceof LocalFileSystem);
+		assertTrue(WrappingProxyUtil.stripProxy(FileSystem.get(new URI(scheme + ":test/test"))) instanceof LocalFileSystem);
+
+		assertTrue(WrappingProxyUtil.stripProxy(FileSystem.get(new URI("/test/test"))) instanceof LocalFileSystem);
+
+		assertTrue(WrappingProxyUtil.stripProxy(FileSystem.get(new URI("test/test"))) instanceof LocalFileSystem);
 	}
+
 }

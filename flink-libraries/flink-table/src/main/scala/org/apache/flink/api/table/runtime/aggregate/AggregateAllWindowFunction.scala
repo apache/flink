@@ -27,14 +27,15 @@ import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
 
-class AggregateAllWindowFunction(groupReduceFunction: RichGroupReduceFunction[Row, Row])
-    extends RichAllWindowFunction[Row, Row, Window] {
+class AggregateAllWindowFunction[W <: Window](
+    groupReduceFunction: RichGroupReduceFunction[Row, Row])
+  extends RichAllWindowFunction[Row, Row, W] {
 
   override def open(parameters: Configuration): Unit = {
     groupReduceFunction.open(parameters)
   }
 
-  override def apply(window: Window, input: Iterable[Row], out: Collector[Row]): Unit = {
+  override def apply(window: W, input: Iterable[Row], out: Collector[Row]): Unit = {
     groupReduceFunction.reduce(input, out)
   }
 }

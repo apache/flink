@@ -60,13 +60,7 @@ abstract class FlinkTable[T](
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
-    val builder = flinkTypeFactory.builder
-    fieldNames
-      .zip(fieldTypes)
-      .foreach { f =>
-        builder.add(f._1, flinkTypeFactory.createTypeFromTypeInfo(f._2)).nullable(true)
-      }
-    builder.build
+    flinkTypeFactory.buildRowDataType(fieldNames, fieldTypes)
   }
 
 }

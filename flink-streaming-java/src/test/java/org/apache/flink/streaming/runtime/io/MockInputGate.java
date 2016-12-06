@@ -22,7 +22,7 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.util.event.EventListener;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGateListener;
 
 import java.util.ArrayDeque;
 import java.util.List;
@@ -31,16 +31,15 @@ import java.util.Queue;
 public class MockInputGate implements InputGate {
 
 	private final int pageSize;
-	
+
 	private final int numChannels;
-	
+
 	private final Queue<BufferOrEvent> boes;
 
 	private final boolean[] closed;
-	
+
 	private int closedChannels;
 
-	
 	public MockInputGate(int pageSize, int numChannels, List<BufferOrEvent> boes) {
 		this.pageSize = pageSize;
 		this.numChannels = numChannels;
@@ -52,7 +51,7 @@ public class MockInputGate implements InputGate {
 	public int getPageSize() {
 		return pageSize;
 	}
-	
+
 	@Override
 	public int getNumberOfInputChannels() {
 		return numChannels;
@@ -69,11 +68,11 @@ public class MockInputGate implements InputGate {
 		if (next == null) {
 			return null;
 		}
-		
+
 		int channelIdx = next.getChannelIndex();
 		if (closed[channelIdx]) {
 			throw new RuntimeException("Inconsistent: Channel " + channelIdx
-					+ " has data even though it is already closed.");
+				+ " has data even though it is already closed.");
 		}
 		if (next.isEvent() && next.getEvent() instanceof EndOfPartitionEvent) {
 			closed[channelIdx] = true;
@@ -83,12 +82,15 @@ public class MockInputGate implements InputGate {
 	}
 
 	@Override
-	public void requestPartitions() {}
+	public void requestPartitions() {
+	}
 
 	@Override
-	public void sendTaskEvent(TaskEvent event) {}
+	public void sendTaskEvent(TaskEvent event) {
+	}
 
 	@Override
-	public void registerListener(EventListener<InputGate> listener) {}
-	
+	public void registerListener(InputGateListener listener) {
+	}
+
 }

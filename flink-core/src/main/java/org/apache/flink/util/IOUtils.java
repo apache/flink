@@ -18,13 +18,14 @@
 
 package org.apache.flink.util;
 
+import org.slf4j.Logger;
+
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.Socket;
-
-import org.slf4j.Logger;
 
 /**
  * An utility class for I/O related functionality.
@@ -212,6 +213,17 @@ public final class IOUtils {
 			} catch (IOException ignored) {
 			}
 		}
+	}
+
+	/**
+	 * <p><b>Important:</b> This method is expected to never throw an exception.
+	 */
+	public static void closeQuietly(Closeable closeable) {
+		try {
+			if (closeable != null) {
+				closeable.close();
+			}
+		} catch (Throwable ignored) {}
 	}
 	
 	// ------------------------------------------------------------------------

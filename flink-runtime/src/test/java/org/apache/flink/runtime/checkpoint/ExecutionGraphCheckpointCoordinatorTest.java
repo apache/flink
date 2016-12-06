@@ -97,6 +97,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			CompletedCheckpointStore store) throws Exception {
 		ExecutionGraph executionGraph = new ExecutionGraph(
 			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutionContext(),
 			new JobID(),
 			"test",
 			new Configuration(),

@@ -39,9 +39,28 @@ public final class GlobalConfiguration {
 
 	public static final String FLINK_CONF_FILENAME = "flink-conf.yaml";
 
+
 	// --------------------------------------------------------------------------------------------
 
 	private GlobalConfiguration() {}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static Configuration dynamicProperties = null;
+
+	/**
+	 * Set the process-wide dynamic properties to be merged with the loaded configuration.
+     */
+	public static void setDynamicProperties(Configuration dynamicProperties) {
+		GlobalConfiguration.dynamicProperties = new Configuration(dynamicProperties);
+	}
+
+	/**
+	 * Get the dynamic properties.
+     */
+	public static Configuration getDynamicProperties() {
+		return GlobalConfiguration.dynamicProperties;
+	}
 
 	// --------------------------------------------------------------------------------------------
 
@@ -90,7 +109,13 @@ public final class GlobalConfiguration {
 					"' (" + confDirFile.getAbsolutePath() + ") does not exist.");
 		}
 
-		return loadYAMLResource(yamlConfigFile);
+		Configuration conf = loadYAMLResource(yamlConfigFile);
+
+		if(dynamicProperties != null) {
+			conf.addAll(dynamicProperties);
+		}
+
+		return conf;
 	}
 
 	/**
@@ -144,7 +169,7 @@ public final class GlobalConfiguration {
 						continue;
 					}
 
-					LOG.debug("Loading configuration property: {}, {}", key, value);
+					LOG.info("Loading configuration property: {}, {}", key, value);
 					config.setString(key, value);
 				}
 			}

@@ -36,11 +36,13 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.JobManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
@@ -53,7 +55,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
 import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
@@ -79,7 +80,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	private final int subTaskIndex;
 
-	private final List<Execution> priorExecutions;
+	private final EvictingBoundedList<Execution> priorExecutions;
 
 	private final Time timeout;
 
@@ -99,7 +100,13 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			int subTaskIndex,
 			IntermediateResult[] producedDataSets,
 			Time timeout) {
-		this(jobVertex, subTaskIndex, producedDataSets, timeout, System.currentTimeMillis());
+		this(
+				jobVertex,
+				subTaskIndex,
+				producedDataSets,
+				timeout,
+				System.currentTimeMillis(),
+				JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue());
 	}
 
 	public ExecutionVertex(
@@ -107,7 +114,17 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			int subTaskIndex,
 			IntermediateResult[] producedDataSets,
 			Time timeout,
-			long createTimestamp) {
+			int maxPriorExecutionHistoryLength) {
+		this(jobVertex, subTaskIndex, producedDataSets, timeout, System.currentTimeMillis(), maxPriorExecutionHistoryLength);
+	}
+
+	public ExecutionVertex(
+			ExecutionJobVertex jobVertex,
+			int subTaskIndex,
+			IntermediateResult[] producedDataSets,
+			Time timeout,
+			long createTimestamp,
+			int maxPriorExecutionHistoryLength) {
 
 		this.jobVertex = jobVertex;
 		this.subTaskIndex = subTaskIndex;
@@ -125,10 +142,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 		this.inputEdges = new ExecutionEdge[jobVertex.getJobVertex().getInputs().size()][];
 
-		this.priorExecutions = new CopyOnWriteArrayList<Execution>();
+		this.priorExecutions = new EvictingBoundedList<>(maxPriorExecutionHistoryLength);
 
 		this.currentExecution = new Execution(
-			getExecutionGraph().getExecutor(),
+			getExecutionGraph().getFutureExecutor(),
 			this,
 			0,
 			createTimestamp,
@@ -235,16 +252,19 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	@Override
 	public Execution getPriorExecutionAttempt(int attemptNumber) {
-		if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
-			return priorExecutions.get(attemptNumber);
-		}
-		else {
-			throw new IllegalArgumentException("attempt does not exist");
+		synchronized (priorExecutions) {
+			if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
+				return priorExecutions.get(attemptNumber);
+			} else {
+				throw new IllegalArgumentException("attempt does not exist");
+			}
 		}
 	}
 
-	List<Execution> getPriorExecutions() {
-		return priorExecutions;
+	EvictingBoundedList<Execution> getCopyOfPriorExecutionsList() {
+		synchronized (priorExecutions) {
+			return new EvictingBoundedList<>(priorExecutions);
+		}
 	}
 
 	public ExecutionGraph getExecutionGraph() {
@@ -435,7 +455,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			if (state == FINISHED || state == CANCELED || state == FAILED) {
 				priorExecutions.add(execution);
 				currentExecution = new Execution(
-					getExecutionGraph().getExecutor(),
+					getExecutionGraph().getFutureExecutor(),
 					this,
 					execution.getAttemptNumber()+1,
 					System.currentTimeMillis(),

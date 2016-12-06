@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobmanager
 import java.io.{File, IOException}
 import java.net._
 import java.util.UUID
-import java.util.concurrent.{ExecutorService, ForkJoinPool, TimeUnit, TimeoutException}
+import java.util.concurrent.{TimeUnit, Future => _, TimeoutException => _, _}
 
 import akka.actor.Status.{Failure, Success}
 import akka.actor._
@@ -44,7 +44,7 @@ import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.concurrent.{AcceptFunction, BiFunction}
+import org.apache.flink.runtime.concurrent.{AcceptFunction, BiFunction, Executors => FlinkExecutors}
 import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
@@ -73,8 +73,8 @@ import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.query.KvStateMessage.{LookupKvStateLocation, NotifyKvStateRegistered, NotifyKvStateUnregistered}
 import org.apache.flink.runtime.query.{KvStateMessage, UnknownKvStateLocation}
-import org.apache.flink.runtime.security.SecurityContext
-import org.apache.flink.runtime.security.SecurityContext.{FlinkSecuredRunner, SecurityConfiguration}
+import org.apache.flink.runtime.security.SecurityUtils
+import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
@@ -118,7 +118,8 @@ import scala.language.postfixOps
  */
 class JobManager(
     protected val flinkConfiguration: Configuration,
-    protected val executorService: ExecutorService,
+    protected val futureExecutor: Executor,
+    protected val ioExecutor: Executor,
     protected val instanceManager: InstanceManager,
     protected val scheduler: FlinkScheduler,
     protected val libraryCacheManager: BlobLibraryCacheManager,
@@ -271,9 +272,6 @@ class JobManager(
     } catch {
       case e: IOException => log.error("Could not properly shutdown the library cache manager.", e)
     }
-
-    // shut down the extra thread pool for futures
-    executorService.shutdown()
 
     // failsafe shutdown of the metrics registry
     try {
@@ -838,7 +836,7 @@ class JobManager(
         }
       }(context.dispatcher)
 
-    case JobStatusChanged(jobID, newJobStatus, timeStamp, error) =>
+    case msg @ JobStatusChanged(jobID, newJobStatus, timeStamp, error) =>
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
 
@@ -913,8 +911,7 @@ class JobManager(
               }
             }(context.dispatcher)
           }
-        case None =>
-          self ! decorateMessage(RemoveJob(jobID, removeJobFromStateBackend = true))
+        case None => log.debug(s"Received $msg for nonexistent job $jobID.")
       }
 
     case ScheduleOrUpdateConsumers(jobId, partitionId) =>
@@ -1034,7 +1031,7 @@ class JobManager(
       )
 
     case Heartbeat(instanceID, accumulators) =>
-      log.debug(s"Received heartbeat message from $instanceID.")
+      log.trace(s"Received heartbeat message from $instanceID.")
 
       updateAccumulators(accumulators)
 
@@ -1079,7 +1076,7 @@ class JobManager(
                 futuresToComplete = Some(futuresToComplete.getOrElse(Seq()) :+ futureToComplete)
               case None =>
             }
-        case None =>
+        case None => log.debug(s"Tried to remove nonexistent job $jobID.")
       }
 
     case RemoveCachedJob(jobID) =>
@@ -1250,7 +1247,8 @@ class JobManager(
           executionGraph,
           jobGraph,
           flinkConfiguration,
-          executorService,
+          futureExecutor,
+          ioExecutor,
           userCodeLoader,
           checkpointRecoveryFactory,
           Time.of(timeout.length, timeout.unit),
@@ -1712,14 +1710,14 @@ class JobManager(
               // shutdown to release all resources.
               submittedJobGraphs.removeJobGraph(jobID)
             } catch {
-              case t: Throwable => log.error(s"Could not remove submitted job graph $jobID.", t)
+              case t: Throwable => log.warn(s"Could not remove submitted job graph $jobID.", t)
             }
           }(context.dispatcher))
 
           try {
             archive ! decorateMessage(ArchiveExecutionGraph(jobID, eg.archive()))
           } catch {
-            case t: Throwable => log.error(s"Could not archive the execution graph $eg.", t)
+            case t: Throwable => log.warn(s"Could not archive the execution graph $eg.", t)
           }
 
           futureOption
@@ -1901,6 +1899,7 @@ object JobManager {
     catch {
       case t: Throwable =>
         LOG.error(t.getMessage(), t)
+        t.printStackTrace()
         System.exit(STARTUP_FAILURE_RETURN_CODE)
         null
     }
@@ -1931,11 +1930,11 @@ object JobManager {
     }
 
     // run the job manager
-    SecurityContext.install(new SecurityConfiguration().setFlinkConfiguration(configuration))
+    SecurityUtils.install(new SecurityConfiguration(configuration))
 
     try {
-      SecurityContext.getInstalled.runSecured(new FlinkSecuredRunner[Unit] {
-        override def run(): Unit = {
+      SecurityUtils.getInstalledContext.runSecured(new Callable[Unit] {
+        override def call(): Unit = {
           runJobManager(
             configuration,
             executionMode,
@@ -1946,6 +1945,7 @@ object JobManager {
     } catch {
       case t: Throwable =>
         LOG.error("Failed to run JobManager.", t)
+        t.printStackTrace()
         System.exit(STARTUP_FAILURE_RETURN_CODE)
     }
   }
@@ -1971,15 +1971,37 @@ object JobManager {
       listeningPort: Int)
     : Unit = {
 
-    val (jobManagerSystem, _, _, webMonitorOption, _) = startActorSystemAndJobManagerActors(
-      configuration,
-      executionMode,
-      listeningAddress,
-      listeningPort,
-      classOf[JobManager],
-      classOf[MemoryArchivist],
-      Option(classOf[StandaloneResourceManager])
-    )
+    val numberProcessors = Hardware.getNumberCPUCores()
+
+    val futureExecutor = Executors.newFixedThreadPool(
+      numberProcessors,
+      new NamedThreadFactory("jobmanager-future-", "-thread-"))
+
+    val ioExecutor = Executors.newFixedThreadPool(
+      numberProcessors,
+      new NamedThreadFactory("jobmanager-io-", "-thread-"))
+
+    val timeout = AkkaUtils.getTimeout(configuration)
+
+    val (jobManagerSystem, _, _, webMonitorOption, _) = try {
+      startActorSystemAndJobManagerActors(
+        configuration,
+        executionMode,
+        listeningAddress,
+        listeningPort,
+        futureExecutor,
+        ioExecutor,
+        classOf[JobManager],
+        classOf[MemoryArchivist],
+        Option(classOf[StandaloneResourceManager])
+      )
+    } catch {
+      case t: Throwable =>
+        futureExecutor.shutdownNow()
+        ioExecutor.shutdownNow()
+
+        throw t
+    }
 
     // block until everything is shut down
     jobManagerSystem.awaitTermination()
@@ -1993,6 +2015,12 @@ object JobManager {
             LOG.warn("Could not properly stop the web monitor.", t)
         }
     }
+
+    FlinkExecutors.gracefulShutdown(
+      timeout.toMillis,
+      TimeUnit.MILLISECONDS,
+      futureExecutor,
+      ioExecutor)
   }
 
   /**
@@ -2100,6 +2128,8 @@ object JobManager {
     *                      additional TaskManager in the same process.
     * @param listeningAddress The hostname where the JobManager should listen for messages.
     * @param listeningPort The port where the JobManager should listen for messages
+    * @param futureExecutor to run the JobManager's futures
+    * @param ioExecutor to run blocking io operations
     * @param jobManagerClass The class of the JobManager to be started
     * @param archiveClass The class of the Archivist to be started
     * @param resourceManagerClass Optional class of resource manager if one should be started
@@ -2111,6 +2141,8 @@ object JobManager {
       executionMode: JobManagerMode,
       listeningAddress: String,
       listeningPort: Int,
+      futureExecutor: Executor,
+      ioExecutor: Executor,
       jobManagerClass: Class[_ <: JobManager],
       archiveClass: Class[_ <: MemoryArchivist],
       resourceManagerClass: Option[Class[_ <: FlinkResourceManager[_]]])
@@ -2179,6 +2211,8 @@ object JobManager {
       val (jobManager, archive) = startJobManagerActors(
         configuration,
         jobManagerSystem,
+        futureExecutor,
+        ioExecutor,
         jobManagerClass,
         archiveClass)
 
@@ -2379,15 +2413,18 @@ object JobManager {
    *              delayBetweenRetries, timeout)
    *
    * @param configuration The configuration from which to parse the config values.
+   * @param futureExecutor to run JobManager's futures
+   * @param ioExecutor to run blocking io operations
    * @param leaderElectionServiceOption LeaderElectionService which shall be returned if the option
    *                                    is defined
    * @return The members for a default JobManager.
    */
   def createJobManagerComponents(
       configuration: Configuration,
+      futureExecutor: Executor,
+      ioExecutor: Executor,
       leaderElectionServiceOption: Option[LeaderElectionService]) :
-    (ExecutorService,
-    InstanceManager,
+    (InstanceManager,
     FlinkScheduler,
     BlobLibraryCacheManager,
     RestartStrategyFactory,
@@ -2417,12 +2454,10 @@ object JobManager {
     var scheduler: FlinkScheduler = null
     var libraryCacheManager: BlobLibraryCacheManager = null
 
-    val executorService: ExecutorService = new ForkJoinPool()
-    
     try {
       blobServer = new BlobServer(configuration)
       instanceManager = new InstanceManager()
-      scheduler = new FlinkScheduler(ExecutionContext.fromExecutor(executorService))
+      scheduler = new FlinkScheduler(ExecutionContext.fromExecutor(futureExecutor))
       libraryCacheManager = new BlobLibraryCacheManager(blobServer, cleanupInterval)
 
       instanceManager.addInstanceListener(scheduler)
@@ -2441,7 +2476,6 @@ object JobManager {
         if (blobServer != null) {
           blobServer.shutdown()
         }
-        executorService.shutdownNow()
         
         throw t
     }
@@ -2468,8 +2502,8 @@ object JobManager {
           }
 
           (leaderElectionService,
-            ZooKeeperUtils.createSubmittedJobGraphs(client, configuration),
-            new ZooKeeperCheckpointRecoveryFactory(client, configuration))
+            ZooKeeperUtils.createSubmittedJobGraphs(client, configuration, ioExecutor),
+            new ZooKeeperCheckpointRecoveryFactory(client, configuration, ioExecutor))
       }
 
     val jobRecoveryTimeoutStr = configuration.getValue(HighAvailabilityOptions.HA_JOB_DELAY)
@@ -2494,8 +2528,7 @@ object JobManager {
         None
     }
 
-    (executorService,
-      instanceManager,
+    (instanceManager,
       scheduler,
       libraryCacheManager,
       restartStrategy,
@@ -2514,13 +2547,17 @@ object JobManager {
    *
    * @param configuration The configuration for the JobManager
    * @param actorSystem The actor system running the JobManager
+   * @param futureExecutor to run JobManager's futures
+   * @param ioExecutor to run blocking io operations
    * @param jobManagerClass The class of the JobManager to be started
    * @param archiveClass The class of the MemoryArchivist to be started
-    * @return A tuple of references (JobManager Ref, Archiver Ref)
+   * @return A tuple of references (JobManager Ref, Archiver Ref)
    */
   def startJobManagerActors(
       configuration: Configuration,
       actorSystem: ActorSystem,
+      futureExecutor: Executor,
+      ioExecutor: Executor,
       jobManagerClass: Class[_ <: JobManager],
       archiveClass: Class[_ <: MemoryArchivist])
     : (ActorRef, ActorRef) = {
@@ -2528,6 +2565,8 @@ object JobManager {
     startJobManagerActors(
       configuration,
       actorSystem,
+      futureExecutor,
+      ioExecutor,
       Some(JOB_MANAGER_NAME),
       Some(ARCHIVE_NAME),
       jobManagerClass,
@@ -2540,6 +2579,8 @@ object JobManager {
    *
    * @param configuration The configuration for the JobManager
    * @param actorSystem The actor system running the JobManager
+   * @param futureExecutor to run JobManager's futures
+   * @param ioExecutor to run blocking io operations
    * @param jobManagerActorName Optionally the name of the JobManager actor. If none is given,
    *                          the actor will have the name generated by the actor system.
    * @param archiveActorName Optionally the name of the archive actor. If none is given,
@@ -2551,14 +2592,15 @@ object JobManager {
   def startJobManagerActors(
       configuration: Configuration,
       actorSystem: ActorSystem,
+      futureExecutor: Executor,
+      ioExecutor: Executor,
       jobManagerActorName: Option[String],
       archiveActorName: Option[String],
       jobManagerClass: Class[_ <: JobManager],
       archiveClass: Class[_ <: MemoryArchivist])
     : (ActorRef, ActorRef) = {
 
-    val (executorService: ExecutorService,
-    instanceManager,
+    val (instanceManager,
     scheduler,
     libraryCacheManager,
     restartStrategy,
@@ -2570,6 +2612,8 @@ object JobManager {
     jobRecoveryTimeout,
     metricsRegistry) = createJobManagerComponents(
       configuration,
+      futureExecutor,
+      ioExecutor,
       None)
 
     val archiveProps = getArchiveProps(archiveClass, archiveCount)
@@ -2583,7 +2627,8 @@ object JobManager {
     val jobManagerProps = getJobManagerProps(
       jobManagerClass,
       configuration,
-      executorService,
+      futureExecutor,
+      ioExecutor,
       instanceManager,
       scheduler,
       libraryCacheManager,
@@ -2617,7 +2662,8 @@ object JobManager {
   def getJobManagerProps(
     jobManagerClass: Class[_ <: JobManager],
     configuration: Configuration,
-    executorService: ExecutorService,
+    futureExecutor: Executor,
+    ioExecutor: Executor,
     instanceManager: InstanceManager,
     scheduler: FlinkScheduler,
     libraryCacheManager: BlobLibraryCacheManager,
@@ -2633,7 +2679,8 @@ object JobManager {
     Props(
       jobManagerClass,
       configuration,
-      executorService,
+      futureExecutor,
+      ioExecutor,
       instanceManager,
       scheduler,
       libraryCacheManager,

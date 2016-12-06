@@ -37,6 +37,12 @@ class DataSetAggregateRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: LogicalAggregate = call.rel(0).asInstanceOf[LogicalAggregate]
 
+    //for non grouped agg sets should attach null row to source data
+    //need apply DataSetAggregateWithNullValuesRule
+    if (agg.getGroupSet.isEmpty) {
+      return false
+    }
+
     // check if we have distinct aggregates
     val distinctAggs = agg.getAggCallList.exists(_.isDistinct)
     if (distinctAggs) {

@@ -199,6 +199,8 @@ public class TwoInputStreamTaskTest {
 		testHarness.processElement(new StreamRecord<String>("Ciao-0-0", initialTime), 0, 1);
 		expectedOutput.add(new StreamRecord<String>("Ciao-0-0", initialTime));
 
+		testHarness.waitForInputProcessing();
+
 		// These elements should be forwarded, since we did not yet receive a checkpoint barrier
 		// on that input, only add to same input, otherwise we would not know the ordering
 		// of the output since the Task might read the inputs in any order
@@ -221,8 +223,8 @@ public class TwoInputStreamTaskTest {
 
 		// we should not yet see the barrier, only the two elements from non-blocked input
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
-				testHarness.getOutput(),
-				expectedOutput);
+			expectedOutput,
+			testHarness.getOutput());
 
 		testHarness.processEvent(new CheckpointBarrier(0, 0), 0, 1);
 		testHarness.processEvent(new CheckpointBarrier(0, 0), 1, 0);

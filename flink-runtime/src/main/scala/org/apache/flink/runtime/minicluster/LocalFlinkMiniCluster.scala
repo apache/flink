@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.minicluster
 
-import java.util.concurrent.ExecutorService
+import java.util.concurrent.{Executor, ExecutorService}
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.io.FileOutputFormat
-import org.apache.flink.configuration.{QueryableStateOptions, ConfigConstants, Configuration}
+import org.apache.flink.configuration.{ConfigConstants, Configuration, QueryableStateOptions}
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
@@ -114,8 +114,7 @@ class LocalFlinkMiniCluster(
       config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort + index)
     }
 
-    val (executorService,
-    instanceManager,
+    val (instanceManager,
     scheduler,
     libraryCacheManager,
     restartStrategyFactory,
@@ -125,7 +124,11 @@ class LocalFlinkMiniCluster(
     submittedJobGraphStore,
     checkpointRecoveryFactory,
     jobRecoveryTimeout,
-    metricsRegistry) = JobManager.createJobManagerComponents(config, createLeaderElectionService())
+    metricsRegistry) = JobManager.createJobManagerComponents(
+      config,
+      futureExecutor,
+      ioExecutor,
+      createLeaderElectionService())
 
     val archive = system.actorOf(
       getArchiveProps(
@@ -137,7 +140,8 @@ class LocalFlinkMiniCluster(
       getJobManagerProps(
         jobManagerClass,
         config,
-        executorService,
+        futureExecutor,
+        ioExecutor,
         instanceManager,
         scheduler,
         libraryCacheManager,
@@ -239,25 +243,28 @@ class LocalFlinkMiniCluster(
   }
 
   def getJobManagerProps(
-    jobManagerClass: Class[_ <: JobManager],
-    configuration: Configuration,
-    executorService: ExecutorService,
-    instanceManager: InstanceManager,
-    scheduler: Scheduler,
-    libraryCacheManager: BlobLibraryCacheManager,
-    archive: ActorRef,
-    restartStrategyFactory: RestartStrategyFactory,
-    timeout: FiniteDuration,
-    leaderElectionService: LeaderElectionService,
-    submittedJobGraphStore: SubmittedJobGraphStore,
-    checkpointRecoveryFactory: CheckpointRecoveryFactory,
-    jobRecoveryTimeout: FiniteDuration,
-    metricsRegistry: Option[MetricRegistry]): Props = {
+      jobManagerClass: Class[_ <: JobManager],
+      configuration: Configuration,
+      futureExecutor: Executor,
+      ioExecutor: Executor,
+      instanceManager: InstanceManager,
+      scheduler: Scheduler,
+      libraryCacheManager: BlobLibraryCacheManager,
+      archive: ActorRef,
+      restartStrategyFactory: RestartStrategyFactory,
+      timeout: FiniteDuration,
+      leaderElectionService: LeaderElectionService,
+      submittedJobGraphStore: SubmittedJobGraphStore,
+      checkpointRecoveryFactory: CheckpointRecoveryFactory,
+      jobRecoveryTimeout: FiniteDuration,
+      metricsRegistry: Option[MetricRegistry])
+    : Props = {
 
     JobManager.getJobManagerProps(
       jobManagerClass,
       configuration,
-      executorService,
+      futureExecutor,
+      ioExecutor,
       instanceManager,
       scheduler,
       libraryCacheManager,

@@ -53,7 +53,7 @@ import static org.junit.Assert.*;
  * This verfies that checkpointing works correctly with event time windows.
  *
  * <p>
- * This is a version of {@link EventTimeWindowCheckpointingITCase} for All-Windows.
+ * This is a version of {@link AbstractEventTimeWindowCheckpointingITCase} for All-Windows.
  */
 @SuppressWarnings("serial")
 public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
@@ -232,7 +232,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 							NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.timeWindowAll(Time.of(WINDOW_SIZE, MILLISECONDS))
-					.apply(
+					.reduce(
 							new ReduceFunction<Tuple2<Long, IntType>>() {
 
 								@Override
@@ -304,7 +304,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 							NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.timeWindowAll(Time.of(WINDOW_SIZE, MILLISECONDS))
-					.apply(new Tuple4<>(0L, 0L, 0L, new IntType(0)),
+					.fold(new Tuple4<>(0L, 0L, 0L, new IntType(0)),
 							new FoldFunction<Tuple2<Long, IntType>, Tuple4<Long, Long, Long, IntType>>() {
 								@Override
 								public Tuple4<Long, Long, Long, IntType> fold(Tuple4<Long, Long, Long, IntType> accumulator,
@@ -377,7 +377,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.timeWindowAll(Time.of(WINDOW_SIZE, MILLISECONDS),
 							Time.of(WINDOW_SLIDE, MILLISECONDS))
-					.apply(
+					.reduce(
 							new ReduceFunction<Tuple2<Long, IntType>>() {
 
 								@Override

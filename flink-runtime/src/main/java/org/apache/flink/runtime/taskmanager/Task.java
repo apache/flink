@@ -25,13 +25,14 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotCheckpointingException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotReadyException;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -346,7 +347,6 @@ public class Task implements Runnable, TaskActions {
 				networkEnvironment.getResultPartitionManager(),
 				resultPartitionConsumableNotifier,
 				ioManager,
-				networkEnvironment.getDefaultIOMode(),
 				desc.sendScheduleOrUpdateConsumersMessage());
 
 			writers[counter] = new ResultPartitionWriter(producedPartitions[counter]);
@@ -537,6 +537,9 @@ public class Task implements Runnable, TaskActions {
 			//  Task Bootstrap - We periodically
 			//  check for canceling as a shortcut
 			// ----------------------------
+
+			// init closeable registry for this task
+			FileSystem.createFileSystemCloseableRegistryForTask();
 
 			// first of all, get a user-code classloader
 			// this may involve downloading the job's JAR files and/or classes
@@ -758,6 +761,7 @@ public class Task implements Runnable, TaskActions {
 
 				// remove all files in the distributed cache
 				removeCachedFiles(distributedCacheEntries, fileCache);
+				FileSystem.disposeFileSystemCloseableRegistryForTask();
 
 				notifyFinalState();
 			}
@@ -896,6 +900,7 @@ public class Task implements Runnable, TaskActions {
 	 *
 	 * <p>This method never blocks.</p>
 	 */
+	@Override
 	public void failExternally(Throwable cause) {
 		LOG.info("Attempting to fail task externally " + taskNameWithSubtask);
 		cancelOrFailAndCancelInvokable(ExecutionState.FAILED, cause);

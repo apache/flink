@@ -19,7 +19,6 @@
 package org.apache.flink.api.table.plan.nodes.dataset
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -35,12 +34,9 @@ import scala.collection.JavaConverters._
 abstract class BatchScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    table: RelOptTable,
-    rowRelDataType: RelDataType)
+    table: RelOptTable)
   extends TableScan(cluster, traitSet, table)
   with DataSetRel {
-
-  override def deriveRowType() = rowRelDataType
 
   override def toString: String = {
     s"Source(from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")}))"

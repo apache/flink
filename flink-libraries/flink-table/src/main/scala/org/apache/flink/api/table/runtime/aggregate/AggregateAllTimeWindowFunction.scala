@@ -31,14 +31,13 @@ class AggregateAllTimeWindowFunction(
     groupReduceFunction: RichGroupReduceFunction[Row, Row],
     windowStartPos: Option[Int],
     windowEndPos: Option[Int])
-
-  extends RichAllWindowFunction[Row, Row, TimeWindow] {
+  extends AggregateAllWindowFunction[TimeWindow](groupReduceFunction) {
 
   private var collector: TimeWindowPropertyCollector = _
 
   override def open(parameters: Configuration): Unit = {
-    groupReduceFunction.open(parameters)
     collector = new TimeWindowPropertyCollector(windowStartPos, windowEndPos)
+    super.open(parameters)
   }
 
   override def apply(window: TimeWindow, input: Iterable[Row], out: Collector[Row]): Unit = {
@@ -48,6 +47,6 @@ class AggregateAllTimeWindowFunction(
     collector.timeWindow = window
 
     // call wrapped reduce function with property collector
-    groupReduceFunction.reduce(input, collector)
+    super.apply(window, input, collector)
   }
 }

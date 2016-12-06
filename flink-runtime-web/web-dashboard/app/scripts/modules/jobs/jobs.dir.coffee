@@ -120,7 +120,7 @@ angular.module('flinkApp')
       angular.forEach data, (vertex) ->
         if vertex['start-time'] > -1
           if vertex.type is 'scheduled'
-            testData.push 
+            testData.push
               times: [
                 label: translateLabel(vertex.name)
                 color: "#cccccc"
@@ -130,7 +130,7 @@ angular.module('flinkApp')
                 type: vertex.type
               ]
           else
-            testData.push 
+            testData.push
               times: [
                 label: translateLabel(vertex.name)
                 color: "#d9f1f7"
@@ -168,6 +168,13 @@ angular.module('flinkApp')
     return
 
 # ----------------------------------------------
+.directive 'split', () -> 
+  return compile: (tElem, tAttrs) ->
+      Split(tElem.children(), (
+        sizes: [50, 50]
+        direction: 'vertical'
+      ))
+# ----------------------------------------------
 
 .directive 'jobPlan', ($timeout) ->
   template: "
@@ -204,27 +211,27 @@ angular.module('flinkApp')
 
     scope.zoomIn = ->
       if mainZoom.scale() < 2.99
-        
+
         # Calculate and store new values in zoom object
         translate = mainZoom.translate()
         v1 = translate[0] * (mainZoom.scale() + 0.1 / (mainZoom.scale()))
         v2 = translate[1] * (mainZoom.scale() + 0.1 / (mainZoom.scale()))
         mainZoom.scale mainZoom.scale() + 0.1
         mainZoom.translate [ v1, v2 ]
-        
+
         # Transform svg
         d3mainSvgG.attr "transform", "translate(" + v1 + "," + v2 + ") scale(" + mainZoom.scale() + ")"
 
     scope.zoomOut = ->
       if mainZoom.scale() > 0.31
-        
+
         # Calculate and store new values in mainZoom object
         mainZoom.scale mainZoom.scale() - 0.1
         translate = mainZoom.translate()
         v1 = translate[0] * (mainZoom.scale() - 0.1 / (mainZoom.scale()))
         v2 = translate[1] * (mainZoom.scale() - 0.1 / (mainZoom.scale()))
         mainZoom.translate [ v1, v2 ]
-        
+
         # Transform svg
         d3mainSvgG.attr "transform", "translate(" + v1 + "," + v2 + ") scale(" + mainZoom.scale() + ")"
 
@@ -253,7 +260,7 @@ angular.module('flinkApp')
 
       else
         'node-normal'
-      
+
     # creates the label of a node, in info is stored, whether it is a special node (like a mirror in an iteration)
     createLabelNode = (el, info, maxW, maxH) ->
       # labelValue = "<a href='#/jobs/" + jobid + "/vertex/" + el.id + "' class='node-label " + getNodeType(el, info) + "'>"
@@ -268,21 +275,20 @@ angular.module('flinkApp')
         labelValue += ""
       else
         stepName = el.description
-        
+
         # clean stepName
         stepName = shortenString(stepName)
         labelValue += "<h4 class='step-name'>" + stepName + "</h4>"
-      
+
       # If this node is an "iteration" we need a different panel-body
       if el.step_function?
         labelValue += extendLabelNodeForIteration(el.id, maxW, maxH)
       else
-        
-        # Otherwise add infos    
+
+        # Otherwise add infos
         labelValue += "<h5>" + info + " Node</h5>"  if isSpecialIterationNode(info)
         labelValue += "<h5>Parallelism: " + el.parallelism + "</h5>"  unless el.parallelism is ""
-        labelValue += "<h5>Operation: " + shortenString(el.operator_strategy) + "</h5>"  unless el.operator is `undefined`
-      
+        labelValue += "<h5>Operation: " + shortenString(el.operator_strategy) + "</h5>" unless el.operator is `undefined` or not el.operator_strategy
       # labelValue += "</a>"
       labelValue += "</div>"
       labelValue
@@ -397,7 +403,7 @@ angular.module('flinkApp')
         createNode(g, data, el, isParent, maxW, maxH)
 
         existingNodes.push el.id
-        
+
         # create edges from inputs to current node
         if el.inputs?
           for pred in el.inputs
@@ -410,7 +416,7 @@ angular.module('flinkApp')
       for i of data.nodes
         el = data.nodes[i]
         return el  if el.id is nodeID
-        
+
         # look for nodes that are in iterations
         if el.step_function?
           for j of el.step_function

@@ -183,20 +183,21 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 		CheckpointRecoveryFactory checkpointRecoveryFactory = new StandaloneCheckpointRecoveryFactory();
 
 		return Props.create(
-				TestingJobManager.class,
-				configuration,
-				executor,
-				new InstanceManager(),
-				new Scheduler(TestingUtils.defaultExecutionContext()),
-				new BlobLibraryCacheManager(new BlobServer(configuration), 10L),
-				ActorRef.noSender(),
-				new NoRestartStrategy.NoRestartStrategyFactory(),
-				AkkaUtils.getDefaultTimeoutAsFiniteDuration(),
-				leaderElectionService,
-				submittedJobGraphStore,
-				checkpointRecoveryFactory,
-				AkkaUtils.getDefaultTimeoutAsFiniteDuration(),
-				Option.apply(null)
+			TestingJobManager.class,
+			configuration,
+			executor,
+			executor,
+			new InstanceManager(),
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			new BlobLibraryCacheManager(new BlobServer(configuration), 10L),
+			ActorRef.noSender(),
+			new NoRestartStrategy.NoRestartStrategyFactory(),
+			AkkaUtils.getDefaultTimeoutAsFiniteDuration(),
+			leaderElectionService,
+			submittedJobGraphStore,
+			checkpointRecoveryFactory,
+			AkkaUtils.getDefaultTimeoutAsFiniteDuration(),
+			Option.apply(null)
 		);
 	}
 }

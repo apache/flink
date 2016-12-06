@@ -57,21 +57,21 @@ limitations under the License.
     <tbody>
       <tr>
         <td>Heap</td>
-        <td>{{ metrics.metrics.heapCommitted | humanizeBytes  }}</td>
-        <td>{{ metrics.metrics.heapUsed | humanizeBytes  }}</td>
-        <td>{{ metrics.metrics.heapMax | humanizeBytes  }}</td>
+        <td>{{ metrics.metrics.heapCommitted | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.heapUsed | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.heapMax | humanizeBytes }}</td>
       </tr>
       <tr>
         <td>Non-Heap</td>
-        <td>{{ metrics.metrics.nonHeapCommitted | humanizeBytes  }}</td>
-        <td>{{ metrics.metrics.nonHeapUsed | humanizeBytes  }}</td>
-        <td>{{ metrics.metrics.nonHeapMax | humanizeBytes  }}</td>
+        <td>{{ metrics.metrics.nonHeapCommitted | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.nonHeapUsed | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.nonHeapMax | humanizeBytes }}</td>
       </tr>
       <tr>
         <td>Total</td>
-        <td>{{ metrics.metrics.totalCommitted | humanizeBytes  }}</td>
-        <td>{{ metrics.metrics.totalUsed | humanizeBytes  }}</td>
-        <td>{{ metrics.metrics.totalMax | humanizeBytes  }}</td>
+        <td>{{ metrics.metrics.totalCommitted | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.totalUsed | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.totalMax | humanizeBytes }}</td>
       </tr>
     </tbody>
   </table>
@@ -88,20 +88,20 @@ limitations under the License.
     <tbody>
       <tr>
         <td>Direct</td>
-        <td>{{ metrics.metrics.directCount }}</td>
-        <td>{{ metrics.metrics.directUsed }}</td>
-        <td>{{ metrics.metrics.directTotal }}</td>
+        <td>{{ metrics.metrics.directCount | toLocaleString }}</td>
+        <td>{{ metrics.metrics.directUsed | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.directMax | humanizeBytes }}</td>
       </tr>
       <tr>
         <td>Mapped</td>
-        <td>{{ metrics.metrics.mappedCount }}</td>
-        <td>{{ metrics.metrics.mappedUsed }}</td>
-        <td>{{ metrics.metrics.mappedMax }}</td>
+        <td>{{ metrics.metrics.mappedCount | toLocaleString }}</td>
+        <td>{{ metrics.metrics.mappedUsed | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.mappedMax | humanizeBytes }}</td>
       </tr>
     </tbody>
   </table>
   <h1>Network</h1>
-  <h2>MemorySegments</h2>
+  <h2>Memory Segments</h2>
   <table class="table table-properties">
     <thead>
       <tr>
@@ -112,11 +112,11 @@ limitations under the License.
     <tbody>
       <tr>
         <td>Available</td>
-        <td>{{ metrics.metrics.memorySegmentsAvailable }}</td>
+        <td>{{ metrics.metrics.memorySegmentsAvailable | toLocaleString }}</td>
       </tr>
       <tr>
         <td>Total</td>
-        <td>{{ metrics.metrics.memorySegmentsTotal }}</td>
+        <td>{{ metrics.metrics.memorySegmentsTotal | toLocaleString }}</td>
       </tr>
     </tbody>
   </table>
@@ -130,10 +130,10 @@ limitations under the License.
       </tr>
     </thead>
     <tbody ng-repeat="g in metrics.metrics.garbageCollectors">
-      <tr> 
+      <tr>
         <td>{{ g.name }}</td>
-        <td>{{ g.count }}</td>
-        <td>{{ g.time }}</td>
+        <td>{{ g.count | toLocaleString }}</td>
+        <td>{{ g.time | toLocaleString }}</td>
       </tr>
     </tbody>
   </table>

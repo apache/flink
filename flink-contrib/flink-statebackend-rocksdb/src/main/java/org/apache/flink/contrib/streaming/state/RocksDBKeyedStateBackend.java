@@ -61,7 +61,7 @@ import org.rocksdb.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.concurrent.GuardedBy;
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -103,14 +103,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * asynchronous checkpoints and when disposing the DB. Otherwise, the asynchronous snapshot might try
 	 * iterating over a disposed DB. After aquriring the lock, always first check if (db == null).
 	 */
-	private final SerializableObject dbDisposeLock = new SerializableObject();
+	private final SerializableObject asyncSnapshotLock = new SerializableObject();
 
 	/**
 	 * Our RocksDB data base, this is used by the actual subclasses of {@link AbstractRocksDBState}
 	 * to store state. The different k/v states that we have don't each have their own RocksDB
 	 * instance. They all write to this instance but to their own column family.
 	 */
-	@GuardedBy("dbDisposeLock")
 	protected RocksDB db;
 
 	/**
@@ -136,7 +135,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	) throws Exception {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange);
-
 		this.operatorIdentifier = operatorIdentifier;
 		this.jobId = jobId;
 		this.columnOptions = columnFamilyOptions;
@@ -206,8 +204,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			LOG.debug("Restoring snapshot from state handles: {}.", restoreState);
 		}
 
-		RocksDBRestoreOperation restoreOperation = new RocksDBRestoreOperation(this);
-		restoreOperation.doRestore(restoreState);
+		try {
+			RocksDBRestoreOperation restoreOperation = new RocksDBRestoreOperation(this);
+			restoreOperation.doRestore(restoreState);
+		} catch (Exception ex) {
+			dispose();
+			throw ex;
+		}
 	}
 
 	/**
@@ -217,23 +220,22 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	public void dispose() {
 		super.dispose();
 
-		final RocksDB cleanupRockDBReference;
-
-		// Acquire the log on dbDisposeLock, so that no ongoing snapshots access the db during cleanup
-		synchronized (dbDisposeLock) {
+		// Acquire the lock, so that no ongoing snapshots access the db during cleanup
+		synchronized (asyncSnapshotLock) {
 			// IMPORTANT: null reference to signal potential async checkpoint workers that the db was disposed, as
 			// working on the disposed object results in SEGFAULTS. Other code has to check field #db for null
 			// and access it in a synchronized block that locks on #dbDisposeLock.
-			cleanupRockDBReference = db;
-			db = null;
-		}
+			if (db != null) {
 
-		// Dispose decoupled db
-		if (cleanupRockDBReference != null) {
-			for (Tuple2<ColumnFamilyHandle, StateDescriptor<?, ?>> column : kvStateInformation.values()) {
-				column.f0.dispose();
+				for (Tuple2<ColumnFamilyHandle, StateDescriptor<?, ?>> column : kvStateInformation.values()) {
+					column.f0.close();
+				}
+
+				kvStateInformation.clear();
+
+				db.close();
+				db = null;
 			}
-			cleanupRockDBReference.dispose();
 		}
 
 		try {
@@ -252,10 +254,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * is also stopped when the backend is closed through {@link #dispose()}. For each backend, this method must always
 	 * be called by the same thread.
 	 *
-	 * @param checkpointId The Id of the checkpoint.
-	 * @param timestamp The timestamp of the checkpoint.
+	 * @param checkpointId  The Id of the checkpoint.
+	 * @param timestamp     The timestamp of the checkpoint.
 	 * @param streamFactory The factory that we can use for writing our state to streams.
-	 *
 	 * @return Future to the state handle of the snapshot data.
 	 * @throws Exception
 	 */
@@ -267,14 +268,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		long startTime = System.currentTimeMillis();
 
-		if (kvStateInformation.isEmpty()) {
-			LOG.info("Asynchronous RocksDB snapshot performed on empty keyed state at " + timestamp + " . Returning null.");
-			return new DoneFuture<>(null);
-		}
-
 		final RocksDBSnapshotOperation snapshotOperation = new RocksDBSnapshotOperation(this, streamFactory);
 		// hold the db lock while operation on the db to guard us against async db disposal
-		synchronized (dbDisposeLock) {
+		synchronized (asyncSnapshotLock) {
+
+			if (kvStateInformation.isEmpty()) {
+				LOG.info("Asynchronous RocksDB snapshot performed on empty keyed state at " + timestamp +
+						" . Returning null.");
+
+				return new DoneFuture<>(null);
+			}
+
 			if (db != null) {
 				snapshotOperation.takeDBSnapShot(checkpointId, timestamp);
 			} else {
@@ -295,18 +299,18 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					@Override
 					public KeyGroupsStateHandle performOperation() throws Exception {
 						long startTime = System.currentTimeMillis();
-						try {
-							// hold the db lock while operation on the db to guard us against async db disposal
-							synchronized (dbDisposeLock) {
-								if (db != null) {
-									snapshotOperation.writeDBSnapshot();
-								} else {
+						synchronized (asyncSnapshotLock) {
+							try {
+								// hold the db lock while operation on the db to guard us against async db disposal
+								if (db == null) {
 									throw new IOException("RocksDB closed.");
 								}
-							}
 
-						} finally {
-							snapshotOperation.closeCheckpointStream();
+								snapshotOperation.writeDBSnapshot();
+
+							} finally {
+								snapshotOperation.closeCheckpointStream();
+							}
 						}
 
 						LOG.info("Asynchronous RocksDB snapshot (" + streamFactory + ", asynchronous part) in thread " +
@@ -315,14 +319,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						return snapshotOperation.getSnapshotResultStateHandle();
 					}
 
-					@Override
-					public void done() {
+					private void releaseSnapshotOperationResources(boolean canceled) {
 						// hold the db lock while operation on the db to guard us against async db disposal
-						synchronized (dbDisposeLock) {
-							if (db != null) {
-								snapshotOperation.releaseDBSnapshot();
-							}
+						synchronized (asyncSnapshotLock) {
+							snapshotOperation.releaseSnapshotResources(canceled);
 						}
+					}
+
+					@Override
+					public void done(boolean canceled) {
+						releaseSnapshotOperationResources(canceled);
 					}
 				};
 
@@ -348,14 +354,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private long checkpointTimeStamp;
 
 		private Snapshot snapshot;
+		private ReadOptions readOptions;
 		private CheckpointStreamFactory.CheckpointStateOutputStream outStream;
 		private DataOutputView outputView;
 		private List<Tuple2<RocksIterator, Integer>> kvStateIterators;
 		private KeyGroupsStateHandle snapshotResultStateHandle;
 
-
-
-		public RocksDBSnapshotOperation(
+		RocksDBSnapshotOperation(
 				RocksDBKeyedStateBackend<?> stateBackend,
 				CheckpointStreamFactory checkpointStreamFactory) {
 
@@ -397,7 +402,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 * @throws IOException
 		 */
 		public void writeDBSnapshot() throws IOException, InterruptedException {
-			Preconditions.checkNotNull(snapshot, "No ongoing snapshot to write.");
+
+			if (null == snapshot) {
+				throw new IOException("No snapshot available. Might be released due to cancellation.");
+			}
+
 			Preconditions.checkNotNull(outStream, "No output stream to write snapshot.");
 			writeKVStateMetaData();
 			writeKVStateData();
@@ -412,6 +421,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			if (outStream != null) {
 				stateBackend.cancelStreamRegistry.unregisterClosable(outStream);
 				snapshotResultStateHandle = closeSnapshotStreamAndGetHandle();
+			} else {
+				snapshotResultStateHandle = null;
 			}
 		}
 
@@ -419,13 +430,36 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 * 5) Release the snapshot object for RocksDB and clean up.
 		 *
 		 */
-		public void releaseDBSnapshot() {
-			Preconditions.checkNotNull(snapshot, "No ongoing snapshot to release.");
-			stateBackend.db.releaseSnapshot(snapshot);
-			snapshot = null;
-			outStream = null;
-			outputView = null;
-			kvStateIterators = null;
+		public void releaseSnapshotResources(boolean canceled) {
+			if (null != kvStateIterators) {
+				for (Tuple2<RocksIterator, Integer> kvStateIterator : kvStateIterators) {
+					kvStateIterator.f0.close();
+				}
+				kvStateIterators = null;
+			}
+
+			if (null != snapshot) {
+				if(null != stateBackend.db) {
+					stateBackend.db.releaseSnapshot(snapshot);
+				}
+				snapshot.close();
+				snapshot = null;
+			}
+
+			if (null != readOptions) {
+				readOptions.close();
+				readOptions = null;
+			}
+
+			if (canceled) {
+				try {
+					if (null != snapshotResultStateHandle) {
+						snapshotResultStateHandle.discardState();
+					}
+				} catch (Exception ignored) {
+					LOG.warn("Exception occurred during snapshot state handle cleanup: " + ignored);
+				}
+			}
 		}
 
 		/**
@@ -462,7 +496,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				InstantiationUtil.serializeObject(outStream, column.getValue().f1);
 
 				//retrieve iterator for this k/v states
-				ReadOptions readOptions = new ReadOptions();
+				readOptions = new ReadOptions();
 				readOptions.setSnapshot(snapshot);
 				RocksIterator iterator = stateBackend.db.newIterator(column.getValue().f0, readOptions);
 				kvStateIterators.add(new Tuple2<>(iterator, kvStateId));
@@ -472,59 +506,64 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private void writeKVStateData() throws IOException, InterruptedException {
 
-			RocksDBMergeIterator iterator = new RocksDBMergeIterator(kvStateIterators, stateBackend.keyGroupPrefixBytes);
-
 			byte[] previousKey = null;
 			byte[] previousValue = null;
 
-			//preamble: setup with first key-group as our lookahead
-			if (iterator.isValid()) {
-				//begin first key-group by recording the offset
-				keyGroupRangeOffsets.setKeyGroupOffset(iterator.keyGroup(), outStream.getPos());
-				//write the k/v-state id as metadata
-				//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-				outputView.writeShort(iterator.kvStateId());
-				previousKey = iterator.key();
-				previousValue = iterator.value();
-				iterator.next();
-			}
+			List<Tuple2<RocksIterator, Integer>> kvStateIteratorsHandover = this.kvStateIterators;
+			this.kvStateIterators = null;
 
-			//main loop: write k/v pairs ordered by (key-group, kv-state), thereby tracking key-group offsets.
-			while (iterator.isValid()) {
+			// Here we transfer ownership of RocksIterators to the RocksDBMergeIterator
+			try (RocksDBMergeIterator mergeIterator = new RocksDBMergeIterator(
+					kvStateIteratorsHandover, stateBackend.keyGroupPrefixBytes)) {
 
-				assert (!hasMetaDataFollowsFlag(previousKey));
-
-				//set signal in first key byte that meta data will follow in the stream after this k/v pair
-				if (iterator.isNewKeyGroup() || iterator.isNewKeyValueState()) {
-
-					//be cooperative and check for interruption from time to time in the hot loop
-					checkInterrupted();
-
-					setMetaDataFollowsFlagInKey(previousKey);
+				//preamble: setup with first key-group as our lookahead
+				if (mergeIterator.isValid()) {
+					//begin first key-group by recording the offset
+					keyGroupRangeOffsets.setKeyGroupOffset(mergeIterator.keyGroup(), outStream.getPos());
+					//write the k/v-state id as metadata
+					//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+					outputView.writeShort(mergeIterator.kvStateId());
+					previousKey = mergeIterator.key();
+					previousValue = mergeIterator.value();
+					mergeIterator.next();
 				}
 
-				writeKeyValuePair(previousKey, previousValue);
+				//main loop: write k/v pairs ordered by (key-group, kv-state), thereby tracking key-group offsets.
+				while (mergeIterator.isValid()) {
 
-				//write meta data if we have to
-				if (iterator.isNewKeyGroup()) {
-					//
-					//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-					outputView.writeShort(END_OF_KEY_GROUP_MARK);
-					//begin new key-group
-					keyGroupRangeOffsets.setKeyGroupOffset(iterator.keyGroup(), outStream.getPos());
-					//write the kev-state
-					//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-					outputView.writeShort(iterator.kvStateId());
-				} else if (iterator.isNewKeyValueState()) {
-					//write the k/v-state
-					//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-					outputView.writeShort(iterator.kvStateId());
+					assert (!hasMetaDataFollowsFlag(previousKey));
+
+					//set signal in first key byte that meta data will follow in the stream after this k/v pair
+					if (mergeIterator.isNewKeyGroup() || mergeIterator.isNewKeyValueState()) {
+
+						//be cooperative and check for interruption from time to time in the hot loop
+						checkInterrupted();
+
+						setMetaDataFollowsFlagInKey(previousKey);
+					}
+
+					writeKeyValuePair(previousKey, previousValue);
+
+					//write meta data if we have to
+					if (mergeIterator.isNewKeyGroup()) {
+						//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+						outputView.writeShort(END_OF_KEY_GROUP_MARK);
+						//begin new key-group
+						keyGroupRangeOffsets.setKeyGroupOffset(mergeIterator.keyGroup(), outStream.getPos());
+						//write the kev-state
+						//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+						outputView.writeShort(mergeIterator.kvStateId());
+					} else if (mergeIterator.isNewKeyValueState()) {
+						//write the k/v-state
+						//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+						outputView.writeShort(mergeIterator.kvStateId());
+					}
+
+					//request next k/v pair
+					previousKey = mergeIterator.key();
+					previousValue = mergeIterator.value();
+					mergeIterator.next();
 				}
-
-				//request next k/v pair
-				previousKey = iterator.key();
-				previousValue = iterator.value();
-				iterator.next();
 			}
 
 			//epilogue: write last key-group
@@ -540,11 +579,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private KeyGroupsStateHandle closeSnapshotStreamAndGetHandle() throws IOException {
 			StreamStateHandle stateHandle = outStream.closeAndGetHandle();
 			outStream = null;
-			if (stateHandle != null) {
-				return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
-			} else {
-				throw new IOException("Output stream returned null on close.");
-			}
+			return stateHandle != null ? new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle) : null;
 		}
 
 		private void writeKeyValuePair(byte[] key, byte[] value) throws IOException {
@@ -566,7 +601,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private static void checkInterrupted() throws InterruptedException {
 			if(Thread.currentThread().isInterrupted()) {
-				throw new InterruptedException("Snapshot canceled.");
+				throw new InterruptedException("RocksDB snapshot interrupted.");
 			}
 		}
 	}
@@ -655,7 +690,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			//restore the empty columns for the k/v states through the metadata
 			for (int i = 0; i < numColumns; i++) {
 
-				StateDescriptor<?, ?> stateDescriptor = (StateDescriptor<?, ?>) InstantiationUtil.deserializeObject(
+				StateDescriptor<?, ?> stateDescriptor = InstantiationUtil.deserializeObject(
 						currentStateHandleInStream,
 						rocksDBKeyedStateBackend.userCodeClassLoader);
 
@@ -829,13 +864,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		public int getKvStateId() {
 			return kvStateId;
 		}
+
+		public void close() {
+			this.iterator.close();
+		}
 	}
 
 	/**
 	 * Iterator that merges multiple RocksDB iterators to partition all states into contiguous key-groups.
 	 * The resulting iteration sequence is ordered by (key-group, kv-state).
 	 */
-	static final class RocksDBMergeIterator {
+	static final class RocksDBMergeIterator implements Closeable {
 
 		private final PriorityQueue<MergeIterator> heap;
 		private final int keyGroupPrefixByteCount;
@@ -845,18 +884,29 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private MergeIterator currentSubIterator;
 
-		RocksDBMergeIterator(List<Tuple2<RocksIterator, Integer>> kvStateIterators, final int keyGroupPrefixByteCount) throws IOException {
+		private static final List<Comparator<MergeIterator>> COMPARATORS;
+
+		static {
+			int maxBytes = 4;
+			COMPARATORS = new ArrayList<>(maxBytes);
+			for (int i = 0; i < maxBytes; ++i) {
+				final int currentBytes = i;
+				COMPARATORS.add(new Comparator<MergeIterator>() {
+					@Override
+					public int compare(MergeIterator o1, MergeIterator o2) {
+						int arrayCmpRes = compareKeyGroupsForByteArrays(
+								o1.currentKey, o2.currentKey, currentBytes);
+						return arrayCmpRes == 0 ? o1.getKvStateId() - o2.getKvStateId() : arrayCmpRes;
+					}
+				});
+			}
+		}
+
+		RocksDBMergeIterator(List<Tuple2<RocksIterator, Integer>> kvStateIterators, final int keyGroupPrefixByteCount) {
 			Preconditions.checkNotNull(kvStateIterators);
 			this.keyGroupPrefixByteCount = keyGroupPrefixByteCount;
 
-			Comparator<MergeIterator> iteratorComparator = new Comparator<MergeIterator>() {
-				@Override
-				public int compare(MergeIterator o1, MergeIterator o2) {
-					int arrayCmpRes = compareKeyGroupsForByteArrays(
-							o1.currentKey, o2.currentKey, keyGroupPrefixByteCount);
-					return arrayCmpRes == 0 ? o1.getKvStateId() - o2.getKvStateId() : arrayCmpRes;
-				}
-			};
+			Comparator<MergeIterator> iteratorComparator = COMPARATORS.get(keyGroupPrefixByteCount);
 
 			if (kvStateIterators.size() > 0) {
 				this.heap = new PriorityQueue<>(kvStateIterators.size(), iteratorComparator);
@@ -866,8 +916,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					rocksIterator.seekToFirst();
 					if (rocksIterator.isValid()) {
 						heap.offer(new MergeIterator(rocksIterator, rocksIteratorWithKVStateId.f1));
+					} else {
+						rocksIterator.close();
 					}
 				}
+
+				kvStateIterators.clear();
+
 				this.valid = !heap.isEmpty();
 				this.currentSubIterator = heap.poll();
 			} else {
@@ -901,14 +956,18 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					newKVState = currentSubIterator.getIterator() != rocksIterator;
 					detectNewKeyGroup(oldKey);
 				}
-			} else if (heap.isEmpty()) {
-				valid = false;
 			} else {
-				currentSubIterator = heap.poll();
-				newKVState = true;
-				detectNewKeyGroup(oldKey);
-			}
+				rocksIterator.close();
 
+				if (heap.isEmpty()) {
+					currentSubIterator = null;
+					valid = false;
+				} else {
+					currentSubIterator = heap.poll();
+					newKVState = true;
+					detectNewKeyGroup(oldKey);
+				}
+			}
 		}
 
 		private boolean isDifferentKeyGroup(byte[] a, byte[] b) {
@@ -985,6 +1044,21 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				}
 			}
 			return 0;
+		}
+
+		@Override
+		public void close() {
+
+			if (null != currentSubIterator) {
+				currentSubIterator.close();
+				currentSubIterator = null;
+			}
+
+			for (MergeIterator iterator : heap) {
+				iterator.close();
+			}
+
+			heap.clear();
 		}
 	}
 

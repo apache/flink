@@ -107,4 +107,13 @@ public final class OneShotLatch {
 	public boolean isTriggered() {
 		return triggered;
 	}
+
+	/**
+	 * resets the latch to triggered = false
+	 */
+	public void reset() {
+		synchronized (lock) {
+			triggered = false;
+		}
+	}
 }

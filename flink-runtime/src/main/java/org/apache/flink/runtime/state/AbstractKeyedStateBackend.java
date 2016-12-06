@@ -33,6 +33,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.util.Preconditions;
 
@@ -80,7 +81,7 @@ public abstract class AbstractKeyedStateBackend<K>
 	protected final TaskKvStateRegistry kvStateRegistry;
 
 	/** Registry for all opened streams, so they can be closed if the task using this backend is closed */
-	protected ClosableRegistry cancelStreamRegistry;
+	protected CloseableRegistry cancelStreamRegistry;
 
 	protected final ClassLoader userCodeClassLoader;
 
@@ -96,7 +97,7 @@ public abstract class AbstractKeyedStateBackend<K>
 		this.numberOfKeyGroups = Preconditions.checkNotNull(numberOfKeyGroups);
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 		this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
-		this.cancelStreamRegistry = new ClosableRegistry();
+		this.cancelStreamRegistry = new CloseableRegistry();
 	}
 
 	/**

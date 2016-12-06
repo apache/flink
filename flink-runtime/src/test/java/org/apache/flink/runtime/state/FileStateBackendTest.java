@@ -38,6 +38,7 @@ import java.util.Random;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -138,8 +139,8 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 			validateBytesInStream(handle2.openInputStream(), state2);
 			handle2.discardState();
 
-			validateBytesInStream(handle3.openInputStream(), state3);
-			handle3.discardState();
+			// nothing was written to the stream, so it will return nothing
+			assertNull(handle3);
 
 			validateBytesInStream(handle4.openInputStream(), state4);
 			handle4.discardState();

@@ -24,7 +24,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.TestConsumerCallback;
-import org.apache.flink.runtime.io.network.util.TestNotificationListener;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionConsumer;
@@ -38,12 +37,13 @@ import java.util.concurrent.Future;
 
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
@@ -63,80 +63,25 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 	}
 
 	@Test
-	public void testRegisterListener() throws Exception {
-		final PipelinedSubpartition subpartition = createSubpartition();
-
-		final TestNotificationListener listener = new TestNotificationListener();
-
-		// Register a listener
-		assertTrue(subpartition.registerListener(listener));
-
-		// Try to register another listener
-		try {
-			subpartition.registerListener(listener);
-
-			fail("Did not throw expected exception after duplicate listener registration.");
-		}
-		catch (IllegalStateException expected) {
-		}
-	}
-
-	@Test
-	public void testListenerNotification() throws Exception {
-		final TestNotificationListener listener = new TestNotificationListener();
-		assertEquals(0, listener.getNumberOfNotifications());
-
-		{
-			final PipelinedSubpartition subpartition = createSubpartition();
-
-			// Register a listener
-			assertTrue(subpartition.registerListener(listener));
-
-			// Notify on add and remove listener
-			subpartition.add(mock(Buffer.class));
-			assertEquals(1, listener.getNumberOfNotifications());
-
-			// No notification, should have removed listener after first notification
-			subpartition.add(mock(Buffer.class));
-			assertEquals(1, listener.getNumberOfNotifications());
-		}
-
-		{
-			final PipelinedSubpartition subpartition = createSubpartition();
-
-			// Register a listener
-			assertTrue(subpartition.registerListener(listener));
-
-			// Notify on finish
-			subpartition.finish();
-			assertEquals(2, listener.getNumberOfNotifications());
-		}
-
-		{
-			final PipelinedSubpartition subpartition = createSubpartition();
-
-			// Register a listener
-			assertTrue(subpartition.registerListener(listener));
-
-			// Notify on release
-			subpartition.release();
-			assertEquals(3, listener.getNumberOfNotifications());
-		}
-	}
-
-	@Test
 	public void testIllegalReadViewRequest() throws Exception {
 		final PipelinedSubpartition subpartition = createSubpartition();
 
 		// Successful request
-		assertNotNull(subpartition.createReadView(null));
+		assertNotNull(subpartition.createReadView(null, new BufferAvailabilityListener() {
+			@Override
+			public void notifyBuffersAvailable(long numBuffers) {
+			}
+		}));
 
 		try {
-			subpartition.createReadView(null);
+			subpartition.createReadView(null, new BufferAvailabilityListener() {
+				@Override
+				public void notifyBuffersAvailable(long numBuffers) {
+				}
+			});
 
-			fail("Did not throw expected exception after duplicate read view request.");
-		}
-		catch (IllegalStateException expected) {
+			fail("Did not throw expected exception after duplicate notifyNonEmpty view request.");
+		} catch (IllegalStateException expected) {
 		}
 	}
 
@@ -144,23 +89,19 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 	public void testBasicPipelinedProduceConsumeLogic() throws Exception {
 		final PipelinedSubpartition subpartition = createSubpartition();
 
-		TestNotificationListener listener = new TestNotificationListener();
+		BufferAvailabilityListener listener = mock(BufferAvailabilityListener.class);
 
-		ResultSubpartitionView view = subpartition.createReadView(null);
+		ResultSubpartitionView view = subpartition.createReadView(null, listener);
 
 		// Empty => should return null
 		assertNull(view.getNextBuffer());
-
-		// Register listener for notifications
-		assertTrue(view.registerListener(listener));
-
-		assertEquals(0, listener.getNumberOfNotifications());
+		verify(listener, times(1)).notifyBuffersAvailable(eq(0L));
 
 		// Add data to the queue...
 		subpartition.add(createBuffer());
 
 		// ...should have resulted in a notification
-		assertEquals(1, listener.getNumberOfNotifications());
+		verify(listener, times(1)).notifyBuffersAvailable(eq(1L));
 
 		// ...and one available result
 		assertNotNull(view.getNextBuffer());
@@ -168,10 +109,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		// Add data to the queue...
 		subpartition.add(createBuffer());
-		// ...don't allow to subscribe, if data is available
-		assertFalse(view.registerListener(listener));
-
-		assertEquals(1, listener.getNumberOfNotifications());
+		verify(listener, times(2)).notifyBuffersAvailable(eq(1L));
 	}
 
 	@Test
@@ -208,7 +146,6 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 			@Override
 			public BufferOrEvent getNextBufferOrEvent() throws Exception {
-
 				if (numberOfBuffers == producerNumberOfBuffersToProduce) {
 					return null;
 				}
@@ -261,16 +198,17 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		final PipelinedSubpartition subpartition = createSubpartition();
 
-		final PipelinedSubpartitionView view = subpartition.createReadView(null);
+		TestSubpartitionConsumer consumer = new TestSubpartitionConsumer(isSlowConsumer, consumerCallback);
+		final PipelinedSubpartitionView view = subpartition.createReadView(null, consumer);
+		consumer.setSubpartitionView(view);
 
-		Future<Boolean> producer = executorService.submit(
-				new TestSubpartitionProducer(subpartition, isSlowProducer, producerSource));
+		Future<Boolean> producerResult = executorService.submit(
+			new TestSubpartitionProducer(subpartition, isSlowProducer, producerSource));
 
-		Future<Boolean> consumer = executorService.submit(
-				new TestSubpartitionConsumer(view, isSlowConsumer, consumerCallback));
+		Future<Boolean> consumerResult = executorService.submit(consumer);
 
 		// Wait for producer and consumer to finish
-		producer.get();
-		consumer.get();
+		producerResult.get();
+		consumerResult.get();
 	}
 }

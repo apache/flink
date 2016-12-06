@@ -66,7 +66,7 @@ public class BackPressureStatsTrackerTest {
 		when(graph.getState()).thenReturn(JobStatus.RUNNING);
 
 		// Same Thread execution context
-		when(graph.getExecutor()).thenReturn(new Executor() {
+		when(graph.getFutureExecutor()).thenReturn(new Executor() {
 
 			@Override
 			public void execute(Runnable runnable) {
