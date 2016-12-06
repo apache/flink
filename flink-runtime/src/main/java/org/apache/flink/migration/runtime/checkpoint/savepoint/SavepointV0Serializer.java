@@ -267,10 +267,7 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 		}
 
 		if (null != operatorState) {
-			//mergeStateHandles.add(SIGNAL_1);
 			mergeStateHandles.add(convertStateHandle(operatorState));
-		} else {
-			//mergeStateHandles.add(SIGNAL_0);
 		}
 
 		return new MigrationStreamStateHandle(new MultiStreamStateHandle(mergeStateHandles));

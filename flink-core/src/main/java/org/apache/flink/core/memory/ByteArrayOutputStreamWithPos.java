@@ -116,6 +116,6 @@ public class ByteArrayOutputStreamWithPos extends OutputStream {
 	}
 
 	public byte[] getBuf() {
-		return buf;
+		return buffer;
 	}
 }
