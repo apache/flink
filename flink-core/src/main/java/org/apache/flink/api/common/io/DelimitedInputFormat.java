@@ -161,9 +161,12 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	// --------------------------------------------------------------------------------------------
 	//  The configuration parameters. Configured on the instance and serialized to be shipped.
 	// --------------------------------------------------------------------------------------------
-	
+
+	// The delimiter may be set with a byte-sequence or a String. In the latter
+	// case the byte representation is updated consistent with current charset.
 	private byte[] delimiter = new byte[] {'\n'};
-	
+	private String delimiterString = null;
+
 	private int lineLengthLimit = Integer.MAX_VALUE;
 	
 	private int bufferSize = -1;
@@ -188,8 +191,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	}
 
 	/**
-	 * Get the character set used for the row delimiter, field delimiter,
-	 * comment string, and {@link FieldParser}.
+	 * Get the character set used for the row delimiter. This is also used by
+	 * subclasses to interpret field delimiters, comment strings, and for
+	 * configuring {@link FieldParser}s.
 	 *
 	 * @return the charset
 	 */
@@ -202,12 +206,12 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	}
 
 	/**
-	 * Set the name of the character set used for the row delimiter, field
-	 * delimiter, comment string, and {@link FieldParser}.
+	 * Set the name of the character set used for the row delimiter. This is
+	 * also used by subclasses to interpret field delimiters, comment strings,
+	 * and for configuring {@link FieldParser}s.
 	 *
-	 * The delimeters and comment string are interpreted when set. Each
-	 * {@link FieldParser} is configured in {@link #open(FileInputSplit)}.
-	 * Changing the charset thereafter may cause unexpected results.
+	 * These fields are interpreted when set. Changing the charset thereafter
+	 * may cause unexpected results.
 	 *
 	 * @param charset name of the charset
 	 */
@@ -215,6 +219,10 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	public void setCharset(String charset) {
 		this.charsetName = Preconditions.checkNotNull(charset);
 		this.charset = null;
+
+		if (this.delimiterString != null) {
+			this.delimiter = delimiterString.getBytes(getCharset());
+		}
 	}
 
 	public byte[] getDelimiter() {
@@ -226,6 +234,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			throw new IllegalArgumentException("Delimiter must not be null");
 		}
 		this.delimiter = delimiter;
+		this.delimiterString = null;
 	}
 
 	public void setDelimiter(char delimiter) {
@@ -236,7 +245,8 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		if (delimiter == null) {
 			throw new IllegalArgumentException("Delimiter must not be null");
 		}
-		this.delimiter = delimiter.getBytes(Charset.forName(charsetName));
+		this.delimiter = delimiter.getBytes(getCharset());
+		this.delimiterString = delimiter;
 	}
 	
 	public int getLineLengthLimit() {
@@ -297,7 +307,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Configures this input format by reading the path to the file from the configuration andge the string that
+	 * Configures this input format by reading the path to the file from the configuration and the string that
 	 * defines the record delimiter.
 	 * 
 	 * @param parameters The configuration object to read the parameters from.

@@ -74,9 +74,12 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	private Class<?>[] fieldTypes = EMPTY_TYPES;
 	
 	protected boolean[] fieldIncluded = EMPTY_INCLUDED;
-		
+
+	// The byte representation of the delimiter is updated consistent with
+	// current charset.
 	private byte[] fieldDelim = DEFAULT_FIELD_DELIMITER;
-	
+	private String fieldDelimString = null;
+
 	private boolean lenient;
 	
 	private boolean skipFirstLineAsHeader;
@@ -85,7 +88,10 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
 	private byte quoteCharacter;
 
+	// The byte representation of the comment prefix is updated consistent with
+	// current charset.
 	protected byte[] commentPrefix = null;
+	private String commentPrefixString = null;
 
 
 	// --------------------------------------------------------------------------------------------
@@ -110,6 +116,19 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		return this.fieldTypes.length;
 	}
 
+	@Override
+	public void setCharset(String charset) {
+		super.setCharset(charset);
+
+		if (this.fieldDelimString != null) {
+			this.fieldDelim = fieldDelimString.getBytes(getCharset());
+		}
+
+		if (this.commentPrefixString != null) {
+			this.commentPrefix = commentPrefixString.getBytes(getCharset());
+		}
+	}
+
 	public byte[] getCommentPrefix() {
 		return commentPrefix;
 	}
@@ -120,6 +139,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		} else {
 			this.commentPrefix = null;
 		}
+		this.commentPrefixString = commentPrefix;
 	}
 
 	public byte[] getFieldDelimiter() {
@@ -127,7 +147,12 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	}
 
 	public void setFieldDelimiter(String delimiter) {
+		if (delimiter == null) {
+			throw new IllegalArgumentException("Delimiter must not be null");
+		}
+
 		this.fieldDelim = delimiter.getBytes(getCharset());
+		this.fieldDelimString = delimiter;
 	}
 
 	public boolean isLenient() {
