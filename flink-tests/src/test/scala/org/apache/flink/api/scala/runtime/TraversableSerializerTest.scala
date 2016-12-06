@@ -18,19 +18,20 @@
 package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.functions.InvalidTypesException
-import org.junit.Assert._
-
-import org.apache.flink.api.common.typeutils.{TypeSerializer, SerializerTestInstance}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.junit.{Ignore, Assert, Test}
-
+import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.typeutils.TraversableSerializer
+import org.junit.Assert._
+import org.junit.{Assert, Ignore, Test}
 
-import scala.collection.immutable.{BitSet, SortedSet, LinearSeq}
+import scala.collection.immutable.{BitSet, LinearSeq, SortedSet}
 import scala.collection.{SortedMap, mutable}
 
 class TraversableSerializerTest {
+
+  // Note: SortedMap and SortedSet are serialized with Kryo
 
   @Test
   def testSeq(): Unit = {
@@ -57,22 +58,8 @@ class TraversableSerializerTest {
   }
 
   @Test
-  def testSortedMap(): Unit = {
-    // SortedSet is not supported right now.
-    val testData = Array(SortedMap("Hello" -> 1, "World" -> 2), SortedMap("Foo" -> 42))
-    runTests(testData)
-  }
-
-  @Test
   def testSet(): Unit = {
     val testData = Array(Set(1,2,3,3), Set(2,3))
-    runTests(testData)
-  }
-
-  @Test
-  def testSortedSet(): Unit = {
-    // SortedSet is not supported right now.
-    val testData = Array(SortedSet(1,2,3), SortedSet(2,3))
     runTests(testData)
   }
 
@@ -85,24 +72,6 @@ class TraversableSerializerTest {
   @Test
   def testMutableList(): Unit = {
     val testData = Array(mutable.MutableList(1,2,3), mutable.MutableList(2,3,2))
-    runTests(testData)
-  }
-
-  @Test
-  def testStringArray(): Unit = {
-    val testData = Array(Array("Foo", "Bar"), Array("Hello"))
-    runTests(testData)
-  }
-
-  @Test
-  def testIntArray(): Unit = {
-    val testData = Array(Array(1,3,3,7), Array(4,7))
-    runTests(testData)
-  }
-
-  @Test
-  def testArrayWithCaseClass(): Unit = {
-    val testData = Array(Array((1, "String"), (2, "Foo")), Array((4, "String"), (3, "Foo")))
     runTests(testData)
   }
 
@@ -124,31 +93,27 @@ class TraversableSerializerTest {
     // have a typeClass of Object, and therefore not deserialize the elements correctly.
     // It does work when used in a Job, though. Because the Objects get cast to
     // the correct type in the user function.
-    val testData = Array(Seq(1,1L,1d,true,"Hello"), Seq(2,2L,2d,false,"Ciao"))
+    val testData = Array(Seq(1, 1L, 1d, true, "Hello"), Seq(2, 2L, 2d, false, "Ciao"))
     runTests(testData)
   }
-
-
 
   private final def runTests[T : TypeInformation](instances: Array[T]) {
     try {
       val typeInfo = implicitly[TypeInformation[T]]
       val serializer = typeInfo.createSerializer(new ExecutionConfig)
       val typeClass = typeInfo.getTypeClass
-      val test =
-        new ScalaSpecialTypesSerializerTestInstance[T](serializer, typeClass, -1, instances)
+      val test = new TraversableSerializerTestInstance[T](serializer, typeClass, -1, instances)
       test.testAll()
     } catch {
-      case e: Exception => {
+      case e: Exception =>
         System.err.println(e.getMessage)
         e.printStackTrace()
         Assert.fail(e.getMessage)
-      }
     }
   }
 }
 
-class Pojo(val name: String, val count: Int) {
+class Pojo(var name: String, var count: Int) {
   def this() = this("", -1)
 
   override def equals(other: Any): Boolean = {
@@ -159,12 +124,38 @@ class Pojo(val name: String, val count: Int) {
   }
 }
 
-class ScalaCollectionSerializerTestInstance[T](
+class TraversableSerializerTestInstance[T](
     serializer: TypeSerializer[T],
     typeClass: Class[T],
     length: Int,
     testData: Array[T])
-  extends SerializerTestInstance[T](serializer, typeClass, length, testData: _*) {
+  extends ScalaSpecialTypesSerializerTestInstance[T](serializer, typeClass, length, testData) {
+
+  @Test
+  override def testAll(): Unit = {
+    super.testAll()
+    testTraversableDeepCopy()
+  }
+
+  @Test
+  def testTraversableDeepCopy(): Unit = {
+    val serializer = getSerializer
+    val elementSerializer = serializer.asInstanceOf[TraversableSerializer[_, _]].elementSerializer
+    val data = getTestData
+
+    // check for deep copy if type is immutable and not serialized with Kryo
+    // elements of traversable should not have reference equality
+    if (!elementSerializer.isImmutableType && !elementSerializer.isInstanceOf[KryoSerializer[_]]) {
+      data.foreach { datum =>
+        val original = datum.asInstanceOf[Traversable[_]].toIterable
+        val copy = serializer.copy(datum).asInstanceOf[Traversable[_]].toIterable
+        copy.zip(original).foreach { case (c: AnyRef, o: AnyRef) =>
+          assertTrue("Copy of mutable element has reference equality.", c ne o)
+        case _ => // ok
+        }
+      }
+    }
+  }
 
   @Test
   override def testInstantiate(): Unit = {
@@ -179,11 +170,10 @@ class ScalaCollectionSerializerTestInstance[T](
       // assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
     }
     catch {
-      case e: Exception => {
+      case e: Exception =>
         System.err.println(e.getMessage)
         e.printStackTrace()
         fail("Exception in test: " + e.getMessage)
-      }
     }
   }
 
