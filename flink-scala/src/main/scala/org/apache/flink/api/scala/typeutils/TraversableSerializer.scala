@@ -58,14 +58,14 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
     cbf().result()
   }
 
-  override def isImmutableType: Boolean = true
+  override def isImmutableType: Boolean = false
 
   override def getLength: Int = -1
 
   override def copy(from: T): T = {
     val builder = cbf()
     builder.sizeHint(from.size)
-    from foreach { e => builder += e }
+    from foreach { e => builder += elementSerializer.copy(e) }
     builder.result()
   }
 
