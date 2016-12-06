@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import akka.dispatch.ExecutionContexts$;
 import akka.dispatch.OnComplete;
+import akka.japi.Procedure;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
@@ -54,6 +56,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
+import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
@@ -77,6 +80,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -210,7 +214,7 @@ public class Task implements Runnable, TaskActions {
 	private final TaskMetricGroup metrics;
 
 	/** Executor to run future callbacks */
-	private final ExecutionContext executor;
+	private final Executor executor;
 
 	// ------------------------------------------------------------------------
 	//  Fields that control the task execution. All these fields are volatile
@@ -268,7 +272,7 @@ public class Task implements Runnable, TaskActions {
 			FileCache fileCache,
 			TaskManagerRuntimeInfo taskManagerConfig,
 			TaskMetricGroup metricGroup,
-			ExecutionContext executor) {
+			Executor executor) {
 		checkNotNull(jobInformation);
 		checkNotNull(taskInformation);
 
@@ -1014,6 +1018,9 @@ public class Task implements Runnable, TaskActions {
 							intermediateDataSetId,
 							resultPartitionId,
 							ExecutionState.RUNNING);
+					} else if (failure instanceof PartitionProducerDisposedException) {
+						LOG.debug("Partition producer disposed. Cancelling execution.", failure);
+						cancelExecution();
 					} else {
 						failExternally(failure);
 					}
@@ -1021,7 +1028,7 @@ public class Task implements Runnable, TaskActions {
 					failExternally(e);
 				}
 			}
-		}, executor);
+		}, createExecutionContext(executor));
 	}
 
 	// ------------------------------------------------------------------------
@@ -1247,6 +1254,27 @@ public class Task implements Runnable, TaskActions {
 				LOG.error("Error while canceling task " + taskNameWithSubtask, t);
 			}
 		}
+	}
+
+	private static ExecutionContext createExecutionContext(final Executor executor) {
+		return ExecutionContexts$.MODULE$.fromExecutor(executor, new Procedure<Throwable>() {
+			@Override
+			public void apply(Throwable throwable) throws Exception {
+				if (executor instanceof ExecutorService) {
+					ExecutorService executorService = (ExecutorService) executor;
+					// only log the exception if the executor service is still running
+					if (!executorService.isShutdown()) {
+						logThrowable(throwable);
+					}
+				} else {
+					logThrowable(throwable);
+				}
+			}
+
+			private void logThrowable(Throwable throwable) {
+				LOG.warn("Uncaught exception in execution context.", throwable);
+			}
+		});
 	}
 
 	@Override

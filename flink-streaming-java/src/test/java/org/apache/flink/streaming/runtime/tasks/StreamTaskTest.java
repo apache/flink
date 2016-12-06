@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import akka.actor.ActorRef;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
@@ -50,6 +49,7 @@ import org.apache.flink.runtime.state.AsynchronousStateHandle;
 import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.util.TestExecutors;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -60,9 +60,7 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
-
 import org.junit.Test;
-
 import org.mockito.internal.util.reflection.Whitebox;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
@@ -78,6 +76,10 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doReturn;
@@ -85,11 +87,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 public class StreamTaskTest {
 
@@ -315,13 +312,14 @@ public class StreamTaskTest {
 			mock(IOManager.class),
 			network,
 			mock(BroadcastVariableManager.class),
-				new DummyGateway(),
-				new DummyGateway(),
-				new FiniteDuration(60, TimeUnit.SECONDS),
+			new DummyGateway(),
+			new DummyGateway(),
+			new FiniteDuration(60, TimeUnit.SECONDS),
 			libCache,
 			mock(FileCache.class),
 			new TaskManagerRuntimeInfo("localhost", taskManagerConfig, System.getProperty("java.io.tmpdir")),
-				new UnregisteredTaskMetricsGroup());
+			new UnregisteredTaskMetricsGroup(),
+			TestExecutors.directExecutor());
 	}
 	
 	// ------------------------------------------------------------------------

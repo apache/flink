@@ -37,6 +37,7 @@ import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -44,17 +45,19 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.util.TestExecutors;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import scala.concurrent.ExecutionContext$;
 import scala.concurrent.duration.FiniteDuration;
+import scala.concurrent.impl.Promise;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -65,6 +68,7 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -89,7 +93,7 @@ import static org.mockito.Mockito.when;
  * up by the test and validated.
  */
 public class TaskTest extends TestLogger {
-	
+
 	private static OneShotLatch awaitLatch;
 	private static OneShotLatch triggerLatch;
 	private static OneShotLatch cancelLatch;
@@ -565,6 +569,126 @@ public class TaskTest extends TestLogger {
 	}
 
 	/**
+	 * Tests the trigger partition state update future completions.
+	 */
+	@Test
+	public void testTriggerPartitionStateUpdate() throws Exception {
+		IntermediateDataSetID resultId = new IntermediateDataSetID();
+		ResultPartitionID partitionId = new ResultPartitionID();
+
+		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
+		when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
+
+		PartitionProducerStateChecker partitionChecker = mock(PartitionProducerStateChecker.class);
+
+		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
+		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
+		NetworkEnvironment network = mock(NetworkEnvironment.class);
+		when(network.getPartitionManager()).thenReturn(partitionManager);
+		when(network.getPartitionConsumableNotifier()).thenReturn(consumableNotifier);
+		when(network.getPartitionProducerStateChecker()).thenReturn(partitionChecker);
+		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
+
+		// Test all branches of trigger partition state check
+
+		{
+			// Reset latches
+			createQueuesAndActors();
+
+			// PartitionProducerDisposedException
+			Task task = createTask(InvokableBlockingInInvoke.class, libCache, network);
+
+			Promise<ExecutionState> promise = new scala.concurrent.impl.Promise.DefaultPromise<>();
+			when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
+
+			task.triggerPartitionProducerStateCheck(task.getJobID(), resultId, partitionId);
+
+			promise.failure(new PartitionProducerDisposedException(partitionId));
+			assertEquals(ExecutionState.CANCELING, task.getExecutionState());
+		}
+
+		{
+			// Reset latches
+			createQueuesAndActors();
+
+			// Any other exception
+			Task task = createTask(InvokableBlockingInInvoke.class, libCache, network);
+
+			Promise<ExecutionState> promise = new scala.concurrent.impl.Promise.DefaultPromise<>();
+			when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
+
+			task.triggerPartitionProducerStateCheck(task.getJobID(), resultId, partitionId);
+
+			promise.failure(new RuntimeException("Any other exception"));
+
+			assertEquals(ExecutionState.FAILED, task.getExecutionState());
+		}
+
+		{
+			// Reset latches
+			createQueuesAndActors();
+
+			// TimeoutException handled special => retry
+			Task task = createTask(InvokableBlockingInInvoke.class, libCache, network);
+			SingleInputGate inputGate = mock(SingleInputGate.class);
+			when(inputGate.getConsumedResultId()).thenReturn(resultId);
+
+			try {
+				task.startTaskThread();
+				awaitLatch.await();
+
+				setInputGate(task, inputGate);
+
+				Promise<ExecutionState> promise = new scala.concurrent.impl.Promise.DefaultPromise<>();
+				when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
+
+				task.triggerPartitionProducerStateCheck(task.getJobID(), resultId, partitionId);
+
+				promise.failure(new TimeoutException());
+
+				assertEquals(ExecutionState.RUNNING, task.getExecutionState());
+
+				verify(inputGate, times(1)).retriggerPartitionRequest(eq(partitionId.getPartitionId()));
+			} finally {
+				task.getExecutingThread().interrupt();
+				task.getExecutingThread().join();
+			}
+		}
+
+		{
+			// Reset latches
+			createQueuesAndActors();
+
+			// Success
+			Task task = createTask(InvokableBlockingInInvoke.class, libCache, network);
+			SingleInputGate inputGate = mock(SingleInputGate.class);
+			when(inputGate.getConsumedResultId()).thenReturn(resultId);
+
+			try {
+				task.startTaskThread();
+				awaitLatch.await();
+				
+				setInputGate(task, inputGate);
+
+				Promise<ExecutionState> promise = new scala.concurrent.impl.Promise.DefaultPromise<>();
+				when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
+
+				task.triggerPartitionProducerStateCheck(task.getJobID(), resultId, partitionId);
+
+				promise.success(ExecutionState.RUNNING);
+
+				assertEquals(ExecutionState.RUNNING, task.getExecutionState());
+
+				verify(inputGate, times(1)).retriggerPartitionRequest(eq(partitionId.getPartitionId()));
+			} finally {
+				task.getExecutingThread().interrupt();
+				task.getExecutingThread().join();
+			}
+		}
+	}
+
+
+	/**
 	 * Tests that interrupt happens via watch dog if canceller is stuck in cancel.
 	 * Task cancellation blocks the task canceller. Interrupt after cancel via
 	 * cancellation watch dog.
@@ -802,7 +926,7 @@ public class TaskTest extends TestLogger {
 				mock(FileCache.class),
 				new TaskManagerRuntimeInfo("localhost", taskManagerConfig, System.getProperty("java.io.tmpdir")),
 				mock(TaskMetricGroup.class),
-				ExecutionContext$.MODULE$.global());
+				TestExecutors.directExecutor());
 	}
 
 

@@ -864,13 +864,12 @@ class JobManager(
                 val producerExecution = intermediateResult
                   .getPartitionById(resultPartitionId.getPartitionId)
                   .getProducer
-                  .findExecutionAttemptWithId(resultPartitionId.getProducerId)
+                  .getCurrentExecutionAttempt
 
-                if (producerExecution != null) {
+                if (producerExecution.getAttemptId() == resultPartitionId.getProducerId()) {
                   sender ! decorateMessage(producerExecution.getState)
                 } else {
-                  val cause = new IllegalArgumentException(
-                    s"Execution with ID ${resultPartitionId.getProducerId} not found.")
+                  val cause = new PartitionProducerDisposedException(resultPartitionId)
                   sender ! decorateMessage(Status.Failure(cause))
                 }
               } else {

@@ -256,28 +256,6 @@ public class ExecutionVertex implements Serializable {
 		}
 	}
 
-	/**
-	 * Scans for an execution attempt with the given ID, by first checking the
-	 * current execution and then the priors.
-	 *
-	 * @param executionAttemptId Execution attempt ID to look for.
-	 * @return Execution with the given ID or <code>null</code> if none was found.
-	 */
-	public Execution findExecutionAttemptWithId(ExecutionAttemptID executionAttemptId) {
-		Execution current = currentExecution;
-		if (current.getAttemptId().equals(executionAttemptId)) {
-			return current;
-		}
-
-		for (Execution prior : priorExecutions) {
-			if (prior.getAttemptId().equals(executionAttemptId)) {
-				return prior;
-			}
-		}
-
-		return null;
-	}
-
 	public ExecutionGraph getExecutionGraph() {
 		return this.jobVertex.getGraph();
 	}

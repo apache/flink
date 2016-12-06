@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.util.TestExecutors;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -85,7 +86,7 @@ public class TaskStopTest {
 			mock(FileCache.class),
 			tmRuntimeInfo,
 			mock(TaskMetricGroup.class),
-			ExecutionContext$.MODULE$.global());
+			TestExecutors.directExecutor());
 
 		Field f = task.getClass().getDeclaredField("invokable");
 		f.setAccessible(true);

@@ -43,6 +43,7 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.SerializableObject;
+import org.apache.flink.runtime.util.TestExecutors;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -153,7 +154,7 @@ public class InterruptSensitiveRestoreTest {
 				new Configuration(),
 				EnvironmentInformation.getTemporaryFileDirectory()),
 				new UnregisteredTaskMetricsGroup(),
-				ExecutionContext$.MODULE$.global());
+				TestExecutors.directExecutor());
 	}
 
 	// ------------------------------------------------------------------------
