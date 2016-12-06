@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 
 /**
@@ -34,6 +35,7 @@ public class OperatorSnapshotResult {
 	private RunnableFuture<OperatorStateHandle> operatorStateRawFuture;
 
 	public OperatorSnapshotResult() {
+		this(null, null, null, null);
 	}
 
 	public OperatorSnapshotResult(
@@ -80,9 +82,15 @@ public class OperatorSnapshotResult {
 	}
 
 	public void cancel() {
-		getKeyedStateManagedFuture().cancel(true);
-		getOperatorStateManagedFuture().cancel(true);
-		getKeyedStateRawFuture().cancel(true);
-		getOperatorStateRawFuture().cancel(true);
+		cancelIfNotNull(getKeyedStateManagedFuture());
+		cancelIfNotNull(getOperatorStateManagedFuture());
+		cancelIfNotNull(getKeyedStateRawFuture());
+		cancelIfNotNull(getOperatorStateRawFuture());
+	}
+
+	private static void cancelIfNotNull(Future<?> future) {
+		if (null != future) {
+			future.cancel(true);
+		}
 	}
 }
