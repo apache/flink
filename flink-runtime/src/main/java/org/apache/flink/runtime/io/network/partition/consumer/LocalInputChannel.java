@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
@@ -179,6 +180,18 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		}
 
 		Buffer next = subpartitionView.getNextBuffer();
+
+		if (next == null) {
+			if (subpartitionView.isReleased()) {
+				throw new CancelTaskException("Consumed partition " + subpartitionView + " has been released.");
+			} else {
+				// This means there is a bug in the buffer availability
+				// notifications.
+				throw new IllegalStateException("Consumed partition has no buffers available. " +
+					"Number of received buffer notifications is " + numBuffersAvailable + ".");
+			}
+		}
+
 		long remaining = numBuffersAvailable.decrementAndGet();
 
 		if (remaining >= 0) {
