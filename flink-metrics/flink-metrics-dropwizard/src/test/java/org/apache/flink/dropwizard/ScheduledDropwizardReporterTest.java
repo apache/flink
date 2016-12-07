@@ -24,9 +24,14 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.dropwizard.metrics.DropwizardMeterWrapper;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
@@ -122,6 +127,93 @@ public class ScheduledDropwizardReporterTest {
 		assertEquals(expectedCounterName, counters.get(myCounter));
 
 		metricRegistry.shutdown();
+	}
+
+	/**
+	 * This test verifies that metrics are properly added and removed to/from the ScheduledDropwizardReporter and
+	 * the underlying Dropwizard MetricRegistry.
+	 */
+	@Test
+	public void testMetricCleanup() {
+		TestingScheduledDropwizardReporter rep = new TestingScheduledDropwizardReporter();
+
+		MetricGroup mp = new UnregisteredMetricsGroup();
+
+		Counter c = new SimpleCounter();
+		Meter m = new Meter() {
+			@Override
+			public void markEvent() {
+			}
+
+			@Override
+			public void markEvent(long n) {
+			}
+
+			@Override
+			public double getRate() {
+				return 0;
+			}
+
+			@Override
+			public long getCount() {
+				return 0;
+			}
+		};
+		Histogram h = new Histogram() {
+			@Override
+			public void update(long value) {
+
+			}
+
+			@Override
+			public long getCount() {
+				return 0;
+			}
+
+			@Override
+			public HistogramStatistics getStatistics() {
+				return null;
+			}
+		};
+		Gauge g = new Gauge() {
+			@Override
+			public Object getValue() {
+				return null;
+			}
+		};
+
+		rep.notifyOfAddedMetric(c, "counter", mp);
+		assertEquals(1, rep.getCounters().size());
+		assertEquals(1, rep.registry.getCounters().size());
+
+		rep.notifyOfAddedMetric(m, "meter", mp);
+		assertEquals(1, rep.getMeters().size());
+		assertEquals(1, rep.registry.getMeters().size());
+
+		rep.notifyOfAddedMetric(h, "histogram", mp);
+		assertEquals(1, rep.getHistograms().size());
+		assertEquals(1, rep.registry.getHistograms().size());
+
+		rep.notifyOfAddedMetric(g, "gauge", mp);
+		assertEquals(1, rep.getGauges().size());
+		assertEquals(1, rep.registry.getGauges().size());
+
+
+		rep.notifyOfRemovedMetric(c, "counter", mp);
+		assertEquals(0, rep.getCounters().size());
+		assertEquals(0, rep.registry.getCounters().size());
+
+		rep.notifyOfRemovedMetric(m, "meter", mp);
+		assertEquals(0, rep.getMeters().size());
+		assertEquals(0, rep.registry.getMeters().size());
+
+		rep.notifyOfRemovedMetric(h, "histogram", mp);
+		assertEquals(0, rep.getHistograms().size());
+		assertEquals(0, rep.registry.getHistograms().size());
+
+		rep.notifyOfRemovedMetric(g, "gauge", mp);
+		assertEquals(0, rep.getGauges().size());
+		assertEquals(0, rep.registry.getGauges().size());
 	}
 
 	public static class TestingScheduledDropwizardReporter extends ScheduledDropwizardReporter {
