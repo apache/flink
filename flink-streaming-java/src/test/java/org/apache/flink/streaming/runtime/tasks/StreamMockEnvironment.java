@@ -189,14 +189,27 @@ public class StreamMockEnvironment implements Environment {
 		}
 	}
 
-	private <T> void addBufferToOutputList(RecordDeserializer<DeserializationDelegate<T>> recordDeserializer,
-									   NonReusingDeserializationDelegate<T> delegate, Buffer buffer,
-									   final Queue<Object> outputList) throws java.io.IOException {
+	/**
+	 * Adds the object behind the given <tt>buffer</tt> to the <tt>outputList</tt>.
+	 *
+	 * @param recordDeserializer de-serializer to use for the buffer
+	 * @param delegate de-serialization delegate to use for non-event buffers
+	 * @param buffer the buffer to add
+	 * @param outputList the output list to add the object to
+	 * @param <T> type of the objects behind the non-event buffers
+	 *
+	 * @throws java.io.IOException
+	 */
+	private <T> void addBufferToOutputList(
+		RecordDeserializer<DeserializationDelegate<T>> recordDeserializer,
+		NonReusingDeserializationDelegate<T> delegate, Buffer buffer,
+		final Queue<Object> outputList) throws java.io.IOException {
 		if (buffer.isBuffer()) {
 			recordDeserializer.setNextBuffer(buffer);
 
 			while (recordDeserializer.hasUnfinishedData()) {
-				RecordDeserializer.DeserializationResult result = recordDeserializer.getNextRecord(delegate);
+				RecordDeserializer.DeserializationResult result =
+					recordDeserializer.getNextRecord(delegate);
 
 				if (result.isFullRecord()) {
 					outputList.add(delegate.getInstance());
