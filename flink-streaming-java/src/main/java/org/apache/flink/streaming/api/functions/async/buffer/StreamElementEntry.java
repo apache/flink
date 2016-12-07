@@ -56,27 +56,27 @@ public interface StreamElementEntry<OUT>  {
 	 * Check inner element is StreamRecord or not.
 	 *
 	 * @return True if element is StreamRecord.
-     */
+	 */
 	boolean isStreamRecord();
 
 	/**
 	 * Check inner element is Watermark or not.
 	 *
 	 * @return True if element is Watermark.
-     */
+	 */
 	boolean isWatermark();
 
 	/**
 	 * Check inner element is LatencyMarker or not.
 	 *
 	 * @return True if element is LatencyMarker.
-     */
+	 */
 	boolean isLatencyMarker();
 
 	/**
 	 * Get inner stream element.
 	 *
 	 * @return Inner {@link StreamElement}.
-     */
+	 */
 	StreamElement getStreamElement();
 }

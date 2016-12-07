@@ -50,9 +50,9 @@ public class AsyncDataStream {
 	 * @param bufSize The max number of inputs the {@link AsyncWaitOperator} can hold inside.
 	 * @param mode Processing mode for {@link AsyncWaitOperator}.
 	 * @param <IN> Input type.
-     * @param <OUT> Output type.
-     * @return A new {@link SingleOutputStreamOperator}
-     */
+	 * @param <OUT> Output type.
+	 * @return A new {@link SingleOutputStreamOperator}
+	 */
 	private static <IN, OUT> SingleOutputStreamOperator<OUT> addOperator(
 			DataStream<IN> in,
 			AsyncFunction<IN, OUT> func,
@@ -94,7 +94,7 @@ public class AsyncDataStream {
 	 * @param <IN> Type of input record
 	 * @param <OUT> Type of output record
 	 * @return A new {@link SingleOutputStreamOperator}.
-   */
+	 */
 	public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWait(
 			DataStream<IN> in,
 			AsyncFunction<IN, OUT> func) {
@@ -126,7 +126,7 @@ public class AsyncDataStream {
 	 * @param <IN> Type of input record
 	 * @param <OUT> Type of output record
 	 * @return A new {@link SingleOutputStreamOperator}.
-   */
+	 */
 	public static <IN, OUT> SingleOutputStreamOperator<OUT> orderedWait(
 			DataStream<IN> in,
 			AsyncFunction<IN, OUT> func) {
