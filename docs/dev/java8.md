@@ -1,7 +1,7 @@
 ---
 title: "Java 8"
-nav-parent_id: apis
-nav-pos: 105
+nav-parent_id: api-concepts
+nav-pos: 20
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
