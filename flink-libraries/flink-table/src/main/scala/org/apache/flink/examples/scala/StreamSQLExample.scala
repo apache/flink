@@ -18,8 +18,8 @@
 package org.apache.flink.examples.scala
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.TableEnvironment
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.TableEnvironment
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 
 /**

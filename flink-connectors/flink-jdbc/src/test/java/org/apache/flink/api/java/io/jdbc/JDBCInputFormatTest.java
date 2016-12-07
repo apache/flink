@@ -25,7 +25,7 @@ import java.sql.ResultSet;
 import org.apache.flink.api.java.io.jdbc.split.GenericParameterValuesProvider;
 import org.apache.flink.api.java.io.jdbc.split.NumericBetweenParametersProvider;
 import org.apache.flink.api.java.io.jdbc.split.ParameterValuesProvider;
-import org.apache.flink.api.table.Row;
+import org.apache.flink.table.Row;
 import org.apache.flink.core.io.InputSplit;
 import org.junit.After;
 import org.junit.Assert;

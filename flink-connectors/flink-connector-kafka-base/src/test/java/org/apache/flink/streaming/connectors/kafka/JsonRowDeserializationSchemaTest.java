@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.flink.api.table.Row;
+import org.apache.flink.table.Row;
 import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
 import org.junit.Test;
 

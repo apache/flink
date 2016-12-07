@@ -19,7 +19,7 @@ package org.apache.flink.streaming.util.serialization;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.flink.api.table.Row;
+import org.apache.flink.table.Row;
 import org.apache.flink.util.Preconditions;
 
 

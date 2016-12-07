@@ -26,7 +26,7 @@ import java.sql.SQLException;
 
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.table.Row;
+import org.apache.flink.table.Row;
 import org.apache.flink.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
