@@ -82,7 +82,6 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
-import scala.concurrent.forkjoin.ForkJoinPool
 import scala.language.postfixOps
 
 /**
@@ -1382,18 +1381,20 @@ class JobManager(
                       case None => getClass.getClassLoader
                     }
 
-                    future {
-                      Option(ackMessage.getState()) match {
-                        case Some(state) =>
+                    Option(ackMessage.getState()) match {
+                      case Some(state) =>
+                        future {
                           try {
                             state.deserializeValue(classLoader).discardState()
                           } catch {
-                            case e: Exception => log.warn("Could not discard orphaned checkpoint " +
-                                             "state.", e)
+                            case e: Exception =>
+                              log.warn("Could not discard orphaned checkpoint state for " +
+                                         s"$ackMessage.", e)
                           }
-                        case None =>
-                      }
-                    }(ExecutionContext.fromExecutor(ioExecutor))
+                        } (ExecutionContext.fromExecutor(ioExecutor))
+                      case None =>
+                        // no state to discard
+                    }
                   }
                 } catch {
                   case t: Throwable =>

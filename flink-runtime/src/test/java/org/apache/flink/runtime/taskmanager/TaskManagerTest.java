@@ -103,6 +103,7 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState;
 import static org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpdateConsumers;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -480,7 +481,9 @@ public class TaskManagerTest extends TestLogger {
 									"found."));
 
 							tm.tell(new StopTask(eid2), testActorGateway);
-							expectMsgEquals(new TaskOperationResult(eid2, false, "UnsupportedOperationException: Stopping not supported by this task."));
+							TaskOperationResult message = expectMsgClass(TaskOperationResult.class);
+							assertEquals(eid2, message.executionID());
+							assertFalse(message.success());
 
 							assertEquals(ExecutionState.RUNNING, t2.getExecutionState());
 

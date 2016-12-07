@@ -202,7 +202,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		boolean disposed = false;
 		try {
 			// -------- Initialize ---------
-			LOG.debug("Initializing {}", getName());
+			LOG.debug("Initializing {}.", getName());
 
 			userClassLoader = getUserCodeClassLoader();
 			configuration = new StreamConfig(getTaskConfiguration());
@@ -587,8 +587,11 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		catch (Exception e) {
 			// propagate exceptions only if the task is still in "running" state
 			if (isRunning) {
-				throw e;
+				throw new Exception("Could not perform checkpoint " + checkpointId +
+					"for operator " + getName() + '.', e);
 			} else {
+				LOG.debug("Could not perform checkpoint {} for operator {} while the " +
+					"invokable was not in state running.", checkpointId, getName(), e);
 				return false;
 			}
 		}
@@ -600,10 +603,12 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			performCheckpoint(checkpointId, timestamp);
 		}
 		catch (CancelTaskException e) {
-			throw e;
+			throw new Exception("Operator " + getName() + " was cancelled while performing checkpoint " +
+				checkpointId + '.');
 		}
 		catch (Exception e) {
-			throw new Exception("Error while performing checkpoint " + checkpointId + '.', e);
+			throw new Exception("Could not perform checkpoint " + checkpointId + " for operator " +
+				getName() + '.', e);
 		}
 	}
 
@@ -651,13 +656,15 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 									try {
 										states[j].discardState();
 									} catch (Exception discardException) {
-										LOG.warn("Could not discard " + j + "th operator state.", discardException);
+										LOG.warn("Could not discard {}th operator state of " +
+											"checkpoint {} for operator {}.", j, checkpointId,
+											getName(), discardException);
 									}
 								}
 							}
 
-							throw new Exception("Could not perform the checkpoint for " + i +
-								"th operator in chain.", exception);
+							throw new Exception("Could not perform the checkpoint " + checkpointId +
+								" for " + i + "th operator in chain.", exception);
 						}
 
 						if (state.getOperatorState() instanceof AsynchronousStateHandle) {
@@ -768,7 +775,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 		if (stateBackend != null) {
 			// backend has been configured on the environment
-			LOG.info("Using user-defined state backend: " + stateBackend);
+			LOG.info("Using user-defined state backend: {}.", stateBackend);
 		} else {
 			// see if we have a backend specified in the configuration
 			Configuration flinkConfig = getEnvironment().getTaskManagerInfo().getConfiguration();
@@ -787,8 +794,8 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 				case "filesystem":
 					FsStateBackend backend = new FsStateBackendFactory().createFromConfig(flinkConfig);
-					LOG.info("State backend is set to heap memory (checkpoints to filesystem \""
-						+ backend.getBasePath() + "\")");
+					LOG.info("State backend is set to heap memory (checkpoints to filesystem \"{}\")",
+						backend.getBasePath());
 					stateBackend = backend;
 					break;
 
@@ -945,11 +952,15 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 								try {
 									states[j].discardState();
 								} catch (Exception discardException) {
-									LOG.warn("Could not discard the " + j + "th operator state.", discardException);
+									LOG.warn("Could not discard the {}th operator state of " +
+										"checkpoint {} for operator {}.", j, checkpointId,
+										owner.getName(), discardException);
 								}
 							}
 
-							throw new Exception("Could not materialize the " + i + "th operator state.", exception);
+							throw new Exception("Could not materialize the " + i + "th operator " +
+								"state of operator " + owner.getName() + " for checkpoint " +
+								checkpointId + '.', exception);
 						}
 					}
 				}
@@ -962,10 +973,13 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			}
 			catch (Exception e) {
 				if (owner.isRunning()) {
-					LOG.error("Caught exception while materializing asynchronous checkpoints.", e);
+					LOG.error("Caught exception while materializing asynchronous checkpoint {} for operator {}.", checkpointId, owner.getName(), e);
 				}
+
 				if (owner.asyncException == null) {
-					owner.asyncException = new AsynchronousException(e);
+					owner.asyncException = new AsynchronousException(
+						new Exception("Could not materialize checkpoint " + checkpointId +
+							" of operator " + getName() + '.', e));
 				}
 			}
 			finally {

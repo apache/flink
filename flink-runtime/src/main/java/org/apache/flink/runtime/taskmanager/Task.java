@@ -480,7 +480,7 @@ public class Task implements Runnable {
 		while (true) {
 			ExecutionState current = this.executionState;
 			if (current == ExecutionState.CREATED) {
-				if (STATE_UPDATER.compareAndSet(this, ExecutionState.CREATED, ExecutionState.DEPLOYING)) {
+				if (transitionState(ExecutionState.CREATED, ExecutionState.DEPLOYING)) {
 					// success, we can start our work
 					break;
 				}
@@ -491,14 +491,14 @@ public class Task implements Runnable {
 				return;
 			}
 			else if (current == ExecutionState.CANCELING) {
-				if (STATE_UPDATER.compareAndSet(this, ExecutionState.CANCELING, ExecutionState.CANCELED)) {
+				if (transitionState(ExecutionState.CANCELING, ExecutionState.CANCELED)) {
 					// we were immediately canceled. tell the TaskManager that we reached our final state
 					notifyFinalState();
 					return;
 				}
 			}
 			else {
-				throw new IllegalStateException("Invalid state for beginning of task operation");
+				throw new IllegalStateException("Invalid state for beginning of operation of task " + this + '.');
 			}
 		}
 
@@ -516,7 +516,7 @@ public class Task implements Runnable {
 
 			// first of all, get a user-code classloader
 			// this may involve downloading the job's JAR files and/or classes
-			LOG.info("Loading JAR files for task " + taskNameWithSubtask);
+			LOG.info("Loading JAR files for task {}.", this);
 
 			userCodeClassLoader = createUserCodeClassloader(libraryCache);
 			final ExecutionConfig executionConfig = serializedExecutionConfig.deserializeValue(userCodeClassLoader);
@@ -545,7 +545,7 @@ public class Task implements Runnable {
 			// the registration must also strictly be undone
 			// ----------------------------------------------------------------
 
-			LOG.info("Registering task at network: " + this);
+			LOG.info("Registering task at network: {}.", this);
 			network.registerTask(this);
 
 			// next, kick off the background copying of files for the distributed cache
@@ -553,13 +553,15 @@ public class Task implements Runnable {
 				for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry :
 						DistributedCache.readFileInfoFromConfig(jobConfiguration))
 				{
-					LOG.info("Obtaining local cache file for '" + entry.getKey() + '\'');
+					LOG.info("Obtaining local cache file for '{}'.", entry.getKey());
 					Future<Path> cp = fileCache.createTmpFile(entry.getKey(), entry.getValue(), jobId);
 					distributedCacheEntries.put(entry.getKey(), cp);
 				}
 			}
 			catch (Exception e) {
-				throw new Exception("Exception while adding files to distributed cache.", e);
+				throw new Exception(
+					String.format("Exception while adding files to distributed cache of task %s (%s).", taskNameWithSubtask, executionId),
+					e);
 			}
 
 			if (isCanceledOrFailed()) {
@@ -598,11 +600,13 @@ public class Task implements Runnable {
 						StateUtils.setOperatorState(op, state);
 					}
 					catch (Exception e) {
-						throw new RuntimeException("Failed to deserialize state handle and setup initial operator state.", e);
+						throw new RuntimeException(
+							String.format("Failed to deserialize state handle and setup initial operator state for task %s (%s).", taskNameWithSubtask, executionId),
+							e);
 					}
 				}
 				else {
-					throw new IllegalStateException("Found operator state for a non-stateful task invokable");
+					throw new IllegalStateException(String.format("Found operator state for a non-stateful task %s (%s)", taskNameWithSubtask, executionId));
 				}
 			}
 
@@ -621,7 +625,7 @@ public class Task implements Runnable {
 			this.invokable = invokable;
 
 			// switch to the RUNNING state, if that fails, we have been canceled/failed in the meantime
-			if (!STATE_UPDATER.compareAndSet(this, ExecutionState.DEPLOYING, ExecutionState.RUNNING)) {
+			if (!transitionState(ExecutionState.DEPLOYING, ExecutionState.RUNNING)) {
 				throw new CancelTaskException();
 			}
 
@@ -656,7 +660,7 @@ public class Task implements Runnable {
 
 			// try to mark the task as finished
 			// if that fails, the task was canceled/failed in the meantime
-			if (STATE_UPDATER.compareAndSet(this, ExecutionState.RUNNING, ExecutionState.FINISHED)) {
+			if (transitionState(ExecutionState.RUNNING, ExecutionState.FINISHED)) {
 				notifyObservers(ExecutionState.FINISHED, null);
 			}
 			else {
@@ -679,7 +683,7 @@ public class Task implements Runnable {
 
 					if (current == ExecutionState.RUNNING || current == ExecutionState.DEPLOYING) {
 						if (t instanceof CancelTaskException) {
-							if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.CANCELED)) {
+							if (transitionState(current, ExecutionState.CANCELED)) {
 								cancelInvokable();
 
 								notifyObservers(ExecutionState.CANCELED, null);
@@ -687,19 +691,19 @@ public class Task implements Runnable {
 							}
 						}
 						else {
-							if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.FAILED)) {
+							if (transitionState(current, ExecutionState.FAILED, t)) {
 								// proper failure of the task. record the exception as the root cause
-								LOG.error("Task execution failed. ", t);
+								String errorMessage = String.format("Execution of {} ({}) failed.", taskNameWithSubtask, executionId);
 								failureCause = t;
 								cancelInvokable();
 
-								notifyObservers(ExecutionState.FAILED, t);
+								notifyObservers(ExecutionState.FAILED, new Exception(errorMessage, t));
 								break;
 							}
 						}
 					}
 					else if (current == ExecutionState.CANCELING) {
-						if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.CANCELED)) {
+						if (transitionState(current, ExecutionState.CANCELED)) {
 							notifyObservers(ExecutionState.CANCELED, null);
 							break;
 						}
@@ -709,22 +713,22 @@ public class Task implements Runnable {
 						break;
 					}
 					// unexpected state, go to failed
-					else if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.FAILED)) {
-						LOG.error("Unexpected state in Task during an exception: " + current);
+					else if (transitionState(current, ExecutionState.FAILED, t)) {
+						LOG.error("Unexpected state in task {} ({}) during an exception: {}.", taskNameWithSubtask, executionId, current);
 						break;
 					}
 					// else fall through the loop and
 				}
 			}
 			catch (Throwable tt) {
-				String message = "FATAL - exception in task exception handler";
+				String message = String.format("FATAL - exception in exception handler of task %s (%s).", taskNameWithSubtask, executionId);
 				LOG.error(message, tt);
 				notifyFatalError(message, tt);
 			}
 		}
 		finally {
 			try {
-				LOG.info("Freeing task resources for " + taskNameWithSubtask);
+				LOG.info("Freeing task resources for {} ({}).", taskNameWithSubtask, executionId);
 
 				// stop the async dispatcher.
 				// copy dispatcher reference to stack, against concurrent release
@@ -751,7 +755,7 @@ public class Task implements Runnable {
 			}
 			catch (Throwable t) {
 				// an error in the resource cleanup is fatal
-				String message = "FATAL - exception in task resource cleanup";
+				String message = String.format("FATAL - exception in resource cleanup of task %s (%s).", taskNameWithSubtask, executionId);
 				LOG.error(message, t);
 				notifyFatalError(message, t);
 			}
@@ -763,7 +767,7 @@ public class Task implements Runnable {
 				metrics.close();
 			}
 			catch (Throwable t) {
-				LOG.error("Error during metrics de-registration", t);
+				LOG.error("Error during metrics de-registration of task {} ({}).", taskNameWithSubtask, executionId, t);
 			}
 		}
 	}
@@ -829,6 +833,39 @@ public class Task implements Runnable {
 		taskManager.tell(new FatalError(message, cause));
 	}
 
+	/**
+	 * Try to transition the execution state from the current state to the new state.
+	 *
+	 * @param currentState of the execution
+	 * @param newState of the execution
+	 * @return true if the transition was successful, otherwise false
+	 */
+	private boolean transitionState(ExecutionState currentState, ExecutionState newState) {
+		return transitionState(currentState, newState, null);
+	}
+
+	/**
+	 * Try to transition the execution state from the current state to the new state.
+	 *
+	 * @param currentState of the execution
+	 * @param newState of the execution
+	 * @param cause of the transition change or null
+	 * @return true if the transition was successful, otherwise false
+	 */
+	private boolean transitionState(ExecutionState currentState, ExecutionState newState, Throwable cause) {
+		if (STATE_UPDATER.compareAndSet(this, currentState, newState)) {
+			if (cause == null) {
+				LOG.info("{} ({}) switched from {} to {}.", taskNameWithSubtask, executionId, currentState, newState);
+			} else {
+				LOG.info("{} ({}) switched from {} to {}.", taskNameWithSubtask, executionId, currentState, newState, cause);
+			}
+
+			return true;
+		} else {
+			return false;
+		}
+	}
+
 	// ----------------------------------------------------------------------------------------------------------------
 	//  Stopping / Canceling / Failing the task from the outside
 	// ----------------------------------------------------------------------------------------------------------------
@@ -843,22 +880,22 @@ public class Task implements Runnable {
 	 *             if the {@link AbstractInvokable} does not implement {@link StoppableTask}
 	 */
 	public void stopExecution() throws UnsupportedOperationException {
-		LOG.info("Attempting to stop task " + taskNameWithSubtask);
-		if(this.invokable instanceof StoppableTask) {
+		LOG.info("Attempting to stop task {} ({}).", taskNameWithSubtask, executionId);
+		if (invokable instanceof StoppableTask) {
 			Runnable runnable = new Runnable() {
 				@Override
 				public void run() {
 					try {
-						((StoppableTask)Task.this.invokable).stop();
+						((StoppableTask)invokable).stop();
 					} catch(RuntimeException e) {
-						LOG.error("Stopping task " + taskNameWithSubtask + " failed.", e);
+						LOG.error("Stopping task {} ({}) failed.", taskNameWithSubtask, executionId, e);
 						taskManager.tell(new FailTask(executionId, e));
 					}
 				}
 			};
-			executeAsyncCallRunnable(runnable, "Stopping source task " + this.taskNameWithSubtask);
+			executeAsyncCallRunnable(runnable, String.format("Stopping source task %s (%s).", taskNameWithSubtask, executionId));
 		} else {
-			throw new UnsupportedOperationException("Stopping not supported by this task.");
+			throw new UnsupportedOperationException(String.format("Stopping not supported by task %s (%s).", taskNameWithSubtask, executionId));
 		}
 	}
 
@@ -871,7 +908,7 @@ public class Task implements Runnable {
 	 * <p>This method never blocks.</p>
 	 */
 	public void cancelExecution() {
-		LOG.info("Attempting to cancel task " + taskNameWithSubtask);
+		LOG.info("Attempting to cancel task {} ({}).", taskNameWithSubtask, executionId);
 		cancelOrFailAndCancelInvokable(ExecutionState.CANCELING, null);
 	}
 
@@ -885,37 +922,52 @@ public class Task implements Runnable {
 	 * <p>This method never blocks.</p>
 	 */
 	public void failExternally(Throwable cause) {
-		LOG.info("Attempting to fail task externally " + taskNameWithSubtask);
+		LOG.info("Attempting to fail task externally {} ({}).", taskNameWithSubtask, executionId);
 		cancelOrFailAndCancelInvokable(ExecutionState.FAILED, cause);
 	}
 
 	private void cancelOrFailAndCancelInvokable(ExecutionState targetState, Throwable cause) {
 		while (true) {
-			ExecutionState current = this.executionState;
+			ExecutionState current = executionState;
 
 			// if the task is already canceled (or canceling) or finished or failed,
 			// then we need not do anything
 			if (current.isTerminal() || current == ExecutionState.CANCELING) {
-				LOG.info("Task " + taskNameWithSubtask + " is already in state " + current);
+				LOG.info("Task {} is already in state {}", taskNameWithSubtask, current);
 				return;
 			}
 
 			if (current == ExecutionState.DEPLOYING || current == ExecutionState.CREATED) {
-				if (STATE_UPDATER.compareAndSet(this, current, targetState)) {
+				if (transitionState(current, targetState, cause)) {
 					// if we manage this state transition, then the invokable gets never called
 					// we need not call cancel on it
 					this.failureCause = cause;
-					notifyObservers(targetState, cause);
+					notifyObservers(
+						targetState,
+						new Exception(
+							String.format(
+								"Cancel or fail execution of %s (%s).",
+								taskNameWithSubtask,
+								executionId),
+							cause));
 					return;
 				}
 			}
 			else if (current == ExecutionState.RUNNING) {
-				if (STATE_UPDATER.compareAndSet(this, ExecutionState.RUNNING, targetState)) {
+				if (transitionState(ExecutionState.RUNNING, targetState, cause)) {
 					// we are canceling / failing out of the running state
 					// we need to cancel the invokable
 					if (invokable != null && invokableHasBeenCanceled.compareAndSet(false, true)) {
 						this.failureCause = cause;
-						notifyObservers(targetState, cause);
+						notifyObservers(
+							targetState,
+							new Exception(
+								String.format(
+									"Cancel or fail execution of %s (%s).",
+									taskNameWithSubtask,
+									executionId),
+								cause));
+
 						LOG.info("Triggering cancellation of task code {} ({}).", taskNameWithSubtask, executionId);
 
 						// because the canceling may block on user code, we cancel from a separate thread
@@ -934,7 +986,7 @@ public class Task implements Runnable {
 								producedPartitions,
 								inputGates);
 						Thread cancelThread = new Thread(executingThread.getThreadGroup(), canceler,
-								"Canceler for " + taskNameWithSubtask);
+								String.format("Canceler for %s (%s).", taskNameWithSubtask, executionId));
 						cancelThread.setDaemon(true);
 						cancelThread.start();
 					}
@@ -942,7 +994,8 @@ public class Task implements Runnable {
 				}
 			}
 			else {
-				throw new IllegalStateException("Unexpected task state: " + current);
+				throw new IllegalStateException(String.format("Unexpected state: %s of task %s (%s).",
+					current, taskNameWithSubtask, executionId));
 			}
 		}
 	}
@@ -956,13 +1009,6 @@ public class Task implements Runnable {
 	}
 
 	private void notifyObservers(ExecutionState newState, Throwable error) {
-		if (error == null) {
-			LOG.info(taskNameWithSubtask + " switched to " + newState);
-		}
-		else {
-			LOG.info(taskNameWithSubtask + " switched to " + newState + " with exception.", error);
-		}
-
 		TaskExecutionState stateUpdate = new TaskExecutionState(jobId, executionId, newState, error);
 		UpdateTaskExecutionState actorMessage = new UpdateTaskExecutionState(stateUpdate);
 
@@ -1009,16 +1055,20 @@ public class Task implements Runnable {
 							if (getExecutionState() == ExecutionState.RUNNING) {
 								failExternally(new Exception(
 									"Error while triggering checkpoint " + checkpointID + " for " +
-										taskName, t));
+										taskNameWithSubtask, t));
+							} else {
+								LOG.debug("Encountered error while triggering checkpoint {} for " +
+									"{} ({}) while being not in state running.", checkpointID,
+									taskNameWithSubtask, executionId, t);
 							}
 						}
 					}
 				};
-				executeAsyncCallRunnable(runnable, "Checkpoint Trigger for " + taskName);
+				executeAsyncCallRunnable(runnable, String.format("Checkpoint Trigger for %s (%s).", taskNameWithSubtask, executionId));
 			}
 			else {
-				LOG.error("Task received a checkpoint request, but is not a checkpointing task - "
-						+ taskNameWithSubtask);
+				LOG.error("Task received a checkpoint request, but is not a checkpointing task - {} ({}).",
+						taskNameWithSubtask, executionId);
 
 				DeclineCheckpoint decline = new DeclineCheckpoint(
 						jobId, executionId, checkpointID,
@@ -1027,7 +1077,7 @@ public class Task implements Runnable {
 			}
 		}
 		else {
-			LOG.debug("Declining checkpoint request for non-running task");
+			LOG.debug("Declining checkpoint request for non-running task {} ({}).", taskNameWithSubtask, executionId);
 
 			// send back a message that we did not do the checkpoint
 			DeclineCheckpoint decline = new DeclineCheckpoint(
@@ -1066,12 +1116,12 @@ public class Task implements Runnable {
 				executeAsyncCallRunnable(runnable, "Checkpoint Confirmation for " + taskName);
 			}
 			else {
-				LOG.error("Task received a checkpoint commit notification, but is not a checkpoint committing task - "
-						+ taskNameWithSubtask);
+				LOG.error("Task received a checkpoint commit notification, but is not a checkpoint committing task - {}.",
+						taskNameWithSubtask);
 			}
 		}
 		else {
-			LOG.debug("Ignoring checkpoint commit notification for non-running task.");
+			LOG.debug("Ignoring checkpoint commit notification for non-running task {}.", taskNameWithSubtask);
 		}
 	}
 
@@ -1174,14 +1224,14 @@ public class Task implements Runnable {
 				invokable.cancel();
 			}
 			catch (Throwable t) {
-				LOG.error("Error while canceling task " + taskNameWithSubtask, t);
+				LOG.error("Error while canceling task {}.", taskNameWithSubtask, t);
 			}
 		}
 	}
 
 	@Override
 	public String toString() {
-		return taskNameWithSubtask + " [" + executionState + ']';
+		return String.format("%s (%s) [%s]", taskNameWithSubtask, executionId, executionState);
 	}
 
 	/**
@@ -1257,7 +1307,7 @@ public class Task implements Runnable {
 				try {
 					invokable.cancel();
 				} catch (Throwable t) {
-					logger.error("Error while canceling the task", t);
+					logger.error("Error while canceling the task {}.", taskName, t);
 				}
 
 				// Early release of input and output buffer pools. We do this
@@ -1271,7 +1321,7 @@ public class Task implements Runnable {
 					try {
 						partition.destroyBufferPool();
 					} catch (Throwable t) {
-						LOG.error("Failed to release result partition buffer pool.", t);
+						LOG.error("Failed to release result partition buffer pool for task {}.", taskName, t);
 					}
 				}
 
@@ -1279,7 +1329,7 @@ public class Task implements Runnable {
 					try {
 						inputGate.releaseAllResources();
 					} catch (Throwable t) {
-						LOG.error("Failed to release input gate.", t);
+						LOG.error("Failed to release input gate for task {}.", taskName, t);
 					}
 				}
 
@@ -1297,7 +1347,7 @@ public class Task implements Runnable {
 					watchDogThread.join();
 				}
 			} catch (Throwable t) {
-				logger.error("Error in the task canceler", t);
+				logger.error("Error in the task canceler for task {}.", taskName, t);
 			}
 		}
 
