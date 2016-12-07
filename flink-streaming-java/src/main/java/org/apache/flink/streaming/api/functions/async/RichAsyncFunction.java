@@ -18,9 +18,12 @@
 
 package org.apache.flink.streaming.api.functions.async;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.streaming.api.operators.async.AsyncCollector;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 
 /**
  * Rich variant of the {@link AsyncFunction}. As a {@link RichFunction}, it gives access to the
@@ -28,12 +31,28 @@ import org.apache.flink.streaming.api.operators.async.AsyncCollector;
  * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
  * {@link RichFunction#close()}.
  *
+ * <p>
+ * {@link RichAsyncFunction#getRuntimeContext()} and {@link RichAsyncFunction#getRuntimeContext()} are
+ * not supported because the key may get changed while accessing states in the working thread.
+ *
  * @param <IN> The type of the input elements.
  * @param <OUT> The type of the returned elements.
  */
+
+@PublicEvolving
 public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
 	implements AsyncFunction<IN, OUT> {
 
 	@Override
-	public abstract void asyncInvoke(IN input, AsyncCollector<IN, OUT> collector) throws Exception;
+	public abstract void asyncInvoke(IN input, AsyncCollector<OUT> collector) throws Exception;
+
+	@Override
+	public RuntimeContext getRuntimeContext() {
+		throw new UnsupportedOperationException("Get runtime context is not supported in rich async function");
+	}
+
+	@Override
+	public IterationRuntimeContext getIterationRuntimeContext() {
+		throw new UnsupportedOperationException("Get iteration runtime context is not supported in rich async function");
+	}
 }

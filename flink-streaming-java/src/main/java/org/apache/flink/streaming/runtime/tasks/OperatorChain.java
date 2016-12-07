@@ -47,7 +47,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -96,7 +95,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 		try {
 			for (int i = 0; i < outEdgesInOrder.size(); i++) {
 				StreamEdge outEdge = outEdgesInOrder.get(i);
-				
 				RecordWriterOutput<?> streamOutput = createStreamOutput(
 						outEdge, chainedConfigs.get(outEdge.getSourceId()), i,
 						containingTask.getEnvironment(), containingTask.getName());
@@ -116,11 +114,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 
 			// add head operator to end of chain
 			allOps.add(headOperator);
-
-			// reverse the order of all operators so that head operator is at the first place.
-			// for chained operator with async wait operator, operators after wait operator have to
-			// wait for while until all data in the buffer in wait operator has done snapshot.
-			Collections.reverse(allOps);
 
 			this.allOperators = allOps.toArray(new StreamOperator<?>[allOps.size()]);
 			
@@ -250,7 +243,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 
 			Output<StreamRecord<T>> output = createChainedOperator(
 					containingTask, chainedOpConfig, chainedConfigs, userCodeClassloader, streamOutputs, allOperators);
-			
 			allOutputs.add(new Tuple2<>(output, outputEdge));
 		}
 		

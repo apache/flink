@@ -26,6 +26,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
+import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
+import org.apache.flink.streaming.api.functions.async.buffer.AsyncCollectorBuffer;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -41,15 +43,26 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Collection;
+import java.util.Iterator;
 
+/**
+ * The {@link AsyncWaitOperator} will accept input {@link StreamElement} from previous operators,
+ * pass them into {@link AsyncFunction}, make a snapshot for the inputs in the {@link AsyncCollectorBuffer}
+ * while checkpointing, and restore the {@link AsyncCollectorBuffer} from previous state.
+ * <p>
+ * Note that due to newly added working thread, named {@link AsyncCollectorBuffer.Emitter},
+ * if {@link AsyncWaitOperator} is chained with other operators, {@link StreamTask} has to make sure that
+ * the the order to open operators in the operator chain should be from the tail operator to the head operator,
+ * and order to close operators in the operator chain should be from the head operator to the tail operator.
+ *
+ * @param <IN> Input type for the operator.
+ * @param <OUT> Output type for the operator.
+ */
 @Internal
 public class AsyncWaitOperator<IN, OUT>
 	extends AbstractUdfStreamOperator<OUT, AsyncFunction<IN, OUT>>
 	implements OneInputStreamOperator<IN, OUT>
 {
-	private final int DEFAULT_BUFFER_SIZE = 1000;
-
 	private static final long serialVersionUID = 1L;
 
 	private final static String STATE_NAME = "_async_wait_operator_state_";
@@ -73,69 +86,41 @@ public class AsyncWaitOperator<IN, OUT>
 	 */
 	private transient Object checkpointLock;
 
-	private int bufferSize = DEFAULT_BUFFER_SIZE;
-	private AsyncDataStream.OutputMode mode;
-
-	/**
-	 * For test only. Normally this flag is true, indicating that the Emitter Thread
-	 * in the buffer will work.
-	 */
-	private boolean emitFlag = true;
-
-	/**
-	 * Test serializer used in unit test
-	 */
-	private StreamElementSerializer<IN> inStreamElementSerializerForTest;
+	private final int bufferSize;
+	private final AsyncDataStream.OutputMode mode;
 
 
-	public AsyncWaitOperator(AsyncFunction<IN, OUT> asyncFunction) {
+	public AsyncWaitOperator(AsyncFunction<IN, OUT> asyncFunction, int bufferSize, AsyncDataStream.OutputMode mode) {
 		super(asyncFunction);
 		chainingStrategy = ChainingStrategy.ALWAYS;
-	}
 
-	public void setBufferSize(int size) {
-		Preconditions.checkArgument(size > 0, "The number of concurrent async operation should be greater than 0.");
-		bufferSize = size;
-	}
+		Preconditions.checkArgument(bufferSize > 0, "The number of concurrent async operation should be greater than 0.");
+		this.bufferSize = bufferSize;
 
-	public void setOutputMode(AsyncDataStream.OutputMode mode) {
 		this.mode = mode;
-	}
-
-	@VisibleForTesting
-	public void setEmitFlag(boolean emitFlag) {
-		this.emitFlag = emitFlag;
-	}
-
-	@VisibleForTesting
-	public void setInStreamElementSerializerForTest(StreamElementSerializer<IN> serializer) {
-		this.inStreamElementSerializerForTest = serializer;
 	}
 
 	@Override
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		super.setup(containingTask, config, output);
 
-		if (this.inStreamElementSerializerForTest != null) {
-			this.inStreamElementSerializer = this.inStreamElementSerializerForTest;
-		}
-		else {
-			this.inStreamElementSerializer = new StreamElementSerializer(this.getOperatorConfig().getTypeSerializerIn1(getUserCodeClassloader()));
-		}
+		this.inStreamElementSerializer =
+				new StreamElementSerializer(this.getOperatorConfig().<IN>getTypeSerializerIn1(getUserCodeClassloader()));
 
 		this.collector = new TimestampedCollector<>(output);
 
 		this.checkpointLock = containingTask.getCheckpointLock();
 
 		this.buffer = new AsyncCollectorBuffer<>(bufferSize, mode, output, collector, this.checkpointLock, this);
-
 	}
 
 	@Override
 	public void open() throws Exception {
 		super.open();
 
-		// process stream elements from state
+		// process stream elements from state, since the Emit thread will start soon as all elements from
+		// previous state are in the AsyncCollectorBuffer, we have to make sure that the order to open all
+		// operators in the operator chain should be from the tail operator to the head operator.
 		if (this.recoveredStreamElements != null) {
 			for (StreamElement element : this.recoveredStreamElements.get()) {
 				if (element.isRecord()) {
@@ -154,15 +139,12 @@ public class AsyncWaitOperator<IN, OUT>
 			this.recoveredStreamElements = null;
 		}
 
-
-		if (emitFlag) {
-			buffer.startEmitterThread();
-		}
+		buffer.startEmitterThread();
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		AsyncCollector<IN, OUT> collector = buffer.addStreamRecord(element);
+		AsyncCollector<OUT> collector = buffer.addStreamRecord(element);
 
 		userFunction.asyncInvoke(element.getValue(), collector);
 	}
@@ -185,30 +167,30 @@ public class AsyncWaitOperator<IN, OUT>
 				getOperatorStateBackend().getOperatorState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
 		partitionableState.clear();
 
-		Collection<StreamElement> elements = buffer.getStreamElementsInBuffer();
-		for (StreamElement element : elements) {
-			partitionableState.add(element);
+		Iterator<StreamElement> iterator = buffer.getStreamElementsInBuffer();
+		while (iterator.hasNext()) {
+			partitionableState.add(iterator.next());
 		}
 	}
 
 	@Override
 	public void initializeState(StateInitializationContext context) throws Exception {
 		recoveredStreamElements =
-				context.getManagedOperatorStateStore().getOperatorState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
+				context.getOperatorStateStore().getOperatorState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
 
 	}
 
 	@Override
 	public void close() throws Exception {
-		// for test only, we do not have to wait until buffer is empty.
-		if (!emitFlag) {
-			return;
+		try {
+			buffer.waitEmpty();
 		}
+		finally {
+			// make sure Emitter thread exits and close user function
+			buffer.stopEmitterThread();
 
-		buffer.waitEmpty();
-		buffer.stopEmitterThread();
-
-		super.close();
+			super.close();
+		}
 	}
 
 	@Override
@@ -220,5 +202,10 @@ public class AsyncWaitOperator<IN, OUT>
 
 	public void sendLatencyMarker(LatencyMarker marker) throws Exception {
 		super.processLatencyMarker(marker);
+	}
+
+	@VisibleForTesting
+	public AsyncCollectorBuffer<IN, OUT> getBuffer() {
+		return buffer;
 	}
 }

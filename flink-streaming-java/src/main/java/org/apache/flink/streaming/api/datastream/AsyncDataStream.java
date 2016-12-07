@@ -17,13 +17,12 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 
 /**
  * A helper class to apply {@link AsyncFunction} to a data stream.
@@ -36,38 +35,39 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
  * }
  * </pre>
  */
+
+@PublicEvolving
 public class AsyncDataStream {
 	public enum OutputMode { ORDERED, UNORDERED }
 
 	private static final int DEFAULT_BUFFER_SIZE = 100;
 
+	/**
+	 * Add an AsyncWaitOperator.
+	 *
+	 * @param in The {@link DataStream} where the {@link AsyncWaitOperator} will be added.
+	 * @param func {@link AsyncFunction} wrapped inside {@link AsyncWaitOperator}.
+	 * @param bufSize The max number of inputs the {@link AsyncWaitOperator} can hold inside.
+	 * @param mode Processing mode for {@link AsyncWaitOperator}.
+	 * @param <IN> Input type.
+     * @param <OUT> Output type.
+     * @return A new {@link SingleOutputStreamOperator}
+     */
 	private static <IN, OUT> SingleOutputStreamOperator<OUT> addOperator(
 			DataStream<IN> in,
 			AsyncFunction<IN, OUT> func,
 			int bufSize,
 			OutputMode mode) {
+
 		TypeInformation<OUT> outTypeInfo =
-			TypeExtractor.getUnaryOperatorReturnType((Function) func, AsyncFunction.class, false,
+			TypeExtractor.getUnaryOperatorReturnType(func, AsyncFunction.class, false,
 				true, in.getType(), Utils.getCallLocationName(), true);
 
 		// create transform
-		AsyncWaitOperator<IN, OUT> operator = new AsyncWaitOperator<>(in.getExecutionEnvironment().clean(func));
-		operator.setBufferSize(bufSize);
-		operator.setOutputMode(mode);
+		AsyncWaitOperator<IN, OUT> operator =
+				new AsyncWaitOperator<>(in.getExecutionEnvironment().clean(func), bufSize, mode);
 
-		OneInputTransformation<IN, OUT> resultTransform = new OneInputTransformation<>(
-			in.getTransformation(),
-			"async wait operator",
-			operator,
-			outTypeInfo,
-			in.getExecutionEnvironment().getParallelism());
-
-		SingleOutputStreamOperator<OUT> returnStream =
-			new SingleOutputStreamOperator<>(in.getExecutionEnvironment(), resultTransform);
-
-		returnStream.getExecutionEnvironment().addOperator(resultTransform);
-
-		return returnStream;
+		return in.transform("async wait operator", outTypeInfo, operator);
 	}
 
 	/**

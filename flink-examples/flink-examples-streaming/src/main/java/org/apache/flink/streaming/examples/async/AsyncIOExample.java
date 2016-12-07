@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.operators.async.AsyncCollector;
+import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
@@ -74,10 +74,15 @@ public class AsyncIOExample {
 
 		@Override
 		public void run(SourceContext<Integer> ctx) throws Exception {
-			while (start < counter && isRunning) {
+			while ((start < counter || counter == -1) && isRunning) {
 				synchronized (ctx.getCheckpointLock()) {
 					ctx.collect(start);
 					++start;
+
+					// loop back to 0
+					if (start == Integer.MAX_VALUE) {
+						start = 0;
+					}
 				}
 				Thread.sleep(10);
 			}
@@ -89,12 +94,105 @@ public class AsyncIOExample {
 		}
 	}
 
+
+	/**
+	 * An sample of {@link AsyncFunction} using a thread pool and executing working threads
+	 * to simulate multiple async operations.
+	 * <p>
+	 * For the real use case in production environment, the thread pool may stay in the
+	 * async client.
+	 */
+	private static class SampleAsyncFunction extends RichAsyncFunction<Integer, String> {
+		transient static ExecutorService executorService;
+		transient static Random random;
+
+		private int counter;
+
+		/**
+		 * The result of multiplying sleepFactor with a random float is used to pause
+		 * the working thread in the thread pool, simulating a time consuming async operation.
+		 */
+		final long sleepFactor;
+
+		/**
+		 * The ratio to generate an exception to simulate an async error. For example, the error
+		 * may be a TimeoutException while visiting HBase.
+		 */
+		final float failRatio;
+
+		final long shutdownWaitTS;
+
+		public SampleAsyncFunction(long sleepFactor, float failRatio, long shutdownWaitTS) {
+			this.sleepFactor = sleepFactor;
+			this.failRatio = failRatio;
+			this.shutdownWaitTS = shutdownWaitTS;
+		}
+
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
+
+			synchronized (SampleAsyncFunction.class) {
+				if (counter == 0) {
+					executorService = Executors.newFixedThreadPool(30);
+
+					random = new Random();
+				}
+
+				++counter;
+			}
+		}
+
+		@Override
+		public void close() throws Exception {
+			super.close();
+
+			synchronized (SampleAsyncFunction.class) {
+				--counter;
+
+				if (counter == 0) {
+					executorService.shutdown();
+
+					try {
+						executorService.awaitTermination(shutdownWaitTS, TimeUnit.MILLISECONDS);
+					} catch (InterruptedException e) {
+						executorService.shutdownNow();
+					}
+				}
+			}
+		}
+
+		@Override
+		public void asyncInvoke(final Integer input, final AsyncCollector<String> collector) throws Exception {
+			this.executorService.submit(new Runnable() {
+				@Override
+				public void run() {
+					// wait for while to simulate async operation here
+					int sleep = (int) (random.nextFloat() * sleepFactor);
+					try {
+						Thread.sleep(sleep);
+						List<String> ret = Collections.singletonList("key-" + (input % 10));
+						if (random.nextFloat() < failRatio) {
+							collector.collect(new Exception("wahahahaha..."));
+						} else {
+							collector.collect(ret);
+						}
+					} catch (InterruptedException e) {
+						collector.collect(new ArrayList<String>(0));
+					}
+				}
+			});
+		}
+	}
+
 	private static void printUsage() {
 		System.out.println("To customize example, use: AsyncIOExample [--fsStatePath <path to fs state>] " +
-			"[--checkpointMode <exactly_once or at_least_once>] [--maxCount <max number of input from source>] " +
-			"[--sleepFactor <interval to sleep for each stream element>] [--failRatio <possibility to throw exception>] " +
-			"[--waitMode <ordered or unordered>] [--waitOperatorParallelism <parallelism for async wait operator>] " +
-			"[--eventType <EventTime or IngestionTime>]");
+				"[--checkpointMode <exactly_once or at_least_once>] " +
+				"[--maxCount <max number of input from source, -1 for infinite input>] " +
+				"[--sleepFactor <interval to sleep for each stream element>] [--failRatio <possibility to throw exception>] " +
+				"[--waitMode <ordered or unordered>] [--waitOperatorParallelism <parallelism for async wait operator>] " +
+				"[--eventType <EventTime or IngestionTime>] [--shutdownWaitTS <milli sec to wait for thread pool>]");
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -116,6 +214,7 @@ public class AsyncIOExample {
 		final String mode = params.get("waitMode", "ordered");
 		final int taskNum =  params.getInt("waitOperatorParallelism", 1);
 		final String timeType = params.get("eventType", "EventTime");
+		final int shutdownWaitTS = params.getInt("shutdownWaitTS", 20000);
 
 		System.out.println("Job configuration\n"
 			+"\tFS state path="+statePath+"\n"
@@ -125,7 +224,8 @@ public class AsyncIOExample {
 			+"\tFail ratio="+failRatio+"\n"
 			+"\tWaiting mode="+mode+"\n"
 			+"\tParallelism for async wait operator="+taskNum+"\n"
-			+"\tEvent type="+timeType);
+			+"\tEvent type="+timeType+"\n"
+			+"\tShutdown wait timestamp="+shutdownWaitTS);
 
 		// setup state and checkpoint mode
 		env.setStateBackend(new FsStateBackend(statePath));
@@ -134,7 +234,6 @@ public class AsyncIOExample {
 		}
 		else {
 			env.enableCheckpointing(1000, CheckpointingMode.AT_LEAST_ONCE);
-			env.disableOperatorChaining();
 		}
 
 		// enable watermark or not
@@ -149,49 +248,8 @@ public class AsyncIOExample {
 		DataStream<Integer> inputStream = env.addSource(new SimpleSource(maxCount));
 
 		// create async function, which will *wait* for a while to simulate the process of async i/o
-		AsyncFunction<Integer, String> function = new RichAsyncFunction<Integer, String>() {
-			transient ExecutorService executorService;
-			transient Random random;
-
-			@Override
-			public void open(Configuration parameters) throws Exception {
-				super.open(parameters);
-				executorService = Executors.newFixedThreadPool(30);
-				random = new Random();
-			}
-
-			@Override
-			public void close() throws Exception {
-				super.close();
-				executorService.shutdown();
-				executorService.awaitTermination(sleepFactor*20, TimeUnit.MILLISECONDS);
-			}
-
-			@Override
-			public void asyncInvoke(final Integer input, final AsyncCollector<Integer, String> collector) throws Exception {
-				this.executorService.submit(new Runnable() {
-					@Override
-					public void run() {
-						// wait for while to simulate async operation here
-						int sleep = (int) (random.nextFloat() * sleepFactor);
-						try {
-							Thread.sleep(sleep);
-							List<String> ret = new ArrayList<>();
-							ret.add("key-"+(input%10));
-							if (random.nextFloat() < failRatio) {
-								collector.collect(new Exception("wahahahaha..."));
-							}
-							else {
-								collector.collect(ret);
-							}
-						}
-						catch (InterruptedException e) {
-							collector.collect(new ArrayList<String>(0));
-						}
-					}
-				});
-			}
-		};
+		AsyncFunction<Integer, String> function =
+				new SampleAsyncFunction(sleepFactor, failRatio, shutdownWaitTS);
 
 		// add async operator to streaming job
 		DataStream<String> result;

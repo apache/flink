@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.api.functions.async;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.streaming.api.operators.async.AsyncCollector;
+import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 
 import java.io.Serializable;
 
@@ -73,6 +74,8 @@ import java.io.Serializable;
  * @param <IN> The type of the input elements.
  * @param <OUT> The type of the returned elements.
  */
+
+@PublicEvolving
 public interface AsyncFunction<IN, OUT> extends Function, Serializable {
 	/**
 	 * Trigger async operation for each stream input.
@@ -81,5 +84,5 @@ public interface AsyncFunction<IN, OUT> extends Function, Serializable {
 	 * @param collector AsyncCollector
 	 * @exception Exception will make task fail and trigger fail-over process.
 	 */
-	void asyncInvoke(IN input, AsyncCollector<IN, OUT> collector) throws Exception;
+	void asyncInvoke(IN input, AsyncCollector<OUT> collector) throws Exception;
 }

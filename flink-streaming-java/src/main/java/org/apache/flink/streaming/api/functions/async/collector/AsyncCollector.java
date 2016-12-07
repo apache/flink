@@ -19,37 +19,16 @@
 package org.apache.flink.streaming.api.functions.async.collector;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
  * {@link AsyncCollector} collects data / error in user codes while processing async i/o.
  *
- * @param <IN> Input type
  * @param <OUT> Output type
  */
 @Internal
-public class AsyncCollector<IN, OUT> {
-	private List<OUT> result;
-	private Throwable error;
-
-	private boolean isDone = false;
-
-	private final AsyncCollectorBuffer<IN, OUT> buffer;
-
-	protected AsyncCollector(AsyncCollectorBuffer<IN, OUT> buffer) {
-		Preconditions.checkNotNull(buffer, "Reference to AsyncCollectorBuffer should not be null");
-
-		this.buffer = buffer;
-	}
-
-	protected AsyncCollector(AsyncCollectorBuffer<IN, OUT> buffer, boolean isDone) {
-		this(buffer);
-		this.isDone = isDone;
-	}
-
+public interface AsyncCollector<OUT> {
 	/**
 	 * Set result.
 	 * <p>
@@ -63,41 +42,12 @@ public class AsyncCollector<IN, OUT> {
 	 *
 	 * @param result A list of results.
 	 */
-	public void collect(List<OUT> result) {
-		this.result = result;
-
-		buffer.markCollectorCompleted(this);
-	}
+	void collect(List<OUT> result);
 
 	/**
 	 * Set error
 	 *
 	 * @param error A Throwable object.
 	 */
-	public void collect(Throwable error) {
-		this.error = error;
-
-		buffer.markCollectorCompleted(this);
-	}
-
-	/**
-	 * Get result. Throw IOException while encountering an error.
-	 *
-	 * @return A List of result.
-	 * @throws IOException IOException wrapping errors from user codes.
-	 */
-	protected List<OUT> getResult() throws IOException {
-		if (error != null) {
-			throw new IOException(error);
-		}
-		return result;
-	}
-
-	protected void markDone() {
-		isDone = true;
-	}
-
-	public boolean isDone() {
-		return isDone;
-	}
+	void collect(Throwable error);
 }
