@@ -1477,7 +1477,7 @@ Generic types are treated as a black box within Table API and SQL yet.
 
 Composite types, however, are fully supported types where fields of a composite type can be accessed using the `.get()` operator in Table API and dot operator (e.g. `MyTable.pojoColumn.myField`) in SQL. Composite types can also be flattened using `.flatten()` in Table API or `MyTable.pojoColumn.*` in SQL.
 
-Array types can be access using the `myArray.at(1)` operator in Table API and `myArray[1]` operator in SQL. Array literals can be created using `array(1, 2, 3)` in Table API and `ARRAY[1, 2, 3]` in SQL.
+Array types can be accessed using the `myArray.at(1)` operator in Table API and `myArray[1]` operator in SQL. Array literals can be created using `array(1, 2, 3)` in Table API and `ARRAY[1, 2, 3]` in SQL.
 
 {% top %}
 
@@ -2052,7 +2052,7 @@ ARRAY.at(INT)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the element at a particular location in an array. The index starts at 1.</p>
+        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
       </td>
     </tr>
 
@@ -2085,7 +2085,7 @@ ARRAY.element()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the sole element of an array. Returns <code>null</code> if the collection is empty. Throws an exception if the array has more than one element.</p>
+        <p>Returns the sole element of an array with a single element. Returns <code>null</code> if the array is empty. Throws an exception if the array has more than one element.</p>
       </td>
     </tr>
 
@@ -2657,7 +2657,7 @@ ARRAY.at(INT)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the element at a particular location in an array. The index starts at 1.</p>
+        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
       </td>
     </tr>
 
@@ -2690,7 +2690,7 @@ ARRAY.element()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the sole element of an array. Returns <code>null</code> if the collection is empty. Throws an exception if the array has more than one element.</p>
+        <p>Returns the sole element of an array with a single element. Returns <code>null</code> if the array is empty. Throws an exception if the array has more than one element.</p>
       </td>
     </tr>
 
@@ -3503,7 +3503,7 @@ array ‘[’ index ‘]’
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the element at a particular location in an array. The index starts at 1.</p>
+        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
       </td>
     </tr>
 
@@ -3801,7 +3801,7 @@ ELEMENT(ARRAY)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the sole element of an array. Returns <code>null</code> if the collection is empty. Throws an exception if the array has more than one element.</p>
+        <p>Returns the sole element of an array with a single element. Returns <code>null</code> if the array is empty. Throws an exception if the array has more than one element.</p>
       </td>
     </tr>
   </tbody>

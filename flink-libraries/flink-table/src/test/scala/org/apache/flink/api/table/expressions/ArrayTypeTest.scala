@@ -31,6 +31,11 @@ import org.junit.Test
 class ArrayTypeTest extends ExpressionTestBase {
 
   @Test(expected = classOf[ValidationException])
+  def testObviousInvalidIndexTableApi(): Unit = {
+    testTableApi('f2.at(0), "FAIL", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
   def testEmptyArraySql(): Unit = {
     testSqlApi("ARRAY[]", "FAIL")
   }
@@ -73,8 +78,20 @@ class ArrayTypeTest extends ExpressionTestBase {
   }
 
   @Test(expected = classOf[ValidationException])
+  def testElementNonArraySql(): Unit = {
+    testSqlApi(
+      "ELEMENT(f0)",
+      "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
   def testCardinalityOnNonArray(): Unit = {
     testTableApi('f0.cardinality(), "FAIL", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testCardinalityOnNonArraySql(): Unit = {
+    testSqlApi("CARDINALITY(f0)", "FAIL")
   }
 
   @Test

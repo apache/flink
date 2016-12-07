@@ -82,7 +82,13 @@ case class ArrayElementAt(array: Expression, index: Expression) extends Expressi
     array.resultType match {
       case _: ObjectArrayTypeInfo[_, _] | _: PrimitiveArrayTypeInfo[_] =>
         if (index.resultType == INT_TYPE_INFO) {
-          ValidationSuccess
+          // check for common user mistake
+          index match {
+            case Literal(value: Int, INT_TYPE_INFO) if value < 1 =>
+              ValidationFailure(
+                s"Array element access needs an index starting at 1 but was $value.")
+            case _ => ValidationSuccess
+          }
         } else {
           ValidationFailure(
             s"Array element access needs an integer index but was '${index.resultType}'.")

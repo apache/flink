@@ -68,11 +68,11 @@
    <parameter name="regex"><![CDATA[[A-Z][A-Za-z]*]]></parameter>
   </parameters>
  </check>
-<!-- <check level="error" class="org.scalastyle.scalariform.ObjectNamesChecker" enabled="true">--> 
-<!--  <parameters>--> 
-<!--   <parameter name="regex"><![CDATA[[A-Z][A-Za-z]*]]></parameter>--> 
-<!--  </parameters>--> 
-<!-- </check>--> 
+ <check level="error" class="org.scalastyle.scalariform.ObjectNamesChecker" enabled="true">
+  <parameters>
+   <parameter name="regex"><![CDATA[[A-Z][A-Za-z]*]]></parameter>
+  </parameters>
+ </check>
  <check level="error" class="org.scalastyle.scalariform.PackageObjectNamesChecker" enabled="true">
   <parameters>
    <parameter name="regex"><![CDATA[^[a-z][A-Za-z]*$]]></parameter>

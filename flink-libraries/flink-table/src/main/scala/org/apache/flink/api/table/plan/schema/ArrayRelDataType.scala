@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 
 /**
   * Flink distinguishes between primitive arrays (int[], double[], ...) and
-  * object arrays (Integer[], MyPojo[], ...). This custom type considers the two cases.
+  * object arrays (Integer[], MyPojo[], ...). This custom type supports both cases.
   */
 class ArrayRelDataType(
     val typeInfo: TypeInformation[_],

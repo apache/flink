@@ -474,15 +474,15 @@ trait ImplicitExpressionOperations {
   /**
     * Returns the number of elements of an array.
     *
-    * @return number of element
+    * @return number of elements
     */
   def cardinality() = ArrayCardinality(expr)
 
   /**
-    * Returns the sole element of an array. Returns null if the collection is empty.
-    * Throws an exception if the array has more than one element.
+    * Returns the sole element of an array with a single element. Returns null if the array is
+    * empty. Throws an exception if the array has more than one element.
     *
-    * @return first element of the array
+    * @return the first and only element of an array with a single element
     */
   def element() = ArrayElement(expr)
 }
@@ -577,6 +577,10 @@ trait ImplicitExpressionConversions {
 // ------------------------------------------------------------------------------------------------
 // Expressions with no parameters
 // ------------------------------------------------------------------------------------------------
+
+// we disable the object checker here as it checks for capital letters of objects
+// but we want that objects look like functions in certain cases e.g. array(1, 2, 3)
+// scalastyle:off object.name
 
 /**
   * Returns the current SQL date in UTC time zone.
@@ -684,5 +688,4 @@ object array {
   }
 }
 
-
-
+// scalastyle:on object.name

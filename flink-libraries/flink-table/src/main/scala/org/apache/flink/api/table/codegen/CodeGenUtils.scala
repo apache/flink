@@ -195,7 +195,7 @@ object CodeGenUtils {
 
   def requireInteger(genExpr: GeneratedExpression) =
     if (!TypeCheckUtils.isInteger(genExpr.resultType)) {
-      throw new CodeGenException("Array expression type expected.")
+      throw new CodeGenException("Integer expression type expected.")
     }
 
   // ----------------------------------------------------------------------------------------------
