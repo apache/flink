@@ -91,7 +91,9 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 
 	@Override
 	protected void cleanup() throws Exception {
-		inputProcessor.cleanup();
+		if (inputProcessor != null) {
+			inputProcessor.cleanup();
+		}
 	}
 
 	@Override
