@@ -18,21 +18,18 @@
 
 package org.apache.flink.api.table.functions
 
-import java.lang.reflect.{Method, Modifier}
+import java.util
 
-import org.apache.calcite.sql.SqlFunction
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.api.table.expressions.{Expression, ScalarFunctionCall}
-import org.apache.flink.api.table.functions.utils.ScalarSqlFunction
-import org.apache.flink.api.table.{FlinkTypeFactory, ValidationException}
+import org.apache.flink.api.table.ValidationException
 
 /**
-  * Base class for a user-defined scalar function. A user-defined scalar functions maps zero, one,
-  * or multiple scalar values to a new scalar value.
+  * Base class for a user-defined table function (UDTF). A user-defined table functions works on
+  * zero, one, or multiple scalar values as input and returns multiple rows as output.
   *
-  * The behavior of a [[ScalarFunction]] can be defined by implementing a custom evaluation
+  * The behavior of a [[TableFunction]] can be defined by implementing a custom evaluation
   * method. An evaluation method must be declared publicly and named "eval". Evaluation methods
   * can also be overloaded by implementing multiple methods named "eval".
   *
@@ -44,22 +41,68 @@ import org.apache.flink.api.table.{FlinkTypeFactory, ValidationException}
   * can be manually defined by overriding [[getResultType()]].
   *
   * Internally, the Table/SQL API code generation works with primitive values as much as possible.
-  * If a user-defined scalar function should not introduce much overhead during runtime, it is
+  * If a user-defined table function should not introduce much overhead during runtime, it is
   * recommended to declare parameters and result types as primitive types instead of their boxed
   * classes. DATE/TIME is equal to int, TIMESTAMP is equal to long.
+  *
+  * Example:
+  *
+  * {{{
+  *
+  *   public class Split extends TableFunction<String> {
+  *
+  *     // implement an "eval" method with several parameters you want
+  *     public void eval(String str) {
+  *       for (String s : str.split(" ")) {
+  *         collect(s);   // use collect(...) to emit an output row
+  *       }
+  *     }
+  *
+  *     // can overloading eval method here ...
+  *   }
+  *
+  *   val tEnv: TableEnvironment = ...
+  *   val table: Table = ...    // schema: [a: String]
+  *
+  *   // for Scala users
+  *   val split = new Split()
+  *   table.crossApply(split('c) as ('s)).select('a, 's)
+  *
+  *   // for Java users
+  *   tEnv.registerFunction("split", new Split())   // register table function first
+  *   table.crossApply("split(a) as (s)").select("a, s")
+  *
+  *   // for SQL users
+  *   tEnv.registerFunction("split", new Split())   // register table function first
+  *   tEnv.sql("SELECT a, s FROM MyTable, LATERAL TABLE(split(a)) as T(s)")
+  *
+  * }}}
+  *
+  * @tparam T The type of the output row
   */
-abstract class ScalarFunction extends UserDefinedFunction {
+abstract class TableFunction[T] extends UserDefinedFunction {
+
+  private val rows: util.ArrayList[T] = new util.ArrayList[T]()
 
   /**
-    * Creates a call to a [[ScalarFunction]] in Scala Table API.
+    * Emit an output row.
     *
-    * @param params actual parameters of function
-    * @return [[Expression]] in form of a [[ScalarFunctionCall]]
+    * @param row the output row
     */
-  final def apply(params: Expression*): Expression = {
-    ScalarFunctionCall(this, params)
+  protected def collect(row: T): Unit = {
+    // cache rows for now, maybe immediately process them further
+    rows.add(row)
   }
 
+  /**
+    * Internal use. Get an iterator of the buffered rows.
+    */
+  def getRowsIterator = rows.iterator()
+
+  /**
+    * Internal use. Clear buffered rows.
+    */
+  def clear() = rows.clear()
 
   // ----------------------------------------------------------------------------------------------
 
@@ -71,33 +114,8 @@ abstract class ScalarFunction extends UserDefinedFunction {
     * method. Flink's type extraction facilities can handle basic types or
     * simple POJOs but might be wrong for more complex, custom, or composite types.
     *
-    * @param signature signature of the method the return type needs to be determined
     * @return [[TypeInformation]] of result type or null if Flink should determine the type
     */
-  def getResultType(signature: Array[Class[_]]): TypeInformation[_] = null
+  def getResultType: TypeInformation[T] = null
 
-  /**
-    * Returns [[TypeInformation]] about the operands of the evaluation method with a given
-    * signature.
-    *
-    * In order to perform operand type inference in SQL (especially when NULL is used) it might be
-    * necessary to determine the parameter [[TypeInformation]] of an evaluation method.
-    * By default Flink's type extraction facilities are used for this but might be wrong for
-    * more complex, custom, or composite types.
-    *
-    * @param signature signature of the method the operand types need to be determined
-    * @return [[TypeInformation]] of  operand types
-    */
-  def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] = {
-    signature.map { c =>
-      try {
-        TypeExtractor.getForClass(c)
-      } catch {
-        case ite: InvalidTypesException =>
-          throw new ValidationException(
-            s"Parameter types of scalar function '${this.getClass.getCanonicalName}' cannot be " +
-            s"automatically determined. Please provide type information manually.")
-      }
-    }
-  }
 }

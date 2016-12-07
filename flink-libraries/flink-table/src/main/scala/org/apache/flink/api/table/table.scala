@@ -20,7 +20,8 @@ package org.apache.flink.api.table
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.api.table.expressions.{Asc, Expression, ExpressionParser, Ordering}
+import org.apache.flink.api.table.plan.logical.Minus
+import org.apache.flink.api.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, Ordering, TableFunctionCall}
 import org.apache.flink.api.table.plan.ProjectionTranslator._
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
@@ -400,7 +401,8 @@ class Table(
     }
     new Table(
       tableEnv,
-      Join(this.logicalPlan, right.logicalPlan, joinType, joinPredicate).validate(tableEnv))
+      Join(this.logicalPlan, right.logicalPlan, joinType, joinPredicate, correlated = false)
+        .validate(tableEnv))
   }
 
   /**
@@ -606,6 +608,126 @@ class Table(
     */
   def limit(offset: Int, fetch: Int): Table = {
     new Table(tableEnv, Limit(offset, fetch, logicalPlan).validate(tableEnv))
+  }
+
+  /**
+    * The Cross Apply returns rows from the outer table (table on the left of the Apply operator)
+    * that produces matching values from the table-valued function (which is on the right side of
+    * the operator).
+    *
+    * The Cross Apply is equivalent to Inner Join, but it works with a table-valued function.
+    *
+    * Example:
+    *
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.crossApply(split('c) as ('s)).select('a,'b,'c,'s)
+    * }}}
+    */
+  def crossApply(udtf: Expression): Table = {
+    applyInternal(udtf, JoinType.INNER)
+  }
+
+  /**
+    * The Cross Apply returns rows from the outer table (table on the left of the Apply operator)
+    * that produces matching values from the table-valued function (which is on the right side of
+    * the operator).
+    *
+    * The Cross Apply is equivalent to Inner Join, but it works with a table-valued function.
+    *
+    * Example:
+    *
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.crossApply("split(c) as (s)").select("a, b, c, s")
+    * }}}
+    */
+  def crossApply(udtf: String): Table = {
+    applyInternal(udtf, JoinType.INNER)
+  }
+
+  /**
+    * The Outer Apply returns all the rows from the outer table (table on the left of the Apply
+    * operator), and rows that do not matches the condition from the table-valued function (which
+    * is on the right side of the operator), NULL values are displayed.
+    *
+    * The Outer Apply is equivalent to Left Outer Join, but it works with a table-valued function.
+    *
+    * Example:
+    *
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.outerApply(split('c) as ('s)).select('a,'b,'c,'s)
+    * }}}
+    */
+  def outerApply(udtf: Expression): Table = {
+    applyInternal(udtf, JoinType.LEFT_OUTER)
+  }
+
+  /**
+    * The Outer Apply returns all the rows from the outer table (table on the left of the Apply
+    * operator), and rows that do not matches the condition from the table-valued function (which
+    * is on the right side of the operator), NULL values are displayed.
+    *
+    * The Outer Apply is equivalent to Left Outer Join, but it works with a table-valued function.
+    *
+    * Example:
+    *
+    * {{{
+    *   val split = new MySplitUDTF()
+    *   table.outerApply("split(c) as (s)").select("a, b, c, s")
+    * }}}
+    */
+  def outerApply(udtf: String): Table = {
+    applyInternal(udtf, JoinType.LEFT_OUTER)
+  }
+
+  private def applyInternal(udtfString: String, joinType: JoinType): Table = {
+    val udtf = ExpressionParser.parseExpression(udtfString)
+    applyInternal(udtf, joinType)
+  }
+
+  private def applyInternal(udtf: Expression, joinType: JoinType): Table = {
+    var alias: Option[Seq[String]] = None
+
+    // unwrap an Expression until get a TableFunctionCall
+    def unwrap(expr: Expression): TableFunctionCall = expr match {
+      case Alias(child, name, extraNames) =>
+        alias = Some(Seq(name) ++ extraNames)
+        unwrap(child)
+      case Call(name, args) =>
+        val function = tableEnv.getFunctionCatalog.lookupFunction(name, args)
+        unwrap(function)
+      case c: TableFunctionCall => c
+      case _ => throw new TableException("Cross/Outer Apply only accept TableFunction")
+    }
+
+    val call = unwrap(udtf)
+      .as(alias)
+      .toLogicalTableFunctionCall(this.logicalPlan)
+      .validate(tableEnv)
+
+    new Table(
+      tableEnv,
+      Join(this.logicalPlan, call, joinType, None, correlated = true).validate(tableEnv))
   }
 
   /**

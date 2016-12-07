@@ -17,9 +17,13 @@
  */
 package org.apache.flink.api.table.plan.logical
 
+import java.lang.reflect.Method
+import java.util
+
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.logical.LogicalProject
+import org.apache.calcite.rel.core.CorrelationId
+import org.apache.calcite.rel.logical.{LogicalProject, LogicalTableFunctionScan}
 import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
@@ -27,6 +31,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table._
 import org.apache.flink.api.table.expressions._
+import org.apache.flink.api.table.functions.TableFunction
+import org.apache.flink.api.table.functions.utils.TableSqlFunction
+import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.api.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.api.table.typeutils.TypeConverter
 import org.apache.flink.api.table.validate.{ValidationFailure, ValidationSuccess}
 
@@ -216,7 +224,7 @@ case class Aggregate(
     relBuilder.aggregate(
       relBuilder.groupKey(groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
       aggregateExpressions.map {
-        case Alias(agg: Aggregation, name) => agg.toAggCall(name)(relBuilder)
+        case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
         case _ => throw new RuntimeException("This should never happen.")
       }.asJava)
   }
@@ -361,7 +369,8 @@ case class Join(
     left: LogicalNode,
     right: LogicalNode,
     joinType: JoinType,
-    condition: Option[Expression]) extends BinaryNode {
+    condition: Option[Expression],
+    correlated: Boolean) extends BinaryNode {
 
   override def output: Seq[Attribute] = {
     left.output ++ right.output
@@ -411,22 +420,31 @@ case class Join(
         right)
     }
     val resolvedCondition = node.condition.map(_.postOrderTransform(partialFunction))
-    Join(node.left, node.right, node.joinType, resolvedCondition)
+    Join(node.left, node.right, node.joinType, resolvedCondition, correlated)
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     left.construct(relBuilder)
     right.construct(relBuilder)
+
+    val corSet = mutable.Set[CorrelationId]()
+
+    if (correlated) {
+      corSet += relBuilder.peek().getCluster.createCorrel()
+    }
+
     relBuilder.join(
       TypeConverter.flinkJoinTypeToRelType(joinType),
-      condition.map(_.toRexNode(relBuilder)).getOrElse(relBuilder.literal(true)))
+      condition.map(_.toRexNode(relBuilder)).getOrElse(relBuilder.literal(true)),
+      corSet.asJava)
   }
 
   private def ambiguousName: Set[String] =
     left.output.map(_.name).toSet.intersect(right.output.map(_.name).toSet)
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]
+      && !right.isInstanceOf[LogicalTableFunctionCall]) {
       failValidation(s"Join on stream tables is currently not supported.")
     }
 
@@ -551,11 +569,11 @@ case class WindowAggregate(
       window,
       relBuilder.groupKey(groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
       propertyExpressions.map {
-        case Alias(prop: WindowProperty, name) => prop.toNamedWindowProperty(name)(relBuilder)
+        case Alias(prop: WindowProperty, name, _) => prop.toNamedWindowProperty(name)(relBuilder)
         case _ => throw new RuntimeException("This should never happen.")
       },
       aggregateExpressions.map {
-        case Alias(agg: Aggregation, name) => agg.toAggCall(name)(relBuilder)
+        case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
         case _ => throw new RuntimeException("This should never happen.")
       }.asJava)
   }
@@ -603,5 +621,73 @@ case class WindowAggregate(
     }
 
     resolvedWindowAggregate
+  }
+}
+
+
+/**
+  * LogicalNode for calling a user-defined table functions.
+  * @param functionName function name
+  * @param tableFunction table function to be called (might be overloaded)
+  * @param parameters actual parameters
+  * @param fieldNames output field names
+  * @param child child logical node
+  */
+case class LogicalTableFunctionCall(
+  functionName: String,
+  tableFunction: TableFunction[_],
+  parameters: Seq[Expression],
+  resultType: TypeInformation[_],
+  fieldNames: Array[String],
+  child: LogicalNode)
+  extends UnaryNode {
+
+  val (_, fieldIndexes, fieldTypes) = getFieldInfo(resultType)
+  var evalMethod: Method = _
+
+  override def output: Seq[Attribute] = fieldNames.zip(fieldTypes).map {
+    case (n, t) => ResolvedFieldReference(n, t)
+  }
+
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    val node = super.validate(tableEnv).asInstanceOf[LogicalTableFunctionCall]
+    // check not Scala object
+    checkNotSingleton(tableFunction.getClass)
+    // check could be instantiated
+    checkForInstantiation(tableFunction.getClass)
+    // look for a signature that matches the input types
+    val signature = node.parameters.map(_.resultType)
+    val foundMethod = getEvalMethod(tableFunction, signature)
+    if (foundMethod.isEmpty) {
+      failValidation(
+        s"Given parameters of function '$functionName' do not match any signature. \n" +
+          s"Actual: ${signatureToString(signature)} \n" +
+          s"Expected: ${signaturesToString(tableFunction)}")
+    } else {
+      node.evalMethod = foundMethod.get
+    }
+    node
+  }
+
+  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+    val fieldIndexes = getFieldInfo(resultType)._2
+    val function = new FlinkTableFunctionImpl(resultType, fieldIndexes, fieldNames, evalMethod)
+    val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    val sqlFunction = TableSqlFunction(
+      tableFunction.toString,
+      tableFunction,
+      resultType,
+      typeFactory,
+      function)
+
+    val scan = LogicalTableFunctionScan.create(
+      relBuilder.peek().getCluster,
+      new util.ArrayList[RelNode](),
+      relBuilder.call(sqlFunction, parameters.map(_.toRexNode(relBuilder)).asJava),
+      function.getElementType(null),
+      function.getRowType(relBuilder.getTypeFactory, null),
+      null)
+
+    relBuilder.push(scan)
   }
 }
