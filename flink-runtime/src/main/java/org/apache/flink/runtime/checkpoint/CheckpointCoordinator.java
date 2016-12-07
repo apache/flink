@@ -675,6 +675,7 @@ public class CheckpointCoordinator {
 		if (shutdown || message == null) {
 			return false;
 		}
+
 		if (!job.equals(message.getJob())) {
 			LOG.error("Received wrong AcknowledgeCheckpoint message for job {}: {}", job, message);
 			return false;
@@ -710,7 +711,7 @@ public class CheckpointCoordinator {
 								"the state handle to avoid lingering state.", message.getCheckpointId(),
 							message.getTaskExecutionId(), message.getJob());
 
-						discardState(message.getState());
+						discardState(message.getJob(), message.getTaskExecutionId(), checkpointId, message.getState());
 						break;
 					case DISCARDED:
 						LOG.warn("Could not acknowledge the checkpoint {} for task {} of job {}, " +
@@ -718,7 +719,7 @@ public class CheckpointCoordinator {
 								"state handle tp avoid lingering state.",
 							message.getCheckpointId(), message.getTaskExecutionId(), message.getJob());
 
-						discardState(message.getState());
+						discardState(message.getJob(), message.getTaskExecutionId(), checkpointId, message.getState());
 				}
 
 				return true;
@@ -734,13 +735,15 @@ public class CheckpointCoordinator {
 				// message is for an unknown checkpoint, or comes too late (checkpoint disposed)
 				if (recentPendingCheckpoints.contains(checkpointId)) {
 					wasPendingCheckpoint = true;
-					LOG.warn("Received late message for now expired checkpoint attempt {}.", checkpointId);
+					LOG.warn("Received late message for now expired checkpoint attempt {} from " +
+						"task {} and job {}.", checkpointId, message.getTaskExecutionId(), message.getJob());
 
 					// try to discard the state so that we don't have lingering state lying around
-					discardState(message.getState());
+					discardState(message.getJob(), message.getTaskExecutionId(), checkpointId, message.getState());
 				}
 				else {
-					LOG.debug("Received message for an unknown checkpoint {}.", checkpointId);
+					LOG.debug("Received message for an unknown checkpoint {} from task {} and job" +
+						" {}.", checkpointId, message.getTaskExecutionId(), message.getState());
 					wasPendingCheckpoint = false;
 				}
 
@@ -1112,7 +1115,11 @@ public class CheckpointCoordinator {
 		}
 	}
 
-	private void discardState(final SerializedValue<StateHandle<?>> stateObject) {
+	private void discardState(
+			final JobID jobId,
+			final ExecutionAttemptID executionAttemptID,
+			final long checkpointId,
+			final SerializedValue<StateHandle<?>> stateObject) {
 		if (stateObject != null) {
 			executor.execute(new Runnable() {
 				@Override
@@ -1120,7 +1127,9 @@ public class CheckpointCoordinator {
 					try {
 						stateObject.deserializeValue(userClassLoader).discardState();
 					} catch (Exception e) {
-						LOG.warn("Could not properly discard state object.", e);
+						LOG.warn("Could not properly discard state object for checkpoint {} " +
+							"belonging to task {} of job {}.", checkpointId,
+							executionAttemptID, jobId, e);
 					}
 				}
 			});
