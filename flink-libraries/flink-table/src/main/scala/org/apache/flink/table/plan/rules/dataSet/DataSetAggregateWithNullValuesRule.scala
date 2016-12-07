@@ -26,7 +26,7 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalUnion, LogicalValues}
 import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.nodes.dataset.{DataSetAggregate, DataSetConvention}
+import org.apache.flink.table.plan.nodes.dataset.{DataSetAggregate, DataSetConvention, DataSetUnion}
 
 /**
   * Rule for insert [[org.apache.flink.types.Row]] with null records into a [[DataSetAggregate]]
@@ -55,12 +55,7 @@ class DataSetAggregateWithNullValuesRule
       throw TableException("DISTINCT aggregates are currently not supported.")
     }
 
-    // check if we have grouping sets
-    val groupSets = agg.getGroupSets.size() == 0 || agg.getGroupSets.get(0) != agg.getGroupSet
-    if (groupSets || agg.indicator) {
-      throw TableException("GROUPING SETS are currently not supported.")
-    }
-    !distinctAggs && !groupSets && !agg.indicator
+    !distinctAggs
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -80,15 +75,38 @@ class DataSetAggregateWithNullValuesRule
     val logicalValues = LogicalValues.create(cluster, agg.getInput.getRowType, nullLiterals)
     val logicalUnion = LogicalUnion.create(List(logicalValues, agg.getInput), true)
 
-    new DataSetAggregate(
-      cluster,
-      traitSet,
-      RelOptRule.convert(logicalUnion, DataSetConvention.INSTANCE),
-      agg.getNamedAggCalls,
-      rel.getRowType,
-      agg.getInput.getRowType,
-      agg.getGroupSet.toArray
-    )
+    if (agg.indicator) {
+      agg.groupSets.map(set =>
+        new DataSetAggregate(
+          cluster,
+          traitSet,
+          RelOptRule.convert(logicalUnion, DataSetConvention.INSTANCE),
+          agg.getNamedAggCalls,
+          rel.getRowType,
+          agg.getInput.getRowType,
+          set.toArray
+        ).asInstanceOf[RelNode]
+      ).reduce(
+        (rel1, rel2) => {
+          new DataSetUnion(
+            rel.getCluster,
+            traitSet,
+            rel1, rel2,
+            rel.getRowType
+          )
+        }
+      )
+    } else {
+      new DataSetAggregate(
+        cluster,
+        traitSet,
+        RelOptRule.convert(logicalUnion, DataSetConvention.INSTANCE),
+        agg.getNamedAggCalls,
+        rel.getRowType,
+        agg.getInput.getRowType,
+        agg.getGroupSet.toArray
+      )
+    }
   }
 }
 

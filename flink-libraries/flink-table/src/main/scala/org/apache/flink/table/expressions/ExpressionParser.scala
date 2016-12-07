@@ -51,6 +51,9 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val ARRAY: Keyword = Keyword("Array")
   lazy val AS: Keyword = Keyword("as")
   lazy val COUNT: Keyword = Keyword("count")
+  lazy val GROUP_ID: Keyword = Keyword("group_id")
+  lazy val GROUPING: Keyword = Keyword("grouping")
+  lazy val GROUPING_ID: Keyword = Keyword("grouping_id")
   lazy val AVG: Keyword = Keyword("avg")
   lazy val MIN: Keyword = Keyword("min")
   lazy val MAX: Keyword = Keyword("max")
@@ -89,7 +92,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val FLATTEN: Keyword = Keyword("flatten")
 
   def functionIdent: ExpressionParser.Parser[String] =
-    not(ARRAY) ~ not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
+    not(GROUP_ID) ~ not(GROUPING) ~ not(GROUPING_ID) ~
+      not(ARRAY) ~ not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
       not(SUM) ~ not(START) ~ not(END)~ not(CAST) ~ not(NULL) ~
       not(IF) ~> super.ident
 
@@ -302,6 +306,15 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val prefixArray: PackratParser[Expression] =
     ARRAY ~ "(" ~> repsep(expression, ",") <~ ")" ^^ { elements => ArrayConstructor(elements) }
 
+  lazy val prefixGroupId: PackratParser[Expression] =
+    GROUP_ID ~ "(" ~> expressionList <~ ")" ^^ (ee => GroupId(ee))
+
+  lazy val prefixGroupingId: PackratParser[Expression] =
+    GROUPING_ID ~ "(" ~> expressionList <~ ")" ^^ (ee => GroupingId(ee))
+
+  lazy val prefixGrouping: PackratParser[Expression] =
+    GROUPING ~ "(" ~> expressionList <~ ")" ^^ (ee => Grouping(ee))
+
   lazy val prefixSum: PackratParser[Expression] =
     SUM ~ "(" ~> expression <~ ")" ^^ { e => Sum(e) }
 
@@ -376,7 +389,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     FLATTEN ~ "(" ~> composite <~ ")" ^^ { e => Flattening(e) }
 
   lazy val prefixed: PackratParser[Expression] =
-    prefixArray | prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg |
+    prefixGroupId | prefixGroupingId | prefixGrouping |
+      prefixArray | prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg |
       prefixStart | prefixEnd |
       prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs | prefixIf | prefixExtract |
       prefixFloor | prefixCeil | prefixGet | prefixFlattening |
