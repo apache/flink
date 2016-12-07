@@ -1015,14 +1015,17 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	private boolean transitionState(ExecutionState currentState, ExecutionState targetState, Throwable error) {
 		// sanity check
 		if (currentState.isTerminal()) {
-			throw new IllegalStateException("Cannot leave terminal state " + currentState + " to transition to " + targetState + ".");
+			throw new IllegalStateException("Cannot leave terminal state " + currentState + " to transition to " + targetState + '.');
 		}
 
 		if (STATE_UPDATER.compareAndSet(this, currentState, targetState)) {
 			markTimestamp(targetState);
 
-			LOG.info(getVertex().getTaskNameWithSubtaskIndex() + " ("  + getAttemptId() + ") switched from "
-				+ currentState + " to " + targetState);
+			if (error == null) {
+				LOG.info("{} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState);
+			} else {
+				LOG.info("{} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState, error);
+			}
 
 			// make sure that the state transition completes normally.
 			// potential errors (in listeners may not affect the main logic)

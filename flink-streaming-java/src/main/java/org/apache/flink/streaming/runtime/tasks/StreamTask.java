@@ -211,7 +211,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		boolean disposed = false;
 		try {
 			// -------- Initialize ---------
-			LOG.debug("Initializing {}", getName());
+			LOG.debug("Initializing {}.", getName());
 
 			asyncOperationsThreadPool = Executors.newCachedThreadPool();
 
@@ -528,8 +528,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		catch (Exception e) {
 			// propagate exceptions only if the task is still in "running" state
 			if (isRunning) {
-				throw e;
+				throw new Exception("Could not perform checkpoint " + checkpointMetaData.getCheckpointId() +
+					"for operator " + getName() + '.', e);
 			} else {
+				LOG.debug("Could not perform checkpoint {} for operator {} while the " +
+					"invokable was not in state running.", checkpointMetaData.getCheckpointId(), getName(), e);
 				return false;
 			}
 		}
@@ -541,10 +544,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			performCheckpoint(checkpointMetaData);
 		}
 		catch (CancelTaskException e) {
-			throw e;
+			throw new Exception("Operator " + getName() + " was cancelled while performing checkpoint " +
+				checkpointMetaData.getCheckpointId() + '.');
 		}
 		catch (Exception e) {
-			throw new Exception("Error while performing a checkpoint", e);
+			throw new Exception("Could not perform checkpoint " + checkpointMetaData.getCheckpointId() + " for operator " +
+				getName() + '.', e);
 		}
 	}
 
@@ -678,7 +683,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		if (stateBackend != null) {
 			// backend has been configured on the environment
-			LOG.info("Using user-defined state backend: " + stateBackend);
+			LOG.info("Using user-defined state backend: {}.", stateBackend);
 		} else {
 			// see if we have a backend specified in the configuration
 			Configuration flinkConfig = getEnvironment().getTaskManagerInfo().getConfiguration();
@@ -697,8 +702,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				case "filesystem":
 					FsStateBackend backend = new FsStateBackendFactory().createFromConfig(flinkConfig);
-					LOG.info("State backend is set to heap memory (checkpoints to filesystem \""
-							+ backend.getBasePath() + "\")");
+					LOG.info("State backend is set to heap memory (checkpoints to filesystem \"{}\")",
+						backend.getBasePath());
 					stateBackend = backend;
 					break;
 
@@ -933,7 +938,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				}
 			} catch (Exception e) {
 				// registers the exception and tries to fail the whole task
-				AsynchronousException asyncException = new AsynchronousException(e);
+				AsynchronousException asyncException = new AsynchronousException(
+					new Exception(
+						"Could not materialize checkpoint " + checkpointMetaData.getCheckpointId() +
+							" for operator " + owner.getName() + '.',
+						e));
 				owner.handleAsyncException("Failure in asynchronous checkpoint materialization", asyncException);
 			} finally {
 				owner.cancelables.unregisterClosable(this);
