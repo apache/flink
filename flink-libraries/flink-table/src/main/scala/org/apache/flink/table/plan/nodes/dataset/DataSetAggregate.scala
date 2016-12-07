@@ -23,18 +23,20 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkAggregate
-import org.apache.flink.table.runtime.aggregate.AggregateUtil
+import org.apache.flink.table.runtime.aggregate.{AggregateUtil, GroupingsMapFunction}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.typeutils.TypeConverter
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * Flink RelNode which matches along with a LogicalAggregate.
@@ -46,7 +48,8 @@ class DataSetAggregate(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     rowRelDataType: RelDataType,
     inputType: RelDataType,
-    grouping: Array[Int])
+    grouping: Array[Int],
+    indicator: Boolean)
   extends SingleRel(cluster, traitSet, inputNode)
   with FlinkAggregate
   with DataSetRel {
@@ -61,7 +64,9 @@ class DataSetAggregate(
       namedAggregates,
       getRowType,
       inputType,
-      grouping)
+      grouping,
+      indicator
+    )
   }
 
   override def toString: String = {
@@ -124,7 +129,7 @@ class DataSetAggregate(
 
     val rowTypeInfo = new RowTypeInfo(fieldTypes: _*)
 
-    val result = {
+    val reducedInput = {
       if (groupingKeys.length > 0) {
         // grouped aggregation
         val aggOpName = s"groupBy: (${groupingToString(inputType, grouping)}), " +
@@ -144,6 +149,30 @@ class DataSetAggregate(
           .reduceGroup(groupReduceFunction)
           .returns(rowTypeInfo)
           .name(aggOpName)
+          .asInstanceOf[DataSet[Any]]
+      }
+    }
+
+    var result = reducedInput
+    if (indicator) {
+      val fields = rowRelDataType.getFieldList.asScala.toList
+      var mapping = ArrayBuffer[(Int, Int)]()
+      for (i <- fields.indices) {
+        for (j <- fields.indices) {
+          if (fields(j).getName.equals("i$" + fields(i).getName)) {
+            mapping += ((i, j))
+          }
+        }
+      }
+
+      if (mapping.nonEmpty) {
+        val mapFunction = new GroupingsMapFunction[Row, Row](mapping.toArray, rowTypeInfo)
+
+        val prepareOpName = s"prepare grouping sets"
+        result = reducedInput
+          .asInstanceOf[DataSet[Row]]
+          .map(mapFunction)
+          .name(prepareOpName)
           .asInstanceOf[DataSet[Any]]
       }
     }
