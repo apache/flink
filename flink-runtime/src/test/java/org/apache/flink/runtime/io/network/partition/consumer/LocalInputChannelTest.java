@@ -347,6 +347,53 @@ public class LocalInputChannelTest {
 		requester.join();
 	}
 
+	/**
+	 * Tests that reading from a channel when after the partition has been
+	 * released are handled and don't lead to NPEs.
+	 */
+	@Test
+	public void testGetNextAfterPartitionReleased() throws Exception {
+		ResultSubpartitionView reader = mock(ResultSubpartitionView.class);
+		SingleInputGate gate = mock(SingleInputGate.class);
+		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
+
+		when(partitionManager.createSubpartitionView(
+				any(ResultPartitionID.class),
+				anyInt(),
+				any(BufferProvider.class),
+				any(BufferAvailabilityListener.class))).thenReturn(reader);
+
+		LocalInputChannel channel = new LocalInputChannel(
+			gate,
+			0,
+			new ResultPartitionID(),
+			partitionManager,
+			new TaskEventDispatcher(),
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+
+		channel.requestSubpartition(0);
+
+		// Null buffer but not released
+		when(reader.getNextBuffer()).thenReturn(null);
+		when(reader.isReleased()).thenReturn(false);
+
+		try {
+			channel.getNextBuffer();
+			fail("Did not throw expected IllegalStateException");
+		} catch (IllegalStateException ignored) {
+		}
+
+		// Null buffer and released
+		when(reader.getNextBuffer()).thenReturn(null);
+		when(reader.isReleased()).thenReturn(true);
+
+		try {
+			channel.getNextBuffer();
+			fail("Did not throw expected CancelTaskException");
+		} catch (CancelTaskException ignored) {
+		}
+	}
+
 	// ---------------------------------------------------------------------------------------------
 
 	private LocalInputChannel createLocalInputChannel(
