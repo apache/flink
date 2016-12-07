@@ -735,13 +735,15 @@ public class CheckpointCoordinator {
 				// message is for an unknown checkpoint, or comes too late (checkpoint disposed)
 				if (recentPendingCheckpoints.contains(checkpointId)) {
 					wasPendingCheckpoint = true;
-					LOG.warn("Received late message for now expired checkpoint attempt {}.", checkpointId);
+					LOG.warn("Received late message for now expired checkpoint attempt {} from " +
+						"task {} and job {}.", checkpointId, message.getTaskExecutionId(), message.getJob());
 
 					// try to discard the state so that we don't have lingering state lying around
 					discardState(message.getJob(), message.getTaskExecutionId(), checkpointId, message.getState());
 				}
 				else {
-					LOG.debug("Received message for an unknown checkpoint {}.", checkpointId);
+					LOG.debug("Received message for an unknown checkpoint {} from task {} and job" +
+						" {}.", checkpointId, message.getTaskExecutionId(), message.getState());
 					wasPendingCheckpoint = false;
 				}
 
