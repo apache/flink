@@ -445,8 +445,10 @@ public class AsyncCollectorBufferTest {
 		Assert.assertEquals("", fakedOutput.getValue());
 		Assert.assertEquals("1,2,", fakedOutput.getTimestamp());
 
-		buffer.waitEmpty();
-		buffer.stopEmitterThread();
+		synchronized (lock) {
+			buffer.waitEmpty();
+			buffer.stopEmitterThread();
+		}
 
 
 		// 2. buffer layout: LM -> SR1 -> SR2 -> WM1 -> SR3 -> WM2, where the order of completion is SR3, SR2, SR1
@@ -495,8 +497,10 @@ public class AsyncCollectorBufferTest {
 		Assert.assertEquals("222,111,333,", fakedOutput.getValue());
 		Assert.assertEquals("1,3,2,4,5,6,", fakedOutput.getTimestamp());
 
-		buffer.waitEmpty();
-		buffer.stopEmitterThread();
+		synchronized (lock) {
+			buffer.waitEmpty();
+			buffer.stopEmitterThread();
+		}
 
 		// 3. buffer layout: WM1 -> SR1 -> SR2 -> LM -> SR3 -> WM2, where the order of completion is SR2, SR1, SR3
 		buffer = getBuffer(6, AsyncDataStream.OutputMode.UNORDERED);
@@ -541,8 +545,10 @@ public class AsyncCollectorBufferTest {
 		Assert.assertEquals("222,111,333,", fakedOutput.getValue());
 		Assert.assertEquals("1,3,2,4,5,6,", fakedOutput.getTimestamp());
 
-		buffer.waitEmpty();
-		buffer.stopEmitterThread();
+		synchronized (lock) {
+			buffer.waitEmpty();
+			buffer.stopEmitterThread();
+		}
 
 	}
 

@@ -122,6 +122,7 @@ public class AsyncWaitOperatorTest {
 				public void run() {
 					// wait for while to simulate async operation here
 					int sleep = (int) (random.nextFloat() * SLEEP_FACTOR);
+
 					try {
 						Thread.sleep(sleep);
 						List<Integer> ret = new ArrayList<>();

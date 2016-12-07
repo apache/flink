@@ -212,6 +212,17 @@ public class AsyncCollectorBuffer<IN, OUT> {
 		synchronized (lock) {
 			entry.markDone();
 
+			if (mode == AsyncDataStream.OutputMode.UNORDERED) {
+				StreamElement marker = entriesToMarkers.get(entry);
+
+				if (marker != null) {
+					markerToFinishedEntries.get(marker).add(entry);
+				}
+				else {
+					lonelyFinishedEntries.add(entry);
+				}
+			}
+
 			// if workwork is true, it is not necessary to check it again
 			if (!workwork && shouldNotifyEmitterThread(entry)) {
 				workwork = true;
@@ -258,7 +269,6 @@ public class AsyncCollectorBuffer<IN, OUT> {
 				}
 			}
 
-			System.out.println("still alive...");
 			try {
 				emitThread.join(10000);
 			} catch (InterruptedException e) {
@@ -378,15 +388,6 @@ public class AsyncCollectorBuffer<IN, OUT> {
 				return queueIterator.hasNext() && (queueIterator.next().isDone());
 
 			case UNORDERED:
-				StreamElement marker = entriesToMarkers.get(entry);
-
-				if (marker != null) {
-					markerToFinishedEntries.get(marker).add(entry);
-				}
-				else {
-					lonelyFinishedEntries.add(entry);
-				}
-
 				Iterator<Map.Entry<StreamElement, Set<StreamElementEntry<OUT>>>> iteratorMarker =
 						markerToFinishedEntries.entrySet().iterator();
 
@@ -418,6 +419,7 @@ public class AsyncCollectorBuffer<IN, OUT> {
 		private volatile boolean running = true;
 
 		private void output(StreamElementEntry<OUT> entry) throws Exception {
+
 			StreamElement element = entry.getStreamElement();
 
 			if (element == null) {
@@ -435,7 +437,6 @@ public class AsyncCollectorBuffer<IN, OUT> {
 				timestampedCollector.setTimestamp(element.asRecord());
 
 				for (OUT val : result) {
-					System.out.println(System.identityHashCode(queue)+" emits: "+val+", ts: "+System.currentTimeMillis());
 					timestampedCollector.collect(val);
 				}
 			}
@@ -474,11 +475,7 @@ public class AsyncCollectorBuffer<IN, OUT> {
 			while (queue.size() > 0 && (entry = queue.iterator().next()).isDone()) {
 				output(entry);
 
-				System.out.println("output "+entry.getStreamElement()+", queue add: "+System.identityHashCode(queue));
-
 				queue.remove(entry);
-
-				System.out.println("remove"+entry.getStreamElement()+", queue add: "+System.identityHashCode(queue));
 			}
 		}
 
