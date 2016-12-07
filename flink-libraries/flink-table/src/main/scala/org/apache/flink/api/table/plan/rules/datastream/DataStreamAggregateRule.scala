@@ -70,7 +70,8 @@ class DataStreamAggregateRule
           agg.getNamedAggCalls,
           rel.getRowType,
           agg.getInput.getRowType,
-          set.toArray
+          set.toArray,
+          agg.indicator
         ).asInstanceOf[RelNode]
       ).reduce(
         (rel1, rel2) => {
@@ -92,7 +93,8 @@ class DataStreamAggregateRule
         agg.getNamedAggCalls,
         rel.getRowType,
         agg.getInput.getRowType,
-        agg.getGroupSet.toArray
+        agg.getGroupSet.toArray,
+        agg.indicator
       )
     }
   }

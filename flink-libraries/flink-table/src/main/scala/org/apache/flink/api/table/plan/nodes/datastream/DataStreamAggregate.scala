@@ -40,6 +40,7 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 class DataStreamAggregate(
     window: LogicalWindow,
@@ -50,7 +51,8 @@ class DataStreamAggregate(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     rowRelDataType: RelDataType,
     inputType: RelDataType,
-    grouping: Array[Int])
+    grouping: Array[Int],
+    indicator: Boolean)
   extends SingleRel(cluster, traitSet, inputNode)
   with FlinkAggregate
   with DataStreamRel {
@@ -67,7 +69,9 @@ class DataStreamAggregate(
       namedAggregates,
       getRowType,
       inputType,
-      grouping)
+      grouping,
+      indicator
+    )
   }
 
   override def toString: String = {
@@ -139,7 +143,7 @@ class DataStreamAggregate(
 
     val mappedInput = inputDS.map(mapFunction).name(prepareOpName)
 
-    val result: DataStream[Any] = {
+    val intermediateStream: DataStream[Any] = {
       // check whether all aggregates support partial aggregate
       if (AggregateUtil.doAllSupportPartialAggregation(
             namedAggregates.map(_.getKey),
@@ -239,6 +243,31 @@ class DataStreamAggregate(
         }
       }
     }
+
+    var result = intermediateStream
+    if (indicator) {
+      val fields = rowRelDataType.getFieldList.asScala.toList
+      var mapping = ArrayBuffer[(Int, Int)]()
+      for (i <- fields.indices) {
+        for (j <- fields.indices) {
+          if (fields(j).getName.equals("i$" + fields(i).getName)) {
+            mapping += ((i, j))
+          }
+        }
+      }
+
+      if (mapping.nonEmpty) {
+        val mapFunction = new GroupingsMapFunction[Row, Row](mapping.toArray, rowTypeInfo)
+
+        val prepareOpName = s"prepare grouping sets"
+        result = intermediateStream
+          .asInstanceOf[DataStream[Row]]
+          .map(mapFunction)
+          .name(prepareOpName)
+          .asInstanceOf[DataStream[Any]]
+      }
+    }
+
     // if the expected type is not a Row, inject a mapper to convert to the expected type
     expectedType match {
       case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
