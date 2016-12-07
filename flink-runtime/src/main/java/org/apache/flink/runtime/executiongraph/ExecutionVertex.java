@@ -132,7 +132,7 @@ public class ExecutionVertex implements Serializable {
 		this.jobVertex = jobVertex;
 		this.subTaskIndex = subTaskIndex;
 
-		this.resultPartitions = new LinkedHashMap<IntermediateResultPartitionID, IntermediateResultPartition>(producedDataSets.length, 1);
+		this.resultPartitions = new LinkedHashMap<>(producedDataSets.length, 1);
 
 		for (IntermediateResult result : producedDataSets) {
 			IntermediateResultPartition irp = new IntermediateResultPartition(result, this, subTaskIndex);
@@ -580,7 +580,10 @@ public class ExecutionVertex implements Serializable {
 
 		// prepare previous executions for archiving
 		for (Execution exec : priorExecutions) {
-			exec.prepareForArchiving();
+			// The bounded list returns null for evicted executions
+			if (exec != null) {
+				exec.prepareForArchiving();
+			}
 		}
 
 		// clear the unnecessary fields in this class
