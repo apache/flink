@@ -123,8 +123,21 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 			else if (allowLazyDeployment) {
 				// The producing task might not have registered the partition yet
 				partitionLocation = ResultPartitionLocation.createUnknown();
-			} else {
-				throw new IllegalStateException("Trying to eagerly schedule a task whose inputs are not ready.");
+			}
+			else if (producerState == ExecutionState.CANCELING
+						|| producerState == ExecutionState.CANCELED
+						|| producerState == ExecutionState.FAILED) {
+				String msg = "Trying to schedule a task whose inputs were canceled or failed. " +
+					"The producer is in state " + producerState + ".";
+				throw new IllegalStateException(msg);
+			}
+			else {
+				String msg = String.format("Trying to eagerly schedule a task whose inputs " +
+					"are not ready (partition consumable? %s, producer state: %s, producer slot: %s).",
+						consumedPartition.isConsumable(),
+						producerState,
+						producerSlot);
+				throw new IllegalStateException(msg);
 			}
 
 			final ResultPartitionID consumedPartitionId = new ResultPartitionID(
