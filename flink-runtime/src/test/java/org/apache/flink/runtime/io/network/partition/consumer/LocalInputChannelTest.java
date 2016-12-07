@@ -366,7 +366,7 @@ public class LocalInputChannelTest {
 			new ResultPartitionID(),
 			partitionManager,
 			new TaskEventDispatcher(),
-			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		channel.requestSubpartition(0);
 
