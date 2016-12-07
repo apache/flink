@@ -313,6 +313,9 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 				currentCheckpointId = barrierId;
 				startOfAlignmentTimestamp = 0L;
 				latestAlignmentDurationNanos = 0L;
+
+				notifyAbort(currentCheckpointId, new CheckpointDeclineSubsumedException(barrierId));
+
 				notifyAbortOnCancellationBarrier(barrierId);
 			}
 
@@ -422,7 +425,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		startOfAlignmentTimestamp = System.nanoTime();
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Starting stream alignment for checkpoint " + checkpointId);
+			LOG.debug("Starting stream alignment for checkpoint " + checkpointId + '.');
 		}
 	}
 

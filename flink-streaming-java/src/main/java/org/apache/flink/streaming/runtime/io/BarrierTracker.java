@@ -211,6 +211,11 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 		CheckpointBarrierCount cbc;
 		while ((cbc = pendingCheckpoints.peekFirst()) != null && cbc.checkpointId() < checkpointId) {
 			pendingCheckpoints.removeFirst();
+
+			if (cbc.markAborted()) {
+				// abort the subsumed checkpoints if not already done
+				notifyAbort(cbc.checkpointId());
+			}
 		}
 
 		if (cbc != null && cbc.checkpointId() == checkpointId) {
@@ -226,17 +231,19 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 				pendingCheckpoints.removeFirst();
 			}
 		}
-		else {
+		else if (checkpointId > latestPendingCheckpointID) {
 			notifyAbort(checkpointId);
 
-			// first barrier for this checkpoint - remember it as aborted
-			// since we polled away all entries with lower checkpoint IDs
-			// this entry will become the new first entry
-			if (pendingCheckpoints.size() < MAX_CHECKPOINTS_TO_TRACK) {
-				CheckpointBarrierCount abortedMarker = new CheckpointBarrierCount(checkpointId);
-				abortedMarker.markAborted();
-				pendingCheckpoints.addFirst(abortedMarker);
-			}
+			latestPendingCheckpointID = checkpointId;
+
+			CheckpointBarrierCount abortedMarker = new CheckpointBarrierCount(checkpointId);
+			abortedMarker.markAborted();
+			pendingCheckpoints.addFirst(abortedMarker);
+
+			// we have removed all other pending checkpoint barrier counts --> no need to check that
+			// we don't exceed the maximum checkpoints to track
+		} else {
+			// trailing cancellation barrier which was already cancelled
 		}
 	}
 
