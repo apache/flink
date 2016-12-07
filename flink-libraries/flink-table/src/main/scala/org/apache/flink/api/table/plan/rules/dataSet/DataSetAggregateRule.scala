@@ -21,7 +21,7 @@ package org.apache.flink.api.table.plan.rules.dataSet
 import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalUnion}
+import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.flink.api.table.TableException
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetAggregate, DataSetConvention, DataSetUnion}
 

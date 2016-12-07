@@ -21,7 +21,6 @@ package org.apache.flink.api.table.plan.rules.datastream
 import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalUnion
 import org.apache.flink.api.table.TableException
 import org.apache.flink.api.table.plan.logical.rel.LogicalWindowAggregate
 import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamAggregate, DataStreamConvention, DataStreamUnion}
@@ -44,14 +43,7 @@ class DataStreamAggregateRule
       throw TableException("DISTINCT aggregates are currently not supported.")
     }
 
-    //    // check if we have grouping sets
-    //    val groupSets = agg.getGroupSets.size() != 1 || agg.getGroupSets.get(0) != agg.getGroupSet
-    //    if (groupSets || agg.indicator) {
-    //      throw TableException("GROUPING SETS are currently not supported.")
-    //    }
-
     !distinctAggs
-    //    && !groupSets && !agg.indicator
   }
 
   override def convert(rel: RelNode): RelNode = {
