@@ -378,8 +378,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		Preconditions.checkState(1 == stateHandles.size(), "Only one element expected here.");
 
-		HashMap<String, KvStateSnapshot<K, ?, ?, ?>> namedStates =
-				InstantiationUtil.deserializeObject(stateHandles.iterator().next().openInputStream(), userCodeClassLoader);
+		HashMap<String, KvStateSnapshot<K, ?, ?, ?>> namedStates;
+		try (FSDataInputStream inputStream = stateHandles.iterator().next().openInputStream()) {
+			namedStates = InstantiationUtil.deserializeObject(inputStream, userCodeClassLoader);
+		}
 
 		for (Map.Entry<String, KvStateSnapshot<K, ?, ?, ?>> nameToState : namedStates.entrySet()) {
 

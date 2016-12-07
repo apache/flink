@@ -1090,8 +1090,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		Preconditions.checkState(1 == restoreState.size(), "Only one element expected here.");
-		HashMap<String, RocksDBStateBackend.FinalFullyAsyncSnapshot> namedStates =
-				InstantiationUtil.deserializeObject(restoreState.iterator().next().openInputStream(), userCodeClassLoader);
+		HashMap<String, RocksDBStateBackend.FinalFullyAsyncSnapshot> namedStates;
+		try (FSDataInputStream inputStream = restoreState.iterator().next().openInputStream()) {
+			namedStates = InstantiationUtil.deserializeObject(inputStream, userCodeClassLoader);
+		}
 
 		Preconditions.checkState(1 == namedStates.size(), "Only one element expected here.");
 		DataInputView inputView = namedStates.values().iterator().next().stateHandle.getState(userCodeClassLoader);
@@ -1101,7 +1103,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		// first get the column family mapping
 		int numColumns = inputView.readInt();
-		Map<Byte, StateDescriptor> columnFamilyMapping = new HashMap<>(numColumns);
+		Map<Byte, StateDescriptor<?, ?>> columnFamilyMapping = new HashMap<>(numColumns);
 		for (int i = 0; i < numColumns; i++) {
 			byte mappingByte = inputView.readByte();
 
