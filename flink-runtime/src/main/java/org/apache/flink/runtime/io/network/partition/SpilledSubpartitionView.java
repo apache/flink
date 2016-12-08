@@ -166,7 +166,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 
 	@Override
 	public String toString() {
-		return String.format("SpilledSubpartitionView(index: %d, buffers: {}) of ResultPartition %s",
+		return String.format("SpilledSubpartitionView(index: %d, buffers: %d) of ResultPartition %s",
 			parent.index,
 			numberOfSpilledBuffers,
 			parent.parent.getPartitionId());
