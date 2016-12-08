@@ -112,6 +112,9 @@ under the License.
 		<mockito.version>1.10.19</mockito.version>
 		<powermock.version>1.6.5</powermock.version>
 		<jacoco.version>0.7.7.201606060606</jacoco.version>
+		<!-- Internal property to change maven-shade plugin behaviour.
+		It uses for correct test coverage collecting -->
+		<shade.shadedArtifactAttached>false</shade.shadedArtifactAttached>
 		<!--
 			Keeping the MiniKDC version fixed instead of taking hadoop version dependency
 			to support testing Kafka, ZK etc., modules that does not have Hadoop dependency
@@ -785,6 +788,11 @@ under the License.
 			<id>coverage</id>
 			<properties>
 				<flink.forkCount>1</flink.forkCount>
+				<!--Disable auto replacing original jar with shaded one.
+				Jacoco coverage report generation requires exactly the same classes which used in coverage data
+				collecting. At the same time maven-shade-plugin change jar classes during shade.
+				It leads to lose coverage data from flink-tests module tests. -->
+				<shade.shadedArtifactAttached>true</shade.shadedArtifactAttached>
 			</properties>
 			<build>
 				<plugins>
@@ -794,6 +802,12 @@ under the License.
 						<version>${jacoco.version}</version>
 						<configuration>
 							<append>true</append>
+							<includes>
+								<include>org/apache/flink/**</include>
+							</includes>
+							<excludes>
+								<exclude>org/apache/flink/test/**</exclude>
+							</excludes>
 						</configuration>
 						<executions>
 							<execution>
@@ -1109,7 +1123,7 @@ under the License.
 						</goals>
 						<configuration>
 							<shadeTestJar>true</shadeTestJar>
-							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<shadedArtifactAttached>${shade.shadedArtifactAttached}</shadedArtifactAttached>
 							<createDependencyReducedPom>true</createDependencyReducedPom>
 							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
 							<filters>

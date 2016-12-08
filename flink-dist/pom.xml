@@ -313,7 +313,7 @@ under the License.
 						</goals>
 						<configuration combine.self="override">
 							<createDependencyReducedPom>false</createDependencyReducedPom>
-							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<shadedArtifactAttached>${shade.shadedArtifactAttached}</shadedArtifactAttached>
 							<finalName>${project.artifactId}-${project.version}</finalName>
 							<filters>
 								<!-- Globally exclude log4j.properties from our JAR files. -->

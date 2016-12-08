@@ -62,6 +62,7 @@
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<shadedArtifactAttached>${shade.shadedArtifactAttached}</shadedArtifactAttached>
 							<artifactSet combine.self="override">
 								<excludes>
 									<exclude>log4j</exclude>

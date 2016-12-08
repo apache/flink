@@ -75,6 +75,7 @@ under the License.
 					<execution>
 						<id>shade-flink</id>
 						<configuration>
+							<shadedArtifactAttached>${shade.shadedArtifactAttached}</shadedArtifactAttached>
 							<artifactSet>
 								<includes combine.children="append">
 									<!-- We include all dependencies that transitively depend on guava -->

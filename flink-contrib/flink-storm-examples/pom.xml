@@ -315,7 +315,6 @@ under the License.
 						</goals>
 						<configuration>
 							<finalName>WordCount-StormTopology</finalName>
-
 							<artifactSet>
 								<includes>
 									<include>org.apache.storm:storm-core</include>
@@ -376,6 +375,18 @@ under the License.
 									<mainClass>org.apache.flink.storm.wordcount.WordCountRemoteBySubmitter</mainClass>
 								</transformer>
 							</transformers>
+						</configuration>
+					</execution>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
 						</configuration>
 					</execution>
 				</executions>

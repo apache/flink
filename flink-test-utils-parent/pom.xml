@@ -40,4 +40,12 @@ under the License.
 		<module>flink-test-utils</module>
 	</modules>
 
+	<profiles>
+		<profile>
+			<id>coverage</id>
+			<modules>
+				<module>flink-test-utils-coverage</module>
+			</modules>
+		</profile>
+	</profiles>
 </project>

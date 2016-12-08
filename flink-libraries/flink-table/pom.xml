@@ -156,6 +156,7 @@ under the License.
 					<execution>
 						<id>shade-flink</id>
 						<configuration>
+							<shadedArtifactAttached>${shade.shadedArtifactAttached}</shadedArtifactAttached>
 							<filters>
 								<filter>
 									<excludes>

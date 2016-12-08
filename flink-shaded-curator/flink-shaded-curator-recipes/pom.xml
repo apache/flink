@@ -63,6 +63,7 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<shadedArtifactAttached>${shade.shadedArtifactAttached}</shadedArtifactAttached>
 							<artifactSet combine.self="override">
 								<includes>
 									<include>com.google.guava:*</include>

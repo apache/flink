@@ -268,6 +268,7 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<shadedArtifactAttached>${shade.shadedArtifactAttached}</shadedArtifactAttached>
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet>
 								<includes combine.children="append">

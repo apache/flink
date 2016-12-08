@@ -501,7 +501,6 @@ under the License.
 						</goals>
 						<configuration>
 							<shadeTestJar>false</shadeTestJar>
-							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
@@ -537,7 +536,6 @@ under the License.
 						</goals>
 						<configuration>
 							<shadeTestJar>false</shadeTestJar>
-							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
@@ -557,6 +555,18 @@ under the License.
 									</includes>
 								</filter>
 							</filters>
+						</configuration>
+					</execution>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
 						</configuration>
 					</execution>
 				</executions>

@@ -68,6 +68,7 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration combine.self="override">
+							<shadedArtifactAttached>${shade.shadedArtifactAttached}</shadedArtifactAttached>
 							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
 							<artifactSet>
 								<includes>
