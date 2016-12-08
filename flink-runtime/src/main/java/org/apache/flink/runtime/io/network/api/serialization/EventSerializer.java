@@ -94,13 +94,15 @@ public class EventSerializer {
 	/**
 	 * Identifies whether the given buffer encodes the given event.
 	 *
+	 * <p><strong>Pre-condition</strong>: This buffer must encode some event!</p>
+	 *
 	 * @param buffer the buffer to peak into
 	 * @param eventClass the expected class of the event type
 	 * @param classLoader the class loader to use for custom event classes
 	 * @return whether the event class of the <tt>buffer</tt> matches the given <tt>eventClass</tt>
 	 * @throws IOException
 	 */
-	public static boolean isEvent(ByteBuffer buffer, Class<?> eventClass, ClassLoader classLoader) throws IOException {
+	private static boolean isEvent(ByteBuffer buffer, Class<?> eventClass, ClassLoader classLoader) throws IOException {
 		if (buffer.remaining() < 4) {
 			throw new IOException("Incomplete event");
 		}
@@ -242,7 +244,10 @@ public class EventSerializer {
 	 * @return whether the event class of the <tt>buffer</tt> matches the given <tt>eventClass</tt>
 	 * @throws IOException
 	 */
-	public static boolean isEvent(Buffer buffer, Class<?> eventClass, ClassLoader classLoader) throws IOException {
-		return isEvent(buffer.getNioBuffer(), eventClass, classLoader);
+	public static boolean isEvent(final Buffer buffer,
+		final Class<?> eventClass,
+		final ClassLoader classLoader) throws IOException {
+		return !buffer.isBuffer() &&
+			isEvent(buffer.getNioBuffer(), eventClass, classLoader);
 	}
 }

@@ -218,9 +218,8 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 	}
 
 	private boolean isEndOfPartitionEvent(Buffer buffer) throws IOException {
-		return !buffer.isBuffer() &&
-			EventSerializer.isEvent(buffer, EndOfPartitionEvent.class,
-				getClass().getClassLoader());
+		return EventSerializer.isEvent(buffer, EndOfPartitionEvent.class,
+			getClass().getClassLoader());
 	}
 
 	@Override
