@@ -19,8 +19,11 @@
 package org.apache.flink.runtime.messages
 
 import org.apache.flink.runtime.deployment.{InputChannelDeploymentDescriptor, TaskDeploymentDescriptor}
+import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionProducerState
 import org.apache.flink.runtime.taskmanager.TaskExecutionState
 
 /**
@@ -88,6 +91,22 @@ object TaskMessages {
   // --------------------------------------------------------------------------
   //  Updates to Intermediate Results
   // --------------------------------------------------------------------------
+
+  /**
+    * Answer to a [[RequestPartitionProducerState]] with the state of the partition producer.
+    *
+    * @param receiverExecutionId The execution attempt ID of the task who triggered the
+    *                            original request and should receive this update.
+    * @param result              Either a successful or failed partition producer state check
+    *                            result. On success, this is a 3-tuple of intermediate data set ID
+    *                            (to identify the input gate), the partition ID (to identify the
+    *                            channel) and the producer state. On failure, this contains the
+    *                            failure cause.
+    */
+  case class PartitionProducerState(
+      receiverExecutionId: ExecutionAttemptID,
+      result: Either[(IntermediateDataSetID, ResultPartitionID, ExecutionState), Exception])
+    extends TaskMessage with RequiresLeaderSessionID
 
   /**
    * Base class for messages that update the information about location of input partitions

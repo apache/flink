@@ -43,7 +43,6 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.SerializableObject;
-import org.apache.flink.runtime.util.TestExecutors;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -51,7 +50,6 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
-import scala.concurrent.ExecutionContext$;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -153,8 +151,7 @@ public class InterruptSensitiveRestoreTest {
 				"localhost",
 				new Configuration(),
 				EnvironmentInformation.getTemporaryFileDirectory()),
-				new UnregisteredTaskMetricsGroup(),
-				TestExecutors.directExecutor());
+				new UnregisteredTaskMetricsGroup());
 	}
 
 	// ------------------------------------------------------------------------

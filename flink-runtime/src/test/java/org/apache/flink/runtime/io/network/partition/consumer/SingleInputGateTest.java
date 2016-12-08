@@ -43,7 +43,6 @@ import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
-import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.junit.Test;
 import scala.Tuple2;
 
@@ -75,7 +74,7 @@ public class SingleInputGateTest {
 	public void testBasicGetNextLogic() throws Exception {
 		// Setup
 		final SingleInputGate inputGate = new SingleInputGate(
-			"Test Task Name", new JobID(), new IntermediateDataSetID(), 0, 2, mock(TaskActions.class), new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			"Test Task Name", new JobID(), new ExecutionAttemptID(), new IntermediateDataSetID(), 0, 2, mock(PartitionProducerStateChecker.class), new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		final TestInputChannel[] inputChannels = new TestInputChannel[]{
 			new TestInputChannel(inputGate, 0),
@@ -129,7 +128,7 @@ public class SingleInputGateTest {
 		// Setup reader with one local and one unknown input channel
 		final IntermediateDataSetID resultId = new IntermediateDataSetID();
 
-		final SingleInputGate inputGate = new SingleInputGate("Test Task Name", new JobID(), resultId, 0, 2, mock(TaskActions.class), new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+		final SingleInputGate inputGate = new SingleInputGate("Test Task Name", new JobID(), new ExecutionAttemptID(), resultId, 0, 2, mock(PartitionProducerStateChecker.class), new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 		final BufferPool bufferPool = mock(BufferPool.class);
 		when(bufferPool.getNumberOfRequiredMemorySegments()).thenReturn(2);
 
@@ -180,11 +179,11 @@ public class SingleInputGateTest {
 		SingleInputGate inputGate = new SingleInputGate(
 			"t1",
 			new JobID(),
+			new ExecutionAttemptID(),
 			new IntermediateDataSetID(),
 			0,
 			1,
-			mock(TaskActions.class),
-			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			mock(PartitionProducerStateChecker.class), new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 
@@ -220,10 +219,11 @@ public class SingleInputGateTest {
 		final SingleInputGate inputGate = new SingleInputGate(
 			"InputGate",
 			new JobID(),
+			new ExecutionAttemptID(),
 			new IntermediateDataSetID(),
 			0,
 			1,
-			mock(TaskActions.class),
+			mock(PartitionProducerStateChecker.class),
 			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		InputChannel unknown = new UnknownInputChannel(
@@ -321,9 +321,9 @@ public class SingleInputGateTest {
 		SingleInputGate gate = SingleInputGate.create(
 			"TestTask",
 			new JobID(),
+			new ExecutionAttemptID(),
 			gateDesc,
 			netEnv,
-			mock(TaskActions.class),
 			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		Map<IntermediateResultPartitionID, InputChannel> channelMap = gate.getInputChannels();

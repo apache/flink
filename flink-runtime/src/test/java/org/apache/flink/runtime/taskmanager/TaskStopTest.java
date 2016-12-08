@@ -61,32 +61,31 @@ public class TaskStopTest {
 			when(tmRuntimeInfo.getConfiguration()).thenReturn(new Configuration());
 
 		task = new Task(
-			mock(JobInformation.class),
-			new TaskInformation(
+				mock(JobInformation.class),
+				new TaskInformation(
 				new JobVertexID(),
 				"test task name",
 				1,
 				"foobar",
 				new Configuration()),
-			mock(ExecutionAttemptID.class),
-			0,
-			0,
-			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-			Collections.<InputGateDeploymentDescriptor>emptyList(),
-			0,
-			null,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			mock(NetworkEnvironment.class),
-			mock(BroadcastVariableManager.class),
-			mock(ActorGateway.class),
-			mock(ActorGateway.class),
-			mock(FiniteDuration.class),
-			mock(LibraryCacheManager.class),
-			mock(FileCache.class),
-			tmRuntimeInfo,
-			mock(TaskMetricGroup.class),
-			TestExecutors.directExecutor());
+				mock(ExecutionAttemptID.class),
+				0,
+				0,
+				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+				Collections.<InputGateDeploymentDescriptor>emptyList(),
+				0,
+				null,
+				mock(MemoryManager.class),
+				mock(IOManager.class),
+				mock(NetworkEnvironment.class),
+				mock(BroadcastVariableManager.class),
+				mock(ActorGateway.class),
+				mock(ActorGateway.class),
+				mock(FiniteDuration.class),
+				mock(LibraryCacheManager.class),
+				mock(FileCache.class),
+				tmRuntimeInfo,
+				mock(TaskMetricGroup.class));
 
 		Field f = task.getClass().getDeclaredField("invokable");
 		f.setAccessible(true);

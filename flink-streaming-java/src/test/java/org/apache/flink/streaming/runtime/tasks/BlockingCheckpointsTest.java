@@ -47,7 +47,6 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend.CheckpointStateOutputStream;
@@ -57,14 +56,11 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.SerializableObject;
-import org.apache.flink.runtime.util.TestExecutors;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.util.SerializedValue;
-
 import org.junit.Test;
-
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -150,9 +146,7 @@ public class BlockingCheckpointsTest {
 			new FallbackLibraryCacheManager(),
 			new FileCache(new Configuration()),
 			new TaskManagerRuntimeInfo("localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
-			new UnregisteredTaskMetricsGroup(),
-			TestExecutors.directExecutor());
-		
+			new UnregisteredTaskMetricsGroup());
 	}
 
 	// ------------------------------------------------------------------------

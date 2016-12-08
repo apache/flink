@@ -19,10 +19,12 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -30,7 +32,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup.DummyIOMetricGroup;
-import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.junit.Test;
 import scala.Tuple2;
 
@@ -59,16 +60,17 @@ public class InputGateConcurrentTest {
 		final ResultPartitionManager resultPartitionManager = createResultPartitionManager(partitions);
 
 		final SingleInputGate gate = new SingleInputGate(
-				"Test Task Name",
-				new JobID(),
-				new IntermediateDataSetID(),
-				0, numChannels,
-				mock(TaskActions.class),
-				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			"Test Task Name",
+			new JobID(),
+			new ExecutionAttemptID(),
+			new IntermediateDataSetID(),
+			0, numChannels,
+			mock(PartitionProducerStateChecker.class),
+			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		for (int i = 0; i < numChannels; i++) {
 			LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
-					resultPartitionManager, mock(TaskEventDispatcher.class), new DummyIOMetricGroup());
+				resultPartitionManager, mock(TaskEventDispatcher.class), new DummyIOMetricGroup());
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
 			partitions[i] = new PipelinedSubpartition(0, resultPartition);
@@ -94,18 +96,19 @@ public class InputGateConcurrentTest {
 		final Source[] sources = new Source[numChannels];
 
 		final SingleInputGate gate = new SingleInputGate(
-				"Test Task Name",
-				new JobID(),
-				new IntermediateDataSetID(),
-				0,
-				numChannels,
-				mock(TaskActions.class),
-				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			"Test Task Name",
+			new JobID(),
+			new ExecutionAttemptID(),
+			new IntermediateDataSetID(),
+			0,
+			numChannels,
+			mock(PartitionProducerStateChecker.class),
+			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		for (int i = 0; i < numChannels; i++) {
 			RemoteInputChannel channel = new RemoteInputChannel(
-					gate, i, new ResultPartitionID(), mock(ConnectionID.class),
-					connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup());
+				gate, i, new ResultPartitionID(), mock(ConnectionID.class),
+				connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup());
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
 			sources[i] = new RemoteChannelSource(channel);
@@ -143,13 +146,14 @@ public class InputGateConcurrentTest {
 		final Source[] sources = new Source[numChannels];
 
 		final SingleInputGate gate = new SingleInputGate(
-				"Test Task Name",
-				new JobID(),
-				new IntermediateDataSetID(),
-				0,
-				numChannels,
-				mock(TaskActions.class),
-				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			"Test Task Name",
+			new JobID(),
+			new ExecutionAttemptID(),
+			new IntermediateDataSetID(),
+			0,
+			numChannels,
+			mock(PartitionProducerStateChecker.class),
+			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		for (int i = 0, local = 0; i < numChannels; i++) {
 			if (localOrRemote.get(i)) {
@@ -159,14 +163,14 @@ public class InputGateConcurrentTest {
 				sources[i] = new PipelinedSubpartitionSource(psp);
 
 				LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
-						resultPartitionManager, mock(TaskEventDispatcher.class), new DummyIOMetricGroup());
+					resultPartitionManager, mock(TaskEventDispatcher.class), new DummyIOMetricGroup());
 				gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 			}
 			else {
 				//remote channel
 				RemoteInputChannel channel = new RemoteInputChannel(
-						gate, i, new ResultPartitionID(), mock(ConnectionID.class),
-						connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup());
+					gate, i, new ResultPartitionID(), mock(ConnectionID.class),
+					connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup());
 				gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
 				sources[i] = new RemoteChannelSource(channel);
@@ -188,7 +192,7 @@ public class InputGateConcurrentTest {
 	// ------------------------------------------------------------------------
 
 	private static abstract class Source {
-	
+
 		abstract void addBuffer(Buffer buffer) throws Exception;
 	}
 

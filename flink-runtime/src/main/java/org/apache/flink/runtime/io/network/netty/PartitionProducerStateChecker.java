@@ -19,10 +19,9 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import scala.concurrent.Future;
 
 /**
  * Intermediate partition state checker to query the JobManager about the state
@@ -36,17 +35,14 @@ public interface PartitionProducerStateChecker {
 
 	/**
 	 * Requests the execution state of the execution producing a result partition.
-	 *
-	 * @param jobId ID of the job the partition belongs to.
+	 *  @param jobId ID of the job the partition belongs to.
+	 * @param receiverExecutionId
 	 * @param intermediateDataSetId ID of the parent intermediate data set.
 	 * @param resultPartitionId ID of the result partition to check. This
-	 * identifies the producing execution and partition.
-	 *
-	 * @return Future holding the execution state of the producing execution.
 	 */
-	Future<ExecutionState> requestPartitionProducerState(
-			JobID jobId,
-			IntermediateDataSetID intermediateDataSetId,
-			ResultPartitionID resultPartitionId);
+	void requestPartitionProducerState(
+		JobID jobId, ExecutionAttemptID receiverExecutionId,
+		IntermediateDataSetID intermediateDataSetId,
+		ResultPartitionID resultPartitionId);
 
 }

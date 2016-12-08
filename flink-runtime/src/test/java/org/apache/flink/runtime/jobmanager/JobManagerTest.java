@@ -47,10 +47,13 @@ import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionProducerState;
 import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.StoppingSuccess;
 import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
+import org.apache.flink.runtime.messages.TaskMessages.PartitionProducerState;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManager;
@@ -76,7 +79,6 @@ import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
-import scala.reflect.ClassTag$;
 
 import java.io.File;
 import java.net.InetAddress;
@@ -190,41 +192,44 @@ public class JobManagerTest extends TestLogger {
 
 						// - The test ----------------------------------------------------------------------
 
+						ExecutionAttemptID receiverId = new ExecutionAttemptID();
+
 						// 1. All execution states
-						JobManagerMessages.RequestPartitionProducerState request = new JobManagerMessages.RequestPartitionProducerState(
-							jid, rid, partitionId);
+						RequestPartitionProducerState request = new RequestPartitionProducerState(
+							jid, receiverId, rid, partitionId);
 
 						for (ExecutionState state : ExecutionState.values()) {
 							ExecutionGraphTestUtils.setVertexState(vertex, state);
 
-							Future<ExecutionState> futurePartitionState = jobManagerGateway
-								.ask(request, getRemainingTime())
-								.mapTo(ClassTag$.MODULE$.<ExecutionState>apply(ExecutionState.class));
+							Future<?> futurePartitionState = jobManagerGateway
+								.ask(request, getRemainingTime());
 
-							ExecutionState resp = Await.result(futurePartitionState, getRemainingTime());
-							assertEquals(state, resp);
+							LeaderSessionMessage wrappedMsg = (LeaderSessionMessage) Await.result(futurePartitionState, getRemainingTime());
+							PartitionProducerState resp = (PartitionProducerState) (PartitionProducerState) wrappedMsg.message();
+							assertEquals(receiverId, resp.receiverExecutionId());
+							assertTrue("Responded with failure: " + resp, resp.result().isLeft());
+							assertEquals(state, resp.result().left().get()._3());
 						}
 
 						// 2. Non-existing execution
-						request = new JobManagerMessages.RequestPartitionProducerState(jid, rid, new ResultPartitionID());
+						request = new RequestPartitionProducerState(jid, receiverId, rid, new ResultPartitionID());
 
 						Future<?> futurePartitionState = jobManagerGateway.ask(request, getRemainingTime());
-						try {
-							Await.result(futurePartitionState, getRemainingTime());
-							fail("Did not fail with expected RuntimeException");
-						} catch (RuntimeException e) {
-							assertEquals(IllegalArgumentException.class, e.getCause().getClass());
-						}
+						LeaderSessionMessage wrappedMsg = (LeaderSessionMessage) Await.result(futurePartitionState, getRemainingTime());
+						PartitionProducerState resp = (PartitionProducerState) wrappedMsg.message();
+						assertEquals(receiverId, resp.receiverExecutionId());
+						assertTrue("Responded with success: " + resp, resp.result().isRight());
+						assertTrue(resp.result().right().get() instanceof RuntimeException);
+						assertTrue(resp.result().right().get().getCause() instanceof IllegalArgumentException);
 
 						// 3. Non-existing job
-						request = new JobManagerMessages.RequestPartitionProducerState(new JobID(), rid, new ResultPartitionID());
+						request = new RequestPartitionProducerState(new JobID(), receiverId, rid, new ResultPartitionID());
 						futurePartitionState = jobManagerGateway.ask(request, getRemainingTime());
-
-						try {
-							Await.result(futurePartitionState, getRemainingTime());
-							fail("Did not fail with expected IllegalArgumentException");
-						} catch (IllegalArgumentException ignored) {
-						}
+						wrappedMsg = (LeaderSessionMessage) Await.result(futurePartitionState, getRemainingTime());
+						resp = (PartitionProducerState) wrappedMsg.message();
+						assertEquals(receiverId, resp.receiverExecutionId());
+						assertTrue("Responded with success: " + resp, resp.result().isRight());
+						assertTrue(resp.result().right().get() instanceof IllegalArgumentException);
 					} catch (Exception e) {
 						e.printStackTrace();
 						fail(e.getMessage());
@@ -309,13 +314,16 @@ public class JobManagerTest extends TestLogger {
 							vertex.getCurrentExecutionAttempt().getAttemptId());
 
 						// Producer finished, request state
-						Object request = new JobManagerMessages.RequestPartitionProducerState(jid, rid, partitionId);
+						ExecutionAttemptID receiverId = new ExecutionAttemptID();
 
-						Future<ExecutionState> producerStateFuture = jobManagerGateway
-							.ask(request, getRemainingTime())
-							.mapTo(ClassTag$.MODULE$.<ExecutionState>apply(ExecutionState.class));
+						Future<?> producerStateFuture = jobManagerGateway.ask(
+							new RequestPartitionProducerState(jid, receiverId, rid, partitionId), getRemainingTime());
 
-						assertEquals(ExecutionState.FINISHED, Await.result(producerStateFuture, getRemainingTime()));
+						LeaderSessionMessage wrappedMsg = (LeaderSessionMessage) Await.result(producerStateFuture, getRemainingTime());
+						PartitionProducerState resp = (PartitionProducerState) wrappedMsg.message();
+						assertEquals(receiverId, resp.receiverExecutionId());
+						assertTrue("Responded with failure: " + resp, resp.result().isLeft());
+						assertEquals(ExecutionState.FINISHED, resp.result().left().get()._3());
 					} catch (Exception e) {
 						e.printStackTrace();
 						fail(e.getMessage());
@@ -403,15 +411,17 @@ public class JobManagerTest extends TestLogger {
 						vertex.resetForNewExecution();
 
 						// Producer finished, request state
-						Object request = new JobManagerMessages.RequestPartitionProducerState(jid, rid, partitionId);
+						ExecutionAttemptID receiverId = new ExecutionAttemptID();
+
+						Object request = new RequestPartitionProducerState(jid, receiverId, rid, partitionId);
 
 						Future<?> producerStateFuture = jobManagerGateway.ask(request, getRemainingTime());
 
-						try {
-							Await.result(producerStateFuture, getRemainingTime());
-							fail("Did not fail with expected Exception");
-						} catch (PartitionProducerDisposedException ignored) {
-						}
+						LeaderSessionMessage wrappedMsg = (LeaderSessionMessage) Await.result(producerStateFuture, getRemainingTime());
+						PartitionProducerState resp = (PartitionProducerState) wrappedMsg.message();
+						assertEquals(receiverId, resp.receiverExecutionId());
+						assertTrue("Responded with success: " + resp, resp.result().isRight());
+						assertTrue(resp.result().right().get() instanceof PartitionProducerDisposedException);
 					} catch (Exception e) {
 						e.printStackTrace();
 						fail(e.getMessage());

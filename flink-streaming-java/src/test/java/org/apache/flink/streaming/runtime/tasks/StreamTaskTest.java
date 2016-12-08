@@ -49,7 +49,6 @@ import org.apache.flink.runtime.state.AsynchronousStateHandle;
 import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
-import org.apache.flink.runtime.util.TestExecutors;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -318,8 +317,7 @@ public class StreamTaskTest {
 			libCache,
 			mock(FileCache.class),
 			new TaskManagerRuntimeInfo("localhost", taskManagerConfig, System.getProperty("java.io.tmpdir")),
-			new UnregisteredTaskMetricsGroup(),
-			TestExecutors.directExecutor());
+			new UnregisteredTaskMetricsGroup());
 	}
 	
 	// ------------------------------------------------------------------------

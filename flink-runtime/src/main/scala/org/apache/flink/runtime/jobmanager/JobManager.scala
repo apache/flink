@@ -62,7 +62,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{Heartbeat, SendStackTrace}
-import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState
+import org.apache.flink.runtime.messages.TaskMessages.{PartitionProducerState, UpdateTaskExecutionState}
 import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, AcknowledgeCheckpoint, DeclineCheckpoint}
 import org.apache.flink.runtime.messages.webmonitor.{InfoMessage, _}
@@ -839,7 +839,12 @@ class JobManager(
           )
       }
 
-    case RequestPartitionProducerState(jobId, intermediateDataSetId, resultPartitionId) =>
+    case RequestPartitionProducerState(
+        jobId,
+        receiverId,
+        intermediateDataSetId,
+        resultPartitionId) =>
+
       currentJobs.get(jobId) match {
         case Some((executionGraph, _)) =>
           try {
@@ -851,7 +856,8 @@ class JobManager(
             if (execution != null) {
               // Common case for pipelined exchanges => producing execution is
               // still active.
-              sender ! decorateMessage(execution.getState)
+              val success = (intermediateDataSetId, resultPartitionId, execution.getState)
+              sender ! decorateMessage(PartitionProducerState(receiverId, Left(success)))
             } else {
               // The producing execution might have terminated and been
               // unregistered. We now look for the producing execution via the
@@ -867,27 +873,31 @@ class JobManager(
                   .getCurrentExecutionAttempt
 
                 if (producerExecution.getAttemptId() == resultPartitionId.getProducerId()) {
-                  sender ! decorateMessage(producerExecution.getState)
+                  val success = (
+                    intermediateDataSetId,
+                    resultPartitionId,
+                    producerExecution.getState)
+                  sender ! decorateMessage(PartitionProducerState(receiverId, Left(success)))
                 } else {
-                  val cause = new PartitionProducerDisposedException(resultPartitionId)
-                  sender ! decorateMessage(Status.Failure(cause))
+                  val failure = new PartitionProducerDisposedException(resultPartitionId)
+                  sender ! decorateMessage(PartitionProducerState(receiverId, Right(failure)))
                 }
               } else {
-                val cause = new IllegalArgumentException(
-                  s"Intermediate data set with ID $intermediateDataSetId not found.")
-                sender ! decorateMessage(Status.Failure(cause))
+                val failure = new IllegalArgumentException("Intermediate data set with ID" +
+                  s"$intermediateDataSetId not found.")
+                sender ! decorateMessage(PartitionProducerState(receiverId, Right(failure)))
               }
             }
           } catch {
             case e: Exception =>
-              sender ! decorateMessage(
-                Status.Failure(new RuntimeException("Failed to look up execution state of " +
-                  s"producer with ID ${resultPartitionId.getProducerId}.", e)))
+              val failure = new RuntimeException("Failed to look up execution state of " +
+                s"producer with ID ${resultPartitionId.getProducerId}.", e)
+              sender ! decorateMessage(PartitionProducerState(receiverId, Right(failure)))
           }
 
         case None =>
-          sender ! decorateMessage(
-            Status.Failure(new IllegalArgumentException(s"Job with ID $jobId not found.")))
+          val failure = new IllegalArgumentException(s"Job with ID $jobId not found.")
+          sender ! decorateMessage(PartitionProducerState(receiverId, Right(failure)))
 
       }
 

@@ -34,8 +34,9 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNo
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionProducerState;
 import org.apache.flink.runtime.messages.TaskMessages.FailTask;
-import org.apache.flink.runtime.taskmanager.ActorGatewayPartitionProducerStateChecker;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -81,7 +82,7 @@ public class NetworkEnvironment {
 
 	private ResultPartitionConsumableNotifier partitionConsumableNotifier;
 
-	private PartitionProducerStateChecker partitionProducerStateChecker;
+	private PartitionProducerStateChecker partitionStateChecker;
 
 	private boolean isShutdown;
 
@@ -107,7 +108,7 @@ public class NetworkEnvironment {
 		// mis-configuration, so we do this first
 		try {
 			networkBufferPool = new NetworkBufferPool(config.numNetworkBuffers(),
-					config.networkBufferSize(), config.memoryType());
+				config.networkBufferSize(), config.memoryType());
 		}
 		catch (Throwable t) {
 			throw new IOException("Cannot allocate network buffer pool: " + t.getMessage(), t);
@@ -143,7 +144,7 @@ public class NetworkEnvironment {
 	}
 
 	public PartitionProducerStateChecker getPartitionProducerStateChecker() {
-		return partitionProducerStateChecker;
+		return partitionStateChecker;
 	}
 
 	public Tuple2<Integer, Integer> getPartitionRequestInitialAndMaxBackoff() {
@@ -168,8 +169,8 @@ public class NetworkEnvironment {
 	 * @throws IOException Thrown if the network subsystem (Netty) cannot be properly started.
 	 */
 	public void associateWithTaskManagerAndJobManager(
-			ActorGateway jobManagerGateway,
-			ActorGateway taskManagerGateway) throws IOException
+		ActorGateway jobManagerGateway,
+		ActorGateway taskManagerGateway) throws IOException
 	{
 		checkNotNull(jobManagerGateway);
 		checkNotNull(taskManagerGateway);
@@ -195,14 +196,13 @@ public class NetworkEnvironment {
 					taskManagerGateway,
 					jobManagerTimeout);
 
-				this.partitionProducerStateChecker = new ActorGatewayPartitionProducerStateChecker(
-					jobManagerGateway,
-					jobManagerTimeout);
+				this.partitionStateChecker = new ActorGatewayPartitionProducerStateChecker(
+					jobManagerGateway, taskManagerGateway);
 
 				// -----  Network connections  -----
 				final Option<NettyConfig> nettyConfig = configuration.nettyConfig();
 				connectionManager = nettyConfig.isDefined() ? new NettyConnectionManager(nettyConfig.get())
-															: new LocalConnectionManager();
+					: new LocalConnectionManager();
 
 				try {
 					LOG.debug("Starting network connection manager");
@@ -214,7 +214,7 @@ public class NetworkEnvironment {
 			}
 			else {
 				throw new IllegalStateException(
-						"Network Environment is already associated with a JobManager/TaskManager");
+					"Network Environment is already associated with a JobManager/TaskManager");
 			}
 		}
 	}
@@ -253,7 +253,7 @@ public class NetworkEnvironment {
 
 			partitionConsumableNotifier = null;
 
-			partitionProducerStateChecker = null;
+			partitionStateChecker = null;
 
 			if (taskEventDispatcher != null) {
 				taskEventDispatcher.clearAll();
@@ -343,7 +343,7 @@ public class NetworkEnvironment {
 
 	public void unregisterTask(Task task) {
 		LOG.debug("Unregister task {} from network environment (state: {}).",
-				task.getTaskInfo().getTaskNameWithSubtasks(), task.getExecutionState());
+			task.getTaskInfo().getTaskNameWithSubtasks(), task.getExecutionState());
 
 		final ExecutionAttemptID executionId = task.getExecutionId();
 
@@ -464,9 +464,9 @@ public class NetworkEnvironment {
 
 					// Fail task at the TaskManager
 					FailTask failMsg = new FailTask(
-							partitionId.getProducerId(),
-							new RuntimeException("Could not notify JobManager to schedule or update consumers",
-									failure));
+						partitionId.getProducerId(),
+						new RuntimeException("Could not notify JobManager to schedule or update consumers",
+							failure));
 
 					taskManager.tell(failMsg);
 				}
@@ -474,4 +474,31 @@ public class NetworkEnvironment {
 		}
 	}
 
+	private static class ActorGatewayPartitionProducerStateChecker implements PartitionProducerStateChecker {
+
+		private final ActorGateway jobManager;
+
+		private final ActorGateway taskManager;
+
+		ActorGatewayPartitionProducerStateChecker(ActorGateway jobManager, ActorGateway taskManager) {
+			this.jobManager = jobManager;
+			this.taskManager = taskManager;
+		}
+
+		@Override
+		public void requestPartitionProducerState(
+			JobID jobId,
+			ExecutionAttemptID receiverExecutionId,
+			IntermediateDataSetID intermediateDataSetId,
+			ResultPartitionID resultPartitionId) {
+
+			jobManager.tell(
+				new RequestPartitionProducerState(
+					jobId,
+					receiverExecutionId,
+					intermediateDataSetId,
+					resultPartitionId),
+				taskManager);
+		}
+	}
 }
