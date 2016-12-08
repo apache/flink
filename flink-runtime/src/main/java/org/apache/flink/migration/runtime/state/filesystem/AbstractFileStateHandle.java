@@ -22,6 +22,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.migration.runtime.state.AbstractCloseableHandle;
 import org.apache.flink.migration.runtime.state.StateObject;
+import org.apache.flink.util.FileUtils;
 
 import java.io.IOException;
 
@@ -68,11 +69,9 @@ public abstract class AbstractFileStateHandle extends AbstractCloseableHandle im
 	public void discardState() throws Exception {
 		getFileSystem().delete(filePath, false);
 
-		// send a call to delete the checkpoint directory containing the file. This will
-		// fail (and be ignored) when some files still exist
 		try {
-			getFileSystem().delete(filePath.getParent(), false);
-		} catch (IOException ignored) {}
+			FileUtils.deletePathIfEmpty(getFileSystem(), filePath.getParent());
+		} catch (Exception ignored) {}
 	}
 
 	/**
