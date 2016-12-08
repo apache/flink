@@ -33,7 +33,7 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
+import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -139,7 +139,7 @@ public class SingleInputGate implements InputGate {
 	private final BitSet channelsWithEndOfPartitionEvents;
 
 	/** The partition state checker to use for failed partition requests. */
-	private final PartitionStateChecker partitionStateChecker;
+	private final PartitionProducerStateChecker partitionStateChecker;
 
 	/**
 	 * Buffer pool for incoming buffers. Incoming data from remote channels is copied to buffers
@@ -172,7 +172,7 @@ public class SingleInputGate implements InputGate {
 			IntermediateDataSetID consumedResultId,
 			int consumedSubpartitionIndex,
 			int numberOfInputChannels,
-			PartitionStateChecker partitionStateChecker,
+			PartitionProducerStateChecker partitionStateChecker,
 			IOMetricGroup metrics) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
@@ -510,7 +510,7 @@ public class SingleInputGate implements InputGate {
 	}
 
 	void triggerPartitionStateCheck(ResultPartitionID partitionId) {
-		partitionStateChecker.triggerPartitionStateCheck(
+		partitionStateChecker.requestPartitionProducerState(
 				jobId,
 				executionId,
 				consumedResultId,
@@ -567,7 +567,7 @@ public class SingleInputGate implements InputGate {
 
 		final SingleInputGate inputGate = new SingleInputGate(
 				owningTaskName, jobId, executionId, consumedResultId, consumedSubpartitionIndex,
-				icdd.length, networkEnvironment.getPartitionStateChecker(), metrics);
+				icdd.length, networkEnvironment.getPartitionProducerStateChecker(), metrics);
 
 		// Create the input channels. There is one input channel for each consumed partition.
 		final InputChannel[] inputChannels = new InputChannel[icdd.length];
