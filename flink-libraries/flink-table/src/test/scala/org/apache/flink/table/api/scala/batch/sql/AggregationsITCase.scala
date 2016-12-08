@@ -258,7 +258,6 @@ class AggregationsITCase(
     tEnv.registerDataSet("MyTable", ds)
 
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect()
-    result.foreach(println(_))
 
     val expected =
       "6,null,18,1\n5,null,13,1\n4,null,8,1\n3,null,5,1\n2,null,2,1\n1,null,1,1\n" +

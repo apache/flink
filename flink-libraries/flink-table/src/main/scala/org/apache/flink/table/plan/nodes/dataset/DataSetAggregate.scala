@@ -29,7 +29,7 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkAggregate
-import org.apache.flink.table.runtime.aggregate.{AggregateUtil, GroupingsMapFunction}
+import org.apache.flink.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.typeutils.TypeConverter
 import org.apache.flink.table.api.BatchTableEnvironment
@@ -109,7 +109,9 @@ class DataSetAggregate(
       namedAggregates,
       inputType,
       rowRelDataType,
-      grouping)
+      grouping,
+      indicator
+    )
 
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(
       tableEnv,
@@ -129,7 +131,7 @@ class DataSetAggregate(
 
     val rowTypeInfo = new RowTypeInfo(fieldTypes: _*)
 
-    val reducedInput = {
+    val result = {
       if (groupingKeys.length > 0) {
         // grouped aggregation
         val aggOpName = s"groupBy: (${groupingToString(inputType, grouping)}), " +
@@ -149,30 +151,6 @@ class DataSetAggregate(
           .reduceGroup(groupReduceFunction)
           .returns(rowTypeInfo)
           .name(aggOpName)
-          .asInstanceOf[DataSet[Any]]
-      }
-    }
-
-    var result = reducedInput
-    if (indicator) {
-      val fields = rowRelDataType.getFieldList.asScala.toList
-      var mapping = ArrayBuffer[(Int, Int)]()
-      for (i <- fields.indices) {
-        for (j <- fields.indices) {
-          if (fields(j).getName.equals("i$" + fields(i).getName)) {
-            mapping += ((i, j))
-          }
-        }
-      }
-
-      if (mapping.nonEmpty) {
-        val mapFunction = new GroupingsMapFunction[Row, Row](mapping.toArray, rowTypeInfo)
-
-        val prepareOpName = s"prepare grouping sets"
-        result = reducedInput
-          .asInstanceOf[DataSet[Row]]
-          .map(mapFunction)
-          .name(prepareOpName)
           .asInstanceOf[DataSet[Any]]
       }
     }

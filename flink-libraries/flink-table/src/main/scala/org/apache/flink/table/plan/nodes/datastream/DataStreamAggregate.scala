@@ -43,7 +43,6 @@ import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWin
 import org.apache.flink.table.api.StreamTableEnvironment
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 
 class DataStreamAggregate(
     window: LogicalWindow,
@@ -146,7 +145,7 @@ class DataStreamAggregate(
 
     val mappedInput = inputDS.map(mapFunction).name(prepareOpName)
 
-    val intermediateStream: DataStream[Any] = {
+    val result: DataStream[Any] = {
       // check whether all aggregates support partial aggregate
       if (AggregateUtil.doAllSupportPartialAggregation(
             namedAggregates.map(_.getKey),
@@ -211,7 +210,9 @@ class DataStreamAggregate(
             inputType,
             rowRelDataType,
             grouping,
-            namedProperties)
+            indicator,
+            namedProperties
+          )
 
           val keyedStream = mappedInput.keyBy(groupingKeys: _*)
           val windowedStream =
@@ -232,7 +233,9 @@ class DataStreamAggregate(
             inputType,
             rowRelDataType,
             grouping,
-            namedProperties)
+            indicator,
+            namedProperties
+          )
 
           val windowedStream =
             createNonKeyedWindowedStream(window, mappedInput)
@@ -244,30 +247,6 @@ class DataStreamAggregate(
           .name(nonKeyedAggOpName)
           .asInstanceOf[DataStream[Any]]
         }
-      }
-    }
-
-    var result = intermediateStream
-    if (indicator) {
-      val fields = rowRelDataType.getFieldList.asScala.toList
-      var mapping = ArrayBuffer[(Int, Int)]()
-      for (i <- fields.indices) {
-        for (j <- fields.indices) {
-          if (fields(j).getName.equals("i$" + fields(i).getName)) {
-            mapping += ((i, j))
-          }
-        }
-      }
-
-      if (mapping.nonEmpty) {
-        val mapFunction = new GroupingsMapFunction[Row, Row](mapping.toArray, rowTypeInfo)
-
-        val prepareOpName = s"prepare grouping sets"
-        result = intermediateStream
-          .asInstanceOf[DataStream[Row]]
-          .map(mapFunction)
-          .name(prepareOpName)
-          .asInstanceOf[DataStream[Any]]
       }
     }
 

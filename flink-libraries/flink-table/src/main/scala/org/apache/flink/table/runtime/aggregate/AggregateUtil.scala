@@ -98,7 +98,9 @@ object AggregateUtil {
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
     outputType: RelDataType,
-    groupings: Array[Int]): RichGroupReduceFunction[Row, Row] = {
+    groupings: Array[Int],
+    indicator: Boolean
+  ): RichGroupReduceFunction[Row, Row] = {
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -112,6 +114,8 @@ object AggregateUtil {
         outputType,
         groupings)
 
+    val additionalMapping = getAdditionalMapping(outputType)
+
     val allPartialAggregate: Boolean = aggregates.forall(_.supportPartial)
 
     val intermediateRowArity = groupings.length +
@@ -123,6 +127,7 @@ object AggregateUtil {
           aggregates,
           groupingOffsetMapping,
           aggOffsetMapping,
+          additionalMapping,
           intermediateRowArity,
           outputType.getFieldCount)
       }
@@ -131,6 +136,7 @@ object AggregateUtil {
           aggregates,
           groupingOffsetMapping,
           aggOffsetMapping,
+          additionalMapping,
           intermediateRowArity,
           outputType.getFieldCount)
       }
@@ -175,6 +181,7 @@ object AggregateUtil {
     inputType: RelDataType,
     outputType: RelDataType,
     groupings: Array[Int],
+    indicator: Boolean,
     properties: Seq[NamedWindowProperty])
   : AllWindowFunction[Row, Row, DataStreamWindow] = {
 
@@ -183,7 +190,9 @@ object AggregateUtil {
         namedAggregates,
         inputType,
         outputType,
-        groupings)
+        groupings,
+        indicator
+      )
 
     if (isTimeWindow(window)) {
       val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
@@ -204,6 +213,7 @@ object AggregateUtil {
     inputType: RelDataType,
     outputType: RelDataType,
     groupings: Array[Int],
+    indicator: Boolean,
     properties: Seq[NamedWindowProperty])
   : WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
 
@@ -212,7 +222,9 @@ object AggregateUtil {
         namedAggregates,
         inputType,
         outputType,
-        groupings)
+        groupings,
+        indicator
+      )
 
     if (isTimeWindow(window)) {
       val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
@@ -347,6 +359,19 @@ object AggregateUtil {
           "or aggregate functions.")
     }
     (groupingOffsetMapping, aggOffsetMapping)
+  }
+
+  private def getAdditionalMapping(outputType: RelDataType): Array[(Int, Int)] = {
+    val fields = outputType.getFieldList
+    var mappingsBuffer = ArrayBuffer[(Int, Int)]()
+    for (i <- fields.indices) {
+      for (j <- fields.indices) {
+        if (fields(j).getName.equals("i$" + fields(i).getName)) {
+          mappingsBuffer += ((i, j))
+        }
+      }
+    }
+    mappingsBuffer.toArray
   }
 
   private def isTimeWindow(window: LogicalWindow) = {
