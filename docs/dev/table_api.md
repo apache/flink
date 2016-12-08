@@ -1390,7 +1390,7 @@ select:
   { * | projectItem [, projectItem ]* }
   FROM tableExpression
   [ WHERE booleanExpression ]
-  [ GROUP BY groupExpression ]
+  [ GROUP BY { groupItem [, groupItem ]* } ]
   [ HAVING booleanExpression ]
 
 selectWithoutFrom:
@@ -1419,17 +1419,13 @@ tablePrimary:
 values:
   VALUES expression [, expression ]*
 
-groupExpression:
-  groupItem [, groupItem ]*
-  | GROUPING SETS (groupItem [, groupItem ]*)
-  | ROLLUP (groupItem [, groupItem ]*)
-  | CUBE (groupItem [, groupItem ]*)
-
 groupItem:
   expression
   | '(' ')'
   | '(' expression [, expression ]* ')'
-
+  | CUBE '(' expression [, expression ]* ')'
+  | ROLLUP '(' expression [, expression ]* ')'
+  | GROUPING SETS '(' groupItem [, groupItem ]* ')'
 ```
 
 For a better definition of SQL queries within a Java String, Flink SQL uses a lexical policy similar to Java:
@@ -3741,6 +3737,50 @@ MIN(value)
       </td>
       <td>
         <p>Returns the minimum value of <i>value</i> across all input values.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Grouping functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight text %}
+GROUP_ID()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns an integer that uniquely identifies the combination of grouping keys.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+GROUPING(value)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns 1 if expression is rolled up in the current row’s grouping set, 0 otherwise.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+GROUPING_ID(value [, value]* )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a bit vector of the given grouping expressions.</p>
       </td>
     </tr>
   </tbody>
