@@ -30,7 +30,7 @@ import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.plan.nodes.FlinkAggregate
 import org.apache.flink.api.table.plan.nodes.datastream.DataStreamAggregate._
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil._
-import org.apache.flink.api.table.runtime.aggregate.{Aggregate, _}
+import org.apache.flink.api.table.runtime.aggregate._
 import org.apache.flink.api.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.api.table.typeutils.{RowIntervalTypeInfo, RowTypeInfo, TimeIntervalTypeInfo, TypeConverter}
 import org.apache.flink.api.table.{FlinkTypeFactory, Row, StreamTableEnvironment}
@@ -40,7 +40,6 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 
 class DataStreamAggregate(
     window: LogicalWindow,
@@ -143,7 +142,7 @@ class DataStreamAggregate(
 
     val mappedInput = inputDS.map(mapFunction).name(prepareOpName)
 
-    val intermediateStream: DataStream[Any] = {
+    val result: DataStream[Any] = {
       // check whether all aggregates support partial aggregate
       if (AggregateUtil.doAllSupportPartialAggregation(
             namedAggregates.map(_.getKey),
@@ -208,7 +207,9 @@ class DataStreamAggregate(
             inputType,
             rowRelDataType,
             grouping,
-            namedProperties)
+            indicator,
+            namedProperties
+          )
 
           val keyedStream = mappedInput.keyBy(groupingKeys: _*)
           val windowedStream =
@@ -229,7 +230,9 @@ class DataStreamAggregate(
             inputType,
             rowRelDataType,
             grouping,
-            namedProperties)
+            indicator,
+            namedProperties
+          )
 
           val windowedStream =
             createNonKeyedWindowedStream(window, mappedInput)
@@ -241,30 +244,6 @@ class DataStreamAggregate(
           .name(nonKeyedAggOpName)
           .asInstanceOf[DataStream[Any]]
         }
-      }
-    }
-
-    var result = intermediateStream
-    if (indicator) {
-      val fields = rowRelDataType.getFieldList.asScala.toList
-      var mapping = ArrayBuffer[(Int, Int)]()
-      for (i <- fields.indices) {
-        for (j <- fields.indices) {
-          if (fields(j).getName.equals("i$" + fields(i).getName)) {
-            mapping += ((i, j))
-          }
-        }
-      }
-
-      if (mapping.nonEmpty) {
-        val mapFunction = new GroupingsMapFunction[Row, Row](mapping.toArray, rowTypeInfo)
-
-        val prepareOpName = s"prepare grouping sets"
-        result = intermediateStream
-          .asInstanceOf[DataStream[Row]]
-          .map(mapFunction)
-          .name(prepareOpName)
-          .asInstanceOf[DataStream[Any]]
       }
     }
 

@@ -19,12 +19,14 @@ package org.apache.flink.api.table.runtime.aggregate
 
 import java.lang.Iterable
 
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.api.table.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.util.{Collector, Preconditions}
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable.ArrayBuffer
 
 /**
  * It wraps the aggregate logic inside of 
@@ -40,6 +42,7 @@ class AggregateReduceGroupFunction(
     private val aggregates: Array[Aggregate[_ <: Any]],
     private val groupKeysMapping: Array[(Int, Int)],
     private val aggregateMapping: Array[(Int, Int)],
+    private val additionalMapping: Array[(Int, Int)],
     private val intermediateRowArity: Int,
     private val finalRowArity: Int)
   extends RichGroupReduceFunction[Row, Row] {
@@ -85,6 +88,14 @@ class AggregateReduceGroupFunction(
     aggregateMapping.foreach {
       case (after, previous) =>
         output.setField(after, aggregates(previous).evaluate(aggregateBuffer))
+    }
+
+    // Evaluate grouping sets additional values
+    if (additionalMapping != null && additionalMapping.nonEmpty) {
+      additionalMapping.foreach {
+        case (inputIndex, outputIndex) =>
+          output.setField(outputIndex, output.productElement(inputIndex) == null)
+      }
     }
 
     out.collect(output)

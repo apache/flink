@@ -126,10 +126,6 @@ object FunctionCatalog {
     "isNotTrue" -> classOf[IsNotTrue],
     "isNotFalse" -> classOf[IsNotFalse],
 
-    "groupId" -> classOf[GroupId],
-    "grouping" -> classOf[Grouping],
-    "groupingId" -> classOf[GroupingId],
-
     // aggregate functions
     "avg" -> classOf[Avg],
     "count" -> classOf[Count],
