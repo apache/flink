@@ -371,17 +371,17 @@ public class StreamingJobGraphGenerator {
 			downStreamVertex.connectNewDataSetAsInput(
 				headVertex,
 				DistributionPattern.POINTWISE,
-				ResultPartitionType.PIPELINED);
+				ResultPartitionType.PIPELINED_BOUNDED);
 		} else if (partitioner instanceof RescalePartitioner){
 			downStreamVertex.connectNewDataSetAsInput(
 				headVertex,
 				DistributionPattern.POINTWISE,
-				ResultPartitionType.PIPELINED);
+				ResultPartitionType.PIPELINED_BOUNDED);
 		} else {
 			downStreamVertex.connectNewDataSetAsInput(
 					headVertex,
 					DistributionPattern.ALL_TO_ALL,
-					ResultPartitionType.PIPELINED);
+					ResultPartitionType.PIPELINED_BOUNDED);
 		}
 
 		if (LOG.isDebugEnabled()) {

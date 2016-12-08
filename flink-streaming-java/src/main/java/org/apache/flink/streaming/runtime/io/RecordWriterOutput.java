@@ -99,7 +99,7 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 	}
 	
 	
-	public void flush() throws IOException {
+	public void flush() throws IOException, InterruptedException {
 		recordWriter.flush();
 	}
 	

@@ -22,20 +22,20 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A pipelined in-memory only subpartition, which can be consumed once.
  */
-class PipelinedSubpartition extends ResultSubpartition {
+public class PipelinedSubpartition extends ResultSubpartition {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PipelinedSubpartition.class);
 
@@ -43,6 +43,15 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
 	private final ArrayDeque<Buffer> buffers = new ArrayDeque<>();
+
+	/**
+	 * The maximum allowed queue length for buffers. 0 indicates no limit. For
+	 * streaming jobs a fixed limit should help avoid that single downstream
+	 * operators get a disproportionally large backlog. For batch jobs, it will
+	 * be best to keep this unlimited and let the local buffer pools limit how
+	 * much is queued.
+	 */
+	private final int maxAllowedQueueLength;
 
 	/** The read view to consume this subpartition. */
 	private PipelinedSubpartitionView readView;
@@ -55,12 +64,19 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	// ------------------------------------------------------------------------
 
-	PipelinedSubpartition(int index, ResultPartition parent) {
+	PipelinedSubpartition(int index, ResultPartition parent, int maxAllowedQueueLength) {
 		super(index, parent);
+
+		checkArgument(maxAllowedQueueLength >= 0, "Maximum allowed queue length");
+		this.maxAllowedQueueLength = maxAllowedQueueLength;
+	}
+
+	public int getMaxAllowedQueueLength() {
+		return maxAllowedQueueLength;
 	}
 
 	@Override
-	public boolean add(Buffer buffer) throws IOException {
+	public boolean add(Buffer buffer, boolean capacityConstrained) throws IOException, InterruptedException {
 		checkNotNull(buffer);
 
 		// view reference accessible outside the lock, but assigned inside the locked scope
@@ -68,6 +84,45 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 		synchronized (buffers) {
 			if (isFinished || isReleased) {
+				return false;
+			}
+
+			if (maxAllowedQueueLength > 0 && capacityConstrained) {
+				while (buffers.size() >= maxAllowedQueueLength) {
+					buffers.wait();
+
+					// Check again whether the partition was released in the meantime
+					if (isReleased) {
+						return false;
+					}
+				}
+			}
+
+			// Add the buffer and update the stats
+			buffers.add(buffer);
+			reader = readView;
+			updateStatistics(buffer);
+		}
+
+		// Notify the listener outside of the synchronized block
+		if (reader != null) {
+			reader.notifyBuffersAvailable(1);
+		}
+
+		return true;
+	}
+
+	@Override
+	public boolean addIfCapacityAvailable(Buffer buffer) throws IOException {
+		checkNotNull(buffer);
+
+		// view reference accessible outside the lock, but assigned inside the locked scope
+		final PipelinedSubpartitionView reader;
+
+		synchronized (buffers) {
+			checkState(!(isFinished | isReleased));
+
+			if (maxAllowedQueueLength > 0 && buffers.size() >= maxAllowedQueueLength) {
 				return false;
 			}
 
@@ -146,7 +201,15 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	Buffer pollBuffer() {
 		synchronized (buffers) {
-			return buffers.pollFirst();
+			int size = buffers.size();
+			Buffer buffer = buffers.poll();
+
+			// send a notification if this poll made capacity available
+			if (maxAllowedQueueLength > 0 && maxAllowedQueueLength == size) {
+				buffers.notifyAll();
+			}
+
+			return buffer;
 		}
 	}
 

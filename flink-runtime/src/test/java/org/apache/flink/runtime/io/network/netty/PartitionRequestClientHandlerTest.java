@@ -22,20 +22,34 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.embedded.EmbeddedChannel;
+import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
+import org.apache.flink.runtime.io.network.util.TestInfiniteBufferProvider;
+import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.junit.Test;
+import scala.Tuple2;
 
 import java.io.IOException;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -156,6 +170,79 @@ public class PartitionRequestClientHandlerTest {
 
 		// Don't throw NPE, because channel is not active yet
 		client.cancelRequestFor(inputChannel.getInputChannelId());
+	}
+
+	@Test
+	public void testCapacityLimitedRemoteInputChannels() throws Exception {
+		int capacityLimit = 2;
+
+		ConnectionManager connManager = mock(ConnectionManager.class);
+		when(connManager.createPartitionRequestClient(any(ConnectionID.class)))
+			.thenReturn(mock(PartitionRequestClient.class));
+
+		BufferProvider bufferProvider = new TestInfiniteBufferProvider();
+
+		SingleInputGate gate = mock(SingleInputGate.class);
+		when(gate.getBufferProvider()).thenReturn(bufferProvider);
+
+		RemoteInputChannel inputChannel = new RemoteInputChannel(
+			gate,
+			0,
+			new ResultPartitionID(),
+			mock(ConnectionID.class),
+			connManager,
+			new Tuple2<>(0, 0),
+			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup(),
+			capacityLimit);
+
+		// Fake request for internal channel logic
+		inputChannel.requestSubpartition(0);
+
+		PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
+		handler.addInputChannel(inputChannel);
+
+		EmbeddedChannel ch = new EmbeddedChannel(handler);
+
+		int seqNo = 0;
+
+		// Queue buffers until we reach the limit
+		Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(bufferProvider.getMemorySegmentSize()), FreeingBufferRecycler.INSTANCE);
+		buffer.retain();
+		buffer.retain();
+
+		BufferResponse msg = createBufferResponse(buffer, seqNo++, inputChannel.getInputChannelId());
+		ch.writeInbound(msg);
+
+		msg = createBufferResponse(buffer, seqNo++, inputChannel.getInputChannelId());
+		ch.writeInbound(msg);
+
+		assertEquals(2, inputChannel.getNumberOfQueuedBuffers());
+
+		// Reached the limit, don't queue this
+		msg = createBufferResponse(buffer, seqNo++, inputChannel.getInputChannelId());
+		ch.writeInbound(msg);
+
+		// Verify didn't queue and unsubscribed reads
+		assertEquals(2, inputChannel.getNumberOfQueuedBuffers());
+		assertFalse(ch.config().isAutoRead());
+
+		InputChannel.BufferAndAvailability baa = inputChannel.getNextBuffer();
+		assertNotNull(baa);
+		assertTrue(baa.moreAvailable());
+
+		baa = inputChannel.getNextBuffer();
+		assertNotNull(baa);
+		assertFalse(baa.moreAvailable());
+
+		// Run the pending availability callbacks
+		ch.runPendingTasks();
+
+		assertEquals(1, inputChannel.getNumberOfQueuedBuffers());
+		assertTrue(ch.config().isAutoRead());
+
+		baa = inputChannel.getNextBuffer();
+		assertNotNull(baa);
+		assertFalse(baa.moreAvailable());
 	}
 
 	// ---------------------------------------------------------------------------------------------

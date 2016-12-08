@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -31,9 +32,12 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
+import org.apache.flink.runtime.io.network.util.TestInfiniteBufferProvider;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.testutils.DiscardingRecycler;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.XORShiftRandom;
@@ -59,7 +63,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -128,8 +134,7 @@ public class RecordWriterTest {
 						recordWriter.flush();
 
 						recordWriter.emit(val);
-					}
-					catch (InterruptedException e) {
+					} catch (InterruptedException e) {
 						recordWriter.clearBuffers();
 					}
 
@@ -150,14 +155,13 @@ public class RecordWriterTest {
 
 			// Verify that buffer have been requested, but only one has been written out.
 			verify(bufferProvider, times(2)).requestBufferBlocking();
-			verify(partitionWriter, times(1)).writeBuffer(any(Buffer.class), anyInt());
+			verify(partitionWriter, times(1)).writeBuffer(any(Buffer.class), anyInt(), anyBoolean());
 
 			// Verify that the written out buffer has only been recycled once
 			// (by the partition writer).
 			assertTrue("Buffer not recycled.", buffer.isRecycled());
 			verify(buffer, times(1)).recycle();
-		}
-		finally {
+		} finally {
 			if (executor != null) {
 				executor.shutdown();
 			}
@@ -186,7 +190,7 @@ public class RecordWriterTest {
 
 					throw new RuntimeException("Expected test Exception");
 				}
-			}).when(partitionWriter).writeBuffer(any(Buffer.class), anyInt());
+			}).when(partitionWriter).writeBuffer(any(Buffer.class), anyInt(), anyBoolean());
 
 			RecordWriter<IntValue> recordWriter = new RecordWriter<>(partitionWriter);
 
@@ -194,11 +198,10 @@ public class RecordWriterTest {
 				// Verify that emit correctly clears the buffer. The infinite loop looks
 				// dangerous indeed, but the buffer will only be flushed after its full. Adding a
 				// manual flush here doesn't test this case (see next).
-				for (;;) {
+				for (; ; ) {
 					recordWriter.emit(new IntValue(0));
 				}
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				// Verify that the buffer is not part of the record writer state after a failure
 				// to flush it out. If the buffer is still part of the record writer state, this
 				// will fail, because the buffer has already been recycled. NOTE: The mock
@@ -207,7 +210,7 @@ public class RecordWriterTest {
 			}
 
 			// Verify expected methods have been called
-			verify(partitionWriter, times(1)).writeBuffer(any(Buffer.class), anyInt());
+			verify(partitionWriter, times(1)).writeBuffer(any(Buffer.class), anyInt(), anyBoolean());
 			verify(bufferPool, times(1)).requestBufferBlocking();
 
 			try {
@@ -216,27 +219,25 @@ public class RecordWriterTest {
 				recordWriter.flush();
 
 				Assert.fail("Did not throw expected test Exception");
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				recordWriter.clearBuffers();
 			}
 
 			// Verify expected methods have been called
-			verify(partitionWriter, times(2)).writeBuffer(any(Buffer.class), anyInt());
+			verify(partitionWriter, times(2)).writeBuffer(any(Buffer.class), anyInt(), anyBoolean());
 			verify(bufferPool, times(2)).requestBufferBlocking();
 
 			try {
 				// Verify that broadcast emit correctly clears the buffer.
-				for (;;) {
+				for (; ; ) {
 					recordWriter.broadcastEmit(new IntValue(0));
 				}
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				recordWriter.clearBuffers();
 			}
 
 			// Verify expected methods have been called
-			verify(partitionWriter, times(3)).writeBuffer(any(Buffer.class), anyInt());
+			verify(partitionWriter, times(3)).writeBuffer(any(Buffer.class), anyInt(), anyBoolean());
 			verify(bufferPool, times(3)).requestBufferBlocking();
 
 			try {
@@ -245,13 +246,12 @@ public class RecordWriterTest {
 				recordWriter.sendEndOfSuperstep();
 
 				Assert.fail("Did not throw expected test Exception");
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				recordWriter.clearBuffers();
 			}
 
 			// Verify expected methods have been called
-			verify(partitionWriter, times(4)).writeBuffer(any(Buffer.class), anyInt());
+			verify(partitionWriter, times(4)).writeBuffer(any(Buffer.class), anyInt(), anyBoolean());
 			verify(bufferPool, times(4)).requestBufferBlocking();
 
 			try {
@@ -260,16 +260,14 @@ public class RecordWriterTest {
 				recordWriter.broadcastEvent(new TestTaskEvent());
 
 				Assert.fail("Did not throw expected test Exception");
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				recordWriter.clearBuffers();
 			}
 
 			// Verify expected methods have been called
-			verify(partitionWriter, times(5)).writeBuffer(any(Buffer.class), anyInt());
+			verify(partitionWriter, times(5)).writeBuffer(any(Buffer.class), anyInt(), anyBoolean());
 			verify(bufferPool, times(5)).requestBufferBlocking();
-		}
-		finally {
+		} finally {
 			if (bufferPool != null) {
 				assertEquals(1, bufferPool.getNumberOfAvailableMemorySegments());
 				bufferPool.lazyDestroy();
@@ -288,13 +286,13 @@ public class RecordWriterTest {
 		final Buffer buffer = TestBufferFactory.createBuffer(16);
 
 		ResultPartitionWriter partitionWriter = createResultPartitionWriter(
-				createBufferProvider(buffer));
+			createBufferProvider(buffer));
 
 		RecordWriter<IntValue> recordWriter = new RecordWriter<IntValue>(partitionWriter);
 
 		// Fill a buffer, but don't write it out.
 		recordWriter.emit(new IntValue(0));
-		verify(partitionWriter, never()).writeBuffer(any(Buffer.class), anyInt());
+		verify(partitionWriter, never()).writeBuffer(any(Buffer.class), anyInt(), anyBoolean());
 
 		// Clear all buffers.
 		recordWriter.clearBuffers();
@@ -395,6 +393,117 @@ public class RecordWriterTest {
 		assertEquals(1, queues[3].size()); // 0 buffers + 1 event
 	}
 
+	/**
+	 * Tests that writing out regular buffers respects capacity constraints.
+	 */
+	@Test
+	public void testWriteRegularBufferRespectsBackPressure() throws Exception {
+		ResultPartition partition = mock(ResultPartition.class);
+		when(partition.getNumberOfSubpartitions()).thenReturn(2);
+		when(partition.getBufferProvider()).thenReturn(new TestInfiniteBufferProvider());
+
+		RecordWriter<SerializationDelegate<byte[]>> writer = new RecordWriter<>(new ResultPartitionWriter(partition));
+
+		int bufferSize = partition.getBufferProvider().getMemorySegmentSize();
+
+		SerializationDelegate<byte[]> delegate = new SerializationDelegate<>(BytePrimitiveArraySerializer.INSTANCE);
+		XORShiftRandom rand = new XORShiftRandom(10202);
+		byte[] bytes = new byte[bufferSize + 1]; // span multiple buffers guaranteed
+		rand.nextBytes(bytes);
+		delegate.setInstance(bytes);
+
+		// Emit to single channel
+		writer.emit(delegate);
+
+		verify(partition, times(1)).add(any(Buffer.class), eq(1), eq(true));
+		verify(partition, times(0)).addBufferIfCapacityAvailable(any(Buffer.class), anyInt());
+
+		// Force flush
+		writer.flush();
+
+		// Broadcast
+		writer.broadcastEmit(delegate);
+
+		verify(partition, times(1)).add(any(Buffer.class), eq(0), eq(true));
+		verify(partition, times(2)).add(any(Buffer.class), eq(1), eq(true)); // two times because of first emit
+
+		verify(partition, times(0)).addBufferIfCapacityAvailable(any(Buffer.class), anyInt());
+	}
+
+	/**
+	 * Tests that broadcasting events ignores capacity constraints for both
+	 * the current buffer and the event itself.
+	 */
+	@Test
+	public void testWriteEventBufferIgnoresBackPressure() throws Exception {
+		ResultPartition partition = mock(ResultPartition.class);
+		when(partition.getNumberOfSubpartitions()).thenReturn(2);
+		when(partition.getBufferProvider()).thenReturn(new TestInfiniteBufferProvider());
+
+		RecordWriter<IntValue> writer = new RecordWriter<>(new ResultPartitionWriter(partition));
+
+		IntValue value = new IntValue(1223);
+		writer.emit(value);
+		writer.emit(value);
+
+		CheckpointBarrier event = new CheckpointBarrier(122, 22929);
+
+		// Writes out the buffer and the event to each channel
+		// ignoring capacity constraints.
+		writer.broadcastEvent(event);
+
+		verify(partition, times(2)).add(any(Buffer.class), eq(0), eq(false));
+		verify(partition, times(2)).add(any(Buffer.class), eq(1), eq(false));
+
+		writer.sendEndOfSuperstep();
+		verify(partition, times(3)).add(any(Buffer.class), eq(0), eq(false));
+		verify(partition, times(3)).add(any(Buffer.class), eq(1), eq(false));
+	}
+
+	/**
+	 * Tests that record flushes lead to the correct partition add calls,
+	 * ignoring back pressure and only adding if capacity constraints allow
+	 * it.
+	 */
+	@Test
+	public void testFlushing() throws Exception {
+		ResultPartition partition = mock(ResultPartition.class);
+		when(partition.getNumberOfSubpartitions()).thenReturn(1);
+		when(partition.getBufferProvider()).thenReturn(new TestInfiniteBufferProvider());
+
+		RecordWriter<IntValue> writer = new RecordWriter<>(new ResultPartitionWriter(partition));
+
+		// Emit value (nothing written to partition yet)
+		IntValue value = new IntValue(1223);
+		writer.emit(value);
+
+		verify(partition, times(0)).add(any(Buffer.class), anyInt(), anyBoolean());
+		verify(partition, times(0)).addBufferIfCapacityAvailable(any(Buffer.class), anyInt());
+
+		// Force flush value => not back pressured regular add
+		writer.flush();
+
+		verify(partition, times(1)).add(any(Buffer.class), eq(0), eq(false));
+		verify(partition, times(0)).addBufferIfCapacityAvailable(any(Buffer.class), anyInt());
+
+		// Nothing to flush again
+		writer.flush();
+		writer.tryFlush();
+
+		verify(partition, times(1)).add(any(Buffer.class), eq(0), eq(false));
+		verify(partition, times(0)).addBufferIfCapacityAvailable(any(Buffer.class), anyInt());
+
+		// Emit value again (nothing written to partition yet again)
+		writer.emit(value);
+		verify(partition, times(1)).add(any(Buffer.class), eq(0), eq(false));
+		verify(partition, times(0)).addBufferIfCapacityAvailable(any(Buffer.class), anyInt());
+
+		// Try flush => no further regular add, but addBufferIfCapacityAvailable
+		writer.tryFlush();
+		verify(partition, times(1)).add(any(Buffer.class), eq(0), eq(false));
+		verify(partition, times(1)).addBufferIfCapacityAvailable(any(Buffer.class), eq(0));
+	}
+
 	// ---------------------------------------------------------------------------------------------
 	// Helpers
 	// ---------------------------------------------------------------------------------------------
@@ -408,8 +517,8 @@ public class RecordWriterTest {
 	 * our lives easier and test it better.
 	 */
 	private ResultPartitionWriter createCollectingPartitionWriter(
-			final Queue<BufferOrEvent>[] queues,
-			BufferProvider bufferProvider) throws IOException {
+		final Queue<BufferOrEvent>[] queues,
+		BufferProvider bufferProvider) throws IOException, InterruptedException {
 
 		int numChannels = queues.length;
 
@@ -425,7 +534,7 @@ public class RecordWriterTest {
 				queues[targetChannel].add(new BufferOrEvent(buffer, targetChannel));
 				return null;
 			}
-		}).when(partitionWriter).writeBuffer(any(Buffer.class), anyInt());
+		}).when(partitionWriter).writeBuffer(any(Buffer.class), anyInt(), anyBoolean());
 
 		doAnswer(new Answer<Void>() {
 			@Override
@@ -441,25 +550,25 @@ public class RecordWriterTest {
 	}
 
 	private BufferProvider createBufferProvider(final int bufferSize)
-			throws IOException, InterruptedException {
+		throws IOException, InterruptedException {
 
 		BufferProvider bufferProvider = mock(BufferProvider.class);
 		when(bufferProvider.requestBufferBlocking()).thenAnswer(
-				new Answer<Buffer>() {
-					@Override
-					public Buffer answer(InvocationOnMock invocationOnMock) throws Throwable {
-						MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
-						Buffer buffer = new Buffer(segment, new DiscardingRecycler());
-						return buffer;
-					}
+			new Answer<Buffer>() {
+				@Override
+				public Buffer answer(InvocationOnMock invocationOnMock) throws Throwable {
+					MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
+					Buffer buffer = new Buffer(segment, new DiscardingRecycler());
+					return buffer;
 				}
+			}
 		);
 
 		return bufferProvider;
 	}
 
 	private BufferProvider createBufferProvider(Buffer... buffers)
-			throws IOException, InterruptedException {
+		throws IOException, InterruptedException {
 
 		BufferProvider bufferProvider = mock(BufferProvider.class);
 
@@ -471,7 +580,7 @@ public class RecordWriterTest {
 	}
 
 	private ResultPartitionWriter createResultPartitionWriter(BufferProvider bufferProvider)
-			throws IOException {
+		throws IOException, InterruptedException {
 
 		ResultPartitionWriter partitionWriter = mock(ResultPartitionWriter.class);
 		when(partitionWriter.getBufferProvider()).thenReturn(checkNotNull(bufferProvider));
@@ -485,7 +594,7 @@ public class RecordWriterTest {
 
 				return null;
 			}
-		}).when(partitionWriter).writeBuffer(any(Buffer.class), anyInt());
+		}).when(partitionWriter).writeBuffer(any(Buffer.class), anyInt(), anyBoolean());
 
 		return partitionWriter;
 	}
@@ -514,7 +623,7 @@ public class RecordWriterTest {
 	 */
 	private static class RoundRobin<T extends IOReadableWritable> implements ChannelSelector<T> {
 
-		private int[] nextChannel = new int[] { -1 };
+		private int[] nextChannel = new int[]{-1};
 
 		@Override
 		public int[] selectChannels(final T record, final int numberOfOutputChannels) {

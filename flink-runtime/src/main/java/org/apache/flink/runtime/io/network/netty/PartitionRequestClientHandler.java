@@ -33,6 +33,7 @@ import org.apache.flink.runtime.io.network.netty.exception.TransportException;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel.CapacityAvailabilityListener;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +41,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayDeque;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -52,13 +52,13 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PartitionRequestClientHandler.class);
 
-	private final ConcurrentMap<InputChannelID, RemoteInputChannel> inputChannels = new ConcurrentHashMap<InputChannelID, RemoteInputChannel>();
+	private final ConcurrentMap<InputChannelID, RemoteInputChannel> inputChannels = new ConcurrentHashMap<>();
 
 	private final AtomicBoolean channelError = new AtomicBoolean(false);
 
 	private final BufferListenerTask bufferListener = new BufferListenerTask();
 
-	private final Queue<Object> stagedMessages = new ArrayDeque<Object>();
+	private final ArrayDeque<Object> stagedMessages = new ArrayDeque<Object>();
 
 	private final StagedMessagesHandlerTask stagedMessagesHandler = new StagedMessagesHandlerTask();
 
@@ -282,11 +282,16 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 						buffer.setSize(bufferOrEvent.getSize());
 						bufferOrEvent.getNettyBuffer().readBytes(buffer.getNioBuffer());
 
-						inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber);
-
-						return true;
+						if (inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, bufferListener)) {
+							return true;
+						} else {
+							// could not queue the buffer - remember it and wait for the availability callback
+							bufferListener.stageAllocatedBuffer(inputChannel, buffer, bufferOrEvent.sequenceNumber);
+							ctx.channel().config().setAutoRead(false);
+							return false;
+						}
 					}
-					else if (bufferListener.waitForBuffer(bufferProvider, bufferOrEvent)) {
+					else if (bufferListener.registerBufferAvailabilityCallback(bufferProvider, bufferOrEvent)) {
 						releaseNettyBuffer = false;
 
 						return false;
@@ -305,7 +310,10 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
 				Buffer buffer = new Buffer(memSeg, FreeingBufferRecycler.INSTANCE, false);
 
-				inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber);
+				// since this is an event, it can never be rejected under backpressure
+				if (!inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, null)) {
+					throw new IOException("Error in input channel: Event could not be queued");
+				}
 
 				return true;
 			}
@@ -342,32 +350,43 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	 * the thread calling {@link #onEvent(Buffer)} to the network I/O
 	 * thread, which then continues the processing of the staged buffer.
 	 */
-	private class BufferListenerTask implements EventListener<Buffer>, Runnable {
+	private class BufferListenerTask implements EventListener<Buffer>, Runnable, CapacityAvailabilityListener {
 
 		private final AtomicReference<Buffer> availableBuffer = new AtomicReference<Buffer>();
 
+		// a staged response because no buffer was available in the buffer pool
 		private NettyMessage.BufferResponse stagedBufferResponse;
 
-		private boolean waitForBuffer(BufferProvider bufferProvider, NettyMessage.BufferResponse bufferResponse) {
+		// staged buffer because the input channels individual capacity was exceeded
+		private RemoteInputChannel stagedChannel;
+		private Buffer stagedBuffer;
+		private int stagedSequenceNumber;
 
-			stagedBufferResponse = bufferResponse;
-
+		/**
+		 * This tries to install a "callback on buffer availability".
+		 */
+		boolean registerBufferAvailabilityCallback(BufferProvider bufferProvider, NettyMessage.BufferResponse bufferResponse) {
 			if (bufferProvider.addListener(this)) {
 				if (ctx.channel().config().isAutoRead()) {
 					ctx.channel().config().setAutoRead(false);
 				}
 
+				stagedBufferResponse = bufferResponse;
 				return true;
 			}
 			else {
-				stagedBufferResponse = null;
-
 				return false;
 			}
 		}
 
-		private boolean hasStagedBufferOrEvent() {
-			return stagedBufferResponse != null;
+		void stageAllocatedBuffer(RemoteInputChannel channel, Buffer buffer, int sequenceNumber) {
+			this.stagedChannel = channel;
+			this.stagedBuffer = buffer;
+			this.stagedSequenceNumber = sequenceNumber;
+		}
+
+		boolean hasStagedBufferOrEvent() {
+			return stagedBufferResponse != null | stagedBuffer != null;
 		}
 
 		// Called by the recycling thread (not network I/O thread)
@@ -412,56 +431,102 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 			}
 		}
 
+		// this is called by the receiving task's thread
+		@Override
+		public void capacityAvailable() {
+			// queue this back in
+			ctx.channel().eventLoop().execute(this);
+		}
+
 		/**
-		 * Continues the decoding of a staged buffer after a buffer has become available again.
-		 * <p>
-		 * This task is executed by the network I/O thread.
+		 * Continues the decoding of a staged buffers. Called either on availability of capacity,
+		 * or after a buffer has become available again.
+		 * 
+		 * <p>This task is executed by the network I/O thread.
 		 */
 		@Override
 		public void run() {
-			boolean success = false;
+			try {
+				boolean handledStagedMessage = (stagedBuffer == null) ?
+						replayStagedNettyMessage() :
+						replayCapacityBufferedMessage();
 
+
+				if (handledStagedMessage) {
+					// if we handled our staged message, continue with the next staged messages
+					// or resume reading from the network
+					if (stagedMessages.isEmpty()) {
+						ctx.channel().config().setAutoRead(true);
+						ctx.channel().read();
+					}
+					else {
+						ctx.channel().eventLoop().execute(stagedMessagesHandler);
+					}
+				}
+			}
+			catch (Throwable t) {
+				notifyAllChannelsOfErrorAndClose(t);
+			}
+		}
+
+		private boolean replayCapacityBufferedMessage() {
+			if (stagedChannel.onBuffer(stagedBuffer, stagedSequenceNumber, this)) {
+				// managed to add the buffer
+				stagedBuffer = null;
+				stagedSequenceNumber = -1;
+				stagedChannel = null;
+				return true;
+			}
+			else {
+				// again did not manage to add the buffer and installed a callback again
+				return false;
+			}
+		}
+
+		private boolean replayStagedNettyMessage() {
 			Buffer buffer = null;
+			boolean releaseBuffer = true;
 
 			try {
 				if ((buffer = availableBuffer.getAndSet(null)) == null) {
 					throw new IllegalStateException("Running buffer availability task w/o a buffer.");
 				}
 
-				buffer.setSize(stagedBufferResponse.getSize());
+				final NettyMessage.BufferResponse stagedBufferResponse = this.stagedBufferResponse;
+				this.stagedBufferResponse = null;
 
+				buffer.setSize(stagedBufferResponse.getSize());
 				stagedBufferResponse.getNettyBuffer().readBytes(buffer.getNioBuffer());
 				stagedBufferResponse.releaseBuffer();
 
 				RemoteInputChannel inputChannel = inputChannels.get(stagedBufferResponse.receiverId);
 
 				if (inputChannel != null) {
-					inputChannel.onBuffer(buffer, stagedBufferResponse.sequenceNumber);
+					if (inputChannel.onBuffer(buffer, stagedBufferResponse.sequenceNumber, this)) {
+						// we handled the staged request
+						releaseBuffer = false;
+						return true;
+					} else {
+						// we could not handle the request, it is queued again
+						this.stagedBuffer = buffer;
+						this.stagedSequenceNumber = stagedBufferResponse.sequenceNumber;
+						this.stagedChannel = inputChannel;
 
-					success = true;
+						releaseBuffer = false;
+						return false;
+					}
+
+					
 				}
 				else {
 					cancelRequestFor(stagedBufferResponse.receiverId);
+					// we handled the staged request, even if it resulted in a cancellation
+					return true;
 				}
-
-				stagedBufferResponse = null;
-
-				if (stagedMessages.isEmpty()) {
-					ctx.channel().config().setAutoRead(true);
-					ctx.channel().read();
-				}
-				else {
-					ctx.channel().eventLoop().execute(stagedMessagesHandler);
-				}
-			}
-			catch (Throwable t) {
-				notifyAllChannelsOfErrorAndClose(t);
 			}
 			finally {
-				if (!success) {
-					if (buffer != null) {
-						buffer.recycle();
-					}
+				if (releaseBuffer && buffer != null) {
+					buffer.recycle();
 				}
 			}
 		}

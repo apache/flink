@@ -112,7 +112,7 @@ public class PartialConsumePipelinedResultTest {
 
 			for (int i = 0; i < 8; i++) {
 				final Buffer buffer = writer.getBufferProvider().requestBufferBlocking();
-				writer.writeBuffer(buffer, 0);
+				writer.writeBuffer(buffer, 0, false);
 
 				Thread.sleep(50);
 			}

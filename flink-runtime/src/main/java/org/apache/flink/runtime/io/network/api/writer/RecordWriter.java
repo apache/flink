@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
 
 import java.io.IOException;
 
@@ -102,7 +102,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 				Buffer buffer = serializer.getCurrentBuffer();
 
 				if (buffer != null) {
-					writeAndClearBuffer(buffer, targetChannel, serializer);
+					writeAndClearBuffer(buffer, targetChannel, true, serializer);
 
 					// If this was a full record, we are done. Not breaking
 					// out of the loop at this point will lead to another
@@ -127,7 +127,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 			synchronized (serializer) {
 				Buffer buffer = serializer.getCurrentBuffer();
 				if (buffer != null) {
-					writeAndClearBuffer(buffer, targetChannel, serializer);
+					writeAndClearBuffer(buffer, targetChannel, false, serializer);
 				} else if (serializer.hasData()) {
 					throw new IllegalStateException("No buffer, but serializer has buffered data.");
 				}
@@ -144,7 +144,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 			synchronized (serializer) {
 				Buffer buffer = serializer.getCurrentBuffer();
 				if (buffer != null) {
-					writeAndClearBuffer(buffer, targetChannel, serializer);
+					writeAndClearBuffer(buffer, targetChannel, false, serializer);
 				}
 			}
 		}
@@ -152,7 +152,16 @@ public class RecordWriter<T extends IOReadableWritable> {
 		targetPartition.writeEndOfSuperstep();
 	}
 
-	public void flush() throws IOException {
+	/**
+	 * Force flushes the serializers ignoring any capacity constraints of
+	 * the target partition.
+	 *
+	 * @throws IOException Exceptions are forwarded from the partition.
+	 * @throws InterruptedException In general, writing to a partition can block
+	 * due to capacity constraints, but force flushing should never be blocked,
+	 * but we have to forward this Exception declaration from the partition.
+	 */
+	public void flush() throws IOException, InterruptedException {
 		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
 			RecordSerializer<T> serializer = serializers[targetChannel];
 
@@ -161,9 +170,30 @@ public class RecordWriter<T extends IOReadableWritable> {
 					Buffer buffer = serializer.getCurrentBuffer();
 
 					if (buffer != null) {
-						writeAndClearBuffer(buffer, targetChannel, serializer);
+						writeAndClearBuffer(buffer, targetChannel, false, serializer);
 					}
 				} finally {
+					serializer.clear();
+				}
+			}
+		}
+	}
+
+	/**
+	 * Tries to flush the serializers iff the target partition has capacity to
+	 * take the buffer.
+	 *
+	 * @throws IOException Exceptions are forwarded from the partition.
+	 */
+	public void tryFlush() throws IOException {
+		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
+			RecordSerializer<T> serializer = serializers[targetChannel];
+
+			synchronized (serializer) {
+				Buffer buffer = serializer.getCurrentBuffer();
+
+				if (buffer != null && targetPartition.tryWriteBuffer(buffer, targetChannel)) {
+					System.out.println("flushed");
 					serializer.clear();
 				}
 			}
@@ -214,10 +244,11 @@ public class RecordWriter<T extends IOReadableWritable> {
 	private void writeAndClearBuffer(
 			Buffer buffer,
 			int targetChannel,
-			RecordSerializer<T> serializer) throws IOException {
+			boolean backPressure,
+			RecordSerializer<T> serializer) throws IOException, InterruptedException {
 
 		try {
-			targetPartition.writeBuffer(buffer, targetChannel);
+			targetPartition.writeBuffer(buffer, targetChannel, backPressure);
 		}
 		finally {
 			serializer.clearCurrentBuffer();

@@ -639,7 +639,7 @@ public class TaskManagerTest extends TestLogger {
 						new InputGateDeploymentDescriptor(
 								new IntermediateDataSetID(),
 								0, new InputChannelDeploymentDescriptor[]{
-										new InputChannelDeploymentDescriptor(new ResultPartitionID(partitionId, eid1), ResultPartitionLocation.createLocal())
+										new InputChannelDeploymentDescriptor(new ResultPartitionID(partitionId, eid1), ResultPartitionLocation.createLocal(), false)
 								}
 						);
 
@@ -784,7 +784,7 @@ public class TaskManagerTest extends TestLogger {
 						new InputGateDeploymentDescriptor(
 								new IntermediateDataSetID(),
 								0, new InputChannelDeploymentDescriptor[]{
-										new InputChannelDeploymentDescriptor(new ResultPartitionID(partitionId, eid1), ResultPartitionLocation.createLocal())
+										new InputChannelDeploymentDescriptor(new ResultPartitionID(partitionId, eid1), ResultPartitionLocation.createLocal(), false)
 								}
 						);
 
@@ -933,7 +933,7 @@ public class TaskManagerTest extends TestLogger {
 
 				final InputChannelDeploymentDescriptor[] icdd =
 						new InputChannelDeploymentDescriptor[] {
-								new InputChannelDeploymentDescriptor(partitionId, loc)};
+								new InputChannelDeploymentDescriptor(partitionId, loc, false)};
 
 				final InputGateDeploymentDescriptor igdd =
 						new InputGateDeploymentDescriptor(resultId, 0, icdd);
@@ -1031,7 +1031,7 @@ public class TaskManagerTest extends TestLogger {
 
 				final InputChannelDeploymentDescriptor[] icdd =
 						new InputChannelDeploymentDescriptor[] {
-								new InputChannelDeploymentDescriptor(partitionId, loc)};
+								new InputChannelDeploymentDescriptor(partitionId, loc, false)};
 
 				final InputGateDeploymentDescriptor igdd =
 						new InputGateDeploymentDescriptor(resultId, 0, icdd);

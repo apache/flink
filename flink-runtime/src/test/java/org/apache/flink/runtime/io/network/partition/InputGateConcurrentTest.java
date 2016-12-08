@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultPartitionManager;
@@ -73,7 +74,7 @@ public class InputGateConcurrentTest {
 					resultPartitionManager, mock(TaskEventDispatcher.class), new DummyIOMetricGroup());
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
-			partitions[i] = new PipelinedSubpartition(0, resultPartition);
+			partitions[i] = new PipelinedSubpartition(0, resultPartition, 0);
 			sources[i] = new PipelinedSubpartitionSource(partitions[i]);
 		}
 
@@ -108,10 +109,50 @@ public class InputGateConcurrentTest {
 		for (int i = 0; i < numChannels; i++) {
 			RemoteInputChannel channel = new RemoteInputChannel(
 					gate, i, new ResultPartitionID(), mock(ConnectionID.class),
-					connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup());
+					connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup(), 0);
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
 			sources[i] = new RemoteChannelSource(channel);
+		}
+
+		ProducerThread producer = new ProducerThread(sources, numChannels * buffersPerChannel, 4, 10);
+		ConsumerThread consumer = new ConsumerThread(gate, numChannels * buffersPerChannel);
+		producer.start();
+		consumer.start();
+
+		// the 'sync()' call checks for exceptions and failed assertions
+		producer.sync();
+		consumer.sync();
+	}
+
+	@Test
+	public void testConsumptionWithRemoteChannelsAndCapacityLimit() throws Exception {
+		final int maxCapacityLimit = 4;
+		final int numChannels = 11;
+		final int buffersPerChannel = 1000;
+
+		final ConnectionManager connManager = createDummyConnectionManager();
+		final Source[] sources = new Source[numChannels];
+
+		final SingleInputGate gate = new SingleInputGate(
+			"Test Task Name",
+			new JobID(),
+			new ExecutionAttemptID(),
+			new IntermediateDataSetID(),
+			0,
+			numChannels,
+			mock(PartitionStateChecker.class),
+			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+
+		for (int i = 0; i < numChannels; i++) {
+			int capacityLimit = ThreadLocalRandom.current().nextInt(maxCapacityLimit);
+
+			RemoteInputChannel channel = new RemoteInputChannel(
+				gate, i, new ResultPartitionID(), mock(ConnectionID.class),
+				connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup(), capacityLimit);
+			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
+
+			sources[i] = new RemoteChannelSourceWithCapacityLimit(channel);
 		}
 
 		ProducerThread producer = new ProducerThread(sources, numChannels * buffersPerChannel, 4, 10);
@@ -158,7 +199,7 @@ public class InputGateConcurrentTest {
 		for (int i = 0, local = 0; i < numChannels; i++) {
 			if (localOrRemote.get(i)) {
 				// local channel
-				PipelinedSubpartition psp = new PipelinedSubpartition(0, resultPartition);
+				PipelinedSubpartition psp = new PipelinedSubpartition(0, resultPartition, 0);
 				localPartitions[local++] = psp;
 				sources[i] = new PipelinedSubpartitionSource(psp);
 
@@ -170,7 +211,7 @@ public class InputGateConcurrentTest {
 				//remote channel
 				RemoteInputChannel channel = new RemoteInputChannel(
 						gate, i, new ResultPartitionID(), mock(ConnectionID.class),
-						connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup());
+						connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup(), 0);
 				gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
 				sources[i] = new RemoteChannelSource(channel);
@@ -206,7 +247,7 @@ public class InputGateConcurrentTest {
 
 		@Override
 		void addBuffer(Buffer buffer) throws Exception {
-			partition.add(buffer);
+			partition.add(buffer, false);
 		}
 	}
 
@@ -221,7 +262,37 @@ public class InputGateConcurrentTest {
 
 		@Override
 		void addBuffer(Buffer buffer) throws Exception {
-			channel.onBuffer(buffer, seq++);
+			channel.onBuffer(buffer, seq++, null);
+		}
+	}
+
+	private static class RemoteChannelSourceWithCapacityLimit extends Source implements RemoteInputChannel.CapacityAvailabilityListener {
+
+		final RemoteInputChannel channel;
+		private int seq = 0;
+
+		RemoteChannelSourceWithCapacityLimit(RemoteInputChannel channel) {
+			this.channel = channel;
+		}
+
+		@Override
+		void addBuffer(Buffer buffer) throws Exception {
+			while (!channel.onBuffer(buffer, seq, this)) {
+				while (channel.getNumberOfQueuedBuffers() >= channel.getCapacityLimit()) {
+					synchronized (channel) {
+						channel.wait(100);
+					}
+				}
+			}
+
+			seq++;
+		}
+
+		@Override
+		public void capacityAvailable() {
+			synchronized (channel) {
+				channel.notifyAll();
+			}
 		}
 	}
 
@@ -300,7 +371,6 @@ public class InputGateConcurrentTest {
 					//noinspection CallToThreadYield
 					Thread.yield();
 				}
-
 			}
 		}
 	}

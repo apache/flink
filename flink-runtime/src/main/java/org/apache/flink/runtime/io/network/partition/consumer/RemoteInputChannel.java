@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -29,11 +30,12 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
 import scala.Tuple2;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -55,7 +57,7 @@ public class RemoteInputChannel extends InputChannel {
 	 * The received buffers. Received buffers are enqueued by the network I/O thread and the queue
 	 * is consumed by the receiving task thread.
 	 */
-	private final Queue<Buffer> receivedBuffers = new ArrayDeque<Buffer>();
+	private final ArrayDeque<Buffer> receivedBuffers = new ArrayDeque<Buffer>();
 
 	/**
 	 * Flag indicating whether this channel has been released. Either called by the receiving task
@@ -63,8 +65,16 @@ public class RemoteInputChannel extends InputChannel {
 	 */
 	private final AtomicBoolean isReleased = new AtomicBoolean();
 
+	private final int capacityLimit;
+
 	/** Client to establish a (possibly shared) TCP connection and request the partition. */
 	private volatile PartitionRequestClient partitionRequestClient;
+
+	/**
+	 * Callback for capacity constrained input channels. Called when we fall
+	 * below the limit constraint when consuming a buffer.
+	 */
+	private volatile CapacityAvailabilityListener capacityCallback;
 
 	/**
 	 * The next expected sequence number for the next buffer. This is modified by the network
@@ -78,25 +88,22 @@ public class RemoteInputChannel extends InputChannel {
 		ResultPartitionID partitionId,
 		ConnectionID connectionId,
 		ConnectionManager connectionManager,
-		IOMetricGroup metrics) {
-
-		this(inputGate, channelIndex, partitionId, connectionId, connectionManager,
-			new Tuple2<Integer, Integer>(0, 0), metrics);
-	}
-
-	public RemoteInputChannel(
-		SingleInputGate inputGate,
-		int channelIndex,
-		ResultPartitionID partitionId,
-		ConnectionID connectionId,
-		ConnectionManager connectionManager,
 		Tuple2<Integer, Integer> initialAndMaxBackoff,
-		IOMetricGroup metrics) {
+		IOMetricGroup metrics,
+		int capacityLimit) {
 
 		super(inputGate, channelIndex, partitionId, initialAndMaxBackoff, metrics.getNumBytesInRemoteCounter());
 
+		checkArgument(capacityLimit >= 0);
+
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
+		this.capacityLimit = capacityLimit;
+	}
+
+	@VisibleForTesting
+	public int getCapacityLimit() {
+		return capacityLimit;
 	}
 
 	// ------------------------------------------------------------------------
@@ -107,7 +114,7 @@ public class RemoteInputChannel extends InputChannel {
 	 * Requests a remote subpartition.
 	 */
 	@Override
-	void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
+	public void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
 		if (partitionRequestClient == null) {
 			// Create a client and request the partition
 			partitionRequestClient = connectionManager
@@ -132,7 +139,7 @@ public class RemoteInputChannel extends InputChannel {
 	}
 
 	@Override
-	BufferAndAvailability getNextBuffer() throws IOException {
+	public BufferAndAvailability getNextBuffer() throws IOException {
 		checkState(!isReleased.get(), "Queried for a buffer after channel has been closed.");
 		checkState(partitionRequestClient != null, "Queried for a buffer before requesting a queue.");
 
@@ -144,6 +151,13 @@ public class RemoteInputChannel extends InputChannel {
 		synchronized (receivedBuffers) {
 			next = receivedBuffers.poll();
 			remaining = receivedBuffers.size();
+
+			CapacityAvailabilityListener listener;
+			if (capacityLimit > 0 && capacityLimit - 1 == remaining && (listener = capacityCallback) != null) {
+				// we just cleared up capacity, so notify the callback
+				capacityCallback = null;
+				listener.capacityAvailable();
+			}
 		}
 
 		numBytesIn.inc(next.getSize());
@@ -201,7 +215,7 @@ public class RemoteInputChannel extends InputChannel {
 		}
 	}
 
-	public void failPartitionRequest() {
+	void failPartitionRequest() {
 		setError(new PartitionNotFoundException(partitionId));
 	}
 
@@ -232,15 +246,37 @@ public class RemoteInputChannel extends InputChannel {
 		return inputGate.getBufferProvider();
 	}
 
-	public void onBuffer(Buffer buffer, int sequenceNumber) {
+	/**
+	 * Queues a buffer from the network.
+	 * 
+	 * <p>If the channel is capacity constrained and the maximum capacity would be exceeded by this operation,
+	 * the method returns {@code false} and installs the provided callback. The callback will be called
+	 * as soon as capacity becomes available.
+	 * 
+	 * @param buffer The buffer to add to the remote input channel.
+	 * @param sequenceNumber The sequence number of the buffer.
+	 * @param callback The callback that will be installed when the channel is capacity constrained and
+	 *                 the capacity is exceeded.
+	 * 
+	 * @return True, if the channel accepted and queued the buffer, false it it did not
+	 *         accept the buffer due to back pressure and installed the callback.
+	 */
+	public boolean onBuffer(Buffer buffer, int sequenceNumber, @Nullable CapacityAvailabilityListener callback) {
 		boolean success = false;
 
 		try {
 			synchronized (receivedBuffers) {
 				if (!isReleased.get()) {
+					// check if we would violate the capacity constraint and need to apply back pressure
+					if (capacityLimit > 0 && receivedBuffers.size() >= capacityLimit && buffer.isBuffer()) {
+						capacityCallback = callback;
+						success = true;
+						return false;
+					}
+
+					// check that the sequence numbers match (this is a check for corruption of the network stream)
 					if (expectedSequenceNumber == sequenceNumber) {
 						int available = receivedBuffers.size();
-
 						receivedBuffers.add(buffer);
 						expectedSequenceNumber++;
 
@@ -249,12 +285,20 @@ public class RemoteInputChannel extends InputChannel {
 						}
 
 						success = true;
-					} else {
+						return true;
+					}
+					else {
 						onError(new BufferReorderingException(expectedSequenceNumber, sequenceNumber));
+						return true; // this quasi accepted the buffer, no need for a callback
 					}
 				}
+				else {
+					// a released gate accepts everything and discards it
+					return true;
+				}
 			}
-		} finally {
+		}
+		finally {
 			if (!success) {
 				buffer.recycle();
 			}
@@ -281,6 +325,8 @@ public class RemoteInputChannel extends InputChannel {
 		setError(cause);
 	}
 
+	// ------------------------------------------------------------------------
+
 	public static class BufferReorderingException extends IOException {
 
 		private static final long serialVersionUID = -888282210356266816L;
@@ -299,5 +345,12 @@ public class RemoteInputChannel extends InputChannel {
 			return String.format("Buffer re-ordering: expected buffer with sequence number %d, but received %d.",
 				expectedSequenceNumber, actualSequenceNumber);
 		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	public interface CapacityAvailabilityListener {
+
+		void capacityAvailable();
 	}
 }

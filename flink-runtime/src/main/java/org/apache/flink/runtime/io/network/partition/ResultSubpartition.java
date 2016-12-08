@@ -71,9 +71,11 @@ public abstract class ResultSubpartition {
 		return parent.getFailureCause();
 	}
 
-	abstract public boolean add(Buffer buffer) throws IOException;
+	abstract public boolean add(Buffer buffer, boolean capacityConstrained) throws IOException, InterruptedException;
 
-	abstract public void finish() throws IOException;
+	abstract public boolean addIfCapacityAvailable(Buffer buffer) throws IOException;
+
+	abstract public void finish() throws IOException, InterruptedException;
 
 	abstract public void release() throws IOException;
 
@@ -82,5 +84,4 @@ public abstract class ResultSubpartition {
 	abstract int releaseMemory() throws IOException;
 
 	abstract public boolean isReleased();
-
 }

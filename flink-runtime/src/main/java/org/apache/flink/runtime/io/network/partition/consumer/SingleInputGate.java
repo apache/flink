@@ -206,7 +206,7 @@ public class SingleInputGate implements InputGate {
 		return consumedResultId;
 	}
 
-	BufferProvider getBufferProvider() {
+	public BufferProvider getBufferProvider() {
 		return bufferPool;
 	}
 
@@ -517,7 +517,8 @@ public class SingleInputGate implements InputGate {
 				partitionId);
 	}
 
-	private void queueChannel(InputChannel channel) {
+	@VisibleForTesting
+	void queueChannel(InputChannel channel) {
 		int availableChannels;
 
 		synchronized (inputChannelsWithData) {
@@ -541,7 +542,7 @@ public class SingleInputGate implements InputGate {
 	// ------------------------------------------------------------------------
 
 	@VisibleForTesting
-	Map<IntermediateResultPartitionID, InputChannel> getInputChannels() {
+	public Map<IntermediateResultPartitionID, InputChannel> getInputChannels() {
 		return inputChannels;
 	}
 
@@ -556,8 +557,10 @@ public class SingleInputGate implements InputGate {
 			ExecutionAttemptID executionId,
 			InputGateDeploymentDescriptor igdd,
 			NetworkEnvironment networkEnvironment,
-			IOMetricGroup metrics) {
+			IOMetricGroup metrics,
+			int channelCapacityLimit) {
 
+		checkArgument(channelCapacityLimit >= 0);
 		final IntermediateDataSetID consumedResultId = checkNotNull(igdd.getConsumedResultId());
 
 		final int consumedSubpartitionIndex = igdd.getConsumedSubpartitionIndex();
@@ -595,7 +598,8 @@ public class SingleInputGate implements InputGate {
 						partitionLocation.getConnectionId(),
 						networkEnvironment.getConnectionManager(),
 						networkEnvironment.getPartitionRequestInitialAndMaxBackoff(),
-						metrics
+						metrics,
+						channelCapacityLimit
 				);
 
 				numRemoteChannels++;
@@ -606,7 +610,8 @@ public class SingleInputGate implements InputGate {
 						networkEnvironment.getTaskEventDispatcher(),
 						networkEnvironment.getConnectionManager(),
 						networkEnvironment.getPartitionRequestInitialAndMaxBackoff(),
-						metrics
+						metrics,
+						channelCapacityLimit
 				);
 
 				numUnknownChannels++;

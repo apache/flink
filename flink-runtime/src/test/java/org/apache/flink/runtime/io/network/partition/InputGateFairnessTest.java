@@ -31,6 +31,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel.CapacityAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -72,10 +73,10 @@ public class InputGateFairnessTest {
 		final PipelinedSubpartition[] sources = new PipelinedSubpartition[numChannels];
 
 		for (int i = 0; i < numChannels; i++) {
-			PipelinedSubpartition partition = new PipelinedSubpartition(0, resultPartition);
+			PipelinedSubpartition partition = new PipelinedSubpartition(0, resultPartition, 0);
 
 			for (int p = 0; p < buffersPerChannel; p++) {
-				partition.add(mockBuffer);
+				partition.add(mockBuffer, false);
 			}
 
 			partition.finish();
@@ -133,7 +134,7 @@ public class InputGateFairnessTest {
 		final PipelinedSubpartition[] sources = new PipelinedSubpartition[numChannels];
 
 		for (int i = 0; i < numChannels; i++) {
-			sources[i] = new PipelinedSubpartition(0, resultPartition);
+			sources[i] = new PipelinedSubpartition(0, resultPartition, 0);
 		}
 
 		// ----- create reading side -----
@@ -156,7 +157,7 @@ public class InputGateFairnessTest {
 		}
 
 		// seed one initial buffer
-		sources[12].add(mockBuffer);
+		sources[12].add(mockBuffer, false);
 
 		// read all the buffers and the EOF event
 		for (int i = 0; i < numChannels * buffersPerChannel; i++) {
@@ -207,14 +208,16 @@ public class InputGateFairnessTest {
 		for (int i = 0; i < numChannels; i++) {
 			RemoteInputChannel channel = new RemoteInputChannel(
 					gate, i, new ResultPartitionID(), mock(ConnectionID.class), 
-					connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup());
+					connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup(), 0);
 
 			channels[i] = channel;
+
+			CapacityAvailabilityListener listener = mock(CapacityAvailabilityListener.class);
 			
 			for (int p = 0; p < buffersPerChannel; p++) {
-				channel.onBuffer(mockBuffer, p);
+				channel.onBuffer(mockBuffer, p, listener);
 			}
-			channel.onBuffer(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), buffersPerChannel);
+			channel.onBuffer(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), buffersPerChannel, listener);
 
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 		}
@@ -264,13 +267,15 @@ public class InputGateFairnessTest {
 		for (int i = 0; i < numChannels; i++) {
 			RemoteInputChannel channel = new RemoteInputChannel(
 					gate, i, new ResultPartitionID(), mock(ConnectionID.class),
-					connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup());
+					connManager, new Tuple2<>(0, 0), new DummyIOMetricGroup(), 0);
 
 			channels[i] = channel;
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 		}
 
-		channels[11].onBuffer(mockBuffer, 0);
+		CapacityAvailabilityListener listener = mock(CapacityAvailabilityListener.class);
+
+		channels[11].onBuffer(mockBuffer, 0, listener);
 		channelSequenceNums[11]++;
 
 		// read all the buffers and the EOF event
@@ -311,7 +316,7 @@ public class InputGateFairnessTest {
 		Collections.shuffle(poss);
 
 		for (Integer i : poss) {
-			partitions[i].add(buffer);
+			partitions[i].add(buffer, false);
 		}
 	}
 
@@ -331,8 +336,10 @@ public class InputGateFairnessTest {
 
 		Collections.shuffle(poss);
 
+		CapacityAvailabilityListener listener = mock(CapacityAvailabilityListener.class);
+
 		for (int i : poss) {
-			partitions[i].onBuffer(buffer, sequenceNumbers[i]++);
+			partitions[i].onBuffer(buffer, sequenceNumbers[i]++, listener);
 		}
 	}
 	

@@ -35,6 +35,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -522,6 +523,8 @@ public class Execution implements Serializable {
 			final ExecutionState consumerState = consumer.getState();
 
 			final IntermediateResultPartition partition = edge.getSource();
+			final boolean inputCapacityBound =
+					partition.getIntermediateResult().getResultType() == ResultPartitionType.PIPELINED_BOUNDED;
 
 			// ----------------------------------------------------------------
 			// Consumer is created => try to deploy and cache input channel
@@ -532,7 +535,7 @@ public class Execution implements Serializable {
 						.getCurrentExecutionAttempt();
 
 				consumerVertex.cachePartitionInfo(PartialInputChannelDeploymentDescriptor.fromEdge(
-						partition, partitionExecution));
+						partition, partitionExecution, inputCapacityBound));
 
 				// When deploying a consuming task, its task deployment descriptor will contain all
 				// deployment information available at the respective time. It is possible that some
@@ -599,7 +602,7 @@ public class Execution implements Serializable {
 					}
 
 					final InputChannelDeploymentDescriptor descriptor = new InputChannelDeploymentDescriptor(
-							partitionId, partitionLocation);
+							partitionId, partitionLocation, inputCapacityBound);
 
 					final UpdatePartitionInfo updateTaskMessage = new UpdateTaskSinglePartitionInfo(
 						consumer.getAttemptId(),
@@ -617,7 +620,7 @@ public class Execution implements Serializable {
 							.getCurrentExecutionAttempt();
 
 					consumerVertex.cachePartitionInfo(PartialInputChannelDeploymentDescriptor
-							.fromEdge(partition, partitionExecution));
+							.fromEdge(partition, partitionExecution, inputCapacityBound));
 
 					// double check to resolve race conditions
 					if (consumerVertex.getExecutionState() == RUNNING) {

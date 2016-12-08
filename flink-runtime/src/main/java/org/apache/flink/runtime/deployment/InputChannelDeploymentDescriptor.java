@@ -26,6 +26,7 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.slf4j.Logger;
@@ -55,12 +56,17 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 	/** The location of the partition the input channel is going to consume. */
 	private final ResultPartitionLocation consumedPartitionLocation;
 
+	private final boolean capacityConstrained;
+
+
 	public InputChannelDeploymentDescriptor(
 			ResultPartitionID consumedPartitionId,
-			ResultPartitionLocation consumedPartitionLocation) {
+			ResultPartitionLocation consumedPartitionLocation,
+			boolean capacityConstrained) {
 
 		this.consumedPartitionId = checkNotNull(consumedPartitionId);
 		this.consumedPartitionLocation = checkNotNull(consumedPartitionLocation);
+		this.capacityConstrained = capacityConstrained;
 	}
 
 	public ResultPartitionID getConsumedPartitionId() {
@@ -69,6 +75,10 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 
 	public ResultPartitionLocation getConsumedPartitionLocation() {
 		return consumedPartitionLocation;
+	}
+
+	public boolean isCapacityConstrained() {
+		return capacityConstrained;
 	}
 
 	@Override
@@ -96,7 +106,11 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 			final ExecutionState producerState = producer.getState();
 			final SimpleSlot producerSlot = producer.getAssignedResource();
 
+			final boolean boundedCapacity = 
+					consumedPartition.getIntermediateResult().getResultType() == ResultPartitionType.PIPELINED_BOUNDED;
+
 			final ResultPartitionLocation partitionLocation;
+
 
 			// The producing task needs to be RUNNING or already FINISHED
 			if (consumedPartition.isConsumable() && producerSlot != null &&
@@ -143,8 +157,7 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 			final ResultPartitionID consumedPartitionId = new ResultPartitionID(
 					consumedPartition.getPartitionId(), producer.getAttemptId());
 
-			icdd[i] = new InputChannelDeploymentDescriptor(
-					consumedPartitionId, partitionLocation);
+			icdd[i] = new InputChannelDeploymentDescriptor(consumedPartitionId, partitionLocation, boundedCapacity);
 		}
 
 		return icdd;

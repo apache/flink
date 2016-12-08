@@ -83,7 +83,7 @@ public class OutputCollector<T> implements Collector<T> {
 		for (RecordWriter<?> writer : writers) {
 			try {
 				writer.flush();
-			} catch (IOException e) {
+			} catch (IOException|InterruptedException e) {
 				throw new RuntimeException(e.getMessage(), e);
 			}
 		}

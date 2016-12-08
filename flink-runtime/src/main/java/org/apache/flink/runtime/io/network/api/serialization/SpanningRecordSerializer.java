@@ -55,7 +55,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 
 	private AccumulatorRegistry.Reporter reporter;
 
-	private transient Counter numBytesOut;
+	private Counter numBytesOut;
 
 	public SpanningRecordSerializer() {
 		this.serializationBuffer = new DataOutputSerializer(128);

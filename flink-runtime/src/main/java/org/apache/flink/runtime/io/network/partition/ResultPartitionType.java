@@ -18,13 +18,24 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.configuration.ConfigConstants;
+
 public enum ResultPartitionType {
 
 	BLOCKING(true, false, false),
 
 	PIPELINED(false, true, true),
 
-	PIPELINED_PERSISTENT(true, true, true);
+	/**
+	 * Pipelined partitions with a bounded queue for buffers. The queue size is
+	 * is configured via {@link ConfigConstants#DEFAULT_NETWORK_PIPELINED_BOUNDED_QUEUE_LENGTH}.
+	 *
+	 * For streaming jobs a fixed limit should help avoid that single downstream
+	 * operators get a disproportionally large backlog. For batch jobs, it will
+	 * be best to keep this unlimited ({@link #PIPELINED} and let the local buffer
+	 * pools limit how much is queued.
+	 */
+	PIPELINED_BOUNDED(false, true, true);
 
 	/** Does the partition live longer than the consuming task? */
 	private final boolean isPersistent;
