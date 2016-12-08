@@ -481,19 +481,19 @@ public class TestBaseUtils extends TestLogger {
 			}
 		}
 
-		//
+		if (sort) {
+			Arrays.sort(expectedStrings);
+			Arrays.sort(resultStrings);
+		}
+
+		// Include content of both arrays to provide more context in case of a test failure
 		String msg = String.format(
-			"Different elements in arrays. Expected %d elements: %s. Actual %d elements: %s",
+			"Different elements in arrays.\nExpected %d elements: %s.\nActual %d elements: %s",
 			expectedStrings.length, Arrays.toString(expectedStrings),
 			resultStrings.length, Arrays.toString(resultStrings));
 
 		assertEquals(msg, expectedStrings.length, resultStrings.length);
 
-		if (sort) {
-			Arrays.sort(expectedStrings);
-			Arrays.sort(resultStrings);
-		}
-		
 		for (int i = 0; i < expectedStrings.length; i++) {
 			assertEquals(msg, expectedStrings[i], resultStrings[i]);
 		}
