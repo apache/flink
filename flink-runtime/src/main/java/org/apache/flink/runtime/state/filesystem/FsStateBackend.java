@@ -37,6 +37,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.flink.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -630,10 +631,11 @@ public class FsStateBackend extends AbstractStateBackend {
 						try {
 							fs.delete(statePath, false);
 
-							// attempt to delete the parent (will fail and be ignored if the parent has more files)
 							try {
-								fs.delete(basePath, false);
-							} catch (Throwable ignored) {}
+								FileUtils.deletePathIfEmpty(fs, basePath);
+							} catch (Throwable ignored) {
+								LOG.debug("Could not delete parent directory for path {}.", basePath, ignored);
+							}
 						} catch (Throwable ioE) {
 							LOG.warn("Could not delete stream file for {}.", statePath, ioE);
 						}
@@ -669,8 +671,10 @@ public class FsStateBackend extends AbstractStateBackend {
 								fs.delete(statePath, false);
 
 								try {
-									fs.delete(basePath, false);
-								} catch (Throwable ignored) {}
+									FileUtils.deletePathIfEmpty(fs, basePath);
+								} catch (Throwable ignored) {
+									LOG.debug("Could not delete parent directory for path {}.", basePath, ignored);
+								}
 							} catch (Throwable deleteException) {
 								LOG.warn("Could not delete close and discarded state stream for {}.", statePath, deleteException);
 							}
@@ -715,8 +719,10 @@ public class FsStateBackend extends AbstractStateBackend {
 							fs.delete(statePath, false);
 
 							try {
-								fs.delete(basePath, false);
-							} catch (Throwable ignored) {}
+								FileUtils.deletePathIfEmpty(fs, basePath);
+							} catch (Throwable ignored) {
+								LOG.debug("Could not delete parent directory for path {}.", basePath, ignored);
+							}
 						} catch (Throwable deleteException) {
 							LOG.warn("Could not delete close and discarded state stream for {}.", statePath, deleteException);
 						}
