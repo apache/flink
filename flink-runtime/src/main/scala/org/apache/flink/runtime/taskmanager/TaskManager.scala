@@ -821,7 +821,7 @@ class TaskManager(
     val logFilePathOption = Option(config.configuration.getString(
       ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file")));
     logFilePathOption match {
-      case None => throw new IOException("TaskManager log files are unavailable. " +
+      case None => sender ! new IOException("TaskManager log files are unavailable. " +
         "Log file location not found in environment variable log.file or configuration key "
         + ConfigConstants.TASK_MANAGER_LOG_PATH_KEY + ".");
       case Some(logFilePath) =>
@@ -830,19 +830,24 @@ class TaskManager(
           case StdOutFileRequest =>
             new File(logFilePath.substring(0, logFilePath.length - 4) + ".out");
         }
-        val fis = new FileInputStream(file);
-        Future {
-          val client: BlobClient = blobService.get.createClient()
-          client.put(fis);
-        }(context.dispatcher)
-          .onComplete {
-            case Success(value) => 
-              sender ! value
-              fis.close()
-            case Failure(e) =>
-              sender ! e
-              fis.close()
+        if (file.exists()) {
+          val fis = new FileInputStream(file);
+          Future {
+            val client: BlobClient = blobService.get.createClient()
+            client.put(fis);
           }(context.dispatcher)
+            .onComplete {
+              case Success(value) =>
+                sender ! value
+                fis.close()
+              case Failure(e) =>
+                sender ! e
+                fis.close()
+            }(context.dispatcher)
+        } else {
+          sender ! new IOException("TaskManager log files are unavailable. " +
+            "Log file does not exist.")
+        }
     }
   }
 
