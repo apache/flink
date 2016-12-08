@@ -100,8 +100,9 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	/**
 	 * Resets the target buffer to <tt>null</tt>.
 	 *
-	 * After calling this method, a new target buffer is required to continue
-	 * writing (see {@link #setNextBuffer(Buffer)}).
+	 * <p><strong>NOTE:</strong> After calling this method, <strong>a new target
+	 * buffer is required to continue writing</strong> (see
+	 * {@link #setNextBuffer(Buffer)}).</p>
 	 */
 	void clearCurrentBuffer();
 
@@ -109,8 +110,10 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	 * Resets the target buffer to <tt>null</tt> and resets internal state set
 	 * up for the record to serialize.
 	 *
-	 * After calling this method, a new record and a new target buffer is
-	 * required to start writing again (see {@link #setNextBuffer(Buffer)}).
+	 * <p><strong>NOTE:</strong> After calling this method, a <strong>new record
+	 * and a new target buffer is required to start writing again</strong>
+	 * (see {@link #setNextBuffer(Buffer)}). If you want to continue
+	 * with the current record, use {@link #clearCurrentBuffer()} instead.</p>
 	 */
 	void clear();
 
