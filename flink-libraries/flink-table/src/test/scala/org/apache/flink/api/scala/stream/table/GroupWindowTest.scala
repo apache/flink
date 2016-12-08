@@ -164,7 +164,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "string", "int")
+      ),
       term("groupBy", "string"),
       term("window", ProcessingTimeTumblingGroupWindow(None, 50.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
@@ -185,7 +189,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "string", "int")
+      ),
       term("groupBy", "string"),
       term("window", ProcessingTimeTumblingGroupWindow(None, 2.rows)),
       term("select", "string", "COUNT(int) AS TMP_0")
@@ -206,7 +214,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "string", "int")
+      ),
       term("groupBy", "string"),
       term("window", EventTimeTumblingGroupWindow(None, RowtimeAttribute(), 5.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
@@ -249,7 +261,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "string", "int")
+      ),
       term("groupBy", "string"),
       term("window", ProcessingTimeSlidingGroupWindow(None, 50.milli, 50.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
@@ -270,7 +286,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "string", "int")
+      ),
       term("groupBy", "string"),
       term("window", ProcessingTimeSlidingGroupWindow(None, 2.rows, 1.rows)),
       term("select", "string", "COUNT(int) AS TMP_0")
@@ -291,7 +311,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "string", "int")
+      ),
       term("groupBy", "string"),
       term("window", EventTimeSlidingGroupWindow(None, RowtimeAttribute(), 8.milli, 10.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
@@ -334,7 +358,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "string", "int")
+      ),
       term("groupBy", "string"),
       term("window", EventTimeSessionGroupWindow(None, RowtimeAttribute(), 7.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
@@ -355,7 +383,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "string", "int")
+      ),
       term("groupBy", "string"),
       term("window", ProcessingTimeTumblingGroupWindow(None, 50.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
@@ -375,7 +407,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "int")
+      ),
       term("window", ProcessingTimeTumblingGroupWindow(None, 2.rows)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -394,7 +430,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "int")
+      ),
       term("window", EventTimeTumblingGroupWindow(None, RowtimeAttribute(), 5.milli)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -414,7 +454,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "int")
+      ),
       term("window", EventTimeTumblingGroupWindow(None, RowtimeAttribute(), 2.rows)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -434,7 +478,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "int")
+      ),
       term("window", ProcessingTimeSlidingGroupWindow(None, 50.milli, 50.milli)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -453,7 +501,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "int")
+      ),
       term("window", ProcessingTimeSlidingGroupWindow(None, 2.rows, 1.rows)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -472,7 +524,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "int")
+      ),
       term("window", EventTimeSlidingGroupWindow(None, RowtimeAttribute(), 8.milli, 10.milli)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -492,7 +548,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "int")
+      ),
       term("window", EventTimeSlidingGroupWindow(None, RowtimeAttribute(), 2.rows, 1.rows)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -511,7 +571,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "int")
+      ),
       term("window", EventTimeSessionGroupWindow(None, RowtimeAttribute(), 7.milli)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -531,7 +595,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "string", "int")
+      ),
       term("groupBy", "string"),
       term("window",
         EventTimeTumblingGroupWindow(
@@ -560,7 +628,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamAggregate",
-      streamTableNode(0),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "string", "int")
+      ),
       term("groupBy", "string"),
       term("window",
         EventTimeSlidingGroupWindow(
@@ -592,7 +664,11 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamAggregate",
-        streamTableNode(0),
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "string", "int")
+        ),
         term("groupBy", "string"),
         term("window",
           EventTimeSessionGroupWindow(
@@ -626,7 +702,11 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamAggregate",
-        streamTableNode(0),
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "string", "int")
+        ),
         term("groupBy", "string"),
         term("window",
           EventTimeTumblingGroupWindow(

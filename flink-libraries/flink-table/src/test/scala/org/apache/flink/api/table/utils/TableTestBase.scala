@@ -91,6 +91,10 @@ object TableTestUtil {
        |""".stripMargin.stripLineEnd
   }
 
+  def values(node: String, term: String*): String = {
+    s"$node(${term.mkString(", ")})"
+  }
+
   def term(term: AnyRef, value: AnyRef*): String = {
     s"$term=[${value.mkString(", ")}]"
   }

@@ -20,10 +20,9 @@ package org.apache.flink.api.table
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.api.table.plan.logical.Minus
-import org.apache.flink.api.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, Ordering, TableFunctionCall}
+import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.plan.ProjectionTranslator._
-import org.apache.flink.api.table.plan.logical._
+import org.apache.flink.api.table.plan.logical.{Minus, _}
 import org.apache.flink.api.table.sinks.TableSink
 
 import scala.collection.JavaConverters._
@@ -77,21 +76,27 @@ class Table(
     * }}}
     */
   def select(fields: Expression*): Table = {
-
     val expandedFields = expandProjectList(fields, logicalPlan, tableEnv)
-    val (projection, aggs, props) = extractAggregationsAndProperties(expandedFields, tableEnv)
-
-    if (props.nonEmpty) {
+    val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, tableEnv)
+    if (propNames.nonEmpty) {
       throw ValidationException("Window properties can only be used on windowed tables.")
     }
 
-    if (aggs.nonEmpty) {
+    if (aggNames.nonEmpty) {
+      val projectsOnAgg = replaceAggregationsAndProperties(
+        expandedFields, tableEnv, aggNames, propNames)
+      val projectFields = extractFieldReferences(expandedFields)
+
       new Table(tableEnv,
-        Project(projection,
-          Aggregate(Nil, aggs, logicalPlan).validate(tableEnv)).validate(tableEnv))
+        Project(projectsOnAgg,
+          Aggregate(Nil, aggNames.map(a => Alias(a._1, a._2)).toSeq,
+            Project(projectFields, logicalPlan).validate(tableEnv)
+          ).validate(tableEnv)
+        ).validate(tableEnv)
+      )
     } else {
       new Table(tableEnv,
-        Project(projection, logicalPlan).validate(tableEnv))
+        Project(expandedFields.map(UnresolvedAlias), logicalPlan).validate(tableEnv))
     }
   }
 
@@ -806,24 +811,21 @@ class GroupedTable(
     * }}}
     */
   def select(fields: Expression*): Table = {
-
-    val (projection, aggs, props) = extractAggregationsAndProperties(fields, table.tableEnv)
-
-    if (props.nonEmpty) {
+    val (aggNames, propNames) = extractAggregationsAndProperties(fields, table.tableEnv)
+    if (propNames.nonEmpty) {
       throw ValidationException("Window properties can only be used on windowed tables.")
     }
 
-    val logical =
-      Project(
-        projection,
-        Aggregate(
-          groupKey,
-          aggs,
-          table.logicalPlan
-        ).validate(table.tableEnv)
-      ).validate(table.tableEnv)
+    val projectsOnAgg = replaceAggregationsAndProperties(
+      fields, table.tableEnv, aggNames, propNames)
+    val projectFields = extractFieldReferences(fields ++ groupKey)
 
-    new Table(table.tableEnv, logical)
+    new Table(table.tableEnv,
+      Project(projectsOnAgg,
+        Aggregate(groupKey, aggNames.map(a => Alias(a._1, a._2)).toSeq,
+          Project(projectFields, table.logicalPlan).validate(table.tableEnv)
+        ).validate(table.tableEnv)
+      ).validate(table.tableEnv))
   }
 
   /**
@@ -877,24 +879,29 @@ class GroupWindowedTable(
     * }}}
     */
   def select(fields: Expression*): Table = {
+    val (aggNames, propNames) = extractAggregationsAndProperties(fields, table.tableEnv)
+    val projectsOnAgg = replaceAggregationsAndProperties(
+      fields, table.tableEnv, aggNames, propNames)
 
-    val (projection, aggs, props) = extractAggregationsAndProperties(fields, table.tableEnv)
+    val projectFields = (table.tableEnv, window) match {
+      // event time can be arbitrary field in batch environment
+      case (_: BatchTableEnvironment, w: EventTimeWindow) =>
+        extractFieldReferences(fields ++ groupKey ++ Seq(w.timeField))
+      case (_, _) =>
+        extractFieldReferences(fields ++ groupKey)
+    }
 
-    val groupWindow = window.toLogicalWindow
-
-    val logical =
+    new Table(table.tableEnv,
       Project(
-        projection,
+        projectsOnAgg,
         WindowAggregate(
           groupKey,
-          groupWindow,
-          props,
-          aggs,
-          table.logicalPlan
+          window.toLogicalWindow,
+          propNames.map(a => Alias(a._1, a._2)).toSeq,
+          aggNames.map(a => Alias(a._1, a._2)).toSeq,
+          Project(projectFields, table.logicalPlan).validate(table.tableEnv)
         ).validate(table.tableEnv)
-      ).validate(table.tableEnv)
-
-    new Table(table.tableEnv, logical)
+      ).validate(table.tableEnv))
   }
 
   /**
