@@ -16,73 +16,83 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.batch
+package org.apache.flink.api.scala.stream
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.{DataSet => JavaSet, ExecutionEnvironment => JavaExecEnv}
-import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
-import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.sources.{BatchTableSource, ProjectableTableSource}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.scala.stream.utils.StreamITCase
+import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaExecEnv}
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream}
 import org.apache.flink.api.table.TableEnvironment
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.api.scala.table._
+import org.apache.flink.api.scala._
+import org.apache.flink.api.table.sources.{ProjectableTableSource, StreamTableSource}
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.types.Row
+import org.junit.Assert._
 import org.junit.{Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
-@RunWith(classOf[Parameterized])
-class ProjectableTableSourceITCase(mode: TestExecutionMode,
-  configMode: TableConfigMode)
-  extends TableProgramsTestBase(mode, configMode) {
+class ProjectableTableSourceITCase extends StreamingMultipleProgramsTestBase {
 
   private val tableName = "MyTable"
-  private var tableEnv: BatchTableEnvironment = null
+  private var tableEnv: StreamTableEnvironment = _
+  private var env: StreamExecutionEnvironment = _
 
   @Before
   def initTableEnv(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    env = StreamExecutionEnvironment.getExecutionEnvironment
+    tableEnv = TableEnvironment.getTableEnvironment(env)
     tableEnv.registerTableSource(tableName, new TestProjectableTableSource)
   }
 
   @Test
   def testTableAPI(): Unit = {
-    val results = tableEnv
-                  .scan(tableName)
-                  .where("amount < 4")
-                  .select("id, name")
-                  .collect()
 
-    val expected = Seq(
+    StreamITCase.testResults = mutable.MutableList()
+
+    tableEnv
+      .ingest(tableName)
+      .where("amount < 4")
+      .select("id, name")
+      .toDataStream[Row]
+      .addSink(new StreamITCase.StringSink)
+
+    env.execute()
+
+    val expected = mutable.MutableList(
       "0,Record_0", "1,Record_1", "2,Record_2", "3,Record_3", "16,Record_16",
-      "17,Record_17", "18,Record_18", "19,Record_19", "32,Record_32").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+      "17,Record_17", "18,Record_18", "19,Record_19", "32,Record_32")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
-
 
   @Test
   def testSQL(): Unit = {
-    val results = tableEnv
-                  .sql(s"select id, name from $tableName where amount < 4 ")
-                  .collect()
 
-    val expected = Seq(
+    StreamITCase.testResults = mutable.MutableList()
+
+    tableEnv
+      .sql(s"select id, name from $tableName where amount < 4 ")
+      .toDataStream[Row]
+      .addSink(new StreamITCase.StringSink)
+
+    env.execute()
+
+    val expected = mutable.MutableList(
       "0,Record_0", "1,Record_1", "2,Record_2", "3,Record_3", "16,Record_16",
-      "17,Record_17", "18,Record_18", "19,Record_19", "32,Record_32").mkString("\n")
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+      "17,Record_17", "18,Record_18", "19,Record_19", "32,Record_32")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }
 
 class TestProjectableTableSource(
   fieldTypes: Array[TypeInformation[_]],
   fieldNames: Array[String])
-  extends BatchTableSource[Row] with ProjectableTableSource[Row] {
+  extends StreamTableSource[Row] with ProjectableTableSource[Row] {
 
   def this() = this(
     fieldTypes = Array(
@@ -93,8 +103,8 @@ class TestProjectableTableSource(
     fieldNames = Array[String]("name", "id", "amount", "price")
   )
 
-  /** Returns the data of the table as a [[org.apache.flink.api.java.DataSet]]. */
-  override def getDataSet(execEnv: JavaExecEnv): JavaSet[Row] = {
+  /** Returns the data of the table as a [[DataStream]]. */
+  override def getDataStream(execEnv: JavaExecEnv): JavaStream[Row] = {
     execEnv.fromCollection(generateDynamicCollection(33, fieldNames).asJava, getReturnType)
   }
 

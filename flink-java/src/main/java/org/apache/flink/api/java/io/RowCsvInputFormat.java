@@ -31,9 +31,10 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> {
 	private static final long serialVersionUID = 1L;
 
 	private int arity;
+	private int[] order;
 	private boolean emptyColumnAsNull;
 
-	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, String lineDelimiter, String fieldDelimiter, boolean[] includedFieldsMask, boolean emptyColumnAsNull) {
+	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, String lineDelimiter, String fieldDelimiter, boolean[] includedFieldsMask, int[] scanOrder, boolean emptyColumnAsNull) {
 		super(filePath);
 		if (rowTypeInfo.getArity() == 0) {
 			throw new IllegalArgumentException("Row arity must be greater than 0.");
@@ -47,21 +48,30 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> {
 			fieldsMask = createDefaultMask(arity);
 		}
 		this.emptyColumnAsNull = emptyColumnAsNull;
+		this.order = configureOrder(scanOrder, arity);
 		setDelimiter(lineDelimiter);
 		setFieldDelimiter(fieldDelimiter);
 		setFieldsGeneric(fieldsMask, extractTypeClasses(rowTypeInfo));
 	}
 
+	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, String lineDelimiter, String fieldDelimiter, boolean[] includedFieldsMask, int[] scanOrder) {
+		this(filePath, rowTypeInfo, lineDelimiter, fieldDelimiter, includedFieldsMask, scanOrder, false);
+	}
+
 	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, String lineDelimiter, String fieldDelimiter, int[] includedFieldsMask) {
-		this(filePath, rowTypeInfo, lineDelimiter, fieldDelimiter, toBoolMask(includedFieldsMask), false);
+		this(filePath, rowTypeInfo, lineDelimiter, fieldDelimiter, toBoolMask(includedFieldsMask), null, false);
 	}
 
 	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, String lineDelimiter, String fieldDelimiter) {
-		this(filePath, rowTypeInfo, lineDelimiter, fieldDelimiter, null, false);
+		this(filePath, rowTypeInfo, lineDelimiter, fieldDelimiter, null, null, false);
+	}
+
+	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, int[] includedFieldsMask, int[] scanOrder) {
+		this(filePath, rowTypeInfo, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, toBoolMask(includedFieldsMask), scanOrder, false);
 	}
 
 	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, boolean[] includedFieldsMask) {
-		this(filePath, rowTypeInfo, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, includedFieldsMask, false);
+		this(filePath, rowTypeInfo, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, includedFieldsMask, null, false);
 	}
 
 	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, int[] includedFieldsMask) {
@@ -69,11 +79,23 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> {
 	}
 
 	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, boolean emptyColumnAsNull) {
-		this(filePath, rowTypeInfo, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, null, emptyColumnAsNull);
+		this(filePath, rowTypeInfo, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, null, null, emptyColumnAsNull);
 	}
 
 	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo) {
 		this(filePath, rowTypeInfo, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, null);
+	}
+
+	private static int[] configureOrder(int[] scanOrder, int length) {
+		if (scanOrder != null) {
+			return scanOrder;
+		} else {
+			int[] defaultOrder = new int[length];
+			for (int i = 0; i < length; i++) {
+				defaultOrder[i] = i;
+			}
+			return defaultOrder;
+		}
 	}
 
 	private static Class<?>[] extractTypeClasses(RowTypeInfo rowTypeInfo) {
@@ -129,14 +151,14 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> {
 
 			if (fieldIncluded[field]) {
 				// parse field
-				FieldParser<Object> parser = (FieldParser<Object>) this.getFieldParsers()[output];
+				FieldParser<Object> parser = (FieldParser<Object>) this.getFieldParsers()[order[output]];
 				int latestValidPos = startPos;
 				startPos = parser.resetErrorStateAndParse(
 					bytes,
 					startPos,
 					limit,
 					fieldDelimiter,
-					holders[output]);
+					holders[order[output]]);
 
 				if (!isLenient() && (parser.getErrorState() != FieldParser.ParseErrorState.NONE)) {
 					// the error state EMPTY_COLUMN is ignored
@@ -145,14 +167,14 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> {
 							field, new String(bytes, offset, numBytes), parser.getClass().getSimpleName(), parser.getErrorState()));
 					}
 				}
-				holders[output] = parser.getLastResult();
+				holders[order[output]] = parser.getLastResult();
 
 				// check parse result:
 				// the result is null if it is invalid
 				// or empty with emptyColumnAsNull enabled
 				if (startPos < 0 ||
 					(emptyColumnAsNull && (parser.getErrorState().equals(FieldParser.ParseErrorState.EMPTY_COLUMN)))) {
-					holders[output] = null;
+					holders[order[output]] = null;
 					startPos = skipFields(bytes, latestValidPos, limit, fieldDelimiter);
 				}
 				output++;

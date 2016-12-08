@@ -39,7 +39,7 @@ class DataStreamCalc(
     traitSet: RelTraitSet,
     input: RelNode,
     rowRelDataType: RelDataType,
-    calcProgram: RexProgram,
+    private[flink] val calcProgram: RexProgram,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, input)
   with FlinkCalc
