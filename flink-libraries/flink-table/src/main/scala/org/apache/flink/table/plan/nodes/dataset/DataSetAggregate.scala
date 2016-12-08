@@ -23,7 +23,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -36,7 +35,6 @@ import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 
 /**
   * Flink RelNode which matches along with a LogicalAggregate.

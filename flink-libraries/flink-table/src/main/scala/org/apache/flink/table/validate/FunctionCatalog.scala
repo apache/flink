@@ -257,9 +257,6 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.NOT,
     SqlStdOperatorTable.UNARY_MINUS,
     SqlStdOperatorTable.UNARY_PLUS,
-    SqlStdOperatorTable.GROUP_ID,
-    SqlStdOperatorTable.GROUPING,
-    SqlStdOperatorTable.GROUPING_ID,
     // AGGREGATE OPERATORS
     SqlStdOperatorTable.SUM,
     SqlStdOperatorTable.COUNT,
