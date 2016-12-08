@@ -39,6 +39,7 @@ under the License.
 	<properties>
 		<cassandra.version>2.2.5</cassandra.version>
 		<driver.version>3.0.0</driver.version>
+		<argLine>-Xms256m -Xmx2800m -XX:-UseGCOverheadLimit</argLine>
 	</properties>
 
 	<build>
@@ -49,7 +50,9 @@ under the License.
 				<configuration>
 					<reuseForks>true</reuseForks>
 					<forkCount>1</forkCount>
-					<argLine>-Xms256m -Xmx2800m -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
+					<systemPropertyVariables>
+						<mvn.forkNumber>0${surefire.forkNumber}</mvn.forkNumber>
+					</systemPropertyVariables>
 				</configuration>
 			</plugin>
 			<plugin>

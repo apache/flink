@@ -91,6 +91,10 @@ under the License.
 		<flink.forkCount>1C</flink.forkCount>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
+		<!-- These properties will use as argLine parameter of Surefire plugin.
+		 We defined argLine as a property to avoid some issue with other plugins,
+		 which used parameters from argLine too-->
+		<argLine>-Xms256m -Xmx800m -XX:-UseGCOverheadLimit</argLine>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3-custom</akka.version>
 		<java.version>1.7</java.version>
@@ -107,6 +111,7 @@ under the License.
 		<junit.version>4.12</junit.version>
 		<mockito.version>1.10.19</mockito.version>
 		<powermock.version>1.6.5</powermock.version>
+		<jacoco.version>0.7.7.201606060606</jacoco.version>
 		<!--
 			Keeping the MiniKDC version fixed instead of taking hadoop version dependency
 			to support testing Kafka, ZK etc., modules that does not have Hadoop dependency
@@ -776,6 +781,39 @@ under the License.
 				<flink-fast-tests-pattern>%regex[.*/[N-Z].*]</flink-fast-tests-pattern>
 			</properties>
 		</profile>
+		<profile>
+			<id>coverage</id>
+			<properties>
+				<flink.forkCount>1</flink.forkCount>
+			</properties>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.jacoco</groupId>
+						<artifactId>jacoco-maven-plugin</artifactId>
+						<version>${jacoco.version}</version>
+						<configuration>
+							<append>true</append>
+						</configuration>
+						<executions>
+							<execution>
+								<id>agent</id>
+								<goals>
+									<goal>prepare-agent</goal>
+								</goals>
+							</execution>
+							<execution>
+								<id>post-unit-test</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>report</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
 	</profiles>
 
 	<build>
@@ -975,9 +1013,12 @@ under the License.
 					<reuseForks>${flink.reuseForks}</reuseForks>
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
+						<mvn.forkNumber>0${surefire.forkNumber}</mvn.forkNumber>
 						<log4j.configuration>${log4j.configuration}</log4j.configuration>
 					</systemPropertyVariables>
-					<argLine>-Xms256m -Xmx800m -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
+					<!-- Do not define argLine here.
+					If you want to add\change options you should change argLine project property.
+					See http://www.eclemma.org/jacoco/trunk/doc/prepare-agent-mojo.html -->
 				</configuration>
 				<executions>
 					<execution>
