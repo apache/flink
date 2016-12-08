@@ -24,7 +24,7 @@ import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
+import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -65,7 +65,7 @@ public class InputGateConcurrentTest {
 				new ExecutionAttemptID(),
 				new IntermediateDataSetID(),
 				0, numChannels,
-				mock(PartitionStateChecker.class),
+				mock(PartitionProducerStateChecker.class),
 				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		for (int i = 0; i < numChannels; i++) {
@@ -102,7 +102,7 @@ public class InputGateConcurrentTest {
 				new IntermediateDataSetID(),
 				0,
 				numChannels,
-				mock(PartitionStateChecker.class),
+				mock(PartitionProducerStateChecker.class),
 				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		for (int i = 0; i < numChannels; i++) {
@@ -152,7 +152,7 @@ public class InputGateConcurrentTest {
 				new IntermediateDataSetID(),
 				0,
 				numChannels,
-				mock(PartitionStateChecker.class),
+				mock(PartitionProducerStateChecker.class),
 				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		for (int i = 0, local = 0; i < numChannels; i++) {
@@ -192,7 +192,7 @@ public class InputGateConcurrentTest {
 	// ------------------------------------------------------------------------
 
 	private static abstract class Source {
-	
+
 		abstract void addBuffer(Buffer buffer) throws Exception;
 	}
 

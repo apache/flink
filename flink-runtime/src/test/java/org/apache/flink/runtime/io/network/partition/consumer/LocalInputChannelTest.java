@@ -28,7 +28,7 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
+import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -284,7 +284,7 @@ public class LocalInputChannelTest {
 			new IntermediateDataSetID(),
 			0,
 			1,
-			mock(PartitionStateChecker.class),
+			mock(PartitionProducerStateChecker.class),
 			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup()
 		);
 
@@ -481,7 +481,7 @@ public class LocalInputChannelTest {
 					new IntermediateDataSetID(),
 					subpartitionIndex,
 					numberOfInputChannels,
-					mock(PartitionStateChecker.class),
+					mock(PartitionProducerStateChecker.class),
 					new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 			// Set buffer pool
