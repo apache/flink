@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.api.scala.batch
 
-import java.io.{File, FileOutputStream, OutputStreamWriter}
-
 import org.apache.flink.api.common.io.GenericInputFormat
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.{DataSet => JavaSet, ExecutionEnvironment => JavaExecEnv}
@@ -29,8 +27,9 @@ import org.apache.flink.types.Row
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource}
+import org.apache.flink.table.sources.BatchTableSource
 import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.utils.CommonTestData
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Test
@@ -83,42 +82,10 @@ class TableSourceITCase(
   @Test
   def testCsvTableSource(): Unit = {
 
-    val csvRecords = Seq(
-      "First#Id#Score#Last",
-      "Mike#1#12.3#Smith",
-      "Bob#2#45.6#Taylor",
-      "Sam#3#7.89#Miller",
-      "Peter#4#0.12#Smith",
-      "% Just a comment",
-      "Liz#5#34.5#Williams",
-      "Sally#6#6.78#Miller",
-      "Alice#7#90.1#Smith",
-      "Kelly#8#2.34#Williams"
-    )
-
-    val tempFile = File.createTempFile("csv-test", "tmp")
-    tempFile.deleteOnExit()
-    val tmpWriter = new OutputStreamWriter(new FileOutputStream(tempFile), "UTF-8")
-    tmpWriter.write(csvRecords.mkString("$"))
-    tmpWriter.close()
+    val csvTable = CommonTestData.getCsvTableSource
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val csvTable = new CsvTableSource(
-      tempFile.getAbsolutePath,
-      Array("first", "id", "score", "last"),
-      Array(
-        BasicTypeInfo.STRING_TYPE_INFO,
-        BasicTypeInfo.INT_TYPE_INFO,
-        BasicTypeInfo.DOUBLE_TYPE_INFO,
-        BasicTypeInfo.STRING_TYPE_INFO
-      ),
-      fieldDelim = "#",
-      rowDelim = "$",
-      ignoreFirstLine = true,
-      ignoreComments = "%"
-    )
 
     tEnv.registerTableSource("csvTable", csvTable)
     val results = tEnv.sql(
@@ -132,6 +99,31 @@ class TableSourceITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testCsvTableSourceWithProjection(): Unit = {
+    val csvTable = CommonTestData.getCsvTableSource
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    tEnv.registerTableSource("csvTable", csvTable)
+
+    val results = tEnv
+      .scan("csvTable")
+      .select('last, 'id.floor(), 'score * 2)
+      .collect()
+
+    val expected = Seq(
+      "Smith,1,24.6",
+      "Taylor,2,91.2",
+      "Miller,3,15.78",
+      "Smith,4,0.24",
+      "Williams,5,69.0",
+      "Miller,6,13.56",
+      "Smith,7,180.2",
+      "Williams,8,4.68").mkString("\n")
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
 }
 
 class TestBatchTableSource extends BatchTableSource[Row] {

@@ -19,7 +19,6 @@
 package org.apache.flink.table.api.scala.batch
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.{DataSet => JavaSet, ExecutionEnvironment => JavaExecEnv}
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase
@@ -27,6 +26,7 @@ import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableC
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.sources.{BatchTableSource, ProjectableTableSource}
 import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row

@@ -16,62 +16,63 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.rules.dataSet
+package org.apache.flink.table.plan.rules.datastream
 
+import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.plan.RelOptRule.{none, operand}
-import org.apache.flink.table.plan.nodes.dataset.{BatchTableSourceScan, DataSetCalc}
+import org.apache.flink.table.plan.nodes.datastream.{DataStreamCalc, StreamTableSourceScan}
 import org.apache.flink.table.plan.rules.util.RexProgramProjectExtractor._
-import org.apache.flink.table.sources.{BatchTableSource, ProjectableTableSource}
+import org.apache.flink.table.sources.{ProjectableTableSource, StreamTableSource}
 
 /**
-  * This rule tries to push projections into a BatchTableSourceScan.
+  * The rule is responsible for push project into a [[StreamTableSourceScan]]
   */
-class PushProjectIntoBatchTableSourceScanRule extends RelOptRule(
-  operand(classOf[DataSetCalc],
-          operand(classOf[BatchTableSourceScan], none)),
-  "PushProjectIntoBatchTableSourceScanRule") {
+class PushProjectIntoStreamTableSourceScanRule extends RelOptRule(
+  operand(classOf[DataStreamCalc],
+    operand(classOf[StreamTableSourceScan], none())),
+  "PushProjectIntoStreamTableSourceScanRule") {
 
-  override def matches(call: RelOptRuleCall) = {
-    val scan: BatchTableSourceScan = call.rel(1).asInstanceOf[BatchTableSourceScan]
+  /** Rule must only match if [[StreamTableSource]] targets a [[ProjectableTableSource]] */
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val scan: StreamTableSourceScan = call.rel(1).asInstanceOf[StreamTableSourceScan]
     scan.tableSource match {
       case _: ProjectableTableSource[_] => true
       case _ => false
     }
   }
 
-  override def onMatch(call: RelOptRuleCall) {
-    val calc: DataSetCalc = call.rel(0).asInstanceOf[DataSetCalc]
-    val scan: BatchTableSourceScan = call.rel(1).asInstanceOf[BatchTableSourceScan]
+  override def onMatch(call: RelOptRuleCall): Unit = {
+    val calc = call.rel(0).asInstanceOf[DataStreamCalc]
+    val scan = call.rel(1).asInstanceOf[StreamTableSourceScan]
 
-    val usedFields: Array[Int] = extractRefInputFields(calc.calcProgram)
+    val usedFields = extractRefInputFields(calc.calcProgram)
 
-    // if no fields can be projected, we keep the original plan.
+    // if no fields can be projected, we keep the original plan
     if (scan.tableSource.getNumberOfFields != usedFields.length) {
       val originTableSource = scan.tableSource.asInstanceOf[ProjectableTableSource[_]]
       val newTableSource = originTableSource.projectFields(usedFields)
-      val newScan = new BatchTableSourceScan(
+      val newScan = new StreamTableSourceScan(
         scan.getCluster,
         scan.getTraitSet,
         scan.getTable,
-        newTableSource.asInstanceOf[BatchTableSource[_]])
+        newTableSource.asInstanceOf[StreamTableSource[_]])
 
-      val newCalcProgram = rewriteRexProgram(
+      val newProgram = rewriteRexProgram(
         calc.calcProgram,
         newScan.getRowType,
         usedFields,
         calc.getCluster.getRexBuilder)
 
-      if (newCalcProgram.isTrivial) {
+      if (newProgram.isTrivial) {
         // drop calc if the transformed program merely returns its input and doesn't exist filter
         call.transformTo(newScan)
       } else {
-        val newCalc = new DataSetCalc(
+        val newCalc = new DataStreamCalc(
           calc.getCluster,
           calc.getTraitSet,
           newScan,
           calc.getRowType,
-          newCalcProgram,
+          newProgram,
           description)
         call.transformTo(newCalc)
       }
@@ -79,6 +80,6 @@ class PushProjectIntoBatchTableSourceScanRule extends RelOptRule(
   }
 }
 
-object PushProjectIntoBatchTableSourceScanRule {
-  val INSTANCE: RelOptRule = new PushProjectIntoBatchTableSourceScanRule
+object PushProjectIntoStreamTableSourceScanRule {
+  val INSTANCE: RelOptRule = new PushProjectIntoStreamTableSourceScanRule
 }

@@ -19,14 +19,10 @@
 package org.apache.flink.table.plan.nodes.dataset
 
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.plan.nodes.FlinkRel
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
-import org.apache.flink.table.plan.nodes.FlinkRel
-
-import scala.collection.JavaConversions._
 
 trait DataSetRel extends RelNode with FlinkRel {
 
@@ -44,28 +40,5 @@ trait DataSetRel extends RelNode with FlinkRel {
   def translateToPlan(
      tableEnv: BatchTableEnvironment,
      expectedType: Option[TypeInformation[Any]] = None) : DataSet[Any]
-
-  private[flink] def estimateRowSize(rowType: RelDataType): Double = {
-
-    rowType.getFieldList.map(_.getType.getSqlTypeName).foldLeft(0) { (s, t) =>
-      t match {
-        case SqlTypeName.TINYINT => s + 1
-        case SqlTypeName.SMALLINT => s + 2
-        case SqlTypeName.INTEGER => s + 4
-        case SqlTypeName.BIGINT => s + 8
-        case SqlTypeName.BOOLEAN => s + 1
-        case SqlTypeName.FLOAT => s + 4
-        case SqlTypeName.DOUBLE => s + 8
-        case SqlTypeName.VARCHAR => s + 12
-        case SqlTypeName.CHAR => s + 1
-        case SqlTypeName.DECIMAL => s + 12
-        case typeName if SqlTypeName.YEAR_INTERVAL_TYPES.contains(typeName) => s + 8
-        case typeName if SqlTypeName.DAY_INTERVAL_TYPES.contains(typeName) => s + 4
-        case SqlTypeName.TIME | SqlTypeName.TIMESTAMP | SqlTypeName.DATE => s + 12
-        case _ => throw TableException(s"Unsupported data type encountered: $t")
-      }
-    }
-
-  }
 
 }

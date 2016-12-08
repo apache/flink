@@ -54,7 +54,8 @@ class CsvTableSource(
     ignoreComments: String = null,
     lenient: Boolean = false)
   extends BatchTableSource[Row]
-  with StreamTableSource[Row] {
+  with StreamTableSource[Row]
+  with ProjectableTableSource[Row] {
 
   /**
     * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
@@ -73,6 +74,8 @@ class CsvTableSource(
   }
 
   private val returnType = new RowTypeInfo(fieldTypes: _*)
+
+  private var selectedFields: Array[Int] = fieldTypes.indices.toArray
 
   /**
     * Returns the data of the table as a [[DataSet]] of [[Row]].
@@ -106,8 +109,32 @@ class CsvTableSource(
     streamExecEnv.createInput(createCsvInput(), returnType)
   }
 
+  /** Returns a copy of [[TableSource]] with ability to project fields */
+  override def projectFields(fields: Array[Int]): CsvTableSource = {
+
+    val newFieldNames: Array[String] = fields.map(fieldNames(_))
+    val newFieldTypes: Array[TypeInformation[_]] = fields.map(fieldTypes(_))
+
+    val source = new CsvTableSource(path,
+      newFieldNames,
+      newFieldTypes,
+      fieldDelim,
+      rowDelim,
+      quoteCharacter,
+      ignoreFirstLine,
+      ignoreComments,
+      lenient)
+    source.selectedFields = fields
+    source
+  }
+
   private def createCsvInput(): RowCsvInputFormat = {
-    val inputFormat = new RowCsvInputFormat(new Path(path), returnType, rowDelim, fieldDelim)
+    val inputFormat = new RowCsvInputFormat(
+      new Path(path),
+      fieldTypes,
+      rowDelim,
+      fieldDelim,
+      selectedFields)
 
     inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
     inputFormat.setLenient(lenient)

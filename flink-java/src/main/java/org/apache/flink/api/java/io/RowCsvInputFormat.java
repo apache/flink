@@ -20,76 +20,108 @@ package org.apache.flink.api.java.io;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.ParseException;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.parser.FieldParser;
 
+import java.util.Arrays;
+
 @PublicEvolving
-public class RowCsvInputFormat extends CsvInputFormat<Row> {
+public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultTypeQueryable<Row> {
 
 	private static final long serialVersionUID = 1L;
 
 	private int arity;
+	private TypeInformation[] fieldTypeInfos;
+	private int[] fieldPosMap;
 	private boolean emptyColumnAsNull;
 
-	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, String lineDelimiter, String fieldDelimiter, boolean[] includedFieldsMask, boolean emptyColumnAsNull) {
-		super(filePath);
-		if (rowTypeInfo.getArity() == 0) {
-			throw new IllegalArgumentException("Row arity must be greater than 0.");
-		}
-		this.arity = rowTypeInfo.getArity();
+	public RowCsvInputFormat(Path filePath, TypeInformation[] fieldTypeInfos, String lineDelimiter, String fieldDelimiter, int[] selectedFields, boolean emptyColumnAsNull) {
 
-		boolean[] fieldsMask;
-		if (includedFieldsMask != null) {
-			fieldsMask = includedFieldsMask;
-		} else {
-			fieldsMask = createDefaultMask(arity);
+		super(filePath);
+		this.arity = fieldTypeInfos.length;
+		if (arity == 0) {
+			throw new IllegalArgumentException("At least one field must be specified");
 		}
+		if (arity != selectedFields.length) {
+			throw new IllegalArgumentException("Number of field types and selected fields must be the same");
+		}
+
+		this.fieldTypeInfos = fieldTypeInfos;
+		this.fieldPosMap = toFieldPosMap(selectedFields);
 		this.emptyColumnAsNull = emptyColumnAsNull;
+
+		boolean[] fieldsMask = toFieldMask(selectedFields);
+
 		setDelimiter(lineDelimiter);
 		setFieldDelimiter(fieldDelimiter);
-		setFieldsGeneric(fieldsMask, extractTypeClasses(rowTypeInfo));
+		setFieldsGeneric(fieldsMask, extractTypeClasses(fieldTypeInfos));
 	}
 
-	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, String lineDelimiter, String fieldDelimiter, int[] includedFieldsMask) {
-		this(filePath, rowTypeInfo, lineDelimiter, fieldDelimiter, toBoolMask(includedFieldsMask), false);
+	public RowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes, String lineDelimiter, String fieldDelimiter, int[] selectedFields) {
+		this(filePath, fieldTypes, lineDelimiter, fieldDelimiter, selectedFields, false);
 	}
 
-	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, String lineDelimiter, String fieldDelimiter) {
-		this(filePath, rowTypeInfo, lineDelimiter, fieldDelimiter, null, false);
+	public RowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes, String lineDelimiter, String fieldDelimiter) {
+		this(filePath, fieldTypes, lineDelimiter, fieldDelimiter, sequentialScanOrder(fieldTypes.length));
 	}
 
-	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, boolean[] includedFieldsMask) {
-		this(filePath, rowTypeInfo, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, includedFieldsMask, false);
+	public RowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes, int[] selectedFields) {
+		this(filePath, fieldTypes, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, selectedFields);
 	}
 
-	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, int[] includedFieldsMask) {
-		this(filePath, rowTypeInfo, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, includedFieldsMask);
+	public RowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes, boolean emptyColumnAsNull) {
+		this(filePath, fieldTypes, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, sequentialScanOrder(fieldTypes.length), emptyColumnAsNull);
 	}
 
-	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, boolean emptyColumnAsNull) {
-		this(filePath, rowTypeInfo, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, null, emptyColumnAsNull);
+	public RowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes) {
+		this(filePath, fieldTypes, false);
 	}
 
-	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo) {
-		this(filePath, rowTypeInfo, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, null);
-	}
-
-	private static Class<?>[] extractTypeClasses(RowTypeInfo rowTypeInfo) {
-		Class<?>[] classes = new Class<?>[rowTypeInfo.getArity()];
-		for (int i = 0; i < rowTypeInfo.getArity(); i++) {
-			classes[i] = rowTypeInfo.getTypeAt(i).getTypeClass();
+	private static Class<?>[] extractTypeClasses(TypeInformation[] fieldTypes) {
+		Class<?>[] classes = new Class<?>[fieldTypes.length];
+		for (int i = 0; i < fieldTypes.length; i++) {
+			classes[i] = fieldTypes[i].getTypeClass();
 		}
 		return classes;
 	}
 
-	private static boolean[] toBoolMask(int[] includedFieldsMask) {
-		if (includedFieldsMask == null) {
-			return null;
-		} else {
-			return toBooleanMask(includedFieldsMask);
+	private static int[] sequentialScanOrder(int arity) {
+		int[] sequentialOrder = new int[arity];
+		for (int i = 0; i < arity; i++) {
+			sequentialOrder[i] = i;
 		}
+		return sequentialOrder;
+	}
+
+	private static boolean[] toFieldMask(int[] selectedFields) {
+		int maxField = 0;
+		for (int selectedField : selectedFields) {
+			maxField = Math.max(maxField, selectedField);
+		}
+		boolean[] mask = new boolean[maxField + 1];
+		Arrays.fill(mask, false);
+
+		for (int selectedField : selectedFields) {
+			mask[selectedField] = true;
+		}
+		return mask;
+	}
+
+	private static int[] toFieldPosMap(int[] selectedFields) {
+		int[] fieldIdxs = Arrays.copyOf(selectedFields, selectedFields.length);
+		Arrays.sort(fieldIdxs);
+
+		int[] fieldPosMap = new int[selectedFields.length];
+		for (int i = 0; i < selectedFields.length; i++) {
+			int pos = Arrays.binarySearch(fieldIdxs, selectedFields[i]);
+			fieldPosMap[pos] = i;
+		}
+
+		return fieldPosMap;
 	}
 
 	@Override
@@ -129,14 +161,14 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> {
 
 			if (fieldIncluded[field]) {
 				// parse field
-				FieldParser<Object> parser = (FieldParser<Object>) this.getFieldParsers()[output];
+				FieldParser<Object> parser = (FieldParser<Object>) this.getFieldParsers()[fieldPosMap[output]];
 				int latestValidPos = startPos;
 				startPos = parser.resetErrorStateAndParse(
 					bytes,
 					startPos,
 					limit,
 					fieldDelimiter,
-					holders[output]);
+					holders[fieldPosMap[output]]);
 
 				if (!isLenient() && (parser.getErrorState() != FieldParser.ParseErrorState.NONE)) {
 					// the error state EMPTY_COLUMN is ignored
@@ -145,14 +177,14 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> {
 							field, new String(bytes, offset, numBytes), parser.getClass().getSimpleName(), parser.getErrorState()));
 					}
 				}
-				holders[output] = parser.getLastResult();
+				holders[fieldPosMap[output]] = parser.getLastResult();
 
 				// check parse result:
 				// the result is null if it is invalid
 				// or empty with emptyColumnAsNull enabled
 				if (startPos < 0 ||
 					(emptyColumnAsNull && (parser.getErrorState().equals(FieldParser.ParseErrorState.EMPTY_COLUMN)))) {
-					holders[output] = null;
+					holders[fieldPosMap[output]] = null;
 					startPos = skipFields(bytes, latestValidPos, limit, fieldDelimiter);
 				}
 				output++;
@@ -170,5 +202,10 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> {
 			field++;
 		}
 		return true;
+	}
+
+	@Override
+	public TypeInformation<Row> getProducedType() {
+		return new RowTypeInfo(this.fieldTypeInfos);
 	}
 }

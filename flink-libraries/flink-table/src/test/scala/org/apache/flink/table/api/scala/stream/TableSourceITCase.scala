@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.api.scala.stream
 
-import java.io.{File, FileOutputStream, OutputStreamWriter}
-
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala.stream.utils.StreamITCase
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.sources.{CsvTableSource, StreamTableSource}
+import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.api.scala._
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment
 import org.apache.flink.streaming.api.functions.source.SourceFunction
@@ -33,6 +31,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.utils.CommonTestData
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.Test
@@ -87,45 +86,13 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
   }
 
   @Test
-  def testCsvTableSource(): Unit = {
+  def testCsvTableSourceSQL(): Unit = {
 
-    val csvRecords = Seq(
-      "First#Id#Score#Last",
-      "Mike#1#12.3#Smith",
-      "Bob#2#45.6#Taylor",
-      "Sam#3#7.89#Miller",
-      "Peter#4#0.12#Smith",
-      "% Just a comment",
-      "Liz#5#34.5#Williams",
-      "Sally#6#6.78#Miller",
-      "Alice#7#90.1#Smith",
-      "Kelly#8#2.34#Williams"
-    )
-
-    val tempFile = File.createTempFile("csv-test", "tmp")
-    tempFile.deleteOnExit()
-    val tmpWriter = new OutputStreamWriter(new FileOutputStream(tempFile), "UTF-8")
-    tmpWriter.write(csvRecords.mkString("$"))
-    tmpWriter.close()
+    val csvTable = CommonTestData.getCsvTableSource
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
-
-    val csvTable = new CsvTableSource(
-      tempFile.getAbsolutePath,
-      Array("first", "id", "score", "last"),
-      Array(
-        BasicTypeInfo.STRING_TYPE_INFO,
-        BasicTypeInfo.INT_TYPE_INFO,
-        BasicTypeInfo.DOUBLE_TYPE_INFO,
-        BasicTypeInfo.STRING_TYPE_INFO
-      ),
-      fieldDelim = "#",
-      rowDelim = "$",
-      ignoreFirstLine = true,
-      ignoreComments = "%"
-    )
 
     tEnv.registerTableSource("csvTable", csvTable)
     tEnv.sql(
@@ -139,6 +106,35 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
       "Smith,12.3,1",
       "Taylor,45.6,2",
       "Miller,7.89,3")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testCsvTableSourceTableAPI(): Unit = {
+
+    val csvTable = CommonTestData.getCsvTableSource
+    StreamITCase.testResults = mutable.MutableList()
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    tEnv.registerTableSource("csvTable", csvTable)
+    tEnv.ingest("csvTable")
+      .select('last, 'id.floor(), 'score * 2)
+      .toDataStream[Row]
+      .addSink(new StreamITCase.StringSink)
+
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "Smith,1,24.6",
+      "Taylor,2,91.2",
+      "Miller,3,15.78",
+      "Smith,4,0.24",
+      "Williams,5,69.0",
+      "Miller,6,13.56",
+      "Smith,7,180.2",
+      "Williams,8,4.68")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }
