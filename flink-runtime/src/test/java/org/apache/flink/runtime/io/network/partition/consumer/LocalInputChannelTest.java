@@ -22,13 +22,11 @@ import com.google.common.collect.Lists;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -43,6 +41,7 @@ import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
+import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -280,11 +279,10 @@ public class LocalInputChannelTest {
 		final SingleInputGate gate = new SingleInputGate(
 			"test task name",
 			new JobID(),
-			new ExecutionAttemptID(),
 			new IntermediateDataSetID(),
 			0,
 			1,
-			mock(PartitionStateChecker.class),
+			mock(TaskActions.class),
 			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup()
 		);
 
@@ -477,11 +475,10 @@ public class LocalInputChannelTest {
 			this.inputGate = new SingleInputGate(
 					"Test Name",
 					new JobID(),
-					new ExecutionAttemptID(),
 					new IntermediateDataSetID(),
 					subpartitionIndex,
 					numberOfInputChannels,
-					mock(PartitionStateChecker.class),
+					mock(TaskActions.class),
 					new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 			// Set buffer pool

@@ -28,15 +28,14 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
-import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
+import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState;
 import org.apache.flink.runtime.messages.TaskMessages.FailTask;
+import org.apache.flink.runtime.taskmanager.ActorGatewayPartitionProducerStateChecker;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -82,7 +81,7 @@ public class NetworkEnvironment {
 
 	private ResultPartitionConsumableNotifier partitionConsumableNotifier;
 
-	private PartitionStateChecker partitionStateChecker;
+	private PartitionProducerStateChecker partitionProducerStateChecker;
 
 	private boolean isShutdown;
 
@@ -143,8 +142,8 @@ public class NetworkEnvironment {
 		return partitionConsumableNotifier;
 	}
 
-	public PartitionStateChecker getPartitionStateChecker() {
-		return partitionStateChecker;
+	public PartitionProducerStateChecker getPartitionProducerStateChecker() {
+		return partitionProducerStateChecker;
 	}
 
 	public Tuple2<Integer, Integer> getPartitionRequestInitialAndMaxBackoff() {
@@ -196,8 +195,9 @@ public class NetworkEnvironment {
 					taskManagerGateway,
 					jobManagerTimeout);
 
-				this.partitionStateChecker = new JobManagerPartitionStateChecker(
-						jobManagerGateway, taskManagerGateway);
+				this.partitionProducerStateChecker = new ActorGatewayPartitionProducerStateChecker(
+					jobManagerGateway,
+					jobManagerTimeout);
 
 				// -----  Network connections  -----
 				final Option<NettyConfig> nettyConfig = configuration.nettyConfig();
@@ -253,7 +253,7 @@ public class NetworkEnvironment {
 
 			partitionConsumableNotifier = null;
 
-			partitionStateChecker = null;
+			partitionProducerStateChecker = null;
 
 			if (taskEventDispatcher != null) {
 				taskEventDispatcher.clearAll();
@@ -474,28 +474,4 @@ public class NetworkEnvironment {
 		}
 	}
 
-	private static class JobManagerPartitionStateChecker implements PartitionStateChecker {
-
-		private final ActorGateway jobManager;
-
-		private final ActorGateway taskManager;
-
-		public JobManagerPartitionStateChecker(ActorGateway jobManager, ActorGateway taskManager) {
-			this.jobManager = jobManager;
-			this.taskManager = taskManager;
-		}
-
-		@Override
-		public void triggerPartitionStateCheck(
-				JobID jobId,
-				ExecutionAttemptID executionAttemptID,
-				IntermediateDataSetID resultId,
-				ResultPartitionID partitionId) {
-
-			RequestPartitionState msg = new RequestPartitionState(
-					jobId, partitionId, executionAttemptID, resultId);
-
-			jobManager.tell(msg, taskManager);
-		}
-	}
 }

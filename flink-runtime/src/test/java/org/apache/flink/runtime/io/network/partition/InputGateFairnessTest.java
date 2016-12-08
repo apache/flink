@@ -19,14 +19,12 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
@@ -37,6 +35,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup.DummyIOMetricGroup;
+import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.junit.Test;
 import scala.Tuple2;
 
@@ -89,10 +88,9 @@ public class InputGateFairnessTest {
 		SingleInputGate gate = new FairnessVerifyingInputGate(
 				"Test Task Name",
 				new JobID(),
-				new ExecutionAttemptID(),
 				new IntermediateDataSetID(),
 				0, numChannels,
-				mock(PartitionStateChecker.class),
+				mock(TaskActions.class),
 				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		for (int i = 0; i < numChannels; i++) {
@@ -143,10 +141,9 @@ public class InputGateFairnessTest {
 		SingleInputGate gate = new FairnessVerifyingInputGate(
 				"Test Task Name",
 				new JobID(),
-				new ExecutionAttemptID(),
 				new IntermediateDataSetID(),
 				0, numChannels,
-				mock(PartitionStateChecker.class),
+				mock(TaskActions.class),
 				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		for (int i = 0; i < numChannels; i++) {
@@ -194,10 +191,9 @@ public class InputGateFairnessTest {
 		SingleInputGate gate = new FairnessVerifyingInputGate(
 				"Test Task Name",
 				new JobID(),
-				new ExecutionAttemptID(),
 				new IntermediateDataSetID(),
 				0, numChannels,
-				mock(PartitionStateChecker.class),
+				mock(TaskActions.class),
 				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		final ConnectionManager connManager = createDummyConnectionManager();
@@ -250,10 +246,9 @@ public class InputGateFairnessTest {
 		SingleInputGate gate = new FairnessVerifyingInputGate(
 				"Test Task Name",
 				new JobID(),
-				new ExecutionAttemptID(),
 				new IntermediateDataSetID(),
 				0, numChannels,
-				mock(PartitionStateChecker.class),
+				mock(TaskActions.class),
 				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		final ConnectionManager connManager = createDummyConnectionManager();
@@ -348,15 +343,14 @@ public class InputGateFairnessTest {
 		public FairnessVerifyingInputGate(
 				String owningTaskName,
 				JobID jobId,
-				ExecutionAttemptID executionId,
 				IntermediateDataSetID consumedResultId,
 				int consumedSubpartitionIndex,
 				int numberOfInputChannels,
-				PartitionStateChecker partitionStateChecker,
+				TaskActions taskActions,
 				IOMetricGroup metrics) {
 
-			super(owningTaskName, jobId, executionId, consumedResultId, consumedSubpartitionIndex,
-					numberOfInputChannels, partitionStateChecker, metrics);
+			super(owningTaskName, jobId, consumedResultId, consumedSubpartitionIndex,
+					numberOfInputChannels, taskActions, metrics);
 
 			try {
 				Field f = SingleInputGate.class.getDeclaredField("inputChannelsWithData");

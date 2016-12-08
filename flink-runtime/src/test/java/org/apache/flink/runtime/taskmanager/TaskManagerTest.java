@@ -54,6 +54,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.Tasks;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.messages.StackTraceSampleMessages.ResponseStackTraceSampleFailure;
@@ -63,7 +64,6 @@ import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
 import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
-import org.apache.flink.runtime.messages.TaskMessages.PartitionState;
 import org.apache.flink.runtime.messages.TaskMessages.StopTask;
 import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
@@ -100,7 +100,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState;
 import static org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpdateConsumers;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -1586,16 +1585,8 @@ public class TaskManagerTest extends TestLogger {
 
 		@Override
 		public void handleMessage(Object message) throws Exception {
-			if (message instanceof RequestPartitionState) {
-				final RequestPartitionState msg = (RequestPartitionState) message;
-
-				PartitionState resp = new PartitionState(
-						msg.taskExecutionId(),
-						msg.taskResultId(),
-						msg.partitionId().getPartitionId(),
-						ExecutionState.RUNNING);
-
-				getSender().tell(decorateMessage(resp), getSelf());
+			if (message instanceof JobManagerMessages.RequestPartitionProducerState) {
+				getSender().tell(decorateMessage(ExecutionState.RUNNING), getSelf());
 			}
 			else if (message instanceof TaskMessages.UpdateTaskExecutionState) {
 				final TaskExecutionState msg = ((TaskMessages.UpdateTaskExecutionState) message)

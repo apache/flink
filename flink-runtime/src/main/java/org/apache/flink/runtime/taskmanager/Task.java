@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import akka.dispatch.ExecutionContexts$;
+import akka.dispatch.OnComplete;
+import akka.japi.Procedure;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
@@ -49,11 +52,11 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
+import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
@@ -67,6 +70,7 @@ import org.apache.flink.runtime.state.StateUtils;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -76,11 +80,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -108,7 +114,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>Each Task is run by one dedicated thread.
  */
-public class Task implements Runnable {
+public class Task implements Runnable, TaskActions {
 
 	/** The class logger. */
 	private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -207,6 +213,9 @@ public class Task implements Runnable {
 	/** Parent group for all metrics of this task */
 	private final TaskMetricGroup metrics;
 
+	/** Executor to run future callbacks */
+	private final Executor executor;
+
 	// ------------------------------------------------------------------------
 	//  Fields that control the task execution. All these fields are volatile
 	//  (which means that they introduce memory barriers), to establish
@@ -262,7 +271,8 @@ public class Task implements Runnable {
 			LibraryCacheManager libraryCache,
 			FileCache fileCache,
 			TaskManagerRuntimeInfo taskManagerConfig,
-			TaskMetricGroup metricGroup) {
+			TaskMetricGroup metricGroup,
+			Executor executor) {
 		checkNotNull(jobInformation);
 		checkNotNull(taskInformation);
 
@@ -314,6 +324,7 @@ public class Task implements Runnable {
 
 		this.executionListenerActors = new CopyOnWriteArrayList<ActorGateway>();
 		this.metrics = metricGroup;
+		this.executor = checkNotNull(executor);
 
 		// create the reader and writer structures
 
@@ -352,7 +363,11 @@ public class Task implements Runnable {
 
 		for (InputGateDeploymentDescriptor inputGateDeploymentDescriptor: inputGateDeploymentDescriptors) {
 			SingleInputGate gate = SingleInputGate.create(
-					taskNameWithSubtaskAndId, jobId, executionId, inputGateDeploymentDescriptor, networkEnvironment,
+					taskNameWithSubtaskAndId,
+					jobId,
+					inputGateDeploymentDescriptor,
+					networkEnvironment,
+					this,
 					metricGroup.getIOMetricGroup());
 
 			inputGates[counter] = gate;
@@ -921,6 +936,7 @@ public class Task implements Runnable {
 	 *
 	 * <p>This method never blocks.</p>
 	 */
+	@Override
 	public void failExternally(Throwable cause) {
 		LOG.info("Attempting to fail task externally {} ({}).", taskNameWithSubtask, executionId);
 		cancelOrFailAndCancelInvokable(ExecutionState.FAILED, cause);
@@ -1015,6 +1031,50 @@ public class Task implements Runnable {
 		for (ActorGateway listener : executionListenerActors) {
 			listener.tell(actorMessage);
 		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Partition State Listeners
+	// ------------------------------------------------------------------------
+
+	@Override
+	public void triggerPartitionProducerStateCheck(
+		JobID jobId,
+		final IntermediateDataSetID intermediateDataSetId,
+		final ResultPartitionID resultPartitionId) {
+
+		scala.concurrent.Future<ExecutionState> futurePartitionState =
+			network.getPartitionProducerStateChecker().requestPartitionProducerState(
+				jobId,
+				intermediateDataSetId,
+				resultPartitionId);
+
+		futurePartitionState.onComplete(new OnComplete<ExecutionState>() {
+			@Override
+			public void onComplete(Throwable failure, ExecutionState success) throws Throwable {
+				try {
+					if (success != null) {
+						onPartitionStateUpdate(
+							intermediateDataSetId,
+							resultPartitionId,
+							executionState);
+					} else if (failure instanceof TimeoutException) {
+						// our request timed out, assume we're still running and try again
+						onPartitionStateUpdate(
+							intermediateDataSetId,
+							resultPartitionId,
+							ExecutionState.RUNNING);
+					} else if (failure instanceof PartitionProducerDisposedException) {
+						LOG.debug("Partition producer disposed. Cancelling execution.", failure);
+						cancelExecution();
+					} else {
+						failExternally(failure);
+					}
+				} catch (IOException | InterruptedException e) {
+					failExternally(e);
+				}
+			}
+		}, createExecutionContext(executor));
 	}
 
 	// ------------------------------------------------------------------------
@@ -1130,41 +1190,58 @@ public class Task implements Runnable {
 	/**
 	 * Answer to a partition state check issued after a failed partition request.
 	 */
-	public void onPartitionStateUpdate(
-			IntermediateDataSetID resultId,
-			IntermediateResultPartitionID partitionId,
-			ExecutionState partitionState) throws IOException, InterruptedException {
+	@VisibleForTesting
+	void onPartitionStateUpdate(
+		IntermediateDataSetID intermediateDataSetId,
+		ResultPartitionID resultPartitionId,
+		ExecutionState producerState) throws IOException, InterruptedException {
 
 		if (executionState == ExecutionState.RUNNING) {
-			final SingleInputGate inputGate = inputGatesById.get(resultId);
+			final SingleInputGate inputGate = inputGatesById.get(intermediateDataSetId);
 
 			if (inputGate != null) {
-				if (partitionState == ExecutionState.RUNNING ||
-					partitionState == ExecutionState.FINISHED ||
-					partitionState == ExecutionState.SCHEDULED ||
-					partitionState == ExecutionState.DEPLOYING) {
+				if (producerState == ExecutionState.SCHEDULED
+					|| producerState == ExecutionState.DEPLOYING
+					|| producerState == ExecutionState.RUNNING
+					|| producerState == ExecutionState.FINISHED) {
 
 					// Retrigger the partition request
-					inputGate.retriggerPartitionRequest(partitionId);
-				}
-				else if (partitionState == ExecutionState.CANCELED
-						|| partitionState == ExecutionState.CANCELING
-						|| partitionState == ExecutionState.FAILED) {
+					inputGate.retriggerPartitionRequest(resultPartitionId.getPartitionId());
+
+				} else if (producerState == ExecutionState.CANCELING
+					|| producerState == ExecutionState.CANCELED
+					|| producerState == ExecutionState.FAILED) {
+
+					// The producing execution has been canceled or failed. We
+					// don't need to re-trigger the request since it cannot
+					// succeed.
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Cancelling task {} after the producer of partition {} with attempt ID {} has entered state {}.",
+							taskNameWithSubtask,
+							resultPartitionId.getPartitionId(),
+							resultPartitionId.getProducerId(),
+							producerState);
+					}
 
 					cancelExecution();
+				} else {
+					// Any other execution state is unexpected. Currently, only
+					// state CREATED is left out of the checked states. If we
+					// see a producer in this state, something went wrong with
+					// scheduling in topological order.
+					String msg = String.format("Producer with attempt ID %s of partition %s in unexpected state %s.",
+						resultPartitionId.getProducerId(),
+						resultPartitionId.getPartitionId(),
+						producerState);
+
+					failExternally(new IllegalStateException(msg));
 				}
-				else {
-					failExternally(new IllegalStateException("Received unexpected partition state "
-							+ partitionState + " for partition request. This is a bug."));
-				}
+			} else {
+				failExternally(new IllegalStateException("Received partition producer state for " +
+					"unknown input gate " + intermediateDataSetId + "."));
 			}
-			else {
-				failExternally(new IllegalStateException("Received partition state for " +
-						"unknown input gate " + resultId + ". This is a bug."));
-			}
-		}
-		else {
-			LOG.debug("Ignoring partition state notification for not running task.");
+		} else {
+			LOG.debug("Task {} ignored a partition producer state notification, because it's not running.", taskNameWithSubtask);
 		}
 	}
 
@@ -1227,6 +1304,27 @@ public class Task implements Runnable {
 				LOG.error("Error while canceling task {}.", taskNameWithSubtask, t);
 			}
 		}
+	}
+
+	private static ExecutionContext createExecutionContext(final Executor executor) {
+		return ExecutionContexts$.MODULE$.fromExecutor(executor, new Procedure<Throwable>() {
+			@Override
+			public void apply(Throwable throwable) throws Exception {
+				if (executor instanceof ExecutorService) {
+					ExecutorService executorService = (ExecutorService) executor;
+					// only log the exception if the executor service is still running
+					if (!executorService.isShutdown()) {
+						logThrowable(throwable);
+					}
+				} else {
+					logThrowable(throwable);
+				}
+			}
+
+			private void logThrowable(Throwable throwable) {
+				LOG.warn("Uncaught exception in execution context.", throwable);
+			}
+		});
 	}
 
 	@Override
