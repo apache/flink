@@ -76,11 +76,15 @@ class DataSetCalc(
     val child = this.getInput
     val rowCnt = metadata.getRowCount(child)
 
-    // compute number of non-field access expressions (computations, conditions, etc.)
-    //   we only want to account for computations, not for simple projections.
-    val exprCnt = calcProgram.getExprList.asScala.toList.count(!_.isInstanceOf[RexInputRef])
+    // compute number of expressions that do not access a field or literal, i.e. computations,
+    //   conditions, etc. We only want to account for computations, not for simple projections.
+    val compCnt = calcProgram.getExprList.asScala.toList.count {
+      case i: RexInputRef => false
+      case l: RexLiteral => false
+      case _ => true
+    }
 
-    planner.getCostFactory.makeCost(rowCnt, rowCnt * exprCnt, 0)
+    planner.getCostFactory.makeCost(rowCnt, rowCnt * compCnt, 0)
   }
 
   override def estimateRowCount(metadata: RelMetadataQuery): Double = {
