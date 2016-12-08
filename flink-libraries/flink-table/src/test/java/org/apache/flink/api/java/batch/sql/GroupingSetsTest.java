@@ -21,6 +21,7 @@ package org.apache.flink.api.java.batch.sql;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.table.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.table.Row;
@@ -38,14 +39,29 @@ import java.util.List;
 public class GroupingSetsTest {
 
 	private final static String TABLE_NAME = "MyTable";
+	private final static String TABLE_WITH_NULLS_NAME = "MyTableWithNulls";
 	private BatchTableEnvironment tableEnv;
 
 	@Before
 	public void setup() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		tableEnv = TableEnvironment.getTableEnvironment(env, new TableConfig());
+
 		DataSet<Tuple3<Integer, Long, String>> dataSet = CollectionDataSets.get3TupleDataSet(env);
 		tableEnv.registerDataSet(TABLE_NAME, dataSet);
+
+		MapOperator<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> dataSetWithNulls =
+			dataSet.map(new MapFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>() {
+
+				@Override
+				public Tuple3<Integer, Long, String> map(Tuple3<Integer, Long, String> value) throws Exception {
+					if (value.f2.toLowerCase().contains("world")) {
+						value.f2 = null;
+					}
+					return value;
+				}
+			});
+		tableEnv.registerDataSet(TABLE_WITH_NULLS_NAME, dataSetWithNulls);
 	}
 
 	@Test
@@ -63,6 +79,25 @@ public class GroupingSetsTest {
 				"null,Comment#3,9,2\nnull,Comment#2,8,2\nnull,Comment#15,21,2\n" +
 				"null,Comment#14,20,2\nnull,Comment#13,19,2\nnull,Comment#12,18,2\n" +
 				"null,Comment#11,17,2\nnull,Comment#10,16,2\nnull,Comment#1,7,2";
+
+		checkSql(query, expected);
+	}
+
+	@Test
+	public void testGroupingSetsWithNulls() throws Exception {
+		String query =
+			"SELECT f1, f2, avg(f0) as a, GROUP_ID() as g FROM " + TABLE_WITH_NULLS_NAME +
+				" GROUP BY GROUPING SETS (f1, f2)";
+
+		String expected =
+			"6,null,18,1\n5,null,13,1\n4,null,8,1\n3,null,5,1\n2,null,2,1\n1,null,1,1\n" +
+				"null,Luke Skywalker,6,2\nnull,I am fine.,5,2\nnull,Hi,1,2\n" +
+				"null,null,3,2\nnull,Hello,2,2\nnull,Comment#9,15,2\nnull,Comment#8,14,2\n" +
+				"null,Comment#7,13,2\nnull,Comment#6,12,2\nnull,Comment#5,11,2\n" +
+				"null,Comment#4,10,2\nnull,Comment#3,9,2\nnull,Comment#2,8,2\n" +
+				"null,Comment#15,21,2\nnull,Comment#14,20,2\nnull,Comment#13,19,2\n" +
+				"null,Comment#12,18,2\nnull,Comment#11,17,2\nnull,Comment#10,16,2\n" +
+				"null,Comment#1,7,2";
 
 		checkSql(query, expected);
 	}
