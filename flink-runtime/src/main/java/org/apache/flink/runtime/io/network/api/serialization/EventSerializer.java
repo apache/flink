@@ -105,6 +105,7 @@ public class EventSerializer {
 			throw new IOException("Incomplete event");
 		}
 
+		final int bufferPos = buffer.position();
 		final ByteOrder bufferOrder = buffer.order();
 		buffer.order(ByteOrder.BIG_ENDIAN);
 
@@ -147,6 +148,8 @@ public class EventSerializer {
 		}
 		finally {
 			buffer.order(bufferOrder);
+			// restore the original position in the buffer (recall: we only peak into it!)
+			buffer.position(bufferPos);
 		}
 	}
 
