@@ -166,14 +166,14 @@ public class SingleInputGate implements InputGate {
 	private Timer retriggerLocalRequestTimer;
 
 	public SingleInputGate(
-		String owningTaskName,
-		JobID jobId,
-		ExecutionAttemptID executionId,
-		IntermediateDataSetID consumedResultId,
-		int consumedSubpartitionIndex,
-		int numberOfInputChannels,
-		PartitionProducerStateChecker partitionStateChecker,
-		IOMetricGroup metrics) {
+			String owningTaskName,
+			JobID jobId,
+			ExecutionAttemptID executionId,
+			IntermediateDataSetID consumedResultId,
+			int consumedSubpartitionIndex,
+			int numberOfInputChannels,
+			PartitionProducerStateChecker partitionStateChecker,
+			IOMetricGroup metrics) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		this.jobId = checkNotNull(jobId);
@@ -231,12 +231,12 @@ public class SingleInputGate implements InputGate {
 	public void setBufferPool(BufferPool bufferPool) {
 		// Sanity checks
 		checkArgument(numberOfInputChannels == bufferPool.getNumberOfRequiredMemorySegments(),
-			"Bug in input gate setup logic: buffer pool has not enough guaranteed buffers " +
-				"for this input gate. Input gates require at least as many buffers as " +
-				"there are input channels.");
+				"Bug in input gate setup logic: buffer pool has not enough guaranteed buffers " +
+						"for this input gate. Input gates require at least as many buffers as " +
+						"there are input channels.");
 
 		checkState(this.bufferPool == null, "Bug in input gate setup logic: buffer pool has" +
-			"already been set for this input gate.");
+				"already been set for this input gate.");
 
 		this.bufferPool = checkNotNull(bufferPool);
 	}
@@ -244,7 +244,7 @@ public class SingleInputGate implements InputGate {
 	public void setInputChannel(IntermediateResultPartitionID partitionId, InputChannel inputChannel) {
 		synchronized (requestLock) {
 			if (inputChannels.put(checkNotNull(partitionId), checkNotNull(inputChannel)) == null
-				&& inputChannel.getClass() == UnknownInputChannel.class) {
+					&& inputChannel.getClass() == UnknownInputChannel.class) {
 
 				numberOfUninitializedChannels++;
 			}
@@ -326,7 +326,7 @@ public class SingleInputGate implements InputGate {
 				}
 				else {
 					throw new IllegalStateException(
-						"Unexpected type of channel to retrigger partition: " + ch.getClass());
+							"Unexpected type of channel to retrigger partition: " + ch.getClass());
 				}
 			}
 		}
@@ -396,8 +396,8 @@ public class SingleInputGate implements InputGate {
 				// Sanity checks
 				if (numberOfInputChannels != inputChannels.size()) {
 					throw new IllegalStateException("Bug in input gate setup logic: mismatch between" +
-						"number of total input channels and the currently set number of input " +
-						"channels.");
+							"number of total input channels and the currently set number of input " +
+							"channels.");
 				}
 
 				for (InputChannel inputChannel : inputChannels.values()) {
@@ -446,7 +446,7 @@ public class SingleInputGate implements InputGate {
 		// Sanity check that notifications only happen when data is available
 		if (result == null) {
 			throw new IllegalStateException("Bug in input gate/channel logic: input gate got " +
-				"notified by channel about available data, but none was available.");
+					"notified by channel about available data, but none was available.");
 		}
 
 		// this channel was now removed from the non-empty channels queue
@@ -511,10 +511,10 @@ public class SingleInputGate implements InputGate {
 
 	void triggerPartitionStateCheck(ResultPartitionID partitionId) {
 		partitionStateChecker.requestPartitionProducerState(
-			jobId,
-			executionId,
-			consumedResultId,
-			partitionId);
+				jobId,
+				executionId,
+				consumedResultId,
+				partitionId);
 	}
 
 	private void queueChannel(InputChannel channel) {
@@ -551,12 +551,12 @@ public class SingleInputGate implements InputGate {
 	 * Creates an input gate and all of its input channels.
 	 */
 	public static SingleInputGate create(
-		String owningTaskName,
-		JobID jobId,
-		ExecutionAttemptID executionId,
-		InputGateDeploymentDescriptor igdd,
-		NetworkEnvironment networkEnvironment,
-		IOMetricGroup metrics) {
+			String owningTaskName,
+			JobID jobId,
+			ExecutionAttemptID executionId,
+			InputGateDeploymentDescriptor igdd,
+			NetworkEnvironment networkEnvironment,
+			IOMetricGroup metrics) {
 
 		final IntermediateDataSetID consumedResultId = checkNotNull(igdd.getConsumedResultId());
 
@@ -566,8 +566,8 @@ public class SingleInputGate implements InputGate {
 		final InputChannelDeploymentDescriptor[] icdd = checkNotNull(igdd.getInputChannelDeploymentDescriptors());
 
 		final SingleInputGate inputGate = new SingleInputGate(
-			owningTaskName, jobId, executionId, consumedResultId, consumedSubpartitionIndex,
-			icdd.length, networkEnvironment.getPartitionProducerStateChecker(), metrics);
+				owningTaskName, jobId, executionId, consumedResultId, consumedSubpartitionIndex,
+				icdd.length, networkEnvironment.getPartitionProducerStateChecker(), metrics);
 
 		// Create the input channels. There is one input channel for each consumed partition.
 		final InputChannel[] inputChannels = new InputChannel[icdd.length];
@@ -582,31 +582,31 @@ public class SingleInputGate implements InputGate {
 
 			if (partitionLocation.isLocal()) {
 				inputChannels[i] = new LocalInputChannel(inputGate, i, partitionId,
-					networkEnvironment.getPartitionManager(),
-					networkEnvironment.getTaskEventDispatcher(),
-					networkEnvironment.getPartitionRequestInitialAndMaxBackoff(),
-					metrics
+						networkEnvironment.getPartitionManager(),
+						networkEnvironment.getTaskEventDispatcher(),
+						networkEnvironment.getPartitionRequestInitialAndMaxBackoff(),
+						metrics
 				);
 
 				numLocalChannels++;
 			}
 			else if (partitionLocation.isRemote()) {
 				inputChannels[i] = new RemoteInputChannel(inputGate, i, partitionId,
-					partitionLocation.getConnectionId(),
-					networkEnvironment.getConnectionManager(),
-					networkEnvironment.getPartitionRequestInitialAndMaxBackoff(),
-					metrics
+						partitionLocation.getConnectionId(),
+						networkEnvironment.getConnectionManager(),
+						networkEnvironment.getPartitionRequestInitialAndMaxBackoff(),
+						metrics
 				);
 
 				numRemoteChannels++;
 			}
 			else if (partitionLocation.isUnknown()) {
 				inputChannels[i] = new UnknownInputChannel(inputGate, i, partitionId,
-					networkEnvironment.getPartitionManager(),
-					networkEnvironment.getTaskEventDispatcher(),
-					networkEnvironment.getConnectionManager(),
-					networkEnvironment.getPartitionRequestInitialAndMaxBackoff(),
-					metrics
+						networkEnvironment.getPartitionManager(),
+						networkEnvironment.getTaskEventDispatcher(),
+						networkEnvironment.getConnectionManager(),
+						networkEnvironment.getPartitionRequestInitialAndMaxBackoff(),
+						metrics
 				);
 
 				numUnknownChannels++;

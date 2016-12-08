@@ -19,30 +19,28 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.JobInformation;
-import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.util.TestExecutors;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import scala.concurrent.ExecutionContext$;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.lang.reflect.Field;
@@ -58,34 +56,34 @@ public class TaskStopTest {
 
 	public void doMocking(AbstractInvokable taskMock) throws Exception {
 		TaskManagerRuntimeInfo tmRuntimeInfo = mock(TaskManagerRuntimeInfo.class);
-			when(tmRuntimeInfo.getConfiguration()).thenReturn(new Configuration());
+		when(tmRuntimeInfo.getConfiguration()).thenReturn(new Configuration());
 
 		task = new Task(
-				mock(JobInformation.class),
-				new TaskInformation(
+			mock(JobInformation.class),
+			new TaskInformation(
 				new JobVertexID(),
 				"test task name",
 				1,
 				"foobar",
 				new Configuration()),
-				mock(ExecutionAttemptID.class),
-				0,
-				0,
-				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-				Collections.<InputGateDeploymentDescriptor>emptyList(),
-				0,
-				null,
-				mock(MemoryManager.class),
-				mock(IOManager.class),
-				mock(NetworkEnvironment.class),
-				mock(BroadcastVariableManager.class),
-				mock(ActorGateway.class),
-				mock(ActorGateway.class),
-				mock(FiniteDuration.class),
-				mock(LibraryCacheManager.class),
-				mock(FileCache.class),
-				tmRuntimeInfo,
-				mock(TaskMetricGroup.class));
+			mock(ExecutionAttemptID.class),
+			0,
+			0,
+			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+			Collections.<InputGateDeploymentDescriptor>emptyList(),
+			0,
+			null,
+			mock(MemoryManager.class),
+			mock(IOManager.class),
+			mock(NetworkEnvironment.class),
+			mock(BroadcastVariableManager.class),
+			mock(ActorGateway.class),
+			mock(ActorGateway.class),
+			mock(FiniteDuration.class),
+			mock(LibraryCacheManager.class),
+			mock(FileCache.class),
+			tmRuntimeInfo,
+			mock(TaskMetricGroup.class));
 
 		Field f = task.getClass().getDeclaredField("invokable");
 		f.setAccessible(true);

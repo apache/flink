@@ -60,7 +60,9 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.util.SerializedValue;
+
 import org.junit.Test;
+
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -145,8 +147,10 @@ public class BlockingCheckpointsTest {
 			new FiniteDuration(10, TimeUnit.SECONDS),
 			new FallbackLibraryCacheManager(),
 			new FileCache(new Configuration()),
-			new TaskManagerRuntimeInfo("localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
+			new TaskManagerRuntimeInfo(
+				"localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
 			new UnregisteredTaskMetricsGroup());
+
 	}
 
 	// ------------------------------------------------------------------------
@@ -200,7 +204,7 @@ public class BlockingCheckpointsTest {
 
 	private static final class LockingOutputStream extends CheckpointStateOutputStream implements Serializable {
 		private static final long serialVersionUID = 1L;
-		
+
 		private final SerializableObject lock = new SerializableObject();
 		private volatile boolean closed;
 

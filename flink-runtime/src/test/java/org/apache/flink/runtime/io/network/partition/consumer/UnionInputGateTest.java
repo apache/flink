@@ -51,8 +51,8 @@ public class UnionInputGateTest {
 		assertEquals(ig1.getNumberOfInputChannels() + ig2.getNumberOfInputChannels(), union.getNumberOfInputChannels());
 
 		final TestInputChannel[][] inputChannels = new TestInputChannel[][]{
-			TestInputChannel.createInputChannels(ig1, 3),
-			TestInputChannel.createInputChannels(ig2, 5)
+				TestInputChannel.createInputChannels(ig1, 3),
+				TestInputChannel.createInputChannels(ig2, 5)
 		};
 
 		inputChannels[0][0].readBuffer(); // 0 => 0

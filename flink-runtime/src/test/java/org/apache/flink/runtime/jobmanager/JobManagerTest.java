@@ -299,7 +299,7 @@ public class JobManagerTest extends TestLogger {
 							new RequestExecutionGraph(jobGraph.getJobID()), remaining());
 
 						ExecutionGraphFound egFound = (ExecutionGraphFound) Await.result(egFuture, remaining());
-						ExecutionGraph eg = (ExecutionGraph) egFound.executionGraph();
+						ExecutionGraph eg = egFound.executionGraph();
 
 						ExecutionVertex vertex = eg.getJobVertex(sender.getID()).getTaskVertices()[0];
 						while (vertex.getExecutionState() != ExecutionState.FINISHED) {

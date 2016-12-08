@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import akka.actor.ActorRef;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
@@ -59,7 +60,9 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
+
 import org.junit.Test;
+
 import org.mockito.internal.util.reflection.Whitebox;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
@@ -75,10 +78,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doReturn;
@@ -86,6 +85,11 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class StreamTaskTest {
 
@@ -100,33 +104,33 @@ public class StreamTaskTest {
 		try {
 			StreamConfig cfg = new StreamConfig(new Configuration());
 			cfg.setStreamOperator(new SlowlyDeserializingOperator());
-			
+
 			Task task = createTask(SourceStreamTask.class, cfg, new Configuration());
 			task.startTaskThread();
-			
-			// wait until the task thread reached state RUNNING 
+
+			// wait until the task thread reached state RUNNING
 			while (task.getExecutionState() == ExecutionState.CREATED ||
-					task.getExecutionState() == ExecutionState.DEPLOYING)
+				task.getExecutionState() == ExecutionState.DEPLOYING)
 			{
 				Thread.sleep(5);
 			}
-			
+
 			// make sure the task is really running
 			if (task.getExecutionState() != ExecutionState.RUNNING) {
 				fail("Task entered state " + task.getExecutionState() + " with error "
-						+ ExceptionUtils.stringifyException(task.getFailureCause()));
+					+ ExceptionUtils.stringifyException(task.getFailureCause()));
 			}
-			
+
 			// send a cancel. because the operator takes a long time to deserialize, this should
 			// hit the task before the operator is deserialized
 			task.cancelExecution();
-			
+
 			// the task should reach state canceled eventually
 			assertTrue(task.getExecutionState() == ExecutionState.CANCELING ||
-					task.getExecutionState() == ExecutionState.CANCELED);
-			
+				task.getExecutionState() == ExecutionState.CANCELED);
+
 			task.getExecutingThread().join(60000);
-			
+
 			assertFalse("Task did not cancel", task.getExecutingThread().isAlive());
 			assertEquals(ExecutionState.CANCELED, task.getExecutionState());
 		}
@@ -268,9 +272,9 @@ public class StreamTaskTest {
 	// ------------------------------------------------------------------------
 
 	private Task createTask(
-			Class<? extends AbstractInvokable> invokable,
-			StreamConfig taskConfig,
-			Configuration taskManagerConfig) throws Exception {
+		Class<? extends AbstractInvokable> invokable,
+		StreamConfig taskConfig,
+		Configuration taskManagerConfig) throws Exception {
 
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
@@ -319,16 +323,16 @@ public class StreamTaskTest {
 			new TaskManagerRuntimeInfo("localhost", taskManagerConfig, System.getProperty("java.io.tmpdir")),
 			new UnregisteredTaskMetricsGroup());
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Test operators
 	// ------------------------------------------------------------------------
-	
+
 	public static class SlowlyDeserializingOperator extends StreamSource<Long, SourceFunction<Long>> {
 		private static final long serialVersionUID = 1L;
 
 		private volatile boolean canceled = false;
-		
+
 		public SlowlyDeserializingOperator() {
 			super(new MockSourceFunction());
 		}
@@ -350,7 +354,7 @@ public class StreamTaskTest {
 		// slow deserialization
 		private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 			in.defaultReadObject();
-			
+
 			long delay = 500;
 			long deadline = System.currentTimeMillis() + delay;
 			do {
@@ -360,7 +364,7 @@ public class StreamTaskTest {
 			} while ((delay = deadline - System.currentTimeMillis()) > 0);
 		}
 	}
-	
+
 	private static class MockSourceFunction implements SourceFunction<Long> {
 		private static final long serialVersionUID = 1L;
 
@@ -374,7 +378,7 @@ public class StreamTaskTest {
 	// ------------------------------------------------------------------------
 	//  Test JobManager/TaskManager gateways
 	// ------------------------------------------------------------------------
-	
+
 	private static class DummyGateway implements ActorGateway {
 		private static final long serialVersionUID = 1L;
 
@@ -495,7 +499,7 @@ public class StreamTaskTest {
 
 				// we are at the point where cancelling can happen
 				SYNC_LATCH.trigger();
-	
+
 				// try to acquire the lock - this is not possible as long as the lock holder
 				// thread lives
 				synchronized (lock) {

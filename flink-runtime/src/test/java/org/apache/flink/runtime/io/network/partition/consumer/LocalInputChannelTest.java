@@ -93,11 +93,11 @@ public class LocalInputChannelTest {
 		final ExecutorService executor = Executors.newFixedThreadPool(2 * parallelism);
 
 		final NetworkBufferPool networkBuffers = new NetworkBufferPool(
-			(parallelism * producerBufferPoolSize) + (parallelism * parallelism),
-			TestBufferFactory.BUFFER_SIZE, MemoryType.HEAP);
+				(parallelism * producerBufferPoolSize) + (parallelism * parallelism),
+				TestBufferFactory.BUFFER_SIZE, MemoryType.HEAP);
 
 		final ResultPartitionConsumableNotifier partitionConsumableNotifier =
-			mock(ResultPartitionConsumableNotifier.class);
+				mock(ResultPartitionConsumableNotifier.class);
 
 		final IOManager ioManager = mock(IOManager.class);
 
@@ -113,28 +113,28 @@ public class LocalInputChannelTest {
 			partitionIds[i] = new ResultPartitionID();
 
 			final ResultPartition partition = new ResultPartition(
-				"Test Name",
-				jobId,
-				partitionIds[i],
-				ResultPartitionType.PIPELINED,
-				parallelism,
-				partitionManager,
-				partitionConsumableNotifier,
-				ioManager,
-				true);
+					"Test Name",
+					jobId,
+					partitionIds[i],
+					ResultPartitionType.PIPELINED,
+					parallelism,
+					partitionManager,
+					partitionConsumableNotifier,
+					ioManager,
+					true);
 
 			// Create a buffer pool for this partition
 			partition.registerBufferPool(
-				networkBuffers.createBufferPool(producerBufferPoolSize, true));
+					networkBuffers.createBufferPool(producerBufferPoolSize, true));
 
 			// Create the producer
 			partitionProducers[i] = new TestPartitionProducer(
-				partition,
-				false,
-				new TestPartitionProducerBufferSource(
-					parallelism,
-					partition.getBufferProvider(),
-					numberOfBuffersPerChannel)
+					partition,
+					false,
+					new TestPartitionProducerBufferSource(
+							parallelism,
+							partition.getBufferProvider(),
+							numberOfBuffersPerChannel)
 			);
 
 			// Register with the partition manager in order to allow the local input channels to
@@ -146,7 +146,7 @@ public class LocalInputChannelTest {
 		try {
 			// Submit producer tasks
 			List<Future<?>> results = Lists.newArrayListWithCapacity(
-				parallelism + 1);
+					parallelism + 1);
 
 			for (int i = 0; i < parallelism; i++) {
 				results.add(executor.submit(partitionProducers[i]));
@@ -155,14 +155,14 @@ public class LocalInputChannelTest {
 			// Submit consumer
 			for (int i = 0; i < parallelism; i++) {
 				results.add(executor.submit(
-					new TestLocalInputChannelConsumer(
-						i,
-						parallelism,
-						numberOfBuffersPerChannel,
-						networkBuffers.createBufferPool(parallelism, true),
-						partitionManager,
-						new TaskEventDispatcher(),
-						partitionIds)));
+						new TestLocalInputChannelConsumer(
+								i,
+								parallelism,
+								numberOfBuffersPerChannel,
+								networkBuffers.createBufferPool(parallelism, true),
+								partitionManager,
+								new TaskEventDispatcher(),
+								partitionIds)));
 			}
 
 			// Wait for all to finish
@@ -195,8 +195,8 @@ public class LocalInputChannelTest {
 		LocalInputChannel ch = createLocalInputChannel(inputGate, partitionManager, backoff);
 
 		when(partitionManager
-			.createSubpartitionView(eq(ch.partitionId), eq(0), eq(bufferProvider), any(BufferAvailabilityListener.class)))
-			.thenThrow(new PartitionNotFoundException(ch.partitionId));
+				.createSubpartitionView(eq(ch.partitionId), eq(0), eq(bufferProvider), any(BufferAvailabilityListener.class)))
+				.thenThrow(new PartitionNotFoundException(ch.partitionId));
 
 		Timer timer = mock(Timer.class);
 		doAnswer(new Answer<Void>() {
@@ -211,7 +211,7 @@ public class LocalInputChannelTest {
 		// Initial request
 		ch.requestSubpartition(0);
 		verify(partitionManager)
-			.createSubpartitionView(eq(ch.partitionId), eq(0), eq(bufferProvider), any(BufferAvailabilityListener.class));
+				.createSubpartitionView(eq(ch.partitionId), eq(0), eq(bufferProvider), any(BufferAvailabilityListener.class));
 
 		// Request subpartition and verify that the actual requests are delayed.
 		for (long expected : expectedDelays) {
@@ -238,15 +238,15 @@ public class LocalInputChannelTest {
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		when(partitionManager
-			.createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferProvider.class), any(BufferAvailabilityListener.class)))
-			.thenReturn(view);
+				.createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferProvider.class), any(BufferAvailabilityListener.class)))
+				.thenReturn(view);
 
 		SingleInputGate inputGate = mock(SingleInputGate.class);
 		BufferProvider bufferProvider = mock(BufferProvider.class);
 		when(inputGate.getBufferProvider()).thenReturn(bufferProvider);
 
 		LocalInputChannel ch = createLocalInputChannel(
-			inputGate, partitionManager, new Tuple2<>(0, 0));
+				inputGate, partitionManager, new Tuple2<>(0, 0));
 
 		ch.requestSubpartition(0);
 
@@ -355,10 +355,10 @@ public class LocalInputChannelTest {
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 
 		when(partitionManager.createSubpartitionView(
-			any(ResultPartitionID.class),
-			anyInt(),
-			any(BufferProvider.class),
-			any(BufferAvailabilityListener.class))).thenReturn(reader);
+				any(ResultPartitionID.class),
+				anyInt(),
+				any(BufferProvider.class),
+				any(BufferAvailabilityListener.class))).thenReturn(reader);
 
 		LocalInputChannel channel = new LocalInputChannel(
 			gate,
@@ -394,19 +394,19 @@ public class LocalInputChannelTest {
 	// ---------------------------------------------------------------------------------------------
 
 	private LocalInputChannel createLocalInputChannel(
-		SingleInputGate inputGate,
-		ResultPartitionManager partitionManager,
-		Tuple2<Integer, Integer> initialAndMaxRequestBackoff)
-		throws IOException, InterruptedException {
+			SingleInputGate inputGate,
+			ResultPartitionManager partitionManager,
+			Tuple2<Integer, Integer> initialAndMaxRequestBackoff)
+			throws IOException, InterruptedException {
 
 		return new LocalInputChannel(
-			inputGate,
-			0,
-			new ResultPartitionID(),
-			partitionManager,
-			mock(TaskEventDispatcher.class),
-			initialAndMaxRequestBackoff,
-			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+				inputGate,
+				0,
+				new ResultPartitionID(),
+				partitionManager,
+				mock(TaskEventDispatcher.class),
+				initialAndMaxRequestBackoff,
+				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 	}
 
 	/**
@@ -419,13 +419,13 @@ public class LocalInputChannelTest {
 		private final List<Byte> channelIndexes;
 
 		public TestPartitionProducerBufferSource(
-			int parallelism,
-			BufferProvider bufferProvider,
-			int numberOfBuffersToProduce) {
+				int parallelism,
+				BufferProvider bufferProvider,
+				int numberOfBuffersToProduce) {
 
 			this.bufferProvider = bufferProvider;
 			this.channelIndexes = Lists.newArrayListWithCapacity(
-				parallelism * numberOfBuffersToProduce);
+					parallelism * numberOfBuffersToProduce);
 
 			// Array of channel indexes to produce buffers for
 			for (byte i = 0; i < parallelism; i++) {
@@ -463,26 +463,26 @@ public class LocalInputChannelTest {
 		private final int numberOfExpectedBuffersPerChannel;
 
 		public TestLocalInputChannelConsumer(
-			int subpartitionIndex,
-			int numberOfInputChannels,
-			int numberOfExpectedBuffersPerChannel,
-			BufferPool bufferPool,
-			ResultPartitionManager partitionManager,
-			TaskEventDispatcher taskEventDispatcher,
-			ResultPartitionID[] consumedPartitionIds) {
+				int subpartitionIndex,
+				int numberOfInputChannels,
+				int numberOfExpectedBuffersPerChannel,
+				BufferPool bufferPool,
+				ResultPartitionManager partitionManager,
+				TaskEventDispatcher taskEventDispatcher,
+				ResultPartitionID[] consumedPartitionIds) {
 
 			checkArgument(numberOfInputChannels >= 1);
 			checkArgument(numberOfExpectedBuffersPerChannel >= 1);
 
 			this.inputGate = new SingleInputGate(
-				"Test Name",
-				new JobID(),
-				new ExecutionAttemptID(),
-				new IntermediateDataSetID(),
-				subpartitionIndex,
-				numberOfInputChannels,
-				mock(PartitionProducerStateChecker.class),
-				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+					"Test Name",
+					new JobID(),
+					new ExecutionAttemptID(),
+					new IntermediateDataSetID(),
+					subpartitionIndex,
+					numberOfInputChannels,
+					mock(PartitionProducerStateChecker.class),
+					new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 			// Set buffer pool
 			inputGate.setBufferPool(bufferPool);
@@ -490,14 +490,14 @@ public class LocalInputChannelTest {
 			// Setup input channels
 			for (int i = 0; i < numberOfInputChannels; i++) {
 				inputGate.setInputChannel(
-					new IntermediateResultPartitionID(),
-					new LocalInputChannel(
-						inputGate,
-						i,
-						consumedPartitionIds[i],
-						partitionManager,
-						taskEventDispatcher,
-						new UnregisteredTaskMetricsGroup.DummyIOMetricGroup()));
+						new IntermediateResultPartitionID(),
+						new LocalInputChannel(
+								inputGate,
+								i,
+								consumedPartitionIds[i],
+								partitionManager,
+								taskEventDispatcher,
+								new UnregisteredTaskMetricsGroup.DummyIOMetricGroup()));
 			}
 
 			this.numberOfInputChannels = numberOfInputChannels;
@@ -517,10 +517,10 @@ public class LocalInputChannelTest {
 
 						// Check that we don't receive too many buffers
 						if (++numberOfBuffersPerChannel[boe.getChannelIndex()]
-							> numberOfExpectedBuffersPerChannel) {
+								> numberOfExpectedBuffersPerChannel) {
 
 							throw new IllegalStateException("Received more buffers than expected " +
-								"on channel " + boe.getChannelIndex() + ".");
+									"on channel " + boe.getChannelIndex() + ".");
 						}
 					}
 				}
@@ -531,8 +531,8 @@ public class LocalInputChannelTest {
 
 					if (actualNumberOfReceivedBuffers != numberOfExpectedBuffersPerChannel) {
 						throw new IllegalStateException("Received unexpected number of buffers " +
-							"on channel " + i + " (" + actualNumberOfReceivedBuffers + " instead " +
-							"of " + numberOfExpectedBuffersPerChannel + ").");
+								"on channel " + i + " (" + actualNumberOfReceivedBuffers + " instead " +
+								"of " + numberOfExpectedBuffersPerChannel + ").");
 					}
 				}
 			}
