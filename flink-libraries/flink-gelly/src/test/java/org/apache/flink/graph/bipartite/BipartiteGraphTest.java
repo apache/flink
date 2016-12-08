@@ -16,11 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph;
+package org.apache.flink.graph.bipartite;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.bipartite.BipartiteEdge;
+import org.apache.flink.graph.bipartite.BipartiteGraph;
+import org.apache.flink.graph.bipartite.Projection;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.junit.Test;
 

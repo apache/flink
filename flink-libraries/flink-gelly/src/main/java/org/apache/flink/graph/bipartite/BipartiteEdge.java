@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph;
+package org.apache.flink.graph.bipartite;
 
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.graph.Edge;
 
 /**
  * A BipartiteEdge represents a link between top and bottom vertices

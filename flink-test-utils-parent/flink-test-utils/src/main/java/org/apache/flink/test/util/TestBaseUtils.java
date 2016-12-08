@@ -480,9 +480,14 @@ public class TestBaseUtils extends TestLogger {
 				resultStrings[i] = (val == null) ? "null" : val.toString();
 			}
 		}
-		
-		assertEquals(String.format("Wrong number of elements result. Expected: %s. Result: %s.", Arrays.toString(expectedStrings), Arrays.toString(resultStrings)),
-			expectedStrings.length, resultStrings.length);
+
+		//
+		String msg = String.format(
+			"Different elements in arrays. Expected %d elements: %s. Actual %d elements: %s",
+			expectedStrings.length, Arrays.toString(expectedStrings),
+			resultStrings.length, Arrays.toString(resultStrings));
+
+		assertEquals(msg, expectedStrings.length, resultStrings.length);
 
 		if (sort) {
 			Arrays.sort(expectedStrings);
@@ -490,7 +495,7 @@ public class TestBaseUtils extends TestLogger {
 		}
 		
 		for (int i = 0; i < expectedStrings.length; i++) {
-			assertEquals(expectedStrings[i], resultStrings[i]);
+			assertEquals(msg, expectedStrings[i], resultStrings[i]);
 		}
 	}
 	

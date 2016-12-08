@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph;
+package org.apache.flink.graph.bipartite;
 
+import org.apache.flink.graph.bipartite.BipartiteEdge;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

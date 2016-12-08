@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph;
+package org.apache.flink.graph.bipartite;
 
 import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.graph.Vertex;
 
 /**
  * Result of projection of a connection between two vertices in a bipartite graph.
