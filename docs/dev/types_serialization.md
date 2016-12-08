@@ -92,6 +92,8 @@ Internally, Flink makes the following distinctions between types:
 
   * POJOs: classes that follow a certain bean-like pattern
 
+  * Row (unlimited length of fields)
+
 * Auxiliary types (Option, Either, Lists, Maps, ...)
 
 * Generic types: These will not be serialized by Flink itself, but by Kryo.
