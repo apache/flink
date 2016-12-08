@@ -20,11 +20,9 @@ package org.apache.flink.api.table.plan.rules.dataSet
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule.{none, operand}
-import org.apache.calcite.rex.{RexProgram, RexUtil}
 import org.apache.flink.api.table.plan.nodes.dataset.{BatchTableSourceScan, DataSetCalc}
-import org.apache.flink.api.table.plan.rules.util.DataSetCalcConverter._
+import org.apache.flink.api.table.plan.rules.util.RexProgramProjectExtractor._
 import org.apache.flink.api.table.sources.{BatchTableSource, ProjectableTableSource}
-import scala.collection.JavaConverters._
 
 /**
   * This rule is responsible for push project into BatchTableSourceScan node
@@ -46,48 +44,40 @@ class PushProjectIntoBatchTableSourceScanRule extends RelOptRule(
     val calc: DataSetCalc = call.rel(0).asInstanceOf[DataSetCalc]
     val scan: BatchTableSourceScan = call.rel(1).asInstanceOf[BatchTableSourceScan]
 
-    val usedFields: Array[Int] = extractRefInputFields(calc)
+    val usedFields: Array[Int] = extractRefInputFields(calc.calcProgram)
 
     // if no fields can be projected, there is no need to transform subtree
-    if (scan.tableSource.getNumberOfFields == usedFields.length) {
-      return
+    scan.tableSource.getNumberOfFields match {
+      case fieldNums if fieldNums == usedFields.length  =>
+      case _ =>
+        val originTableSource = scan.tableSource.asInstanceOf[ProjectableTableSource[_]]
+        val newTableSource = originTableSource.projectFields(usedFields)
+        val newScan = new BatchTableSourceScan(
+          scan.getCluster,
+          scan.getTraitSet,
+          scan.getTable,
+          newTableSource.asInstanceOf[BatchTableSource[_]])
+
+        val newCalcProgram = rewriteRexProgram(
+          calc.calcProgram,
+          newScan.getRowType,
+          usedFields,
+          calc.getCluster.getRexBuilder)
+
+        // if project merely returns its input and doesn't exist filter, remove datasetCalc nodes
+        if (newCalcProgram.isTrivial) {
+          call.transformTo(newScan)
+        } else {
+          val newCal = new DataSetCalc(calc.getCluster,
+            calc.getTraitSet,
+            newScan,
+            calc.getRowType,
+            newCalcProgram,
+            description)
+          call.transformTo(newCal)
+        }
+      }
     }
-
-    val originTableSource = scan.tableSource.asInstanceOf[ProjectableTableSource[_]]
-
-    val newTableSource = originTableSource.projectFields(usedFields)
-
-    val newScan = new BatchTableSourceScan(
-      scan.getCluster,
-      scan.getTraitSet,
-      scan.getTable,
-      newTableSource.asInstanceOf[BatchTableSource[_]])
-
-    val (newProjectExprs, newConditionExpr) = rewriteCalcExprs(calc, usedFields)
-
-    // if project merely returns its input and doesn't exist filter, remove datasetCalc nodes
-    val newProjectExprsList = newProjectExprs.asJava
-    if (RexUtil.isIdentity(newProjectExprsList, newScan.getRowType)
-      && !newConditionExpr.isDefined) {
-      call.transformTo(newScan)
-    } else {
-      val newCalcProgram = RexProgram.create(
-        newScan.getRowType,
-        newProjectExprsList,
-        newConditionExpr.getOrElse(null),
-        calc.calcProgram.getOutputRowType,
-        calc.getCluster.getRexBuilder)
-
-      val newCal = new DataSetCalc(calc.getCluster,
-        calc.getTraitSet,
-        newScan,
-        calc.getRowType,
-        newCalcProgram,
-        description)
-
-      call.transformTo(newCal)
-    }
-  }
 }
 
 object PushProjectIntoBatchTableSourceScanRule {

@@ -18,59 +18,67 @@
 
 package org.apache.flink.api.table.plan.rules.util
 
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexLocalRef, RexNode, RexShuttle, RexSlot, RexVisitorImpl}
-import org.apache.flink.api.table.plan.nodes.dataset.DataSetCalc
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rex._
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 
-object DataSetCalcConverter {
+object RexProgramProjectExtractor {
 
   /**
-    * extract used input fields index of DataSetCalc RelNode
+    * extract used input fields index of RexProgram
     *
-    * @param calc the DataSetCalc which to analyze
+    * @param rexProgram the RexProgram which to analyze
     * @return used input fields indices
     */
-  def extractRefInputFields(calc: DataSetCalc): Array[Int] = {
+  def extractRefInputFields(rexProgram: RexProgram): Array[Int] = {
     val visitor = new RefFieldsVisitor
-    val calcProgram = calc.calcProgram
     // extract input fields from project expressions
-    calcProgram.getProjectList.foreach(exp => calcProgram.expandLocalRef(exp).accept(visitor))
-    val condition = calcProgram.getCondition
+    rexProgram.getProjectList.foreach(exp => rexProgram.expandLocalRef(exp).accept(visitor))
+    val condition = rexProgram.getCondition
     // extract input fields from condition expression
     if (condition != null) {
-      calcProgram.expandLocalRef(condition).accept(visitor)
+      rexProgram.expandLocalRef(condition).accept(visitor)
     }
     visitor.getFields
   }
 
   /**
-    * rewrite DataSetCal project expressions and condition expression based on new input fields
+    * generate new RexProgram based on new input fields
     *
-    * @param calc            the DataSetCalc which to rewrite
-    * @param usedInputFields input fields index of DataSetCalc RelNode
-    * @return a tuple which contain 2 elements, the first one is rewritten project expressions;
-    *         the second one is rewritten condition expression,
-    *         Note: if origin condition expression is null, the second value is None
+    * @param oldRexProgram   the old RexProgram
+    * @param inputRowType    input row type
+    * @param usedInputFields input fields index
+    * @param rexBuilder      builder of rex expressions
+    * @return new RexProgram which contains rewritten project expressions and
+    *         rewritten condition expression
     */
-  def rewriteCalcExprs(
-      calc: DataSetCalc,
-      usedInputFields: Array[Int]): (List[RexNode], Option[RexNode]) = {
+  def rewriteRexProgram(
+    oldRexProgram: RexProgram,
+    inputRowType: RelDataType,
+    usedInputFields: Array[Int],
+    rexBuilder: RexBuilder): RexProgram = {
     val inputRewriter = new InputRewriter(usedInputFields)
-    val calcProgram = calc.calcProgram
-    val newProjectExpressions = calcProgram.getProjectList.map(
-      exp => calcProgram.expandLocalRef(exp).accept(inputRewriter)
-    ).toList
+    val newProjectExpressions = oldRexProgram.getProjectList.map(
+      exp => oldRexProgram.expandLocalRef(exp).accept(inputRewriter)
+    ).toList.asJava
 
-    val oldCondition = calcProgram.getCondition
+    val oldCondition = oldRexProgram.getCondition
     val newConditionExpression = {
       oldCondition match {
-        case ref: RexLocalRef => Some(calcProgram.expandLocalRef(ref).accept(inputRewriter))
-        case _ => None         // null does not match any type
+        case ref: RexLocalRef => oldRexProgram.expandLocalRef(ref).accept(inputRewriter)
+        case _ => null // null does not match any type
       }
     }
-    (newProjectExpressions, newConditionExpression)
+    RexProgram.create(
+      inputRowType,
+      newProjectExpressions,
+      newConditionExpression,
+      oldRexProgram.getOutputRowType,
+      rexBuilder
+    )
   }
 }
 

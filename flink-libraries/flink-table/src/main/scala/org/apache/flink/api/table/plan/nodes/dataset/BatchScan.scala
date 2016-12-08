@@ -45,8 +45,7 @@ abstract class BatchScan(
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
 
     val rowCnt = metadata.getRowCount(this)
-    val columnCnt = getRowType.getFieldCount
-    planner.getCostFactory.makeCost(rowCnt * columnCnt, rowCnt, 0)
+    planner.getCostFactory.makeCost(rowCnt, rowCnt, 0)
   }
 
   protected def convertToExpectedType(
