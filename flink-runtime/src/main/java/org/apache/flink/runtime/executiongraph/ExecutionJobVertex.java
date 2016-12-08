@@ -617,6 +617,31 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		}
 	}
 
+	public static Map<JobVertexID, ExecutionJobVertex> includeLegacyJobVertexIDs(
+			Map<JobVertexID, ExecutionJobVertex> tasks) {
+
+		Map<JobVertexID, ExecutionJobVertex> expanded = new HashMap<>(2 * tasks.size());
+		// first include all new ids
+		expanded.putAll(tasks);
+
+		// now expand and add legacy ids
+		for (ExecutionJobVertex executionJobVertex : tasks.values()) {
+			if (null != executionJobVertex) {
+				JobVertex jobVertex = executionJobVertex.getJobVertex();
+				if (null != jobVertex) {
+					List<JobVertexID> alternativeIds = jobVertex.getIdAlternatives();
+					for (JobVertexID jobVertexID : alternativeIds) {
+						ExecutionJobVertex old = expanded.put(jobVertexID, executionJobVertex);
+						Preconditions.checkState(null == old || old.equals(executionJobVertex),
+								"Ambiguous jobvertex id detected during expansion to legacy ids.");
+					}
+				}
+			}
+		}
+
+		return expanded;
+	}
+
 	@Override
 	public ArchivedExecutionJobVertex archive() {
 		return new ArchivedExecutionJobVertex(this);

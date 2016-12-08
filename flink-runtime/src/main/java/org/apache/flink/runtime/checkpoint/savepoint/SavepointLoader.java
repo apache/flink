@@ -64,9 +64,21 @@ public class SavepointLoader {
 		Savepoint savepoint = SavepointStore.loadSavepoint(savepointPath, userClassLoader);
 		final Map<JobVertexID, TaskState> taskStates = new HashMap<>(savepoint.getTaskStates().size());
 
+		boolean expandedToLegacyIds = false;
+
 		// (2) validate it (parallelism, etc)
 		for (TaskState taskState : savepoint.getTaskStates()) {
+
 			ExecutionJobVertex executionJobVertex = tasks.get(taskState.getJobVertexID());
+
+			// on the first time we can not find the execution job vertex for an id, we also consider alternative ids,
+			// for example as generated from older flink versions, to provide backwards compatibility.
+			if (executionJobVertex == null && !expandedToLegacyIds) {
+				tasks = ExecutionJobVertex.includeLegacyJobVertexIDs(tasks);
+				executionJobVertex = tasks.get(taskState.getJobVertexID());
+				expandedToLegacyIds = true;
+				LOG.info("Could not find ExecutionJobVertex. Including legacy JobVertexIDs in search.");
+			}
 
 			if (executionJobVertex != null) {
 				if (executionJobVertex.getMaxParallelism() == taskState.getMaxParallelism()) {
