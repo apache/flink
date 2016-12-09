@@ -32,8 +32,10 @@ import org.apache.flink.api.table.plan.nodes.datastream.DataStreamAggregate._
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil._
 import org.apache.flink.api.table.runtime.aggregate.{Aggregate, _}
 import org.apache.flink.api.table.typeutils.TypeCheckUtils.isTimeInterval
-import org.apache.flink.api.table.typeutils.{RowIntervalTypeInfo, RowTypeInfo, TimeIntervalTypeInfo, TypeConverter}
-import org.apache.flink.api.table.{FlinkTypeFactory, Row, StreamTableEnvironment}
+import org.apache.flink.api.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo, TypeConverter}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.table.{FlinkTypeFactory, StreamTableEnvironment}
+import org.apache.flink.types.Row
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream, DataStream, KeyedStream, WindowedStream}
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -117,7 +119,7 @@ class DataStreamAggregate(
       .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
       .toArray
 
-    val rowTypeInfo = new RowTypeInfo(fieldTypes)
+    val rowTypeInfo = new RowTypeInfo(fieldTypes: _*)
 
     val aggString = aggregationToString(
       inputType,

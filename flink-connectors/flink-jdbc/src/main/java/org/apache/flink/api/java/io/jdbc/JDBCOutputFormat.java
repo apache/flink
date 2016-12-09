@@ -26,7 +26,7 @@ import java.sql.SQLException;
 
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.table.Row;
+import org.apache.flink.types.Row;
 import org.apache.flink.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,22 +108,22 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	@Override
 	public void writeRecord(Row row) throws IOException {
 
-		if (typesArray != null && typesArray.length > 0 && typesArray.length != row.productArity()) {
+		if (typesArray != null && typesArray.length > 0 && typesArray.length != row.getArity()) {
 			LOG.warn("Column SQL types array doesn't match arity of passed Row! Check the passed array...");
 		} 
 		try {
 
 			if (typesArray == null ) {
 				// no types provided
-				for (int index = 0; index < row.productArity(); index++) {
-					LOG.warn("Unknown column type for column %s. Best effort approach to set its value: %s.", index + 1, row.productElement(index));
-					upload.setObject(index + 1, row.productElement(index));
+				for (int index = 0; index < row.getArity(); index++) {
+					LOG.warn("Unknown column type for column %s. Best effort approach to set its value: %s.", index + 1, row.getField(index));
+					upload.setObject(index + 1, row.getField(index));
 				}
 			} else {
 				// types provided
-				for (int index = 0; index < row.productArity(); index++) {
+				for (int index = 0; index < row.getArity(); index++) {
 
-					if (row.productElement(index) == null) {
+					if (row.getField(index) == null) {
 						upload.setNull(index + 1, typesArray[index]);
 					} else {
 						// casting values as suggested by http://docs.oracle.com/javase/1.5.0/docs/guide/jdbc/getstart/mapping.html
@@ -133,56 +133,56 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 								break;
 							case java.sql.Types.BOOLEAN:
 							case java.sql.Types.BIT:
-								upload.setBoolean(index + 1, (boolean) row.productElement(index));
+								upload.setBoolean(index + 1, (boolean) row.getField(index));
 								break;
 							case java.sql.Types.CHAR:
 							case java.sql.Types.NCHAR:
 							case java.sql.Types.VARCHAR:
 							case java.sql.Types.LONGVARCHAR:
 							case java.sql.Types.LONGNVARCHAR:
-								upload.setString(index + 1, (String) row.productElement(index));
+								upload.setString(index + 1, (String) row.getField(index));
 								break;
 							case java.sql.Types.TINYINT:
-								upload.setByte(index + 1, (byte) row.productElement(index));
+								upload.setByte(index + 1, (byte) row.getField(index));
 								break;
 							case java.sql.Types.SMALLINT:
-								upload.setShort(index + 1, (short) row.productElement(index));
+								upload.setShort(index + 1, (short) row.getField(index));
 								break;
 							case java.sql.Types.INTEGER:
-								upload.setInt(index + 1, (int) row.productElement(index));
+								upload.setInt(index + 1, (int) row.getField(index));
 								break;
 							case java.sql.Types.BIGINT:
-								upload.setLong(index + 1, (long) row.productElement(index));
+								upload.setLong(index + 1, (long) row.getField(index));
 								break;
 							case java.sql.Types.REAL:
-								upload.setFloat(index + 1, (float) row.productElement(index));
+								upload.setFloat(index + 1, (float) row.getField(index));
 								break;
 							case java.sql.Types.FLOAT:
 							case java.sql.Types.DOUBLE:
-								upload.setDouble(index + 1, (double) row.productElement(index));
+								upload.setDouble(index + 1, (double) row.getField(index));
 								break;
 							case java.sql.Types.DECIMAL:
 							case java.sql.Types.NUMERIC:
-								upload.setBigDecimal(index + 1, (java.math.BigDecimal) row.productElement(index));
+								upload.setBigDecimal(index + 1, (java.math.BigDecimal) row.getField(index));
 								break;
 							case java.sql.Types.DATE:
-								upload.setDate(index + 1, (java.sql.Date) row.productElement(index));
+								upload.setDate(index + 1, (java.sql.Date) row.getField(index));
 								break;
 							case java.sql.Types.TIME:
-								upload.setTime(index + 1, (java.sql.Time) row.productElement(index));
+								upload.setTime(index + 1, (java.sql.Time) row.getField(index));
 								break;
 							case java.sql.Types.TIMESTAMP:
-								upload.setTimestamp(index + 1, (java.sql.Timestamp) row.productElement(index));
+								upload.setTimestamp(index + 1, (java.sql.Timestamp) row.getField(index));
 								break;
 							case java.sql.Types.BINARY:
 							case java.sql.Types.VARBINARY:
 							case java.sql.Types.LONGVARBINARY:
-								upload.setBytes(index + 1, (byte[]) row.productElement(index));
+								upload.setBytes(index + 1, (byte[]) row.getField(index));
 								break;
 							default:
-								upload.setObject(index + 1, row.productElement(index));
+								upload.setObject(index + 1, row.getField(index));
 								LOG.warn("Unmanaged sql type (%s) for column %s. Best effort approach to set its value: %s.",
-									typesArray[index], index + 1, row.productElement(index));
+									typesArray[index], index + 1, row.getField(index));
 								// case java.sql.Types.SQLXML
 								// case java.sql.Types.ARRAY:
 								// case java.sql.Types.JAVA_OBJECT:

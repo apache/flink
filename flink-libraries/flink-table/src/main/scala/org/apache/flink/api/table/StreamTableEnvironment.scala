@@ -327,7 +327,9 @@ abstract class StreamTableEnvironment(
   def explain(table: Table): String = {
     val ast = table.getRelNode
     val optimizedPlan = optimize(ast)
-    val dataStream = translate[Row](optimizedPlan)(TypeExtractor.createTypeInfo(classOf[Row]))
+    val dataStream = translate[org.apache.flink.types.Row](optimizedPlan)(
+      TypeExtractor.createTypeInfo(
+        classOf[org.apache.flink.types.Row]))
 
     val env = dataStream.getExecutionEnvironment
     val jsonSqlPlan = env.getExecutionPlan

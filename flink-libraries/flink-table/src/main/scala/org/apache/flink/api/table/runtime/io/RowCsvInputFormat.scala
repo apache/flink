@@ -22,9 +22,9 @@ import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.io.ParseException
 import org.apache.flink.api.java.io.CsvInputFormat
 import org.apache.flink.api.java.io.CsvInputFormat.{DEFAULT_FIELD_DELIMITER, DEFAULT_LINE_DELIMITER, createDefaultMask, toBooleanMask}
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 import org.apache.flink.api.table.runtime.io.RowCsvInputFormat.extractTypeClasses
-import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.fs.Path
 import org.apache.flink.types.parser.FieldParser
 import org.apache.flink.types.parser.FieldParser.ParseErrorState

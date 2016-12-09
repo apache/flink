@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.flink.api.table.Row;
+import org.apache.flink.types.Row;
 import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
 import org.junit.Test;
 
@@ -61,10 +61,10 @@ public class JsonRowDeserializationSchemaTest {
 
 		Row deserialized = deserializationSchema.deserialize(serializedJson);
 
-		assertEquals(3, deserialized.productArity());
-		assertEquals(id, deserialized.productElement(0));
-		assertEquals(name, deserialized.productElement(1));
-		assertArrayEquals(bytes, (byte[]) deserialized.productElement(2));
+		assertEquals(3, deserialized.getArity());
+		assertEquals(id, deserialized.getField(0));
+		assertEquals(name, deserialized.getField(1));
+		assertArrayEquals(bytes, (byte[]) deserialized.getField(2));
 	}
 
 	/**
@@ -85,8 +85,8 @@ public class JsonRowDeserializationSchemaTest {
 
 		Row row = deserializationSchema.deserialize(serializedJson);
 
-		assertEquals(1, row.productArity());
-		assertNull("Missing field not null", row.productElement(0));
+		assertEquals(1, row.getArity());
+		assertNull("Missing field not null", row.getField(0));
 
 		deserializationSchema.setFailOnMissingField(true);
 

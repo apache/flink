@@ -31,9 +31,10 @@ import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.table.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.api.table.expressions.{WindowEnd, WindowStart}
 import org.apache.flink.api.table.plan.logical._
-import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.table.typeutils.TypeCheckUtils._
-import org.apache.flink.api.table.{FlinkTypeFactory, Row, TableException}
+import org.apache.flink.api.table.{FlinkTypeFactory,  TableException}
+import org.apache.flink.types.Row
 import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
 import scala.collection.JavaConversions._
@@ -529,7 +530,7 @@ object AggregateUtil {
 
     // concat group key types and aggregation types
     val allFieldTypes = groupingTypes ++: aggTypes
-    val partialType = new RowTypeInfo(allFieldTypes)
+    val partialType = new RowTypeInfo(allFieldTypes: _*)
     partialType
   }
 

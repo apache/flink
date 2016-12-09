@@ -24,8 +24,9 @@ import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, TypeInforma
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
-import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{Row, Types, ValidationException}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.table.{Types, ValidationException}
+import org.apache.flink.types.Row
 import org.junit.Test
 
 class ArrayTypeTest extends ExpressionTestBase {
@@ -342,7 +343,7 @@ class ArrayTypeTest extends ExpressionTestBase {
   }
 
   override def typeInfo: TypeInformation[Any] = {
-    new RowTypeInfo(Seq(
+    new RowTypeInfo(
       Types.INT,
       Types.INT,
       PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
@@ -354,6 +355,6 @@ class ArrayTypeTest extends ExpressionTestBase {
       PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
       ObjectArrayTypeInfo.getInfoFor(Types.INT),
       ObjectArrayTypeInfo.getInfoFor(Types.INT)
-    )).asInstanceOf[TypeInformation[Any]]
+    ).asInstanceOf[TypeInformation[Any]]
   }
 }

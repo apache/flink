@@ -33,7 +33,7 @@ import org.apache.flink.api.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.api.table.functions.ScalarFunction
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetCalc, DataSetConvention}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
-import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.junit.Assert._
 import org.junit.{After, Before}
 import org.mockito.Mockito._
@@ -96,7 +96,7 @@ abstract class ExpressionTestBase {
     val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._1, VARCHAR)).toSeq
 
     // generate code
-    val resultType = new RowTypeInfo(Seq.fill(testExprs.size)(STRING_TYPE_INFO))
+    val resultType = new RowTypeInfo(Seq.fill(testExprs.size)(STRING_TYPE_INFO): _*)
     val genExpr = generator.generateResultExpression(
       resultType,
       resultType.getFieldNames,
@@ -117,14 +117,14 @@ abstract class ExpressionTestBase {
     // compile and evaluate
     val clazz = new TestCompiler[MapFunction[Any, String]]().compile(genFunc)
     val mapper = clazz.newInstance()
-    val result = mapper.map(testData).asInstanceOf[Row]
+    val result = mapper.map(testData).asInstanceOf[org.apache.flink.types.Row]
 
     // compare
     testExprs
       .zipWithIndex
       .foreach {
         case ((expr, expected), index) =>
-          val actual = result.productElement(index)
+          val actual = result.getField(index)
           assertEquals(
             s"Wrong result for: $expr",
             expected,

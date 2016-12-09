@@ -23,8 +23,9 @@ import java.sql.{Date, Time, Timestamp}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
-import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{Row, Types}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.table.Types
+import org.apache.flink.types.Row
 import org.junit.Test
 
 class TemporalTypesTest extends ExpressionTestBase {
@@ -556,7 +557,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   }
 
   def typeInfo = {
-    new RowTypeInfo(Seq(
+    new RowTypeInfo(
       Types.DATE,
       Types.TIME,
       Types.TIMESTAMP,
@@ -567,6 +568,6 @@ class TemporalTypesTest extends ExpressionTestBase {
       Types.INT,
       Types.LONG,
       Types.INTERVAL_MONTHS,
-      Types.INTERVAL_MILLIS)).asInstanceOf[TypeInformation[Any]]
+      Types.INTERVAL_MILLIS).asInstanceOf[TypeInformation[Any]]
   }
 }

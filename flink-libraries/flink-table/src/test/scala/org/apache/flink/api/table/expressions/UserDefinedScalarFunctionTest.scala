@@ -25,8 +25,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.expressions.utils._
 import org.apache.flink.api.table.functions.ScalarFunction
-import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{Row, Types}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.table.Types
+import org.apache.flink.types.Row
 import org.junit.Test
 
 class UserDefinedScalarFunctionTest extends ExpressionTestBase {
@@ -195,7 +196,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   }
 
   override def typeInfo: TypeInformation[Any] = {
-    new RowTypeInfo(Seq(
+    new RowTypeInfo(
       Types.INT,
       Types.STRING,
       Types.BOOLEAN,
@@ -205,7 +206,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Types.TIMESTAMP,
       Types.INTERVAL_MONTHS,
       Types.INTERVAL_MILLIS
-    )).asInstanceOf[TypeInformation[Any]]
+    ).asInstanceOf[TypeInformation[Any]]
   }
 
   override def functions: Map[String, ScalarFunction] = Map(

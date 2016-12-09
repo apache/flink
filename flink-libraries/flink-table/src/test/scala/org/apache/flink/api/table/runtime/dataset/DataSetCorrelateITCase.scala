@@ -23,7 +23,8 @@ import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigM
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.expressions.utils._
 import org.apache.flink.api.table.utils._
-import org.apache.flink.api.table.{Row, TableEnvironment}
+import org.apache.flink.api.table.TableEnvironment
+import org.apache.flink.types.Row
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Test

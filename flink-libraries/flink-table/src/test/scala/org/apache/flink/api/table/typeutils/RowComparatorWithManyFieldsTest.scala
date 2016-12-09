@@ -21,7 +21,8 @@ package org.apache.flink.api.table.typeutils
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.{ComparatorTestBase, TypeComparator, TypeSerializer}
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
+import org.apache.flink.api.java.typeutils.{RowTypeInfo => RowTypeInfoNew}
 import org.apache.flink.util.Preconditions
 import org.junit.Assert._
 
@@ -34,7 +35,7 @@ class RowComparatorWithManyFieldsTest extends ComparatorTestBase[Row] {
   for (i <- 0 until numberOfFields) {
     fieldTypes(i) = BasicTypeInfo.STRING_TYPE_INFO
   }
-  val typeInfo = new RowTypeInfo(fieldTypes)
+  val typeInfo = new RowTypeInfoNew(fieldTypes: _*)
 
   val data: Array[Row] = Array(
     createRow(Array(null, "b0", "c0", "d0", "e0", "f0", "g0", "h0", "i0", "j0")),
@@ -44,12 +45,12 @@ class RowComparatorWithManyFieldsTest extends ComparatorTestBase[Row] {
   )
 
   override protected def deepEquals(message: String, should: Row, is: Row): Unit = {
-    val arity = should.productArity
-    assertEquals(message, arity, is.productArity)
+    val arity = should.getArity
+    assertEquals(message, arity, is.getArity)
     var index = 0
     while (index < arity) {
-      val copiedValue: Any = should.productElement(index)
-      val element: Any = is.productElement(index)
+      val copiedValue: Any = should.getField(index)
+      val element: Any = is.getField(index)
       assertEquals(message, element, copiedValue)
       index += 1
     }

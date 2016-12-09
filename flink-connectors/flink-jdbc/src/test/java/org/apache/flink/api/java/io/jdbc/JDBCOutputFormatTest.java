@@ -26,7 +26,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.table.Row;
+import org.apache.flink.types.Row;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
@@ -137,25 +137,25 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				for (int i = 0; i < tuple5.getArity(); i++) {
 					row.setField(i, resultSet.getObject(i + 1));
 				}
-				if (row.productElement(0) != null) {
-					Assert.assertEquals("Field 0 should be int", Integer.class, row.productElement(0).getClass());
+				if (row.getField(0) != null) {
+					Assert.assertEquals("Field 0 should be int", Integer.class, row.getField(0).getClass());
 				}
-				if (row.productElement(1) != null) {
-					Assert.assertEquals("Field 1 should be String", String.class, row.productElement(1).getClass());
+				if (row.getField(1) != null) {
+					Assert.assertEquals("Field 1 should be String", String.class, row.getField(1).getClass());
 				}
-				if (row.productElement(2) != null) {
-					Assert.assertEquals("Field 2 should be String", String.class, row.productElement(2).getClass());
+				if (row.getField(2) != null) {
+					Assert.assertEquals("Field 2 should be String", String.class, row.getField(2).getClass());
 				}
-				if (row.productElement(3) != null) {
-					Assert.assertEquals("Field 3 should be float", Double.class, row.productElement(3).getClass());
+				if (row.getField(3) != null) {
+					Assert.assertEquals("Field 3 should be float", Double.class, row.getField(3).getClass());
 				}
-				if (row.productElement(4) != null) {
-					Assert.assertEquals("Field 4 should be int", Integer.class, row.productElement(4).getClass());
+				if (row.getField(4) != null) {
+					Assert.assertEquals("Field 4 should be int", Integer.class, row.getField(4).getClass());
 				}
 
 				for (int x = 0; x < tuple5.getArity(); x++) {
 					if (JDBCTestBase.testData[recordCount][x] != null) {
-						Assert.assertEquals(JDBCTestBase.testData[recordCount][x], row.productElement(x));
+						Assert.assertEquals(JDBCTestBase.testData[recordCount][x], row.getField(x));
 					}
 				}
 

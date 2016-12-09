@@ -37,7 +37,8 @@ import org.apache.flink.api.table.codegen.Indenter.toISC
 import org.apache.flink.api.table.codegen.calls.FunctionGenerator
 import org.apache.flink.api.table.codegen.calls.ScalarOperators._
 import org.apache.flink.api.table.functions.UserDefinedFunction
-import org.apache.flink.api.table.typeutils.{RowTypeInfo, TypeConverter}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.table.typeutils.TypeConverter
 import org.apache.flink.api.table.typeutils.TypeCheckUtils._
 import org.apache.flink.api.table.{FlinkTypeFactory, TableConfig}
 
@@ -1139,7 +1140,7 @@ class CodeGenerator(
 
           case ProductAccessor(i) =>
             // Object
-            val inputCode = s"($fieldTypeTerm) $inputTerm.productElement($i)"
+            val inputCode = s"($fieldTypeTerm) $inputTerm.getField($i)"
             generateInputFieldUnboxing(fieldType, inputCode)
 
           case ObjectPrivateFieldAccessor(field) =>

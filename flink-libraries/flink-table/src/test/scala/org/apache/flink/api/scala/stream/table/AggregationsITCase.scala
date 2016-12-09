@@ -22,7 +22,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.stream.table.GroupWindowITCase.TimestampWithEqualWatermark
 import org.apache.flink.api.scala.stream.utils.StreamITCase
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.{Row, _}
+import org.apache.flink.api.table._
+import org.apache.flink.types.Row
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment

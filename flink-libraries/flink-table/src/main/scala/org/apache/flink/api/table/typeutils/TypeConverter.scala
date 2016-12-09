@@ -26,13 +26,15 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
-import org.apache.flink.api.table.{FlinkTypeFactory, Row, TableException}
+import org.apache.flink.api.table.{FlinkTypeFactory, TableException}
+import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 
 object TypeConverter {
 
-  val DEFAULT_ROW_TYPE = new RowTypeInfo(Seq()).asInstanceOf[TypeInformation[Any]]
+  val DEFAULT_ROW_TYPE = new org.apache.flink.api.java.typeutils.RowTypeInfo(
+    Seq.empty[TypeInformation[Any]]: _*).asInstanceOf[TypeInformation[Any]]
 
   /**
     * Determines the return type of Flink operators based on the logical fields, the expected
@@ -115,7 +117,7 @@ object TypeConverter {
 
       // Row is expected, create the arity for it
       case Some(typeInfo) if typeInfo.getTypeClass == classOf[Row] =>
-        new RowTypeInfo(logicalFieldTypes)
+        new org.apache.flink.api.java.typeutils.RowTypeInfo(logicalFieldTypes: _*)
 
       // no physical type
       // determine type based on logical fields and configuration parameters
@@ -123,7 +125,7 @@ object TypeConverter {
         // no need for efficient types -> use Row
         // we cannot use efficient types if row arity > tuple arity or nullable
         if (!useEfficientTypes || logicalFieldTypes.length > Tuple.MAX_ARITY || nullable) {
-          new RowTypeInfo(logicalFieldTypes)
+          new org.apache.flink.api.java.typeutils.RowTypeInfo(logicalFieldTypes: _*)
         }
         // use efficient type tuple or atomic type
         else {

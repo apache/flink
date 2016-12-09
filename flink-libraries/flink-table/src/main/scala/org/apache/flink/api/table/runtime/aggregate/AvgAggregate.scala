@@ -19,7 +19,7 @@ package org.apache.flink.api.table.runtime.aggregate
 
 import com.google.common.math.LongMath
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 import java.math.BigDecimal
 import java.math.BigInteger
 
@@ -52,10 +52,10 @@ abstract class IntegralAvgAggregate[T] extends AvgAggregate[T] {
   }
 
   override def merge(partial: Row, buffer: Row): Unit = {
-    val partialSum = partial.productElement(partialSumIndex).asInstanceOf[Long]
-    val partialCount = partial.productElement(partialCountIndex).asInstanceOf[Long]
-    val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[Long]
-    val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
+    val partialSum = partial.getField(partialSumIndex).asInstanceOf[Long]
+    val partialCount = partial.getField(partialCountIndex).asInstanceOf[Long]
+    val bufferSum = buffer.getField(partialSumIndex).asInstanceOf[Long]
+    val bufferCount = buffer.getField(partialCountIndex).asInstanceOf[Long]
     buffer.setField(partialSumIndex, LongMath.checkedAdd(partialSum, bufferSum))
     buffer.setField(partialCountIndex, LongMath.checkedAdd(partialCount, bufferCount))
   }
@@ -81,8 +81,8 @@ class ByteAvgAggregate extends IntegralAvgAggregate[Byte] {
   }
 
   override def doEvaluate(buffer: Row): Any = {
-    val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[Long]
-    val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
+    val bufferSum = buffer.getField(partialSumIndex).asInstanceOf[Long]
+    val bufferCount = buffer.getField(partialCountIndex).asInstanceOf[Long]
     if (bufferCount == 0L) {
       null
     } else {
@@ -100,8 +100,8 @@ class ShortAvgAggregate extends IntegralAvgAggregate[Short] {
   }
 
   override def doEvaluate(buffer: Row): Any = {
-    val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[Long]
-    val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
+    val bufferSum = buffer.getField(partialSumIndex).asInstanceOf[Long]
+    val bufferCount = buffer.getField(partialCountIndex).asInstanceOf[Long]
     if (bufferCount == 0L) {
       null
     } else {
@@ -119,8 +119,8 @@ class IntAvgAggregate extends IntegralAvgAggregate[Int] {
   }
 
   override def doEvaluate(buffer: Row): Any = {
-    val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[Long]
-    val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
+    val bufferSum = buffer.getField(partialSumIndex).asInstanceOf[Long]
+    val bufferCount = buffer.getField(partialCountIndex).asInstanceOf[Long]
     if (bufferCount == 0L) {
       null
     } else {
@@ -156,17 +156,17 @@ class LongAvgAggregate extends IntegralAvgAggregate[Long] {
   }
 
   override def merge(partial: Row, buffer: Row): Unit = {
-    val partialSum = partial.productElement(partialSumIndex).asInstanceOf[BigInteger]
-    val partialCount = partial.productElement(partialCountIndex).asInstanceOf[Long]
-    val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[BigInteger]
-    val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
+    val partialSum = partial.getField(partialSumIndex).asInstanceOf[BigInteger]
+    val partialCount = partial.getField(partialCountIndex).asInstanceOf[Long]
+    val bufferSum = buffer.getField(partialSumIndex).asInstanceOf[BigInteger]
+    val bufferCount = buffer.getField(partialCountIndex).asInstanceOf[Long]
     buffer.setField(partialSumIndex, partialSum.add(bufferSum))
     buffer.setField(partialCountIndex, LongMath.checkedAdd(partialCount, bufferCount))
   }
 
   override def doEvaluate(buffer: Row): Any = {
-    val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[BigInteger]
-    val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
+    val bufferSum = buffer.getField(partialSumIndex).asInstanceOf[BigInteger]
+    val bufferCount = buffer.getField(partialCountIndex).asInstanceOf[Long]
     if (bufferCount == 0L) {
       null
     } else {
@@ -192,10 +192,10 @@ abstract class FloatingAvgAggregate[T: Numeric] extends AvgAggregate[T] {
   }
 
   override def merge(partial: Row, buffer: Row): Unit = {
-    val partialSum = partial.productElement(partialSumIndex).asInstanceOf[Double]
-    val partialCount = partial.productElement(partialCountIndex).asInstanceOf[Long]
-    val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[Double]
-    val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
+    val partialSum = partial.getField(partialSumIndex).asInstanceOf[Double]
+    val partialCount = partial.getField(partialCountIndex).asInstanceOf[Long]
+    val bufferSum = buffer.getField(partialSumIndex).asInstanceOf[Double]
+    val bufferCount = buffer.getField(partialCountIndex).asInstanceOf[Long]
 
     buffer.setField(partialSumIndex, partialSum + bufferSum)
     buffer.setField(partialCountIndex, partialCount + bufferCount)
@@ -224,8 +224,8 @@ class FloatAvgAggregate extends FloatingAvgAggregate[Float] {
 
 
   override def doEvaluate(buffer: Row): Any = {
-    val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[Double]
-    val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
+    val bufferSum = buffer.getField(partialSumIndex).asInstanceOf[Double]
+    val bufferCount = buffer.getField(partialCountIndex).asInstanceOf[Long]
     if (bufferCount == 0L) {
       null
     } else {
@@ -243,8 +243,8 @@ class DoubleAvgAggregate extends FloatingAvgAggregate[Double] {
   }
 
   override def doEvaluate(buffer: Row): Any = {
-    val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[Double]
-    val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
+    val bufferSum = buffer.getField(partialSumIndex).asInstanceOf[Double]
+    val bufferCount = buffer.getField(partialCountIndex).asInstanceOf[Long]
     if (bufferCount == 0L) {
       null
     } else {
@@ -275,18 +275,18 @@ class DecimalAvgAggregate extends AvgAggregate[BigDecimal] {
   }
 
   override def merge(partial: Row, buffer: Row): Unit = {
-    val partialSum = partial.productElement(partialSumIndex).asInstanceOf[BigDecimal]
-    val partialCount = partial.productElement(partialCountIndex).asInstanceOf[Long]
-    val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[BigDecimal]
-    val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
+    val partialSum = partial.getField(partialSumIndex).asInstanceOf[BigDecimal]
+    val partialCount = partial.getField(partialCountIndex).asInstanceOf[Long]
+    val bufferSum = buffer.getField(partialSumIndex).asInstanceOf[BigDecimal]
+    val bufferCount = buffer.getField(partialCountIndex).asInstanceOf[Long]
     buffer.setField(partialSumIndex, partialSum.add(bufferSum))
     buffer.setField(partialCountIndex, LongMath.checkedAdd(partialCount, bufferCount))
   }
 
   override def evaluate(buffer: Row): BigDecimal = {
-    val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
+    val bufferCount = buffer.getField(partialCountIndex).asInstanceOf[Long]
     if (bufferCount != 0) {
-      val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[BigDecimal]
+      val bufferSum = buffer.getField(partialSumIndex).asInstanceOf[BigDecimal]
       bufferSum.divide(BigDecimal.valueOf(bufferCount))
     } else {
       null.asInstanceOf[BigDecimal]
