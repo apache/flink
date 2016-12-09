@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.scala.batch.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.batch.utils.LogicalPlanFormatUtils
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.api.scala._
@@ -216,7 +217,8 @@ class JoinITCase(
     val lPlan1 = joinTScala.logicalPlan
     val lPlan2 = joinTJava.logicalPlan
 
-    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
+    Assert.assertEquals("Logical Plans do not match", lPlan1.toString,
+      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
 
     val expected = "6"
     val results = joinTScala.toDataSet[Row] collect()
