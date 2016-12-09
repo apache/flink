@@ -40,3 +40,5 @@ services:
     command: taskmanager
     links:
       - "jobmanager:jobmanager"
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS="jobmanager"
