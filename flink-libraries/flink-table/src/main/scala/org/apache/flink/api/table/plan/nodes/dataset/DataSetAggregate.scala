@@ -28,8 +28,10 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.plan.nodes.FlinkAggregate
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil.CalcitePair
-import org.apache.flink.api.table.typeutils.{RowTypeInfo, TypeConverter}
-import org.apache.flink.api.table.{BatchTableEnvironment, FlinkTypeFactory, Row}
+import org.apache.flink.api.table.typeutils.TypeConverter
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.table.{BatchTableEnvironment, FlinkTypeFactory}
+import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
 
@@ -119,7 +121,7 @@ class DataSetAggregate(
       .map(mapFunction)
       .name(prepareOpName)
 
-    val rowTypeInfo = new RowTypeInfo(fieldTypes)
+    val rowTypeInfo = new RowTypeInfo(fieldTypes: _*)
 
     val result = {
       if (groupingKeys.length > 0) {

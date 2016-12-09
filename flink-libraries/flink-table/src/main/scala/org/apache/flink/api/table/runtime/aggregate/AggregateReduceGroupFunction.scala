@@ -20,7 +20,7 @@ package org.apache.flink.api.table.runtime.aggregate
 import java.lang.Iterable
 
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.util.{Collector, Preconditions}
 
@@ -78,7 +78,7 @@ class AggregateReduceGroupFunction(
     // Set group keys value to final output.
     groupKeysMapping.foreach {
       case (after, previous) =>
-        output.setField(after, last.productElement(previous))
+        output.setField(after, last.getField(previous))
     }
 
     // Evaluate final aggregate value and set to output.

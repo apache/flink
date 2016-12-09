@@ -21,9 +21,9 @@ import java.lang.Boolean
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple3
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 import org.apache.flink.api.table.functions.TableFunction
-import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 
 
 case class SimpleUser(name: String, age: Int)
@@ -66,8 +66,8 @@ class TableFunc2 extends TableFunction[Row] {
   }
 
   override def getResultType: TypeInformation[Row] = {
-    new RowTypeInfo(Seq(BasicTypeInfo.STRING_TYPE_INFO,
-                        BasicTypeInfo.INT_TYPE_INFO))
+    new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
+                    BasicTypeInfo.INT_TYPE_INFO)
   }
 }
 

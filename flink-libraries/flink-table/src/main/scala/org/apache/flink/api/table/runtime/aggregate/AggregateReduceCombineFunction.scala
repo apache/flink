@@ -21,7 +21,7 @@ package org.apache.flink.api.table.runtime.aggregate
 import java.lang.Iterable
 
 import org.apache.flink.api.common.functions.{CombineFunction, RichGroupReduceFunction}
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.util.{Collector, Preconditions}
 
@@ -74,7 +74,7 @@ class AggregateReduceCombineFunction(
 
     // Set group keys to aggregateBuffer.
     for (i <- groupKeysMapping.indices) {
-      aggregateBuffer.setField(i, last.productElement(i))
+      aggregateBuffer.setField(i, last.getField(i))
     }
 
     aggregateBuffer

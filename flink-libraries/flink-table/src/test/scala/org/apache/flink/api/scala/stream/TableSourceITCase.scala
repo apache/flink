@@ -25,8 +25,9 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.stream.utils.StreamITCase
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.sources.{CsvTableSource, StreamTableSource}
-import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{Row, TableEnvironment}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.table.TableEnvironment
+import org.apache.flink.types.Row
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment
 import org.apache.flink.streaming.api.functions.source.SourceFunction
@@ -163,7 +164,7 @@ class TestStreamTableSource(val numRecords: Int) extends StreamTableSource[Row] 
   override def getFieldsNames: Array[String] = Array("name", "id", "amount")
 
   /** Returns the [[TypeInformation]] for the return type. */
-  override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes)
+  override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes: _*)
 
   /** Returns the number of fields of the table. */
   override def getNumberOfFields: Int = 3

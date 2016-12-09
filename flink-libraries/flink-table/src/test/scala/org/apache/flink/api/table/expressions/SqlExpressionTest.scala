@@ -19,9 +19,9 @@
 package org.apache.flink.api.table.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
-import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.junit.{Ignore, Test}
 
 /**
@@ -166,5 +166,5 @@ class SqlExpressionTest extends ExpressionTestBase {
   override def testData: Any = new Row(0)
 
   override def typeInfo: TypeInformation[Any] =
-    new RowTypeInfo(Seq()).asInstanceOf[TypeInformation[Any]]
+    new RowTypeInfo().asInstanceOf[TypeInformation[Any]]
 }

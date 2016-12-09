@@ -18,7 +18,8 @@
 package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.table.{Row, Table}
+import org.apache.flink.api.table.Table
+import org.apache.flink.types.Row
 import scala.language.implicitConversions
 import org.apache.flink.streaming.api.scala._
 

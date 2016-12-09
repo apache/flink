@@ -19,7 +19,7 @@
 package org.apache.flink.api.table.runtime.aggregate
 
 import org.apache.calcite.runtime.SqlFunctions
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
 
@@ -35,7 +35,7 @@ class TimeWindowPropertyCollector(windowStartOffset: Option[Int], windowEndOffse
 
   override def collect(record: Row): Unit = {
 
-    val lastFieldPos = record.productArity - 1
+    val lastFieldPos = record.getArity - 1
 
     if (windowStartOffset.isDefined) {
       record.setField(

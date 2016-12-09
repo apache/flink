@@ -19,16 +19,17 @@
 package org.apache.flink.api.scala.batch
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.{DataSet => JavaSet, ExecutionEnvironment => JavaExecEnv}
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.sources.{BatchTableSource, ProjectableTableSource}
-import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{Row, TableEnvironment}
+import org.apache.flink.api.table.TableEnvironment
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.types.Row
 import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -104,7 +105,7 @@ class TestProjectableTableSource(
   override def getFieldsNames: Array[String] = fieldNames
 
   /** Returns the [[TypeInformation]] for the return type. */
-  override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes)
+  override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes: _*)
 
   /** Returns the number of fields of the table. */
   override def getNumberOfFields: Int = fieldNames.length

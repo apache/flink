@@ -18,7 +18,7 @@
 package org.apache.flink.api.table.runtime.aggregate
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 
 /**
  * The interface for all Flink aggregate functions, which expressed in terms of initiate(),
