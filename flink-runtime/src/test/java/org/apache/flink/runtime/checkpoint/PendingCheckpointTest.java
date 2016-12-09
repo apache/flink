@@ -158,7 +158,6 @@ public class PendingCheckpointTest {
 		} catch (IllegalStateException ignored) {
 			// Expected
 		}
-		assertTrue(future.isDone());
 	}
 
 	/**
