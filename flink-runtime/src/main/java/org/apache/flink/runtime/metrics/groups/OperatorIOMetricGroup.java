@@ -20,6 +20,7 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
+import org.apache.flink.runtime.metrics.MetricNames;
 
 /**
  * Metric group that contains shareable pre-defined IO-related metrics. The metrics registration is
@@ -35,10 +36,10 @@ public class OperatorIOMetricGroup extends ProxyMetricGroup<OperatorMetricGroup>
 
 	public OperatorIOMetricGroup(OperatorMetricGroup parentMetricGroup) {
 		super(parentMetricGroup);
-		numRecordsIn = parentMetricGroup.counter("numRecordsIn");
-		numRecordsOut = parentMetricGroup.counter("numRecordsOut");
-		numRecordsInRate = parentMetricGroup.meter("numRecordsInPerSecond", new MeterView(numRecordsIn, 60));
-		numRecordsOutRate = parentMetricGroup.meter("numRecordsOutPerSecond", new MeterView(numRecordsOut, 60));
+		numRecordsIn = parentMetricGroup.counter(MetricNames.IO_NUM_RECORDS_IN);
+		numRecordsOut = parentMetricGroup.counter(MetricNames.IO_NUM_RECORDS_OUT);
+		numRecordsInRate = parentMetricGroup.meter(MetricNames.IO_NUM_RECORDS_IN_RATE, new MeterView(numRecordsIn, 60));
+		numRecordsOutRate = parentMetricGroup.meter(MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut, 60));
 	}
 
 	public Counter getNumRecordsInCounter() {
