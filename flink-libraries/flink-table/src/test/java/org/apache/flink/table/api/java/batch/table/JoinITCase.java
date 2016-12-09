@@ -42,84 +42,6 @@ public class JoinITCase extends TableProgramsTestBase {
 		super(mode, configMode);
 	}
 
-	@Test
-	public void testJoin() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
-
-		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
-		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
-
-		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
-		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, h");
-
-		Table result = in1.join(in2).where("b === e").select("c, g");
-
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n";
-		compareResultAsText(results, expected);
-	}
-
-	@Test
-	public void testJoinWithFilter() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
-
-		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
-		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
-
-		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
-		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, h");
-
-		Table result = in1.join(in2).where("b === e && b < 2").select("c, g");
-
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "Hi,Hallo\n";
-		compareResultAsText(results, expected);
-	}
-
-	@Test
-	public void testJoinWithJoinFilter() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
-
-		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.get3TupleDataSet(env);
-		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
-
-		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
-		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, h");
-
-		Table result = in1.join(in2).where("b === e && a < 6 && h < b").select("c, g");
-
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "Hello world, how are you?,Hallo Welt wie\n" +
-				"I am fine.,Hallo Welt wie\n";
-		compareResultAsText(results, expected);
-	}
-
-	@Test
-	public void testJoinWithMultipleKeys() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
-
-		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.get3TupleDataSet(env);
-		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
-
-		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
-		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, h");
-
-		Table result = in1.join(in2).where("a === d && b === h").select("c, g");
-
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt wie gehts?\n" +
-				"Hello world,ABC\n" + "I am fine.,HIJ\n" + "I am fine.,IJK\n";
-		compareResultAsText(results, expected);
-	}
-
 	@Test(expected = ValidationException.class)
 	public void testJoinNonExistingKey() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -166,26 +88,6 @@ public class JoinITCase extends TableProgramsTestBase {
 
 		// Must fail. Join input have overlapping field names.
 		in1.join(in2).where("a === d").select("c, g");
-	}
-
-	@Test
-	public void testJoinWithAggregation() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
-
-		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
-		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
-
-		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
-		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, h");
-
-		Table result = in1
-				.join(in2).where("a === d").select("g.count");
-
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "6";
-		compareResultAsText(results, expected);
 	}
 
 	@Test(expected = ValidationException.class)
