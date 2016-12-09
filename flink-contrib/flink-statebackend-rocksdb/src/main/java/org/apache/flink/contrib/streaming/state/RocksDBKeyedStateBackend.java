@@ -149,8 +149,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.instanceBasePath = instanceBasePath;
 		this.instanceRocksDBPath = new File(instanceBasePath, "db");
 
-		RocksDB.loadLibrary();
-
 		if (!instanceBasePath.exists()) {
 			if (!instanceBasePath.mkdirs()) {
 				throw new RuntimeException("Could not create RocksDB data directory.");
