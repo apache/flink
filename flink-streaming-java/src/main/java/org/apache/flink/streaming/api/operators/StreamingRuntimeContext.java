@@ -110,43 +110,28 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	@Override
 	public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
 		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-
-		try {
-			stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
-			return keyedStateStore.getState(stateProperties);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while getting state", e);
-		}
+		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+		return keyedStateStore.getState(stateProperties);
 	}
 
 	@Override
 	public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
 		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-
-		try {
-			stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
-			return keyedStateStore.getListState(stateProperties);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while getting state", e);
-		}
+		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+		return keyedStateStore.getListState(stateProperties);
 	}
 
 	@Override
 	public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
 		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-
-		try {
-			stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
-			return keyedStateStore.getReducingState(stateProperties);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while getting state", e);
-		}
+		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+		return keyedStateStore.getReducingState(stateProperties);
 	}
 
 	private KeyedStateStore checkPreconditionsAndGetKeyedStateStore(StateDescriptor<?, ?> stateDescriptor) {
 		Preconditions.checkNotNull(stateDescriptor, "The state properties must not be null");
 		KeyedStateStore keyedStateStore = operator.getKeyedStateStore();
-		Preconditions.checkNotNull(keyedStateStore, "Keyed state store is null. This can only be called after a keyBy.");
+		Preconditions.checkNotNull(keyedStateStore, "Keyed state can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.");
 		return keyedStateStore;
 	}
 
