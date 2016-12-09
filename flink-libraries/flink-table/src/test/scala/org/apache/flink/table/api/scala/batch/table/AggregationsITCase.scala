@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.scala.batch.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.batch.utils.LogicalPlanFormatUtils
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.api.scala._
@@ -47,9 +48,17 @@ class AggregationsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
-      .select('_1.sum, '_1.min, '_1.max, '_1.count, '_1.avg)
 
-    val results = t.toDataSet[Row].collect()
+    val t1 = t.select('_1.sum, '_1.min, '_1.max, '_1.count, '_1.avg)
+    val t2 = t.select("_1.sum, _1.min, _1.max, _1.count, _1.avg")
+
+    val lPlan1 = t1.logicalPlan
+    val lPlan2 = t2.logicalPlan
+
+    Assert.assertEquals("Logical Plans do not match", lPlan1.toString,
+      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+
+    val results = t1.toDataSet[Row].collect()
     val expected = "231,1,21,21,11"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -74,10 +83,19 @@ class AggregationsITCase(
     val t = env.fromElements(
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
       (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable(tEnv)
-      .select('_1.avg, '_2.avg, '_3.avg, '_4.avg, '_5.avg, '_6.avg, '_7.count)
+
+    val t1 = t.select('_1.avg, '_2.avg, '_3.avg, '_4.avg, '_5.avg, '_6.avg, '_7.count)
+    val t2 = t.select("_1.avg, _2.avg, _3.avg, _4.avg, _5.avg, _6.avg, _7.count")
+
+    val lPlan1 = t1.logicalPlan
+    val lPlan2 = t2.logicalPlan
+
+    Assert.assertEquals("Logical Plans do not match",
+      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
+      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
 
     val expected = "1,1,1,1,1.5,1.5,2"
-    val results = t.toDataSet[Row].collect()
+    val results = t1.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -104,10 +122,19 @@ class AggregationsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val t = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable(tEnv)
-      .select(('_1 + 2).avg + 2, '_2.count + 5)
+
+    val t1 = t.select(('_1 + 2).avg + 2, '_2.count + 5)
+    val t2 = t.select("(_1 + 2).avg + 2, _2.count + 5")
+
+    val lPlan1 = t1.logicalPlan
+    val lPlan2 = t2.logicalPlan
+
+    Assert.assertEquals("Logical Plans do not match",
+      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
+      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
 
     val expected = "5.5,7"
-    val results = t.toDataSet[Row].collect()
+    val results = t1.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -118,10 +145,19 @@ class AggregationsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val t = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable(tEnv)
-      .select('_1.count, '_2.count)
+
+    val t1 = t.select('_1.count, '_2.count)
+    val t2 = t.select("_1.count, _2.count")
+
+    val lPlan1 = t1.logicalPlan
+    val lPlan2 = t2.logicalPlan
+
+    Assert.assertEquals("Logical Plans do not match",
+      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
+      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
 
     val expected = "2,2"
-    val results = t.toDataSet[Row].collect()
+    val results = t1.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -216,7 +252,14 @@ class AggregationsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+
     val distinct = ds.select('b).distinct()
+    val distinct2 = ds.select("b").distinct()
+
+    val lPlan1 = distinct.logicalPlan
+    val lPlan2 = distinct2.logicalPlan
+
+    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
 
     val expected = "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n"
     val results = distinct.toDataSet[Row].collect()
@@ -229,7 +272,14 @@ class AggregationsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val ds = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+
     val distinct = ds.groupBy('a, 'e).select('e).distinct()
+    val distinct2 = ds.groupBy("a, e").select("e").distinct();
+
+    val lPlan1 = distinct.logicalPlan
+    val lPlan2 = distinct2.logicalPlan
+
+    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
 
     val expected = "1\n" + "2\n" + "3\n"
     val results = distinct.toDataSet[Row].collect()
@@ -267,11 +317,19 @@ class AggregationsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-      .groupBy('b)
-      .select('b, 'a.sum)
+
+    val t1 = t.groupBy('b).select('b, 'a.sum)
+    val t2 = t.groupBy("b").select("b, a.sum")
+
+    val lPlan1 = t1.logicalPlan
+    val lPlan2 = t2.logicalPlan
+
+    Assert.assertEquals("Logical Plans do not match",
+      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
+      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
 
     val expected = "1,1\n" + "2,5\n" + "3,15\n" + "4,34\n" + "5,65\n" + "6,111\n"
-    val results = t.toDataSet[Row].collect()
+    val results = t1.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -282,11 +340,19 @@ class AggregationsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-      .groupBy('b)
-      .select('a.sum)
+
+    val t1 = t.groupBy('b).select('a.sum)
+    val t2 = t.groupBy("b").select("a.sum")
+
+    val lPlan1 = t1.logicalPlan
+    val lPlan2 = t2.logicalPlan
+
+    Assert.assertEquals("Logical Plans do not match",
+      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
+      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
 
     val expected = "1\n" + "5\n" + "15\n" + "34\n" + "65\n" + "111\n"
-    val results = t.toDataSet[Row].collect()
+    val results = t1.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -296,15 +362,29 @@ class AggregationsITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val t = CollectionDataSets.get3TupleDataSet(env)
-      .toTable(tEnv, 'a, 'b, 'c)
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+
+    val t1 = t
       .groupBy('b)
       .select('a.sum as 'd, 'b)
       .groupBy('b, 'd)
       .select('b)
 
+    val t2 = t
+      .groupBy("b")
+      .select("a.sum as d, b")
+      .groupBy("b, d")
+      .select("b")
+
+    val lPlan1 = t1.logicalPlan
+    val lPlan2 = t2.logicalPlan
+
+    Assert.assertEquals("Logical Plans do not match",
+      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
+      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+
     val expected = "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n"
-    val results = t.toDataSet[Row].collect()
+    val results = t1.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
