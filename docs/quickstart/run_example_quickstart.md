@@ -41,14 +41,14 @@ see [Java API Quickstart]({{ site.baseurl }}/quickstart/java_api_quickstart.html
 about this. For our purposes, the command to run is this:
 
 {% highlight bash %}
-$ mvn archetype:generate\
-    -DarchetypeGroupId=org.apache.flink\
-    -DarchetypeArtifactId=flink-quickstart-java\
-    -DarchetypeVersion={{ site.version }}\
-    -DgroupId=wiki-edits\
-    -DartifactId=wiki-edits\
-    -Dversion=0.1\
-    -Dpackage=wikiedits\
+$ mvn archetype:generate \
+    -DarchetypeGroupId=org.apache.flink \
+    -DarchetypeArtifactId=flink-quickstart-java \
+    -DarchetypeVersion={{ site.version }} \
+    -DgroupId=wiki-edits \
+    -DartifactId=wiki-edits \
+    -Dversion=0.1 \
+    -Dpackage=wikiedits \
     -DinteractiveMode=false
 {% endhighlight %}
 
