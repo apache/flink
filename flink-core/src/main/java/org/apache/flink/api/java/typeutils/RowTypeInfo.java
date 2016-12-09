@@ -27,6 +27,7 @@ import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -100,6 +101,31 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 			fieldSerializers[i] = types[i].createSerializer(config);
 		}
 		return new RowSerializer(fieldSerializers);
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof RowTypeInfo;
+	}
+
+	@Override
+	public int hashCode() {
+		return 31 * super.hashCode() + Arrays.hashCode(fieldNames);
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder bld = new StringBuilder("Row");
+		if (types.length > 0) {
+			bld.append('(').append(fieldNames[0]).append(": ").append(types[0]);
+
+			for (int i = 1; i < types.length; i++) {
+				bld.append(", ").append(fieldNames[i]).append(": ").append(types[i]);
+			}
+
+			bld.append(')');
+		}
+		return bld.toString();
 	}
 
 	private class RowTypeComparatorBuilder implements TypeComparatorBuilder<Row> {
