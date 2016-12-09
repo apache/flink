@@ -20,24 +20,17 @@ package org.apache.flink.api.scala.batch.utils
 
 
 object LogicalPlanFormatUtils {
-  private val tempPartern = """TMP_\d+""".r
+  private val tempPattern = """TMP_\d+""".r
 
   def formatTempTableId(preStr: String): String = {
-    val minId = getMinTempTableId(preStr)
-    tempPartern.replaceAllIn(preStr, s => "TMP_" + (s.matched.substring(4).toInt - minId) )
+    val str = preStr.replaceAll("ArrayBuffer\\(", "List\\(")
+    val minId = getMinTempTableId(str)
+    tempPattern.replaceAllIn(str, s => "TMP_" + (s.matched.substring(4).toInt - minId) )
   }
 
   private def getMinTempTableId(logicalStr: String): Long = {
-    tempPartern.findAllIn(logicalStr).map(s => {
+    tempPattern.findAllIn(logicalStr).map(s => {
       s.substring(4).toInt
     }).min
-  }
-
-  def main(args: Array[String]): Unit = {
-    val str = "Project(ListBuffer(('TMP_4 as 'TMP_6 + 2) as '_c0, " +
-        "('TMP_5 as 'TMP_7 + 5) as '_c1),Aggregate(List(),List(avg(('_1 + 2)) as 'TMP_4, count('_2) as 'TMP_5)," +
-        "CatalogNode(_DataSetTable_0,RecordType(FLOAT _1, VARCHAR(2147483647) _2))))"
-    println(str)
-    print(formatTempTableId(str))
   }
 }
