@@ -116,6 +116,7 @@ public class MetricRegistry {
 
 					MetricConfig metricConfig = new MetricConfig();
 					reporterConfig.addAllToProperties(metricConfig);
+					LOG.info("Configuring {} with {}.", reporterClass.getSimpleName(), metricConfig);
 					reporterInstance.open(metricConfig);
 
 					if (reporterInstance instanceof Scheduled) {
