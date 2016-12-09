@@ -214,5 +214,11 @@ public class NetUtilsTest {
 				fail();
 			} catch (Exception ignored) {}
 		}
+		{
+			// lower case conversion of hostnames
+			String host = "CamelCaseHostName";
+			int port = 99;
+			Assert.assertEquals(host.toLowerCase() + ":" + port, NetUtils.unresolvedHostAndPortToNormalizedString(host, port));
+		}
 	}
 }

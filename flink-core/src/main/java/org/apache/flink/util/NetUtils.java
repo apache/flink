@@ -129,7 +129,7 @@ public class NetUtils {
 		if (host == null) {
 			host = InetAddress.getLoopbackAddress().getHostAddress();
 		} else {
-			host = host.trim();
+			host = host.trim().toLowerCase();
 		}
 
 		// normalize and valid address
