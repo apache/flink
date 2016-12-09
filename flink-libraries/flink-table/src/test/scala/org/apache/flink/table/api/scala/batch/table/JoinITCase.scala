@@ -48,10 +48,16 @@ class JoinITCase(
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    val joinT = ds1.join(ds2).where('b === 'e).select('c, 'g)
+    val joinTScala = ds1.join(ds2).where('b === 'e).select('c, 'g)
+    val joinTJava = ds1.join(ds2).where("b === e").select("c, g")
+
+    val lPlan1 = joinTScala.logicalPlan
+    val lPlan2 = joinTJava.logicalPlan
+
+    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
 
     val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n"
-    val results = joinT.toDataSet[Row].collect()
+    val results = joinTScala.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -64,10 +70,16 @@ class JoinITCase(
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
 
-    val joinT = ds1.join(ds2).where('b === 'e && 'b < 2).select('c, 'g)
+    val joinTScala = ds1.join(ds2).where('b === 'e && 'b < 2).select('c, 'g)
+    val joinTJava = ds1.join(ds2).where("b === e && b < 2").select("c, g")
+
+    val lPlan1 = joinTScala.logicalPlan
+    val lPlan2 = joinTJava.logicalPlan
+
+    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
 
     val expected = "Hi,Hallo\n"
-    val results = joinT.toDataSet[Row].collect()
+    val results = joinTScala.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -79,11 +91,17 @@ class JoinITCase(
     val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    val joinT = ds1.join(ds2).where('b === 'e && 'a < 6 && 'h < 'b).select('c, 'g)
+    val joinTScala = ds1.join(ds2).where('b === 'e && 'a < 6 && 'h < 'b).select('c, 'g)
+    val joinTJava = ds1.join(ds2).where("b === e && a < 6 && h < b").select("c, g")
+
+    val lPlan1 = joinTScala.logicalPlan
+    val lPlan2 = joinTJava.logicalPlan
+
+    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
 
     val expected = "Hello world, how are you?,Hallo Welt wie\n" +
       "I am fine.,Hallo Welt wie\n"
-    val results = joinT.toDataSet[Row].collect()
+    val results = joinTScala.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -95,11 +113,17 @@ class JoinITCase(
     val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    val joinT = ds1.join(ds2).filter('a === 'd && 'b === 'h).select('c, 'g)
+    val joinTScala = ds1.join(ds2).filter('a === 'd && 'b === 'h).select('c, 'g)
+    val joinTJava = ds1.join(ds2).filter("a === d && b === h").select("c, g")
+
+    val lPlan1 = joinTScala.logicalPlan
+    val lPlan2 = joinTJava.logicalPlan
+
+    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
 
     val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt wie gehts?\n" +
       "Hello world,ABC\n" + "I am fine.,HIJ\n" + "I am fine.,IJK\n"
-    val results = joinT.toDataSet[Row].collect()
+    val results = joinTScala.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -177,14 +201,25 @@ class JoinITCase(
   def testJoinWithAggregation(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    // use different table env in order to let tmp table ids are the same
+    val tEnv2 = TableEnvironment.getTableEnvironment(env, config)
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    val joinT = ds1.join(ds2).where('a === 'd).select('g.count)
+    val ds3 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv2, 'a, 'b, 'c)
+    val ds4 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv2, 'd, 'e, 'f, 'g, 'h)
+
+    val joinTScala = ds1.join(ds2).where('a === 'd).select('g.count)
+    val joinTJava = ds3.join(ds4).where("a === d").select("g.count")
+
+    val lPlan1 = joinTScala.logicalPlan
+    val lPlan2 = joinTJava.logicalPlan
+
+    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
 
     val expected = "6"
-    val results = joinT.toDataSet[Row] collect()
+    val results = joinTScala.toDataSet[Row] collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
