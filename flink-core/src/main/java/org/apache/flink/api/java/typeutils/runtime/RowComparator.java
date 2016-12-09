@@ -326,8 +326,8 @@ public class RowComparator extends CompositeTypeComparator<Row> {
 	@Override
 	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
 		return numLeadingNormalizableKeys < keyPositions.length ||
-				normalizableKeyPrefixLen == Integer.MAX_VALUE ||
-				normalizableKeyPrefixLen > keyBytes;
+		       normalizableKeyPrefixLen == Integer.MAX_VALUE ||
+		       normalizableKeyPrefixLen > keyBytes;
 	}
 
 	@Override
@@ -336,7 +336,7 @@ public class RowComparator extends CompositeTypeComparator<Row> {
 		int bytesLeft = numBytes;
 		int currentOffset = offset;
 
-		for (int i=0;i<numLeadingNormalizableKeys && bytesLeft > 0;i++){
+		for (int i = 0; i < numLeadingNormalizableKeys && bytesLeft > 0; i++) {
 			int len = normalizedKeyLengths[i];
 			len = bytesLeft >= len ? len : bytesLeft;
 
@@ -352,12 +352,9 @@ public class RowComparator extends CompositeTypeComparator<Row> {
 	}
 
 	@Override
-	public void writeWithKeyNormalization(
-		Row record,
-		DataOutputView target) throws IOException {
+	public void writeWithKeyNormalization(Row record, DataOutputView target) throws IOException {
 		throw new UnsupportedOperationException(
 			"Record serialization with leading normalized keys not supported.");
-
 	}
 
 	@Override
@@ -398,7 +395,7 @@ public class RowComparator extends CompositeTypeComparator<Row> {
 	public int extractKeys(Object record, Object[] target, int index) {
 		int len = comparators.length;
 		int localIndex = index;
-		for(int i=0;i<len;i++){
+		for (int i = 0; i < len; i++) {
 			Object element = ((Row) record).getField(keyPositions[i]);  // element can be null
 			localIndex += comparators[i].extractKeys(element, target, localIndex);
 		}

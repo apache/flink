@@ -42,8 +42,6 @@ public class Row implements Serializable{
 
 	private static final long serialVersionUID = 1L;
 
-	/** Number of field. */
-	private final int arity;
 	/** The array to store actual values. */
 	private final Object[] fields;
 
@@ -52,7 +50,6 @@ public class Row implements Serializable{
 	 * @param arity The number of field in the Row
 	 */
 	public Row(int arity) {
-		this.arity = arity;
 		this.fields = new Object[arity];
 	}
 
@@ -61,7 +58,7 @@ public class Row implements Serializable{
 	 * @return The number of field in the Row.
 	 */
 	public int getArity() {
-		return arity;
+		return fields.length;
 	}
 
 	/**
@@ -90,11 +87,6 @@ public class Row implements Serializable{
 		return Arrays.deepToString(fields);
 	}
 
-	/**
-	 * Deep equality for Row by calling equals on each field.
-	 * @param o The object checked for equality.
-	 * @return true if this is equal to o.
-	 */
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -106,13 +98,13 @@ public class Row implements Serializable{
 
 		Row row = (Row) o;
 
-		return arity == row.arity && Arrays.equals(fields, row.fields);
+		// Probably incorrect - comparing Object[] arrays with Arrays.equals
+		return Arrays.equals(fields, row.fields);
+
 	}
 
 	@Override
 	public int hashCode() {
-		int result = arity;
-		result = 31 * result + Arrays.hashCode(fields);
-		return result;
+		return Arrays.hashCode(fields);
 	}
 }
