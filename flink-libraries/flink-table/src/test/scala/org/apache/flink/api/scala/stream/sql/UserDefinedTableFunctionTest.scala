@@ -28,7 +28,7 @@ import org.junit.Test
 class UserDefinedTableFunctionTest extends TableTestBase {
 
   @Test
-  def testCrossApply(): Unit = {
+  def testCrossJoin(): Unit = {
     val util = streamTestUtil()
     val func1 = new TableFunc1
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -74,7 +74,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
   }
 
   @Test
-  def testOuterApply(): Unit = {
+  def testLeftOuterJoin(): Unit = {
     val util = streamTestUtil()
     val func1 = new TableFunc1
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)

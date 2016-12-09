@@ -40,20 +40,20 @@ class DataSetCorrelateITCase(
   extends TableProgramsTestBase(mode, configMode) {
 
   @Test
-  def testCrossApply(): Unit = {
+  def testCrossJoin(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = TableEnvironment.getTableEnvironment(env, config)
     val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
 
     val func1 = new TableFunc1
-    val result = in.crossApply(func1('c) as 's).select('c, 's).toDataSet[Row]
+    val result = in.join(func1('c) as 's).select('c, 's).toDataSet[Row]
     val results = result.collect()
     val expected = "Jack#22,Jack\n" + "Jack#22,22\n" + "John#19,John\n" + "John#19,19\n" +
       "Anna#44,Anna\n" + "Anna#44,44\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
 
     // with overloading
-    val result2 = in.crossApply(func1('c, "$") as 's).select('c, 's).toDataSet[Row]
+    val result2 = in.join(func1('c, "$") as 's).select('c, 's).toDataSet[Row]
     val results2 = result2.collect()
     val expected2 = "Jack#22,$Jack\n" + "Jack#22,$22\n" + "John#19,$John\n" +
       "John#19,$19\n" + "Anna#44,$Anna\n" + "Anna#44,$44\n"
@@ -61,13 +61,13 @@ class DataSetCorrelateITCase(
   }
 
   @Test
-  def testOuterApply(): Unit = {
+  def testLeftOuterJoin(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = TableEnvironment.getTableEnvironment(env, config)
     val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
 
     val func2 = new TableFunc2
-    val result = in.outerApply(func2('c) as ('s, 'l)).select('c, 's, 'l).toDataSet[Row]
+    val result = in.leftOuterJoin(func2('c) as ('s, 'l)).select('c, 's, 'l).toDataSet[Row]
     val results = result.collect()
     val expected = "Jack#22,Jack,4\n" + "Jack#22,22,2\n" + "John#19,John,4\n" +
       "John#19,19,2\n" + "Anna#44,Anna,4\n" + "Anna#44,44,2\n" + "nosharp,null,null"
@@ -82,7 +82,7 @@ class DataSetCorrelateITCase(
     val func0 = new TableFunc0
 
     val result = in
-      .crossApply(func0('c) as ('name, 'age))
+      .join(func0('c) as ('name, 'age))
       .select('c, 'name, 'age)
       .filter('age > 20)
       .toDataSet[Row]
@@ -100,7 +100,7 @@ class DataSetCorrelateITCase(
     val func2 = new TableFunc2
 
     val result = in
-      .crossApply(func2('c) as ('name, 'len))
+      .join(func2('c) as ('name, 'len))
       .select('c, 'name, 'len)
       .toDataSet[Row]
 
@@ -118,7 +118,7 @@ class DataSetCorrelateITCase(
 
     val hierarchy = new HierarchyTableFunction
     val result = in
-      .crossApply(hierarchy('c) as ('name, 'adult, 'len))
+      .join(hierarchy('c) as ('name, 'adult, 'len))
       .select('c, 'name, 'adult, 'len)
       .toDataSet[Row]
 
@@ -136,7 +136,7 @@ class DataSetCorrelateITCase(
 
     val pojo = new PojoTableFunc()
     val result = in
-      .crossApply(pojo('c))
+      .join(pojo('c))
       .select('c, 'name, 'age)
       .toDataSet[Row]
 
@@ -153,7 +153,7 @@ class DataSetCorrelateITCase(
     val func1 = new TableFunc1
 
     val result = in
-      .crossApply(func1('c.substring(2)) as 's)
+      .join(func1('c.substring(2)) as 's)
       .select('c, 's)
       .toDataSet[Row]
 

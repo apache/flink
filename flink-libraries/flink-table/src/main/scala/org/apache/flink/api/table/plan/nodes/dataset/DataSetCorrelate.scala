@@ -34,7 +34,7 @@ import org.apache.flink.api.table.plan.nodes.FlinkCorrelate
 import org.apache.flink.api.table.typeutils.TypeConverter._
 
 /**
-  * Flink RelNode which matches along with cross apply a user defined table function.
+  * Flink RelNode which matches along with join a user defined table function.
   */
 class DataSetCorrelate(
     cluster: RelOptCluster,

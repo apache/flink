@@ -611,11 +611,10 @@ class Table(
   }
 
   /**
-    * The Cross Apply operator returns rows from the outer table (table on the left of the
-    * operator) that produces matching values from the table-valued function (which is defined in
-    * the expression on the right side of the operator).
-    *
-    * The Cross Apply is equivalent to Inner Join, but it works with a table-valued function.
+    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
+    * to an SQL cross join, but it works with a table function. It returns rows from the outer
+    * table (table on the left of the operator) that produces matching values from the table
+    * function (which is defined in the expression on the right side of the operator).
     *
     * Example:
     *
@@ -627,19 +626,18 @@ class Table(
     *   }
     *
     *   val split = new MySplitUDTF()
-    *   table.crossApply(split('c) as ('s)).select('a,'b,'c,'s)
+    *   table.join(split('c) as ('s)).select('a,'b,'c,'s)
     * }}}
     */
-  def crossApply(udtf: Expression): Table = {
-    applyInternal(udtf, JoinType.INNER)
+  def join(udtf: Expression): Table = {
+    joinUdtfInternal(udtf, JoinType.INNER)
   }
 
   /**
-    * The Cross Apply operator returns rows from the outer table (table on the left of the
-    * operator) that produces matching values from the table-valued function (which is defined in
-    * the expression on the right side of the operator).
-    *
-    * The Cross Apply is equivalent to Inner Join, but it works with a table-valued function.
+    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
+    * to an SQL cross join, but it works with a table function. It returns rows from the outer
+    * table (table on the left of the operator) that produces matching values from the table
+    * function (which is defined in the expression on the right side of the operator).
     *
     * Example:
     *
@@ -653,20 +651,19 @@ class Table(
     *   TableFunction<String> split = new MySplitUDTF();
     *   tableEnv.registerFunction("split", split);
     *
-    *   table.crossApply("split(c) as (s)").select("a, b, c, s");
+    *   table.join("split(c) as (s)").select("a, b, c, s");
     * }}}
     */
-  def crossApply(udtf: String): Table = {
-    applyInternal(udtf, JoinType.INNER)
+  def join(udtf: String): Table = {
+    joinUdtfInternal(udtf, JoinType.INNER)
   }
 
   /**
-    * The Outer Apply operator returns all the rows from the outer table (table on the left of the
-    * Apply operator), and rows that do not match the condition from the table-valued function
-    * (which is defined in the expression on the right side of the operator).
-    * Rows with no matching condition are filled with null values.
-    *
-    * The Outer Apply is equivalent to Left Outer Join, but it works with a table-valued function.
+    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
+    * to an SQL left outer join with ON TRUE, but it works with a table function. It returns all
+    * the rows from the outer table (table on the left of the operator), and rows that do not match
+    * the condition from the table function (which is defined in the expression on the right
+    * side of the operator). Rows with no matching condition are filled with null values.
     *
     * Example:
     *
@@ -678,20 +675,19 @@ class Table(
     *   }
     *
     *   val split = new MySplitUDTF()
-    *   table.outerApply(split('c) as ('s)).select('a,'b,'c,'s)
+    *   table.leftOuterJoin(split('c) as ('s)).select('a,'b,'c,'s)
     * }}}
     */
-  def outerApply(udtf: Expression): Table = {
-    applyInternal(udtf, JoinType.LEFT_OUTER)
+  def leftOuterJoin(udtf: Expression): Table = {
+    joinUdtfInternal(udtf, JoinType.LEFT_OUTER)
   }
 
   /**
-    * The Outer Apply operator returns all the rows from the outer table (table on the left of the
-    * Apply operator), and rows that do not match the condition from the table-valued function
-    * (which is defined in the expression on the right side of the operator).
-    * Rows with no matching condition are filled with null values.
-    *
-    * The Outer Apply is equivalent to Left Outer Join, but it works with a table-valued function.
+    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
+    * to an SQL left outer join with ON TRUE, but it works with a table function. It returns all
+    * the rows from the outer table (table on the left of the operator), and rows that do not match
+    * the condition from the table function (which is defined in the expression on the right
+    * side of the operator). Rows with no matching condition are filled with null values.
     *
     * Example:
     *
@@ -705,19 +701,19 @@ class Table(
     *   TableFunction<String> split = new MySplitUDTF();
     *   tableEnv.registerFunction("split", split);
     *
-    *   table.outerApply("split(c) as (s)").select("a, b, c, s");
+    *   table.leftOuterJoin("split(c) as (s)").select("a, b, c, s");
     * }}}
     */
-  def outerApply(udtf: String): Table = {
-    applyInternal(udtf, JoinType.LEFT_OUTER)
+  def leftOuterJoin(udtf: String): Table = {
+    joinUdtfInternal(udtf, JoinType.LEFT_OUTER)
   }
 
-  private def applyInternal(udtfString: String, joinType: JoinType): Table = {
+  private def joinUdtfInternal(udtfString: String, joinType: JoinType): Table = {
     val udtf = ExpressionParser.parseExpression(udtfString)
-    applyInternal(udtf, joinType)
+    joinUdtfInternal(udtf, joinType)
   }
 
-  private def applyInternal(udtf: Expression, joinType: JoinType): Table = {
+  private def joinUdtfInternal(udtf: Expression, joinType: JoinType): Table = {
     var alias: Option[Seq[String]] = None
 
     // unwrap an Expression until we get a TableFunctionCall
