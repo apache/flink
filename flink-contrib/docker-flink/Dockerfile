@@ -22,14 +22,19 @@ FROM java:8-jre-alpine
 RUN apk add --no-cache bash snappy
 
 # Configure Flink version
-ARG FLINK_VERSION=1.1.1
-ARG HADOOP_VERSION=27
-ARG SCALA_VERSION=2.11
+ENV FLINK_VERSION=1.1.1
+ENV HADOOP_VERSION=27
+ENV SCALA_VERSION=2.11
 
 # Flink environment variables
-ARG FLINK_INSTALL_PATH=/opt
+ENV FLINK_INSTALL_PATH=/opt
 ENV FLINK_HOME $FLINK_INSTALL_PATH/flink
 ENV PATH $PATH:$FLINK_HOME/bin
+
+# These can be mapped from the host to the container using
+# $ docker run -t flink -p 8081:8081 -p 6123:6123 jobmanager
+EXPOSE 8081
+EXPOSE 6123
 
 # Install build dependencies and flink
 RUN set -x && \
