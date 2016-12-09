@@ -33,7 +33,7 @@ import org.apache.flink.api.table.{TableConfig, TableException}
 import scala.collection.JavaConverters._
 
 /**
-  * cross/outer apply a user-defined table function
+  * Join a user-defined table function
   */
 trait FlinkCorrelate {
 
@@ -63,7 +63,7 @@ trait FlinkCorrelate {
        """.stripMargin
 
     if (joinType == SemiJoinType.INNER) {
-      // cross apply
+      // cross join
       body +=
         s"""
            |if (!iter.hasNext()) {
@@ -71,9 +71,9 @@ trait FlinkCorrelate {
            |}
         """.stripMargin
     } else if (joinType == SemiJoinType.LEFT) {
-      // outer apply
+      // left outer join
 
-      // in case of outer apply and the returned row of table function is empty,
+      // in case of left outer join and the returned row of table function is empty,
       // fill all fields of row with null
       val input2NullExprs = input2AccessExprs.map { x =>
         GeneratedExpression(

@@ -53,59 +53,59 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     val javaTableEnv = TableEnvironment.getTableEnvironment(javaEnv)
     val in2 = javaTableEnv.fromDataStream(jDs).as("a, b, c")
 
-    // test cross apply
+    // test cross join
     val func1 = new TableFunc1
     javaTableEnv.registerFunction("func1", func1)
-    var scalaTable = in1.crossApply(func1('c) as 's).select('c, 's)
-    var javaTable = in2.crossApply("func1(c).as(s)").select("c, s")
+    var scalaTable = in1.join(func1('c) as 's).select('c, 's)
+    var javaTable = in2.join("func1(c).as(s)").select("c, s")
     verifyTableEquals(scalaTable, javaTable)
 
-    // test outer apply
-    scalaTable = in1.outerApply(func1('c) as 's).select('c, 's)
-    javaTable = in2.outerApply("as(func1(c), s)").select("c, s")
+    // test left outer join
+    scalaTable = in1.leftOuterJoin(func1('c) as 's).select('c, 's)
+    javaTable = in2.leftOuterJoin("as(func1(c), s)").select("c, s")
     verifyTableEquals(scalaTable, javaTable)
 
     // test overloading
-    scalaTable = in1.crossApply(func1('c, "$") as 's).select('c, 's)
-    javaTable = in2.crossApply("func1(c, '$') as (s)").select("c, s")
+    scalaTable = in1.join(func1('c, "$") as 's).select('c, 's)
+    javaTable = in2.join("func1(c, '$') as (s)").select("c, s")
     verifyTableEquals(scalaTable, javaTable)
 
     // test custom result type
     val func2 = new TableFunc2
     javaTableEnv.registerFunction("func2", func2)
-    scalaTable = in1.crossApply(func2('c) as ('name, 'len)).select('c, 'name, 'len)
-    javaTable = in2.crossApply("func2(c).as(name, len)").select("c, name, len")
+    scalaTable = in1.join(func2('c) as ('name, 'len)).select('c, 'name, 'len)
+    javaTable = in2.join("func2(c).as(name, len)").select("c, name, len")
     verifyTableEquals(scalaTable, javaTable)
 
     // test hierarchy generic type
     val hierarchy = new HierarchyTableFunction
     javaTableEnv.registerFunction("hierarchy", hierarchy)
-    scalaTable = in1.crossApply(hierarchy('c) as ('name, 'adult, 'len))
+    scalaTable = in1.join(hierarchy('c) as ('name, 'adult, 'len))
       .select('c, 'name, 'len, 'adult)
-    javaTable = in2.crossApply("AS(hierarchy(c), name, adult, len)")
+    javaTable = in2.join("AS(hierarchy(c), name, adult, len)")
       .select("c, name, len, adult")
     verifyTableEquals(scalaTable, javaTable)
 
     // test pojo type
     val pojo = new PojoTableFunc
     javaTableEnv.registerFunction("pojo", pojo)
-    scalaTable = in1.crossApply(pojo('c))
+    scalaTable = in1.join(pojo('c))
       .select('c, 'name, 'age)
-    javaTable = in2.crossApply("pojo(c)")
+    javaTable = in2.join("pojo(c)")
       .select("c, name, age")
     verifyTableEquals(scalaTable, javaTable)
 
     // test with filter
-    scalaTable = in1.crossApply(func2('c) as ('name, 'len))
+    scalaTable = in1.join(func2('c) as ('name, 'len))
       .select('c, 'name, 'len).filter('len > 2)
-    javaTable = in2.crossApply("func2(c) as (name, len)")
+    javaTable = in2.join("func2(c) as (name, len)")
       .select("c, name, len").filter("len > 2")
     verifyTableEquals(scalaTable, javaTable)
 
     // test with scalar function
-    scalaTable = in1.crossApply(func1('c.substring(2)) as 's)
+    scalaTable = in1.join(func1('c.substring(2)) as 's)
       .select('a, 'c, 's)
-    javaTable = in2.crossApply("func1(substring(c, 2)) as (s)")
+    javaTable = in2.join("func1(substring(c, 2)) as (s)")
       .select("a, c, s")
     verifyTableEquals(scalaTable, javaTable)
 
@@ -115,7 +115,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     expectExceptionThrown(
       javaTableEnv.registerFunction("func3", ObjectTableFunction), "Scala object")
     expectExceptionThrown(
-      in1.crossApply(ObjectTableFunction('a, 1)),"Scala object")
+      in1.join(ObjectTableFunction('a, 1)), "Scala object")
 
   }
 
@@ -132,12 +132,12 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     // Java table environment register
     expectExceptionThrown(tEnv.registerFunction("udtf", ObjectTableFunction), "Scala object")
     // Scala Table API directly call
-    expectExceptionThrown(t.crossApply(ObjectTableFunction('a, 1)), "Scala object")
+    expectExceptionThrown(t.join(ObjectTableFunction('a, 1)), "Scala object")
 
 
     //============ throw exception when table function is not registered =========
     // Java Table API call
-    expectExceptionThrown(t.crossApply("nonexist(a)"), "Undefined function: NONEXIST")
+    expectExceptionThrown(t.join("nonexist(a)"), "Undefined function: NONEXIST")
     // SQL API call
     expectExceptionThrown(
       util.tEnv.sql("SELECT * FROM MyTable, LATERAL TABLE(nonexist(a))"),
@@ -148,7 +148,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     util.addFunction("func0", Func0)
     // Java Table API call
     expectExceptionThrown(
-      t.crossApply("func0(a)"),
+      t.join("func0(a)"),
       "only accept expressions that define table functions",
       classOf[TableException])
     // SQL API call
@@ -162,7 +162,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     // Java Table API call
     util.addFunction("func2", new TableFunc2)
     expectExceptionThrown(
-      t.crossApply("func2(c, c)"),
+      t.join("func2(c, c)"),
       "Given parameters of function 'FUNC2' do not match any signature")
     // SQL API call
     expectExceptionThrown(
@@ -171,12 +171,12 @@ class UserDefinedTableFunctionTest extends TableTestBase {
   }
 
   @Test
-  def testCrossApply(): Unit = {
+  def testCrossJoin(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc1)
 
-    val result1 = table.crossApply(function('c) as 's).select('c, 's)
+    val result1 = table.join(function('c) as 's).select('c, 's)
 
     val expected1 = unaryNode(
       "DataStreamCalc",
@@ -196,7 +196,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
 
     // test overloading
 
-    val result2 = table.crossApply(function('c, "$") as 's).select('c, 's)
+    val result2 = table.join(function('c, "$") as 's).select('c, 's)
 
     val expected2 = unaryNode(
       "DataStreamCalc",
@@ -216,12 +216,12 @@ class UserDefinedTableFunctionTest extends TableTestBase {
   }
 
   @Test
-  def testOuterApply(): Unit = {
+  def testLeftOuterJoin(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc1)
 
-    val result = table.outerApply(function('c) as 's).select('c, 's)
+    val result = table.leftOuterJoin(function('c) as 's).select('c, 's)
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -246,7 +246,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func2", new TableFunc2)
 
-    val result = table.crossApply(function('c) as ('name, 'len)).select('c, 'name, 'len)
+    val result = table.join(function('c) as ('name, 'len)).select('c, 'name, 'len)
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -272,7 +272,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("hierarchy", new HierarchyTableFunction)
 
-    val result = table.crossApply(function('c) as ('name, 'adult, 'len))
+    val result = table.join(function('c) as ('name, 'adult, 'len))
 
     val expected = unaryNode(
       "DataStreamCorrelate",
@@ -294,7 +294,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("pojo", new PojoTableFunc)
 
-    val result = table.crossApply(function('c))
+    val result = table.join(function('c))
 
     val expected = unaryNode(
       "DataStreamCorrelate",
@@ -317,7 +317,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     val function = util.addFunction("func2", new TableFunc2)
 
     val result = table
-      .crossApply(function('c) as ('name, 'len))
+      .join(function('c) as ('name, 'len))
       .select('c, 'name, 'len)
       .filter('len > 2)
 
@@ -346,7 +346,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc1)
 
-    val result = table.crossApply(function('c.substring(2)) as 's)
+    val result = table.join(function('c.substring(2)) as 's)
 
     val expected = unaryNode(
         "DataStreamCorrelate",

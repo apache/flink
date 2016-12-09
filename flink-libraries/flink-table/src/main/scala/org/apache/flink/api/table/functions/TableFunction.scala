@@ -64,11 +64,11 @@ import org.apache.flink.api.table.expressions.{Expression, TableFunctionCall}
   *
   *   // for Scala users
   *   val split = new Split()
-  *   table.crossApply(split('c) as ('s)).select('a, 's)
+  *   table.join(split('c) as ('s)).select('a, 's)
   *
   *   // for Java users
   *   tEnv.registerFunction("split", new Split())   // register table function first
-  *   table.crossApply("split(a) as (s)").select("a, s")
+  *   table.join("split(a) as (s)").select("a, s")
   *
   *   // for SQL users
   *   tEnv.registerFunction("split", new Split())   // register table function first

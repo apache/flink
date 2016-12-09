@@ -32,7 +32,7 @@ import scala.collection.mutable
 class DataStreamCorrelateITCase extends StreamingMultipleProgramsTestBase {
 
   @Test
-  def testCrossApply(): Unit = {
+  def testCrossJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
@@ -41,7 +41,7 @@ class DataStreamCorrelateITCase extends StreamingMultipleProgramsTestBase {
     val func0 = new TableFunc0
 
     val result = t
-      .crossApply(func0('c) as('d, 'e))
+      .join(func0('c) as('d, 'e))
       .select('c, 'd, 'e)
       .toDataStream[Row]
 
@@ -53,7 +53,7 @@ class DataStreamCorrelateITCase extends StreamingMultipleProgramsTestBase {
   }
 
   @Test
-  def testOuterApply(): Unit = {
+  def testLeftOuterJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
@@ -62,7 +62,7 @@ class DataStreamCorrelateITCase extends StreamingMultipleProgramsTestBase {
     val func0 = new TableFunc0
 
     val result = t
-      .outerApply(func0('c) as('d, 'e))
+      .leftOuterJoin(func0('c) as('d, 'e))
       .select('c, 'd, 'e)
       .toDataStream[Row]
 
