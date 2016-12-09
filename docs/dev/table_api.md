@@ -3903,7 +3903,7 @@ A user-defined table function is implemented similar to a user-defined scalar fu
 
 In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.api.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by the evaluation method. An evaluation method must be declared publicly and named `eval`. Evaluation methods can also be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation method determines the parameter of the table function, and the returned table type is determined by the generic type of `TableFunction`. In evaluation method, users can use a protected method named `collect(T)` to emit an output row.
 
-In Table API, the table function is used with `.crossApply` or `.outerApply`. The cross apply returns rows from the outer table (table on the left of the Apply operator) that produces matching values from the table-valued function (which is on the right side of the operator). And the outer apply returns all the rows from the outer table (table on the left of the Apply operator), and rows that do not matches the condition from the table-valued function (which is on the right side of the operator), NULL values are displayed. In SQL, the CROSS APPLY and OUTER APPLY syntax are not supported currently. So it is recommended to use CROSS JOIN and LEFT JOIN with ON TRUE instead (see examples below).
+In Table API, the table function is used with `.join(Expression)` or `.leftOuterJoin(Expression)` for Scala users and `.join(String)` or `.leftOuterJoin(String)` for Java users. The join operator returns rows from the outer table (table on the left of the operator) that produces matching values from the table-valued function (which is on the right side of the operator). And the `leftOuterJoin` operator returns all the rows from the outer table (table on the left of the operator), and rows that do not matches the condition from the table-valued function (which is on the right side of the operator), NULL values are displayed. In SQL, please use CROSS JOIN and LEFT JOIN with ON TRUE condition instead (see examples below).
 
 The following example snippet shows how to define your own split function and use it:
 
@@ -3929,14 +3929,14 @@ tableEnv.registerFunction("split", new Split());
 
 // use the function in Java Table API
 // use AS to rename column names
-myTable.crossApply("split(a) as (word, length)").select("a, word, length");
-myTable.outerApply("split(a) as (word, length)").select("a, word, length");
+myTable.join("split(a) as (word, length)").select("a, word, length");
+myTable.leftOuterJoin("split(a) as (word, length)").select("a, word, length");
 
-// use the function in SQL API
-// CROSS JOIN a table function (equivalent to crossApply in Table API)
+// use the function in SQL API, LATERAL and TABLE keywords are required
+// CROSS JOIN a table function (equivalent to "join" in Table API)
 tableEnv.sql("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)");
-// LEFT JOIN a table function (equivalent to outerApply in Table API)
-tableEnv.sql("SELECT a, word, length FROM MyTable LEFT JOIN TABLE(split(a)) as T(word, length) ON TRUE");
+// LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API)
+tableEnv.sql("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE");
 {% endhighlight %}
 </div>
 
@@ -3957,14 +3957,14 @@ val myTable = ...         // table schema: [a: String]
 // use the function in Scala Table API
 val split = new Split()
 // use AS to rename column names
-myTable.crossApply(split('a) as ('word, 'length)).select('a, 'word, 'length);
-myTable.outerApply(split('a) as ('word, 'length)).select('a, 'word, 'length);
+myTable.join(split('a) as ('word, 'length)).select('a, 'word, 'length);
+myTable.leftOuterJoin(split('a) as ('word, 'length)).select('a, 'word, 'length);
 
-// register and use the function in SQL API
+// register and use the function in SQL API, LATERAL and TABLE keywords are required
 tableEnv.registerFunction("split", new Split())
-// CROSS JOIN a table function (equivalent to crossApply in Table API)
+// CROSS JOIN a table function (equivalent to "join" in Table API)
 tableEnv.sql("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)");
-// LEFT JOIN a table function (equivalent to outerApply in Table API)
+// LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API)
 tableEnv.sql("SELECT a, word, length FROM MyTable LEFT JOIN TABLE(split(a)) as T(word, length) ON TRUE");
 {% endhighlight %}
 </div>
