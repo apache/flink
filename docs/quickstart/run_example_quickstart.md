@@ -49,7 +49,7 @@ $ mvn archetype:generate\
     -DartifactId=wiki-edits\
     -Dversion=0.1\
     -Dpackage=wikiedits\
-    -DinteractiveMode=false\
+    -DinteractiveMode=false
 {% endhighlight %}
 
 You can edit the `groupId`, `artifactId` and `package` if you like. With the above parameters,
