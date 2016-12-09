@@ -326,8 +326,8 @@ public class RowComparator extends CompositeTypeComparator<Row> {
 	@Override
 	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
 		return numLeadingNormalizableKeys < keyPositions.length ||
-		       normalizableKeyPrefixLen == Integer.MAX_VALUE ||
-		       normalizableKeyPrefixLen > keyBytes;
+				normalizableKeyPrefixLen == Integer.MAX_VALUE ||
+				normalizableKeyPrefixLen > keyBytes;
 	}
 
 	@Override
