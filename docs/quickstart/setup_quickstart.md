@@ -48,21 +48,34 @@ Java HotSpot(TM) 64-Bit Server VM (build 25.111-b14, mixed mode)
 
 ### Download
 
-Download a binary from the [downloads page](http://flink.apache.org/downloads.html). You can pick
-any Hadoop/Scala combination you like. If you plan to just use the local file system, any Hadoop
-version will work fine.
-
-### Start a Local Flink Cluster
-
-1. Go to the download directory.
-2. Unpack the downloaded archive.
-3. Start Flink.
+{% if site.is_stable %}
+1. Download a binary from the [downloads page](http://flink.apache.org/downloads.html). You can pick
+   any Hadoop/Scala combination you like. If you plan to just use the local file system, any Hadoop
+   version will work fine.
+2. Go to the download directory.
+3. Unpack the downloaded archive.
 
 ~~~bash
 $ cd ~/Downloads        # Go to download directory
 $ tar xzf flink-*.tgz   # Unpack the downloaded archive
 $ cd flink-{{site.version}}
-$ ./bin/start-local.sh    # Start Flink
+~~~
+{% else %}
+Clone the source code from one of our
+[repositories](http://flink.apache.org/community.html#source-code), e.g.:
+
+~~~bash
+$ git clone https://github.com/apache/flink.git
+$ cd flink
+$ mvn clean package -DskipTests # this will take up to 10 minutes
+$ cd build-target               # this is where Flink is installed to
+~~~
+{% endif %}
+
+### Start a Local Flink Cluster
+
+~~~bash
+$ ./bin/start-local.sh  # Start Flink
 ~~~
 
 Check the __JobManager's web frontend__ at [http://localhost:8081](http://localhost:8081) and make sure everything is up and running. The web frontend should report a single available TaskManager instance.

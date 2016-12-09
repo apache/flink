@@ -136,14 +136,19 @@ Use one of the following commands to __create a project__:
     {% highlight bash %}
     $ mvn archetype:generate                               \
       -DarchetypeGroupId=org.apache.flink              \
-      -DarchetypeArtifactId=flink-quickstart-scala     \
+      -DarchetypeArtifactId=flink-quickstart-scala     \{% unless site.is_stable %}
+      -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
       -DarchetypeVersion={{site.version}}
     {% endhighlight %}
     This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
     </div>
     <div class="tab-pane" id="quickstart-script">
 {% highlight bash %}
-$ curl https://flink.apache.org/q/quickstart-scala.sh | bash
+{% if site.is_stable %}
+    $ curl https://flink.apache.org/q/quickstart-scala.sh | bash
+{% else %}
+    $ curl https://flink.apache.org/q/quickstart-scala-SNAPSHOT.sh | bash
+{% endif %}
 {% endhighlight %}
     </div>
 </div>

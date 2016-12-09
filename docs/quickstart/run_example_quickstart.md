@@ -43,7 +43,8 @@ about this. For our purposes, the command to run is this:
 {% highlight bash %}
 $ mvn archetype:generate \
     -DarchetypeGroupId=org.apache.flink \
-    -DarchetypeArtifactId=flink-quickstart-java \
+    -DarchetypeArtifactId=flink-quickstart-java \{% unless site.is_stable %}
+    -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
     -DarchetypeVersion={{ site.version }} \
     -DgroupId=wiki-edits \
     -DartifactId=wiki-edits \
