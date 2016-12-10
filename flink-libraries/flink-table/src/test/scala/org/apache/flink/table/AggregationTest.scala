@@ -19,8 +19,12 @@ package org.apache.flink.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
+import org.apache.flink.api.scala.util.CollectionDataSets
+import org.apache.flink.table.api.{TableConfig, TableEnvironment}
+import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+import org.apache.flink.types.Row
 import org.junit.Test
 
 /**
@@ -257,5 +261,41 @@ class AggregationTest extends TableTestBase {
     )
 
     util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testGroupingSetsTableApi(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, new TableConfig)
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    val table = tEnv.fromDataSet(ds, 'a, 'b, 'c)
+    val result = table
+      .groupingSets(Seq[Expression]('a, 'b), Seq[Expression]('a), Seq[Expression]())
+      .select('a, 'b)
+    result.toDataSet[Row].print()
+  }
+
+  @Test
+  def testCubeTableApi(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, new TableConfig)
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    val table = tEnv.fromDataSet(ds, 'a, 'b, 'c)
+    val result = table
+      .cube(Seq[Expression]('a), Seq[Expression]('b), Seq[Expression]('c))
+      .select('a, 'b)
+    result.toDataSet[Row].print()
+  }
+
+  @Test
+  def testRollupTableApi(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, new TableConfig)
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    val table = tEnv.fromDataSet(ds, 'a, 'b, 'c)
+    val result = table
+      .rollup(Seq[Expression]('a), Seq[Expression]('b))
+      .select('a, 'b)
+    result.toDataSet[Row].print()
   }
 }

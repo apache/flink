@@ -20,12 +20,16 @@ package org.apache.flink.table.plan.logical
 import java.lang.reflect.Method
 import java.util
 
+import com.google.common.collect.{ImmutableList, Sets}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.CorrelationId
 import org.apache.calcite.rel.logical.{LogicalProject, LogicalTableFunctionScan}
 import org.apache.calcite.rex.{RexInputRef, RexNode}
+import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.calcite.tools.RelBuilder
+import org.apache.calcite.util.{ImmutableBitSet, ImmutableIntList}
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
@@ -41,6 +45,7 @@ import org.apache.flink.table.typeutils.TypeConverter
 import org.apache.flink.table.validate.{ValidationFailure, ValidationSuccess}
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable.BitSet
 import scala.collection.mutable
 
 case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extends UnaryNode {
@@ -261,6 +266,80 @@ case class Aggregate(
       }
     }
     resolvedAggregate
+  }
+}
+case class Grouping(
+    groupingExpressions: Seq[Seq[Expression]],
+    aggregateExpressions: Seq[NamedExpression],
+    child: LogicalNode,
+    sqlKind: SqlKind
+  ) extends UnaryNode {
+
+  override def output: Seq[Attribute] = {
+    (groupingExpressions.flatten.distinct ++ aggregateExpressions) map {
+      case ne: NamedExpression => ne.toAttribute
+      case e => Alias(e, e.toString).toAttribute
+    }
+  }
+
+  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+    child.construct(relBuilder)
+    val groupingSets = groupingExpressions.map(_.map(_.toRexNode(relBuilder)).toList).toList
+    relBuilder.aggregate(
+      relBuilder.groupKey(
+        groupingExpressions.head.map(_.toRexNode(relBuilder)).asJava,
+        true, groupingSets.map(_.asJava).asJava
+      ),
+      aggregateExpressions.map {
+        case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
+        case _ => throw new RuntimeException("This should never happen.")
+      }.asJava)
+  }
+
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      failValidation(s"Aggregate on stream tables is currently not supported.")
+    }
+
+    val resolvedAggregate = super.validate(tableEnv).asInstanceOf[Grouping]
+    val groupingExprs = resolvedAggregate.groupingExpressions
+    val aggregateExprs = resolvedAggregate.aggregateExpressions
+    val resolvedGroupingExprs = groupingExprs.map(_.map {
+      case u @ UnresolvedFieldReference(name) =>
+        resolveReference(tableEnv, name).getOrElse(u)
+      case x => x
+    })
+    resolvedGroupingExprs.flatten.foreach(validateGroupingExpression)
+    aggregateExprs.foreach(validateAggregateExpression)
+
+    def validateAggregateExpression(expr: Expression): Unit = expr match {
+      // check no nested aggregation exists.
+      case aggExpr: Aggregation =>
+        aggExpr.children.foreach { child =>
+          child.preOrderVisit {
+            case agg: Aggregation =>
+              failValidation(
+                "It's not allowed to use an aggregate function as " +
+                  "input of another aggregate function")
+            case _ => // OK
+          }
+        }
+      case a: Attribute if !groupingExprs.flatten.exists(_.checkEquals(a)) =>
+        failValidation(
+          s"expression '$a' is invalid because it is neither" +
+            " present in group by nor an aggregate function")
+      case e if groupingExprs.flatten.exists(_.checkEquals(e)) => // OK
+      case e => e.children.foreach(validateAggregateExpression)
+    }
+
+    def validateGroupingExpression(expr: Expression): Unit = {
+      if (!expr.resultType.isKeyType) {
+        failValidation(
+          s"expression $expr cannot be used as a grouping expression " +
+            "because it's not a valid key type which must be hashable and comparable")
+      }
+    }
+    Grouping(resolvedGroupingExprs, resolvedAggregate.aggregateExpressions, child, sqlKind)
   }
 }
 

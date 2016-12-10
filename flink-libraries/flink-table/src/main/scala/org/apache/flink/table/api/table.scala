@@ -18,6 +18,10 @@
 package org.apache.flink.table.api
 
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.sql.validate.SqlValidatorUtil
+import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -244,6 +248,96 @@ class Table(
   def groupBy(fields: String): GroupedTable = {
     val fieldsExpr = ExpressionParser.parseExpressionList(fields)
     groupBy(fieldsExpr: _*)
+  }
+
+  /**
+    * Groups the elements on some grouping sets. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY GROUPING SETS
+    * statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.groupingSets('key).select('key, 'value.avg)
+    * }}}
+    */
+  def groupingSets(groups: Seq[Expression]*): GroupingSetsTable = {
+    new GroupingSetsTable(this, groups, SqlKind.GROUPING_SETS)
+  }
+
+  /**
+    * Groups the elements on some grouping keys. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.groupingSets("key").select("key, value.avg")
+    * }}}
+    */
+  def groupingSets(groups: String): GroupingSetsTable = {
+    val fieldsExpr = groups.split("|").map(ExpressionParser.parseExpressionList)
+    groupingSets(fieldsExpr: _*)
+  }
+
+  /**
+    * Groups the elements on some grouping sets. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY GROUPING SETS
+    * statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.groupingSets('key).select('key, 'value.avg)
+    * }}}
+    */
+  def cube(groups: Seq[Expression]*): GroupingSetsTable = {
+    new GroupingSetsTable(this, groups, SqlKind.CUBE)
+  }
+
+  /**
+    * Groups the elements on some grouping keys. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.groupingSets("key").select("key, value.avg")
+    * }}}
+    */
+  def cube(groups: String): GroupingSetsTable = {
+    val fieldsExpr = groups.split("|").map(ExpressionParser.parseExpressionList)
+    cube(fieldsExpr: _*)
+  }
+
+  /**
+    * Groups the elements on some grouping sets. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY GROUPING SETS
+    * statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.groupingSets('key).select('key, 'value.avg)
+    * }}}
+    */
+  def rollup(groups: Seq[Expression]*): GroupingSetsTable = {
+    new GroupingSetsTable(this, groups, SqlKind.ROLLUP)
+  }
+
+  /**
+    * Groups the elements on some grouping keys. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.groupingSets("key").select("key, value.avg")
+    * }}}
+    */
+  def rollup(groups: String): GroupingSetsTable = {
+    val fieldsExpr = groups.split("|").map(ExpressionParser.parseExpressionList)
+    cube(fieldsExpr: _*)
   }
 
   /**
@@ -929,4 +1023,98 @@ class GroupWindowedTable(
     select(fieldExprs: _*)
   }
 
+}
+
+/**
+  * A table that has been grouped on several sets of grouping keys.
+  */
+class GroupingSetsTable(
+  private[flink] val table: Table,
+  private[flink] val groups: Seq[Seq[Expression]],
+  private[flink] val sqlKind: SqlKind) {
+
+  /**
+    * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.groupingSets('key).select('key, 'value.avg + " The average" as 'average)
+    * }}}
+    */
+  def select(fields: Expression*): Table = {
+
+    val (projection, aggs, props) = extractAggregationsAndProperties(fields, table.tableEnv)
+
+    if (props.nonEmpty) {
+      throw ValidationException("Window properties can only be used on windowed tables.")
+    }
+
+    val groupingSets = sqlKind match {
+      case SqlKind.CUBE => cube(groups)
+      case SqlKind.ROLLUP => rollup(groups)
+      case _ => groups
+    }
+
+    val logical =
+      Project(
+        projection,
+        Grouping(
+          groupingSets,
+          aggs,
+          table.logicalPlan,
+          sqlKind
+        ).validate(table.tableEnv)
+      ).validate(table.tableEnv)
+
+    new Table(table.tableEnv, logical)
+  }
+
+  /**
+    * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.groupBy("key").select("key, value.avg + ' The average' as average")
+    * }}}
+    */
+  def select(fields: String): Table = {
+    val fieldExprs = ExpressionParser.parseExpressionList(fields)
+    select(fieldExprs: _*)
+  }
+
+  /** Computes the rollup of bit sets.
+    *
+    * <p>For example, <code>rollup({0}, {1})</code>
+    * returns <code>({0, 1}, {0}, {})</code>.
+    *
+    * <p>Bit sets are not necessarily singletons:
+    * <code>rollup({0, 2}, {3, 5})</code>
+    * returns <code>({0, 2, 3, 5}, {0, 2}, {})</code>. */
+  private def rollup(groups: Seq[Seq[Expression]]): Seq[Seq[Expression]] = {
+    val originalBitSet = for (i <- groups.indices) yield {
+      ImmutableBitSet.builder().set(i).build()
+    }
+    val rollupBitSets = SqlValidatorUtil.rollup(originalBitSet.asJava)
+    rollupBitSets.asScala.map(_.asScala.flatMap(i => groups(i)).toSeq)
+  }
+
+  /** Computes the cube of bit sets.
+    *
+    * <p>For example,  <code>rollup({0}, {1})</code>
+    * returns <code>({0, 1}, {0}, {})</code>.
+    *
+    * <p>Bit sets are not necessarily singletons:
+    * <code>rollup({0, 2}, {3, 5})</code>
+    * returns <code>({0, 2, 3, 5}, {0, 2}, {})</code>. */
+  private def cube(groups: Seq[Seq[Expression]]): Seq[Seq[Expression]] = {
+    val originalBitSet = for (i <- groups.indices) yield {
+      ImmutableBitSet.builder().set(i).build()
+    }
+    val cubeBitSets = SqlValidatorUtil.cube(originalBitSet.asJava)
+    cubeBitSets.asScala.map(_.asScala.flatMap(i => groups(i)).toSeq)
+  }
 }
