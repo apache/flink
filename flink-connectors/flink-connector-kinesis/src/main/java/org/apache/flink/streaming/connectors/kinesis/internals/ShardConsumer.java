@@ -246,20 +246,26 @@ public class ShardConsumer<T> implements Runnable {
 						} else {
 							GetRecordsResult getRecordsResult = shardConsumerRef.getRecords(nextShardItr, maxNumberOfRecordsPerFetch);
 
-							// each of the Kinesis records may be aggregated, so we must deaggregate them before proceeding
-							List<UserRecord> fetchedRecords = deaggregateRecords(
-								getRecordsResult.getRecords(),
-								subscribedShard.getShard().getHashKeyRange().getStartingHashKey(),
-								subscribedShard.getShard().getHashKeyRange().getEndingHashKey());
+							if (getRecordsResult != null) {
+								// each of the Kinesis records may be aggregated, so we must deaggregate them before proceeding
+								List<UserRecord> fetchedRecords = deaggregateRecords(
+									getRecordsResult.getRecords(),
+									subscribedShard.getShard().getHashKeyRange().getStartingHashKey(),
+									subscribedShard.getShard().getHashKeyRange().getEndingHashKey());
 
-							for (UserRecord record : fetchedRecords) {
-								boolean notFull = false;
-								while (!notFull) {
-									notFull = userRecordQueue.offer(record);
+								for (UserRecord record : fetchedRecords) {
+									boolean notFull = false;
+									while (!notFull) {
+										notFull = userRecordQueue.offer(record);
+									}
 								}
-							}
 
-							nextShardItr = getRecordsResult.getNextShardIterator();
+								nextShardItr = getRecordsResult.getNextShardIterator();
+							} else {
+								// getRecordsResult got null due to iterator expired.
+								// Give up this task and get a new shard iterator for the next task.
+								nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
+							}
 							lastFinishTime = System.currentTimeMillis();
 						}
 					} else {
@@ -348,15 +354,13 @@ public class ShardConsumer<T> implements Runnable {
 	 */
 	private GetRecordsResult getRecords(String shardItr, int maxNumberOfRecords) throws InterruptedException {
 		GetRecordsResult getRecordsResult = null;
-		while (getRecordsResult == null) {
-			try {
-				getRecordsResult = kinesis.getRecords(shardItr, maxNumberOfRecords);
-			} catch (ExpiredIteratorException eiEx) {
-				LOG.warn("Encountered an unexpected expired iterator {} for shard {};" +
-					" refreshing the iterator ...", shardItr, subscribedShard);
-				shardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
-			}
+		try {
+			getRecordsResult = kinesis.getRecords(shardItr, maxNumberOfRecords);
+		} catch (ExpiredIteratorException eiEx) {
+			LOG.warn("Encountered an unexpected expired iterator {} for shard {};" +
+				" refreshing the iterator ...", shardItr, subscribedShard);
 		}
+
 		return getRecordsResult;
 	}
 
