@@ -114,7 +114,6 @@ class DataSetWindowAggregate(
     expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
     val config = tableEnv.getConfig
-    val groupingKeys = grouping.indices.toArray
 
     // get the output types
     val fieldTypes: Array[TypeInformation[_]] =
@@ -129,54 +128,11 @@ class DataSetWindowAggregate(
       // tell the input operator that this operator currently only supports Rows as input
       Some(TypeConverter.DEFAULT_ROW_TYPE))
 
-    val aggString = aggregationToString(
-      inputType,
-      grouping,
-      getRowType,
-      namedAggregates,
-      namedProperties)
-
-    val aggOpName =
-      if (grouping.length > 0) {
-        s"groupBy: (${groupingToString(inputType, grouping)}), " +
-          s"window: ($window), select: ($aggString)"
-      } else {
-        s"window: ($window), select: ($aggString)"
-      }
-
-    //create mapFunction for initializing the aggregations
-    val mapFunction = AggregateUtil.createDataSetWindowPrepareMapFunction(
-      window,
-      namedAggregates,
-      grouping,
-      inputType)
-
-    // create groupReduceFunction for calculating the aggregations
-    val groupReduceFunction =
-    AggregateUtil.createDataSetWindowAggregateReduceGroupFunction(
-      window,
-      namedProperties,
-      namedAggregates,
-      inputType,
-      rowRelDataType,
-      grouping)
-
-
-    val prepareOpName = s"prepare select: ($aggString)"
-
-    val mappedInput =
-      inputDS
-      .map(mapFunction)
-      .name(prepareOpName)
-
     // check whether all aggregates support partial aggregate
     val result: DataSet[Any] = {
       window match {
         case EventTimeSessionGroupWindow(_, _, _) =>
-           createEventTimeSessionGroupWindowDataSet(
-            aggOpName,
-            groupReduceFunction,
-            mappedInput)
+           createEventTimeSessionGroupWindowDataSet(inputDS)
         case _ =>
           throw new UnsupportedOperationException(
             s" [ ${window.getClass.getCanonicalName.split("\\.").last} ] is currently not " +
@@ -201,10 +157,9 @@ class DataSetWindowAggregate(
       case _ => result
     }
   }
+
   private[this] def createEventTimeSessionGroupWindowDataSet(
-    aggOpName: String,
-    groupReduceFunction: RichGroupReduceFunction[Row, Row],
-    mappedInput: MapOperator[Any, Row]): DataSet[Any] = {
+    inputDS: DataSet[Any]): DataSet[Any] = {
     val groupingKeys = grouping.indices.toArray
     val rowTypeInfo = resultRowTypeInfo
 
@@ -220,6 +175,30 @@ class DataSetWindowAggregate(
     val rowTimeFilePos = windowStartPos
     // grouping window
     if (groupingKeys.length > 0) {
+      //create mapFunction for initializing the aggregations
+      val mapFunction = AggregateUtil.createDataSetWindowPrepareMapFunction(
+        window,
+        namedAggregates,
+        grouping,
+        inputType)
+
+      // create groupReduceFunction for calculating the aggregations
+      val groupReduceFunction =
+      AggregateUtil.createDataSetWindowAggregateReduceGroupFunction(
+        window,
+        namedProperties,
+        namedAggregates,
+        inputType,
+        rowRelDataType,
+        grouping)
+
+      val (aggOpName: String, prepareOpName: String) = aggOpNameAndPrepareOpName
+
+      val mappedInput =
+        inputDS
+        .map(mapFunction)
+        .name(prepareOpName)
+
       // do incremental aggregation
       if (AggregateUtil.doAllSupportPartialAggregation(
         namedAggregates.map(_.getKey),
@@ -243,7 +222,7 @@ class DataSetWindowAggregate(
         .name(aggOpName)
         .asInstanceOf[DataSet[Any]]
       }
-      // do incremental aggregation
+      // do non-incremental aggregation
       else {
         mappedInput.groupBy(groupingKeys: _*)
         .sortGroup(rowTimeFilePos, Order.ASCENDING)
@@ -258,6 +237,26 @@ class DataSetWindowAggregate(
       throw new UnsupportedOperationException(
         "Session non-grouping window on event-time are currently not supported.")
     }
+  }
+
+  private[this] def aggOpNameAndPrepareOpName: (String, String) = {
+    val aggString = aggregationToString(
+      inputType,
+      grouping,
+      getRowType,
+      namedAggregates,
+      namedProperties)
+
+    val aggOpName =
+      if (grouping.length > 0) {
+        s"groupBy: (${groupingToString(inputType, grouping)}), " +
+          s"window: ($window), select: ($aggString)"
+      } else {
+        s"window: ($window), select: ($aggString)"
+      }
+
+    val prepareOpName = s"prepare select: ($aggString)"
+    (aggOpName, prepareOpName)
   }
 
   private[this] def resultRowTypeInfo: RowTypeInfo = {

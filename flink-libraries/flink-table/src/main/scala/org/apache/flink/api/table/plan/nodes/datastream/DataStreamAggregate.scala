@@ -167,7 +167,7 @@ class DataStreamAggregate(
             .asInstanceOf[WindowedStream[Row, Tuple, DataStreamWindow]]
 
           windowedStream
-          .apply(reduceFunction, windowFunction)
+          .reduce(reduceFunction, windowFunction)
           .returns(rowTypeInfo)
           .name(keyedAggOpName)
           .asInstanceOf[DataStream[Any]]
@@ -187,7 +187,7 @@ class DataStreamAggregate(
             .asInstanceOf[AllWindowedStream[Row, DataStreamWindow]]
 
           windowedStream
-          .apply(reduceFunction, windowFunction)
+          .reduce(reduceFunction, windowFunction)
           .returns(rowTypeInfo)
           .name(nonKeyedAggOpName)
           .asInstanceOf[DataStream[Any]]
