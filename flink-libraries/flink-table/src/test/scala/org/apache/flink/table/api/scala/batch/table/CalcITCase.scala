@@ -66,15 +66,7 @@ class CalcITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-
-    val t1 = t.select('a, 'b, 'c)
-    val t2 = t.select("a, b, c")
-
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c).select('a, 'b, 'c)
 
     val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
       "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
@@ -82,7 +74,7 @@ class CalcITCase(
       "11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" +
       "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" +
       "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
-    val results = t1.toDataSet[Row].collect()
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -92,24 +84,13 @@ class CalcITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
-
-    val t1 = t
       .select('_1 as 'a, '_2 as 'b, '_1 as 'c)
       .select('a, 'b)
-
-    val t2 = t
-      .select("_1 as a, _2 as b, _1 as c")
-      .select("a, b")
-
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
 
     val expected = "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" + "7,4\n" +
       "8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" + "13,5\n" + "14,5\n" + "15,5\n" +
       "16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n"
-    val results = t1.toDataSet[Row].collect()
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -119,24 +100,13 @@ class CalcITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
-
-    val t1 = t
       .select('_1 as 'a, '_2 as 'b, '_3 as 'c)
       .select('a, 'b)
-
-    val t2 = t
-      .select("_1 as a, _2 as b, _3 as c")
-      .select("a, b")
-
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
 
     val expected = "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" + "7,4\n" +
       "8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" + "13,5\n" + "14,5\n" + "15,5\n" +
       "16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n"
-    val results = t1.toDataSet[Row].collect()
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -175,15 +145,7 @@ class CalcITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-
-    val t1 = t.select('*)
-    val t2 = t.select("*")
-
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c).select('*)
 
     val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
       "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
@@ -191,7 +153,7 @@ class CalcITCase(
       "11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" +
       "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" +
       "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
-    val results = t1.toDataSet[Row].collect()
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -237,16 +199,10 @@ class CalcITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
-    val t1 = ds.filter( Literal(false) )
-    val t2 = ds.filter("false")
-
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
+    val filterDs = ds.filter( Literal(false) )
 
     val expected = "\n"
-    val results = t1.toDataSet[Row].collect()
+    val results = filterDs.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -257,21 +213,14 @@ class CalcITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
-    val t1 = ds.filter( Literal(true) )
-    val t2 = ds.filter("true")
-
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
-
+    val filterDs = ds.filter( Literal(true) )
     val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" + "4,3,Hello world, " +
       "how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" + "7,4," +
       "Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" + "11,5," +
       "Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" + "15,5," +
       "Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" + "19," +
       "6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
-    val results = t1.toDataSet[Row].collect()
+    val results = filterDs.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -295,19 +244,13 @@ class CalcITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
-    val t1 = ds.filter( 'a % 2 === 0 )
-    val t2 = ds.filter( "a % 2 = 0 ")
-
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
+    val filterDs = ds.filter( 'a % 2 === 0 )
 
     val expected = "2,2,Hello\n" + "4,3,Hello world, how are you?\n" +
       "6,3,Luke Skywalker\n" + "8,4," + "Comment#2\n" + "10,4,Comment#4\n" +
       "12,5,Comment#6\n" + "14,5,Comment#8\n" + "16,6," +
       "Comment#10\n" + "18,6,Comment#12\n" + "20,6,Comment#14\n"
-    val results = t1.toDataSet[Row].collect()
+    val results = filterDs.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -318,19 +261,12 @@ class CalcITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
-    val t1 = ds.filter( 'a % 2 !== 0 )
-    val t2 = ds.filter("a % 2 <> 0")
-
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
-
+    val filterDs = ds.filter( 'a % 2 !== 0)
     val expected = "1,1,Hi\n" + "3,2,Hello world\n" +
       "5,3,I am fine.\n" + "7,4,Comment#1\n" + "9,4,Comment#3\n" +
       "11,5,Comment#5\n" + "13,5,Comment#7\n" + "15,5,Comment#9\n" +
       "17,6,Comment#11\n" + "19,6,Comment#13\n" + "21,6,Comment#15\n"
-    val results = t1.collect()
+    val results = filterDs.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -341,16 +277,9 @@ class CalcITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
-    val t1 = ds.filter( 'a < 2 || 'a > 20)
-    val t2 = ds.filter("a < 2 || a > 20")
-
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
-
+    val filterDs = ds.filter( 'a < 2 || 'a > 20)
     val expected = "1,1,Hi\n" + "21,6,Comment#15\n"
-    val results = t1.collect()
+    val results = filterDs.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -494,25 +423,6 @@ class CalcITCase(
     val expected = "78.454654654654654,4E+9999,1984-07-12,14:34:24,1984-07-12 14:34:24.0," +
       "11.2,11.2,1984-07-12,14:34:24,1984-07-12 14:34:24.0"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testIntegerBiggerThan128(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val t = env.fromElements((300, 1L, "Hello")).toTable(tableEnv, 'a, 'b, 'c)
-
-    val t1 = t.filter('a === 300)
-    val t2 = t.filter("a = 300")
-
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
-
-    val results = t1.toDataSet[Row].collect()
-    val expected: String = "300,1,Hello\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 }
