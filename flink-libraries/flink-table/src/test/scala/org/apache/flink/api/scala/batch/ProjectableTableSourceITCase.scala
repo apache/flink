@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.scala.batch
 
-import org.apache.flink.api.common.io.GenericInputFormat
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.{DataSet => JavaSet, ExecutionEnvironment => JavaExecEnv}
 import org.apache.flink.api.scala.ExecutionEnvironment
@@ -54,10 +53,10 @@ class ProjectableTableSourceITCase(mode: TestExecutionMode,
   @Test
   def testTableAPI(): Unit = {
     val results = tableEnv
-      .scan(tableName)
-      .where("amount < 4")
-      .select("id, name")
-      .collect()
+                  .scan(tableName)
+                  .where("amount < 4")
+                  .select("id, name")
+                  .collect()
 
     val expected = Seq(
       "0,Record_0", "1,Record_1", "2,Record_2", "3,Record_3", "16,Record_16",
@@ -69,15 +68,14 @@ class ProjectableTableSourceITCase(mode: TestExecutionMode,
   @Test
   def testSQL(): Unit = {
     val results = tableEnv
-      .sql(s"select id, name from $tableName where amount < 4 ")
-      .collect()
+                  .sql(s"select id, name from $tableName where amount < 4 ")
+                  .collect()
 
     val expected = Seq(
       "0,Record_0", "1,Record_1", "2,Record_2", "3,Record_3", "16,Record_16",
       "17,Record_17", "18,Record_18", "19,Record_19", "32,Record_32").mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
-
 }
 
 class TestProjectableTableSource(
@@ -96,7 +94,7 @@ class TestProjectableTableSource(
 
   /** Returns the data of the table as a [[org.apache.flink.api.java.DataSet]]. */
   override def getDataSet(execEnv: JavaExecEnv): JavaSet[Row] = {
-    execEnv.createInput(new ProjectableInputFormat(33, fieldNames), getReturnType).setParallelism(1)
+    execEnv.fromCollection(generateDynamicCollection(33, fieldNames).asJava, getReturnType)
   }
 
   /** Returns the types of the table fields. */
@@ -121,34 +119,27 @@ class TestProjectableTableSource(
     })
     new TestProjectableTableSource(projectedFieldTypes, projectedFieldNames)
   }
-}
 
-class ProjectableInputFormat(
-  num: Int, fieldNames: Array[String]) extends GenericInputFormat[Row] {
-
-  val possibleFieldsName = Set("name", "id", "amount", "price")
-  var cnt = 0L
-  require(num > 0, "the num must be positive")
-  require(fieldNames.toSet.subsetOf(possibleFieldsName), "input field names contain illegal name")
-
-  override def reachedEnd(): Boolean = cnt >= num
-
-  override def nextRecord(reuse: Row): Row = {
-    fieldNames.zipWithIndex.foreach(f =>
-      f._1 match {
-        case "name" =>
-          reuse.setField(f._2, "Record_" + cnt)
-        case "id" =>
-          reuse.setField(f._2, cnt)
-        case "amount" =>
-          reuse.setField(f._2, cnt.toInt % 16)
-        case "price" =>
-          reuse.setField(f._2, cnt.toDouble / 3)
-        case _ =>
-          throw new IllegalArgumentException("unknown field name")
+  private def generateDynamicCollection(num: Int, fieldNames: Array[String]): Seq[Row] = {
+    for {cnt <- 0 until num}
+      yield {
+        val row = new Row(fieldNames.length)
+        fieldNames.zipWithIndex.foreach(
+          f =>
+            f._1 match {
+              case "name" =>
+                row.setField(f._2, "Record_" + cnt)
+              case "id" =>
+                row.setField(f._2, cnt.toLong)
+              case "amount" =>
+                row.setField(f._2, cnt.toInt % 16)
+              case "price" =>
+                row.setField(f._2, cnt.toDouble / 3)
+              case _ =>
+                throw new IllegalArgumentException(s"unknown field name $f._1")
+            }
+        )
+        row
       }
-    )
-    cnt += 1
-    reuse
   }
 }

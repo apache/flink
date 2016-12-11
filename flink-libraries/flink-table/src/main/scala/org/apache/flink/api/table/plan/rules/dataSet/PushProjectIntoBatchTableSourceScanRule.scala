@@ -29,7 +29,7 @@ import org.apache.flink.api.table.sources.{BatchTableSource, ProjectableTableSou
   */
 class PushProjectIntoBatchTableSourceScanRule extends RelOptRule(
   operand(classOf[DataSetCalc],
-    operand(classOf[BatchTableSourceScan], none)),
+          operand(classOf[BatchTableSourceScan], none)),
   "PushProjectIntoBatchTableSourceScanRule") {
 
   override def matches(call: RelOptRuleCall) = {
@@ -47,37 +47,36 @@ class PushProjectIntoBatchTableSourceScanRule extends RelOptRule(
     val usedFields: Array[Int] = extractRefInputFields(calc.calcProgram)
 
     // if no fields can be projected, there is no need to transform subtree
-    scan.tableSource.getNumberOfFields match {
-      case fieldNums if fieldNums == usedFields.length  =>
-      case _ =>
-        val originTableSource = scan.tableSource.asInstanceOf[ProjectableTableSource[_]]
-        val newTableSource = originTableSource.projectFields(usedFields)
-        val newScan = new BatchTableSourceScan(
-          scan.getCluster,
-          scan.getTraitSet,
-          scan.getTable,
-          newTableSource.asInstanceOf[BatchTableSource[_]])
+    if (scan.tableSource.getNumberOfFields != usedFields.length) {
+      val originTableSource = scan.tableSource.asInstanceOf[ProjectableTableSource[_]]
+      val newTableSource = originTableSource.projectFields(usedFields)
+      val newScan = new BatchTableSourceScan(
+        scan.getCluster,
+        scan.getTraitSet,
+        scan.getTable,
+        newTableSource.asInstanceOf[BatchTableSource[_]])
 
-        val newCalcProgram = rewriteRexProgram(
-          calc.calcProgram,
-          newScan.getRowType,
-          usedFields,
-          calc.getCluster.getRexBuilder)
+      val newCalcProgram = rewriteRexProgram(
+        calc.calcProgram,
+        newScan.getRowType,
+        usedFields,
+        calc.getCluster.getRexBuilder)
 
-        // if project merely returns its input and doesn't exist filter, remove datasetCalc nodes
-        if (newCalcProgram.isTrivial) {
-          call.transformTo(newScan)
-        } else {
-          val newCal = new DataSetCalc(calc.getCluster,
-            calc.getTraitSet,
-            newScan,
-            calc.getRowType,
-            newCalcProgram,
-            description)
-          call.transformTo(newCal)
-        }
+      // if project merely returns its input and doesn't exist filter, remove datasetCalc nodes
+      if (newCalcProgram.isTrivial) {
+        call.transformTo(newScan)
+      } else {
+        val newCalc = new DataSetCalc(
+          calc.getCluster,
+          calc.getTraitSet,
+          newScan,
+          calc.getRowType,
+          newCalcProgram,
+          description)
+        call.transformTo(newCalc)
       }
     }
+  }
 }
 
 object PushProjectIntoBatchTableSourceScanRule {

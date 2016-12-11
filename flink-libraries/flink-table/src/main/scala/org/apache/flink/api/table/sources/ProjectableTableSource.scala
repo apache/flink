@@ -20,8 +20,8 @@ package org.apache.flink.api.table.sources
 
 /**
   * Defines TableSource which supports project pushdown.
-  * E.g A definition of TestBatchTableSource which supports project
-  * class TestBatchTableSource extends BatchTableSource[Row] with ProjectableTableSource[Row]
+  * E.g A definition of ParquetTableSource which supports project
+  * class ParquetTableSource extends BatchTableSource[Row] with ProjectableTableSource[Row]
   *
   * @tparam T The return type of the [[ProjectableTableSource]].
   */

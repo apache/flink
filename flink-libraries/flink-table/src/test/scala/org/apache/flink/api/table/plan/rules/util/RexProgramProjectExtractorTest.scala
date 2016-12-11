@@ -24,7 +24,7 @@ import org.apache.calcite.adapter.java.JavaTypeFactory
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeSystem}
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, DOUBLE, INTEGER, VARCHAR}
-import org.apache.calcite.rex.{RexBuilder, RexInputRef, RexProgram, RexProgramBuilder}
+import org.apache.calcite.rex.{RexBuilder, RexProgram, RexProgramBuilder}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 
 import scala.collection.JavaConverters._
@@ -50,7 +50,7 @@ class RexProgramProjectExtractorTest {
   @Test
   def testExtractRefInputFields: Unit = {
     val usedFields = extractRefInputFields(buildRexProgram)
-    Assert.assertArrayEquals(usedFields, Array(2, 1, 3))
+    Assert.assertArrayEquals(usedFields, Array(2, 3, 1))
   }
 
   @Test
@@ -65,10 +65,10 @@ class RexProgramProjectExtractorTest {
       "100",
       "<($t4, $t5)",
       "6",
-      ">($t2, $t7)",
+      ">($t1, $t7)",
       "AND($t6, $t8)")))
     // use amount, id, price fields to create a new RexProgram
-    val usedFields = Array(2, 1, 3)
+    val usedFields = Array(2, 3, 1)
     val types = usedFields.map(allFieldTypes(_)).toList.asJava
     val names = usedFields.map(allFieldNames(_)).toList.asJava
     val inputRowType = typeFactory.createStructType(types, names)
@@ -77,11 +77,11 @@ class RexProgramProjectExtractorTest {
       "$0",
       "$1",
       "$2",
-      "*($t0, $t2)",
+      "*($t0, $t1)",
       "100",
       "<($t3, $t4)",
       "6",
-      ">($t0, $t6)",
+      ">($t2, $t6)",
       "AND($t5, $t7)")))
   }
 
@@ -96,13 +96,12 @@ class RexProgramProjectExtractorTest {
     val t3 = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.MULTIPLY, t0, t2))
     val t4 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(100L))
     val t5 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(6L))
-    // project: amount, id, amount * price
+    // project: amount, amount * price
     builder.addProject(t0, "amount")
-    builder.addProject(t1, "id")
     builder.addProject(t3, "total")
-    // condition: amount * price < 100 and amount > 6
+    // condition: amount * price < 100 and id > 6
     val t6 = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN, t3, t4))
-    val t7 = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, t0, t5))
+    val t7 = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, t1, t5))
     val t8 = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.AND, List(t6, t7).asJava))
     builder.addCondition(t8)
     builder.getProgram
