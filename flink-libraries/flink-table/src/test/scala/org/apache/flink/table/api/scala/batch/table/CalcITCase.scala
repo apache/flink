@@ -29,6 +29,7 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.types.Row
 import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.expressions.Literal
+import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Assert._
@@ -425,6 +426,19 @@ class CalcITCase(
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
+  @Test
+  def testUserDefinedScalarFunction() {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    tableEnv.registerFunction("hashCode", OldHashCode)
+    tableEnv.registerFunction("hashCode", HashCode)
+    val table = env.fromElements("a", "b", "c").toTable(tableEnv, 'text)
+    val result = table.select("text.hashCode()")
+    val results = result.toDataSet[Row].collect()
+    val expected = "97\n98\n99"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
 }
 
 object CalcITCase {
@@ -435,4 +449,12 @@ object CalcITCase {
       Array(TestExecutionMode.COLLECTION, TableProgramsTestBase.DEFAULT),
       Array(TestExecutionMode.COLLECTION, TableProgramsTestBase.NO_NULL)).asJava
   }
+}
+
+object HashCode extends ScalarFunction {
+  def eval(s: String): Int = s.hashCode
+}
+
+object OldHashCode extends ScalarFunction {
+  def eval(s: String): Int = -1
 }
