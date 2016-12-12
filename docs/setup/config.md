@@ -48,7 +48,7 @@ The configuration files for the TaskManagers can be different, Flink does not as
 
 - `env.java.opts.taskmanager`: TaskManager-specific JVM options. These are used in addition to the regular `env.java.opts`. This configuration option is ignored by the YARN client.
 
-- `jobmanager.rpc.address`: The IP address of the JobManager, which is the master/coordinator of the distributed system (DEFAULT: localhost).
+- `jobmanager.rpc.address`: The external address of the JobManager, which is the master/coordinator of the distributed system (DEFAULT: localhost). **Note:** The address (host name or IP) should be accessible by all nodes including the client.
 
 - `jobmanager.rpc.port`: The port number of the JobManager (DEFAULT: 6123).
 
@@ -206,7 +206,7 @@ These parameters configure the default HDFS used by Flink. Setups that do not sp
 
 The following parameters configure Flink's JobManager and TaskManagers.
 
-- `jobmanager.rpc.address`: The IP address of the JobManager, which is the master/coordinator of the distributed system (DEFAULT: **localhost**).
+- `jobmanager.rpc.address`: The external address of the JobManager, which is the master/coordinator of the distributed system (DEFAULT: **localhost**). **Note:** The address (host name or IP) should be accessible by all nodes including the client.
 
 - `jobmanager.rpc.port`: The port number of the JobManager (DEFAULT: **6123**).
 
