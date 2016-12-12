@@ -274,6 +274,16 @@ class AggregationTest extends TableTestBase {
   }
 
   @Test
+  def testStringGroupingSetsTableApi(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, new TableConfig)
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    val table = tEnv.fromDataSet(ds)
+    val result = table.groupingSets("(_1, _2), (_1), ()").select("_1, _2")
+    result.toDataSet[Row].print()
+  }
+
+  @Test
   def testCubeTableApi(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, new TableConfig)
@@ -284,12 +294,32 @@ class AggregationTest extends TableTestBase {
   }
 
   @Test
+  def testStringCubeTableApi(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, new TableConfig)
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    val table = tEnv.fromDataSet(ds)
+    val result = table.cube("(_1, _3), _2").select("_1, _2")
+    result.toDataSet[Row].print()
+  }
+
+  @Test
   def testRollupTableApi(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, new TableConfig)
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val table = tEnv.fromDataSet(ds, 'a, 'b, 'c)
     val result = table.rollup('a, 'b).select('a, 'b)
+    result.toDataSet[Row].print()
+  }
+
+  @Test
+  def testStringRollupTableApi(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, new TableConfig)
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    val table = tEnv.fromDataSet(ds)
+    val result = table.rollup("(_1, _3), _2").select("_1, _2")
     result.toDataSet[Row].print()
   }
 }

@@ -280,10 +280,9 @@ class Table(
     *   tab.groupingSets("(a, b), (a), ()").select("a, b, c.avg")
     * }}}
     */
-  def groupingSets(groups: String): GroupingSetsTable = {
-//    val fieldsExpr = groups.split("|").map(ExpressionParser.parseExpressionList)
-//    groupingSets(fieldsExpr: _*)
-    ???
+  def groupingSets(fields: String): GroupingSetsTable = {
+    val fieldsExpr = ExpressionParser.parseExpressionList(fields)
+    groupingSets(fieldsExpr: _*)
   }
 
   /**
@@ -314,10 +313,9 @@ class Table(
     *   tab.cube("a, b").select("a, b, c.avg")
     * }}}
     */
-  def cube(groups: String): GroupingSetsTable = {
-//    val fieldsExpr = groups.split("|").map(ExpressionParser.parseExpressionList)
-//    cube(fieldsExpr: _*)
-    ???
+  def cube(fields: String): GroupingSetsTable = {
+    val fieldsExpr = ExpressionParser.parseExpressionList(fields)
+    cube(fieldsExpr: _*)
   }
 
   /**
@@ -348,10 +346,9 @@ class Table(
     *   tab.rollup("a, b").select("a, b, c.avg")
     * }}}
     */
-  def rollup(groups: String): GroupingSetsTable = {
-//    val fieldsExpr = groups.split("|").map(ExpressionParser.parseExpressionList)
-//    rollup(fieldsExpr: _*)
-    ???
+  def rollup(fields: String): GroupingSetsTable = {
+    val fieldsExpr = ExpressionParser.parseExpressionList(fields)
+    rollup(fieldsExpr: _*)
   }
 
   /**
@@ -1074,7 +1071,7 @@ class GroupingSetsTable(
     val logical =
       Project(
         projection,
-        Grouping(
+        GroupingAggregation(
           groupingSets,
           aggs,
           table.logicalPlan,

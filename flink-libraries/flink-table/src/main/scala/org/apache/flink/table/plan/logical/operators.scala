@@ -268,7 +268,7 @@ case class Aggregate(
     resolvedAggregate
   }
 }
-case class Grouping(
+case class GroupingAggregation(
     groupingExpressions: Seq[Seq[Expression]],
     aggregateExpressions: Seq[NamedExpression],
     child: LogicalNode,
@@ -301,7 +301,7 @@ case class Grouping(
       failValidation(s"Aggregate on stream tables is currently not supported.")
     }
 
-    val resolvedAggregate = super.validate(tableEnv).asInstanceOf[Grouping]
+    val resolvedAggregate = super.validate(tableEnv).asInstanceOf[GroupingAggregation]
     val groupingExprs = resolvedAggregate.groupingExpressions
     val aggregateExprs = resolvedAggregate.aggregateExpressions
     val resolvedGroupingExprs = groupingExprs.map(_.map {
@@ -339,7 +339,7 @@ case class Grouping(
             "because it's not a valid key type which must be hashable and comparable")
       }
     }
-    Grouping(resolvedGroupingExprs, resolvedAggregate.aggregateExpressions, child, sqlKind)
+    GroupingAggregation(resolvedGroupingExprs, resolvedAggregate.aggregateExpressions, child, sqlKind)
   }
 }
 

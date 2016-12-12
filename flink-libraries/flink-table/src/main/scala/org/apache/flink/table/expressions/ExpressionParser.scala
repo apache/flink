@@ -176,6 +176,12 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val atom: PackratParser[Expression] =
     ( "(" ~> expression <~ ")" ) | literalExpr | fieldReference
 
+  lazy val grouped: PackratParser[Expression] =
+    "(" ~> expressionList <~ ")" ^^ { l => new GroupedExpression(l.toSeq) }
+
+  lazy val unit: PackratParser[Expression] =
+    "()" ^^ { _ => new GroupedExpression(Seq()) }
+
   // suffix operators
 
   lazy val suffixSum: PackratParser[Expression] =
@@ -383,7 +389,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // suffix/prefix composite
 
-  lazy val composite: PackratParser[Expression] = suffixed | prefixed | atom |
+  lazy val composite: PackratParser[Expression] = suffixed | prefixed | atom | grouped |
     failure("Composite expression expected.")
 
   // unary ops
@@ -455,7 +461,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case e ~ _ ~ _ ~ names ~ _ => Alias(e, names.head.name, names.tail.map(_.name))
   } | logic
 
-  lazy val expression: PackratParser[Expression] = alias |
+  lazy val expression: PackratParser[Expression] = alias | grouped | unit |
     failure("Invalid expression.")
 
   lazy val expressionList: Parser[List[Expression]] = rep1sep(expression, ",")
