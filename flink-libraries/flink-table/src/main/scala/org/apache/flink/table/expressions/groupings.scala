@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.expressions
+package org.apache.flink.table.expressions
 
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder

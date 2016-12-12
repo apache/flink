@@ -279,7 +279,7 @@ class AggregationTest extends TableTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env, new TableConfig)
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val table = tEnv.fromDataSet(ds)
-    val result = table.groupingSets("(_1, _2), (_1), ()").select("_1, _2")
+    val result = table.groupingSets("(_1, _2), (_1), ()").select("_1, _2, groupId")
     result.toDataSet[Row].print()
   }
 
