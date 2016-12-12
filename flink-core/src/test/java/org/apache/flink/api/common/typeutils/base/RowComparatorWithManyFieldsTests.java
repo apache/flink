@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.RowComparator;
 import org.apache.flink.types.Row;
-import org.junit.Before;
+import org.junit.BeforeClass;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -37,17 +37,17 @@ import static org.junit.Assert.assertEquals;
  */
 public class RowComparatorWithManyFieldsTests extends ComparatorTestBase<Row> {
 
-	private final int numberOfFields = 10;
-	private RowTypeInfo typeInfo;
-	private final Row[] data = new Row[]{
+	private static final int numberOfFields = 10;
+	private static RowTypeInfo typeInfo;
+	private static final Row[] data = new Row[]{
 		createRow(null, "b0", "c0", "d0", "e0", "f0", "g0", "h0", "i0", "j0"),
 		createRow("a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1", "i1", "j1"),
 		createRow("a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2", "i2", "j2"),
 		createRow("a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3", "i3", "j3")
 	};
 
-	@Before
-	public void setUp() throws Exception {
+	@BeforeClass
+	public static void setUp() throws Exception {
 		TypeInformation<?>[] fieldTypes = new TypeInformation[numberOfFields];
 		for (int i = 0; i < numberOfFields; i++) {
 			fieldTypes[i] = BasicTypeInfo.STRING_TYPE_INFO;
@@ -91,7 +91,7 @@ public class RowComparatorWithManyFieldsTests extends ComparatorTestBase<Row> {
 		return true;
 	}
 
-	private Row createRow(Object... values) {
+	private static Row createRow(Object... values) {
 		checkNotNull(values);
 		checkArgument(values.length == numberOfFields);
 		Row row = new Row(numberOfFields);

@@ -56,6 +56,7 @@ public class NullMaskUtils {
 		int len,
 		DataInputView source,
 		boolean[] nullMask) throws IOException {
+
 		int b = 0x00;
 		int bytePos = 0;
 
