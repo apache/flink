@@ -1,5 +1,5 @@
 ---
-title: Graph Generators
+title: Bipartite Graph
 nav-parent_id: graphs
 nav-pos: 6
 ---
@@ -28,13 +28,13 @@ under the License.
 Bipartite Graph
 ---------------
 
-A bipartite graph (also called a two-mode graph) is a type of graph where vertices are separated into two disjoint sets. These sets are usually called top and bottom vertices. A single edge in this graph can only connect vertices from opposite sets (i.e. bottom vertex to top vertex) and cannot connect to vertices in the same set.
+A bipartite graph (also called a two-mode graph) is a type of graph where vertices are separated into two disjoint sets. These sets are usually called top and bottom vertices. An edge in this graph can only connect vertices from opposite sets (i.e. bottom vertex to top vertex) and cannot connect two vertices in the same set.
 
-Theses graphs have wide application in practice and can be a more natural choice for particular domains. For example to represent authorship of scientific papers top vertices can represent scientific papers while bottom nodes will represent authors. Naturally a node between a top and a bottom nodes would represent an authorship of a particular scientific paper. Another common example for applications of bipartite graphs is a relationships between actors and movies. In this case an edge represents that a particular actor played in a movie.
+These graphs have wide application in practice and can be a more natural choice for particular domains. For example to represent authorship of scientific papers top vertices can represent scientific papers while bottom nodes will represent authors. Naturally an edge between a top and a bottom nodes would represent an authorship of a particular scientific paper. Another common example for applications of bipartite graphs is relationships between actors and movies. In this case an edge represents that a particular actor played in a movie.
 
-Bipartite graph are used instead of regular graphs (one-mode) for the following practical [reasons](http://www.complexnetworks.fr/wp-content/uploads/2011/01/socnet07.pdf):
- * They preserve more information about a connection between vertices. For example instead of a single link between two researchers in a graph that represents that they authored a paper together a bipartite graph preserve the information about what papers they authored
- * Bipartite graph can encode the same information more compactly than one-mode graphs
+Bipartite graphs are used instead of regular graphs (one-mode) for the following practical [reasons](http://www.complexnetworks.fr/wp-content/uploads/2011/01/socnet07.pdf):
+ * They preserve more information about a connection between vertices. For example instead of a single link between two researchers in a graph that represents that they authored a paper together a bipartite graph preserves the information about what papers they authored
+ * Bipartite graphs can encode the same information more compactly than one-mode graphs
  
 
 
@@ -42,13 +42,13 @@ Graph Representation
 --------------------
 
 A `BipartiteGraph` is represented by:
- * `DataSet` of top nodes
- * `DataSet` of bottom nodes
- * `DataSet` of edges between top and bottom nodes
+ * A `DataSet` of top nodes
+ * A `DataSet` of bottom nodes
+ * A `DataSet` of edges between top and bottom nodes
 
-As in the `Graph` class nodes are represented by the `Vertex` type and the same rules applies to its types and values.
+As in the `Graph` class nodes are represented by the `Vertex` type and the same rules apply to its types and values.
 
-The graph edges are represented by the `BipartiteEdge` type. An `BipartiteEdge` is defined by a top ID (the ID of the top `Vertex`), a bottom ID (the ID of the bottom `Vertex`) and an optional value. The main difference between the `Edge` and `BipartiteEdge` is that IDs of nodes it links can be of different types. Edges with no value have a `NullValue` value type.
+The graph edges are represented by the `BipartiteEdge` type. A `BipartiteEdge` is defined by a top ID (the ID of the top `Vertex`), a bottom ID (the ID of the bottom `Vertex`) and an optional value. The main difference between the `Edge` and `BipartiteEdge` is that IDs of nodes it links can be of different types. Edges with no value have a `NullValue` value type.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -61,7 +61,7 @@ Double weight = e.getValue(); // weight = 0.5
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// TODO: Should be added when Scala interface is implemented
+// Scala API is not yet supported
 {% endhighlight %}
 </div>
 </div>
@@ -92,7 +92,7 @@ Graph<String, String, Long, Long, Double> graph = BipartiteGraph.fromDataSet(top
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// TODO: Should be added when Scala interface is implemented
+// Scala API is not yet supported
 {% endhighlight %}
 </div>
 </div>
@@ -102,27 +102,43 @@ Graph Transformations
 ---------------------
 
 
-* <strong>Projection</strong>: Projection is a common operation for bipartite graphs that converts a bipartite graph into a regular graph. There are two types of projections: top and bottom projections. Top projection preserves only top nodes in the result graph and create a link between them in a new graph only if there is an intermediate bottom node both top nodes connect to in the original graph. Bottom projection is the opposite to top projection, i.e. only preserves bottom nodes and connects a pair of node if they are connected in the original graph.
+* <strong>Projection</strong>: Projection is a common operation for bipartite graphs that converts a bipartite graph into a regular graph. There are two types of projections: top and bottom projections. Top projection preserves only top nodes in the result graph and creates a link between them in a new graph only if there is an intermediate bottom node both top nodes connect to in the original graph. Bottom projection is the opposite to top projection, i.e. only preserves bottom nodes and connects a pair of nodes if they are connected in the original graph.
 
 Gelly supports two sub-types of projections: simple projections and full projections. The only difference between them is what data is associated with edges in the result graph.
 
-In case of a simple projection each node in the result graph contains a pair of values of bipartite edges that connect nodes in the original graph:
+In the case of a simple projection each node in the result graph contains a pair of values of bipartite edges that connect nodes in the original graph:
 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-Graph<String, String, Long, Long, Double> bipartiteGraph = ...;
+// Vertices (1, "top1")
+DataSet<Vertex<Long, String>> topVertices = ...
 
-Graph<String, Long, Tuple2<Double, Double>> graph bipartiteGraph.projectionBottomSimple();
+// Vertices (2, "bottom2"); (4, "bottom4")
+DataSet<Vertex<Long, String>> bottomVertices = ...
+
+// Edge that connect vertex 2 to vertex 1 and vertex 4 to vertex 1:
+// (1, 2, "1-2-edge"); (1, 4, "1-4-edge")
+DataSet<Edge<Long, Long, String>> edges = ...
+
+BipartiteGraph<Long, Long, String, String, String> graph = BipartiteGraph.fromDataSet(topVertices, bottomVertices, edges, env);
+
+// Result graph with two vertices:
+// (2, "bottom2"); (4, "bottom4")
+//
+// and one edge that contains ids of bottom edges and a tuple with
+// values of intermediate edges in the original bipartite graph:
+// (2, 4, ("1-2-edge", "1-4-edge"))
+Graph<Long, String, Tuple2<String, String>> graph bipartiteGraph.projectionBottomSimple();
 
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// TODO: Should be added when Scala interface is implemented
+// Scala API is not yet supported
 {% endhighlight %}
 </div>
 </div>
@@ -133,16 +149,32 @@ Full projection preserves all the information about the connection between two v
 <div data-lang="java" markdown="1">
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-Graph<String, String, Long, Long, Double> bipartiteGraph = ...;
+// Vertices (1, "top1")
+DataSet<Vertex<Long, String>> topVertices = ...
 
-Graph<String, Long, Projection<String, Long, Long, Double>> graph bipartiteGraph.projectionBottomFull();
+// Vertices (2, "bottom2"); (4, "bottom4")
+DataSet<Vertex<Long, String>> bottomVertices = ...
+
+// Edge that connect vertex 2 to vertex 1 and vertex 4 to vertex 1:
+// (1, 2, "1-2-edge"); (1, 4, "1-4-edge")
+DataSet<Edge<Long, Long, String>> edges = ...
+
+BipartiteGraph<Long, Long, String, String, String> graph = BipartiteGraph.fromDataSet(topVertices, bottomVertices, edges, env);
+
+// Result graph with two vertices:
+// (2, "bottom2"); (4, "bottom4")
+// and one edge that contains ids of bottom edges and a tuple that 
+// contains id and value of the intermediate edge, values of connected vertices
+// and values of intermediate edges in the original bipartite graph:
+// (2, 4, (1, "top1", "bottom2", "bottom4", "1-2-edge", "1-4-edge"))
+Graph<String, String, Projection<Long, String, String, String>> graph bipartiteGraph.projectionBottomFull();
 
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// TODO: Should be added when Scala interface is implemented
+// Scala API is not yet supported
 {% endhighlight %}
 </div>
 </div>
