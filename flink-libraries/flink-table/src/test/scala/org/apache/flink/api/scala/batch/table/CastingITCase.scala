@@ -46,7 +46,8 @@ class CastingITCase(
 
     val table = env.fromElements(
       (1.toByte, 1.toShort, 1, 1L, 1.0f, 1.0d, 1L, 1001.1)).toTable(tableEnv)
-      .select('_1 + 1, '_2 + 1, '_3 + 1L, '_4 + 1.0f, '_5 + 1.0d, '_6 + 1, '_7 + 1.0d, '_8 + '_1)
+      .select('_1 + 1, '_2 + 1, '_3 + 1L, '_4 + 1.0f,
+        '_5 + 1.0d, '_6 + 1, '_7 + 1.0d, '_8 + '_1)
 
     val results = table.toDataSet[Row].collect()
     val expected = "2,2,2,2.0,2.0,2.0,2.0,1002.1"
@@ -61,7 +62,8 @@ class CastingITCase(
 
     val table = env.fromElements(
       (1.toByte, 1.toShort, 1, 1L, 1.0f, 1.0d),
-      (2.toByte, 2.toShort, 2, 2L, 2.0f, 2.0d)).toTable(tableEnv, 'a, 'b, 'c, 'd, 'e, 'f)
+      (2.toByte, 2.toShort, 2, 2L, 2.0f, 2.0d))
+      .toTable(tableEnv, 'a, 'b, 'c, 'd, 'e, 'f)
       .filter('a > 1 && 'b > 1 && 'c > 1L && 'd > 1.0f && 'e > 1.0d && 'f > 1)
 
     val results = table.toDataSet[Row].collect()
@@ -75,15 +77,21 @@ class CastingITCase(
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = TableEnvironment.getTableEnvironment(env, config)
     val table = env.fromElements((1, 0.0, 1L, true)).toTable(tableEnv)
-      .select(// * -> String
-      '_1.cast(STRING), '_2.cast(STRING), '_3.cast(STRING), '_4.cast(STRING),  // NUMERIC TYPE -> Boolean
-      '_1.cast(BOOLEAN), '_2.cast(BOOLEAN), '_3.cast(BOOLEAN),  // NUMERIC TYPE -> NUMERIC TYPE
-      '_1.cast(DOUBLE), '_2.cast(INT), '_3.cast(SHORT),  // Boolean -> NUMERIC TYPE
-      '_4.cast(DOUBLE), // identity casting
+      .select(
+        // * -> String
+      '_1.cast(STRING), '_2.cast(STRING), '_3.cast(STRING), '_4.cast(STRING),
+        // NUMERIC TYPE -> Boolean
+      '_1.cast(BOOLEAN), '_2.cast(BOOLEAN), '_3.cast(BOOLEAN),
+        // NUMERIC TYPE -> NUMERIC TYPE
+      '_1.cast(DOUBLE), '_2.cast(INT), '_3.cast(SHORT),
+        // Boolean -> NUMERIC TYPE
+      '_4.cast(DOUBLE),
+        // identity casting
       '_1.cast(INT), '_2.cast(DOUBLE), '_3.cast(LONG), '_4.cast(BOOLEAN))
 
     val results = table.toDataSet[Row].collect()
-    val expected: String = "1,0.0,1,true," + "true,false,true," + "1.0,0,1," + "1.0," + "1,0.0,1,true\n"
+    val expected = "1,0.0,1,true," + "true,false,true," +
+      "1.0,0,1," + "1.0," + "1,0.0,1,true\n"
     compareResultAsText(results.asJava, expected)
   }
 
@@ -97,7 +105,7 @@ class CastingITCase(
         '_3.cast(DOUBLE), '_3.cast(FLOAT), '_2.cast(BOOLEAN))
 
     val results = table.toDataSet[Row].collect()
-    val expected: String = "1,1,1,1,2.0,2.0,true\n"
+    val expected = "1,1,1,1,2.0,2.0,true\n"
     compareResultAsText(results.asJava, expected)
   }
 }
