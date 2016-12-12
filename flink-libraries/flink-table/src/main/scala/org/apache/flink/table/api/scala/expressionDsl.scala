@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.api.scala
 
+import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.avatica.util.DateTimeUtils._
@@ -24,7 +25,6 @@ import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions._
-import java.math.{BigDecimal => JBigDecimal}
 
 import scala.language.implicitConversions
 
@@ -572,6 +572,64 @@ trait ImplicitExpressionConversions {
   implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression =
     Literal(sqlTimestamp)
   implicit def array2ArrayConstructor(array: Array[_]): Expression = convertArray(array)
+}
+
+/**
+  * Implicit conversions from Scala Tuples of Literals to GroupedExpression.
+  */
+trait ImplicitGroupedOperations {
+  private[flink] def expr: GroupedExpression
+
+
+
+  implicit class UnitAsGroupedExpression(unit: Unit) extends ImplicitGroupedOperations {
+    override private[flink] def expr = new GroupedExpression(Seq())
+  }
+
+  implicit class ExpressionAsGroupedExpression(expression: Expression)
+      extends ImplicitGroupedOperations {
+    override private[flink] def expr = new GroupedExpression(Seq(expression))
+  }
+
+  implicit class ProductAsGroupedExpression(product: Product)
+      extends ImplicitGroupedOperations {
+    override private[flink] def expr =
+      if (product.productArity == product.productIterator.count(_.isInstanceOf[Expression])) {
+        new GroupedExpression(product.productIterator.map(_.asInstanceOf[Expression]).toSeq)
+      } else if (product.productArity == product.productIterator.count(_.isInstanceOf[Symbol])) {
+        new GroupedExpression(
+          product.productIterator
+            .map(_.asInstanceOf[Symbol])
+            .map(s => UnresolvedFieldReference(s.name))
+            .toSeq
+        )
+      } else {
+        throw new IllegalArgumentException()
+      }
+  }
+}
+
+trait ImplicitGroupedConversions {
+
+  implicit def unitToGroupedExpression(unit: Unit): GroupedExpression =
+    new GroupedExpression(Seq())
+
+  implicit def expressionToGroupedExpression(expression: Expression): GroupedExpression =
+    new GroupedExpression(Seq(expression))
+
+  implicit def productToGroupedExpression(product: Product): GroupedExpression =
+    if (product.productArity == product.productIterator.count(_.isInstanceOf[Expression])) {
+      new GroupedExpression(product.productIterator.map(_.asInstanceOf[Expression]).toSeq)
+    } else if (product.productArity == product.productIterator.count(_.isInstanceOf[Symbol])) {
+      new GroupedExpression(
+        product.productIterator
+          .map(_.asInstanceOf[Symbol])
+          .map(s => UnresolvedFieldReference(s.name))
+          .toSeq
+      )
+    } else {
+      throw new IllegalArgumentException()
+    }
 }
 
 // ------------------------------------------------------------------------------------------------

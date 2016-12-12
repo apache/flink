@@ -86,3 +86,20 @@ abstract class UnaryExpression extends Expression {
 abstract class LeafExpression extends Expression {
   private[flink] val children = Nil
 }
+
+class GroupedExpression(
+    private[flink] val children: Seq[Expression]
+  ) extends Expression {
+
+  /**
+    * Returns the [[TypeInformation]] for evaluating this expression.
+    * It's not applicable for grouped expressions.
+    */
+  override private[flink] def resultType = ???
+
+  override def productElement(n: Int): Expression = children(n)
+
+  override def productArity: Int = children.length
+
+  override def canEqual(that: Any) = false
+}

@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.logical.Minus
-import org.apache.flink.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, Ordering, TableFunctionCall, UnresolvedAlias}
+import org.apache.flink.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, GroupedExpression, Ordering, TableFunctionCall, UnresolvedAlias}
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.sinks.TableSink
@@ -258,86 +258,100 @@ class Table(
     * Example:
     *
     * {{{
-    *   tab.groupingSets('key).select('key, 'value.avg)
+    *   tab.groupingSets(('a, 'b), ('a), ()).select('a, 'b, 'c.avg)
     * }}}
     */
-  def groupingSets(groups: Seq[Expression]*): GroupingSetsTable = {
+  def groupingSets(fields: Expression*): GroupingSetsTable = {
+    val groups = fields.map {
+      case g: GroupedExpression => g.children
+      case x => Seq(x)
+    }
     new GroupingSetsTable(this, groups, SqlKind.GROUPING_SETS)
   }
 
   /**
     * Groups the elements on some grouping keys. Use this before a selection with aggregations
-    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.groupingSets("key").select("key, value.avg")
-    * }}}
-    */
-  def groupingSets(groups: String): GroupingSetsTable = {
-    val fieldsExpr = groups.split("|").map(ExpressionParser.parseExpressionList)
-    groupingSets(fieldsExpr: _*)
-  }
-
-  /**
-    * Groups the elements on some grouping sets. Use this before a selection with aggregations
     * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY GROUPING SETS
     * statement.
     *
     * Example:
     *
     * {{{
-    *   tab.groupingSets('key).select('key, 'value.avg)
+    *   tab.groupingSets("(a, b), (a), ()").select("a, b, c.avg")
     * }}}
     */
-  def cube(groups: Seq[Expression]*): GroupingSetsTable = {
+  def groupingSets(groups: String): GroupingSetsTable = {
+//    val fieldsExpr = groups.split("|").map(ExpressionParser.parseExpressionList)
+//    groupingSets(fieldsExpr: _*)
+    ???
+  }
+
+  /**
+    * Groups the elements on cube grouping sets. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY CUBE statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.cube('a, 'b).select('a, 'b, 'c.avg)
+    * }}}
+    */
+  def cube(fields: Expression*): GroupingSetsTable = {
+    val groups = fields.map {
+      case g: GroupedExpression => g.children
+      case x => Seq(x)
+    }
     new GroupingSetsTable(this, groups, SqlKind.CUBE)
   }
 
   /**
-    * Groups the elements on some grouping keys. Use this before a selection with aggregations
-    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
+    * Groups the elements on cube grouping sets. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY CUBE statement.
     *
     * Example:
     *
     * {{{
-    *   tab.groupingSets("key").select("key, value.avg")
+    *   tab.cube("a, b").select("a, b, c.avg")
     * }}}
     */
   def cube(groups: String): GroupingSetsTable = {
-    val fieldsExpr = groups.split("|").map(ExpressionParser.parseExpressionList)
-    cube(fieldsExpr: _*)
+//    val fieldsExpr = groups.split("|").map(ExpressionParser.parseExpressionList)
+//    cube(fieldsExpr: _*)
+    ???
   }
 
   /**
-    * Groups the elements on some grouping sets. Use this before a selection with aggregations
-    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY GROUPING SETS
-    * statement.
+    * Groups the elements on rollup grouping sets. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY ROLLUP statement.
     *
     * Example:
     *
     * {{{
-    *   tab.groupingSets('key).select('key, 'value.avg)
+    *   tab.rollup('a, 'b).select('a, 'b, 'c.avg)
     * }}}
     */
-  def rollup(groups: Seq[Expression]*): GroupingSetsTable = {
+  def rollup(fields: Expression*): GroupingSetsTable = {
+    val groups = fields.map {
+      case g: GroupedExpression => g.children
+      case x => Seq(x)
+    }
     new GroupingSetsTable(this, groups, SqlKind.ROLLUP)
   }
 
   /**
-    * Groups the elements on some grouping keys. Use this before a selection with aggregations
-    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
+    * Groups the elements on rollup grouping sets. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY ROLLUP statement.
     *
     * Example:
     *
     * {{{
-    *   tab.groupingSets("key").select("key, value.avg")
+    *   tab.rollup("a, b").select("a, b, c.avg")
     * }}}
     */
   def rollup(groups: String): GroupingSetsTable = {
-    val fieldsExpr = groups.split("|").map(ExpressionParser.parseExpressionList)
-    cube(fieldsExpr: _*)
+//    val fieldsExpr = groups.split("|").map(ExpressionParser.parseExpressionList)
+//    rollup(fieldsExpr: _*)
+    ???
   }
 
   /**

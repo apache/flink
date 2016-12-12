@@ -21,7 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.{TableConfig, TableEnvironment}
-import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.expressions.{Expression, GroupedExpression}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.types.Row
@@ -269,9 +269,7 @@ class AggregationTest extends TableTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env, new TableConfig)
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val table = tEnv.fromDataSet(ds, 'a, 'b, 'c)
-    val result = table
-      .groupingSets(Seq[Expression]('a, 'b), Seq[Expression]('a), Seq[Expression]())
-      .select('a, 'b)
+    val result = table.groupingSets(('a, 'b), 'b, ()).select('a, 'b)
     result.toDataSet[Row].print()
   }
 
@@ -281,9 +279,7 @@ class AggregationTest extends TableTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env, new TableConfig)
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val table = tEnv.fromDataSet(ds, 'a, 'b, 'c)
-    val result = table
-      .cube(Seq[Expression]('a), Seq[Expression]('b), Seq[Expression]('c))
-      .select('a, 'b)
+    val result = table.cube('a, 'b).select('a, 'b)
     result.toDataSet[Row].print()
   }
 
@@ -293,9 +289,7 @@ class AggregationTest extends TableTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env, new TableConfig)
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val table = tEnv.fromDataSet(ds, 'a, 'b, 'c)
-    val result = table
-      .rollup(Seq[Expression]('a), Seq[Expression]('b))
-      .select('a, 'b)
+    val result = table.rollup('a, 'b).select('a, 'b)
     result.toDataSet[Row].print()
   }
 }
