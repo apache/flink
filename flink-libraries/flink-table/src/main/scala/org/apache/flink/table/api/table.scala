@@ -263,7 +263,7 @@ class Table(
     */
   def groupingSets(fields: Expression*): GroupingSetsTable = {
     val groups = fields.map {
-      case g: GroupedExpression => g.children
+      case g: GroupedExpression => g.flatChildren
       case x => Seq(x)
     }
     new GroupingSetsTable(this, groups, SqlKind.GROUPING_SETS)

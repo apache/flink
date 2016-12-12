@@ -125,6 +125,7 @@ object ProjectionTranslator {
       case prop: WindowProperty =>
         val name = propNames(prop)
         Alias(UnresolvedFieldReference(name), tableEnv.createUniqueAttributeName())
+      case g: GroupFunction => g
       case n @ Alias(agg: Aggregation, name, _) =>
         val aName = aggNames(agg)
         Alias(UnresolvedFieldReference(aName), name)

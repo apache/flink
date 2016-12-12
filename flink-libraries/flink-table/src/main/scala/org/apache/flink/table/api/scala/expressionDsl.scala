@@ -485,6 +485,19 @@ trait ImplicitExpressionOperations {
     * @return the first and only element of an array with a single element
     */
   def element() = ArrayElement(expr)
+
+  /**
+    * Grouping function. Similar to a SQL GROUPING_ID function.
+    */
+  def groupingId(): Expression = expr match {
+    case g: GroupedExpression => GroupingId(g.flatChildren: _*)
+    case x => GroupingId(x)
+  }
+
+  /**
+    * Grouping function. Similar to a SQL GROUPING function.
+    */
+  def grouping(): Expression = Grouping(expr)
 }
 
 /**
@@ -580,32 +593,13 @@ trait ImplicitExpressionConversions {
 trait ImplicitGroupedOperations {
   private[flink] def expr: GroupedExpression
 
-
-
   implicit class UnitAsGroupedExpression(unit: Unit) extends ImplicitGroupedOperations {
     override private[flink] def expr = new GroupedExpression(Seq())
   }
 
-  implicit class ExpressionAsGroupedExpression(expression: Expression)
-      extends ImplicitGroupedOperations {
-    override private[flink] def expr = new GroupedExpression(Seq(expression))
-  }
-
   implicit class ProductAsGroupedExpression(product: Product)
       extends ImplicitGroupedOperations {
-    override private[flink] def expr =
-      if (product.productArity == product.productIterator.count(_.isInstanceOf[Expression])) {
-        new GroupedExpression(product.productIterator.map(_.asInstanceOf[Expression]).toSeq)
-      } else if (product.productArity == product.productIterator.count(_.isInstanceOf[Symbol])) {
-        new GroupedExpression(
-          product.productIterator
-            .map(_.asInstanceOf[Symbol])
-            .map(s => UnresolvedFieldReference(s.name))
-            .toSeq
-        )
-      } else {
-        throw new IllegalArgumentException()
-      }
+    override private[flink] def expr = new GroupedExpression(product)
   }
 }
 
@@ -614,22 +608,8 @@ trait ImplicitGroupedConversions {
   implicit def unitToGroupedExpression(unit: Unit): GroupedExpression =
     new GroupedExpression(Seq())
 
-  implicit def expressionToGroupedExpression(expression: Expression): GroupedExpression =
-    new GroupedExpression(Seq(expression))
-
   implicit def productToGroupedExpression(product: Product): GroupedExpression =
-    if (product.productArity == product.productIterator.count(_.isInstanceOf[Expression])) {
-      new GroupedExpression(product.productIterator.map(_.asInstanceOf[Expression]).toSeq)
-    } else if (product.productArity == product.productIterator.count(_.isInstanceOf[Symbol])) {
-      new GroupedExpression(
-        product.productIterator
-          .map(_.asInstanceOf[Symbol])
-          .map(s => UnresolvedFieldReference(s.name))
-          .toSeq
-      )
-    } else {
-      throw new IllegalArgumentException()
-    }
+    new GroupedExpression(product)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -744,6 +724,39 @@ object array {
   def apply(head: Expression, tail: Expression*): Expression = {
     ArrayConstructor(head +: tail.toSeq)
   }
+}
+
+/**
+  * Grouping function. Similar to a SQL GROUP_ID function.
+  */
+object groupId {
+
+  /**
+    * Return evaluated result of the function.
+    */
+  def apply(): Expression = GroupId()
+}
+
+/**
+  * Grouping function. Similar to a SQL GROUPING function.
+  */
+object grouping {
+
+  /**
+    * Return evaluated result of the function.
+    */
+  def apply(expression: Expression): Expression = Grouping(expression)
+}
+
+/**
+  * Grouping function. Similar to a SQL GROUPING function.
+  */
+object groupingId {
+
+  /**
+    * Return evaluated result of the function.
+    */
+  def apply(expression: Expression*): Expression = GroupingId(expression: _*)
 }
 
 // scalastyle:on object.name
