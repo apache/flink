@@ -297,7 +297,7 @@ class Table(
     */
   def cube(fields: Expression*): GroupingSetsTable = {
     val groups = fields.map {
-      case g: GroupedExpression => g.children
+      case g: GroupedExpression => g.flatChildren
       case x => Seq(x)
     }
     new GroupingSetsTable(this, groups, SqlKind.CUBE)
@@ -330,7 +330,7 @@ class Table(
     */
   def rollup(fields: Expression*): GroupingSetsTable = {
     val groups = fields.map {
-      case g: GroupedExpression => g.children
+      case g: GroupedExpression => g.flatChildren
       case x => Seq(x)
     }
     new GroupingSetsTable(this, groups, SqlKind.ROLLUP)
