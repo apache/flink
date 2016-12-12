@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.api
 
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.SqlKind
-import org.apache.calcite.sql.validate.SqlValidatorUtil
-import org.apache.calcite.util.ImmutableBitSet
+import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -71,7 +70,7 @@ class Table(
     logicalPlan.output.map(_.name).toArray,
     logicalPlan.output.map(_.resultType).toArray)
 
-  def relBuilder = tableEnv.getRelBuilder
+  def relBuilder: RelBuilder = tableEnv.getRelBuilder
 
   def getRelNode: RelNode = logicalPlan.toRelNode(relBuilder)
 
@@ -1033,7 +1032,6 @@ class GroupWindowedTable(
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
     select(fieldExprs: _*)
   }
-
 }
 
 /**
@@ -1063,8 +1061,8 @@ class GroupingSetsTable(
     }
 
     val groupingSets = sqlKind match {
-      case SqlKind.CUBE => cube(groups)
-      case SqlKind.ROLLUP => rollup(groups)
+      case SqlKind.CUBE => ExpressionUtils.cube(groups)
+      case SqlKind.ROLLUP => ExpressionUtils.rollup(groups)
       case _ => groups
     }
 
@@ -1074,8 +1072,7 @@ class GroupingSetsTable(
         GroupingAggregation(
           groupingSets,
           aggs,
-          table.logicalPlan,
-          sqlKind
+          table.logicalPlan
         ).validate(table.tableEnv)
       ).validate(table.tableEnv)
 
@@ -1097,35 +1094,81 @@ class GroupingSetsTable(
     select(fieldExprs: _*)
   }
 
-  /** Computes the rollup of bit sets.
+  /**
+    * Groups the records of a table by assigning them to windows defined by a time or row interval.
     *
-    * <p>For example, <code>rollup({0}, {1})</code>
-    * returns <code>({0, 1}, {0}, {})</code>.
+    * For streaming tables of infinite size, grouping into windows is required to define finite
+    * groups on which group-based aggregates can be computed.
     *
-    * <p>Bit sets are not necessarily singletons:
-    * <code>rollup({0, 2}, {3, 5})</code>
-    * returns <code>({0, 2, 3, 5}, {0, 2}, {})</code>. */
-  private def rollup(groups: Seq[Seq[Expression]]): Seq[Seq[Expression]] = {
-    val originalBitSet = for (i <- groups.indices) yield {
-      ImmutableBitSet.builder().set(i).build()
+    * For batch tables of finite size, windowing essentially provides shortcuts for time-based
+    * groupBy.
+    *
+    * @param groupWindow group-window that specifies how elements are grouped.
+    * @return A windowed table.
+    */
+  def window(groupWindow: GroupWindow): GroupingSetsWindowedTable = {
+    if (table.tableEnv.isInstanceOf[BatchTableEnvironment]) {
+      throw new ValidationException(s"Windows on batch tables are currently not supported.")
     }
-    val rollupBitSets = SqlValidatorUtil.rollup(originalBitSet.asJava)
-    rollupBitSets.asScala.map(_.asScala.flatMap(i => groups(i)).toSeq)
+    new GroupingSetsWindowedTable(table, groups, sqlKind, groupWindow)
+  }
+}
+
+class GroupingSetsWindowedTable(
+  private[flink] val table: Table,
+  private[flink] val groups: Seq[Seq[Expression]],
+  private[flink] val sqlKind: SqlKind,
+  private[flink] val window: GroupWindow) {
+
+  /**
+    * Performs a selection operation on a windowed table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   groupWindowTable.select('key, 'window.start, 'value.avg + " The average" as 'average)
+    * }}}
+    */
+  def select(fields: Expression*): Table = {
+
+    val (projection, aggs, props) = extractAggregationsAndProperties(fields, table.tableEnv)
+
+    val groupWindow = window.toLogicalWindow
+
+    val groupingSets = sqlKind match {
+      case SqlKind.CUBE => ExpressionUtils.cube(groups)
+      case SqlKind.ROLLUP => ExpressionUtils.rollup(groups)
+      case _ => groups
+    }
+
+    val logical =
+      Project(
+        projection,
+        GroupingWindowAggregate(
+          groupWindow,
+          groupingSets,
+          props,
+          aggs,
+          table.logicalPlan
+        ).validate(table.tableEnv)
+      ).validate(table.tableEnv)
+
+    new Table(table.tableEnv, logical)
   }
 
-  /** Computes the cube of bit sets.
+  /**
+    * Performs a selection operation on a group-windows table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
     *
-    * <p>For example,  <code>rollup({0}, {1})</code>
-    * returns <code>({0, 1}, {0}, {})</code>.
+    * Example:
     *
-    * <p>Bit sets are not necessarily singletons:
-    * <code>rollup({0, 2}, {3, 5})</code>
-    * returns <code>({0, 2, 3, 5}, {0, 2}, {})</code>. */
-  private def cube(groups: Seq[Seq[Expression]]): Seq[Seq[Expression]] = {
-    val originalBitSet = for (i <- groups.indices) yield {
-      ImmutableBitSet.builder().set(i).build()
-    }
-    val cubeBitSets = SqlValidatorUtil.cube(originalBitSet.asJava)
-    cubeBitSets.asScala.map(_.asScala.flatMap(i => groups(i)).toSeq)
+    * {{{
+    *   groupWindowTable.select("key, window.start, value.avg + ' The average' as average")
+    * }}}
+    */
+  def select(fields: String): Table = {
+    val fieldExprs = ExpressionParser.parseExpressionList(fields)
+    select(fieldExprs: _*)
   }
 }
