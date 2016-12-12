@@ -23,9 +23,12 @@ import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.OwnedCloseableRegistryImpl;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.OwnedCloseableRegistry;
 import org.apache.flink.util.Preconditions;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -35,10 +38,10 @@ import java.util.NoSuchElementException;
 /**
  * Default implementation of {@link StateInitializationContext}.
  */
-public class StateInitializationContextImpl implements StateInitializationContext {
+public class StateInitializationContextImpl implements StateInitializationContext, Closeable {
 
 	/** Closable registry to participate in the operator's cancel/close methods */
-	private final CloseableRegistry closableRegistry;
+	private final OwnedCloseableRegistry<Closeable> closableRegistry;
 
 	/** Signal whether any state to restore was found */
 	private final boolean restored;
@@ -56,11 +59,10 @@ public class StateInitializationContextImpl implements StateInitializationContex
 			OperatorStateStore operatorStateStore,
 			KeyedStateStore keyedStateStore,
 			Collection<KeyGroupsStateHandle> keyGroupsStateHandles,
-			Collection<OperatorStateHandle> operatorStateHandles,
-			CloseableRegistry closableRegistry) {
+			Collection<OperatorStateHandle> operatorStateHandles) {
 
 		this.restored = restored;
-		this.closableRegistry = Preconditions.checkNotNull(closableRegistry);
+		this.closableRegistry = new OwnedCloseableRegistryImpl();
 		this.operatorStateStore = operatorStateStore;
 		this.keyedStateStore = keyedStateStore;
 		this.operatorStateHandles = operatorStateHandles;
@@ -89,7 +91,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		return keyGroupsStateHandles;
 	}
 
-	public CloseableRegistry getClosableRegistry() {
+	public CloseableRegistry<Closeable> getClosableRegistry() {
 		return closableRegistry;
 	}
 
@@ -132,6 +134,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		return keyedStateStore;
 	}
 
+	@Override
 	public void close() {
 		IOUtils.closeQuietly(closableRegistry);
 	}
@@ -142,7 +145,8 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		private Iterator<Tuple2<Integer, Long>> currentOffsetsIterator;
 
 		public KeyGroupStreamIterator(
-				Iterator<KeyGroupsStateHandle> stateHandleIterator, CloseableRegistry closableRegistry) {
+				Iterator<KeyGroupsStateHandle> stateHandleIterator,
+				CloseableRegistry<Closeable> closableRegistry) {
 
 			super(stateHandleIterator, closableRegistry);
 		}
@@ -202,7 +206,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		public OperatorStateStreamIterator(
 				String stateName,
 				Iterator<OperatorStateHandle> stateHandleIterator,
-				CloseableRegistry closableRegistry) {
+				CloseableRegistry<Closeable> closableRegistry) {
 
 			super(stateHandleIterator, closableRegistry);
 			this.stateName = Preconditions.checkNotNull(stateName);
@@ -269,14 +273,14 @@ public class StateInitializationContextImpl implements StateInitializationContex
 			implements Iterator<T> {
 
 		protected final Iterator<H> stateHandleIterator;
-		protected final CloseableRegistry closableRegistry;
+		protected final CloseableRegistry<Closeable> closableRegistry;
 
 		protected H currentStateHandle;
 		protected FSDataInputStream currentStream;
 
 		public AbstractStateStreamIterator(
 				Iterator<H> stateHandleIterator,
-				CloseableRegistry closableRegistry) {
+				CloseableRegistry<Closeable> closableRegistry) {
 
 			this.stateHandleIterator = Preconditions.checkNotNull(stateHandleIterator);
 			this.closableRegistry = Preconditions.checkNotNull(closableRegistry);

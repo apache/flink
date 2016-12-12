@@ -23,9 +23,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.OwnedCloseableRegistryImpl;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.OwnedCloseableRegistry;
 import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0Serializer;
 import org.apache.flink.migration.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.migration.util.MigrationInstantiationUtil;
@@ -63,6 +64,7 @@ import org.apache.flink.util.Preconditions;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.io.Closeable;
 import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -95,7 +97,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 	final Environment environment;
 
-	CloseableRegistry closableRegistry;
+	OwnedCloseableRegistry<Closeable> closableRegistry;
 
 	// use this as default for tests
 	protected AbstractStateBackend stateBackend = new MemoryStateBackend();
@@ -148,7 +150,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		this.config = new StreamConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
 		this.executionConfig = environment.getExecutionConfig();
-		this.closableRegistry = new CloseableRegistry();
+		this.closableRegistry = new OwnedCloseableRegistryImpl();
 		this.checkpointLock = new Object();
 
 		this.environment = Preconditions.checkNotNull(environment);

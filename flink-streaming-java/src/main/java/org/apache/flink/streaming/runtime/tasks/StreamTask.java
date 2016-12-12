@@ -24,6 +24,8 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.OwnedCloseableRegistryImpl;
+import org.apache.flink.core.fs.OwnedCloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -164,7 +166,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 
 	/** The currently active background materialization threads */
-	private final CloseableRegistry cancelables = new CloseableRegistry();
+	private final OwnedCloseableRegistry<Closeable> cancelables = new OwnedCloseableRegistryImpl();
 
 	/** Flag to mark the task "in operation", in which case check
 	 * needs to be initialized to true, so that early cancel() before invoke() behaves correctly */
@@ -1024,7 +1026,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
-	public CloseableRegistry getCancelables() {
+	public CloseableRegistry<Closeable> getCancelables() {
 		return cancelables;
 	}
 

@@ -33,7 +33,8 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.OwnedCloseableRegistryImpl;
+import org.apache.flink.core.fs.OwnedCloseableRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
@@ -86,7 +87,7 @@ public abstract class AbstractKeyedStateBackend<K>
 	protected final TaskKvStateRegistry kvStateRegistry;
 
 	/** Registry for all opened streams, so they can be closed if the task using this backend is closed */
-	protected CloseableRegistry cancelStreamRegistry;
+	protected OwnedCloseableRegistry<Closeable> cancelStreamRegistry;
 
 	protected final ClassLoader userCodeClassLoader;
 
@@ -102,7 +103,7 @@ public abstract class AbstractKeyedStateBackend<K>
 		this.numberOfKeyGroups = Preconditions.checkNotNull(numberOfKeyGroups);
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 		this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
-		this.cancelStreamRegistry = new CloseableRegistry();
+		this.cancelStreamRegistry = new OwnedCloseableRegistryImpl();
 		this.keyValueStatesByName = new HashMap<>();
 	}
 
@@ -232,6 +233,7 @@ public abstract class AbstractKeyedStateBackend<K>
 	/**
 	 * @see KeyedStateBackend
 	 */
+	@Override
 	public KeyGroupRange getKeyGroupRange() {
 		return keyGroupRange;
 	}
@@ -253,7 +255,7 @@ public abstract class AbstractKeyedStateBackend<K>
 		}
 
 		if (!stateDescriptor.isSerializerInitialized()) {
-			throw new IllegalStateException("The serializer of the descriptor has not been initialized!"); 
+			throw new IllegalStateException("The serializer of the descriptor has not been initialized!");
 		}
 
 		InternalKvState<?> existing = keyValueStatesByName.get(stateDescriptor.getName());
@@ -285,7 +287,6 @@ public abstract class AbstractKeyedStateBackend<K>
 					AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception {
 				return AbstractKeyedStateBackend.this.createAggregatingState(namespaceSerializer, stateDesc);
 			}
-			
 
 			@Override
 			public <T, ACC> FoldingState<T, ACC> createFoldingState(FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
@@ -315,7 +316,7 @@ public abstract class AbstractKeyedStateBackend<K>
 	 * TODO: NOTE: This method does a lot of work caching / retrieving states just to update the namespace.
 	 *       This method should be removed for the sake of namespaces being lazily fetched from the keyed
 	 *       state backend, or being set on the state directly.
-	 * 
+	 *
 	 * @see KeyedStateBackend
 	 */
 	@SuppressWarnings("unchecked")

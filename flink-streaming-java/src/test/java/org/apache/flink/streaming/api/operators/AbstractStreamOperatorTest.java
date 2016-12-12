@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.OwnedCloseableRegistryImpl;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -45,6 +46,7 @@ import org.mockito.internal.util.reflection.Whitebox;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -486,7 +488,7 @@ public class AbstractStreamOperatorTest {
 		final long checkpointId = 42L;
 		final long timestamp = 1L;
 
-		final CloseableRegistry closeableRegistry = new CloseableRegistry();
+		final CloseableRegistry<Closeable> closeableRegistry = new OwnedCloseableRegistryImpl();
 
 		StateSnapshotContextSynchronousImpl context = mock(StateSnapshotContextSynchronousImpl.class);
 
@@ -516,7 +518,7 @@ public class AbstractStreamOperatorTest {
 
 		final Exception failingException = new Exception("Test exception");
 
-		final CloseableRegistry closeableRegistry = new CloseableRegistry();
+		final CloseableRegistry<Closeable> closeableRegistry = new OwnedCloseableRegistryImpl();
 
 		StateSnapshotContextSynchronousImpl context = mock(StateSnapshotContextSynchronousImpl.class);
 
@@ -555,7 +557,7 @@ public class AbstractStreamOperatorTest {
 
 		final Exception failingException = new Exception("Test exception");
 
-		final CloseableRegistry closeableRegistry = new CloseableRegistry();
+		final CloseableRegistry<Closeable> closeableRegistry = new OwnedCloseableRegistryImpl();
 
 		RunnableFuture<KeyGroupsStateHandle> futureKeyGroupStateHandle = mock(RunnableFuture.class);
 		RunnableFuture<OperatorStateHandle> futureOperatorStateHandle = mock(RunnableFuture.class);

@@ -18,6 +18,8 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.core.fs.OwnedCloseableRegistry;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
@@ -33,12 +35,12 @@ import java.util.Map;
  * @param <C> Type of the closeable this registers
  * @param <T> Type for potential meta data associated with the registering closeables
  */
-public abstract class AbstractCloseableRegistry<C extends Closeable, T> implements Closeable {
+public abstract class AbstractOwnedCloseableRegistry<C extends Closeable, T> implements OwnedCloseableRegistry<C> {
 
 	protected final Map<Closeable, T> closeableToRef;
 	private boolean closed;
 
-	public AbstractCloseableRegistry(Map<Closeable, T> closeableToRef) {
+	public AbstractOwnedCloseableRegistry(Map<Closeable, T> closeableToRef) {
 		this.closeableToRef = closeableToRef;
 		this.closed = false;
 	}
@@ -48,9 +50,9 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 	 * {@link IllegalStateException} and closes the passed {@link Closeable}.
 	 *
 	 * @param closeable Closeable tor register
-	 * @return true if the the Closeable was newly added to the registry
 	 * @throws IOException exception when the registry was closed before
 	 */
+	@Override
 	public final void registerClosable(C closeable) throws IOException {
 
 		if (null == closeable) {
@@ -71,8 +73,8 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 	 * Removes a {@link Closeable} from the registry.
 	 *
 	 * @param closeable instance to remove from the registry.
-	 * @return true, if the instance was actually registered and now removed
 	 */
+	@Override
 	public final void unregisterClosable(C closeable) {
 
 		if (null == closeable) {

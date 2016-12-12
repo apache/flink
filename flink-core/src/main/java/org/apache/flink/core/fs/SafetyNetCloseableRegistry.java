@@ -20,7 +20,7 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.AbstractCloseableRegistry;
+import org.apache.flink.util.AbstractOwnedCloseableRegistry;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingProxyUtil;
 
@@ -36,20 +36,20 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 /**
- * This implementation of an {@link AbstractCloseableRegistry} registers {@link WrappingProxyCloseable}. When
+ * This implementation of an {@link AbstractOwnedCloseableRegistry} registers {@link WrappingProxyCloseable}. When
  * the proxy becomes subject to GC, this registry takes care of closing unclosed {@link Closeable}s.
  * <p>
  * Phantom references are used to track when {@link org.apache.flink.util.WrappingProxy}s of {@link Closeable} got
  * GC'ed. We ensure that the wrapped {@link Closeable} is properly closed to avoid resource leaks.
  * <p>
- * Other than that, it works like a normal {@link CloseableRegistry}.
+ * Other than that, it works like a normal {@link AbstractOwnedCloseableRegistry}.
  * <p>
  * All methods in this class are thread-safe.
  */
 @Internal
 public class SafetyNetCloseableRegistry extends
-		AbstractCloseableRegistry<WrappingProxyCloseable<? extends Closeable>,
-				SafetyNetCloseableRegistry.PhantomDelegatingCloseableRef> {
+		AbstractOwnedCloseableRegistry<WrappingProxyCloseable<? extends Closeable>,
+						SafetyNetCloseableRegistry.PhantomDelegatingCloseableRef> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SafetyNetCloseableRegistry.class);
 

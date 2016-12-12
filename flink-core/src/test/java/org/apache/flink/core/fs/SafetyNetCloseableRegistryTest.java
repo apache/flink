@@ -28,6 +28,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class SafetyNetCloseableRegistryTest {
@@ -186,8 +187,9 @@ public class SafetyNetCloseableRegistryTest {
 			Thread.sleep(50);
 		}
 
-		Assert.assertEquals(0, unclosedCounter.get());
+		Assert.assertEquals(streamOpenThreads.length, unclosedCounter.get());
 		closeableRegistry.close();
+		Assert.assertEquals(0, unclosedCounter.get());
 	}
 
 	@Test
@@ -212,6 +214,7 @@ public class SafetyNetCloseableRegistryTest {
 		private final SafetyNetCloseableRegistry registry;
 		private final AtomicInteger refCount;
 		private int maxStreams;
+		private InputStream inputStream;
 
 		public ProducerThread(SafetyNetCloseableRegistry registry, AtomicInteger refCount, int maxStreams) {
 			this.registry = registry;
@@ -236,8 +239,7 @@ public class SafetyNetCloseableRegistryTest {
 					TestStream testStream = new TestStream(refCount);
 					refCount.incrementAndGet();
 
-					@SuppressWarnings("unused")
-					ClosingFSDataInputStream pis = ClosingFSDataInputStream.wrapSafe(testStream, registry, debug); //reference dies here
+					inputStream = ClosingFSDataInputStream.wrapSafe(testStream, registry, debug); //reference dies here
 
 					try {
 						Thread.sleep(2);

@@ -21,6 +21,7 @@ package org.apache.flink.core.fs;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This class is a {@link org.apache.flink.util.WrappingProxy} for {@link FSDataInputStream} that is used to
@@ -33,26 +34,24 @@ public class ClosingFSDataInputStream
 		implements WrappingProxyCloseable<FSDataInputStream> {
 
 	private final SafetyNetCloseableRegistry registry;
+	private final AtomicBoolean closed;
 	private final String debugInfo;
-
-	private volatile boolean closed;
 
 	private ClosingFSDataInputStream(
 			FSDataInputStream delegate, SafetyNetCloseableRegistry registry, String debugInfo) throws IOException {
 		super(delegate);
 		this.registry = Preconditions.checkNotNull(registry);
 		this.debugInfo = Preconditions.checkNotNull(debugInfo);
-		this.closed = false;
+		this.closed = new AtomicBoolean(false);
 	}
 
 	public boolean isClosed() {
-		return closed;
+		return closed.get();
 	}
 
 	@Override
 	public void close() throws IOException {
-		if (!closed) {
-			closed = true;
+		if (closed.compareAndSet(false, true)) {
 			registry.unregisterClosable(this);
 			inputStream.close();
 		}

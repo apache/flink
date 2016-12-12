@@ -19,25 +19,13 @@
 package org.apache.flink.core.fs;
 
 import java.io.Closeable;
-import java.io.IOException;
 
 /**
- * Interface for un/registering @{@link Closeable} objects to a listener.
+ * This interface extends the {@link CloseableRegistry} interface by a close() method that should only be visible to
+ * the object owning the registry. This establishes a separation of concerns between objects that we can pass a plain
+ * {@link CloseableRegistry}, so that they can register their closeable objects and the owner that is finally
+ * responsible for closing a registry. This prevents accidental closing by objects that are not allowed to do so.
+ *
+ * @param <C> type of the {@link Closeable} that can register
  */
-public interface CloseableRegistry<C extends Closeable> {
-
-	/**
-	 * Register a closeable object.
-	 *
-	 * @param closeable object to register
-	 * @throws IOException if the registry is already closed. The argument closeable will also be closed in this case.
-	 */
-	void registerClosable(C closeable) throws IOException;
-
-	/**
-	 * Unregister a closeable object.
-	 *
-	 * @param closeable object to unregister
-	 */
-	void unregisterClosable(C closeable);
-}
+public interface OwnedCloseableRegistry<C extends Closeable> extends CloseableRegistry<C>, Closeable {}

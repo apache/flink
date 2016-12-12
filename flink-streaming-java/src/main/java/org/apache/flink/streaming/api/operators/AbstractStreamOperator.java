@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -66,6 +67,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
@@ -214,15 +216,21 @@ public abstract class AbstractStreamOperator<OUT>
 
 		initOperatorState(operatorStateHandlesBackend);
 
-		StateInitializationContext initializationContext = new StateInitializationContextImpl(
+		StateInitializationContextImpl initializationContext = new StateInitializationContextImpl(
 				restoring, // information whether we restore or start for the first time
 				operatorStateBackend, // access to operator state backend
 				keyedStateStore, // access to keyed state backend
 				keyedStateHandlesRaw, // access to keyed state stream
-				operatorStateHandlesRaw, // access to operator state stream
-				getContainingTask().getCancelables()); // access to register streams for canceling
+				operatorStateHandlesRaw); // access to operator state stream
 
-		initializeState(initializationContext);
+		CloseableRegistry<Closeable> closeableRegistry = getContainingTask().getCancelables();
+		try {
+			closeableRegistry.registerClosable(initializationContext);
+			initializeState(initializationContext);
+		} finally {
+			closeableRegistry.unregisterClosable(initializationContext);
+			IOUtils.closeQuietly(initializationContext);
+		}
 	}
 
 	@Deprecated
@@ -505,7 +513,7 @@ public abstract class AbstractStreamOperator<OUT>
 			return getClass().getSimpleName();
 		}
 	}
-	
+
 	/**
 	 * Returns a context that allows the operator to query information about the execution and also
 	 * to interact with systems such as broadcast variables and managed state. This also allows
@@ -559,7 +567,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	/**
 	 * Creates a partitioned state handle, using the state backend configured for this task.
-	 * 
+	 *
 	 * TODO: NOTE: This method does a lot of work caching / retrieving states just to update the namespace.
 	 *       This method should be removed for the sake of namespaces being lazily fetched from the keyed
 	 *       state backend, or being set on the state directly.
