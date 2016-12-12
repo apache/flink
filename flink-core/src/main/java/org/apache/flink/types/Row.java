@@ -19,18 +19,19 @@ package org.apache.flink.types;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.util.StringUtils;
 
 import java.io.Serializable;
 import java.util.Arrays;
 
 /**
- * A Row has no limited length and contain a set of fields, which may all be different types.
- * Because Row is not strongly typed, Flink's type extraction mechanism can't extract correct field
- * types. So that users should manually tell Flink the type information via creating a
- * {@link RowTypeInfo}.
+ * A Row can have arbitrary number of fields and contain a set of fields, which may all be
+ * different types. The fields in Row can be null. Due to Row is not strongly typed, Flink's
+ * type extraction mechanism can't extract correct field types. So that users should manually
+ * tell Flink the type information via creating a {@link RowTypeInfo}.
  *
  * <p>
- * The fields in the Row may be accessed by position (zero-based) {@link #getField(int)}. And can
+ * The fields in the Row can be accessed by position (zero-based) {@link #getField(int)}. And can
  * set fields by {@link #setField(int, Object)}.
  * <p>
  * Row is in principle serializable. However, it may contain non-serializable fields,
@@ -47,15 +48,15 @@ public class Row implements Serializable{
 
 	/**
 	 * Create a new Row instance.
-	 * @param arity The number of field in the Row
+	 * @param arity The number of fields in the Row
 	 */
 	public Row(int arity) {
 		this.fields = new Object[arity];
 	}
 
 	/**
-	 * Get the number of field in the Row.
-	 * @return The number of field in the Row.
+	 * Get the number of fields in the Row.
+	 * @return The number of fields in the Row.
 	 */
 	public int getArity() {
 		return fields.length;
@@ -84,7 +85,14 @@ public class Row implements Serializable{
 
 	@Override
 	public String toString() {
-		return Arrays.deepToString(fields);
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < fields.length; i++) {
+			if (i > 0) {
+				sb.append(",");
+			}
+			sb.append(StringUtils.arrayAwareToString(fields[i]));
+		}
+		return sb.toString();
 	}
 
 	@Override
@@ -98,9 +106,7 @@ public class Row implements Serializable{
 
 		Row row = (Row) o;
 
-		// Probably incorrect - comparing Object[] arrays with Arrays.equals
 		return Arrays.equals(fields, row.fields);
-
 	}
 
 	@Override

@@ -27,7 +27,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.types.Row;
-import org.junit.Before;
+import org.junit.BeforeClass;
 
 import java.io.Serializable;
 
@@ -35,7 +35,7 @@ import static org.junit.Assert.assertEquals;
 
 public class RowComparatorTest extends ComparatorTestBase<Row> {
 
-	private final RowTypeInfo typeInfo = new RowTypeInfo(
+	private static final RowTypeInfo typeInfo = new RowTypeInfo(
 		BasicTypeInfo.INT_TYPE_INFO,
 		BasicTypeInfo.DOUBLE_TYPE_INFO,
 		BasicTypeInfo.STRING_TYPE_INFO,
@@ -46,11 +46,11 @@ public class RowComparatorTest extends ComparatorTestBase<Row> {
 		),
 		TypeExtractor.createTypeInfo(MyPojo.class));
 
-	private MyPojo testPojo1 = new MyPojo();
-	private MyPojo testPojo2 = new MyPojo();
-	private MyPojo testPojo3 = new MyPojo();
+	private static MyPojo testPojo1 = new MyPojo();
+	private static MyPojo testPojo2 = new MyPojo();
+	private static MyPojo testPojo3 = new MyPojo();
 
-	private final Row[] data = new Row[]{
+	private static final Row[] data = new Row[]{
 		createRow(null, null, null, null, null),
 		createRow(0, null, null, null, null),
 		createRow(0, 0.0, null, null, null),
@@ -67,8 +67,8 @@ public class RowComparatorTest extends ComparatorTestBase<Row> {
 		createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo3)
 	};
 
-	@Before
-	public void init() {
+	@BeforeClass
+	public static void init() {
 		// TODO we cannot test null here as PojoComparator has no support for null keys
 		testPojo1.name = "";
 		testPojo2.name = "Test1";

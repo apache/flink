@@ -60,6 +60,7 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 		boolean[] orders,
 		int logicalFieldOffset,
 		ExecutionConfig config) {
+
 		comparatorOrders = orders;
 		TypeComparator<Row> comparator = super.createComparator(
 			logicalKeyFields,
