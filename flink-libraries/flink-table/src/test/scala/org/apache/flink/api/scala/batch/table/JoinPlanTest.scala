@@ -24,14 +24,11 @@ import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigM
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.table.expressions.Literal
-import org.apache.flink.api.table.{Row, TableEnvironment, TableException, ValidationException}
+import org.apache.flink.api.table.TableEnvironment
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
-import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class JoinPlanTest(

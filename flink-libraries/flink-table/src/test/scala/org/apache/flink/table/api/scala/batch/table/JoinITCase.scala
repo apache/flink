@@ -19,7 +19,6 @@
 package org.apache.flink.table.api.scala.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.batch.utils.LogicalPlanFormatUtils
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.api.scala._
