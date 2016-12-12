@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -85,7 +84,7 @@ public class ChainedStateHandle<T extends StateObject> implements StateObject {
 	}
 
 	@Override
-	public long getStateSize() throws IOException {
+	public long getStateSize() {
 		long sumStateSize = 0;
 
 		if (operatorStateHandles != null) {

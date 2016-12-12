@@ -50,7 +50,7 @@ public class MigrationStreamStateHandle implements StreamStateHandle {
 	}
 
 	@Override
-	public long getStateSize() throws IOException {
+	public long getStateSize() {
 		return delegate.getStateSize();
 	}
 }

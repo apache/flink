@@ -70,7 +70,7 @@ public class RetrievableStreamStateHandle<T extends Serializable> implements
 	}
 
 	@Override
-	public long getStateSize() throws IOException {
+	public long getStateSize() {
 		return wrappedStreamStateHandle.getStateSize();
 	}
 

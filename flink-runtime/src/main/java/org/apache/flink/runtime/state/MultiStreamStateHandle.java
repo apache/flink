@@ -58,7 +58,7 @@ public class MultiStreamStateHandle implements StreamStateHandle {
 	}
 
 	@Override
-	public long getStateSize() throws IOException {
+	public long getStateSize() {
 		return stateSize;
 	}
 

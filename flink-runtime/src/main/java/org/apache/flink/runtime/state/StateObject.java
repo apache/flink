@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import java.io.IOException;
-
 /**
  * Base of all types that represent checkpointed state. Specializations are for
  * example {@link StateHandle StateHandles} (directly resolve to state).
@@ -45,7 +43,6 @@ public interface StateObject extends java.io.Serializable {
 	 * <p>If the the size is not known, return {@code 0}.
 	 *
 	 * @return Size of the state in bytes.
-	 * @throws IOException If the operation fails during size retrieval.
 	 */
-	long getStateSize() throws IOException;
+	long getStateSize();
 }

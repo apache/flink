@@ -93,10 +93,9 @@ public class FileStateHandle implements StreamStateHandle {
 	 * Returns the file size in bytes.
 	 *
 	 * @return The file size in bytes.
-	 * @throws IOException Thrown if the file system cannot be accessed.
 	 */
 	@Override
-	public long getStateSize() throws IOException {
+	public long getStateSize() {
 		return stateSize;
 	}
 
