@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -190,6 +191,28 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 					"Nested field expression \""+ tail + "\" not possible on atomic type "+fieldType+".");
 			}
 		}
+	}
+
+	public RowTypeInfo(TypeInformation<?> mainType, int size, Map<Integer, TypeInformation<?>> additionalTypes) {
+		this(configureTypes(mainType, size, additionalTypes));
+	}
+
+	public RowTypeInfo(TypeInformation<?> mainType, int size) {
+		this(configureTypes(mainType, size, Collections.<Integer, TypeInformation<?>>emptyMap()));
+	}
+
+	private static TypeInformation<?>[] configureTypes(TypeInformation<?> mainType, int size, Map<Integer, TypeInformation<?>> additionalTypes) {
+		TypeInformation<?>[] types = new TypeInformation<?>[size];
+		Arrays.fill(types, mainType);
+		for (Map.Entry<Integer, TypeInformation<?>> e : additionalTypes.entrySet()) {
+			int i = e.getKey();
+			if (i < size) {
+				types[i] = e.getValue();
+			} else {
+				throw new IndexOutOfBoundsException(i + " is higher than or equal to" + size);
+			}
+		}
+		return types;
 	}
 
 	@Override

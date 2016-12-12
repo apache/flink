@@ -27,18 +27,19 @@ import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
-import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfoBase, ValueTypeInfo}
+import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.java.{CollectionEnvironment, ExecutionEnvironment => JavaEnv}
 import org.apache.flink.api.scala.hadoop.{mapred, mapreduce}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.Path
-import org.apache.flink.types.StringValue
+import org.apache.flink.types.{Row, StringValue}
 import org.apache.flink.util.{NumberSequenceIterator, Preconditions, SplittableIterator}
 import org.apache.hadoop.fs.{Path => HadoopPath}
 import org.apache.hadoop.mapred.{FileInputFormat => MapredFileInputFormat, InputFormat => MapredInputFormat, JobConf}
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => MapreduceFileInputFormat}
 import org.apache.hadoop.mapreduce.{InputFormat => MapreduceInputFormat, Job}
 
+import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
@@ -346,6 +347,47 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     inputFormat.setLenient(lenient)
     inputFormat.setCommentPrefix(ignoreComments)
     wrap(new DataSource[T](javaEnv, inputFormat, typeInfo, getCallLocationName()))
+  }
+
+  def readCsvFileAsRow[T : ClassTag : TypeInformation](
+    filePath: String,
+    rowSize: Int,
+    additionalTypes: Map[Int, Class[_]] = null,
+    lineDelimiter: String = "\n",
+    fieldDelimiter: String = ",",
+    quoteCharacter: Character = null,
+    ignoreFirstLine: Boolean = false,
+    ignoreComments: String = null,
+    lenient: Boolean = false,
+    includedFields: Array[Int] = null): DataSet[Row] = {
+
+    val mainTypeInfo = implicitly[TypeInformation[T]]
+
+    val typeMap: Map[Int, TypeInformation[_]] = additionalTypes match {
+      case m: Map[Int, Class[_]] => m.map {
+        case (i, cl) => i -> TypeExtractor.createTypeInfo(cl)
+      }
+      case _ => Map.empty
+    }
+
+    implicit def toJavaMap[S, J, I](m: Map[S, I])(implicit s2j: S => J) =
+      mapAsJavaMap(m.map { case (a: S, b: I) => (a: J, b: I) })
+
+    val typeInfo = new RowTypeInfo(mainTypeInfo, rowSize, typeMap)
+
+    val inputFormat: CsvInputFormat[Row] = new RowCsvInputFormat(
+      new Path(filePath),
+      typeInfo,
+      includedFields)
+    if (quoteCharacter != null) {
+      inputFormat.enableQuotedStringParsing(quoteCharacter)
+    }
+    inputFormat.setDelimiter(lineDelimiter)
+    inputFormat.setFieldDelimiter(fieldDelimiter)
+    inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
+    inputFormat.setLenient(lenient)
+    inputFormat.setCommentPrefix(ignoreComments)
+    wrap(new DataSource[Row](javaEnv, inputFormat, typeInfo, getCallLocationName()))
   }
 
   /**

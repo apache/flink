@@ -20,6 +20,7 @@ package org.apache.flink.api.java.io;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.operators.DataSource;
@@ -27,13 +28,17 @@ import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.*;
 //CHECKSTYLE.ON: AvoidStarImport
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * A builder class to instantiate a CSV parsing data source. The CSV reader configures the field types,
@@ -351,6 +356,32 @@ public class CsvReader {
 		return new DataSource<T>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
 	}
 	
+	public DataSource<Row> rowType(Class<?> mainTargetType, int size, Map<Integer, Class<?>> additionalTypes) {
+		Preconditions.checkNotNull(mainTargetType, "The main type class must not be null.");
+
+		TypeInformation<?> typeInfo = TypeExtractor.createTypeInfo(mainTargetType);
+		RowTypeInfo rowTypeInfo;
+
+		if (additionalTypes != null) {
+			Map<Integer, TypeInformation<?>> addTypeMap = new HashMap<>(additionalTypes.size());
+			for (Map.Entry<Integer, Class<?>> e : additionalTypes.entrySet()) {
+				addTypeMap.put(e.getKey(), TypeExtractor.createTypeInfo(e.getValue()));
+			}
+			rowTypeInfo = new RowTypeInfo(typeInfo, size, addTypeMap);
+		} else {
+			rowTypeInfo = new RowTypeInfo(typeInfo, size);
+		}
+
+		CsvInputFormat<Row> inputFormat = new RowCsvInputFormat(path, rowTypeInfo, this.includedMask);
+		configureInputFormat(inputFormat);
+
+		return new DataSource<Row>(executionContext, inputFormat, rowTypeInfo, Utils.getCallLocationName());
+	}
+
+	public DataSource<Row> rowType(Class<?> mainTargetType, int size) {
+		return rowType(mainTargetType, size, null);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Miscellaneous
 	// --------------------------------------------------------------------------------------------

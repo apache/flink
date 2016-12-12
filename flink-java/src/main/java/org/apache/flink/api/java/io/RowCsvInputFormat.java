@@ -46,6 +46,12 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultType
 		if (arity == 0) {
 			throw new IllegalArgumentException("At least one field must be specified");
 		}
+		if (selectedFields == null) {
+			selectedFields = new int[fieldTypeInfos.length];
+			for (int i = 0; i < fieldTypeInfos.length; i++) {
+				selectedFields[i] = i;
+			}
+		}
 		if (arity != selectedFields.length) {
 			throw new IllegalArgumentException("Number of field types and selected fields must be the same");
 		}
@@ -56,13 +62,21 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultType
 
 		boolean[] fieldsMask = toFieldMask(selectedFields);
 
+		configure(fieldTypeInfos, lineDelimiter, fieldDelimiter, fieldsMask);
+	}
+
+	private void configure(TypeInformation[] fieldTypeInfos, String lineDelimiter, String fieldDelimiter, boolean[] selectedFields) {
 		setDelimiter(lineDelimiter);
 		setFieldDelimiter(fieldDelimiter);
-		setFieldsGeneric(fieldsMask, extractTypeClasses(fieldTypeInfos));
+		setFieldsGeneric(selectedFields, extractTypeClasses(fieldTypeInfos));
 	}
 
 	public RowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes, String lineDelimiter, String fieldDelimiter, int[] selectedFields) {
 		this(filePath, fieldTypes, lineDelimiter, fieldDelimiter, selectedFields, false);
+	}
+
+	public RowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes, String lineDelimiter, String fieldDelimiter, boolean[] selectedFields) {
+		this(filePath, fieldTypes, lineDelimiter, fieldDelimiter, toIntMask(selectedFields, fieldTypes.length), false);
 	}
 
 	public RowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes, String lineDelimiter, String fieldDelimiter) {
@@ -73,12 +87,33 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultType
 		this(filePath, fieldTypes, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, selectedFields);
 	}
 
+	public RowCsvInputFormat(Path filePath, RowTypeInfo fieldTypes, int[] selectedFields) {
+		this(filePath, toTypeInfoArray(fieldTypes), DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, selectedFields);
+	}
+
+	public RowCsvInputFormat(Path path, TypeInformation[] rowTypeInfo, boolean[] includedMask) {
+		this(path, rowTypeInfo, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, toIntMask(includedMask, rowTypeInfo.length));
+	}
+
+	public RowCsvInputFormat(Path path, RowTypeInfo rowTypeInfo, boolean[] includedMask) {
+		this(path, toTypeInfoArray(rowTypeInfo), DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, toIntMask(includedMask, rowTypeInfo.getArity()));
+	}
+
 	public RowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes, boolean emptyColumnAsNull) {
 		this(filePath, fieldTypes, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, sequentialScanOrder(fieldTypes.length), emptyColumnAsNull);
 	}
 
 	public RowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes) {
 		this(filePath, fieldTypes, false);
+	}
+
+	private static TypeInformation[] toTypeInfoArray(RowTypeInfo rowTypeInfo){
+		int arity = rowTypeInfo.getArity();
+		TypeInformation[] types = new TypeInformation[arity];
+		for (int i = 0; i < arity; i++) {
+			types[i] = rowTypeInfo.getTypeAt(i);
+		}
+		return types;
 	}
 
 	private static Class<?>[] extractTypeClasses(TypeInformation[] fieldTypes) {
@@ -122,6 +157,28 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultType
 		}
 
 		return fieldPosMap;
+	}
+
+	protected static int[] toIntMask(boolean[] selectedFields, int arity) {
+		if (selectedFields == null) {
+			return sequentialScanOrder(arity);
+		}
+		int newLength = 0;
+		for (boolean field : selectedFields) {
+			if (field) {
+				newLength++;
+			}
+		}
+		int[] fieldIdxs = new int[newLength];
+		int i = 0;
+		int j = 0;
+		while (j < newLength) {
+			if (selectedFields[i]) {
+				fieldIdxs[j++] = i;
+			}
+			i++;
+		}
+		return fieldIdxs;
 	}
 
 	@Override
