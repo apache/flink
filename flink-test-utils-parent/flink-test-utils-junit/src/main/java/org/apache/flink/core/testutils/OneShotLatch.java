@@ -116,4 +116,9 @@ public final class OneShotLatch {
 			triggered = false;
 		}
 	}
+
+	@Override
+	public String toString() {
+		return "Latch " + (triggered ? "TRIGGERED" : "PENDING");
+	}
 }
