@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -222,40 +223,6 @@ public class InputGateConcurrentTest {
 	// ------------------------------------------------------------------------
 	//  testing threads
 	// ------------------------------------------------------------------------
-
-	private static abstract class CheckedThread extends Thread {
-
-		private volatile Throwable error;
-
-		public abstract void go() throws Exception;
-
-		@Override
-		public void run() {
-			try {
-				go();
-			}
-			catch (Throwable t) {
-				error = t;
-			}
-		}
-
-		public void sync() throws Exception {
-			join();
-
-			// propagate the error
-			if (error != null) {
-				if (error instanceof Error) {
-					throw (Error) error;
-				}
-				else if (error instanceof Exception) {
-					throw (Exception) error;
-				}
-				else {
-					throw new Exception(error.getMessage(), error);
-				}
-			}
-		}
-	}
 
 	private static class ProducerThread extends CheckedThread {
 
