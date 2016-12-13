@@ -18,17 +18,25 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * A stream source function that returns a sequence of elements.
@@ -36,11 +44,14 @@ import java.util.Collection;
  * <p>Upon construction, this source function serializes the elements using Flink's type information.
  * That way, any object transport using Java serialization will not be affected by the serializability
  * of the elements.</p>
- * 
+ *
+ * <p>
+ * <b>NOTE:</b> This source has a parallelism of 1.
+ *
  * @param <T> The type of elements returned by this function.
  */
 @PublicEvolving
-public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedAsynchronously<Integer> {
+public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedFunction {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -62,7 +73,8 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedA
 	/** Flag to make the source cancelable */
 	private volatile boolean isRunning = true;
 
-	
+	private transient ListState<Integer> checkpointedState;
+
 	public FromElementsFunction(TypeSerializer<T> serializer, T... elements) throws IOException {
 		this(serializer, Arrays.asList(elements));
 	}
@@ -85,6 +97,32 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedA
 		this.serializer = serializer;
 		this.elementsSerialized = baos.toByteArray();
 		this.numElements = count;
+	}
+
+	@Override
+	public void initializeState(FunctionInitializationContext context) throws Exception {
+		Preconditions.checkState(this.checkpointedState == null,
+			"The " + getClass().getSimpleName() + " has already been initialized.");
+
+		this.checkpointedState = context.getOperatorStateStore().getOperatorState(
+			new ListStateDescriptor<>(
+				"from-elements-state",
+				IntSerializer.INSTANCE
+			)
+		);
+
+		if (context.isRestored()) {
+			List<Integer> retrievedStates = new ArrayList<>();
+			for (Integer entry : this.checkpointedState.get()) {
+				retrievedStates.add(entry);
+			}
+
+			// given that the parallelism of the function is 1, we can only have 1 state
+			Preconditions.checkArgument(retrievedStates.size() == 1,
+				getClass().getSimpleName() + " retrieved invalid state.");
+
+			this.numElementsToSkip = retrievedStates.get(0);
+		}
 	}
 
 	@Override
@@ -157,17 +195,16 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedA
 	// ------------------------------------------------------------------------
 	//  Checkpointing
 	// ------------------------------------------------------------------------
-	
-	@Override
-	public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
-		return this.numElementsEmitted;
-	}
 
 	@Override
-	public void restoreState(Integer state) {
-		this.numElementsToSkip = state;
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
+		Preconditions.checkState(this.checkpointedState != null,
+			"The " + getClass().getSimpleName() + " has not been properly initialized.");
+
+		this.checkpointedState.clear();
+		this.checkpointedState.add(this.numElementsEmitted);
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------

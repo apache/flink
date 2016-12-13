@@ -22,7 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.SerializedCheckpointData;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,9 +133,9 @@ public abstract class MultipleIdsMessageAcknowledgingSourceBase<Type, UId, Sessi
 
 
 	@Override
-	public SerializedCheckpointData[] snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-		sessionIdsPerSnapshot.add(new Tuple2<>(checkpointId, sessionIds));
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
+		sessionIdsPerSnapshot.add(new Tuple2<>(context.getCheckpointId(), sessionIds));
 		sessionIds = new ArrayList<>(64);
-		return super.snapshotState(checkpointId, checkpointTimestamp);
+		super.snapshotState(context);
 	}
 }
