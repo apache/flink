@@ -22,6 +22,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.bipartite.BipartiteEdge;
 import org.apache.flink.graph.bipartite.BipartiteGraph;
+import org.apache.flink.graph.bipartite.generator.CompleteBipartiteGraph;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;

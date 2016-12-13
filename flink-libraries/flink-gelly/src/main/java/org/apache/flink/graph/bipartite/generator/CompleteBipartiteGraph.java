@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.generator;
+package org.apache.flink.graph.bipartite.generator;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -25,14 +26,17 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.bipartite.BipartiteEdge;
 import org.apache.flink.graph.bipartite.BipartiteGraph;
+import org.apache.flink.graph.generator.GraphGeneratorUtils;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.LongValueSequenceIterator;
 
 /**
  * Generate a complete bipartate graph where every top node is connected to every bottom node.
  */
 public class CompleteBipartiteGraph
-	implements BipartiteGraphGenerator<LongValue, LongValue, NullValue, NullValue, NullValue> {
+	extends AbstractBipartiteGraphGenerator<LongValue, LongValue, NullValue, NullValue, NullValue> {
 
 	// Required to create the DataSource
 	private final ExecutionEnvironment env;
@@ -40,8 +44,6 @@ public class CompleteBipartiteGraph
 	// Required configuration
 	private final long topVertexCount;
 	private final long bottomVertexCount;
-
-	private int parallelism = 1;
 
 	public CompleteBipartiteGraph(ExecutionEnvironment env, long topVertexCount, long bottomVertexCount) {
 		this.env = env;
@@ -56,18 +58,17 @@ public class CompleteBipartiteGraph
 		DataSet<Vertex<LongValue, NullValue>> bottomVertices
 			= GraphGeneratorUtils.vertexSequence(env, parallelism, bottomVertexCount);
 
-		DataSet<BipartiteEdge<LongValue, LongValue, NullValue>> edges = topVertices.cross(bottomVertices)
-			.setParallelism(parallelism)
-			.map(new EdgeGenerator())
-			.setParallelism(parallelism);
+		LongValueSequenceIterator iterator = new LongValueSequenceIterator(0, bottomVertexCount - 1);
+
+		DataSet<BipartiteEdge<LongValue, LongValue, NullValue>> edges =  env
+				.fromParallelCollection(iterator, LongValue.class)
+				.setParallelism(parallelism)
+			.name("Bottom vertices iterator")
+			.flatMap(new EdgesToAllTopVertices(topVertexCount))
+				.setParallelism(parallelism)
+				.name("Complete graph edges");
 
 		return BipartiteGraph.fromDataSet(topVertices, bottomVertices, edges, env);
-	}
-
-	@Override
-	public BipartiteGraphGenerator<LongValue, LongValue, NullValue, NullValue, NullValue> setParallelism(int parallelism) {
-		this.parallelism = parallelism;
-		return this;
 	}
 
 	private static class EdgeGenerator
@@ -80,6 +81,29 @@ public class CompleteBipartiteGraph
 			edge.setTopId(value.f0.getId());
 			edge.setBottomId(value.f1.getId());
 			return edge;
+		}
+	}
+
+	private static class EdgesToAllTopVertices implements FlatMapFunction<LongValue, BipartiteEdge<LongValue, LongValue, NullValue>> {
+		private final long topVertexCount;
+
+		private LongValue topVertexId = new LongValue();
+
+		private BipartiteEdge<LongValue, LongValue, NullValue> edge
+			= new BipartiteEdge<>(topVertexId, null, NullValue.getInstance());
+
+		public EdgesToAllTopVertices(long topVertexCount) {
+			this.topVertexCount = topVertexCount;
+		}
+
+		@Override
+		public void flatMap(LongValue bottomVertexId, Collector<BipartiteEdge<LongValue, LongValue, NullValue>> out) throws Exception {
+			edge.setBottomId(bottomVertexId);
+
+			for (long i = 0; i < topVertexCount; i++) {
+				topVertexId.setValue(i);
+				out.collect(edge);
+			}
 		}
 	}
 }

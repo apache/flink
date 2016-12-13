@@ -85,15 +85,14 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 		private LongValue target = new LongValue();
 
-		private Edge<LongValue,NullValue> edge = new Edge<>(null, target, NullValue.getInstance());
+		private Edge<LongValue, NullValue> edge = new Edge<>(null, target, NullValue.getInstance());
 
-		public LinkVertexToAll(long vertex_count) {
-			this.vertexCount = vertex_count;
+		public LinkVertexToAll(long vertexCount) {
+			this.vertexCount = vertexCount;
 		}
 
 		@Override
-		public void flatMap(LongValue source, Collector<Edge<LongValue,NullValue>> out)
-				throws Exception {
+		public void flatMap(LongValue source, Collector<Edge<LongValue, NullValue>> out) throws Exception {
 			edge.f0 = source;
 
 			long s = source.getValue();

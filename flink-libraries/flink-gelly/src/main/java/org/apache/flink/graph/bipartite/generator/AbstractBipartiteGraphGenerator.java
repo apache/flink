@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.generator;
+package org.apache.flink.graph.bipartite.generator;
 
 import org.apache.flink.graph.bipartite.BipartiteGraph;
+
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Graph generators shall be
@@ -34,13 +36,16 @@ import org.apache.flink.graph.bipartite.BipartiteGraph;
  * @param <VVB> the bottom vertices value type
  * @param <EV> the edge value type
  */
-public interface BipartiteGraphGenerator<KT, KB, VVT, VVB, EV> {
+public abstract class AbstractBipartiteGraphGenerator<KT, KB, VVT, VVB, EV> {
+
+	protected int parallelism = PARALLELISM_DEFAULT;
+
 	/**
 	 * Generates the configured graph.
 	 *
 	 * @return generated graph
 	 */
-	BipartiteGraph<KT, KB, VVT, VVB, EV> generate();
+	abstract public BipartiteGraph<KT, KB, VVT, VVB, EV> generate();
 
 	/**
 	 * Override the operator parallelism.
@@ -48,5 +53,9 @@ public interface BipartiteGraphGenerator<KT, KB, VVT, VVB, EV> {
 	 * @param parallelism operator parallelism
 	 * @return this
 	 */
-	BipartiteGraphGenerator<KT, KB, VVT, VVB, EV> setParallelism(int parallelism);
+
+	public AbstractBipartiteGraphGenerator<KT, KB, VVT, VVB, EV> setParallelism(int parallelism) {
+		this.parallelism = parallelism;
+		return this;
+	}
 }
