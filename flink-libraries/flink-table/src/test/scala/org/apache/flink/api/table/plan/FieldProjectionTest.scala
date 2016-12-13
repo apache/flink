@@ -19,9 +19,11 @@ package org.apache.flink.api.table.plan
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.expressions.Upper
+import org.apache.flink.api.table.ValidationException
+import org.apache.flink.api.table.expressions.{RowtimeAttribute, Upper, WindowReference}
 import org.apache.flink.api.table.functions.ScalarFunction
 import org.apache.flink.api.table.plan.FieldProjectionTest._
+import org.apache.flink.api.table.plan.logical.EventTimeTumblingGroupWindow
 import org.apache.flink.api.table.utils.TableTestBase
 import org.apache.flink.api.table.utils.TableTestUtil._
 import org.junit.Test
@@ -33,6 +35,8 @@ import org.junit.Test
 class FieldProjectionTest extends TableTestBase {
 
   val util = batchTestUtil()
+
+  val streamUtil = streamTestUtil()
 
   @Test
   def testSimpleSelect(): Unit = {
@@ -214,6 +218,91 @@ class FieldProjectionTest extends TableTestBase {
         ),
         term("select", "TMP_0 AS TMP_1")
       )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testSelectFromStreamingWindow(): Unit = {
+    val sourceTable = streamUtil.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
+    val resultTable = sourceTable
+        .window(Tumble over 5.millis on 'rowtime as 'w)
+        .select(Upper('c).count, 'a.sum)
+
+    val expected =
+      unaryNode(
+        "DataStreamAggregate",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "c", "a", "UPPER(c) AS $f2")
+        ),
+        term("window",
+          EventTimeTumblingGroupWindow(
+            Some(WindowReference("w")),
+            RowtimeAttribute(),
+            5.millis)),
+        term("select", "COUNT($f2) AS TMP_0", "SUM(a) AS TMP_1")
+      )
+
+    streamUtil.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testSelectFromStreamingGroupedWindow(): Unit = {
+    val sourceTable = streamUtil.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
+    val resultTable = sourceTable
+        .groupBy('b)
+        .window(Tumble over 5.millis on 'rowtime as 'w)
+        .select(Upper('c).count, 'a.sum, 'b)
+
+    val expected = unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "c", "a", "b", "UPPER(c) AS $f3")
+          ),
+          term("groupBy", "b"),
+          term("window",
+            EventTimeTumblingGroupWindow(
+              Some(WindowReference("w")),
+              RowtimeAttribute(),
+              5.millis)),
+          term("select", "b", "COUNT($f3) AS TMP_0", "SUM(a) AS TMP_1")
+        ),
+        term("select", "TMP_0 AS TMP_2", "TMP_1 AS TMP_3", "b")
+    )
+
+    streamUtil.verifyTable(resultTable, expected)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testSelectFromBatchWindow1(): Unit = {
+    val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
+
+    // time field is selected
+    val resultTable = sourceTable
+        .window(Tumble over 5.millis on 'a as 'w)
+        .select('a.sum, 'c.count)
+
+    val expected = "TODO"
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testSelectFromBatchWindow2(): Unit = {
+    val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
+
+    // time field is not selected
+    val resultTable = sourceTable
+        .window(Tumble over 5.millis on 'a as 'w)
+        .select('c.count)
+
+    val expected = "TODO"
 
     util.verifyTable(resultTable, expected)
   }

@@ -218,10 +218,10 @@ object ProjectionTranslator {
   private def identifyFieldReferences(
       expr: Expression,
       fieldReferences: Set[NamedExpression]): Set[NamedExpression] = expr match {
+
     case f: UnresolvedFieldReference =>
       fieldReferences + UnresolvedAlias(f)
-    case u: UnaryExpression =>
-      identifyFieldReferences(u.child, fieldReferences)
+
     case b: BinaryExpression =>
       val l = identifyFieldReferences(b.left, fieldReferences)
       identifyFieldReferences(b.right, l)
@@ -241,6 +241,14 @@ object ProjectionTranslator {
       args.foldLeft(fieldReferences) {
         (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
       }
+
+    // ignore fields from window property
+    case w : WindowProperty =>
+      fieldReferences
+
+    // keep this case after all unwanted unary expressions
+    case u: UnaryExpression =>
+      identifyFieldReferences(u.child, fieldReferences)
 
     // General expression
     case e: Expression =>

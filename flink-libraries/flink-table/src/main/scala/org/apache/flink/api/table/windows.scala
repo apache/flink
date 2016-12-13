@@ -48,7 +48,7 @@ trait GroupWindow {
   * @param timeField defines the time mode for streaming tables. For batch table it defines the
   *                  time attribute on which is grouped.
   */
-abstract class EventTimeWindow(timeField: Expression) extends GroupWindow {
+abstract class EventTimeWindow(val timeField: Expression) extends GroupWindow {
 
   protected var name: Option[Expression] = None
 
