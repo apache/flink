@@ -28,7 +28,6 @@ import org.apache.flink.types.KeyFieldOutOfBoundsException;
 import org.apache.flink.types.Row;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
