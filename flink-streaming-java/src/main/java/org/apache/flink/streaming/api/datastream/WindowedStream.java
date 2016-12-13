@@ -389,7 +389,7 @@ public class WindowedStream<T, K, W extends Window> {
 			Utils.getCallLocationName(), true);
 
 		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
-			function, WindowFunction.class, true, true, getInputType(), null, false);
+			function, WindowFunction.class, true, true, foldAccumulatorType, null, false);
 
 		return fold(initialValue, foldFunction, function, foldAccumulatorType, resultType);
 	}
