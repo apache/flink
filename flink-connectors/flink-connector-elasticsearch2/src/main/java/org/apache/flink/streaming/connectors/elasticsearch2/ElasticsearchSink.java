@@ -91,7 +91,7 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 	public static final String CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS = "bulk.flush.max.actions";
 	public static final String CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB = "bulk.flush.max.size.mb";
 	public static final String CONFIG_KEY_BULK_FLUSH_INTERVAL_MS = "bulk.flush.interval.ms";
-
+	
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSink.class);
@@ -136,6 +136,13 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 	 * This is set from inside the BulkProcessor listener if a Throwable was thrown during processing.
 	 */
 	private final AtomicReference<Throwable> failureThrowable = new AtomicReference<>();
+	
+	/**
+	 * When set to <code>true</code> and the bulk action fails, the error message will be checked for
+	 * common patterns like <i>timeout</i>, <i>UnavailableShardsException</i> or a full buffer queue on the node.
+	 * When a matching pattern is found, the bulk will be retried.
+	 */
+	protected boolean checkErrorAndRetryBulk = false;
 
 	/**
 	 * Creates a new ElasticsearchSink that connects to the cluster using a TransportClient.
@@ -197,15 +204,17 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 						if (itemResp.isFailed()) {
 							// Check if index request can be retried
 							String failureMessageLowercase = itemResp.getFailureMessage().toLowerCase();
-							if (failureMessageLowercase.contains("timeout") || failureMessageLowercase.contains("timed out") // Generic timeout errors
+							if (checkErrorAndRetryBulk && (
+									failureMessageLowercase.contains("timeout") || failureMessageLowercase.contains("timed out") // Generic timeout errors
 									|| failureMessageLowercase.contains("UnavailableShardsException".toLowerCase()) // Shard not available due to rebalancing or node down
-									|| (failureMessageLowercase.contains("data/write/bulk") && failureMessageLowercase.contains("bulk")) // Bulk index queue on node full 
+									|| (failureMessageLowercase.contains("data/write/bulk") && failureMessageLowercase.contains("bulk")) // Bulk index queue on node full
+									)
 								) {
-								LOG.debug("Retry batch: " + itemResp.getFailureMessage());
+								LOG.debug("Retry bulk: {}", itemResp.getFailureMessage());
 								reAddBulkRequest(request);
 							} else { // Cannot retry action
 								allRequestsRepeatable = false;
-								LOG.error("Failed to index document in Elasticsearch: " + itemResp.getFailureMessage());
+								LOG.error("Failed to index document in Elasticsearch: {}", itemResp.getFailureMessage());
 								failureThrowable.compareAndSet(null, new RuntimeException(itemResp.getFailureMessage()));	
 							}
 						}
@@ -218,14 +227,15 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 
 			@Override
 			public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
-				if (failure instanceof ClusterBlockException // Examples: "no master"
+				if (checkErrorAndRetryBulk && (
+						failure instanceof ClusterBlockException // Examples: "no master"
 						|| failure instanceof ElasticsearchTimeoutException // ElasticsearchTimeoutException sounded good, not seen in stress tests yet
-						) 
-				{
-					LOG.debug("Retry batch on throwable: " + failure.getMessage());
+						)
+				) {
+					LOG.debug("Retry bulk on throwable: {}", failure.getMessage());
 					reAddBulkRequest(request);
 				} else { 
-					LOG.error("Failed to index bulk in Elasticsearch. " + failure.getMessage());
+					LOG.error("Failed to index bulk in Elasticsearch. {}", failure.getMessage());
 					failureThrowable.compareAndSet(null, failure);
 					hasFailure.set(true);
 				}
@@ -267,6 +277,22 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 				bulkProcessor.add((ActionRequest<?>) req);
 			}
 		}
+	}
+	
+	/**
+	 * Tells if a failed bulk request will be retried on certain error messages.
+	 * @return
+	 */
+	public boolean getCheckErrorAndRetryBulk() {
+		return checkErrorAndRetryBulk;
+	}
+
+	/**
+	 * Set to <code>true</code> if the bulk request should be retried on certain error messages.
+	 * @param checkErrorAndRetryBulk
+	 */
+	public void setCheckErrorAndRetryBulk(boolean checkErrorAndRetryBulk) {
+		this.checkErrorAndRetryBulk = checkErrorAndRetryBulk;
 	}
 
 	@Override
