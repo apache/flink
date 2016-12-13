@@ -23,6 +23,7 @@ import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.migration.streaming.api.graph.StreamGraphHasherV1;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputFormatVertex;
@@ -87,8 +88,8 @@ public class StreamingJobGraphGenerator {
 
 	public StreamingJobGraphGenerator(StreamGraph streamGraph) {
 		this.streamGraph = streamGraph;
-		this.defaultStreamGraphHasher = new DefaultStreamGraphHasher();
-		this.legacyStreamGraphHashers = Collections.<StreamGraphHasher>singletonList(new LegacyStreamGraphHasherV1());
+		this.defaultStreamGraphHasher = new StreamGraphHasherV2();
+		this.legacyStreamGraphHashers = Collections.<StreamGraphHasher>singletonList(new StreamGraphHasherV1());
 	}
 
 	private void init() {

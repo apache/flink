@@ -44,9 +44,15 @@ import java.util.Set;
 
 import static org.apache.flink.util.StringUtils.byteToHexString;
 
-public class DefaultStreamGraphHasher implements StreamGraphHasher {
+/**
+ * StreamGraphHasher from Flink 1.2. This contains duplicated code to ensure that the algorithm does not change with
+ * future Flink versions.
+ * <p>
+ * DO NOT MODIFY THIS CLASS
+ */
+public class StreamGraphHasherV2 implements StreamGraphHasher {
 
-	private static final Logger LOG = LoggerFactory.getLogger(DefaultStreamGraphHasher.class);
+	private static final Logger LOG = LoggerFactory.getLogger(StreamGraphHasherV2.class);
 
 	/**
 	 * Returns a map with a hash for each {@link StreamNode} of the {@link
@@ -278,7 +284,7 @@ public class DefaultStreamGraphHasher implements StreamGraphHasher {
 	 * {@link StreamNode#id}, because it is incremented in a static counter.
 	 * Therefore, the IDs for identical jobs will otherwise be different.
 	 */
-	protected void generateNodeLocalHash(StreamNode node, Hasher hasher, int id) {
+	private void generateNodeLocalHash(StreamNode node, Hasher hasher, int id) {
 		// This resolves conflicts for otherwise identical source nodes. BUT
 		// the generated hash codes depend on the ordering of the nodes in the
 		// stream graph.
