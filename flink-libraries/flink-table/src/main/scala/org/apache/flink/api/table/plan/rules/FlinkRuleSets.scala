@@ -109,7 +109,9 @@ object FlinkRuleSets {
     DataSetSortRule.INSTANCE,
     DataSetValuesRule.INSTANCE,
     DataSetCorrelateRule.INSTANCE,
-    BatchTableSourceScanRule.INSTANCE
+    BatchTableSourceScanRule.INSTANCE,
+    // project pushdown optimization
+    PushProjectIntoBatchTableSourceScanRule.INSTANCE
   )
 
   /**
