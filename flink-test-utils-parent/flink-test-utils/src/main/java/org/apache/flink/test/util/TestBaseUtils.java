@@ -309,43 +309,23 @@ public class TestBaseUtils extends TestLogger {
 			String resultPath,
 			String[] excludePrefixes) throws Exception {
 
-		// because of some strange I/O inconsistency effects on CI infrastructure, we need
-		// to retry this a few times
-		final int numAttempts = 5;
-		int attempt = 0;
-		while (true) {
-			try {
-				ArrayList<String> list = new ArrayList<>();
-				readAllResultLines(list, resultPath, excludePrefixes, false);
+		ArrayList<String> list = new ArrayList<>();
+		readAllResultLines(list, resultPath, excludePrefixes, false);
 
-				String[] result = list.toArray(new String[list.size()]);
-				Arrays.sort(result);
+		String[] result = list.toArray(new String[list.size()]);
+		Arrays.sort(result);
 
-				String[] expected = expectedResultStr.isEmpty() ? new String[0] : expectedResultStr.split("\n");
-				Arrays.sort(expected);
+		String[] expected = expectedResultStr.isEmpty() ? new String[0] : expectedResultStr.split("\n");
+		Arrays.sort(expected);
 
-				if (expected.length != result.length || !Arrays.deepEquals(expected, result)) {
-					String msg = String.format(
-							"Different elements in arrays: expected %d elements and received %d\n" +
-							"files: %s\n expected: %s\n received: %s",
-							expected.length, result.length, 
-							Arrays.toString(getAllInvolvedFiles(resultPath, excludePrefixes)), 
-							Arrays.toString(expected), Arrays.toString(result));
-					fail(msg);
-				}
-
-				break;
-			}
-			catch (AssertionError e) {
-				if (++attempt > numAttempts) {
-					throw e;
-				}
-
-				// else wait, then fall through the loop and try again
-				// on normal setups, this should change nothing, but it seems to help the
-				// Travis CI container infrastructure
-				Thread.sleep(100);
-			}
+		if (expected.length != result.length || !Arrays.deepEquals(expected, result)) {
+			String msg = String.format(
+					"Different elements in arrays: expected %d elements and received %d\n" +
+					"files: %s\n expected: %s\n received: %s",
+					expected.length, result.length, 
+					Arrays.toString(getAllInvolvedFiles(resultPath, excludePrefixes)), 
+					Arrays.toString(expected), Arrays.toString(result));
+			fail(msg);
 		}
 	}
 
