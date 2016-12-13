@@ -49,8 +49,8 @@ import static org.apache.flink.util.StringUtils.byteToHexString;
 /**
  * StreamGraphHasher from Flink 1.1. This contains duplicated code to ensure that the algorithm does not change with
  * future Flink versions.
- * <p>
- * DO NOT MODIFY THIS CLASS
+ *
+ * <p>DO NOT MODIFY THIS CLASS
  */
 public class StreamGraphHasherV1 implements StreamGraphHasher {
 

@@ -47,8 +47,8 @@ import static org.apache.flink.util.StringUtils.byteToHexString;
 /**
  * StreamGraphHasher from Flink 1.2. This contains duplicated code to ensure that the algorithm does not change with
  * future Flink versions.
- * <p>
- * DO NOT MODIFY THIS CLASS
+ *
+ * <p>DO NOT MODIFY THIS CLASS
  */
 public class StreamGraphHasherV2 implements StreamGraphHasher {
 
@@ -58,10 +58,12 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 	 * Returns a map with a hash for each {@link StreamNode} of the {@link
 	 * StreamGraph}. The hash is used as the {@link JobVertexID} in order to
 	 * identify nodes across job submissions if they didn't change.
+	 *
 	 * <p>
 	 * <p>The complete {@link StreamGraph} is traversed. The hash is either
 	 * computed from the transformation's user-specified id (see
 	 * {@link StreamTransformation#getUid()}) or generated in a deterministic way.
+	 *
 	 * <p>
 	 * <p>The generated hash is deterministic with respect to:
 	 * <ul>
@@ -279,6 +281,7 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 	 * Applies the {@link Hasher} to the {@link StreamNode} (only node local
 	 * attributes are taken into account). The hasher encapsulates the current
 	 * state of the hash.
+	 *
 	 * <p>
 	 * <p>The specified ID is local to this node. We cannot use the
 	 * {@link StreamNode#id}, because it is incremented in a static counter.
