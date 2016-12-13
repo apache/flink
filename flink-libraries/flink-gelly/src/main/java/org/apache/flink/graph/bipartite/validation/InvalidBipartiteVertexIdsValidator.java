@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.validation;
+package org.apache.flink.graph.bipartite.validation;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -36,50 +37,26 @@ public class InvalidBipartiteVertexIdsValidator<KT, KB, VVT, VVB, EV> extends Bi
 
 	@Override
 	public boolean validate(BipartiteGraph<KT, KB, VVT, VVB, EV> bipartiteGraph) throws Exception {
-		DataSet<Tuple1<KT>> edgesTopIds = bipartiteGraph.getEdges().map(new GetTopIdsMap<KT, KB, EV>());
-		DataSet<Tuple1<KB>> edgesBottomIds = bipartiteGraph.getEdges().map(new GetBottomIdsMap<KT, KB, EV>());
 
-		DataSet<KT> invalidTopIds = invalidIds(bipartiteGraph.getTopVertices(), edgesTopIds);
-		DataSet<KB> invalidBottomIds = invalidIds(bipartiteGraph.getBottomVertices(), edgesBottomIds);
+		DataSet<BipartiteEdge<KT, KB, EV>> invalidTopVertexId = bipartiteGraph.getEdges().leftOuterJoin(bipartiteGraph.getTopVertices()).where(0).equalTo(0)
+			.with(new InvalidEdgeJoin<KT, KB, EV, KT, VVT>());
 
-		return invalidTopIds.count() == 0 && invalidBottomIds.count() == 0;
-	}
-
-	private <K, V> DataSet<K> invalidIds(DataSet<Vertex<K, V>> topVertices, DataSet<Tuple1<K>> edgesIds) {
-		return topVertices.coGroup(edgesIds)
-			.where(0)
+		DataSet<BipartiteEdge<KT, KB, EV>> invalidBottomVertexId = bipartiteGraph.getEdges()
+			.leftOuterJoin(bipartiteGraph.getBottomVertices())
+			.where(1)
 			.equalTo(0)
-			.with(new CoGroupFunction<Vertex<K,V>, Tuple1<K>, K>() {
-				@Override
-				public void coGroup(Iterable<Vertex<K, V>> vertices, Iterable<Tuple1<K>> edgeIds, Collector<K> out) throws Exception {
-					if (!vertices.iterator().hasNext()) {
-						out.collect(edgeIds.iterator().next().f0);
-					}
-				}
-			});
+			.with(new InvalidEdgeJoin<KT, KB, EV, KB, VVB>());
+
+		return invalidBottomVertexId.union(invalidTopVertexId).count() == 0;
 	}
 
-	@ForwardedFields("f0")
-	private class GetTopIdsMap<KT, KB, EV> implements MapFunction<BipartiteEdge<KT,KB,EV>, Tuple1<KT>> {
-
-		private Tuple1<KT> result = new Tuple1<>();
-
+	private static class InvalidEdgeJoin<KT, KB, EV, KV, VVT>
+		implements FlatJoinFunction<BipartiteEdge<KT, KB, EV>, Vertex<KV, VVT>, BipartiteEdge<KT, KB, EV>> {
 		@Override
-		public Tuple1<KT> map(BipartiteEdge<KT, KB, EV> value) throws Exception {
-			result.f0 = value.getTopId();
-			return result;
-		}
-	}
-
-	@ForwardedFields("f1->f0")
-	private class GetBottomIdsMap<KT, KB, EV> implements MapFunction<BipartiteEdge<KT,KB,EV>, Tuple1<KB>> {
-
-		private Tuple1<KB> result = new Tuple1<>();
-
-		@Override
-		public Tuple1<KB> map(BipartiteEdge<KT, KB, EV> value) throws Exception {
-			result.f0 = value.getBottomId();
-			return result;
+		public void join(BipartiteEdge<KT, KB, EV> edge, Vertex<KV, VVT> vertex, Collector<BipartiteEdge<KT, KB, EV>> out) throws Exception {
+			if (vertex == null) {
+				out.collect(edge);
+			}
 		}
 	}
 }

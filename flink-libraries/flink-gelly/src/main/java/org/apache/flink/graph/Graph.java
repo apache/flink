@@ -443,7 +443,7 @@ public class Graph<K, VV, EV> {
 	 * 
 	 * @return true if the Graph is valid.
 	 */
-	public Boolean validate(GraphValidator<K, VV, EV> validator) throws Exception {
+	public boolean validate(GraphValidator<K, VV, EV> validator) throws Exception {
 		return validator.validate(this);
 	}
 

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.validation;
+package org.apache.flink.graph.bipartite.validation;
 
 import org.apache.flink.graph.bipartite.BipartiteGraph;
 

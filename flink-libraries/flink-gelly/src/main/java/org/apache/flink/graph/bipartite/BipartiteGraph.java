@@ -30,7 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.validation.BipartiteGraphValidator;
+import org.apache.flink.graph.bipartite.validation.BipartiteGraphValidator;
 import org.apache.flink.util.Collector;
 
 /**
