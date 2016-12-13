@@ -413,11 +413,11 @@ class AggregationsITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val table = env.fromCollection(data).toTable(tEnv, 'rowtime, 'string)
+    val table = env.fromCollection(data).toTable(tEnv, 'abc, 'string)
     val windowedTable = table
       .groupBy('string)
-      .window(Session withGap 7.milli on 'rowtime as 'w)
-      .select('string, 'string.count, 'w.start, 'w.end)
+      .window(Session withGap 7.milli on 'abc as 'w)
+      .select('string, 'abc.count, 'w.start, 'w.end)
 
     val results = windowedTable.toDataSet[Row].collect()
 
