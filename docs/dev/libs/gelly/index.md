@@ -33,6 +33,7 @@ Gelly is a Graph API for Flink. It contains a set of methods and utilities which
 * [Library Methods](library_methods.html)
 * [Graph Algorithms](graph_algorithms.html)
 * [Graph Generators](graph_generators.html)
+* [Bipartite Graphs](bipartite_graph.html)
 
 Using Gelly
 -----------
