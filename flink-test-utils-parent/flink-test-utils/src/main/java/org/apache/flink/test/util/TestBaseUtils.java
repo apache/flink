@@ -76,6 +76,7 @@ import java.util.regex.Pattern;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class TestBaseUtils extends TestLogger {
 
@@ -323,8 +324,15 @@ public class TestBaseUtils extends TestLogger {
 				String[] expected = expectedResultStr.isEmpty() ? new String[0] : expectedResultStr.split("\n");
 				Arrays.sort(expected);
 
-				Assert.assertEquals("Different number of lines in expected and obtained result.", expected.length, result.length);
-				Assert.assertArrayEquals(expected, result);
+				if (expected.length != result.length || !Arrays.deepEquals(expected, result)) {
+					String msg = String.format(
+							"Different elements in arrays: expected %d elements and received %d\n" +
+							"files: %s\n expected: %s\n received: %s",
+							expected.length, result.length, 
+							Arrays.toString(getAllInvolvedFiles(resultPath, excludePrefixes)), 
+							Arrays.toString(expected), Arrays.toString(result));
+					fail(msg);
+				}
 
 				break;
 			}
