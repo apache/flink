@@ -352,7 +352,7 @@ public class BootstrapTools {
 		tmCommand.append(" -Xmx").append(tmParams.taskManagerHeapSizeMB()).append("m");
 		tmCommand.append(" -XX:MaxDirectMemorySize=").append(tmParams.taskManagerDirectMemoryLimitMB()).append("m");
 
-		String  javaOpts = flinkConfig.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
+		String  javaOpts = flinkConfig.getString(ConfigConstants.FLINK_JVM_TM_OPTIONS, "");
 		tmCommand.append(' ').append(javaOpts);
 
 		if (hasLogback || hasLog4j) {

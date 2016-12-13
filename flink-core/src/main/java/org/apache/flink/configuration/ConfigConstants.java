@@ -768,6 +768,12 @@ public final class ConfigConstants {
 	
 	public static final String FLINK_JVM_OPTIONS = "env.java.opts";
 
+	/** JVM options used for JobManager,same for ApplicationMaster if we use on yarn mode */
+	public static final String FLINK_JVM_JM_OPTIONS = "env.java.opts.jobmanager";
+
+	/**JVM options used for TaskManager */
+	public static final String FLINK_JVM_TM_OPTIONS = "env.java.opts.taskmanager";
+
 	// --------------------------- High Availability --------------------------
 
 	/** Defines high availabilty mode used for the cluster execution ("NONE", "ZOOKEEPER") */
