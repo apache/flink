@@ -141,6 +141,42 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 	}
 
 	@Test
+	public void testValueStateSerializerCompatibilityCheck() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// some modifications to the state
+		backend.setCurrentKey(1);
+		state.update("1");
+		backend.setCurrentKey(2);
+		state.update("2");
+		backend.setCurrentKey(1);
+
+		// draw a snapshot
+		KeyGroupsStateHandle snapshot = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+		backend.dispose();
+
+		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+		snapshot.discardState();
+
+		kvId = new ValueStateDescriptor<>("id", INCOMPATIBLE_SERIALIZER, null);
+
+		try {
+			backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			fail();
+		} catch (RuntimeException expected) {
+
+		}
+
+		backend.dispose();
+	}
+
+	@Test
 	@SuppressWarnings("unchecked")
 	public void testValueState() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
@@ -227,21 +263,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		backend.setCurrentKey(3);
 		assertEquals("u3", restored2.value());
 		assertEquals("u3", getSerializedValue(restoredKvState2, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
-
-		backend.dispose();
-
-		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
-		snapshot2.discardState();
-
-		ValueStateDescriptor<String> kvId2 = new ValueStateDescriptor<>("id", WRONG_VERSION_SERIALIZER, null);
-
-		try {
-			ValueState<String> restored3 =
-					backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId2);
-			fail();
-		} catch (RuntimeException expected) {
-
-		}
 
 		backend.dispose();
 	}
@@ -368,6 +389,41 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 	}
 
 	@Test
+	public void testListStateSerializerCompatibilityCheck() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		ListState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// some modifications to the state
+		backend.setCurrentKey(1);
+		state.add("1");
+		backend.setCurrentKey(2);
+		state.add("2");
+		backend.setCurrentKey(1);
+
+		// draw a snapshot
+		KeyGroupsStateHandle snapshot = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+		backend.dispose();
+
+		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+		snapshot.discardState();
+
+		ListStateDescriptor<String> kvId2 = new ListStateDescriptor<>("id", INCOMPATIBLE_SERIALIZER);
+		try {
+			backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId2);
+			fail();
+		} catch (RuntimeException expected) {
+
+		}
+
+		backend.dispose();
+	}
+
+	@Test
 	@SuppressWarnings("unchecked,rawtypes")
 	public void testListState() {
 		try {
@@ -459,24 +515,49 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			assertEquals("u3", joiner.join(getSerializedList(restoredKvState2, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
 
 			backend.dispose();
-
-			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
-			snapshot2.discardState();
-
-			ListStateDescriptor<String> kvId2 = new ListStateDescriptor<>("id", WRONG_VERSION_SERIALIZER);
-			try {
-				ListState<String> restored3 = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId2);
-				fail();
-			} catch (RuntimeException expected) {
-
-			}
-
-			backend.dispose();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testReducingStateSerializerCompatibilityCheck() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		ReducingStateDescriptor<String> kvId =
+				new ReducingStateDescriptor<>("id", new AppendingReduce(), String.class);
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		ReducingState<String> state =
+				backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// some modifications to the state
+		backend.setCurrentKey(1);
+		state.add("1");
+		backend.setCurrentKey(2);
+		state.add("2");
+		backend.setCurrentKey(1);
+
+		// draw a snapshot
+		KeyGroupsStateHandle snapshot = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+		backend.dispose();
+
+		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+		snapshot.discardState();
+
+		kvId = new ReducingStateDescriptor<>("id", new AppendingReduce(), INCOMPATIBLE_SERIALIZER);
+
+		try {
+			backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			fail();
+		} catch (RuntimeException expected) {
+
+		}
+
+		backend.dispose();
 	}
 
 	@Test
@@ -570,25 +651,55 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			assertEquals("u3", getSerializedValue(restoredKvState2, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 
 			backend.dispose();
-
-			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
-			snapshot2.discardState();
-
-			ReducingStateDescriptor<String> kvId2 = new ReducingStateDescriptor<>("id", new AppendingReduce(), WRONG_VERSION_SERIALIZER);
-
-			try {
-				ReducingState<String> restored3 = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId2);
-				fail();
-			} catch (RuntimeException expected) {
-
-			}
-
-			backend.dispose();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testFoldingStateSerializerCompatibilityCheck() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		FoldingStateDescriptor<Integer, String> kvId = new FoldingStateDescriptor<>("id",
+				"Fold-Initial:",
+				new AppendingFold(),
+				String.class);
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		FoldingState<Integer, String> state =
+				backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// some modifications to the state
+		backend.setCurrentKey(1);
+		state.add(1);
+		backend.setCurrentKey(2);
+		state.add(1);
+		backend.setCurrentKey(1);
+
+		// draw a snapshot
+		KeyGroupsStateHandle snapshot =
+				runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+		backend.dispose();
+
+		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+		snapshot.discardState();
+
+		kvId = new FoldingStateDescriptor<>("id",
+				"Fold-Initial:",
+				new AppendingFold(),
+				INCOMPATIBLE_SERIALIZER);
+
+		try {
+			backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			fail();
+		} catch (RuntimeException expected) {
+
+		}
+
+		backend.dispose();
 	}
 
 	@Test
@@ -685,24 +796,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.setCurrentKey(3);
 			assertEquals("Fold-Initial:,103", restored2.get());
 			assertEquals("Fold-Initial:,103", getSerializedValue(restoredKvState2, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
-
-			backend.dispose();
-
-			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
-			snapshot2.discardState();
-
-			FoldingStateDescriptor<Integer, String> kvId2 = new FoldingStateDescriptor<>("id",
-					"Fold-Initial:",
-					new AppendingFold(),
-					WRONG_VERSION_SERIALIZER);
-
-			try {
-				FoldingState<Integer, String> restored3 =
-						backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId2);
-				fail();
-			} catch (RuntimeException expected) {
-
-			}
 
 			backend.dispose();
 		}
@@ -1432,7 +1525,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		return snapshotRunnableFuture.get();
 	}
 
-	private static final TypeSerializer<String> WRONG_VERSION_SERIALIZER = new TypeSerializer<String>() {
+	private static final TypeSerializer<String> INCOMPATIBLE_SERIALIZER = new TypeSerializer<String>() {
 		@Override
 		public boolean isImmutableType() {
 			return false;

@@ -29,9 +29,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Serialization proxy for all meta data in keyed state backends. In the future we might also migrate the actual state
@@ -76,11 +74,9 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		keySerializerProxy.write(out);
 
 		out.writeShort(namedStateSerializationProxies.size());
-		Map<String, Integer> kVStateToId = new HashMap<>(namedStateSerializationProxies.size());
 
 		for (StateMetaInfo<?, ?> kvState : namedStateSerializationProxies) {
 			kvState.write(out);
-			kVStateToId.put(kvState.getStateName(), kVStateToId.size());
 		}
 	}
 
