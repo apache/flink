@@ -17,18 +17,19 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import java.util.ArrayList;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.Preconditions;
+
+import java.util.Comparator;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * This is a {@link ProcessingTimeService} used <b>strictly for testing</b> the
@@ -36,38 +37,38 @@ import java.util.concurrent.TimeoutException;
  * */
 public class TestProcessingTimeService extends ProcessingTimeService {
 
-	private volatile long currentTime = 0;
+	private volatile long currentTime = 0L;
 
 	private volatile boolean isTerminated;
 	private volatile boolean isQuiesced;
 
 	// sorts the timers by timestamp so that they are processed in the correct order.
-	private final Map<Long, List<ScheduledTimerFuture>> registeredTasks = new TreeMap<>();
+	private final PriorityQueue<Tuple2<Long, CallbackTask>> priorityQueue;
 
+	public TestProcessingTimeService() {
+		this.priorityQueue = new PriorityQueue<>(16, new Comparator<Tuple2<Long, CallbackTask>>() {
+			@Override
+			public int compare(Tuple2<Long, CallbackTask> o1, Tuple2<Long, CallbackTask> o2) {
+				return Long.compare(o1.f0, o2.f0);
+			}
+		});
+	}
 	
 	public void setCurrentTime(long timestamp) throws Exception {
 		this.currentTime = timestamp;
 
 		if (!isQuiesced) {
-			// decide which timers to fire and put them in a list
-			// we do not fire them here to be able to accommodate timers
-			// that register other timers.
-	
-			Iterator<Map.Entry<Long, List<ScheduledTimerFuture>>> it = registeredTasks.entrySet().iterator();
-			List<Map.Entry<Long, List<ScheduledTimerFuture>>> toRun = new ArrayList<>();
-			while (it.hasNext()) {
-				Map.Entry<Long, List<ScheduledTimerFuture>> t = it.next();
-				if (t.getKey() <= this.currentTime) {
-					toRun.add(t);
-					it.remove();
-				}
-			}
-	
-			// now do the actual firing.
-			for (Map.Entry<Long, List<ScheduledTimerFuture>> tasks: toRun) {
-				long now = tasks.getKey();
-				for (ScheduledTimerFuture task: tasks.getValue()) {
-					task.getProcessingTimeCallback().onProcessingTime(now);
+			while (!priorityQueue.isEmpty() && currentTime >= priorityQueue.peek().f0) {
+				Tuple2<Long, CallbackTask> entry = priorityQueue.poll();
+
+				CallbackTask callbackTask = entry.f1;
+
+				if (!callbackTask.isDone()) {
+					callbackTask.onProcessingTime(entry.f0);
+
+					if (callbackTask instanceof PeriodicCallbackTask) {
+						priorityQueue.offer(Tuple2.of(((PeriodicCallbackTask)callbackTask).nextTimestamp(entry.f0), callbackTask));
+					}
 				}
 			}
 		}
@@ -84,27 +85,38 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 			throw new IllegalStateException("terminated");
 		}
 		if (isQuiesced) {
-			return new ScheduledTimerFuture(null, -1);
+			return new CallbackTask(null);
 		}
+
+		CallbackTask callbackTask = new CallbackTask(target);
 
 		if (timestamp <= currentTime) {
 			try {
-				target.onProcessingTime(timestamp);
+				callbackTask.onProcessingTime(timestamp);
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
+		} else {
+			priorityQueue.offer(Tuple2.of(timestamp, callbackTask));
 		}
 
-		ScheduledTimerFuture result = new ScheduledTimerFuture(target, timestamp);
+		return callbackTask;
+	}
 
-		List<ScheduledTimerFuture> tasks = registeredTasks.get(timestamp);
-		if (tasks == null) {
-			tasks = new ArrayList<>();
-			registeredTasks.put(timestamp, tasks);
+	@Override
+	public ScheduledFuture<?> scheduleAtFixedRate(ProcessingTimeCallback callback, long initialDelay, long period) {
+		if (isTerminated) {
+			throw new IllegalStateException("terminated");
 		}
-		tasks.add(result);
+		if (isQuiesced) {
+			return new CallbackTask(null);
+		}
 
-		return result;
+		PeriodicCallbackTask periodicCallbackTask = new PeriodicCallbackTask(callback, period);
+
+		priorityQueue.offer(Tuple2.<Long, CallbackTask>of(currentTime + initialDelay, periodicCallbackTask));
+
+		return periodicCallbackTask;
 	}
 
 	@Override
@@ -116,7 +128,7 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 	public void quiesceAndAwaitPending() {
 		if (!isTerminated) {
 			isQuiesced = true;
-			registeredTasks.clear();
+			priorityQueue.clear();
 		}
 	}
 
@@ -125,35 +137,46 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 		this.isTerminated = true;
 	}
 
-	public int getNumRegisteredTimers() {
+	public int getNumActiveTimers() {
 		int count = 0;
-		for (List<ScheduledTimerFuture> tasks: registeredTasks.values()) {
-			count += tasks.size();
+
+		for (Tuple2<Long, CallbackTask> entry : priorityQueue) {
+			if (!entry.f1.isDone()) {
+				count++;
+			}
 		}
+
 		return count;
 	}
 
-	public Set<Long> getRegisteredTimerTimestamps() {
+	public Set<Long> getActiveTimerTimestamps() {
 		Set<Long> actualTimestamps = new HashSet<>();
-		for (List<ScheduledTimerFuture> timerFutures : registeredTasks.values()) {
-			for (ScheduledTimerFuture timer : timerFutures) {
-				actualTimestamps.add(timer.getTimestamp());
+
+		for (Tuple2<Long, CallbackTask> entry : priorityQueue) {
+			if (!entry.f1.isDone()) {
+				actualTimestamps.add(entry.f0);
 			}
 		}
+
 		return actualTimestamps;
 	}
 
 	// ------------------------------------------------------------------------
 
-	private class ScheduledTimerFuture implements ScheduledFuture<Object> {
+	private static class CallbackTask implements ScheduledFuture<Object> {
 
-		private final ProcessingTimeCallback processingTimeCallback;
+		protected final ProcessingTimeCallback processingTimeCallback;
 
-		private final long timestamp;
+		private AtomicReference<CallbackTaskState> state = new AtomicReference<>(CallbackTaskState.CREATED);
 
-		public ScheduledTimerFuture(ProcessingTimeCallback processingTimeCallback, long timestamp) {
+		private CallbackTask(ProcessingTimeCallback processingTimeCallback) {
 			this.processingTimeCallback = processingTimeCallback;
-			this.timestamp = timestamp;
+		}
+
+		public void onProcessingTime(long timestamp) throws Exception {
+			processingTimeCallback.onProcessingTime(timestamp);
+
+			state.compareAndSet(CallbackTaskState.CREATED, CallbackTaskState.DONE);
 		}
 
 		@Override
@@ -168,21 +191,17 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 
 		@Override
 		public boolean cancel(boolean mayInterruptIfRunning) {
-			List<ScheduledTimerFuture> scheduledTimerFutures = registeredTasks.get(timestamp);
-			if (scheduledTimerFutures != null) {
-				scheduledTimerFutures.remove(this);
-			}
-			return true;
+			return state.compareAndSet(CallbackTaskState.CREATED, CallbackTaskState.CANCELLED);
 		}
 
 		@Override
 		public boolean isCancelled() {
-			throw new UnsupportedOperationException();
+			return state.get() == CallbackTaskState.CANCELLED;
 		}
 
 		@Override
 		public boolean isDone() {
-			throw new UnsupportedOperationException();
+			return state.get() != CallbackTaskState.CREATED;
 		}
 
 		@Override
@@ -195,12 +214,31 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 			throw new UnsupportedOperationException();
 		}
 
-		public ProcessingTimeCallback getProcessingTimeCallback() {
-			return processingTimeCallback;
+		enum CallbackTaskState {
+			CREATED,
+			CANCELLED,
+			DONE
+		}
+	}
+
+	private static class PeriodicCallbackTask extends CallbackTask {
+
+		private final long period;
+
+		private PeriodicCallbackTask(ProcessingTimeCallback processingTimeCallback, long period) {
+			super(processingTimeCallback);
+			Preconditions.checkArgument(period > 0L, "The period must be greater than 0.");
+
+			this.period = period;
 		}
 
-		public long getTimestamp() {
-			return timestamp;
+		@Override
+		public void onProcessingTime(long timestamp) throws Exception {
+			processingTimeCallback.onProcessingTime(timestamp);
+		}
+
+		public long nextTimestamp(long currentTimestamp) {
+			return currentTimestamp + period;
 		}
 	}
 }
