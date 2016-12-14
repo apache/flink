@@ -22,7 +22,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.DataStream
 
-import org.apache.flink.table.{Table, TableException}
+import org.apache.flink.table.TableException
+import org.apache.flink.table.api.Table
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
 

@@ -28,12 +28,13 @@ import org.apache.calcite.sql.fun._
 import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.table.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkRelBuilder}
+import FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.expressions.{WindowEnd, WindowStart}
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.typeutils.RowTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
-import org.apache.flink.table.{FlinkTypeFactory, Row, TableException}
+import org.apache.flink.table.{Row, TableException}
 import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
 import scala.collection.JavaConversions._

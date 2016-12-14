@@ -21,7 +21,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.expressions.ExpressionParser
-import org.apache.flink.table.{Table, TableConfig}
+import org.apache.flink.table.TableConfig
+import org.apache.flink.table.api.Table
+import org.apache.flink.table.functions.TableFunction
 
 /**
   * The [[org.apache.flink.table.TableEnvironment]] for a Java batch [[DataSet]]

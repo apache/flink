@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.api.java
 
-import org.apache.flink.table.{SessionWindow, SlideWithSize, TumblingWindow}
+import org.apache.flink.table.api.{SessionWindow, SlideWithSize, TumblingWindow}
 
 /**
   * Helper class for creating a tumbling window. Tumbling windows are consecutive, non-overlapping

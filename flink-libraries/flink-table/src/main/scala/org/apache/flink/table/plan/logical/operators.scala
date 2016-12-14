@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table._
+import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkRelBuilder}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.functions.utils.TableSqlFunction

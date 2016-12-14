@@ -25,11 +25,12 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkAggregate
 import org.apache.flink.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.typeutils.{RowTypeInfo, TypeConverter}
-import org.apache.flink.table.{BatchTableEnvironment, FlinkTypeFactory, Row}
+import org.apache.flink.table.{BatchTableEnvironment, Row}
 
 import scala.collection.JavaConverters._
 

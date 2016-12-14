@@ -19,9 +19,10 @@ package org.apache.flink.table.api.scala
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.Table
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.TableFunction
-import org.apache.flink.table.{TableConfig, Table}
+import org.apache.flink.table.TableConfig
 
 import scala.reflect.ClassTag
 

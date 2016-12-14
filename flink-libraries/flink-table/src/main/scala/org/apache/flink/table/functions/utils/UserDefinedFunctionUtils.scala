@@ -28,7 +28,8 @@ import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.table.{FlinkTypeFactory, TableException, ValidationException}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.{TableException, ValidationException}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
@@ -167,6 +168,7 @@ object UserDefinedFunctionUtils {
 
   /**
     * Create [[SqlFunction]] for a [[ScalarFunction]]
+ *
     * @param name function name
     * @param function scalar function
     * @param typeFactory type factory
@@ -182,6 +184,7 @@ object UserDefinedFunctionUtils {
 
   /**
     * Create [[SqlFunction]]s for a [[TableFunction]]'s every eval method
+ *
     * @param name function name
     * @param tableFunction table function
     * @param resultType the type information of returned table

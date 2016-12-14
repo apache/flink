@@ -21,7 +21,8 @@ package org.apache.flink.table.expressions
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
-import org.apache.flink.table.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkRelBuilder
+import FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.validate.{ValidationFailure, ValidationSuccess}
 
 abstract class WindowProperty(child: Expression) extends UnaryExpression {

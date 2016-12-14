@@ -21,11 +21,12 @@ package org.apache.flink.table.utils
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{DataSet => JDataSet}
+import org.apache.flink.table.api.Table
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
-import org.apache.flink.table.{Table, TableEnvironment}
+import org.apache.flink.table.TableEnvironment
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.junit.Assert.assertEquals

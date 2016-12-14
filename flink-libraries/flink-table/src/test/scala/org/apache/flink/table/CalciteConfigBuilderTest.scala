@@ -21,6 +21,7 @@ package org.apache.flink.table
 import org.apache.calcite.rel.rules.{CalcSplitRule, CalcMergeRule, FilterMergeRule}
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, OracleSqlOperatorTable}
 import org.apache.calcite.tools.RuleSets
+import org.apache.flink.table.calcite.{CalciteConfigBuilder, CalciteConfig}
 import org.junit.Test
 import org.junit.Assert._
 

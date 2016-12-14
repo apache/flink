@@ -23,7 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.table.api.scala.stream.utils.StreamITCase;
 import org.apache.flink.table.Row;
-import org.apache.flink.table.Table;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.TableEnvironment;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;

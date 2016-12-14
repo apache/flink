@@ -25,7 +25,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.table.FlinkRelBuilder
+import org.apache.flink.table.calcite.FlinkRelBuilder
 import org.apache.flink.table.expressions.ExpressionUtils.{divide, getFactor, mod}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval

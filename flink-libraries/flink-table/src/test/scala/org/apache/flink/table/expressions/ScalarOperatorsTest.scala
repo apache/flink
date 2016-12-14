@@ -19,10 +19,11 @@
 package org.apache.flink.table.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.table.typeutils.RowTypeInfo
-import org.apache.flink.table.{Row, Types, ValidationException}
+import org.apache.flink.table.{Row, ValidationException}
 import org.junit.Test
 
 class ScalarOperatorsTest extends ExpressionTestBase {

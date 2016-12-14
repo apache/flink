@@ -18,6 +18,7 @@
 package org.apache.flink.table.sinks
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.Table
 
 trait TableSinkBase[T] extends TableSink[T] {
 
@@ -28,7 +29,7 @@ trait TableSinkBase[T] extends TableSink[T] {
   protected def copy: TableSinkBase[T]
 
   /**
-    * Return the field names of the [[org.apache.flink.table.Table]] to emit. */
+    * Return the field names of the [[Table]] to emit. */
   def getFieldNames: Array[String] = {
     fieldNames match {
       case Some(n) => n
@@ -37,7 +38,7 @@ trait TableSinkBase[T] extends TableSink[T] {
     }
   }
 
-  /** Return the field types of the [[org.apache.flink.table.Table]] to emit. */
+  /** Return the field types of the [[Table]] to emit. */
   def getFieldTypes: Array[TypeInformation[_]] = {
     fieldTypes match {
       case Some(t) => t
@@ -48,12 +49,12 @@ trait TableSinkBase[T] extends TableSink[T] {
 
   /**
     * Return a copy of this [[TableSink]] configured with the field names and types of the
-    * [[org.apache.flink.table.Table]] to emit.
+    * [[Table]] to emit.
     *
     * @param fieldNames The field names of the table to emit.
     * @param fieldTypes The field types of the table to emit.
     * @return A copy of this [[TableSink]] configured with the field names and types of the
-    *         [[org.apache.flink.table.Table]] to emit.
+    *         [[Table]] to emit.
     */
   final def configure(fieldNames: Array[String],
                       fieldTypes: Array[TypeInformation[_]]): TableSink[T] = {

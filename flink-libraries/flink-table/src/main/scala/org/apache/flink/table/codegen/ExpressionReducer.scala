@@ -25,8 +25,9 @@ import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.typeutils.{RowTypeInfo, TypeConverter}
-import org.apache.flink.table.{FlinkTypeFactory, Row, TableConfig}
+import org.apache.flink.table.{Row, TableConfig}
 
 import scala.collection.JavaConverters._
 

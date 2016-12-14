@@ -25,7 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase;
 import org.apache.flink.table.Row;
-import org.apache.flink.table.Table;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.TableEnvironment;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.junit.Test;

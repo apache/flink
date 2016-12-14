@@ -21,7 +21,7 @@ package org.apache.flink.table.expressions.utils
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.Types
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.ScalarFunction
 
 case class SimplePojo(name: String, age: Int)

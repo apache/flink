@@ -26,7 +26,7 @@ import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.scala.batch.GeneratingInputFormat;
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase;
 import org.apache.flink.table.Row;
-import org.apache.flink.table.Table;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.TableEnvironment;
 import org.apache.flink.table.sources.BatchTableSource;
 import org.apache.flink.table.typeutils.RowTypeInfo;

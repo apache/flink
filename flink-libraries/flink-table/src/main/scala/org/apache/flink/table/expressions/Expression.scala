@@ -21,7 +21,7 @@ import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.trees.TreeNode
+import org.apache.flink.table.plan.TreeNode
 import org.apache.flink.table.validate.{ValidationResult, ValidationSuccess}
 
 abstract class Expression extends TreeNode[Expression] {

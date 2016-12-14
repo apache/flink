@@ -19,7 +19,9 @@ package org.apache.flink.table.api.java
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.table.{TableConfig, Table}
+import org.apache.flink.table.TableConfig
+import org.apache.flink.table.api.Table
+import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment

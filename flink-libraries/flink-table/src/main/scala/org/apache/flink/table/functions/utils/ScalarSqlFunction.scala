@@ -24,10 +24,11 @@ import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.utils.ScalarSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getResultType, getSignature, getSignatures, signatureToString, signaturesToString}
-import org.apache.flink.table.{FlinkTypeFactory, ValidationException}
+import org.apache.flink.table.ValidationException
 
 import scala.collection.JavaConverters._
 

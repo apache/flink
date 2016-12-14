@@ -19,6 +19,8 @@ package org.apache.flink.table
 
 import java.util.TimeZone
 
+import org.apache.flink.table.calcite.CalciteConfig
+
 /**
  * A config to define the runtime behavior of the Table API.
  */

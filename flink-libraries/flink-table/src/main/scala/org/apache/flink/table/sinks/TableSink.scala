@@ -19,8 +19,9 @@
 package org.apache.flink.table.sinks
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.Table
 
-/** A [[TableSink]] specifies how to emit a [[org.apache.flink.table.Table]] to an external
+/** A [[TableSink]] specifies how to emit a [[Table]] to an external
   * system or location.
   *
   * The interface is generic such that it can support different storage locations and formats.
@@ -46,12 +47,12 @@ trait TableSink[T] {
 
   /**
     * Return a copy of this [[TableSink]] configured with the field names and types of the
-    * [[org.apache.flink.table.Table]] to emit.
+    * [[Table]] to emit.
     *
     * @param fieldNames The field names of the table to emit.
     * @param fieldTypes The field types of the table to emit.
     * @return A copy of this [[TableSink]] configured with the field names and types of the
-    *         [[org.apache.flink.table.Table]] to emit.
+    *         [[Table]] to emit.
     */
   def configure(fieldNames: Array[String],
                 fieldTypes: Array[TypeInformation[_]]): TableSink[T]

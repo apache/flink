@@ -24,7 +24,8 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.table.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkRelBuilder}
+import FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.plan.nodes.FlinkAggregate
@@ -33,7 +34,7 @@ import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 import org.apache.flink.table.runtime.aggregate.{Aggregate, _}
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, RowTypeInfo, TimeIntervalTypeInfo, TypeConverter}
-import org.apache.flink.table.{FlinkTypeFactory, Row, StreamTableEnvironment}
+import org.apache.flink.table.{Row, StreamTableEnvironment}
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream, DataStream, KeyedStream, WindowedStream}
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api
+package org.apache.flink
 
 /**
  * == Table API ==
@@ -23,7 +23,7 @@ package org.apache.flink.api
  * This package contains the generic part of the Table API. It can be used with Flink Streaming
  * and Flink Batch. From Scala as well as from Java.
  *
- * When using the Table API, as user creates a [[org.apache.flink.table.Table]] from
+ * When using the Table API, as user creates a [[org.apache.flink.table.api.Table]] from
  * a DataSet or DataStream. On this relational operations can be performed. A table can also
  * be converted back to a DataSet or DataStream.
  *

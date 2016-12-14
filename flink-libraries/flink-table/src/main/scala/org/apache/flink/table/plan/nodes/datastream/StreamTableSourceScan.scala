@@ -21,9 +21,10 @@ package org.apache.flink.table.plan.nodes.datastream
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.sources.StreamTableSource
-import org.apache.flink.table.{FlinkTypeFactory, StreamTableEnvironment}
+import org.apache.flink.table.StreamTableEnvironment
 import org.apache.flink.streaming.api.datastream.DataStream
 
 /** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */

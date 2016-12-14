@@ -20,11 +20,12 @@ package org.apache.flink.table.expressions
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.plan.logical.{LogicalNode, LogicalTableFunctionCall}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
-import org.apache.flink.table.{FlinkTypeFactory, UnresolvedException, ValidationException}
+import org.apache.flink.table.{UnresolvedException, ValidationException}
 
 /**
   * General expression for unresolved function calls. The function can be a built-in

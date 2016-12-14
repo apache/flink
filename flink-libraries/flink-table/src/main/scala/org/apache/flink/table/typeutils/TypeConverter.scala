@@ -26,7 +26,8 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
-import org.apache.flink.table.{FlinkTypeFactory, Row, TableException}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.{Row, TableException}
 
 import scala.collection.JavaConversions._
 

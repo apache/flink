@@ -31,6 +31,7 @@ import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeIn
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
@@ -39,7 +40,7 @@ import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.typeutils.{RowTypeInfo, TypeConverter}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
-import org.apache.flink.table.{FlinkTypeFactory, TableConfig}
+import org.apache.flink.table.TableConfig
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable

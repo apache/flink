@@ -21,8 +21,9 @@ package org.apache.flink.table.expressions
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala.createTypeInformation
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.{Row, Types, ValidationException}
+import org.apache.flink.table.{Row, ValidationException}
 import org.apache.flink.table.expressions.CompositeAccessTest.{MyCaseClass, MyCaseClass2, MyPojo}
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.table.typeutils.RowTypeInfo

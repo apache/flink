@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.FlinkTypeSystem
+import org.apache.flink.table.calcite.FlinkTypeSystem
 
 /**
   * Generic type for encapsulating Flink's [[TypeInformation]].

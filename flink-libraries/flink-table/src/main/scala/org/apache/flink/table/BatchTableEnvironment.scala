@@ -29,6 +29,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.table.api.Table
+import org.apache.flink.table.calcite.FlinkPlannerImpl
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}

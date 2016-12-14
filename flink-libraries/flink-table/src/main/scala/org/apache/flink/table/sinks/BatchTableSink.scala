@@ -19,8 +19,9 @@
 package org.apache.flink.table.sinks
 
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.table.api.Table
 
-/** Defines an external [[TableSink]] to emit a batch [[org.apache.flink.table.Table]].
+/** Defines an external [[TableSink]] to emit a batch [[Table]].
   *
   * @tparam T Type of [[DataSet]] that this [[TableSink]] expects and supports.
   */

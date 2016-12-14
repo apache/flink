@@ -22,7 +22,7 @@ import java.util
 
 import org.apache.calcite.rel.`type`.{RelDataTypeField, RelDataTypeFieldImpl, RelRecordType}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.FlinkTypeFactory
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.schema.CompositeRelDataType.createFieldList
 
 import scala.collection.JavaConverters._

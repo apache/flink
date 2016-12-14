@@ -22,7 +22,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase;
-import org.apache.flink.table.Table;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.Row;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;

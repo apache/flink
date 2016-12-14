@@ -22,11 +22,12 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.typeutils.RowTypeInfo
-import org.apache.flink.table.{Row, Types}
+import org.apache.flink.table.Row
 import org.junit.Test
 
 class UserDefinedScalarFunctionTest extends ExpressionTestBase {
