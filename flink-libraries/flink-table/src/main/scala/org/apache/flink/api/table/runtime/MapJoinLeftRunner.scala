@@ -28,6 +28,10 @@ class MapJoinLeftRunner[IN1, IN2, OUT](
     broadcastSetName: String)
   extends MapSideJoinRunner[IN1, IN2, IN2, IN1, OUT](name, code, returnType, broadcastSetName) {
 
-  override def flatMap(multiInput: IN1, out: Collector[OUT]): Unit =
-    function.join(multiInput, singleInput, out)
+  override def flatMap(multiInput: IN1, out: Collector[OUT]): Unit = {
+    broadcastSet match {
+      case Some(singleInput) => function.join(multiInput, singleInput, out)
+      case None =>
+    }
+  }
 }
