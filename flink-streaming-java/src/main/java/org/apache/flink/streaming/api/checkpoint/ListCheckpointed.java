@@ -41,6 +41,7 @@ public interface ListCheckpointed<T extends Serializable> {
 	 * @param checkpointId The ID of the checkpoint.
 	 * @param timestamp Timestamp of the checkpoint.
 	 * @return The operator state in a list of redistributable, atomic sub-states.
+	 *         Should not return null, but empty list instead.
 	 * @throws Exception Thrown if the creation of the state object failed. This causes the
 	 *                   checkpoint to fail. The system may decide to fail the operation (and trigger
 	 *                   recovery), or to discard this checkpoint attempt and to continue running

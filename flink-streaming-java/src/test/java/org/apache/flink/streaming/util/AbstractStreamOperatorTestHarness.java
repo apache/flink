@@ -33,6 +33,7 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
@@ -143,6 +144,15 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
 		when(mockTask.getUserCodeClassLoader()).thenReturn(this.getClass().getClassLoader());
 		when(mockTask.getCancelables()).thenReturn(this.closableRegistry);
+		when(mockTask.createOperatorStateBackend(any(StreamOperator.class), any(Collection.class))).
+				thenAnswer(new Answer<OperatorStateBackend>() {
+					@Override
+					public OperatorStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
+						return new DefaultOperatorStateBackend(
+								getClass().getClassLoader(),
+								invocationOnMock.getArgumentAt(1, Collection.class));
+					}
+		});
 
 		doAnswer(new Answer<Void>() {
 			@Override
