@@ -52,7 +52,6 @@ under the License.
 		<module>flink-connector-twitter</module>
 		<module>flink-connector-nifi</module>
 		<module>flink-connector-cassandra</module>
-		<module>flink-connector-redis</module>
 		<module>flink-connector-filesystem</module>
 	</modules>
 
