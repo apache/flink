@@ -45,6 +45,9 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 		
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;  // the number of parallel instances to use
 
+	private ResourceSpec minResource;
+	private ResourceSpec maxResource;
+
 	/**
 	 * The return type of the user function.
 	 */
@@ -184,7 +187,38 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	public void setParallelism(int parallelism) {
 		this.parallelism = parallelism;
 	}
-	
+
+	/**
+	 * Gets the minimum resource for this contract instance. The minimum resource denotes how many
+	 * resources will be needed in the minimum for the user function during the execution.
+	 *
+	 * @return The minimum resource of this operator.
+	 */
+	public ResourceSpec getMinResource() {
+		return this.minResource != null ? this.minResource : ResourceSpec.UNKNOWN;
+	}
+
+	/**
+	 * Gets the maximum resource for this contract instance. The maximum resource denotes how many
+	 * resources will be needed in the maximum for the user function during the execution.
+	 *
+	 * @return The maximum resource of this operator.
+	 */
+	public ResourceSpec getMaxResource() {
+		return this.maxResource != null ? this.maxResource : ResourceSpec.UNKNOWN;
+	}
+
+	/**
+	 * Sets the minimum and maximum resources for this contract instance. The resource denotes
+	 * how many memories and vcores of the user function will be consumed during the execution.
+	 *
+	 * @param minResource The minimum resource of this operator.
+	 * @param maxResource The maximum resource of this operator.
+	 */
+	public void setResource(ResourceSpec minResource, ResourceSpec maxResource) {
+		this.minResource = minResource;
+		this.maxResource = maxResource;
+	}
 	
 	/**
 	 * Gets the user code wrapper. In the case of a pact, that object will be the stub with the user function,
