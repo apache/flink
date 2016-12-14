@@ -56,6 +56,15 @@ public class MesosTaskManagerParameters {
 		key("mesos.resourcemanager.tasks.container.image.name")
 			.noDefaultValue();
 
+	/**
+	 * Value for {@code MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE} setting. Tells to use the Mesos containerizer.
+	 */
+	public static final String MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_MESOS = "mesos";
+	/**
+	 * Value for {@code MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE} setting. Tells to use the Docker containerizer.
+	 */
+	public static final String MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_DOCKER = "docker";
+
 	private final double cpus;
 
 	private final ContainerType containerType;
@@ -139,10 +148,10 @@ public class MesosTaskManagerParameters {
 		ContainerType containerType;
 		String containerTypeString = flinkConfig.getString(MESOS_RM_CONTAINER_TYPE);
 		switch(containerTypeString) {
-			case ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_MESOS:
+			case MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_MESOS:
 				containerType = ContainerType.MESOS;
 				break;
-			case ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_DOCKER:
+			case MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_DOCKER:
 				containerType = ContainerType.DOCKER;
 				if(imageName == null || imageName.length() == 0) {
 					throw new IllegalConfigurationException(MESOS_RM_CONTAINER_IMAGE_NAME.key() +

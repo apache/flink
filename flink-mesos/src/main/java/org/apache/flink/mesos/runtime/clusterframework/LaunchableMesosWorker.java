@@ -63,6 +63,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 
 	/**
 	 * Construct a launchable Mesos worker.
+	 * @param resolver The resolver for retrieving artifacts (e.g. jars, configuration)
 	 * @param params the TM parameters such as memory, cpu to acquire.
 	 * @param containerSpec an abstract container specification for launch time.
 	 * @param taskID the taskID for this worker.
