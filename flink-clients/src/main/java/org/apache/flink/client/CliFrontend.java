@@ -130,6 +130,7 @@ public class CliFrontend {
 		/** command line interface of the YARN session, with a special initialization here
 		 *  to prefix all options with y/yarn. */
 		loadCustomCommandLine("org.apache.flink.yarn.cli.FlinkYarnSessionCli", "y", "yarn");
+		loadCustomCommandLine("org.apache.flink.yarn.cli.FlinkYarnCLI", "y", "yarn");
 		customCommandLine.add(new DefaultCLI());
 	}
 
