@@ -154,22 +154,6 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-			<!-- package uber-jar as optional package for distribution -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<finalName>${project.artifactId}-${project.version}-uber</finalName>
-				</configuration>
-			</plugin>
 		</plugins>
 		
 		<pluginManagement>
@@ -228,4 +212,5 @@ under the License.
 			</plugins>
 		</pluginManagement>
 	</build>
+
 </project>

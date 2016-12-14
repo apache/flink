@@ -30,13 +30,6 @@
 	<files>
 		<!-- Connectors -->
 		<file>
-			<source>../flink-connectors/flink-avro/target/flink-avro_2.10-${project.version}-uber.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-avro_2.10-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
 			<source>../flink-connectors/flink-connector-cassandra/target/flink-connector-cassandra_2.10-${project.version}-uber.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-connector-cassandra_2.10-${project.version}.jar</destName>
