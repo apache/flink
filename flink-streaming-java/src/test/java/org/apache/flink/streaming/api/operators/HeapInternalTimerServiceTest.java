@@ -176,8 +176,8 @@ public class HeapInternalTimerServiceTest {
 		assertEquals(2, timerService.numProcessingTimeTimers("hello"));
 		assertEquals(3, timerService.numProcessingTimeTimers("ciao"));
 
-		assertEquals(1, processingTimeService.getNumRegisteredTimers());
-		assertThat(processingTimeService.getRegisteredTimerTimestamps(), containsInAnyOrder(10L));
+		assertEquals(1, processingTimeService.getNumActiveTimers());
+		assertThat(processingTimeService.getActiveTimerTimestamps(), containsInAnyOrder(10L));
 
 		processingTimeService.setCurrentTime(10);
 
@@ -185,8 +185,8 @@ public class HeapInternalTimerServiceTest {
 		assertEquals(1, timerService.numProcessingTimeTimers("hello"));
 		assertEquals(2, timerService.numProcessingTimeTimers("ciao"));
 
-		assertEquals(1, processingTimeService.getNumRegisteredTimers());
-		assertThat(processingTimeService.getRegisteredTimerTimestamps(), containsInAnyOrder(20L));
+		assertEquals(1, processingTimeService.getNumActiveTimers());
+		assertThat(processingTimeService.getActiveTimerTimestamps(), containsInAnyOrder(20L));
 
 		processingTimeService.setCurrentTime(20);
 
@@ -194,18 +194,18 @@ public class HeapInternalTimerServiceTest {
 		assertEquals(0, timerService.numProcessingTimeTimers("hello"));
 		assertEquals(1, timerService.numProcessingTimeTimers("ciao"));
 
-		assertEquals(1, processingTimeService.getNumRegisteredTimers());
-		assertThat(processingTimeService.getRegisteredTimerTimestamps(), containsInAnyOrder(30L));
+		assertEquals(1, processingTimeService.getNumActiveTimers());
+		assertThat(processingTimeService.getActiveTimerTimestamps(), containsInAnyOrder(30L));
 
 		processingTimeService.setCurrentTime(30);
 
 		assertEquals(0, timerService.numProcessingTimeTimers());
 
-		assertEquals(0, processingTimeService.getNumRegisteredTimers());
+		assertEquals(0, processingTimeService.getNumActiveTimers());
 
 		timerService.registerProcessingTimeTimer("ciao", 40);
 
-		assertEquals(1, processingTimeService.getNumRegisteredTimers());
+		assertEquals(1, processingTimeService.getNumActiveTimers());
 	}
 
 	/**
@@ -233,15 +233,15 @@ public class HeapInternalTimerServiceTest {
 
 		assertEquals(1, timerService.numProcessingTimeTimers());
 
-		assertEquals(1, processingTimeService.getNumRegisteredTimers());
-		assertThat(processingTimeService.getRegisteredTimerTimestamps(), containsInAnyOrder(20L));
+		assertEquals(1, processingTimeService.getNumActiveTimers());
+		assertThat(processingTimeService.getActiveTimerTimestamps(), containsInAnyOrder(20L));
 
 		timerService.registerProcessingTimeTimer("ciao", 10);
 
 		assertEquals(2, timerService.numProcessingTimeTimers());
 
-		assertEquals(1, processingTimeService.getNumRegisteredTimers());
-		assertThat(processingTimeService.getRegisteredTimerTimestamps(), containsInAnyOrder(10L));
+		assertEquals(1, processingTimeService.getNumActiveTimers());
+		assertThat(processingTimeService.getActiveTimerTimestamps(), containsInAnyOrder(10L));
 	}
 
 	/**
@@ -266,8 +266,8 @@ public class HeapInternalTimerServiceTest {
 
 		assertEquals(1, timerService.numProcessingTimeTimers());
 
-		assertEquals(1, processingTimeService.getNumRegisteredTimers());
-		assertThat(processingTimeService.getRegisteredTimerTimestamps(), containsInAnyOrder(10L));
+		assertEquals(1, processingTimeService.getNumActiveTimers());
+		assertThat(processingTimeService.getActiveTimerTimestamps(), containsInAnyOrder(10L));
 
 		doAnswer(new Answer<Object>() {
 			@Override
@@ -279,8 +279,8 @@ public class HeapInternalTimerServiceTest {
 
 		processingTimeService.setCurrentTime(10);
 
-		assertEquals(1, processingTimeService.getNumRegisteredTimers());
-		assertThat(processingTimeService.getRegisteredTimerTimestamps(), containsInAnyOrder(20L));
+		assertEquals(1, processingTimeService.getNumActiveTimers());
+		assertThat(processingTimeService.getActiveTimerTimestamps(), containsInAnyOrder(20L));
 
 		doAnswer(new Answer<Object>() {
 			@Override
@@ -294,8 +294,8 @@ public class HeapInternalTimerServiceTest {
 
 		assertEquals(1, timerService.numProcessingTimeTimers());
 
-		assertEquals(1, processingTimeService.getNumRegisteredTimers());
-		assertThat(processingTimeService.getRegisteredTimerTimestamps(), containsInAnyOrder(30L));
+		assertEquals(1, processingTimeService.getNumActiveTimers());
+		assertThat(processingTimeService.getActiveTimerTimestamps(), containsInAnyOrder(30L));
 	}
 
 

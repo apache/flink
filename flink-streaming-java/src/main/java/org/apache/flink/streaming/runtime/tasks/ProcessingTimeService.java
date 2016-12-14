@@ -56,6 +56,16 @@ public abstract class ProcessingTimeService {
 	public abstract ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target);
 
 	/**
+	 * Registers a task to be executed repeatedly at a fixed rate.
+	 *
+	 * @param callback to be executed after the initial delay and then after each period
+	 * @param initialDelay initial delay to start executing callback
+	 * @param period after the initial delay after which the callback is executed
+	 * @return Scheduled future representing the task to be executed repeatedly
+	 */
+	public abstract ScheduledFuture<?> scheduleAtFixedRate(ProcessingTimeCallback callback, long initialDelay, long period);
+
+	/**
 	 * Returns <tt>true</tt> if the service has been shut down, <tt>false</tt> otherwise.
 	 */
 	public abstract boolean isTerminated();

@@ -76,13 +76,13 @@ public class TestProcessingTimeServiceTest {
 			}
 		});
 
-		assertEquals(2, tp.getNumRegisteredTimers());
+		assertEquals(2, tp.getNumActiveTimers());
 
 		tp.setCurrentTime(35);
-		assertEquals(1, tp.getNumRegisteredTimers());
+		assertEquals(1, tp.getNumActiveTimers());
 
 		tp.setCurrentTime(40);
-		assertEquals(0, tp.getNumRegisteredTimers());
+		assertEquals(0, tp.getNumActiveTimers());
 
 		tp.shutdownService();
 	}
