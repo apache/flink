@@ -23,7 +23,7 @@ import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalJoin}
+import org.apache.calcite.rel.logical._
 import org.apache.flink.table.plan.nodes.dataset.{DataSetConvention, DataSetSingleRowJoin}
 
 class DataSetSingleRowJoinRule
@@ -31,14 +31,13 @@ class DataSetSingleRowJoinRule
       classOf[LogicalJoin],
       Convention.NONE,
       DataSetConvention.INSTANCE,
-      "DataSetSingleRowCrossRule") {
+      "DataSetSingleRowJoinRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join = call.rel(0).asInstanceOf[LogicalJoin]
 
     if (isInnerJoin(join)) {
-      isGlobalAggregation(join.getRight.asInstanceOf[RelSubset].getOriginal) ||
-        isGlobalAggregation(join.getLeft.asInstanceOf[RelSubset].getOriginal)
+      isSingleRow(join.getRight) || isSingleRow(join.getLeft)
     } else {
       false
     }
@@ -48,13 +47,19 @@ class DataSetSingleRowJoinRule
     join.getJoinType == JoinRelType.INNER
   }
 
-  private def isGlobalAggregation(node: RelNode) = {
-    node.isInstanceOf[LogicalAggregate] &&
-      isSingleRow(node.asInstanceOf[LogicalAggregate])
-  }
-
-  private def isSingleRow(agg: LogicalAggregate) = {
-    agg.getGroupSet.isEmpty
+  /**
+    * Recursively checks if a [[RelNode]] returns at most a single row.
+    * Input must be a global aggregation possibly followed by projections or filters.
+    */
+  private def isSingleRow(node: RelNode): Boolean = {
+    node match {
+      case ss: RelSubset => isSingleRow(ss.getOriginal)
+      case lp: LogicalProject => isSingleRow(lp.getInput)
+      case lf: LogicalFilter => isSingleRow(lf.getInput)
+      case lc: LogicalCalc => isSingleRow(lc.getInput)
+      case la: LogicalAggregate => la.getGroupSet.isEmpty
+      case _ => false
+    }
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -62,7 +67,7 @@ class DataSetSingleRowJoinRule
     val traitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
     val dataSetLeftNode = RelOptRule.convert(join.getLeft, DataSetConvention.INSTANCE)
     val dataSetRightNode = RelOptRule.convert(join.getRight, DataSetConvention.INSTANCE)
-    val leftIsSingle = isGlobalAggregation(join.getLeft.asInstanceOf[RelSubset].getOriginal)
+    val leftIsSingle = isSingleRow(join.getLeft)
 
     new DataSetSingleRowJoin(
       rel.getCluster,
