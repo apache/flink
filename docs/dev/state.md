@@ -241,7 +241,7 @@ Instance fields can be checkpointed by using the `Checkpointed` interface.
 When the user-defined function implements the `Checkpointed` interface, the `snapshotState(…)` and `restoreState(…)`
 methods will be executed to draw and restore function state.
 
-In addition to that, user functions can also implement the `CheckpointNotifier` interface to receive notifications on
+In addition to that, user functions can also implement the `CheckpointListener` interface to receive notifications on
 completed checkpoints via the `notifyCheckpointComplete(long checkpointId)` method.
 Note that there is no guarantee for the user function to receive a notification if a failure happens between
 checkpoint completion and notification. The notifications should hence be treated in a way that notifications from
@@ -346,7 +346,7 @@ public static class CounterSource
 }
 {% endhighlight %}
 
-Some operators might need the information when a checkpoint is fully acknowledged by Flink to communicate that with the outside world. In this case see the `flink.streaming.api.checkpoint.CheckpointNotifier` interface.
+Some operators might need the information when a checkpoint is fully acknowledged by Flink to communicate that with the outside world. In this case see the `org.apache.flink.runtime.state.CheckpointListener` interface.
 
 ## State Checkpoints in Iterative Jobs
 
