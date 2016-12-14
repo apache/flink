@@ -18,11 +18,9 @@
 
 package org.apache.flink.streaming.api.checkpoint;
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.junit.Assert;
 import org.junit.Test;
@@ -31,16 +29,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 public class ListCheckpointedTest {
 
 	@Test
 	public void testUDFReturningNull() throws Exception {
 		TestUserFunction userFunction = new TestUserFunction(null);
 		AbstractStreamOperatorTestHarness<Integer> testHarness =
-				new AbstractStreamOperatorTestHarness<>(new TestOperator(userFunction), 1, 1, 0);
+				new AbstractStreamOperatorTestHarness<>(new StreamMap<>(userFunction), 1, 1, 0);
 		testHarness.open();
 		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.initializeState(snapshot);
@@ -51,7 +46,7 @@ public class ListCheckpointedTest {
 	public void testUDFReturningEmpty() throws Exception {
 		TestUserFunction userFunction = new TestUserFunction(Collections.<Integer>emptyList());
 		AbstractStreamOperatorTestHarness<Integer> testHarness =
-				new AbstractStreamOperatorTestHarness<>(new TestOperator(userFunction), 1, 1, 0);
+				new AbstractStreamOperatorTestHarness<>(new StreamMap<>(userFunction), 1, 1, 0);
 		testHarness.open();
 		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.initializeState(snapshot);
@@ -62,15 +57,16 @@ public class ListCheckpointedTest {
 	public void testUDFReturningData() throws Exception {
 		TestUserFunction userFunction = new TestUserFunction(Arrays.asList(1, 2, 3));
 		AbstractStreamOperatorTestHarness<Integer> testHarness =
-				new AbstractStreamOperatorTestHarness<>(new TestOperator(userFunction), 1, 1, 0);
+				new AbstractStreamOperatorTestHarness<>(new StreamMap<>(userFunction), 1, 1, 0);
 		testHarness.open();
 		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.initializeState(snapshot);
 		Assert.assertTrue(userFunction.isRestored());
 	}
 
+	private static class TestUserFunction extends RichMapFunction<Integer, Integer> implements ListCheckpointed<Integer> {
 
-	private static class TestUserFunction extends AbstractRichFunction implements ListCheckpointed<Integer> {
+		private static final long serialVersionUID = -8981369286399531925L;
 
 		private final List<Integer> expected;
 		private boolean restored;
@@ -78,6 +74,11 @@ public class ListCheckpointedTest {
 		public TestUserFunction(List<Integer> expected) {
 			this.expected = expected;
 			this.restored = false;
+		}
+
+		@Override
+		public Integer map(Integer value) throws Exception {
+			return value;
 		}
 
 		@Override
@@ -97,24 +98,6 @@ public class ListCheckpointedTest {
 
 		public boolean isRestored() {
 			return restored;
-		}
-	}
-
-	private static class TestOperator extends AbstractUdfStreamOperator<Integer, TestUserFunction> {
-
-		private final StreamTask<?, ?> containingTask;
-		private final CloseableRegistry closeableRegistry;
-
-		public TestOperator(TestUserFunction userFunction) throws Exception {
-			super(userFunction);
-			this.closeableRegistry = new CloseableRegistry();
-			this.containingTask = mock(StreamTask.class);
-			when(containingTask.getCancelables()).thenReturn(closeableRegistry);
-		}
-
-		@Override
-		public StreamTask<?, ?> getContainingTask() {
-			return containingTask;
 		}
 	}
 }
