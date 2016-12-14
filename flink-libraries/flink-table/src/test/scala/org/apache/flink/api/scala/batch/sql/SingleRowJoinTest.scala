@@ -27,6 +27,49 @@ import org.junit.Test
 class SingleRowJoinTest extends TableTestBase {
 
   @Test
+  def testSingleRowJoinWithCalcInput(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Int)]("A", 'a1, 'a2)
+
+    val query =
+      "SELECT a1, asum " +
+      "FROM A, (SELECT sum(a1) + sum(a2) AS asum FROM A)"
+
+    val expected =
+      binaryNode(
+        "DataSetSingleRowJoin",
+        unaryNode(
+          "DataSetCalc",
+          batchTableNode(0),
+          term("select", "a1")
+        ),
+        unaryNode(
+          "DataSetCalc",
+          unaryNode(
+            "DataSetAggregate",
+            unaryNode(
+              "DataSetUnion",
+              unaryNode(
+                "DataSetValues",
+                batchTableNode(0),
+                tuples(List(null, null)),
+                term("values", "a1", "a2")
+              ),
+              term("union","a1","a2")
+            ),
+            term("select", "SUM(a1) AS $f0", "SUM(a2) AS $f1")
+          ),
+          term("select", "+($f0, $f1) AS asum")
+        ),
+        term("where", "true"),
+        term("join", "a1", "asum"),
+        term("joinType", "NestedLoopJoin")
+      )
+
+    util.verifySql(query, expected)
+  }
+
+  @Test
   def testSingleRowEquiJoin(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Int, String)]("A", 'a1, 'a2)
