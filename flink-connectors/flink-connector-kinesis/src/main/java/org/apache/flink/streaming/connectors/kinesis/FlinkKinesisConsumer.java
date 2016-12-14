@@ -17,15 +17,27 @@
 
 package org.apache.flink.streaming.connectors.kinesis;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
+import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedRestoring;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
-import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
+import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
@@ -55,8 +67,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> the type of data emitted
  */
-public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
-	implements CheckpointedAsynchronously<HashMap<KinesisStreamShard, SequenceNumber>>, ResultTypeQueryable<T> {
+public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> implements
+	ResultTypeQueryable<T>,
+	CheckpointedFunction,
+	CheckpointedRestoring<HashMap<KinesisStreamShard, SequenceNumber>> {
 
 	private static final long serialVersionUID = 4724006128720664870L;
 
@@ -66,31 +80,48 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	//  Consumer properties
 	// ------------------------------------------------------------------------
 
-	/** The names of the Kinesis streams that we will be consuming from */
+	/**
+	 * The names of the Kinesis streams that we will be consuming from
+	 */
 	private final List<String> streams;
 
-	/** Properties to parametrize settings such as AWS service region, initial position in stream,
-	 * shard list retrieval behaviours, etc */
+	/**
+	 * Properties to parametrize settings such as AWS service region, initial position in stream,
+	 * shard list retrieval behaviours, etc
+	 */
 	private final Properties configProps;
 
-	/** User supplied deseriliazation schema to convert Kinesis byte messages to Flink objects */
+	/**
+	 * User supplied deseriliazation schema to convert Kinesis byte messages to Flink objects
+	 */
 	private final KinesisDeserializationSchema<T> deserializer;
 
 	// ------------------------------------------------------------------------
 	//  Runtime state
 	// ------------------------------------------------------------------------
 
-	/** Per-task fetcher for Kinesis data records, where each fetcher pulls data from one or more Kinesis shards */
+	/**
+	 * Per-task fetcher for Kinesis data records, where each fetcher pulls data from one or more Kinesis shards
+	 */
 	private transient KinesisDataFetcher<T> fetcher;
 
-	/** The sequence numbers in the last state snapshot of this subtask */
+	/**
+	 * The sequence numbers in the last state snapshot of this subtask
+	 */
 	private transient HashMap<KinesisStreamShard, SequenceNumber> lastStateSnapshot;
 
-	/** The sequence numbers to restore to upon restore from failure */
+	/**
+	 * The sequence numbers to restore to upon restore from failure
+	 */
 	private transient HashMap<KinesisStreamShard, SequenceNumber> sequenceNumsToRestore;
 
 	private volatile boolean running = true;
 
+	// ------------------------------------------------------------------------
+	// State for Checkpoint
+	// ------------------------------------------------------------------------
+
+	private transient ListState<Tuple2<KinesisStreamShard, SequenceNumber>> offsetsStateForCheckpoint;
 
 	// ------------------------------------------------------------------------
 	//  Constructors
@@ -102,12 +133,9 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	 * <p>The AWS credentials to be used, AWS region of the Kinesis streams, initial position to start streaming
 	 * from are configured with a {@link Properties} instance.</p>
 	 *
-	 * @param stream
-	 *           The single AWS Kinesis stream to read from.
-	 * @param deserializer
-	 *           The deserializer used to convert raw bytes of Kinesis records to Java objects (without key).
-	 * @param configProps
-	 *           The properties used to configure AWS credentials, AWS region, and initial starting position.
+	 * @param stream       The single AWS Kinesis stream to read from.
+	 * @param deserializer The deserializer used to convert raw bytes of Kinesis records to Java objects (without key).
+	 * @param configProps  The properties used to configure AWS credentials, AWS region, and initial starting position.
 	 */
 	public FlinkKinesisConsumer(String stream, DeserializationSchema<T> deserializer, Properties configProps) {
 		this(stream, new KinesisDeserializationSchemaWrapper<>(deserializer), configProps);
@@ -119,12 +147,9 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	 * <p>The AWS credentials to be used, AWS region of the Kinesis streams, initial position to start streaming
 	 * from are configured with a {@link Properties} instance.</p>
 	 *
-	 * @param stream
-	 *           The single AWS Kinesis stream to read from.
-	 * @param deserializer
-	 *           The keyed deserializer used to convert raw bytes of Kinesis records to Java objects.
-	 * @param configProps
-	 *           The properties used to configure AWS credentials, AWS region, and initial starting position.
+	 * @param stream       The single AWS Kinesis stream to read from.
+	 * @param deserializer The keyed deserializer used to convert raw bytes of Kinesis records to Java objects.
+	 * @param configProps  The properties used to configure AWS credentials, AWS region, and initial starting position.
 	 */
 	public FlinkKinesisConsumer(String stream, KinesisDeserializationSchema<T> deserializer, Properties configProps) {
 		this(Collections.singletonList(stream), deserializer, configProps);
@@ -136,12 +161,9 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	 * <p>The AWS credentials to be used, AWS region of the Kinesis streams, initial position to start streaming
 	 * from are configured with a {@link Properties} instance.</p>
 	 *
-	 * @param streams
-	 *           The AWS Kinesis streams to read from.
-	 * @param deserializer
-	 *           The keyed deserializer used to convert raw bytes of Kinesis records to Java objects.
-	 * @param configProps
-	 *           The properties used to configure AWS credentials, AWS region, and initial starting position.
+	 * @param streams      The AWS Kinesis streams to read from.
+	 * @param deserializer The keyed deserializer used to convert raw bytes of Kinesis records to Java objects.
+	 * @param configProps  The properties used to configure AWS credentials, AWS region, and initial starting position.
 	 */
 	public FlinkKinesisConsumer(List<String> streams, KinesisDeserializationSchema<T> deserializer, Properties configProps) {
 		checkNotNull(streams, "streams can not be null");
@@ -194,8 +216,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 		// all subtasks will run a fetcher, regardless of whether or not the subtask will initially have
 		// shards to subscribe to; fetchers will continuously poll for changes in the shard list, so all subtasks
 		// can potentially have new shards to subscribe to later on
-		fetcher = new KinesisDataFetcher<>(
-			streams, sourceContext, getRuntimeContext(), configProps, deserializer);
+		fetcher = createFetcher(streams, sourceContext, getRuntimeContext(), configProps, deserializer);
 
 		boolean isRestoringFromFailure = (sequenceNumsToRestore != null);
 		fetcher.setIsRestoringFromFailure(isRestoringFromFailure);
@@ -203,17 +224,22 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 		// if we are restoring from a checkpoint, we iterate over the restored
 		// state and accordingly seed the fetcher with subscribed shards states
 		if (isRestoringFromFailure) {
-			for (Map.Entry<KinesisStreamShard, SequenceNumber> restored : lastStateSnapshot.entrySet()) {
+			List<KinesisStreamShard> newShardsCreatedWhileNotRunning = fetcher.discoverNewShardsToSubscribe();
+			for (KinesisStreamShard shard : newShardsCreatedWhileNotRunning) {
 				fetcher.advanceLastDiscoveredShardOfStream(
-					restored.getKey().getStreamName(), restored.getKey().getShard().getShardId());
+					shard.getStreamName(), shard.getShard().getShardId());
 
-				if (LOG.isInfoEnabled()) {
+				SequenceNumber startingStateForNewShard = lastStateSnapshot.containsKey(shard)
+					? lastStateSnapshot.get(shard)
+					: SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get();
+
+				if (LOG.isInfoEnabled() && lastStateSnapshot.containsKey(shard)) {
 					LOG.info("Subtask {} is seeding the fetcher with restored shard {}," +
 							" starting state set to the restored sequence number {}",
-						getRuntimeContext().getIndexOfThisSubtask(), restored.getKey().toString(), restored.getValue());
+						getRuntimeContext().getIndexOfThisSubtask(), shard.toString(), lastStateSnapshot.get(shard));
 				}
 				fetcher.registerNewSubscribedShardState(
-					new KinesisStreamShardState(restored.getKey(), restored.getValue()));
+					new KinesisStreamShardState(shard, startingStateForNewShard));
 			}
 		}
 
@@ -267,38 +293,84 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public HashMap<KinesisStreamShard, SequenceNumber> snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		if (lastStateSnapshot == null) {
 			LOG.debug("snapshotState() requested on not yet opened source; returning null.");
-			return null;
-		}
-
-		if (fetcher == null) {
+		} else if (fetcher == null) {
 			LOG.debug("snapshotState() requested on not yet running source; returning null.");
-			return null;
-		}
-
-		if (!running) {
+		} else if (!running) {
 			LOG.debug("snapshotState() called on closed source; returning null.");
-			return null;
+		} else {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Snapshotting state ...");
+			}
+
+			offsetsStateForCheckpoint.clear();
+			lastStateSnapshot = fetcher.snapshotState();
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Snapshotted state, last processed sequence numbers: {}, checkpoint id: {}, timestamp: {}",
+					lastStateSnapshot.toString(), context.getCheckpointId(), context.getCheckpointTimestamp());
+			}
+
+			for (Map.Entry<KinesisStreamShard, SequenceNumber> entry : lastStateSnapshot.entrySet()) {
+				offsetsStateForCheckpoint.add(Tuple2.of(entry.getKey(), entry.getValue()));
+			}
 		}
+	}
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Snapshotting state ...");
+	@Override
+	public void initializeState(FunctionInitializationContext context) throws Exception {
+		TypeInformation<Tuple2<KinesisStreamShard, SequenceNumber>> tuple = new TupleTypeInfo<>(
+			TypeInformation.of(KinesisStreamShard.class),
+			TypeInformation.of(SequenceNumber.class)
+		);
+
+		offsetsStateForCheckpoint = context.getOperatorStateStore().getUnionListState(
+			new ListStateDescriptor<>(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, tuple));
+
+		if (context.isRestored()) {
+			if (sequenceNumsToRestore == null) {
+				sequenceNumsToRestore = new HashMap<>();
+				for (Tuple2<KinesisStreamShard, SequenceNumber> kinesisOffset : offsetsStateForCheckpoint.get()) {
+					sequenceNumsToRestore.put(kinesisOffset.f0, kinesisOffset.f1);
+				}
+
+				LOG.info("Setting restore state in the FlinkKinesisConsumer.");
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Using the following offsets: {}", sequenceNumsToRestore);
+				}
+			} else if (sequenceNumsToRestore.isEmpty()) {
+				sequenceNumsToRestore = null;
+			}
+		} else {
+			LOG.info("No restore state for FlinkKinesisConsumer.");
 		}
-
-		lastStateSnapshot = fetcher.snapshotState();
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Snapshotted state, last processed sequence numbers: {}, checkpoint id: {}, timestamp: {}",
-				lastStateSnapshot.toString(), checkpointId, checkpointTimestamp);
-		}
-
-		return lastStateSnapshot;
 	}
 
 	@Override
 	public void restoreState(HashMap<KinesisStreamShard, SequenceNumber> restoredState) throws Exception {
-		sequenceNumsToRestore = restoredState;
+		LOG.info("{} (taskIdx={}) restoring offsets from an older version.",
+			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
+
+		sequenceNumsToRestore = restoredState.isEmpty() ? null : restoredState;
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("{} (taskIdx={}) restored offsets from an older Flink version: {}",
+				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), sequenceNumsToRestore);
+		}
+	}
+
+	protected KinesisDataFetcher<T> createFetcher(List<String> streams,
+													SourceFunction.SourceContext<T> sourceContext,
+													RuntimeContext runtimeContext,
+													Properties configProps,
+													KinesisDeserializationSchema<T> deserializationSchema) {
+		return new KinesisDataFetcher<>(streams, sourceContext, runtimeContext, configProps, deserializationSchema);
+	}
+
+	@VisibleForTesting
+	HashMap<KinesisStreamShard, SequenceNumber> getRestoredState() {
+		return sequenceNumsToRestore;
 	}
 }
