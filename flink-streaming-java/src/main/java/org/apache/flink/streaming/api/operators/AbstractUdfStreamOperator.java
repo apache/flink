@@ -107,15 +107,17 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 		} else if (userFunction instanceof ListCheckpointed) {
 			@SuppressWarnings("unchecked")
 			List<Serializable> partitionableState = ((ListCheckpointed<Serializable>) userFunction).
-							snapshotState(context.getCheckpointId(), context.getCheckpointTimestamp());
+					snapshotState(context.getCheckpointId(), context.getCheckpointTimestamp());
 
 			ListState<Serializable> listState = getOperatorStateBackend().
 					getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
 
 			listState.clear();
 
-			for (Serializable statePartition : partitionableState) {
-				listState.add(statePartition);
+			if (null != partitionableState) {
+				for (Serializable statePartition : partitionableState) {
+					listState.add(statePartition);
+				}
 			}
 		}
 
