@@ -46,6 +46,8 @@ import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.io.FileOutputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
@@ -249,6 +251,13 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
 		}
 		return snapshot;
+	}
+	
+	public void snaphotToFile(StreamTaskState snapshot, String filename) throws Exception {
+		FileOutputStream out = new FileOutputStream(filename);
+		ObjectOutputStream oos = new ObjectOutputStream(out);
+		oos.writeObject(snapshot);
+		out.close();
 	}
 
 	/**
