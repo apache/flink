@@ -18,16 +18,12 @@
 
 package org.apache.flink.graph.bipartite.validation;
 
-import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.bipartite.BipartiteEdge;
 import org.apache.flink.graph.bipartite.BipartiteGraph;
 import org.apache.flink.util.Collector;
-import static org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 
 /**
  * Checks that the edge set input contains valid vertex Ids, i.e. that they
