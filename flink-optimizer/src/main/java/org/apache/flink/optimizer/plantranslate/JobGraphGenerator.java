@@ -529,13 +529,15 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 					} else {
 						container.setName("CHAIN " + containerTaskName + " -> " + chainedTask.getTaskName());
 					}
-					
+
+					//update the resource of container task
+					container.setResource(container.getMinResource().merge(node.getMinResource()),
+						container.getMaxResource().merge(node.getMaxResource()));
+
 					this.chainedTasksInSequence.add(chainedTask);
 					return;
 				}
-				else if (node instanceof BulkPartialSolutionPlanNode ||
-						node instanceof WorksetPlanNode)
-				{
+				else if (node instanceof BulkPartialSolutionPlanNode || node instanceof WorksetPlanNode) {
 					// merged iteration head task. the task that the head is merged with will take care of it
 					return;
 				} else {
@@ -828,6 +830,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		} else {
 			// create task vertex
 			vertex = new JobVertex(taskName);
+			vertex.setResource(node.getMinResource(), node.getMaxResource());
 			vertex.setInvokableClass((this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediateTask.class : BatchTask.class);
 			
 			config = new TaskConfig(vertex.getConfiguration());
@@ -853,6 +856,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final DriverStrategy ds = node.getDriverStrategy();
 		final JobVertex vertex = new JobVertex(taskName);
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
+		vertex.setResource(node.getMinResource(), node.getMaxResource());
 		vertex.setInvokableClass( (this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediateTask.class : BatchTask.class);
 		
 		// set user code
@@ -881,6 +885,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final InputFormatVertex vertex = new InputFormatVertex(node.getNodeName());
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
 
+		vertex.setResource(node.getMinResource(), node.getMaxResource());
 		vertex.setInvokableClass(DataSourceTask.class);
 		vertex.setFormatDescription(getDescriptionForUserCode(node.getProgramOperator().getUserCodeWrapper()));
 
@@ -896,6 +901,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final OutputFormatVertex vertex = new OutputFormatVertex(node.getNodeName());
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
 
+		vertex.setResource(node.getMinResource(), node.getMaxResource());
 		vertex.setInvokableClass(DataSinkTask.class);
 		vertex.setFormatDescription(getDescriptionForUserCode(node.getProgramOperator().getUserCodeWrapper()));
 		
@@ -958,6 +964,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
 			headVertex = new JobVertex("PartialSolution ("+iteration.getNodeName()+")");
+			headVertex.setResource(iteration.getMinResource(), iteration.getMaxResource());
 			headVertex.setInvokableClass(IterationHeadTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			headConfig.setDriver(NoOpDriver.class);
@@ -1026,6 +1033,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
 			headVertex = new JobVertex("IterationHead("+iteration.getNodeName()+")");
+			headVertex.setResource(iteration.getMinResource(), iteration.getMaxResource());
 			headVertex.setInvokableClass(IterationHeadTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			headConfig.setDriver(NoOpDriver.class);
@@ -1266,6 +1274,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		
 		// --------------------------- create the sync task ---------------------------
 		final JobVertex sync = new JobVertex("Sync(" + bulkNode.getNodeName() + ")");
+		sync.setResource(bulkNode.getMinResource(), bulkNode.getMaxResource());
 		sync.setInvokableClass(IterationSynchronizationSinkTask.class);
 		sync.setParallelism(1);
 		this.auxVertices.add(sync);
@@ -1402,6 +1411,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final TaskConfig syncConfig;
 		{
 			final JobVertex sync = new JobVertex("Sync (" + iterNode.getNodeName() + ")");
+			sync.setResource(iterNode.getMinResource(), iterNode.getMaxResource());
 			sync.setInvokableClass(IterationSynchronizationSinkTask.class);
 			sync.setParallelism(1);
 			this.auxVertices.add(sync);

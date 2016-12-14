@@ -22,6 +22,7 @@ import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -92,6 +93,8 @@ public class StreamingJobGraphGenerator {
 
 	private Map<Integer, StreamConfig> vertexConfigs;
 	private Map<Integer, String> chainedNames;
+	private Map<Integer, ResourceSpec> chainedMinResource;
+	private Map<Integer, ResourceSpec> chainedMaxResource;
 
 	public StreamingJobGraphGenerator(StreamGraph streamGraph) {
 		this.streamGraph = streamGraph;
@@ -103,6 +106,8 @@ public class StreamingJobGraphGenerator {
 		this.chainedConfigs = new HashMap<>();
 		this.vertexConfigs = new HashMap<>();
 		this.chainedNames = new HashMap<>();
+		this.chainedMinResource = new HashMap<>();
+		this.chainedMaxResource = new HashMap<>();
 		this.physicalEdgesInOrder = new ArrayList<>();
 	}
 
@@ -200,6 +205,8 @@ public class StreamingJobGraphGenerator {
 			}
 
 			chainedNames.put(currentNodeId, createChainedName(currentNodeId, chainableOutputs));
+			chainedMinResource.put(currentNodeId, createChainedMinResource(currentNodeId, chainableOutputs));
+			chainedMaxResource.put(currentNodeId, createChainedMaxResource(currentNodeId, chainableOutputs));
 
 			StreamConfig config = currentNodeId.equals(startNodeId)
 					? createJobVertex(startNodeId, hashes)
@@ -258,6 +265,22 @@ public class StreamingJobGraphGenerator {
 		}
 	}
 
+	private ResourceSpec createChainedMinResource(Integer vertexID, List<StreamEdge> chainedOutputs) {
+		ResourceSpec minResource = streamGraph.getStreamNode(vertexID).getMinResource();
+		for (StreamEdge chainable : chainedOutputs) {
+			minResource = minResource.merge(chainedMinResource.get(chainable.getTargetId()));
+		}
+		return minResource;
+	}
+
+	private ResourceSpec createChainedMaxResource(Integer vertexID, List<StreamEdge> chainedOutputs) {
+		ResourceSpec maxResource = streamGraph.getStreamNode(vertexID).getMaxResource();
+		for (StreamEdge chainable : chainedOutputs) {
+			maxResource = maxResource.merge(chainedMaxResource.get(chainable.getTargetId()));
+		}
+		return maxResource;
+	}
+
 	private StreamConfig createJobVertex(
 			Integer streamNodeId,
 			Map<Integer, byte[]> hashes) {
@@ -285,6 +308,8 @@ public class StreamingJobGraphGenerator {
 					chainedNames.get(streamNodeId),
 					jobVertexId);
 		}
+
+		jobVertex.setResource(chainedMinResource.get(streamNodeId), chainedMaxResource.get(streamNodeId));
 
 		jobVertex.setInvokableClass(streamNode.getJobVertexClass());
 

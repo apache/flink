@@ -63,6 +63,8 @@ public class OperatorTranslation {
 		
 		// translate the sink itself and connect it to the input
 		GenericDataSinkBase<T> translatedSink = sink.translateToDataFlow(input);
+
+		translatedSink.setResource(sink.getMinResource(), sink.getMaxResource());
 				
 		return translatedSink;
 	}
@@ -91,16 +93,25 @@ public class OperatorTranslation {
 		Operator<T> dataFlowOp;
 		
 		if (dataSet instanceof DataSource) {
-			dataFlowOp = ((DataSource<T>) dataSet).translateToDataFlow();
+			DataSource<T> dataSource = (DataSource<T>) dataSet;
+			dataFlowOp = dataSource.translateToDataFlow();
+			dataFlowOp.setResource(dataSource.getMinResource(), dataSource.getMaxResource());
 		}
 		else if (dataSet instanceof SingleInputOperator) {
-			dataFlowOp = translateSingleInputOperator((SingleInputOperator<?, ?, ?>) dataSet);
+			SingleInputOperator<?, ?, ?> singleInputOperator = (SingleInputOperator<?, ?, ?>) dataSet;
+			dataFlowOp = translateSingleInputOperator(singleInputOperator);
+			dataFlowOp.setResource(singleInputOperator.getMinResource(), singleInputOperator.getMaxResource());
 		}
 		else if (dataSet instanceof TwoInputOperator) {
-			dataFlowOp = translateTwoInputOperator((TwoInputOperator<?, ?, ?, ?>) dataSet);
+			TwoInputOperator<?, ?, ?, ?> twoInputOperator = (TwoInputOperator<?, ?, ?, ?>) dataSet;
+			dataFlowOp = translateTwoInputOperator(twoInputOperator);
+			dataFlowOp.setResource(twoInputOperator.getMinResource(), twoInputOperator.getMaxResource());
 		}
 		else if (dataSet instanceof BulkIterationResultSet) {
-			dataFlowOp = translateBulkIteration((BulkIterationResultSet<?>) dataSet);
+			BulkIterationResultSet bulkIterationResultSet = (BulkIterationResultSet<?>) dataSet;
+			dataFlowOp = translateBulkIteration(bulkIterationResultSet);
+			dataFlowOp.setResource(bulkIterationResultSet.getIterationHead().getMinResource(),
+				bulkIterationResultSet.getIterationHead().getMaxResource());
 		}
 		else if (dataSet instanceof DeltaIterationResultSet) {
 			dataFlowOp = translateDeltaIteration((DeltaIterationResultSet<?, ?>) dataSet);

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.instance;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -978,8 +979,16 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 		@Override
 		public Future<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
+			// Currently just use the min resource for allocating slot, for future resource resize feature,
+			// the request of both min and max resources will be sent to resource manager.
+			ResourceSpec minResource = task.getTaskToExecute().getVertex().getJobVertex().getJobVertex().getMinResource();
+			ResourceProfile resourceProfile = new ResourceProfile(
+				minResource.getCpuCores(),
+				minResource.getHeapMemory(),
+				minResource.getDirectMemory(),
+				minResource.getNativeMemory());
 			return gateway.allocateSlot(
-					task, ResourceProfile.UNKNOWN, Collections.<TaskManagerLocation>emptyList(), timeout);
+					task, resourceProfile, Collections.<TaskManagerLocation>emptyList(), timeout);
 		}
 	}
 

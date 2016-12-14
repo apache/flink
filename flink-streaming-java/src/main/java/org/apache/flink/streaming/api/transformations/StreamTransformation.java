@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -133,6 +134,10 @@ public abstract class StreamTransformation<T> {
 	protected long bufferTimeout = -1;
 
 	private String slotSharingGroup;
+
+	private ResourceSpec minResource;
+
+	private ResourceSpec maxResource;
 
 	/**
 	 * Creates a new {@code StreamTransformation} with the given name, output type and parallelism.
@@ -319,6 +324,35 @@ public abstract class StreamTransformation<T> {
 	 */
 	public long getBufferTimeout() {
 		return bufferTimeout;
+	}
+
+	/**
+	 * Sets the minimum and maximum resource for this stream transformation.
+	 *
+	 * @param minResource The minimum resource of this transformation.
+	 * @param maxResource The maximum resource of this transformation.
+	 */
+	public void setResource(ResourceSpec minResource, ResourceSpec maxResource) {
+		this.minResource = minResource;
+		this.maxResource = maxResource;
+	}
+
+	/**
+	 * Gets the minimum resource of this stream transformation.
+	 *
+	 * @return The minimum resource of this transformation.
+	 */
+	public ResourceSpec getMinResource() {
+		return minResource;
+	}
+
+	/**
+	 * Gets the maximum resource of this stream transformation.
+	 *
+	 * @return The maximum resource of this transformation.
+	 */
+	public ResourceSpec getMaxResource() {
+		return maxResource;
 	}
 
 	/**
