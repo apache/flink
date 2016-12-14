@@ -35,7 +35,7 @@ public abstract class AbstractStateBackend implements Serializable {
 	/**
 	 * Simple state handle that resolved a {@link DataInputView} from a StreamStateHandle.
 	 */
-	private static final class DataInputViewHandle implements StateHandle<DataInputView> {
+	public static final class DataInputViewHandle implements StateHandle<DataInputView> {
 
 		private static final long serialVersionUID = 2891559813513532079L;
 
@@ -43,6 +43,10 @@ public abstract class AbstractStateBackend implements Serializable {
 
 		private DataInputViewHandle(StreamStateHandle stream) {
 			this.stream = stream;
+		}
+
+		public StreamStateHandle getStreamStateHandle() {
+			return stream;
 		}
 
 		@Override

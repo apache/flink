@@ -134,7 +134,7 @@ public class OperatorStateBackendTest {
 			operatorStateBackend = abstractStateBackend.restoreOperatorStateBackend(
 					createMockEnvironment(), "testOperator", Collections.singletonList(stateHandle));
 
-			assertEquals(0, operatorStateBackend.getRegisteredStateNames().size());
+			assertEquals(2, operatorStateBackend.getRegisteredStateNames().size());
 
 			listState1 = operatorStateBackend.getOperatorState(stateDescriptor1);
 			listState2 = operatorStateBackend.getOperatorState(stateDescriptor2);
@@ -155,7 +155,6 @@ public class OperatorStateBackendTest {
 
 			operatorStateBackend.dispose();
 		} finally {
-
 			stateHandle.discardState();
 		}
 	}

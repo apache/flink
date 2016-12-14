@@ -37,6 +37,8 @@ import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.execution.Environment;
@@ -50,6 +52,7 @@ import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.types.IntValue;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -138,6 +141,42 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 	}
 
 	@Test
+	public void testValueStateSerializerCompatibilityCheck() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// some modifications to the state
+		backend.setCurrentKey(1);
+		state.update("1");
+		backend.setCurrentKey(2);
+		state.update("2");
+		backend.setCurrentKey(1);
+
+		// draw a snapshot
+		KeyGroupsStateHandle snapshot = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+		backend.dispose();
+
+		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+		snapshot.discardState();
+
+		kvId = new ValueStateDescriptor<>("id", INCOMPATIBLE_SERIALIZER, null);
+
+		try {
+			backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			fail();
+		} catch (RuntimeException expected) {
+
+		}
+
+		backend.dispose();
+	}
+
+	@Test
 	@SuppressWarnings("unchecked")
 	public void testValueState() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
@@ -210,8 +249,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 		backend.dispose();
 		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
-
-		snapshot2.discardState();
 
 		ValueState<String> restored2 = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 		@SuppressWarnings("unchecked")
@@ -352,6 +389,41 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 	}
 
 	@Test
+	public void testListStateSerializerCompatibilityCheck() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		ListState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// some modifications to the state
+		backend.setCurrentKey(1);
+		state.add("1");
+		backend.setCurrentKey(2);
+		state.add("2");
+		backend.setCurrentKey(1);
+
+		// draw a snapshot
+		KeyGroupsStateHandle snapshot = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+		backend.dispose();
+
+		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+		snapshot.discardState();
+
+		ListStateDescriptor<String> kvId2 = new ListStateDescriptor<>("id", INCOMPATIBLE_SERIALIZER);
+		try {
+			backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId2);
+			fail();
+		} catch (RuntimeException expected) {
+
+		}
+
+		backend.dispose();
+	}
+
+	@Test
 	@SuppressWarnings("unchecked,rawtypes")
 	public void testListState() {
 		try {
@@ -427,7 +499,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.dispose();
 			// restore the second snapshot and validate it
 			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
-			snapshot2.discardState();
 
 			ListState<String> restored2 = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 			@SuppressWarnings("unchecked")
@@ -449,6 +520,44 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testReducingStateSerializerCompatibilityCheck() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		ReducingStateDescriptor<String> kvId =
+				new ReducingStateDescriptor<>("id", new AppendingReduce(), String.class);
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		ReducingState<String> state =
+				backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// some modifications to the state
+		backend.setCurrentKey(1);
+		state.add("1");
+		backend.setCurrentKey(2);
+		state.add("2");
+		backend.setCurrentKey(1);
+
+		// draw a snapshot
+		KeyGroupsStateHandle snapshot = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+		backend.dispose();
+
+		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+		snapshot.discardState();
+
+		kvId = new ReducingStateDescriptor<>("id", new AppendingReduce(), INCOMPATIBLE_SERIALIZER);
+
+		try {
+			backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			fail();
+		} catch (RuntimeException expected) {
+
+		}
+
+		backend.dispose();
 	}
 
 	@Test
@@ -526,7 +635,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.dispose();
 			// restore the second snapshot and validate it
 			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
-			snapshot2.discardState();
 
 			ReducingState<String> restored2 = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 			@SuppressWarnings("unchecked")
@@ -548,6 +656,50 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testFoldingStateSerializerCompatibilityCheck() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		FoldingStateDescriptor<Integer, String> kvId = new FoldingStateDescriptor<>("id",
+				"Fold-Initial:",
+				new AppendingFold(),
+				String.class);
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		FoldingState<Integer, String> state =
+				backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// some modifications to the state
+		backend.setCurrentKey(1);
+		state.add(1);
+		backend.setCurrentKey(2);
+		state.add(1);
+		backend.setCurrentKey(1);
+
+		// draw a snapshot
+		KeyGroupsStateHandle snapshot =
+				runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+		backend.dispose();
+
+		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+		snapshot.discardState();
+
+		kvId = new FoldingStateDescriptor<>("id",
+				"Fold-Initial:",
+				new AppendingFold(),
+				INCOMPATIBLE_SERIALIZER);
+
+		try {
+			backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			fail();
+		} catch (RuntimeException expected) {
+
+		}
+
+		backend.dispose();
 	}
 
 	@Test
@@ -629,7 +781,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.dispose();
 			// restore the second snapshot and validate it
 			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
-			snapshot1.discardState();
 
 			@SuppressWarnings("unchecked")
 			FoldingState<Integer, String> restored2 = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
@@ -923,7 +1074,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 				fail("should recognize wrong serializers");
 			} catch (RuntimeException e) {
-				if (!e.getMessage().contains("Trying to access state using wrong StateDescriptor")) {
+				if (!e.getMessage().contains("Trying to access state using wrong")) {
 					fail("wrong exception " + e);
 				}
 				// expected
@@ -974,7 +1125,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 				fail("should recognize wrong serializers");
 			} catch (RuntimeException e) {
-				if (!e.getMessage().contains("Trying to access state using wrong StateDescriptor")) {
+				if (!e.getMessage().contains("Trying to access state using wrong")) {
 					fail("wrong exception " + e);
 				}
 				// expected
@@ -1027,7 +1178,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 				fail("should recognize wrong serializers");
 			} catch (RuntimeException e) {
-				if (!e.getMessage().contains("Trying to access state using wrong StateDescriptor")) {
+				if (!e.getMessage().contains("Trying to access state using wrong")) {
 					fail("wrong exception " + e);
 				}
 				// expected
@@ -1373,4 +1524,71 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		}
 		return snapshotRunnableFuture.get();
 	}
+
+	private static final TypeSerializer<String> INCOMPATIBLE_SERIALIZER = new TypeSerializer<String>() {
+		@Override
+		public boolean isImmutableType() {
+			return false;
+		}
+
+		@Override
+		public TypeSerializer<String> duplicate() {
+			return null;
+		}
+
+		@Override
+		public String createInstance() {
+			return null;
+		}
+
+		@Override
+		public String copy(String from) {
+			return null;
+		}
+
+		@Override
+		public String copy(String from, String reuse) {
+			return null;
+		}
+
+		@Override
+		public int getLength() {
+			return 0;
+		}
+
+		@Override
+		public void serialize(String record, DataOutputView target) throws IOException {
+
+		}
+
+		@Override
+		public String deserialize(DataInputView source) throws IOException {
+			return null;
+		}
+
+		@Override
+		public String deserialize(String reuse, DataInputView source) throws IOException {
+			return null;
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return false;
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return false;
+		}
+
+		@Override
+		public int hashCode() {
+			return 0;
+		}
+	};
 }

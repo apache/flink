@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.migration.runtime.checkpoint.KeyGroupState;
 import org.apache.flink.migration.runtime.checkpoint.SubtaskState;
 import org.apache.flink.migration.runtime.checkpoint.TaskState;
+import org.apache.flink.migration.runtime.state.AbstractStateBackend;
 import org.apache.flink.migration.runtime.state.KvStateSnapshot;
 import org.apache.flink.migration.runtime.state.StateHandle;
 import org.apache.flink.migration.runtime.state.filesystem.AbstractFileStateHandle;
@@ -45,6 +46,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -265,10 +267,7 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 		}
 
 		if (null != operatorState) {
-			mergeStateHandles.add(SIGNAL_1);
 			mergeStateHandles.add(convertStateHandle(operatorState));
-		} else {
-			mergeStateHandles.add(SIGNAL_0);
 		}
 
 		return new MigrationStreamStateHandle(new MultiStreamStateHandle(mergeStateHandles));
@@ -286,16 +285,21 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 			CheckpointStreamFactory.CheckpointStateOutputStream keyedStateOut =
 					checkpointStreamFactory.createCheckpointStateOutputStream(checkpointID, 0L);
 
-			final long offset = keyedStateOut.getPos();
+			try {
+				final long offset = keyedStateOut.getPos();
 
-			InstantiationUtil.serializeObject(keyedStateOut, oldKeyedState);
-			StreamStateHandle streamStateHandle = keyedStateOut.closeAndGetHandle();
+				InstantiationUtil.serializeObject(keyedStateOut, oldKeyedState);
+				StreamStateHandle streamStateHandle = keyedStateOut.closeAndGetHandle();
+				keyedStateOut = null; // makes IOUtils.closeQuietly(...) ignore this
 
-			if (null != streamStateHandle) {
-				KeyGroupRangeOffsets keyGroupRangeOffsets =
-						new KeyGroupRangeOffsets(parallelInstanceIdx, parallelInstanceIdx, new long[]{offset});
+				if (null != streamStateHandle) {
+					KeyGroupRangeOffsets keyGroupRangeOffsets =
+							new KeyGroupRangeOffsets(parallelInstanceIdx, parallelInstanceIdx, new long[]{offset});
 
-				return new MigrationKeyGroupStateHandle(keyGroupRangeOffsets, streamStateHandle);
+					return new MigrationKeyGroupStateHandle(keyGroupRangeOffsets, streamStateHandle);
+				}
+			} finally {
+				IOUtils.closeQuietly(keyedStateOut);
 			}
 		}
 		return null;
@@ -334,6 +338,9 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 			byte[] data =
 					((org.apache.flink.migration.runtime.state.memory.ByteStreamStateHandle) oldStateHandle).getData();
 			return new ByteStreamStateHandle(String.valueOf(System.identityHashCode(data)), data);
+		} else if (oldStateHandle instanceof AbstractStateBackend.DataInputViewHandle) {
+			return convertStateHandle(
+					((AbstractStateBackend.DataInputViewHandle) oldStateHandle).getStreamStateHandle());
 		}
 		throw new IllegalArgumentException("Unknown state handle type: " + oldStateHandle);
 	}

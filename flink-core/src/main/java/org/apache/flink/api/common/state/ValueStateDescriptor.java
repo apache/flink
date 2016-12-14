@@ -110,4 +110,9 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 				", serializer=" + serializer +
 				'}';
 	}
+
+	@Override
+	public Type getType() {
+		return Type.VALUE;
+	}
 }

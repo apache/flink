@@ -20,7 +20,9 @@ package org.apache.flink.migration.state;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataInputStreamWrapper;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.Migration;
 
 import java.io.IOException;
 
@@ -30,7 +32,7 @@ import java.io.IOException;
  * This class is just a StreamStateHandle that is tagged as migration, to figure out which restore logic to apply, e.g.
  * when restoring backend data from a state handle.
  */
-public class MigrationStreamStateHandle implements StreamStateHandle {
+public class MigrationStreamStateHandle implements StreamStateHandle, Migration {
 
 	private static final long serialVersionUID = -2332113722532150112L;
 	private final StreamStateHandle delegate;
@@ -41,7 +43,7 @@ public class MigrationStreamStateHandle implements StreamStateHandle {
 
 	@Override
 	public FSDataInputStream openInputStream() throws IOException {
-		return delegate.openInputStream();
+		return new MigrationFSInputStream(delegate.openInputStream());
 	}
 
 	@Override
@@ -52,5 +54,12 @@ public class MigrationStreamStateHandle implements StreamStateHandle {
 	@Override
 	public long getStateSize() {
 		return delegate.getStateSize();
+	}
+
+	static class MigrationFSInputStream extends FSDataInputStreamWrapper implements Migration {
+
+		public MigrationFSInputStream(FSDataInputStream inputStream) {
+			super(inputStream);
+		}
 	}
 }
