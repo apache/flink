@@ -18,147 +18,252 @@
 
 package org.apache.flink.streaming.api.functions.async;
 
-import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
-import org.junit.Assert;
 import org.junit.Test;
 
-import static org.mockito.Matchers.anyString;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Test case for {@link RichAsyncFunction}
+ * Test cases for {@link RichAsyncFunction}
  */
 public class RichAsyncFunctionTest {
 
-	private RichAsyncFunction<String, String> initFunction() {
-		RichAsyncFunction<String, String> function = new RichAsyncFunction<String, String>() {
-			@Override
-			public void asyncInvoke(String input, AsyncCollector<String> collector) throws Exception {
-				getRuntimeContext().getState(mock(ValueStateDescriptor.class));
-			}
-		};
-
-		return function;
-	}
-
+	/**
+	 * Test the set of iteration runtime context methods in the context of a
+	 * {@link RichAsyncFunction}.
+	 */
 	@Test
 	public void testIterationRuntimeContext() throws Exception {
-		// test runtime context is not set
-		RichAsyncFunction<String, String> function = new RichAsyncFunction<String, String>() {
+		RichAsyncFunction<Integer, Integer> function = new RichAsyncFunction<Integer, Integer>() {
+			private static final long serialVersionUID = -2023923961609455894L;
+
 			@Override
-			public void asyncInvoke(String input, AsyncCollector<String> collector) throws Exception {
-				getIterationRuntimeContext().getIterationAggregator("test");
+			public void asyncInvoke(Integer input, AsyncCollector<Integer> collector) throws Exception {
+				// no op
 			}
 		};
 
-		try {
-			function.asyncInvoke("test", mock(AsyncCollector.class));
-		}
-		catch (Exception e) {
-			Assert.assertEquals("The runtime context has not been initialized.", e.getMessage());
-		}
+		int superstepNumber = 42;
 
-		// test get agg from iteration runtime context
-		function.setRuntimeContext(mock(IterationRuntimeContext.class));
+		IterationRuntimeContext mockedIterationRuntimeContext = mock(IterationRuntimeContext.class);
+		when(mockedIterationRuntimeContext.getSuperstepNumber()).thenReturn(superstepNumber);
+		function.setRuntimeContext(mockedIterationRuntimeContext);
 
-		try {
-			function.asyncInvoke("test", mock(AsyncCollector.class));
-		}
-		catch (Exception e) {
-			Assert.assertEquals("Get iteration aggregator is not supported in rich async function", e.getMessage());
-		}
+		IterationRuntimeContext iterationRuntimeContext = function.getIterationRuntimeContext();
 
-		// get state from iteration runtime context
-		function = new RichAsyncFunction<String, String>() {
-			@Override
-			public void asyncInvoke(String input, AsyncCollector<String> collector) throws Exception {
-				getIterationRuntimeContext().getState(mock(ValueStateDescriptor.class));
-			}
-		};
-
-		function.setRuntimeContext(mock(RuntimeContext.class));
+		assertEquals(superstepNumber, iterationRuntimeContext.getSuperstepNumber());
 
 		try {
-			function.asyncInvoke("test", mock(AsyncCollector.class));
+			iterationRuntimeContext.getIterationAggregator("foobar");
+			fail("Expected getIterationAggregator to fail with unsupported operation exception");
+		} catch (UnsupportedOperationException e) {
+			// expected
 		}
-		catch (Exception e) {
-			Assert.assertEquals("State is not supported in rich async function", e.getMessage());
+
+		try {
+			iterationRuntimeContext.getPreviousIterationAggregate("foobar");
+			fail("Expected getPreviousIterationAggregator to fail with unsupported operation exception");
+		} catch (UnsupportedOperationException e) {
+			// expected
 		}
-
-		// test getting a counter from iteration runtime context
-		function = new RichAsyncFunction<String, String>() {
-			@Override
-			public void asyncInvoke(String input, AsyncCollector<String> collector) throws Exception {
-				getIterationRuntimeContext().getIntCounter("test").add(6);
-			}
-		};
-
-		IterationRuntimeContext context = mock(IterationRuntimeContext.class);
-		IntCounter counter = new IntCounter(0);
-		when(context.getIntCounter(anyString())).thenReturn(counter);
-
-		function.setRuntimeContext(context);
-
-		function.asyncInvoke("test", mock(AsyncCollector.class));
-
-		Assert.assertTrue(6 == counter.getLocalValue());
 	}
 
+	/**
+	 * Test the set of runtime context methods in the context of a {@link RichAsyncFunction}.
+	 */
 	@Test
 	public void testRuntimeContext() throws Exception {
-		// test run time context is not set
-		RichAsyncFunction<String, String> function = new RichAsyncFunction<String, String>() {
+		RichAsyncFunction<Integer, Integer> function = new RichAsyncFunction<Integer, Integer>() {
+			private static final long serialVersionUID = 1707630162838967972L;
+
 			@Override
-			public void asyncInvoke(String input, AsyncCollector<String> collector) throws Exception {
-				getRuntimeContext().getState(mock(ValueStateDescriptor.class));
+			public void asyncInvoke(Integer input, AsyncCollector<Integer> collector) throws Exception {
+				// no op
 			}
 		};
+
+		final String taskName = "foobarTask";
+		final MetricGroup metricGroup = mock(MetricGroup.class);
+		final int numberOfParallelSubtasks = 42;
+		final int indexOfSubtask = 43;
+		final int attemptNumber = 1337;
+		final String taskNameWithSubtask = "barfoo";
+		final ExecutionConfig executionConfig = mock(ExecutionConfig.class);
+		final ClassLoader userCodeClassLoader = mock(ClassLoader.class);
+
+		RuntimeContext mockedRuntimeContext = mock(RuntimeContext.class);
+
+		when(mockedRuntimeContext.getTaskName()).thenReturn(taskName);
+		when(mockedRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
+		when(mockedRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(numberOfParallelSubtasks);
+		when(mockedRuntimeContext.getIndexOfThisSubtask()).thenReturn(indexOfSubtask);
+		when(mockedRuntimeContext.getAttemptNumber()).thenReturn(attemptNumber);
+		when(mockedRuntimeContext.getTaskNameWithSubtasks()).thenReturn(taskNameWithSubtask);
+		when(mockedRuntimeContext.getExecutionConfig()).thenReturn(executionConfig);
+		when(mockedRuntimeContext.getUserCodeClassLoader()).thenReturn(userCodeClassLoader);
+
+		function.setRuntimeContext(mockedRuntimeContext);
+
+		RuntimeContext runtimeContext = function.getRuntimeContext();
+
+		assertEquals(taskName, runtimeContext.getTaskName());
+		assertEquals(metricGroup, runtimeContext.getMetricGroup());
+		assertEquals(numberOfParallelSubtasks, runtimeContext.getNumberOfParallelSubtasks());
+		assertEquals(indexOfSubtask, runtimeContext.getIndexOfThisSubtask());
+		assertEquals(attemptNumber, runtimeContext.getAttemptNumber());
+		assertEquals(taskNameWithSubtask, runtimeContext.getTaskNameWithSubtasks());
+		assertEquals(executionConfig, runtimeContext.getExecutionConfig());
+		assertEquals(userCodeClassLoader, runtimeContext.getUserCodeClassLoader());
 
 		try {
-			function.asyncInvoke("test", mock(AsyncCollector.class));
+			runtimeContext.getDistributedCache();
+			fail("Expected getDistributedCached to fail with unsupported operation exception.");
+		} catch (UnsupportedOperationException e) {
+			// expected
 		}
-		catch (Exception e) {
-			Assert.assertEquals("The runtime context has not been initialized.", e.getMessage());
-		}
-
-		// test get state
-		function = new RichAsyncFunction<String, String>() {
-			@Override
-			public void asyncInvoke(String input, AsyncCollector<String> collector) throws Exception {
-				getRuntimeContext().getState(mock(ValueStateDescriptor.class));
-			}
-		};
-
-		function.setRuntimeContext(mock(RuntimeContext.class));
 
 		try {
-			function.asyncInvoke("test", mock(AsyncCollector.class));
+			runtimeContext.getState(new ValueStateDescriptor<>("foobar", Integer.class, 42));
+			fail("Expected getState to fail with unsupported operation exception.");
+		} catch (UnsupportedOperationException e) {
+			// expected
 		}
-		catch (Exception e) {
-			Assert.assertEquals("State is not supported in rich async function", e.getMessage());
+
+		try {
+			runtimeContext.getListState(new ListStateDescriptor<>("foobar", Integer.class));
+			fail("Expected getListState to fail with unsupported operation exception.");
+		} catch (UnsupportedOperationException e) {
+			// expected
 		}
 
-		// test getting a counter from runtime context
-		function = new RichAsyncFunction<String, String>() {
-			@Override
-			public void asyncInvoke(String input, AsyncCollector<String> collector) throws Exception {
-				getIterationRuntimeContext().getIntCounter("test").add(6);
-			}
-		};
+		try {
+			runtimeContext.getReducingState(new ReducingStateDescriptor<>("foobar", new ReduceFunction<Integer>() {
+				private static final long serialVersionUID = 2136425961884441050L;
 
-		IterationRuntimeContext context = mock(IterationRuntimeContext.class);
-		IntCounter counter = new IntCounter(0);
-		when(context.getIntCounter(anyString())).thenReturn(counter);
+				@Override
+				public Integer reduce(Integer value1, Integer value2) throws Exception {
+					return value1;
+				}
+			}, Integer.class));
+			fail("Expected getReducingState to fail with unsupported operation exception.");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
 
-		function.setRuntimeContext(context);
+		try {
+			runtimeContext.addAccumulator("foobar", new Accumulator<Integer, Integer>() {
+				private static final long serialVersionUID = -4673320336846482358L;
 
-		function.asyncInvoke("test", mock(AsyncCollector.class));
+				@Override
+				public void add(Integer value) {
+					// no op
+				}
 
-		Assert.assertTrue(6 == counter.getLocalValue());
+				@Override
+				public Integer getLocalValue() {
+					return null;
+				}
+
+				@Override
+				public void resetLocal() {
+
+				}
+
+				@Override
+				public void merge(Accumulator<Integer, Integer> other) {
+
+				}
+
+				@Override
+				public Accumulator<Integer, Integer> clone() {
+					return null;
+				}
+			});
+			fail("Expected addAccumulator to fail with unsupported operation exception.");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
+
+		try {
+			runtimeContext.getAccumulator("foobar");
+			fail("Expected getAccumulator to fail with unsupported operation exception.");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
+
+		try {
+			runtimeContext.getAllAccumulators();
+			fail("Expected getAllAccumulators to fail with unsupported operation exception.");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
+
+		try {
+			runtimeContext.getIntCounter("foobar");
+			fail("Expected getIntCounter to fail with unsupported operation exception.");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
+
+		try {
+			runtimeContext.getLongCounter("foobar");
+			fail("Expected getLongCounter to fail with unsupported operation exception.");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
+
+		try {
+			runtimeContext.getDoubleCounter("foobar");
+			fail("Expected getDoubleCounter to fail with unsupported operation exception.");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
+
+		try {
+			runtimeContext.getHistogram("foobar");
+			fail("Expected getHistogram to fail with unsupported operation exception.");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
+
+		try {
+			runtimeContext.hasBroadcastVariable("foobar");
+			fail("Expected hasBroadcastVariable to fail with unsupported operation exception.");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
+
+		try {
+			runtimeContext.getBroadcastVariable("foobar");
+			fail("Expected getBroadcastVariable to fail with unsupported operation exception.");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
+
+		try {
+			runtimeContext.getBroadcastVariableWithInitializer("foobar", new BroadcastVariableInitializer<Object, Object>() {
+				@Override
+				public Object initializeBroadcastVariable(Iterable<Object> data) {
+					return null;
+				}
+			});
+			fail("Expected getBroadcastVariableWithInitializer to fail with unsupported operation exception.");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
 	}
 }

@@ -29,14 +29,15 @@ import java.io.Serializable;
  * <p>
  * For each #asyncInvoke, an async io operation can be triggered, and once it has been done,
  * the result can be collected by calling {@link AsyncCollector#collect}. For each async
- * operations, their contexts are buffered in the operator immediately after invoking
- * #asyncInvoke, leading to no blocking for each stream input as long as internal buffer is not full.
+ * operation, its context is stored in the operator immediately after invoking
+ * #asyncInvoke, avoiding blocking for each stream input as long as the internal buffer is not full.
  * <p>
- * {@link AsyncCollector} can be passed into callbacks or futures provided by async client to
- * fetch result data. Any error can also be propagate to the operator by {@link AsyncCollector#collect(Throwable)}.
+ * {@link AsyncCollector} can be passed into callbacks or futures to collect the result data.
+ * An error can also be propagate to the async IO operator by
+ * {@link AsyncCollector#collect(Throwable)}.
  *
  * <p>
- * Typical usage for callback:
+ * Callback example usage:
  * <pre>{@code
  * public class HBaseAsyncFunc implements AsyncFunction<String, String> {
  *   @Override
@@ -46,11 +47,10 @@ import java.io.Serializable;
  *     hbase.asyncGet(get, cb);
  *   }
  * }
- * }
  * </pre>
  *
  * <p>
- * Typical usage for {@link com.google.common.util.concurrent.ListenableFuture}
+ * Future example usage:
  * <pre>{@code
  * public class HBaseAsyncFunc implements AsyncFunction<String, String> {
  *   @Override
@@ -68,7 +68,6 @@ import java.io.Serializable;
  *     });
  *   }
  * }
- * }
  * </pre>
  *
  * @param <IN> The type of the input elements.
@@ -80,9 +79,10 @@ public interface AsyncFunction<IN, OUT> extends Function, Serializable {
 	/**
 	 * Trigger async operation for each stream input.
 	 *
-	 * @param input Stream Input
-	 * @param collector AsyncCollector
-	 * @exception Exception will make task fail and trigger fail-over process.
+	 * @param input element coming from an upstream task
+	 * @param collector to collect the result data
+	 * @exception Exception in case of a user code error. An exception will make the task fail and
+	 * trigger fail-over process.
 	 */
 	void asyncInvoke(IN input, AsyncCollector<OUT> collector) throws Exception;
 }

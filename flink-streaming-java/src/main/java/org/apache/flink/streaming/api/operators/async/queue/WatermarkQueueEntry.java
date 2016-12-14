@@ -16,21 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.async.buffer;
+package org.apache.flink.streaming.api.operators.async.queue;
 
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
 /**
- * {@link AsyncCollectorBuffer} entry for {@link Watermark}
- *
+ * {@link StreamElementQueueEntry} implementation for the {@link Watermark}.
  */
-public class WatermarkEntry<OUT> extends AbstractBufferEntry<OUT> {
-	public WatermarkEntry(Watermark watermark) {
+public class WatermarkQueueEntry extends StreamElementQueueEntry<Watermark> implements AsyncWatermarkResult {
+
+	private final Future<Watermark> future;
+
+	public WatermarkQueueEntry(Watermark watermark) {
 		super(watermark);
+
+		this.future = FlinkCompletableFuture.completed(watermark);
 	}
 
 	@Override
-	public boolean isDone() {
-		return true;
+	public Watermark getWatermark() {
+		return (Watermark) getStreamElement();
+	}
+
+	@Override
+	protected Future<Watermark> getFuture() {
+		return future;
 	}
 }

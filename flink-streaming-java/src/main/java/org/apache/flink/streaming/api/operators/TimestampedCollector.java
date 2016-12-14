@@ -63,6 +63,10 @@ public class TimestampedCollector<T> implements Collector<T> {
 		reuse.setTimestamp(timestamp);
 	}
 
+	public void eraseTimestamp() {
+		reuse.eraseTimestamp();
+	}
+
 	@Override
 	public void close() {
 		output.close();

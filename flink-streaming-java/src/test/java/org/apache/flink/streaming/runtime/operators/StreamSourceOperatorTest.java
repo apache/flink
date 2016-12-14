@@ -40,6 +40,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.util.CollectorOutput;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -339,34 +340,5 @@ public class StreamSourceOperatorTest {
 		public void stop() {
 			running = false;
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	
-	private static class CollectorOutput<T> implements Output<StreamRecord<T>> {
-
-		private final List<StreamElement> list;
-
-		private CollectorOutput(List<StreamElement> list) {
-			this.list = list;
-		}
-
-		@Override
-		public void emitWatermark(Watermark mark) {
-			list.add(mark);
-		}
-
-		@Override
-		public void emitLatencyMarker(LatencyMarker latencyMarker) {
-			list.add(latencyMarker);
-		}
-
-		@Override
-		public void collect(StreamRecord<T> record) {
-			list.add(record);
-		}
-
-		@Override
-		public void close() {}
 	}
 }

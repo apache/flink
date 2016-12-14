@@ -52,7 +52,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-
 /**
  * The {@code OperatorChain} contains all operators that are executed as one chain within a single
  * {@link StreamTask}.

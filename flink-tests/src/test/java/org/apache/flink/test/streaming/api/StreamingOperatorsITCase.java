@@ -38,6 +38,7 @@ import org.apache.flink.util.MathUtils;
 import org.junit.*;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -94,6 +95,9 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 		final MemorySinkFunction sinkFunction1 = new MemorySinkFunction(0);
 
+		final List<Integer> actualResult1 = new ArrayList<>();
+		MemorySinkFunction.registerCollection(0, actualResult1);
+
 		splittedResult.select("0").map(new MapFunction<Tuple2<Integer,Integer>, Integer>() {
 			private static final long serialVersionUID = 2114608668010092995L;
 
@@ -103,8 +107,10 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 			}
 		}).addSink(sinkFunction1);
 
-
 		final MemorySinkFunction sinkFunction2 = new MemorySinkFunction(1);
+
+		final List<Integer> actualResult2 = new ArrayList<>();
+		MemorySinkFunction.registerCollection(1, actualResult2);
 
 		splittedResult.select("1").map(new MapFunction<Tuple2<Integer, Integer>, Integer>() {
 			private static final long serialVersionUID = 5631104389744681308L;
@@ -132,13 +138,11 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 		env.execute();
 
-		Collection<Integer> result1 = sinkFunction1.getResult();
-		Collections.sort((ArrayList)result1);
-		Collection<Integer> result2 = sinkFunction2.getResult();
-		Collections.sort((ArrayList)result2);
+		Collections.sort(actualResult1);
+		Collections.sort(actualResult2);
 
-		Assert.assertArrayEquals(result1.toArray(), expected1.toArray());
-		Assert.assertArrayEquals(result2.toArray(), expected2.toArray());
+		Assert.assertEquals(expected1, actualResult1);
+		Assert.assertEquals(expected2, actualResult2);
 
 		MemorySinkFunction.clear();
 	}
@@ -155,6 +159,8 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		DataStream<Tuple2<Integer, NonSerializable>> input = env.addSource(new NonSerializableTupleSource(numElements));
 
 		final MemorySinkFunction sinkFunction = new MemorySinkFunction(0);
+		final ArrayList<Integer> actualResult = new ArrayList<>();
+		MemorySinkFunction.registerCollection(0, actualResult);
 
 		input
 			.keyBy(0)
@@ -186,23 +192,28 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 		env.execute();
 
-		Collection<Integer> result = sinkFunction.getResult();
-		Collections.sort((ArrayList)result);
+		Collections.sort(actualResult);
 
-		Assert.assertArrayEquals(result.toArray(), expected.toArray());
+		Assert.assertEquals(expected, actualResult);
 
 		MemorySinkFunction.clear();
 	}
 
+	/**
+	 * Tests the basic functionality of the AsyncWaitOperator: Processing a limited stream of
+	 * elements by doubling their value. This is tested in for the ordered and unordered mode.
+	 */
 	@Test
 	public void testAsyncWaitOperator() throws Exception {
-		final int numElements = 10;
+		final int numElements = 5;
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Tuple2<Integer, NonSerializable>> input = env.addSource(new NonSerializableTupleSource(numElements));
 
 		AsyncFunction<Tuple2<Integer, NonSerializable>, Integer> function = new RichAsyncFunction<Tuple2<Integer, NonSerializable>, Integer>() {
+			private static final long serialVersionUID = 7000343199829487985L;
+
 			transient ExecutorService executorService;
 
 			@Override
@@ -214,26 +225,16 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 			@Override
 			public void close() throws Exception {
 				super.close();
-				executorService.shutdown();
+				executorService.shutdownNow();
 			}
 
 			@Override
 			public void asyncInvoke(final Tuple2<Integer, NonSerializable> input,
 									final AsyncCollector<Integer> collector) throws Exception {
-				this.executorService.submit(new Runnable() {
+				executorService.submit(new Runnable() {
 					@Override
 					public void run() {
-						// wait for while to simulate async operation here
-						int sleep = (int) (new Random().nextFloat() * 10);
-						try {
-							Thread.sleep(sleep);
-							List<Integer> ret = new ArrayList<>();
-							ret.add(input.f0+input.f0);
-							collector.collect(ret);
-						}
-						catch (InterruptedException e) {
-							collector.collect(new ArrayList<Integer>(0));
-						}
+						collector.collect(Collections.singletonList(input.f0 + input.f0));
 					}
 				});
 			}
@@ -243,6 +244,8 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 		// save result from ordered process
 		final MemorySinkFunction sinkFunction1 = new MemorySinkFunction(0);
+		final List<Integer> actualResult1 = new ArrayList<>(numElements);
+		MemorySinkFunction.registerCollection(0, actualResult1);
 
 		orderedResult.addSink(sinkFunction1).setParallelism(1);
 
@@ -251,6 +254,8 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 		// save result from unordered process
 		final MemorySinkFunction sinkFunction2 = new MemorySinkFunction(1);
+		final List<Integer> actualResult2 = new ArrayList<>(numElements);
+		MemorySinkFunction.registerCollection(1, actualResult2);
 
 		unorderedResult.addSink(sinkFunction2);
 
@@ -263,11 +268,10 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 		env.execute();
 
-		Assert.assertArrayEquals(expected.toArray(), sinkFunction1.getResult().toArray());
+		Assert.assertEquals(expected, actualResult1);
 
-		Collection<Integer> result = sinkFunction2.getResult();
-		Collections.sort((ArrayList)result);
-		Assert.assertArrayEquals(expected.toArray(), result.toArray());
+		Collections.sort(actualResult2);
+		Assert.assertEquals(expected, actualResult2);
 
 		MemorySinkFunction.clear();
 	}
@@ -331,43 +335,31 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 	}
 
 	private static class MemorySinkFunction implements SinkFunction<Integer> {
-		private final static Collection<Integer> collection1 = new ArrayList<>(10);
+		private static Map<Integer, Collection<Integer>> collections = new ConcurrentHashMap<>();
 
-		private final static Collection<Integer> collection2 = new ArrayList<>(10);
+		private static final long serialVersionUID = -8815570195074103860L;
 
-		private  final long serialVersionUID = -8815570195074103860L;
+		private final int key;
 
-		private final int idx;
-
-		public MemorySinkFunction(int idx) {
-			this.idx = idx;
+		public MemorySinkFunction(int key) {
+			this.key = key;
 		}
 
 		@Override
 		public void invoke(Integer value) throws Exception {
-			if (idx == 0) {
-				synchronized (collection1) {
-					collection1.add(value);
-				}
-			}
-			else {
-				synchronized (collection2) {
-					collection2.add(value);
-				}
+			Collection<Integer> collection = collections.get(key);
+
+			synchronized (collection) {
+				collection.add(value);
 			}
 		}
 
-		public Collection<Integer> getResult() {
-			if (idx == 0) {
-				return collection1;
-			}
-
-			return collection2;
+		public static void registerCollection(int key, Collection<Integer> collection) {
+			collections.put(key, collection);
 		}
 
 		public static void clear() {
-			collection1.clear();
-			collection2.clear();
+			collections.clear();
 		}
 	}
 }

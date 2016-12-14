@@ -19,110 +19,154 @@
 package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
-import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
-import org.apache.flink.streaming.api.functions.async.buffer.AsyncCollectorBuffer;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
+import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEntry;
+import org.apache.flink.streaming.api.operators.async.queue.StreamRecordQueueEntry;
+import org.apache.flink.streaming.api.operators.async.queue.WatermarkQueueEntry;
+import org.apache.flink.streaming.api.operators.async.queue.OrderedStreamElementQueue;
+import org.apache.flink.streaming.api.operators.async.queue.UnorderedStreamElementQueue;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Iterator;
+import java.util.Collection;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
- * The {@link AsyncWaitOperator} will accept input {@link StreamElement} from previous operators,
- * pass them into {@link AsyncFunction}, make a snapshot for the inputs in the {@link AsyncCollectorBuffer}
- * while checkpointing, and restore the {@link AsyncCollectorBuffer} from previous state.
+ * The {@link AsyncWaitOperator} allows to asynchronously process incoming stream records. For that
+ * the operator creates an {@link AsyncCollector} which is passed to an {@link AsyncFunction}.
+ * Within the async function, the user can complete the async collector arbitrarily. Once the async
+ * collector has been completed, the result is emitted by the operator's emitter to downstream
+ * operators.
  * <p>
- * Note that due to newly added working thread, named {@link AsyncCollectorBuffer.Emitter},
- * if {@link AsyncWaitOperator} is chained with other operators, {@link StreamTask} has to make sure that
- * the the order to open operators in the operator chain should be from the tail operator to the head operator,
- * and order to close operators in the operator chain should be from the head operator to the tail operator.
+ * The operator offers different output modes depending on the chosen
+ * {@link AsyncDataStream.OutputMode}. In order to give exactly once processing guarantees, the
+ * operator stores all currently in-flight {@link StreamElement} in it's operator state. Upon
+ * recovery the recorded set of stream elements is replayed.
+ * <p>
+ * In case of chaining of this operator, it has to be made sure that the operators in the chain are
+ * opened tail to head. The reason for this is that an opened {@link AsyncWaitOperator} starts
+ * already emitting recovered {@link StreamElement} to downstream operators.
  *
  * @param <IN> Input type for the operator.
  * @param <OUT> Output type for the operator.
  */
 @Internal
 public class AsyncWaitOperator<IN, OUT>
-	extends AbstractUdfStreamOperator<OUT, AsyncFunction<IN, OUT>>
-	implements OneInputStreamOperator<IN, OUT>
-{
+		extends AbstractUdfStreamOperator<OUT, AsyncFunction<IN, OUT>>
+		implements OneInputStreamOperator<IN, OUT>, OperatorActions {
 	private static final long serialVersionUID = 1L;
 
-	private final static String STATE_NAME = "_async_wait_operator_state_";
+	private static final String STATE_NAME = "_async_wait_operator_state_";
 
-	/**
-	 * {@link TypeSerializer} for inputs while making snapshots.
-	 */
+	/** Capacity of the stream element queue */
+	private final int capacity;
+
+	/** Output mode for this operator */
+	private final AsyncDataStream.OutputMode outputMode;
+
+	/** Timeout for the async collectors */
+	private final long timeout;
+
+	private transient Object checkpointingLock;
+
+	/** {@link TypeSerializer} for inputs while making snapshots. */
 	private transient StreamElementSerializer<IN> inStreamElementSerializer;
 
-	/**
-	 * input stream elements from the state
-	 */
+	/** Recovered input stream elements */
 	private transient ListState<StreamElement> recoveredStreamElements;
 
-	private transient TimestampedCollector<OUT> collector;
+	/** Queue to store the currently in-flight stream elements into */
+	private transient StreamElementQueue queue;
 
-	private transient AsyncCollectorBuffer<IN, OUT> buffer;
+	/** Pending stream element which could not yet added to the queue */
+	private transient StreamElementQueueEntry<?> pendingStreamElementQueueEntry;
 
-	/**
-	 * Checkpoint lock from {@link StreamTask#lock}
-	 */
-	private transient Object checkpointLock;
+	private transient ExecutorService executor;
 
-	private final int bufferSize;
-	private final AsyncDataStream.OutputMode mode;
+	/** Emitter for the completed stream element queue entries */
+	private transient Emitter<OUT> emitter;
+
+	/** Thread running the emitter */
+	private transient Thread emitterThread;
 
 
-	public AsyncWaitOperator(AsyncFunction<IN, OUT> asyncFunction, int bufferSize, AsyncDataStream.OutputMode mode) {
+	public AsyncWaitOperator(
+			AsyncFunction<IN, OUT> asyncFunction,
+			int capacity,
+			AsyncDataStream.OutputMode outputMode) {
 		super(asyncFunction);
 		chainingStrategy = ChainingStrategy.ALWAYS;
 
-		Preconditions.checkArgument(bufferSize > 0, "The number of concurrent async operation should be greater than 0.");
-		this.bufferSize = bufferSize;
+		Preconditions.checkArgument(capacity > 0, "The number of concurrent async operation should be greater than 0.");
+		this.capacity = capacity;
 
-		this.mode = mode;
+		this.outputMode = Preconditions.checkNotNull(outputMode, "outputMode");
+
+		this.timeout = -1L;
 	}
 
 	@Override
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		super.setup(containingTask, config, output);
 
-		this.inStreamElementSerializer =
-				new StreamElementSerializer(this.getOperatorConfig().<IN>getTypeSerializerIn1(getUserCodeClassloader()));
+		this.checkpointingLock = getContainingTask().getCheckpointLock();
 
-		this.collector = new TimestampedCollector<>(output);
+		this.inStreamElementSerializer = new StreamElementSerializer<>(
+			getOperatorConfig().<IN>getTypeSerializerIn1(getUserCodeClassloader()));
 
-		this.checkpointLock = containingTask.getCheckpointLock();
+		// create the operators executor for the complete operations of the queue entries
+		this.executor = Executors.newSingleThreadExecutor();
 
-		this.buffer = new AsyncCollectorBuffer<>(bufferSize, mode, output, collector, this.checkpointLock, this);
+		switch (outputMode) {
+			case ORDERED:
+				queue = new OrderedStreamElementQueue(
+					capacity,
+					executor,
+					this);
+				break;
+			case UNORDERED:
+				queue = new UnorderedStreamElementQueue(
+					capacity,
+					executor,
+					this);
+				break;
+			default:
+				throw new IllegalStateException("Unknown async mode: " + outputMode + '.');
+		}
 	}
 
 	@Override
 	public void open() throws Exception {
 		super.open();
 
-		// process stream elements from state, since the Emit thread will start soon as all elements from
-		// previous state are in the AsyncCollectorBuffer, we have to make sure that the order to open all
-		// operators in the operator chain should be from the tail operator to the head operator.
-		if (this.recoveredStreamElements != null) {
-			for (StreamElement element : this.recoveredStreamElements.get()) {
+		// process stream elements from state, since the Emit thread will start as soon as all
+		// elements from previous state are in the StreamElementQueue, we have to make sure that the
+		// order to open all operators in the operator chain proceeds from the tail operator to the
+		// head operator.
+		if (recoveredStreamElements != null) {
+			for (StreamElement element : recoveredStreamElements.get()) {
 				if (element.isRecord()) {
 					processElement(element.<IN>asRecord());
 				}
@@ -133,30 +177,52 @@ public class AsyncWaitOperator<IN, OUT>
 					processLatencyMarker(element.asLatencyMarker());
 				}
 				else {
-					throw new Exception("Unknown record type: "+element.getClass());
+					throw new IllegalStateException("Unknown record type " + element.getClass() +
+						" encountered while opening the operator.");
 				}
 			}
-			this.recoveredStreamElements = null;
+			recoveredStreamElements = null;
 		}
 
-		buffer.startEmitterThread();
+		// create the emitter
+		this.emitter = new Emitter<>(checkpointingLock, output, queue, this);
+
+		// start the emitter thread
+		this.emitterThread = new Thread(emitter);
+		emitterThread.setDaemon(true);
+		emitterThread.start();
+
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		AsyncCollector<OUT> collector = buffer.addStreamRecord(element);
+		final StreamRecordQueueEntry<OUT> streamRecordBufferEntry = new StreamRecordQueueEntry<>(element);
 
-		userFunction.asyncInvoke(element.getValue(), collector);
+		if (timeout > 0L) {
+			// register a timeout for this AsyncStreamRecordBufferEntry
+			long timeoutTimestamp = timeout + System.currentTimeMillis();
+
+			getProcessingTimeService().registerTimer(
+				timeoutTimestamp,
+				new ProcessingTimeCallback() {
+					@Override
+					public void onProcessingTime(long timestamp) throws Exception {
+						streamRecordBufferEntry.collect(
+							new TimeoutException("Async function call has timed out."));
+					}
+				});
+		}
+
+		addAsyncBufferEntry(streamRecordBufferEntry);
+
+		userFunction.asyncInvoke(element.getValue(), streamRecordBufferEntry);
 	}
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
-		buffer.addWatermark(mark);
-	}
+		WatermarkQueueEntry watermarkBufferEntry = new WatermarkQueueEntry(mark);
 
-	@Override
-	public void processLatencyMarker(LatencyMarker latencyMarker) throws Exception {
-		buffer.addLatencyMarker(latencyMarker);
+		addAsyncBufferEntry(watermarkBufferEntry);
 	}
 
 	@Override
@@ -167,45 +233,155 @@ public class AsyncWaitOperator<IN, OUT>
 				getOperatorStateBackend().getOperatorState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
 		partitionableState.clear();
 
-		Iterator<StreamElement> iterator = buffer.getStreamElementsInBuffer();
-		while (iterator.hasNext()) {
-			partitionableState.add(iterator.next());
+		Collection<StreamElementQueueEntry<?>> values = queue.values();
+
+		for (StreamElementQueueEntry<?> value : values) {
+			partitionableState.add(value.getStreamElement());
+		}
+
+		// add the pending stream element queue entry if the stream element queue is currently full
+		if (pendingStreamElementQueueEntry != null) {
+			partitionableState.add(pendingStreamElementQueueEntry.getStreamElement());
 		}
 	}
 
 	@Override
 	public void initializeState(StateInitializationContext context) throws Exception {
-		recoveredStreamElements =
-				context.getOperatorStateStore().getOperatorState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
+		recoveredStreamElements = context
+			.getOperatorStateStore()
+			.getOperatorState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
 
 	}
 
 	@Override
 	public void close() throws Exception {
 		try {
-			buffer.waitEmpty();
+			assert(Thread.holdsLock(checkpointingLock));
+
+			while (!queue.isEmpty()) {
+				// wait for the emitter thread to output the remaining elements
+				// for that he needs the checkpointing lock and thus we have to free it
+				checkpointingLock.wait();
+			}
 		}
 		finally {
-			// make sure Emitter thread exits and close user function
-			buffer.stopEmitterThread();
+			Exception exception = null;
 
-			super.close();
+			try {
+				super.close();
+			} catch (InterruptedException interrupted) {
+				exception = interrupted;
+
+				Thread.currentThread().interrupt();
+			} catch (Exception e) {
+				exception = e;
+			}
+
+			try {
+				// terminate the emitter, the emitter thread and the executor
+				stopResources(true);
+			} catch (InterruptedException interrupted) {
+				exception = ExceptionUtils.firstOrSuppressed(interrupted, exception);
+
+				Thread.currentThread().interrupt();
+			} catch (Exception e) {
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			}
+
+			if (exception != null) {
+				LOG.warn("Errors occurred while closing the AsyncWaitOperator.", exception);
+			}
 		}
 	}
 
 	@Override
 	public void dispose() throws Exception {
-		super.dispose();
+		Exception exception = null;
 
-		buffer.stopEmitterThread();
+		try {
+			super.dispose();
+		} catch (InterruptedException interrupted) {
+			exception = interrupted;
+
+			Thread.currentThread().interrupt();
+		} catch (Exception e) {
+			exception = e;
+		}
+
+		try {
+			stopResources(false);
+		} catch (InterruptedException interrupted) {
+			exception = ExceptionUtils.firstOrSuppressed(interrupted, exception);
+
+			Thread.currentThread().interrupt();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		if (exception != null) {
+			throw exception;
+		}
 	}
 
-	public void sendLatencyMarker(LatencyMarker marker) throws Exception {
-		super.processLatencyMarker(marker);
+	/**
+	 * Close the operator's resources. They include the emitter thread and the executor to run
+	 * the queue's complete operation.
+	 *
+	 * @param waitForShutdown is true if the method should wait for the resources to be freed;
+	 *                           otherwise false.
+	 * @throws InterruptedException if current thread has been interrupted
+	 */
+	private void stopResources(boolean waitForShutdown) throws InterruptedException {
+		emitter.stop();
+		emitterThread.interrupt();
+
+		executor.shutdown();
+
+		if (waitForShutdown) {
+			try {
+				if (!executor.awaitTermination(365L, TimeUnit.DAYS)) {
+					executor.shutdownNow();
+				}
+			} catch (InterruptedException e) {
+				executor.shutdownNow();
+
+				Thread.currentThread().interrupt();
+			}
+
+			emitterThread.join();
+		} else {
+			executor.shutdownNow();
+		}
 	}
 
-	@VisibleForTesting
-	public AsyncCollectorBuffer<IN, OUT> getBuffer() {
-		return buffer;
+	/**
+	 * Add the given stream element queue entry to the operator's stream element queue. This
+	 * operation blocks until the element has been added.
+	 * <p>
+	 * For that it tries to put the element into the queue and if not successful then it waits on
+	 * the checkpointing lock. The checkpointing lock is also used by the {@link Emitter} to output
+	 * elements. The emitter is also responsible for notifying this method if the queue has capacity
+	 * left again, by calling notifyAll on the checkpointing lock.
+	 *
+	 * @param streamElementQueueEntry to add to the operator's queue
+	 * @param <T> Type of the stream element queue entry's result
+	 * @throws InterruptedException if the current thread has been interrupted
+	 */
+	private <T> void addAsyncBufferEntry(StreamElementQueueEntry<T> streamElementQueueEntry) throws InterruptedException {
+		assert(Thread.holdsLock(checkpointingLock));
+
+		pendingStreamElementQueueEntry = streamElementQueueEntry;
+
+		while (!queue.tryPut(streamElementQueueEntry)) {
+			// we wait for the emitter to notify us if the queue has space left again
+			checkpointingLock.wait();
+		}
+
+		pendingStreamElementQueueEntry = null;
+	}
+
+	@Override
+	public void failOperator(Throwable throwable) {
+		getContainingTask().getEnvironment().failExternally(throwable);
 	}
 }

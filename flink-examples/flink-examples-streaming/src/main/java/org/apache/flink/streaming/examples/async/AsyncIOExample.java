@@ -33,6 +33,8 @@ import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.util.Collector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -43,9 +45,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Example to illustrates how to use {@link org.apache.flink.streaming.api.functions.async.AsyncFunction}
+ * Example to illustrates how to use {@link AsyncFunction}
  */
 public class AsyncIOExample {
+
+	private static final Logger LOG = LoggerFactory.getLogger(AsyncIOExample.class);
+
+	private static final String EXACTLY_ONCE_MODE = "exactly_once";
+	private static final String EVENT_TIME = "EventTime";
+	private static final String INGESTION_TIME = "IngestionTime";
+	private static final String ORDERED = "ordered";
 
 	/**
 	 * A checkpointed source.
@@ -103,8 +112,10 @@ public class AsyncIOExample {
 	 * async client.
 	 */
 	private static class SampleAsyncFunction extends RichAsyncFunction<Integer, String> {
-		transient static ExecutorService executorService;
-		transient static Random random;
+		private static final long serialVersionUID = 2098635244857937717L;
+
+		private static ExecutorService executorService;
+		private static Random random;
 
 		private int counter;
 
@@ -112,17 +123,17 @@ public class AsyncIOExample {
 		 * The result of multiplying sleepFactor with a random float is used to pause
 		 * the working thread in the thread pool, simulating a time consuming async operation.
 		 */
-		final long sleepFactor;
+		private final long sleepFactor;
 
 		/**
 		 * The ratio to generate an exception to simulate an async error. For example, the error
 		 * may be a TimeoutException while visiting HBase.
 		 */
-		final float failRatio;
+		private final float failRatio;
 
-		final long shutdownWaitTS;
+		private final long shutdownWaitTS;
 
-		public SampleAsyncFunction(long sleepFactor, float failRatio, long shutdownWaitTS) {
+		SampleAsyncFunction(long sleepFactor, float failRatio, long shutdownWaitTS) {
 			this.sleepFactor = sleepFactor;
 			this.failRatio = failRatio;
 			this.shutdownWaitTS = shutdownWaitTS;
@@ -155,7 +166,9 @@ public class AsyncIOExample {
 					executorService.shutdown();
 
 					try {
-						executorService.awaitTermination(shutdownWaitTS, TimeUnit.MILLISECONDS);
+						if (!executorService.awaitTermination(shutdownWaitTS, TimeUnit.MILLISECONDS)) {
+							executorService.shutdownNow();
+						}
 					} catch (InterruptedException e) {
 						executorService.shutdownNow();
 					}
@@ -169,14 +182,15 @@ public class AsyncIOExample {
 				@Override
 				public void run() {
 					// wait for while to simulate async operation here
-					int sleep = (int) (random.nextFloat() * sleepFactor);
+					long sleep = (long) (random.nextFloat() * sleepFactor);
 					try {
 						Thread.sleep(sleep);
-						List<String> ret = Collections.singletonList("key-" + (input % 10));
+
 						if (random.nextFloat() < failRatio) {
 							collector.collect(new Exception("wahahahaha..."));
 						} else {
-							collector.collect(ret);
+							collector.collect(
+								Collections.singletonList("key-" + (input % 10)));
 						}
 					} catch (InterruptedException e) {
 						collector.collect(new ArrayList<String>(0));
@@ -200,47 +214,71 @@ public class AsyncIOExample {
 		// obtain execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		printUsage();
-
 		// parse parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
 
-		// check the configuration for the job
-		final String statePath = params.getRequired("fsStatePath");
-		final String cpMode = params.get("checkpointMode", "exactly_once");
-		final int maxCount = params.getInt("maxCount", 100000);
-		final int sleepFactor = params.getInt("sleepFactor", 100);
-		final float failRatio = params.getFloat("failRatio", 0.001f);
-		final String mode = params.get("waitMode", "ordered");
-		final int taskNum =  params.getInt("waitOperatorParallelism", 1);
-		final String timeType = params.get("eventType", "EventTime");
-		final int shutdownWaitTS = params.getInt("shutdownWaitTS", 20000);
+		final String statePath;
+		final String cpMode;
+		final int maxCount;
+		final long sleepFactor;
+		final float failRatio;
+		final String mode;
+		final int taskNum;
+		final String timeType;
+		final long shutdownWaitTS;
 
-		System.out.println("Job configuration\n"
-			+"\tFS state path="+statePath+"\n"
-			+"\tCheckpoint mode="+cpMode+"\n"
-			+"\tMax count of input from source="+maxCount+"\n"
-			+"\tSleep factor="+sleepFactor+"\n"
-			+"\tFail ratio="+failRatio+"\n"
-			+"\tWaiting mode="+mode+"\n"
-			+"\tParallelism for async wait operator="+taskNum+"\n"
-			+"\tEvent type="+timeType+"\n"
-			+"\tShutdown wait timestamp="+shutdownWaitTS);
+		try {
+			// check the configuration for the job
+			statePath = params.get("fsStatePath", null);
+			cpMode = params.get("checkpointMode", "exactly_once");
+			maxCount = params.getInt("maxCount", 100000);
+			sleepFactor = params.getLong("sleepFactor", 100);
+			failRatio = params.getFloat("failRatio", 0.001f);
+			mode = params.get("waitMode", "ordered");
+			taskNum = params.getInt("waitOperatorParallelism", 1);
+			timeType = params.get("eventType", "EventTime");
+			shutdownWaitTS = params.getLong("shutdownWaitTS", 20000);
+		} catch (Exception e) {
+			printUsage();
 
-		// setup state and checkpoint mode
-		env.setStateBackend(new FsStateBackend(statePath));
-		if (cpMode.equals("exactly_once")) {
-			env.enableCheckpointing(1000, CheckpointingMode.EXACTLY_ONCE);
+			throw e;
+		}
+
+		StringBuilder configStringBuilder = new StringBuilder();
+
+		final String lineSeparator = System.getProperty("line.separator");
+
+		configStringBuilder
+			.append("Job configuration").append(lineSeparator)
+			.append("FS state path=").append(statePath).append(lineSeparator)
+			.append("Checkpoint mode=").append(cpMode).append(lineSeparator)
+			.append("Max count of input from source=").append(maxCount).append(lineSeparator)
+			.append("Sleep factor=").append(sleepFactor).append(lineSeparator)
+			.append("Fail ratio=").append(failRatio).append(lineSeparator)
+			.append("Waiting mode=").append(mode).append(lineSeparator)
+			.append("Parallelism for async wait operator=").append(taskNum).append(lineSeparator)
+			.append("Event type=").append(timeType).append(lineSeparator)
+			.append("Shutdown wait timestamp=").append(shutdownWaitTS);
+
+		LOG.info(configStringBuilder.toString());
+
+		if (statePath != null) {
+			// setup state and checkpoint mode
+			env.setStateBackend(new FsStateBackend(statePath));
+		}
+
+		if (EXACTLY_ONCE_MODE.equals(cpMode)) {
+			env.enableCheckpointing(1000L, CheckpointingMode.EXACTLY_ONCE);
 		}
 		else {
-			env.enableCheckpointing(1000, CheckpointingMode.AT_LEAST_ONCE);
+			env.enableCheckpointing(1000L, CheckpointingMode.AT_LEAST_ONCE);
 		}
 
 		// enable watermark or not
-		if (timeType.equals("EventTime")) {
+		if (EVENT_TIME.equals(timeType)) {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		}
-		else if (timeType.equals("IngestionTime")) {
+		else if (INGESTION_TIME.equals(timeType)) {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		}
 
@@ -253,7 +291,7 @@ public class AsyncIOExample {
 
 		// add async operator to streaming job
 		DataStream<String> result;
-		if (mode.equals("ordered")) {
+		if (ORDERED.equals(mode)) {
 			result = AsyncDataStream.orderedWait(inputStream, function, 20).setParallelism(taskNum);
 		}
 		else {
@@ -262,6 +300,8 @@ public class AsyncIOExample {
 
 		// add a reduce to get the sum of each keys.
 		result.flatMap(new FlatMapFunction<String, Tuple2<String, Integer>>() {
+			private static final long serialVersionUID = -938116068682344455L;
+
 			@Override
 			public void flatMap(String value, Collector<Tuple2<String, Integer>> out) throws Exception {
 				out.collect(new Tuple2<>(value, 1));
@@ -269,7 +309,7 @@ public class AsyncIOExample {
 		}).keyBy(0).sum(1).print();
 
 		// execute the program
-		env.execute("Async I/O Example");
+		env.execute("Async IO Example");
 	}
 }
 

@@ -16,21 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.async.buffer;
+package org.apache.flink.streaming.api.operators.async;
 
-import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 
 /**
- * {@link AsyncCollectorBuffer} entry for {@link LatencyMarker}
- *
+ * Interface for {@link StreamOperator} actions.
  */
-public class LatencyMarkerEntry<OUT> extends AbstractBufferEntry<OUT> {
-	public LatencyMarkerEntry(LatencyMarker marker) {
-		super(marker);
-	}
+public interface OperatorActions {
 
-	@Override
-	public boolean isDone() {
-		return true;
-	}
+	/**
+	 * Fail the respective stream operator with the given throwable.
+	 *
+	 * @param throwable to fail the stream operator with
+	 */
+	void failOperator(Throwable throwable);
 }

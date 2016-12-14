@@ -18,16 +18,16 @@
 
 package org.apache.flink.streaming.api.functions.async.collector;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 
-import java.util.List;
+import java.util.Collection;
 
 /**
  * {@link AsyncCollector} collects data / error in user codes while processing async i/o.
  *
  * @param <OUT> Output type
  */
-@Internal
+@PublicEvolving
 public interface AsyncCollector<OUT> {
 	/**
 	 * Set result.
@@ -35,14 +35,15 @@ public interface AsyncCollector<OUT> {
 	 * Note that it should be called for exactly one time in the user code.
 	 * Calling this function for multiple times will cause data lose.
 	 * <p>
-	 * Put all results in a {@link List} and then issue {@link AsyncCollector#collect(List)}.
+	 * Put all results in a {@link Collection} and then issue
+	 * {@link AsyncCollector#collect(Collection)}.
 	 * <p>
 	 * If the result is NULL, it will cause task fail. If collecting empty result set is allowable and
 	 * should not cause task fail-over, then try to collect an empty list collection.
 	 *
 	 * @param result A list of results.
 	 */
-	void collect(List<OUT> result);
+	void collect(Collection<OUT> result);
 
 	/**
 	 * Set error
