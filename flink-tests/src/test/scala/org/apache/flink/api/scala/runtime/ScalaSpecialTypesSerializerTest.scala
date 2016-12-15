@@ -25,6 +25,7 @@ import org.apache.flink.api.scala._
 import org.junit.Assert._
 import org.junit.{Assert, Test}
 
+import scala.collection.{SortedMap, SortedSet}
 import scala.util.{Failure, Success}
 
 class ScalaSpecialTypesSerializerTest {
@@ -106,6 +107,18 @@ class ScalaSpecialTypesSerializerTest {
   @Test
   def testArrayWithCaseClass(): Unit = {
     val testData = Array(Array((1, "String"), (2, "Foo")), Array((4, "String"), (3, "Foo")))
+    runTests(testData)
+  }
+
+  @Test
+  def testSortedMap(): Unit = {
+    val testData = Array(SortedMap("Hello" -> 1, "World" -> 2), SortedMap("Foo" -> 42))
+    runTests(testData)
+  }
+
+  @Test
+  def testSortedSet(): Unit = {
+    val testData = Array(SortedSet(1,2,3), SortedSet(2,3))
     runTests(testData)
   }
 

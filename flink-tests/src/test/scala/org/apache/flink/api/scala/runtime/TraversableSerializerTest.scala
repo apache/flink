@@ -31,6 +31,8 @@ import scala.collection.{SortedMap, mutable}
 
 class TraversableSerializerTest {
 
+  // Note: SortedMap and SortedSet are serialized with Kryo
+
   @Test
   def testSeq(): Unit = {
     val testData = Array(Seq(1,2,3), Seq(2,3))
@@ -56,24 +58,8 @@ class TraversableSerializerTest {
   }
 
   @Test
-  @Ignore
-  def testSortedMap(): Unit = {
-    // SortedSet is not supported right now.
-    val testData = Array(SortedMap("Hello" -> 1, "World" -> 2), SortedMap("Foo" -> 42))
-    runTests(testData)
-  }
-
-  @Test
   def testSet(): Unit = {
     val testData = Array(Set(1,2,3,3), Set(2,3))
-    runTests(testData)
-  }
-
-  @Test
-  @Ignore
-  def testSortedSet(): Unit = {
-    // SortedSet is not supported right now.
-    val testData = Array(SortedSet(1,2,3), SortedSet(2,3))
     runTests(testData)
   }
 
