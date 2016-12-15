@@ -54,6 +54,7 @@ while getopts "pi" opt; do
 		;;
 		i)
 		JEKYLL_CMD="liveserve --baseurl= --watch --incremental"
+		[[ `ruby -v` =~ 'ruby 1' ]] && echo "the incremental option requires at least ruby 2.0" && exit 1
 		;;
 	esac
 done
