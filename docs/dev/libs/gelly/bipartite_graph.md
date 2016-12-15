@@ -37,8 +37,8 @@ These graphs have wide application in practice and can be a more natural choice 
 Bipartite graphs are used instead of regular graphs (one-mode) for the following practical [reasons](http://www.complexnetworks.fr/wp-content/uploads/2011/01/socnet07.pdf):
  * They preserve more information about a connection between vertices. For example instead of a single link between two researchers in a graph that represents that they authored a paper together a bipartite graph preserves the information about what papers they authored
  * Bipartite graphs can encode the same information more compactly than one-mode graphs
- 
 
+{% top %}
 
 Graph Representation
 --------------------
@@ -67,8 +67,8 @@ Double weight = e.getValue(); // weight = 0.5
 {% endhighlight %}
 </div>
 </div>
-{% top %}
 
+{% top %}
 
 Graph Creation
 --------------
@@ -99,6 +99,7 @@ Graph<String, String, Long, Long, Double> graph = BipartiteGraph.fromDataSet(top
 </div>
 </div>
 
+{% top %}
 
 Graph Transformations
 ---------------------
@@ -183,6 +184,8 @@ Graph<String, String, Projection<Long, String, String, String>> graph bipartiteG
 {% endhighlight %}
 </div>
 </div>
+
+{% top %}
 
 Graph Validation
 ----------------

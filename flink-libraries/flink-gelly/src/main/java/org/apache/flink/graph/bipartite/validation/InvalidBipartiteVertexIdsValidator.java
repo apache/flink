@@ -46,6 +46,9 @@ public class InvalidBipartiteVertexIdsValidator<KT, KB, VVT, VVB, EV> extends Bi
 		return invalidBottomVertexId.union(invalidTopVertexId).count() == 0;
 	}
 
+	/**
+	 * Performs a left outer join to find edges that do not match top or bottom vertex.
+	 */
 	private static class InvalidEdgeJoin<KT, KB, EV, KV, VVT>
 		implements FlatJoinFunction<BipartiteEdge<KT, KB, EV>, Vertex<KV, VVT>, BipartiteEdge<KT, KB, EV>> {
 		@Override
