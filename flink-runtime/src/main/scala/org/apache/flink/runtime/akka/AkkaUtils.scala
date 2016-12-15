@@ -117,6 +117,7 @@ object AkkaUtils {
       case Some((hostname, port)) =>
 
         val remoteConfig = getRemoteAkkaConfig(configuration,
+          // the wildcard IP lets us bind to all network interfaces
           NetUtils.getWildcardIPAddress, port,
           hostname, port)
 
