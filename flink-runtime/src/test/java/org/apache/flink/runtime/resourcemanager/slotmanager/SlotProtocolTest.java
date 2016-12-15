@@ -32,6 +32,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.resourcemanager.HeartbeatService;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
@@ -109,6 +110,7 @@ public class SlotProtocolTest extends TestLogger {
 
 		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(Time.seconds(5L), Time.seconds(5L));
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(testingHaServices);
+		HeartbeatService heartbeatService = new HeartbeatService(resourceManagerConfiguration, testRpcService.getExecutor());
 
 		final TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		SpiedResourceManager resourceManager =
@@ -119,6 +121,7 @@ public class SlotProtocolTest extends TestLogger {
 				slotManagerFactory,
 				mock(MetricRegistry.class),
 				jobLeaderIdService,
+				heartbeatService,
 				mock(FatalErrorHandler.class));
 		resourceManager.start();
 		rmLeaderElectionService.isLeader(rmLeaderID);
@@ -211,6 +214,7 @@ public class SlotProtocolTest extends TestLogger {
 		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(Time.seconds(5L), Time.seconds(5L));
 
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(testingHaServices);
+		HeartbeatService heartbeatService = new HeartbeatService(resourceManagerConfiguration, testRpcService.getExecutor());
 
 		TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		ResourceManager<ResourceID> resourceManager =
@@ -221,6 +225,7 @@ public class SlotProtocolTest extends TestLogger {
 				slotManagerFactory,
 				mock(MetricRegistry.class),
 				jobLeaderIdService,
+				heartbeatService,
 				mock(FatalErrorHandler.class)));
 		resourceManager.start();
 		rmLeaderElectionService.isLeader(rmLeaderID);
@@ -297,6 +302,7 @@ public class SlotProtocolTest extends TestLogger {
 				SlotManagerFactory slotManagerFactory,
 				MetricRegistry metricRegistry,
 				JobLeaderIdService jobLeaderIdService,
+				HeartbeatService heartbeatService,
 				FatalErrorHandler fatalErrorHandler) {
 			super(
 				rpcService,
@@ -305,6 +311,7 @@ public class SlotProtocolTest extends TestLogger {
 				slotManagerFactory,
 				metricRegistry,
 				jobLeaderIdService,
+				heartbeatService,
 				fatalErrorHandler);
 		}
 

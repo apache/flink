@@ -40,6 +40,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.resourcemanager.HeartbeatService;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
@@ -109,6 +110,7 @@ public class TaskExecutorITCase {
 		final TaskSlotTable taskSlotTable = new TaskSlotTable(Arrays.asList(resourceProfile), new TimerService<AllocationID>(scheduledExecutorService, 100L));
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
+		HeartbeatService heartbeatService = new HeartbeatService(resourceManagerConfiguration, rpcService.getExecutor());
 
 		ResourceManager<ResourceID> resourceManager = new StandaloneResourceManager(
 			rpcService,
@@ -117,6 +119,7 @@ public class TaskExecutorITCase {
 			slotManagerFactory,
 			metricRegistry,
 			jobLeaderIdService,
+			heartbeatService,
 			testingFatalErrorHandler);
 
 		TaskExecutor taskExecutor = new TaskExecutor(

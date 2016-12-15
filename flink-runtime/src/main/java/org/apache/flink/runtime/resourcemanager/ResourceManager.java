@@ -30,13 +30,17 @@ import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.LeaderIdMismatchException;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestRejected;
 import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestReply;
@@ -48,10 +52,6 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.jobmaster.JobMaster;
-import org.apache.flink.runtime.jobmaster.JobMasterGateway;
-import org.apache.flink.runtime.registration.RegistrationResponse;
-
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
@@ -117,6 +117,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	/** All registered listeners for status updates of the ResourceManager. */
 	private ConcurrentMap<String, InfoMessageListenerRpcGateway> infoMessageListeners;
 
+	private HeartbeatService heartbeatService;
+
 	public ResourceManager(
 			RpcService rpcService,
 			ResourceManagerConfiguration resourceManagerConfiguration,
@@ -124,6 +126,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			SlotManagerFactory slotManagerFactory,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
+			HeartbeatService heartbeatService,
 			FatalErrorHandler fatalErrorHandler) {
 
 		super(rpcService);
@@ -133,6 +136,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		this.slotManagerFactory = checkNotNull(slotManagerFactory);
 		this.metricRegistry = checkNotNull(metricRegistry);
 		this.jobLeaderIdService = checkNotNull(jobLeaderIdService);
+		this.heartbeatService = checkNotNull(heartbeatService);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
 		this.jobManagerRegistrations = new HashMap<>(4);
@@ -171,12 +175,24 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			throw new ResourceManagerException("Could not start the job leader id service.", e);
 		}
 
+		try {
+			heartbeatService.start(new HeartbeatListenerWithTaskExecutor());
+		} catch(Exception e) {
+			throw new ResourceManagerException("Could not start the heartbeat service.", e);
+		}
+
 		initialize();
 	}
 
 	@Override
 	public void shutDown() throws Exception {
 		Exception exception = null;
+
+		try {
+			heartbeatService.stop();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
 
 		try {
 			jobLeaderIdService.stop();
@@ -364,9 +380,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 						taskExecutors.put(resourceID, registration);
 						slotManager.registerTaskExecutor(resourceID, registration, slotReport);
-
+						heartbeatService.monitorTaskExecutor(resourceID, taskExecutorGateway);
 						return new TaskExecutorRegistrationSuccess(
-							registration.getInstanceID(),
+							registration.getInstanceID(), heartbeatService.getResourceManagerIdentify(),
 							resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds());
 					}
 				}
@@ -507,10 +523,19 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	public Integer getNumberOfRegisteredTaskManagers(UUID leaderSessionId) throws LeaderIdMismatchException {
 		if (this.leaderSessionId != null && this.leaderSessionId.equals(leaderSessionId)) {
 			return taskExecutors.size();
-		}
-		else {
+		} else {
 			throw new LeaderIdMismatchException(this.leaderSessionId, leaderSessionId);
 		}
+	}
+
+	/**
+	 * Send the heartbeat to this resource manager from task manager
+	 *
+	 * @param resourceID
+	 */
+	@RpcMethod
+	public void sendHeartbeatFromTaskManager(final ResourceID resourceID) {
+		heartbeatService.sendHeartbeatFromTaskManager(resourceID);
 	}
 
 	// ------------------------------------------------------------------------
@@ -829,6 +854,31 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		@Override
 		public void handleError(Throwable error) {
 			onFatalErrorAsync(error);
+		}
+	}
+
+	private class HeartbeatListenerWithTaskExecutor implements HeartbeatListener<Void, Void> {
+
+		@Override
+		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
+			log.warn("Lost heartbeat with taskExecutor {}, mark the taskExecutor as failed ", resourceID);
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					heartbeatService.unmonitorTaskExecutor(resourceID);
+				}
+			});
+			notifyWorkerFailed(resourceID, "Lost heartbeat with taskExecutor " + resourceID);
+		}
+
+		@Override
+		public void reportPayload(ResourceID resourceID, Void payload) {
+			// ignore payload
+		}
+
+		@Override
+		public Future<Void> retrievePayload() {
+			return null;
 		}
 	}
 }
