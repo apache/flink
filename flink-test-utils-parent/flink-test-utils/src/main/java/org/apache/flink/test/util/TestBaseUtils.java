@@ -322,8 +322,8 @@ public class TestBaseUtils extends TestLogger {
 			String msg = String.format(
 					"Different elements in arrays: expected %d elements and received %d\n" +
 					"files: %s\n expected: %s\n received: %s",
-					expected.length, result.length, 
-					Arrays.toString(getAllInvolvedFiles(resultPath, excludePrefixes)), 
+					expected.length, result.length,
+					Arrays.toString(getAllInvolvedFiles(resultPath, excludePrefixes)),
 					Arrays.toString(expected), Arrays.toString(result));
 			fail(msg);
 		}
@@ -408,10 +408,20 @@ public class TestBaseUtils extends TestLogger {
 		}
 	}
 
+	public static <X extends Comparable<? super X>> void compareResultCollections(List<X> expected, List<X> actual) {
+		Assert.assertEquals(expected.size(), actual.size());
+
+		Collections.sort(expected);
+		Collections.sort(actual);
+
+		for (int i = 0; i < expected.size(); i++) {
+			Assert.assertEquals(expected.get(i), actual.get(i));
+		}
+	}
+
 	private static File[] getAllInvolvedFiles(String resultPath, final String[] excludePrefixes) {
 		final File result = asFile(resultPath);
 		assertTrue("Result file was not written", result.exists());
-
 		if (result.isDirectory()) {
 			return result.listFiles(new FilenameFilter() {
 
