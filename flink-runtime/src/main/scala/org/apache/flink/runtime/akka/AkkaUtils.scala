@@ -230,9 +230,6 @@ object AkkaUtils {
                                   hostname: String, port: Int,
                                   externalHostname: String, externalPort: Int): Config = {
 
-    LOG.info(s"Using binding address $hostname:$port" +
-      s" and external address $externalHostname:$externalPort")
-
     val akkaAskTimeout = Duration(configuration.getString(
       ConfigConstants.AKKA_ASK_TIMEOUT,
       ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT))
