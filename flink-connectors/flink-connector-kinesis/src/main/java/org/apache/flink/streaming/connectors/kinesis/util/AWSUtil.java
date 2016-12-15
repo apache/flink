@@ -70,15 +70,18 @@ public class AWSUtil {
 	 */
 	public static AWSCredentialsProvider getCredentialsProvider(final Properties configProps) {
 		CredentialProvider credentialProviderType;
-		if (configProps.containsKey(AWSConfigConstants.AWS_ACCESS_KEY_ID)
-			&& configProps.containsKey(AWSConfigConstants.AWS_SECRET_ACCESS_KEY)) {
-			// if the credential provider type is not specified, but the Access Key ID and Secret Key are given, it will default to BASIC
-			credentialProviderType = CredentialProvider.valueOf(configProps.getProperty(
-				AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, CredentialProvider.BASIC.toString()));
+		if (!configProps.containsKey(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER)) {
+			if (configProps.containsKey(AWSConfigConstants.AWS_ACCESS_KEY_ID)
+				&& configProps.containsKey(AWSConfigConstants.AWS_SECRET_ACCESS_KEY)) {
+				// if the credential provider type is not specified, but the Access Key ID and Secret Key are given, it will default to BASIC
+				credentialProviderType = CredentialProvider.valueOf(CredentialProvider.BASIC.toString());
+			} else {
+				// if the credential provider type is not specified, it will default to AUTO
+				credentialProviderType = CredentialProvider.valueOf(CredentialProvider.AUTO.toString());
+			}
 		} else {
-			// if the credential provider type is not specified, it will default to AUTO
 			credentialProviderType = CredentialProvider.valueOf(configProps.getProperty(
-				AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, CredentialProvider.AUTO.toString()));
+				AWSConfigConstants.AWS_CREDENTIALS_PROVIDER));
 		}
 
 		AWSCredentialsProvider credentialsProvider;
