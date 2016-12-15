@@ -199,10 +199,11 @@ Scala development.
 
 If you want to __build your project__, go to your project directory and
 issue the `mvn clean package -Pbuild-jar` command. You will
-__find a jar__ that runs on every Flink cluster in
-__target/original-your-artifact-id-your-version.jar__. There is also a
-fat-jar,  __target/your-artifact-id-your-version.jar__. This
-also contains all dependencies that get added to the maven project.
+__find a jar__ that runs on every Flink cluster with a compatible
+version, __target/original-your-artifact-id-your-version.jar__. There
+is also a fat-jar in  __target/your-artifact-id-your-version.jar__ which,
+additionally, contains all dependencies that were added to the Maven
+project.
 
 ## Next Steps
 
@@ -228,8 +229,9 @@ is 1
 ~~~
 
 The following code shows the `WordCount` implementation from the
-Quickstart which processes some text lines with two operators (FlatMap
-and Reduce), and prints the resulting words and counts to std-out.
+Quickstart which processes some text lines with two operators (a FlatMap
+and a Reduce operation via aggregating a sum), and prints the resulting
+words and counts to std-out.
 
 ~~~scala
 object WordCountJob {

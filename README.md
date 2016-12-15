@@ -85,7 +85,7 @@ To build unit tests with Java 8, use Java 8u51 or above to prevent failures in u
 
 ## Developing Flink
 
-The Flink committers use IntelliJ IDEA and Eclipse IDE to develop the Flink codebase.
+The Flink committers use IntelliJ IDEA to develop the Flink codebase.
 We recommend IntelliJ IDEA for developing projects that involve Scala code.
 
 Minimal requirements for an IDE are:

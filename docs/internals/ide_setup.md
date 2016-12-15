@@ -31,9 +31,18 @@ refer to the [Java API]({{ site.baseurl }}/quickstart/java_api_quickstart.html)
 and the [Scala API]({{ site.baseurl }}/quickstart/scala_api_quickstart.html)
 quickstart guides.
 
-**NOTE:** Whenever something is not working in your IDE, try with the maven
+**NOTE:** Whenever something is not working in your IDE, try with the Maven
 command line first (`mvn clean package -DskipTests`) as it might be your IDE
 that has a bug or is not properly set up.
+
+## Preparation
+
+To get started, please first checkout the Flink sources from one of our
+[repositories](https://flink.apache.org/community.html#source-code),
+e.g.
+{% highlight bash %}
+git clone https://github.com/apache/flink.git
+{% endhighlight %}
 
 ## IntelliJ IDEA
 
@@ -56,6 +65,7 @@ to enable support for Scala projects and files:
 3. Restart IntelliJ
 
 ### Importing Flink
+
 1. Start IntelliJ IDEA and choose "Import Project"
 2. Select the root folder of the Flink repository
 3. Choose "Import project from external model" and select "Maven"

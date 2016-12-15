@@ -212,8 +212,8 @@ public class SocketWindowWordCount {
 
 Now, we are going to run this Flink application. It will read text from
 a socket and once every 5 seconds print the number of occurrences of
-each distinct word during the previous 5 seconds as long as words are
-floating in.
+each distinct word during the previous 5 seconds, i.e. a tumbling
+window of processing time, as long as words are floating in.
 
 * First of all, we use **netcat** to start local server via
 
@@ -254,7 +254,8 @@ floating in.
 
 * Words are counted in time windows of 5 seconds (processing time, tumbling
   windows) and are printed to `stdout`. Monitor the JobManager's output file
-  and write some text in `nc` (input is sent per line after hitting <RETURN>):
+  and write some text in `nc` (input is sent to Flink line by line after
+  hitting <RETURN>):
 
   ~~~bash
   $ nc -l 9000
