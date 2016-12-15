@@ -29,6 +29,7 @@ GEM
       sass (~> 3.4)
     jekyll-watch (1.5.0)
       listen (~> 3.0, < 3.1)
+    json (2.0.2)
     kramdown (1.13.1)
     libv8 (3.16.14.17)
     liquid (3.0.6)
@@ -61,6 +62,7 @@ PLATFORMS
 DEPENDENCIES
   hawkins
   jekyll (~> 3.3.0)
+  json
   kramdown (~> 1.13.0)
   pygments.rb (= 0.6.3)
   therubyracer (= 0.12.2)

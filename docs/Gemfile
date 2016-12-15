@@ -17,13 +17,14 @@
 ################################################################################
 
 source 'https://rubygems.org'
-ruby '~> 2.3.0'
+ruby '~> 2'
 
 # Dependencies required to build the Flink docs
 gem 'jekyll', '~> 3.3.0'
 gem 'kramdown', '~> 1.13.0'
 gem 'pygments.rb', '0.6.3'
 gem 'therubyracer', '0.12.2'
+gem 'json'
 group :jekyll_plugins do
   gem 'hawkins'
 end
