@@ -18,13 +18,10 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 @Deprecated
-public interface StreamCheckpointedOperator {
+public interface StreamCheckpointedOperator extends CheckpointedRestoringOperator {
 
 	/**
 	 * Called to draw a state snapshot from the operator. This method snapshots the operator state
@@ -38,20 +35,5 @@ public interface StreamCheckpointedOperator {
 	 *                   and the key/value state.
 	 */
 	void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception;
-
-	/**
-	 * Restores the operator state, if this operator's execution is recovering from a checkpoint.
-	 * This method restores the operator state (if the operator is stateful) and the key/value state
-	 * (if it had been used and was initialized when the snapshot occurred).
-	 *
-	 * <p>This method is called after {@link StreamOperator#setup(StreamTask, StreamConfig, Output)}
-	 * and before {@link StreamOperator#open()}.
-	 *
-	 * @param in The stream from which we have to restore our state.
-	 *
-	 * @throws Exception Exceptions during state restore should be forwarded, so that the system can
-	 *                   properly react to failed state restore and fail the execution attempt.
-	 */
-	void restoreState(FSDataInputStream in) throws Exception;
 
 }

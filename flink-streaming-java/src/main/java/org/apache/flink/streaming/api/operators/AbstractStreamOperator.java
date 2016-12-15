@@ -141,7 +141,6 @@ public abstract class AbstractStreamOperator<OUT>
 	// ---------------- timers ------------------
 
 	private transient Map<String, HeapInternalTimerService<?, ?>> timerServices;
-//	private transient Map<String, HeapInternalTimerService<?, ?>> restoredServices;
 
 
 	// ---------------- two-input operator watermarks ------------------
@@ -230,7 +229,7 @@ public abstract class AbstractStreamOperator<OUT>
 	private void restoreStreamCheckpointed(OperatorStateHandles stateHandles) throws Exception {
 		StreamStateHandle state = stateHandles.getLegacyOperatorState();
 		if (null != state) {
-			if (this instanceof StreamCheckpointedOperator) {
+			if (this instanceof CheckpointedRestoringOperator) {
 
 				LOG.debug("Restore state of task {} in chain ({}).",
 						stateHandles.getOperatorChainIndex(), getContainingTask().getName());
@@ -238,7 +237,7 @@ public abstract class AbstractStreamOperator<OUT>
 				FSDataInputStream is = state.openInputStream();
 				try {
 					getContainingTask().getCancelables().registerClosable(is);
-					((StreamCheckpointedOperator) this).restoreState(is);
+					((CheckpointedRestoringOperator) this).restoreState(is);
 				} finally {
 					getContainingTask().getCancelables().unregisterClosable(is);
 					is.close();
