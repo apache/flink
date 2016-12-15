@@ -28,17 +28,26 @@ import static org.apache.flink.hadoopcompatibility.HadoopInputs.readHadoopFile;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.junit.Assume;
+import org.junit.Before;
 
 public class WordCountMapreduceITCase extends JavaProgramTestBase {
 
 	protected String textPath;
 	protected String resultPath;
+
+	@Before
+	public void checkOperatingSystem() {
+		// FLINK-5164 - see https://wiki.apache.org/hadoop/WindowsProblems
+		Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows());
+	}
 
 	@Override
 	protected void preSubmit() throws Exception {

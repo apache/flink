@@ -370,7 +370,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 				nonLeadingJobManagerProcess = jobManagerProcess[0];
 			}
 
-			// BLocking JobGraph
+			// Blocking JobGraph
 			JobVertex blockingVertex = new JobVertex("Blocking vertex");
 			blockingVertex.setInvokableClass(Tasks.BlockingNoOpInvokable.class);
 			JobGraph jobGraph = new JobGraph(blockingVertex);
@@ -399,7 +399,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 				String output = nonLeadingJobManagerProcess.getProcessOutput();
 
 				if (output != null) {
-					if (output.contains("Fatal error: Failed to recover jobs") &&
+					if (output.contains("Failed to recover job") &&
 							output.contains("java.io.FileNotFoundException")) {
 
 						success = true;

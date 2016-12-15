@@ -28,11 +28,11 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
@@ -58,11 +58,10 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -202,7 +201,6 @@ public abstract class AbstractStreamOperator<OUT>
 
 		if (restoring) {
 
-			// TODO check that there is EITHER old OR new state in handles!
 			restoreStreamCheckpointed(stateHandles);
 
 			//pass directly
@@ -231,18 +229,23 @@ public abstract class AbstractStreamOperator<OUT>
 	@Deprecated
 	private void restoreStreamCheckpointed(OperatorStateHandles stateHandles) throws Exception {
 		StreamStateHandle state = stateHandles.getLegacyOperatorState();
-		if (this instanceof StreamCheckpointedOperator && null != state) {
+		if (null != state) {
+			if (this instanceof StreamCheckpointedOperator) {
 
-			LOG.debug("Restore state of task {} in chain ({}).",
-					stateHandles.getOperatorChainIndex(), getContainingTask().getName());
+				LOG.debug("Restore state of task {} in chain ({}).",
+						stateHandles.getOperatorChainIndex(), getContainingTask().getName());
 
-			FSDataInputStream is = state.openInputStream();
-			try {
-				getContainingTask().getCancelables().registerClosable(is);
-				((StreamCheckpointedOperator) this).restoreState(is);
-			} finally {
-				getContainingTask().getCancelables().unregisterClosable(is);
-				is.close();
+				FSDataInputStream is = state.openInputStream();
+				try {
+					getContainingTask().getCancelables().registerClosable(is);
+					((StreamCheckpointedOperator) this).restoreState(is);
+				} finally {
+					getContainingTask().getCancelables().unregisterClosable(is);
+					is.close();
+				}
+			} else {
+				throw new Exception(
+						"Found legacy operator state for operator that does not implement StreamCheckpointedOperator.");
 			}
 		}
 	}

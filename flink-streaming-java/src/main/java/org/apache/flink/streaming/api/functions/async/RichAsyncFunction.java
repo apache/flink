@@ -19,11 +19,32 @@
 package org.apache.flink.streaming.api.functions.async;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.DoubleCounter;
+import org.apache.flink.api.common.accumulators.Histogram;
+import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.api.common.aggregators.Aggregator;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
+import org.apache.flink.types.Value;
+
+import java.io.Serializable;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Rich variant of the {@link AsyncFunction}. As a {@link RichFunction}, it gives access to the
@@ -32,8 +53,11 @@ import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
  * {@link RichFunction#close()}.
  *
  * <p>
- * {@link RichAsyncFunction#getRuntimeContext()} and {@link RichAsyncFunction#getRuntimeContext()} are
- * not supported because the key may get changed while accessing states in the working thread.
+ * State related apis in {@link RuntimeContext} are not supported yet because the key may get changed
+ * while accessing states in the working thread.
+ * <p>
+ * {@link IterationRuntimeContext#getIterationAggregator(String)} is not supported since the aggregator
+ * may be modified by multiple threads.
  *
  * @param <IN> The type of the input elements.
  * @param <OUT> The type of the returned elements.
@@ -43,16 +67,179 @@ import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
 	implements AsyncFunction<IN, OUT> {
 
+	private transient RuntimeContext runtimeContext;
+
+	@Override
+	public void setRuntimeContext(RuntimeContext t) {
+		super.setRuntimeContext(t);
+
+		if (t != null) {
+			runtimeContext = new RichAsyncFunctionRuntimeContext(t);
+		}
+	}
+
 	@Override
 	public abstract void asyncInvoke(IN input, AsyncCollector<OUT> collector) throws Exception;
 
 	@Override
 	public RuntimeContext getRuntimeContext() {
-		throw new UnsupportedOperationException("Get runtime context is not supported in rich async function");
+		if (this.runtimeContext != null) {
+			return runtimeContext;
+		} else {
+			throw new IllegalStateException("The runtime context has not been initialized.");
+		}
 	}
 
 	@Override
 	public IterationRuntimeContext getIterationRuntimeContext() {
-		throw new UnsupportedOperationException("Get iteration runtime context is not supported in rich async function");
+		if (this.runtimeContext != null) {
+			return (IterationRuntimeContext) runtimeContext;
+		} else {
+			throw new IllegalStateException("The runtime context has not been initialized.");
+		}
+	}
+
+	/**
+	 * A wrapper class to delegate {@link RuntimeContext}. State related apis are disabled.
+	 */
+	private class RichAsyncFunctionRuntimeContext implements IterationRuntimeContext {
+		private RuntimeContext runtimeContext;
+
+		public RichAsyncFunctionRuntimeContext(RuntimeContext context) {
+			runtimeContext = context;
+		}
+
+		private IterationRuntimeContext getIterationRuntineContext() {
+			if (this.runtimeContext instanceof IterationRuntimeContext) {
+				return (IterationRuntimeContext) this.runtimeContext;
+			} else {
+				throw new IllegalStateException("This stub is not part of an iteration step function.");
+			}
+		}
+
+		@Override
+		public int getSuperstepNumber() {
+			return getIterationRuntineContext().getSuperstepNumber();
+		}
+
+		@Override
+		public <T extends Aggregator<?>> T getIterationAggregator(String name) {
+			throw new UnsupportedOperationException("Get iteration aggregator is not supported in rich async function");
+		}
+
+		@Override
+		public <T extends Value> T getPreviousIterationAggregate(String name) {
+			return getIterationRuntineContext().getPreviousIterationAggregate(name);
+		}
+
+		@Override
+		public String getTaskName() {
+			return runtimeContext.getTaskName();
+		}
+
+		@Override
+		public MetricGroup getMetricGroup() {
+			return runtimeContext.getMetricGroup();
+		}
+
+		@Override
+		public int getNumberOfParallelSubtasks() {
+			return runtimeContext.getNumberOfParallelSubtasks();
+		}
+
+		@Override
+		public int getIndexOfThisSubtask() {
+			return runtimeContext.getIndexOfThisSubtask();
+		}
+
+		@Override
+		public int getAttemptNumber() {
+			return runtimeContext.getAttemptNumber();
+		}
+
+		@Override
+		public String getTaskNameWithSubtasks() {
+			return runtimeContext.getTaskNameWithSubtasks();
+		}
+
+		@Override
+		public ExecutionConfig getExecutionConfig() {
+			return runtimeContext.getExecutionConfig();
+		}
+
+		@Override
+		public ClassLoader getUserCodeClassLoader() {
+			return runtimeContext.getUserCodeClassLoader();
+		}
+
+		@Override
+		public <V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> accumulator) {
+			runtimeContext.addAccumulator(name, accumulator);
+		}
+
+		@Override
+		public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
+			return runtimeContext.getAccumulator(name);
+		}
+
+		@Override
+		public Map<String, Accumulator<?, ?>> getAllAccumulators() {
+			return runtimeContext.getAllAccumulators();
+		}
+
+		@Override
+		public IntCounter getIntCounter(String name) {
+			return runtimeContext.getIntCounter(name);
+		}
+
+		@Override
+		public LongCounter getLongCounter(String name) {
+			return runtimeContext.getLongCounter(name);
+		}
+
+		@Override
+		public DoubleCounter getDoubleCounter(String name) {
+			return runtimeContext.getDoubleCounter(name);
+		}
+
+		@Override
+		public Histogram getHistogram(String name) {
+			return runtimeContext.getHistogram(name);
+		}
+
+		@Override
+		public boolean hasBroadcastVariable(String name) {
+			return runtimeContext.hasBroadcastVariable(name);
+		}
+
+		@Override
+		public <RT> List<RT> getBroadcastVariable(String name) {
+			return runtimeContext.getBroadcastVariable(name);
+		}
+
+		@Override
+		public <T, C> C getBroadcastVariableWithInitializer(String name, BroadcastVariableInitializer<T, C> initializer) {
+			return runtimeContext.getBroadcastVariableWithInitializer(name, initializer);
+		}
+
+		@Override
+		public DistributedCache getDistributedCache() {
+			return runtimeContext.getDistributedCache();
+		}
+
+		@Override
+		public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
+			throw new UnsupportedOperationException("State is not supported in rich async function");
+		}
+
+		@Override
+		public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
+			throw new UnsupportedOperationException("State is not supported in rich async function");
+		}
+
+		@Override
+		public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
+			throw new UnsupportedOperationException("State is not supported in rich async function");
+		}
 	}
 }

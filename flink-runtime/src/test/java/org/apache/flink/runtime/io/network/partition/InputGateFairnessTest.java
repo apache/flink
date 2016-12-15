@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -87,7 +86,6 @@ public class InputGateFairnessTest {
 		SingleInputGate gate = new FairnessVerifyingInputGate(
 				"Test Task Name",
 				new JobID(),
-				new ExecutionAttemptID(),
 				new IntermediateDataSetID(),
 				0, numChannels,
 				mock(TaskActions.class),
@@ -141,7 +139,6 @@ public class InputGateFairnessTest {
 		SingleInputGate gate = new FairnessVerifyingInputGate(
 				"Test Task Name",
 				new JobID(),
-				new ExecutionAttemptID(),
 				new IntermediateDataSetID(),
 				0, numChannels,
 				mock(TaskActions.class),
@@ -192,7 +189,6 @@ public class InputGateFairnessTest {
 		SingleInputGate gate = new FairnessVerifyingInputGate(
 				"Test Task Name",
 				new JobID(),
-				new ExecutionAttemptID(),
 				new IntermediateDataSetID(),
 				0, numChannels,
 				mock(TaskActions.class),
@@ -248,7 +244,6 @@ public class InputGateFairnessTest {
 		SingleInputGate gate = new FairnessVerifyingInputGate(
 				"Test Task Name",
 				new JobID(),
-				new ExecutionAttemptID(),
 				new IntermediateDataSetID(),
 				0, numChannels,
 				mock(TaskActions.class),
@@ -346,14 +341,13 @@ public class InputGateFairnessTest {
 		public FairnessVerifyingInputGate(
 				String owningTaskName,
 				JobID jobId,
-				ExecutionAttemptID executionId,
 				IntermediateDataSetID consumedResultId,
 				int consumedSubpartitionIndex,
 				int numberOfInputChannels,
 				TaskActions taskActions,
 				TaskIOMetricGroup metrics) {
 
-			super(owningTaskName, jobId, executionId, consumedResultId, consumedSubpartitionIndex,
+			super(owningTaskName, jobId, consumedResultId, consumedSubpartitionIndex,
 					numberOfInputChannels, taskActions, metrics);
 
 			try {

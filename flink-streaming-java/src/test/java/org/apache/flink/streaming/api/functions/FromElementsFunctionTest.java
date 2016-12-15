@@ -26,9 +26,11 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -141,9 +143,12 @@ public class FromElementsFunctionTest {
 				data.add(i);
 			}
 			
-			final FromElementsFunction<Integer> source = new FromElementsFunction<Integer>(IntSerializer.INSTANCE, data);
-			final FromElementsFunction<Integer> sourceCopy = CommonTestUtils.createCopySerializable(source);
-			
+			final FromElementsFunction<Integer> source = new FromElementsFunction<>(IntSerializer.INSTANCE, data);
+			StreamSource<Integer, FromElementsFunction<Integer>> src = new StreamSource<>(source);
+			AbstractStreamOperatorTestHarness<Integer> testHarness =
+				new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
+			testHarness.open();
+
 			final SourceFunction.SourceContext<Integer> ctx = new ListSourceContext<Integer>(result, 2L);
 			
 			final Throwable[] error = new Throwable[1];
@@ -166,11 +171,10 @@ public class FromElementsFunctionTest {
 			Thread.sleep(1000);
 			
 			// make a checkpoint
-			int count;
-			List<Integer> checkpointData = new ArrayList<Integer>(NUM_ELEMENTS);
-			
+			List<Integer> checkpointData = new ArrayList<>(NUM_ELEMENTS);
+			OperatorStateHandles handles = null;
 			synchronized (ctx.getCheckpointLock()) {
-				count = source.snapshotState(566, System.currentTimeMillis());
+				handles = testHarness.snapshot(566, System.currentTimeMillis());
 				checkpointData.addAll(result);
 			}
 			
@@ -184,11 +188,18 @@ public class FromElementsFunctionTest {
 				error[0].printStackTrace();
 				fail("Error in asynchronous source runner");
 			}
-			
+
+			final FromElementsFunction<Integer> sourceCopy = new FromElementsFunction<>(IntSerializer.INSTANCE, data);
+			StreamSource<Integer, FromElementsFunction<Integer>> srcCopy = new StreamSource<>(sourceCopy);
+			AbstractStreamOperatorTestHarness<Integer> testHarnessCopy =
+				new AbstractStreamOperatorTestHarness<>(srcCopy, 1, 1, 0);
+			testHarnessCopy.setup();
+			testHarnessCopy.initializeState(handles);
+			testHarnessCopy.open();
+
 			// recovery run
-			SourceFunction.SourceContext<Integer> newCtx = new ListSourceContext<Integer>(checkpointData);
-			sourceCopy.restoreState(count);
-			
+			SourceFunction.SourceContext<Integer> newCtx = new ListSourceContext<>(checkpointData);
+
 			sourceCopy.run(newCtx);
 			
 			assertEquals(data, checkpointData);

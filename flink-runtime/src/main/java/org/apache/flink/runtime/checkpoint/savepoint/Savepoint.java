@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
+import org.apache.flink.core.io.Versioned;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.TaskState;
 
@@ -34,17 +35,7 @@ import java.util.Collection;
  * <p>Savepoints are serialized via a {@link SavepointSerializer} and stored
  * via a {@link SavepointStore}.
  */
-public interface Savepoint {
-
-	/**
-	 * Returns the savepoint version.
-	 *
-	 * <p>This version is independent of the Flink version, e.g. multiple Flink
-	 * versions can work the same savepoint version.
-	 *
-	 * @return Savepoint version
-	 */
-	int getVersion();
+public interface Savepoint extends Versioned {
 
 	/**
 	 * Returns the checkpoint ID of the savepoint.

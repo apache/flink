@@ -22,7 +22,6 @@ import com.google.common.collect.Lists;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -283,7 +282,6 @@ public class LocalInputChannelTest {
 		final SingleInputGate gate = new SingleInputGate(
 			"test task name",
 			new JobID(),
-			new ExecutionAttemptID(),
 			new IntermediateDataSetID(),
 			0,
 			1,
@@ -345,6 +343,53 @@ public class LocalInputChannelTest {
 
 		releaser.join();
 		requester.join();
+	}
+
+	/**
+	 * Tests that reading from a channel when after the partition has been
+	 * released are handled and don't lead to NPEs.
+	 */
+	@Test
+	public void testGetNextAfterPartitionReleased() throws Exception {
+		ResultSubpartitionView reader = mock(ResultSubpartitionView.class);
+		SingleInputGate gate = mock(SingleInputGate.class);
+		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
+
+		when(partitionManager.createSubpartitionView(
+				any(ResultPartitionID.class),
+				anyInt(),
+				any(BufferProvider.class),
+				any(BufferAvailabilityListener.class))).thenReturn(reader);
+
+		LocalInputChannel channel = new LocalInputChannel(
+			gate,
+			0,
+			new ResultPartitionID(),
+			partitionManager,
+			new TaskEventDispatcher(),
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+
+		channel.requestSubpartition(0);
+
+		// Null buffer but not released
+		when(reader.getNextBuffer()).thenReturn(null);
+		when(reader.isReleased()).thenReturn(false);
+
+		try {
+			channel.getNextBuffer();
+			fail("Did not throw expected IllegalStateException");
+		} catch (IllegalStateException ignored) {
+		}
+
+		// Null buffer and released
+		when(reader.getNextBuffer()).thenReturn(null);
+		when(reader.isReleased()).thenReturn(true);
+
+		try {
+			channel.getNextBuffer();
+			fail("Did not throw expected CancelTaskException");
+		} catch (CancelTaskException ignored) {
+		}
 	}
 
 	// ---------------------------------------------------------------------------------------------
@@ -434,7 +479,6 @@ public class LocalInputChannelTest {
 			this.inputGate = new SingleInputGate(
 					"Test Name",
 					new JobID(),
-					new ExecutionAttemptID(),
 					new IntermediateDataSetID(),
 					subpartitionIndex,
 					numberOfInputChannels,

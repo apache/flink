@@ -67,7 +67,7 @@ case class ResolvedFieldReference(
   }
 }
 
-case class Alias(child: Expression, name: String)
+case class Alias(child: Expression, name: String, extraNames: Seq[String] = Seq())
     extends UnaryExpression with NamedExpression {
 
   override def toString = s"$child as '$name"
@@ -80,7 +80,7 @@ case class Alias(child: Expression, name: String)
 
   override private[flink] def makeCopy(anyRefs: Array[AnyRef]): this.type = {
     val child: Expression = anyRefs.head.asInstanceOf[Expression]
-    copy(child, name).asInstanceOf[this.type]
+    copy(child, name, extraNames).asInstanceOf[this.type]
   }
 
   override private[flink] def toAttribute: Attribute = {
@@ -94,6 +94,8 @@ case class Alias(child: Expression, name: String)
   override private[flink] def validateInput(): ValidationResult = {
     if (name == "*") {
       ValidationFailure("Alias can not accept '*' as name.")
+    } else if (extraNames.nonEmpty) {
+      ValidationFailure("Invalid call to Alias with multiple names.")
     } else {
       ValidationSuccess
     }

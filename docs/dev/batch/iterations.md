@@ -1,9 +1,7 @@
 ---
-title:  "Iterations"
-
-# Sub-level navigation
-sub-nav-group: batch
-sub-nav-pos: 3
+title: Iterations
+nav-parent_id: batch
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

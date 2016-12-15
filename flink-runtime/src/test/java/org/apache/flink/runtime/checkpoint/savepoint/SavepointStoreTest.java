@@ -64,7 +64,7 @@ public class SavepointStoreTest {
 		assertEquals(1, tmp.getRoot().listFiles().length);
 
 		// Load
-		Savepoint loaded = SavepointStore.loadSavepoint(path);
+		Savepoint loaded = SavepointStore.loadSavepoint(path, Thread.currentThread().getContextClassLoader());
 		assertEquals(stored, loaded);
 
 		loaded.dispose();
@@ -89,7 +89,7 @@ public class SavepointStoreTest {
 		}
 
 		try {
-			SavepointStore.loadSavepoint(filePath.toString());
+			SavepointStore.loadSavepoint(filePath.toString(), Thread.currentThread().getContextClassLoader());
 			fail("Did not throw expected Exception");
 		} catch (RuntimeException e) {
 			assertTrue(e.getMessage().contains("Flink 1.0") && e.getMessage().contains("Unexpected magic number"));
@@ -128,10 +128,10 @@ public class SavepointStoreTest {
 		assertEquals(2, tmp.getRoot().listFiles().length);
 
 		// Load
-		Savepoint loaded = SavepointStore.loadSavepoint(pathNewSavepoint);
+		Savepoint loaded = SavepointStore.loadSavepoint(pathNewSavepoint, Thread.currentThread().getContextClassLoader());
 		assertEquals(newSavepoint, loaded);
 
-		loaded = SavepointStore.loadSavepoint(pathSavepoint);
+		loaded = SavepointStore.loadSavepoint(pathSavepoint, Thread.currentThread().getContextClassLoader());
 		assertEquals(savepoint, loaded);
 	}
 
@@ -176,7 +176,7 @@ public class SavepointStoreTest {
 		}
 
 		@Override
-		public TestSavepoint deserialize(DataInputStream dis) throws IOException {
+		public TestSavepoint deserialize(DataInputStream dis, ClassLoader userCL) throws IOException {
 			int version = dis.readInt();
 			long checkpointId = dis.readLong();
 			return new TestSavepoint(version, checkpointId);

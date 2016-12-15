@@ -771,7 +771,7 @@ public class CsvInputFormatTest {
 		final CsvInputFormat<Tuple5<Integer, String, String, String, Double>> format = new TupleCsvInputFormat<Tuple5<Integer, String, String, String, Double>>(PATH, typeInfo);
 
 		format.setSkipFirstLineAsHeader(true);
-		format.setFieldDelimiter(',');
+		format.setFieldDelimiter(",");
 
 		format.configure(new Configuration());
 		format.open(split);
@@ -1077,7 +1077,7 @@ public class CsvInputFormatTest {
 		CsvInputFormat<Tuple2<String, String>> inputFormat = new TupleCsvInputFormat<Tuple2<String, String>>(new Path(tempFile.toURI().toString()), typeInfo, new boolean[]{true, false, true});
 
 		inputFormat.enableQuotedStringParsing('"');
-		inputFormat.setFieldDelimiter('|');
+		inputFormat.setFieldDelimiter("|");
 		inputFormat.setDelimiter('\n');
 
 		inputFormat.configure(new Configuration());
@@ -1107,7 +1107,7 @@ public class CsvInputFormatTest {
 		CsvInputFormat<Tuple2<String, String>> inputFormat = new TupleCsvInputFormat<>(new Path(tempFile.toURI().toString()), typeInfo);
 
 		inputFormat.enableQuotedStringParsing('"');
-		inputFormat.setFieldDelimiter('|');
+		inputFormat.setFieldDelimiter("|");
 		inputFormat.setDelimiter('\n');
 
 		inputFormat.configure(new Configuration());

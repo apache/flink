@@ -2589,7 +2589,7 @@ public class CheckpointCoordinatorTest {
 		return executionJobVertex;
 	}
 
-	private static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID) {
+	static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID) {
 		return mockExecutionVertex(
 			attemptID,
 			new JobVertexID(),

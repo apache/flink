@@ -1,7 +1,7 @@
 ---
 title: "Savepoints"
 nav-parent_id: setup
-nav-pos: 7
+nav-pos: 8
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -29,13 +29,14 @@ Programs written in the [Data Stream API](index.html) can resume execution from 
 
 ## Overview
 
-Savepoints are **manually triggered checkpoints**, which take a snapshot of the program and write it out to a state backend. They rely on the regular checkpointing mechanism for this. During execution programs are periodically snapshotted on the worker nodes and produce checkpoints. For recovery only the last completed checkpoint is needed and older checkpoints can be safely discarded as soon as a new one is completed.
-
-Savepoints are similar to these periodic checkpoints except that they are **triggered by the user** and **don't automatically expire** when newer checkpoints are completed.
+In the example below the workers produce checkpoints **c<sub>1</sub>**, **c<sub>2</sub>**,
+**c<sub>3</sub>**, and **c<sub>4</sub>** for job *0xA312Bc*. Periodic checkpoints **c<sub>1</sub>**
+and **c<sub>3</sub>** have already been *discarded* and **c<sub>4</sub>** is the *latest
+checkpoint*. **c<sub>2</sub> is special**. It is the state associated with the savepoint
+**s<sub>1</sub>** and has been triggered by the user and it doesn't expire automatically (as
+c<sub>1</sub> and c<sub>3</sub> did after the completion of newer checkpoints).
 
 <img src="{{ site.baseurl }}/fig/savepoints-overview.png" class="center" />
-
-In the above example the workers produce checkpoints **c<sub>1</sub>**, **c<sub>2</sub>**, **c<sub>3</sub>**, and **c<sub>4</sub>** for job *0xA312Bc*. Periodic checkpoints **c<sub>1</sub>** and **c<sub>3</sub>** have already been *discarded* and **c<sub>4</sub>** is the *latest checkpoint*. **c<sub>2</sub> is special**. It is the state associated with the savepoint **s<sub>1</sub>** and has been triggered by the user and it doesn't expire automatically (as c<sub>1</sub> and c<sub>3</sub> did after the completion of newer checkpoints).
 
 Note that **s<sub>1</sub>** is only a **pointer to the actual checkpoint data c<sub>2</sub>**. This means that the actual state is *not copied* for the savepoint and periodic checkpoint data is kept around.
 

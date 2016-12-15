@@ -70,7 +70,7 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 
 	@Override
 	public boolean isReleased() {
-		return isReleased.get();
+		return isReleased.get() || parent.isReleased();
 	}
 
 	@Override

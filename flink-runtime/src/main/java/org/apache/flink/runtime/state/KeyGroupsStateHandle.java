@@ -111,7 +111,7 @@ public class KeyGroupsStateHandle implements StreamStateHandle {
 	}
 
 	@Override
-	public long getStateSize() throws IOException {
+	public long getStateSize() {
 		return stateHandle.getStateSize();
 	}
 

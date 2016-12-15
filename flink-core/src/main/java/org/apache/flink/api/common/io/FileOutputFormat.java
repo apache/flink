@@ -319,7 +319,7 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implemen
 			} catch (FileNotFoundException e) {
 				// ignore, may not be visible yet or may be already removed
 			} catch (Throwable t) {
-				LOG.error("Could not remove the incomplete file " + actualFilePath);
+				LOG.error("Could not remove the incomplete file " + actualFilePath + '.', t);
 			}
 		}
 	}

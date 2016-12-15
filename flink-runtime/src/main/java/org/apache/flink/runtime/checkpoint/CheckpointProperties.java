@@ -264,6 +264,8 @@ public class CheckpointProperties implements Serializable {
 	 * @return Checkpoint properties for an external checkpoint.
 	 */
 	public static CheckpointProperties forExternalizedCheckpoint(boolean deleteOnCancellation) {
-		return new CheckpointProperties(false, true, true, true, deleteOnCancellation, false, true);
+		// Handle suspension like cancellation as graceful cluster shut down
+		// suspends all jobs (non-HA).
+		return new CheckpointProperties(false, true, true, true, deleteOnCancellation, false, deleteOnCancellation);
 	}
 }

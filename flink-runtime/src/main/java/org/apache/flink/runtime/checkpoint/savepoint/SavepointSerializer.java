@@ -46,9 +46,10 @@ public interface SavepointSerializer<T extends Savepoint> {
 	 * Deserializes a savepoint from an input stream.
 	 *
 	 * @param dis Input stream to deserialize savepoint from
+	 * @param  userCodeClassLoader the user code class loader
 	 * @return The deserialized savepoint
 	 * @throws IOException Serialization failures are forwarded
 	 */
-	T deserialize(DataInputStream dis) throws IOException;
+	T deserialize(DataInputStream dis, ClassLoader userCodeClassLoader) throws IOException;
 
 }

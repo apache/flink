@@ -32,6 +32,8 @@ import TypeConverter._
 import org.apache.flink.api.table.BatchTableEnvironment
 import org.apache.calcite.rex._
 
+import scala.collection.JavaConverters._
+
 /**
   * Flink RelNode which matches along with LogicalCalc.
   *
@@ -73,8 +75,16 @@ class DataSetCalc(
 
     val child = this.getInput
     val rowCnt = metadata.getRowCount(child)
-    val exprCnt = calcProgram.getExprCount
-    planner.getCostFactory.makeCost(rowCnt, rowCnt * exprCnt, 0)
+
+    // compute number of expressions that do not access a field or literal, i.e. computations,
+    //   conditions, etc. We only want to account for computations, not for simple projections.
+    val compCnt = calcProgram.getExprList.asScala.toList.count {
+      case i: RexInputRef => false
+      case l: RexLiteral => false
+      case _ => true
+    }
+
+    planner.getCostFactory.makeCost(rowCnt, rowCnt * compCnt, 0)
   }
 
   override def estimateRowCount(metadata: RelMetadataQuery): Double = {

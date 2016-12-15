@@ -18,12 +18,13 @@
 
 package org.apache.flink.api.common.io;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.Path;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -33,17 +34,17 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileInputSplit;
-import org.apache.flink.core.fs.Path;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class DelimitedInputFormatTest {
 	
@@ -197,6 +198,45 @@ public class DelimitedInputFormatTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testReadCustomDelimiterWithCharset() throws IOException {
+		// Unicode row fragments
+		String[] records = new String[]{"\u020e\u021f\u05c0\u020b\u020f", "Apache", "\nFlink", "\u0000", "\u05c0"};
+
+		// Unicode delimiter
+		String delimiter = "\u05c0\u05c0";
+
+		String fileContent = StringUtils.join(records, delimiter);
+
+		for (final String charset : new String[]{ "UTF-8", "UTF-16BE", "UTF-16LE" }) {
+			// use charset when instantiating the record String
+			DelimitedInputFormat<String> format = new DelimitedInputFormat<String>() {
+				@Override
+				public String readRecord(String reuse, byte[] bytes, int offset, int numBytes) throws IOException {
+					return new String(bytes, offset, numBytes, charset);
+				}
+			};
+			format.setFilePath("file:///some/file/that/will/not/be/read");
+
+			final FileInputSplit split = createTempFile(fileContent, charset);
+
+			format.setDelimiter(delimiter);
+			// use the same encoding to parse the file as used to read the file;
+			// the delimiter is reinterpreted when the charset is set
+			format.setCharset(charset);
+			format.configure(new Configuration());
+			format.open(split);
+
+			for (String record : records) {
+				String value = format.nextRecord(null);
+				assertEquals(record, value);
+			}
+
+			assertNull(format.nextRecord(null));
+			assertTrue(format.reachedEnd());
 		}
 	}
 
@@ -363,19 +403,29 @@ public class DelimitedInputFormatTest {
 			fail(e.getMessage());
 		}
 	}
-	
-	private static FileInputSplit createTempFile(String contents) throws IOException {
+
+	static FileInputSplit createTempFile(String contents) throws IOException {
 		File tempFile = File.createTempFile("test_contents", "tmp");
 		tempFile.deleteOnExit();
-		
-		OutputStreamWriter wrt = new OutputStreamWriter(new FileOutputStream(tempFile));
-		wrt.write(contents);
-		wrt.close();
-		
+
+		try (Writer out = new OutputStreamWriter(new FileOutputStream(tempFile))) {
+			out.write(contents);
+		}
+
 		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
 	}
-	
-	
+
+	static FileInputSplit createTempFile(String contents, String charset) throws IOException {
+		File tempFile = File.createTempFile("test_contents", "tmp");
+		tempFile.deleteOnExit();
+
+		try (Writer out = new OutputStreamWriter(new FileOutputStream(tempFile), charset)) {
+			out.write(contents);
+		}
+
+		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
+	}
+
 	protected static final class MyTextInputFormat extends DelimitedInputFormat<String> {
 		private static final long serialVersionUID = 1L;
 		

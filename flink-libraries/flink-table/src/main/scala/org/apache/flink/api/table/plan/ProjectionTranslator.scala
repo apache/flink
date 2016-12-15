@@ -49,9 +49,7 @@ object ProjectionTranslator {
 
     val replaced = exprs
       .map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
-      .map {
-        case e: Expression => UnresolvedAlias(e)
-      }
+      .map(UnresolvedAlias)
     val aggs = aggNames.map( a => Alias(a._1, a._2)).toSeq
     val props = propNames.map( p => Alias(p._1, p._2)).toSeq
 
@@ -122,10 +120,10 @@ object ProjectionTranslator {
       case prop: WindowProperty =>
         val name = propNames(prop)
         Alias(UnresolvedFieldReference(name), tableEnv.createUniqueAttributeName())
-      case n @ Alias(agg: Aggregation, name) =>
+      case n @ Alias(agg: Aggregation, name, _) =>
         val aName = aggNames(agg)
         Alias(UnresolvedFieldReference(aName), name)
-      case n @ Alias(prop: WindowProperty, name) =>
+      case n @ Alias(prop: WindowProperty, name, _) =>
         val pName = propNames(prop)
         Alias(UnresolvedFieldReference(pName), name)
       case l: LeafExpression => l
@@ -145,7 +143,13 @@ object ProjectionTranslator {
       case sfc @ ScalarFunctionCall(clazz, args) =>
         val newArgs: Seq[Expression] = args
           .map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
-        sfc.makeCopy(Array(clazz,newArgs))
+        sfc.makeCopy(Array(clazz, newArgs))
+
+      // array constructor
+      case c @ ArrayConstructor(args) =>
+        val newArgs = c.elements
+          .map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
+        c.makeCopy(Array(newArgs))
 
       // General expression
       case e: Expression =>

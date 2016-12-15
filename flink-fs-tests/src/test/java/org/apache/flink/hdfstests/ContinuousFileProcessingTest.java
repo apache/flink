@@ -35,9 +35,11 @@ import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOpera
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -117,10 +119,10 @@ public class ContinuousFileProcessingTest {
 	public void testInvalidPathSpecification() throws Exception {
 
 		String invalidPath = "hdfs://" + hdfsCluster.getURI().getHost() + ":" + hdfsCluster.getNameNodePort() +"/invalid/";
-		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
+		TextInputFormat format = new TextInputFormat(new Path(invalidPath));
 
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, invalidPath,
+			new ContinuousFileMonitoringFunction<>(format,
 				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
 		try {
 			monitoringFunction.run(new DummySourceContext() {
@@ -135,7 +137,7 @@ public class ContinuousFileProcessingTest {
 			Assert.fail("Test passed with an invalid path.");
 
 		} catch (FileNotFoundException e) {
-			Assert.assertEquals("The provided file path " + invalidPath + " does not exist.", e.getMessage());
+			Assert.assertEquals("The provided file path " + format.getFilePath().toString() + " does not exist.", e.getMessage());
 		}
 	}
 
@@ -491,6 +493,8 @@ public class ContinuousFileProcessingTest {
 
 	private static class BlockingFileInputFormat extends FileInputFormat<FileInputSplit> {
 
+		private static final long serialVersionUID = -6727603565381560267L;
+
 		private final OneShotLatch latch;
 
 		private FileInputSplit split;
@@ -556,6 +560,9 @@ public class ContinuousFileProcessingTest {
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
 		format.setFilesFilter(new FilePathFilter() {
+
+			private static final long serialVersionUID = 2611449927338589804L;
+
 			@Override
 			public boolean filterPath(Path filePath) {
 				return filePath.getName().startsWith("**");
@@ -563,7 +570,7 @@ public class ContinuousFileProcessingTest {
 		});
 
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
+			new ContinuousFileMonitoringFunction<>(format,
 				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
 
 		final FileVerifyingSourceContext context =
@@ -601,7 +608,7 @@ public class ContinuousFileProcessingTest {
 		FileInputSplit[] splits = format.createInputSplits(1);
 
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
+			new ContinuousFileMonitoringFunction<>(format,
 				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
 
 		ModTimeVerifyingSourceContext context = new ModTimeVerifyingSourceContext(modTimes);
@@ -633,7 +640,7 @@ public class ContinuousFileProcessingTest {
 		format.setFilesFilter(FilePathFilter.createDefaultFilter());
 
 		final ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
+			new ContinuousFileMonitoringFunction<>(format,
 				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
 
 		final FileVerifyingSourceContext context = new FileVerifyingSourceContext(latch, monitoringFunction);
@@ -683,6 +690,80 @@ public class ContinuousFileProcessingTest {
 	}
 
 	@Test
+	public void testFunctionRestore() throws Exception {
+
+		org.apache.hadoop.fs.Path path = null;
+		long fileModTime = Long.MIN_VALUE;
+		for (int i = 0; i < 1; i++) {
+			Tuple2<org.apache.hadoop.fs.Path, String> file = createFileAndFillWithData(hdfsURI, "file", i, "This is test line.");
+			path = file.f0;
+			fileModTime = hdfs.getFileStatus(file.f0).getModificationTime();
+		}
+
+		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
+
+		final ContinuousFileMonitoringFunction<String> monitoringFunction =
+			new ContinuousFileMonitoringFunction<>(format, FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
+
+		StreamSource<TimestampedFileInputSplit, ContinuousFileMonitoringFunction<String>> src =
+			new StreamSource<>(monitoringFunction);
+
+		final AbstractStreamOperatorTestHarness<TimestampedFileInputSplit> testHarness =
+			new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
+		testHarness.open();
+
+		final Throwable[] error = new Throwable[1];
+
+		final OneShotLatch latch = new OneShotLatch();
+
+		// run the source asynchronously
+		Thread runner = new Thread() {
+			@Override
+			public void run() {
+				try {
+					monitoringFunction.run(new DummySourceContext() {
+						@Override
+						public void collect(TimestampedFileInputSplit element) {
+							latch.trigger();
+						}
+					});
+				}
+				catch (Throwable t) {
+					t.printStackTrace();
+					error[0] = t;
+				}
+			}
+		};
+		runner.start();
+
+		if (!latch.isTriggered()) {
+			latch.await();
+		}
+
+		OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+		monitoringFunction.cancel();
+		runner.join();
+
+		testHarness.close();
+
+		final ContinuousFileMonitoringFunction<String> monitoringFunctionCopy =
+			new ContinuousFileMonitoringFunction<>(format, FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
+
+		StreamSource<TimestampedFileInputSplit, ContinuousFileMonitoringFunction<String>> srcCopy =
+			new StreamSource<>(monitoringFunctionCopy);
+
+		AbstractStreamOperatorTestHarness<TimestampedFileInputSplit> testHarnessCopy =
+			new AbstractStreamOperatorTestHarness<>(srcCopy, 1, 1, 0);
+		testHarnessCopy.initializeState(snapshot);
+		testHarnessCopy.open();
+
+		Assert.assertNull(error[0]);
+		Assert.assertEquals(fileModTime, monitoringFunctionCopy.getGlobalModificationTime());
+
+		hdfs.delete(path, false);
+	}
+
+	@Test
 	public void testProcessContinuously() throws Exception {
 		final OneShotLatch latch = new OneShotLatch();
 
@@ -698,7 +779,7 @@ public class ContinuousFileProcessingTest {
 		format.setFilesFilter(FilePathFilter.createDefaultFilter());
 
 		final ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
+			new ContinuousFileMonitoringFunction<>(format,
 				FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
 
 		final int totalNoOfFilesToBeRead = NO_OF_FILES + 1; // 1 for the bootstrap + NO_OF_FILES

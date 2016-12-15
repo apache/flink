@@ -1,8 +1,8 @@
 ---
 title: "Monitoring the Wikipedia Edit Stream"
 nav-title: Monitoring Wikipedia Edits
-nav-parent_id: quickstarts
-nav-pos: 2
+nav-parent_id: examples
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -278,8 +278,8 @@ was produced.
 
 This should get you started with writing your own Flink programs. To learn more 
 you can check out our guides
-about [basic concepts]({{ site.baseurl }}/apis/common/index.html) and the
-[DataStream API]({{ site.baseurl }}/apis/streaming/index.html). Stick
+about [basic concepts]({{ site.baseurl }}/dev/api_concepts) and the
+[DataStream API]({{ site.baseurl }}/dev/datastream_api). Stick
 around for the bonus exercise if you want to learn about setting up a Flink cluster on
 your own machine and writing results to [Kafka](http://kafka.apache.org).
 

@@ -1,8 +1,8 @@
 ---
-title: "Quickstart: Java API"
-nav-title: Java API
-nav-parent_id: quickstarts
-nav-pos: 3
+title: "Sample Project using the Java API"
+nav-title: Sample Project in Java
+nav-parent_id: start
+nav-pos: 0
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -64,8 +64,7 @@ There will be a new directory in your working directory. If you've used the _cur
 
 The sample project is a __Maven project__, which contains four classes. _StreamingJob_ and _BatchJob_ are basic skeleton programs, _SocketTextStreamWordCount_ is a working streaming example and _WordCountJob_ is a working batch example. Please note that the _main_ method of all classes allow you to start Flink in a development/testing mode.
 
-We recommend you __import this project into your IDE__ to develop and test it. If you use Eclipse, the [m2e plugin](http://www.eclipse.org/m2e/) allows to [import Maven projects](http://books.sonatype.com/m2eclipse-book/reference/creating-sect-importing-projects.html#fig-creating-import). Some Eclipse bundles include that plugin by default, others require you to install it manually. The IntelliJ IDE also supports Maven projects out of the box.
-
+We recommend you [import this project into your IDE]({{ site.baseurl }}/internals/ide_setup) to develop and test it. 
 
 A note to Mac OS X users: The default JVM heapsize for Java is too small for Flink. You have to manually increase it. Choose "Run Configurations" -> Arguments and write into the "VM Arguments" box: "-Xmx800m" in Eclipse.
 

@@ -47,7 +47,6 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
-import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.util.TestEnvironment;
 
@@ -71,6 +70,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Scanner;
 import java.util.UUID;
 
@@ -262,9 +262,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	}
 
 	@Override
-	protected void verifyResultsIdealCircumstances(
-		OneInputStreamOperatorTestHarness<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> harness,
-		CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
+	protected void verifyResultsIdealCircumstances(CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
 
 		ResultSet result = session.execute(SELECT_DATA_QUERY);
 		ArrayList<Integer> list = new ArrayList<>();
@@ -279,9 +277,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	}
 
 	@Override
-	protected void verifyResultsDataPersistenceUponMissedNotify(
-		OneInputStreamOperatorTestHarness<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> harness,
-		CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
+	protected void verifyResultsDataPersistenceUponMissedNotify(CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
 
 		ResultSet result = session.execute(SELECT_DATA_QUERY);
 		ArrayList<Integer> list = new ArrayList<>();
@@ -296,9 +292,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	}
 
 	@Override
-	protected void verifyResultsDataDiscardingUponRestore(
-		OneInputStreamOperatorTestHarness<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> harness,
-		CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
+	protected void verifyResultsDataDiscardingUponRestore(CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
 
 		ResultSet result = session.execute(SELECT_DATA_QUERY);
 		ArrayList<Integer> list = new ArrayList<>();
@@ -313,6 +307,30 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 			list.remove(new Integer(s.getInt("counter")));
 		}
 		Assert.assertTrue("The following ID's were not found in the ResultSet: " + list.toString(), list.isEmpty());
+	}
+
+	@Override
+	protected void verifyResultsWhenReScaling(
+		CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink, int startElementCounter, int endElementCounter) {
+
+		// IMPORTANT NOTE:
+		//
+		// for cassandra we always have to start from 1 because
+		// all operators will share the same final db
+
+		ArrayList<Integer> expected = new ArrayList<>();
+		for (int i = 1; i <= endElementCounter; i++) {
+			expected.add(i);
+		}
+
+		ArrayList<Integer> actual = new ArrayList<>();
+		ResultSet result = session.execute(SELECT_DATA_QUERY);
+		for (Row s : result) {
+			actual.add(s.getInt("counter"));
+		}
+
+		Collections.sort(actual);
+		Assert.assertArrayEquals(expected.toArray(), actual.toArray());
 	}
 
 	@Test

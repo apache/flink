@@ -71,6 +71,8 @@ public class GangliaReporter extends ScheduledDropwizardReporter {
 			builder.withDMax(dMax);
 			builder.withTMax(tMax);
 
+			log.info("Configured GangliaReporter with {host:{}, port:{}, dmax:{}, tmax:{}, ttl:{}, addressingMode:{}}",
+				host, port, dMax, tMax, ttl, addressingMode);			
 			return builder.build(gMetric);
 		} catch (IOException e) {
 			throw new RuntimeException("Error while instantiating GangliaReporter.", e);

@@ -18,6 +18,10 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -80,6 +84,36 @@ public final class FileUtils {
 	
 	public static void writeFileUtf8(File file, String contents) throws IOException {
 		writeFile(file, contents, "UTF-8");
+	}
+
+	// ------------------------------------------------------------------------
+	//  Deleting directories
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Deletes the path if it is empty. A path can only be empty if it is a directory which does
+	 * not contain any other directories/files.
+	 *
+	 * @param fileSystem to use
+	 * @param path to be deleted if empty
+	 * @return true if the path could be deleted; otherwise false
+	 * @throws IOException if the delete operation fails
+	 */
+	public static boolean deletePathIfEmpty(FileSystem fileSystem, Path path) throws IOException {
+		FileStatus[] fileStatuses = null;
+
+		try {
+			fileStatuses = fileSystem.listStatus(path);
+		} catch (Exception ignored) {}
+
+		// if there are no more files or if we couldn't list the file status try to delete the path
+		if (fileStatuses == null || fileStatuses.length == 0) {
+			// attempt to delete the path (will fail and be ignored if the path now contains
+			// some files (possibly added concurrently))
+			return fileSystem.delete(path, false);
+		} else {
+			return false;
+		}
 	}
 	
 	// ------------------------------------------------------------------------

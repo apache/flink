@@ -236,8 +236,6 @@ public class AsyncCollectorBufferTest {
 
 		buffer.stopEmitterThread();
 
-		System.out.println(((FakedOutput)output).getRawTimestamp());
-
 		Assert.assertEquals(333L, ((FakedOutput)output).getRawTimestamp().toArray()[3]);
 
 		List<Long> result = ((FakedOutput)output).getRawValue();

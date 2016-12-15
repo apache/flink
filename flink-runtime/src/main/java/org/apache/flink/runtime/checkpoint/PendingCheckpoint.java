@@ -35,6 +35,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -198,47 +199,37 @@ public class PendingCheckpoint {
 		return onCompletionPromise;
 	}
 
-	public CompletedCheckpoint finalizeCheckpoint() throws Exception {
+	public CompletedCheckpoint finalizeCheckpoint() {
 		synchronized (lock) {
-			try {
-				if (discarded) {
-					throw new IllegalStateException("pending checkpoint is discarded");
+			Preconditions.checkState(isFullyAcknowledged(), "Pending checkpoint has not been fully acknowledged yet.");
+
+			// Persist if required
+			String externalPath = null;
+			if (props.externalizeCheckpoint()) {
+				try {
+					Savepoint savepoint = new SavepointV1(checkpointId, taskStates.values());
+					externalPath = SavepointStore.storeSavepoint(
+							targetDirectory,
+							savepoint);
+				} catch (IOException e) {
+					LOG.error("Failed to persist checkpoint {}.",checkpointId, e);
 				}
-				if (notYetAcknowledgedTasks.isEmpty()) {
-					// Persist if required
-					String externalPath = null;
-					if (props.externalizeCheckpoint()) {
-						try {
-							Savepoint savepoint = new SavepointV1(checkpointId, taskStates.values());
-							externalPath = SavepointStore.storeSavepoint(
-									targetDirectory,
-									savepoint);
-						} catch (Throwable t) {
-							LOG.error("Failed to persist checkpoints " + checkpointId + ".", t);
-						}
-					}
-
-					CompletedCheckpoint completed = new CompletedCheckpoint(
-							jobId,
-							checkpointId,
-							checkpointTimestamp,
-							System.currentTimeMillis(),
-							new HashMap<>(taskStates),
-							props,
-							externalPath);
-
-					onCompletionPromise.complete(completed);
-
-					dispose(false);
-
-					return completed;
-				} else {
-					throw new IllegalStateException("Cannot complete checkpoint while not all tasks are acknowledged");
-				}
-			} catch (Throwable t) {
-				onCompletionPromise.completeExceptionally(t);
-				throw t;
 			}
+
+			CompletedCheckpoint completed = new CompletedCheckpoint(
+					jobId,
+					checkpointId,
+					checkpointTimestamp,
+					System.currentTimeMillis(),
+					new HashMap<>(taskStates),
+					props,
+					externalPath);
+
+			onCompletionPromise.complete(completed);
+
+			dispose(false);
+
+			return completed;
 		}
 	}
 
@@ -378,9 +369,8 @@ public class PendingCheckpoint {
 	private void dispose(boolean releaseState) {
 		synchronized (lock) {
 			try {
-				discarded = true;
 				numAcknowledgedTasks = -1;
-				if (releaseState) {
+				if (!discarded && releaseState) {
 					executor.execute(new Runnable() {
 						@Override
 						public void run() {
@@ -395,6 +385,7 @@ public class PendingCheckpoint {
 
 				}
 			} finally {
+				discarded = true;
 				taskStates.clear();
 				notYetAcknowledgedTasks.clear();
 				acknowledgedTasks.clear();

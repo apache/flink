@@ -1351,9 +1351,7 @@ public abstract class StreamExecutionEnvironment {
 					ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL + " ms.");
 
 		ContinuousFileMonitoringFunction<OUT> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(
-				inputFormat, inputFormat.getFilePath().toString(),
-				monitoringMode, getParallelism(), interval);
+			new ContinuousFileMonitoringFunction<>(inputFormat, monitoringMode, getParallelism(), interval);
 
 		ContinuousFileReaderOperator<OUT> reader =
 			new ContinuousFileReaderOperator<>(inputFormat);

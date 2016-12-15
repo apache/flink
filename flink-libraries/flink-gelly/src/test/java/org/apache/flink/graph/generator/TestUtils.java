@@ -50,7 +50,12 @@ public final class TestUtils {
 	 */
 	public static <K,VV,EV> void compareGraph(Graph<K,VV,EV> graph, String expectedVertices, String expectedEdges)
 			throws Exception {
-		// Vertices
+		compareVertices(graph, expectedVertices);
+		compareEdges(graph, expectedEdges);
+	}
+
+	private static <K, VV, EV> void compareVertices(Graph<K, VV, EV> graph, String expectedVertices)
+			throws Exception {
 		if (expectedVertices != null) {
 			List<String> resultVertices = new ArrayList<>();
 
@@ -60,8 +65,10 @@ public final class TestUtils {
 
 			TestBaseUtils.compareResultAsText(resultVertices, expectedVertices.replaceAll("\\s","").replace(";", "\n"));
 		}
+	}
 
-		// Edges
+	private static <K, VV, EV> void compareEdges(Graph<K, VV, EV> graph, String expectedEdges)
+			throws Exception {
 		if (expectedEdges != null) {
 			List<String> resultEdges = new ArrayList<>();
 
