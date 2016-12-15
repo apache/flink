@@ -20,6 +20,7 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
 
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.net.util.IPAddressUtil;
@@ -137,10 +138,14 @@ public class NetUtils {
 			byte[] ipV6Address = IPAddressUtil.textToNumericFormatV6(host);
 			host = getIPv6UrlRepresentation(ipV6Address);
 		} else if (!IPAddressUtil.isIPv4LiteralAddress(host)) {
-			// We don't allow these in hostnames
-			Preconditions.checkArgument(!host.startsWith("."));
-			Preconditions.checkArgument(!host.endsWith("."));
-			Preconditions.checkArgument(!host.contains(":"));
+			try {
+				// We don't allow these in hostnames
+				Preconditions.checkArgument(!host.startsWith("."));
+				Preconditions.checkArgument(!host.endsWith("."));
+				Preconditions.checkArgument(!host.contains(":"));
+			} catch (Exception e) {
+				throw new IllegalConfigurationException("The configured hostname is not valid", e);
+			}
 		}
 
 		return host;
