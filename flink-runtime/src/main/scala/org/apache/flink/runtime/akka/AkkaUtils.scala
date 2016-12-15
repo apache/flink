@@ -63,8 +63,8 @@ object AkkaUtils {
    * will be instantiated.
    *
    * @param configuration instance containing the user provided configuration values
-   * @param listeningAddress an optional tuple containing a hostname and a port to bind to. If the
-   *                         parameter is None, then a local actor system will be created.
+   * @param listeningAddress an optional tuple containing a bindAddress and a port to bind to.
+    *                        If the parameter is None, then a local actor system will be created.
    * @return created actor system
    */
   def createActorSystem(
@@ -102,7 +102,7 @@ object AkkaUtils {
    * specified, then the actor system will listen on the respective address.
    *
    * @param configuration instance containing the user provided configuration values
-   * @param externalAddress optional tuple of hostname and port to be reachable at.
+   * @param externalAddress optional tuple of bindAddress and port to be reachable at.
    *                        If None is given, then an Akka config for local actor system
    *                        will be returned
    * @return Akka config
@@ -217,17 +217,17 @@ object AkkaUtils {
 
   /**
    * Creates a Akka config for a remote actor system listening on port on the network interface
-   * identified by hostname.
+   * identified by bindAddress.
    *
    * @param configuration instance containing the user provided configuration values
-   * @param hostname of the network interface to bind on
+   * @param bindAddress of the network interface to bind on
    * @param port to bind to or if 0 then Akka picks a free port automatically
    * @param externalHostname The host name to expect for Akka messages
    * @param externalPort The port to expect for Akka messages
    * @return Flink's Akka configuration for remote actor systems
    */
   private def getRemoteAkkaConfig(configuration: Configuration,
-                                  hostname: String, port: Int,
+                                  bindAddress: String, port: Int,
                                   externalHostname: String, externalPort: Int): Config = {
 
     val akkaAskTimeout = Duration(configuration.getString(
@@ -347,7 +347,7 @@ object AkkaUtils {
       if (externalHostname != null && externalHostname.nonEmpty) {
         externalHostname
       } else {
-        // if hostname is null or empty, then leave hostname unspecified. Akka will pick
+        // if bindAddress is null or empty, then leave bindAddress unspecified. Akka will pick
         // InetAddress.getLocalHost.getHostAddress
         "\"\""
       }
@@ -359,7 +359,7 @@ object AkkaUtils {
          |    netty {
          |      tcp {
          |        hostname = $effectiveHostname
-         |        bind-hostname = $hostname
+         |        bind-hostname = $bindAddress
          |      }
          |    }
          |  }
