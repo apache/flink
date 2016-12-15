@@ -26,7 +26,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.table.Row;
+import org.apache.flink.table.Row;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
