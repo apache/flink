@@ -157,6 +157,16 @@ under the License.
 							</relocations>
 						</configuration>
 					</execution>
+					<!-- package uber-jar as optional package for distribution -->
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<finalName>${project.artifactId}-${project.version}-uber</finalName>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 		</plugins>
