@@ -20,6 +20,7 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -46,7 +47,7 @@ public class LeaderRetrievalServiceHostnameResolutionTest extends TestLogger {
 			LeaderRetrievalUtils.createLeaderRetrievalService(config);
 			fail("This should fail with an UnknownHostException");
 		}
-		catch (IllegalArgumentException e) {
+		catch (IllegalConfigurationException e) {
 			// that is what we want!
 		}
 		catch (Exception e) {

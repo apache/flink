@@ -24,6 +24,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.junit.Test;
 
 import java.net.InetSocketAddress;
@@ -55,7 +56,7 @@ public class RemoteExecutorHostnameResolutionTest {
 		}
 		catch (ProgramInvocationException e) {
 			// that is what we want!
-			assertTrue(e.getCause() instanceof IllegalArgumentException);
+			assertTrue(e.getCause() instanceof IllegalConfigurationException);
 		}
 		catch (Exception e) {
 			System.err.println("Wrong exception!");
@@ -76,7 +77,7 @@ public class RemoteExecutorHostnameResolutionTest {
 		}
 		catch (ProgramInvocationException e) {
 			// that is what we want!
-			assertTrue(e.getCause() instanceof IllegalArgumentException);
+			assertTrue(e.getCause() instanceof IllegalConfigurationException);
 		}
 		catch (Exception e) {
 			System.err.println("Wrong exception!");
