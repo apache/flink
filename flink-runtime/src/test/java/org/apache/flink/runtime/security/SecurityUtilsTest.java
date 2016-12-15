@@ -19,6 +19,8 @@ package org.apache.flink.runtime.security;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.lang.reflect.Method;
@@ -30,6 +32,12 @@ import static org.junit.Assert.fail;
  * Tests for the {@link SecurityUtils}.
  */
 public class SecurityUtilsTest {
+
+	@AfterClass
+	public static void afterClass() {
+		SecurityUtils.clearContext();
+		System.setProperty(SecurityUtils.JAVA_SECURITY_AUTH_LOGIN_CONFIG, "");
+	}
 
 	@Test
 	public void testCreateInsecureHadoopCtx() {
@@ -49,6 +57,21 @@ public class SecurityUtilsTest {
 		} catch (RuntimeException re) {
 			assertEquals("UGI passed cannot be null",re.getMessage());
 		}
+	}
+
+	@Test
+	/**
+	 * The Jaas configuration file provided should not be overridden.
+	 */
+	public void testJaasPropertyOverride() throws Exception {
+		String confFile = "jaas.conf";
+		System.setProperty(SecurityUtils.JAVA_SECURITY_AUTH_LOGIN_CONFIG, confFile);
+
+		SecurityUtils.install(new SecurityUtils.SecurityConfiguration(new Configuration()));
+
+		Assert.assertEquals(
+			confFile,
+			System.getProperty(SecurityUtils.JAVA_SECURITY_AUTH_LOGIN_CONFIG));
 	}
 
 
