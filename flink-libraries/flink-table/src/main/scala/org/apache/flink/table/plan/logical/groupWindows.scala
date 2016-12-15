@@ -25,9 +25,9 @@ import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeIn
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 abstract class EventTimeGroupWindow(
-    name: Option[Expression],
+    alias: Option[Expression],
     time: Expression)
-  extends LogicalWindow(name) {
+  extends LogicalWindow(alias) {
 
   override def validate(tableEnv: TableEnvironment): ValidationResult = {
     val valid = super.validate(tableEnv)
@@ -55,7 +55,22 @@ abstract class EventTimeGroupWindow(
   }
 }
 
-abstract class ProcessingTimeGroupWindow(name: Option[Expression]) extends LogicalWindow(name)
+abstract class ProcessingTimeGroupWindow(alias: Option[Expression]) extends LogicalWindow(alias) {
+
+  override def validate(tableEnv: TableEnvironment): ValidationResult = {
+    val valid = super.validate(tableEnv)
+    if (valid.isFailure) {
+      return valid
+    }
+
+    tableEnv match {
+      case b: BatchTableEnvironment => ValidationFailure(
+        "Window on batch must declare a time attribute over which the query is evaluated.")
+      case _ =>
+        ValidationSuccess
+    }
+  }
+}
 
 // ------------------------------------------------------------------------------------------------
 // Tumbling group windows
@@ -74,32 +89,32 @@ object TumblingGroupWindow {
 }
 
 case class ProcessingTimeTumblingGroupWindow(
-    name: Option[Expression],
+    override val alias: Option[Expression],
     size: Expression)
-  extends ProcessingTimeGroupWindow(name) {
+  extends ProcessingTimeGroupWindow(alias) {
 
   override def resolveExpressions(resolve: (Expression) => Expression): LogicalWindow =
     ProcessingTimeTumblingGroupWindow(
-      name.map(resolve),
+      alias.map(resolve),
       resolve(size))
 
   override def validate(tableEnv: TableEnvironment): ValidationResult =
     super.validate(tableEnv).orElse(TumblingGroupWindow.validate(tableEnv, size))
 
-  override def toString: String = s"ProcessingTimeTumblingGroupWindow($name, $size)"
+  override def toString: String = s"ProcessingTimeTumblingGroupWindow($alias, $size)"
 }
 
 case class EventTimeTumblingGroupWindow(
-    name: Option[Expression],
+    override val alias: Option[Expression],
     timeField: Expression,
     size: Expression)
   extends EventTimeGroupWindow(
-    name,
+    alias,
     timeField) {
 
   override def resolveExpressions(resolve: (Expression) => Expression): LogicalWindow =
     EventTimeTumblingGroupWindow(
-      name.map(resolve),
+      alias.map(resolve),
       resolve(timeField),
       resolve(size))
 
@@ -114,7 +129,7 @@ case class EventTimeTumblingGroupWindow(
           ValidationSuccess
       })
 
-  override def toString: String = s"EventTimeTumblingGroupWindow($name, $timeField, $size)"
+  override def toString: String = s"EventTimeTumblingGroupWindow($alias, $timeField, $size)"
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -161,33 +176,33 @@ object SlidingGroupWindow {
 }
 
 case class ProcessingTimeSlidingGroupWindow(
-    name: Option[Expression],
+    override val alias: Option[Expression],
     size: Expression,
     slide: Expression)
-  extends ProcessingTimeGroupWindow(name) {
+  extends ProcessingTimeGroupWindow(alias) {
 
   override def resolveExpressions(resolve: (Expression) => Expression): LogicalWindow =
     ProcessingTimeSlidingGroupWindow(
-      name.map(resolve),
+      alias.map(resolve),
       resolve(size),
       resolve(slide))
 
   override def validate(tableEnv: TableEnvironment): ValidationResult =
     super.validate(tableEnv).orElse(SlidingGroupWindow.validate(tableEnv, size, slide))
 
-  override def toString: String = s"ProcessingTimeSlidingGroupWindow($name, $size, $slide)"
+  override def toString: String = s"ProcessingTimeSlidingGroupWindow($alias, $size, $slide)"
 }
 
 case class EventTimeSlidingGroupWindow(
-    name: Option[Expression],
+    override val alias: Option[Expression],
     timeField: Expression,
     size: Expression,
     slide: Expression)
-  extends EventTimeGroupWindow(name, timeField) {
+  extends EventTimeGroupWindow(alias, timeField) {
 
   override def resolveExpressions(resolve: (Expression) => Expression): LogicalWindow =
     EventTimeSlidingGroupWindow(
-      name.map(resolve),
+      alias.map(resolve),
       resolve(timeField),
       resolve(size),
       resolve(slide))
@@ -203,7 +218,7 @@ case class EventTimeSlidingGroupWindow(
           ValidationSuccess
       })
 
-  override def toString: String = s"EventTimeSlidingGroupWindow($name, $timeField, $size, $slide)"
+  override def toString: String = s"EventTimeSlidingGroupWindow($alias, $timeField, $size, $slide)"
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -222,37 +237,37 @@ object SessionGroupWindow {
 }
 
 case class ProcessingTimeSessionGroupWindow(
-    name: Option[Expression],
+    override val alias: Option[Expression],
     gap: Expression)
-  extends ProcessingTimeGroupWindow(name) {
+  extends ProcessingTimeGroupWindow(alias) {
 
   override def resolveExpressions(resolve: (Expression) => Expression): LogicalWindow =
     ProcessingTimeSessionGroupWindow(
-      name.map(resolve),
+      alias.map(resolve),
       resolve(gap))
 
   override def validate(tableEnv: TableEnvironment): ValidationResult =
     super.validate(tableEnv).orElse(SessionGroupWindow.validate(tableEnv, gap))
 
-  override def toString: String = s"ProcessingTimeSessionGroupWindow($name, $gap)"
+  override def toString: String = s"ProcessingTimeSessionGroupWindow($alias, $gap)"
 }
 
 case class EventTimeSessionGroupWindow(
-    name: Option[Expression],
+    override val alias: Option[Expression],
     timeField: Expression,
     gap: Expression)
   extends EventTimeGroupWindow(
-    name,
+    alias,
     timeField) {
 
   override def resolveExpressions(resolve: (Expression) => Expression): LogicalWindow =
     EventTimeSessionGroupWindow(
-      name.map(resolve),
+      alias.map(resolve),
       resolve(timeField),
       resolve(gap))
 
   override def validate(tableEnv: TableEnvironment): ValidationResult =
     super.validate(tableEnv).orElse(SessionGroupWindow.validate(tableEnv, gap))
 
-  override def toString: String = s"EventTimeSessionGroupWindow($name, $timeField, $gap)"
+  override def toString: String = s"EventTimeSessionGroupWindow($alias, $timeField, $gap)"
 }

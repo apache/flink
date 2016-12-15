@@ -58,8 +58,8 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
     val windowedTable = table
-      .groupBy('string)
-      .window(Slide over 2.rows every 1.rows)
+      .window(Slide over 2.rows every 1.rows as 'w)
+      .groupBy('w, 'string)
       .select('string, 'int.count, 'int.avg)
 
     val results = windowedTable.toDataStream[Row]
@@ -83,8 +83,8 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
     val windowedTable = table
-      .groupBy('string)
-      .window(Session withGap 7.milli on 'rowtime)
+      .window(Session withGap 7.milli on 'rowtime as 'w)
+      .groupBy('w, 'string)
       .select('string, 'int.count)
 
     val results = windowedTable.toDataStream[Row]
@@ -106,7 +106,8 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
     val windowedTable = table
-      .window(Tumble over 2.rows)
+      .window(Tumble over 2.rows as 'w)
+      .groupBy('w)
       .select('int.count)
 
     val results = windowedTable.toDataStream[Row]
@@ -130,8 +131,8 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
     val windowedTable = table
-      .groupBy('string)
       .window(Tumble over 5.milli on 'rowtime as 'w)
+      .groupBy('w, 'string)
       .select('string, 'int.count, 'int.avg, 'w.start, 'w.end)
 
     val results = windowedTable.toDataStream[Row]
@@ -159,8 +160,8 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
     val windowedTable = table
-      .groupBy('string)
       .window(Slide over 10.milli every 5.milli on 'rowtime as 'w)
+      .groupBy('w, 'string)
       .select('string, 'int.count, 'w.start, 'w.end, 'w.start)
 
     val results = windowedTable.toDataStream[Row]
