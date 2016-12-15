@@ -717,7 +717,7 @@ public class Task implements Runnable, TaskActions {
 						else {
 							if (transitionState(current, ExecutionState.FAILED, t)) {
 								// proper failure of the task. record the exception as the root cause
-								String errorMessage = String.format("Execution of {} ({}) failed.", taskNameWithSubtask, executionId);
+								String errorMessage = String.format("Execution of %s (%s) failed.", taskNameWithSubtask, executionId);
 								failureCause = t;
 								cancelInvokable();
 
@@ -1074,7 +1074,7 @@ public class Task implements Runnable, TaskActions {
 							resultPartitionId,
 							ExecutionState.RUNNING);
 					} else if (throwable instanceof PartitionProducerDisposedException) {
-						String msg = String.format("Producer {} of partition {} disposed. Cancelling execution.",
+						String msg = String.format("Producer %s of partition %s disposed. Cancelling execution.",
 							resultPartitionId.getProducerId(), resultPartitionId.getPartitionId());
 						LOG.info(msg, throwable);
 						cancelExecution();
