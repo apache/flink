@@ -22,6 +22,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<span class="label label-danger">Attention</span> Bipartite Graph currently only supported in Gelly Java API.
+
 * This will be replaced by the TOC
 {:toc}
 
