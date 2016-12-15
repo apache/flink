@@ -28,10 +28,11 @@ import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.sources.{BatchTableSource, CsvTableSource}
-import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{Row, TableEnvironment}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.table.TableEnvironment
+import org.apache.flink.types.Row
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
+import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -153,7 +154,7 @@ class TestBatchTableSource extends BatchTableSource[Row] {
   override def getFieldsNames: Array[String] = Array("name", "id", "amount")
 
   /** Returns the [[TypeInformation]] for the return type. */
-  override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes)
+  override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes: _*)
 
   /** Returns the number of fields of the table. */
   override def getNumberOfFields: Int = 3

@@ -25,8 +25,10 @@ import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.table.typeutils.{RowTypeInfo, TypeConverter}
-import org.apache.flink.api.table.{FlinkTypeFactory, Row, TableConfig}
+import org.apache.flink.api.table.typeutils.TypeConverter
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.types.Row
+import org.apache.flink.api.table.{FlinkTypeFactory, TableConfig}
 
 import scala.collection.JavaConverters._
 
@@ -69,7 +71,7 @@ class ExpressionReducer(config: TableConfig)
     }
 
     val literalTypes = literals.map(e => FlinkTypeFactory.toTypeInfo(e.getType))
-    val resultType = new RowTypeInfo(literalTypes)
+    val resultType = new RowTypeInfo(literalTypes: _*)
 
     // generate MapFunction
     val generator = new CodeGenerator(config, false, EMPTY_ROW_INFO)
@@ -105,7 +107,7 @@ class ExpressionReducer(config: TableConfig)
           reducedValues.add(unreduced)
         case _ =>
           val literal = rexBuilder.makeLiteral(
-            reduced.productElement(reducedIdx),
+            reduced.getField(reducedIdx),
             unreduced.getType,
             true)
           reducedValues.add(literal)

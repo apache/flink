@@ -23,8 +23,9 @@ import java.sql.{Date, Time, Timestamp}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
-import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{Row, Types, ValidationException}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.table.{Types, ValidationException}
+import org.apache.flink.types.Row
 import org.junit.Test
 
 class ScalarFunctionsTest extends ExpressionTestBase {
@@ -1134,7 +1135,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   }
 
   def typeInfo = {
-    new RowTypeInfo(Seq(
+    new RowTypeInfo(
       Types.STRING,
       Types.BOOLEAN,
       Types.BYTE,
@@ -1159,7 +1160,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       Types.BOOLEAN,
       Types.DECIMAL,
       Types.STRING,
-      Types.STRING)).asInstanceOf[TypeInformation[Any]]
+      Types.STRING).asInstanceOf[TypeInformation[Any]]
 
   }
 }

@@ -15,24 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table
+package org.apache.flink.types;
 
-/**
- * This is used for executing Table API operations. We use manually generated
- * TypeInfo to check the field types and create serializers and comparators.
- */
-class Row(arity: Int) extends Product {
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.junit.Test;
 
-  private val fields = new Array[Any](arity)
+import static org.junit.Assert.assertEquals;
 
-  def productArity = fields.length
+public class RowTest {
+	@Test
+	public void testRowToString() {
+		Row row = new Row(5);
+		row.setField(0, 1);
+		row.setField(1, "hello");
+		row.setField(2, null);
+		row.setField(3, new Tuple2<>(2, "hi"));
+		row.setField(4, "hello world");
 
-  def productElement(i: Int): Any = fields(i)
-
-  def setField(i: Int, value: Any): Unit = fields(i) = value
-
-  def canEqual(that: Any) = false
-
-  override def toString = fields.mkString(",")
-
+		assertEquals("1,hello,null,(2,hi),hello world", row.toString());
+	}
 }

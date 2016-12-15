@@ -37,8 +37,8 @@ import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.io.jdbc.split.ParameterValuesProvider;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.api.table.Row;
-import org.apache.flink.api.table.typeutils.RowTypeInfo;
+import org.apache.flink.types.Row;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
@@ -276,7 +276,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 			if (!hasNext) {
 				return null;
 			}
-			for (int pos = 0; pos < row.productArity(); pos++) {
+			for (int pos = 0; pos < row.getArity(); pos++) {
 				row.setField(pos, resultSet.getObject(pos + 1));
 			}
 			//update hasNext after we've read the record

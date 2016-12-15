@@ -19,7 +19,7 @@ package org.apache.flink.api.table.runtime.aggregate
 
 import java.math.BigDecimal
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 
 abstract class SumAggregate[T: Numeric]
   extends Aggregate[T] {
@@ -32,9 +32,9 @@ abstract class SumAggregate[T: Numeric]
   }
 
   override def merge(partial1: Row, buffer: Row): Unit = {
-    val partialValue = partial1.productElement(sumIndex).asInstanceOf[T]
+    val partialValue = partial1.getField(sumIndex).asInstanceOf[T]
     if (partialValue != null) {
-      val bufferValue = buffer.productElement(sumIndex).asInstanceOf[T]
+      val bufferValue = buffer.getField(sumIndex).asInstanceOf[T]
       if (bufferValue != null) {
         buffer.setField(sumIndex, numeric.plus(partialValue, bufferValue))
       } else {
@@ -44,7 +44,7 @@ abstract class SumAggregate[T: Numeric]
   }
 
   override def evaluate(buffer: Row): T = {
-    buffer.productElement(sumIndex).asInstanceOf[T]
+    buffer.getField(sumIndex).asInstanceOf[T]
   }
 
   override def prepare(value: Any, partial: Row): Unit = {
@@ -98,9 +98,9 @@ class DecimalSumAggregate extends Aggregate[BigDecimal] {
   }
 
   override def merge(partial1: Row, buffer: Row): Unit = {
-    val partialValue = partial1.productElement(sumIndex).asInstanceOf[BigDecimal]
+    val partialValue = partial1.getField(sumIndex).asInstanceOf[BigDecimal]
     if (partialValue != null) {
-      val bufferValue = buffer.productElement(sumIndex).asInstanceOf[BigDecimal]
+      val bufferValue = buffer.getField(sumIndex).asInstanceOf[BigDecimal]
       if (bufferValue != null) {
         buffer.setField(sumIndex, partialValue.add(bufferValue))
       } else {
@@ -110,7 +110,7 @@ class DecimalSumAggregate extends Aggregate[BigDecimal] {
   }
 
   override def evaluate(buffer: Row): BigDecimal = {
-    buffer.productElement(sumIndex).asInstanceOf[BigDecimal]
+    buffer.getField(sumIndex).asInstanceOf[BigDecimal]
   }
 
   override def prepare(value: Any, partial: Row): Unit = {

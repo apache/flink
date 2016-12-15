@@ -20,9 +20,10 @@ package org.apache.flink.api.table.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.{Row, Types}
+import org.apache.flink.api.table.Types
+import org.apache.flink.types.Row
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
-import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.junit.Test
 
 class DecimalTypeTest extends ExpressionTestBase {
@@ -298,13 +299,13 @@ class DecimalTypeTest extends ExpressionTestBase {
   }
 
   def typeInfo = {
-    new RowTypeInfo(Seq(
+    new RowTypeInfo(
       Types.DECIMAL,
       Types.DECIMAL,
       Types.INT,
       Types.DOUBLE,
       Types.DECIMAL,
-      Types.DECIMAL)).asInstanceOf[TypeInformation[Any]]
+      Types.DECIMAL).asInstanceOf[TypeInformation[Any]]
   }
 
 }

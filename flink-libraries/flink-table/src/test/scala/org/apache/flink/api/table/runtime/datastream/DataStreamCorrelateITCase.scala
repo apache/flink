@@ -21,7 +21,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.stream.utils.StreamITCase
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.utils.TableFunc0
-import org.apache.flink.api.table.{Row, TableEnvironment}
+import org.apache.flink.api.table.TableEnvironment
+import org.apache.flink.types.Row
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.junit.Assert._

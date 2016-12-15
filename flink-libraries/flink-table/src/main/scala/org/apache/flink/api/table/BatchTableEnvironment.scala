@@ -168,8 +168,10 @@ abstract class BatchTableEnvironment(
   private[flink] def explain(table: Table, extended: Boolean): String = {
     val ast = table.getRelNode
     val optimizedPlan = optimize(ast)
-    val dataSet = translate[Row](optimizedPlan)(TypeExtractor.createTypeInfo(classOf[Row]))
-    dataSet.output(new DiscardingOutputFormat[Row])
+    val dataSet = translate[org.apache.flink.types.Row](optimizedPlan) (
+      TypeExtractor.createTypeInfo(
+        classOf[org.apache.flink.types.Row]))
+    dataSet.output(new DiscardingOutputFormat[org.apache.flink.types.Row])
     val env = dataSet.getExecutionEnvironment
     val jasonSqlPlan = env.getExecutionPlan
     val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)

@@ -20,7 +20,7 @@ package org.apache.flink.api.table.runtime.aggregate
 import java.math.BigDecimal
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 
 abstract class MaxAggregate[T](implicit ord: Ordering[T]) extends Aggregate[T] {
 
@@ -57,9 +57,9 @@ abstract class MaxAggregate[T](implicit ord: Ordering[T]) extends Aggregate[T] {
    * @param buffer
    */
   override def merge(intermediate: Row, buffer: Row): Unit = {
-    val partialValue = intermediate.productElement(maxIndex).asInstanceOf[T]
+    val partialValue = intermediate.getField(maxIndex).asInstanceOf[T]
     if (partialValue != null) {
-      val bufferValue = buffer.productElement(maxIndex).asInstanceOf[T]
+      val bufferValue = buffer.getField(maxIndex).asInstanceOf[T]
       if (bufferValue != null) {
         val max : T = if (ord.compare(partialValue, bufferValue) > 0) partialValue else bufferValue
         buffer.setField(maxIndex, max)
@@ -76,7 +76,7 @@ abstract class MaxAggregate[T](implicit ord: Ordering[T]) extends Aggregate[T] {
    * @return
    */
   override def evaluate(buffer: Row): T = {
-    buffer.productElement(maxIndex).asInstanceOf[T]
+    buffer.getField(maxIndex).asInstanceOf[T]
   }
 
   override def supportPartial: Boolean = true
@@ -147,9 +147,9 @@ class DecimalMaxAggregate extends Aggregate[BigDecimal] {
   }
 
   override def merge(partial: Row, buffer: Row): Unit = {
-    val partialValue = partial.productElement(minIndex).asInstanceOf[BigDecimal]
+    val partialValue = partial.getField(minIndex).asInstanceOf[BigDecimal]
     if (partialValue != null) {
-      val bufferValue = buffer.productElement(minIndex).asInstanceOf[BigDecimal]
+      val bufferValue = buffer.getField(minIndex).asInstanceOf[BigDecimal]
       if (bufferValue != null) {
         val min = if (partialValue.compareTo(bufferValue) > 0) partialValue else bufferValue
         buffer.setField(minIndex, min)
@@ -160,7 +160,7 @@ class DecimalMaxAggregate extends Aggregate[BigDecimal] {
   }
 
   override def evaluate(buffer: Row): BigDecimal = {
-    buffer.productElement(minIndex).asInstanceOf[BigDecimal]
+    buffer.getField(minIndex).asInstanceOf[BigDecimal]
   }
 
   override def supportPartial: Boolean = true

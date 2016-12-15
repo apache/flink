@@ -21,9 +21,10 @@ package org.apache.flink.api.table.sources
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.CsvInputFormat
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.api.table.{Row, TableException}
-import org.apache.flink.api.table.runtime.io.RowCsvInputFormat
-import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.table.TableException
+import org.apache.flink.types.Row
+import org.apache.flink.api.java.io.RowCsvInputFormat
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.fs.Path
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
@@ -71,7 +72,7 @@ class CsvTableSource(
     throw TableException("Number of field names and field types must be equal.")
   }
 
-  private val returnType = new RowTypeInfo(fieldTypes)
+  private val returnType = new RowTypeInfo(fieldTypes: _*)
 
   /**
     * Returns the data of the table as a [[DataSet]] of [[Row]].

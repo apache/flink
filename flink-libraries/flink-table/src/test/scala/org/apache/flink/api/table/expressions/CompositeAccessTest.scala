@@ -22,10 +22,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.{Row, Types, ValidationException}
+import org.apache.flink.api.table.{Types, ValidationException}
+import org.apache.flink.types.Row
 import org.apache.flink.api.table.expressions.CompositeAccessTest.{MyCaseClass, MyCaseClass2, MyPojo}
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
-import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.junit.Test
 
 
@@ -154,7 +155,7 @@ class CompositeAccessTest extends ExpressionTestBase {
   }
 
   def typeInfo = {
-    new RowTypeInfo(Seq(
+    new RowTypeInfo(
       createTypeInformation[MyCaseClass],
       createTypeInformation[MyCaseClass2],
       createTypeInformation[(String, String)],
@@ -163,7 +164,7 @@ class CompositeAccessTest extends ExpressionTestBase {
       Types.INT,
       createTypeInformation[MyCaseClass2],
       createTypeInformation[Tuple1[Boolean]]
-      )).asInstanceOf[TypeInformation[Any]]
+      ).asInstanceOf[TypeInformation[Any]]
   }
 
 }

@@ -87,9 +87,11 @@ Internally, Flink makes the following distinctions between types:
 
 * Composite types
 
-  * Flink Java Tuples (part of the Flink Java API)
+  * Flink Java Tuples (part of the Flink Java API): max 25 fields, null fields not supported
 
-  * Scala *case classes* (including Scala tuples)
+  * Scala *case classes* (including Scala tuples): max 22 fields, null fields not supported
+
+  * Row: tuples with arbitrary number of fields and support for null fields
 
   * POJOs: classes that follow a certain bean-like pattern
 
