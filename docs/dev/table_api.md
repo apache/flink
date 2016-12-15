@@ -1451,7 +1451,7 @@ A, ABS, ABSOLUTE, ACTION, ADA, ADD, ADMIN, AFTER, ALL, ALLOCATE, ALLOW, ALTER, A
 Data Types
 ----------
 
-The Table API is built on top of Flink's DataSet and DataStream API. Internally, it also uses Flink's `TypeInformation` to distinguish between types. The Table API does not support all Flink types so far. All supported simple types are listed in `org.apache.flink.table.Types`. The following table summarizes the relation between Table API types, SQL types, and the resulting Java class.
+The Table API is built on top of Flink's DataSet and DataStream API. Internally, it also uses Flink's `TypeInformation` to distinguish between types. The Table API does not support all Flink types so far. All supported simple types are listed in `org.apache.flink.table.api.Types`. The following table summarizes the relation between Table API types, SQL types, and the resulting Java class.
 
 | Table API              | SQL                         | Java type              |
 | :--------------------- | :-------------------------- | :--------------------- |
