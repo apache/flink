@@ -49,13 +49,6 @@ under the License.
 		<developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/flink.git</developerConnection>
 	</scm>
 
-	<repositories>
-		<repository>
-			<id>flakka-staging</id>
-			<url>https://oss.sonatype.org/content/repositories/comdata-artisans-1007</url>
-		</repository>
-	</repositories>
-
 	<modules>
 		<!--- Dummy module to force execution of the Maven Shade plugin (see Shade plugin below) -->
 		<module>tools/force-shading</module>
