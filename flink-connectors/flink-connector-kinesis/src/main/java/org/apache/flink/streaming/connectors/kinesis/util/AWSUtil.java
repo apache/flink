@@ -74,10 +74,10 @@ public class AWSUtil {
 			if (configProps.containsKey(AWSConfigConstants.AWS_ACCESS_KEY_ID)
 				&& configProps.containsKey(AWSConfigConstants.AWS_SECRET_ACCESS_KEY)) {
 				// if the credential provider type is not specified, but the Access Key ID and Secret Key are given, it will default to BASIC
-				credentialProviderType = CredentialProvider.valueOf(CredentialProvider.BASIC.toString());
+				credentialProviderType = CredentialProvider.BASIC;
 			} else {
 				// if the credential provider type is not specified, it will default to AUTO
-				credentialProviderType = CredentialProvider.valueOf(CredentialProvider.AUTO.toString());
+				credentialProviderType = CredentialProvider.AUTO;
 			}
 		} else {
 			credentialProviderType = CredentialProvider.valueOf(configProps.getProperty(
