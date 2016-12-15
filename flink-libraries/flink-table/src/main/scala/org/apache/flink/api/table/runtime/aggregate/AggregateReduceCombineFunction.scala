@@ -20,10 +20,9 @@ package org.apache.flink.api.table.runtime.aggregate
 
 import java.lang.Iterable
 
-import org.apache.flink.api.common.functions.{CombineFunction, RichGroupReduceFunction}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.flink.api.common.functions.CombineFunction
 import org.apache.flink.api.table.Row
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.util.{Collector, Preconditions}
 
 import scala.collection.JavaConversions._
 
@@ -43,12 +42,14 @@ class AggregateReduceCombineFunction(
     private val aggregates: Array[Aggregate[_ <: Any]],
     private val groupKeysMapping: Array[(Int, Int)],
     private val aggregateMapping: Array[(Int, Int)],
+    private val additionalMapping: Array[(Int, Int)],
     private val intermediateRowArity: Int,
     private val finalRowArity: Int)
   extends AggregateReduceGroupFunction(
     aggregates,
     groupKeysMapping,
     aggregateMapping,
+    additionalMapping,
     intermediateRowArity,
     finalRowArity)
   with CombineFunction[Row, Row] {

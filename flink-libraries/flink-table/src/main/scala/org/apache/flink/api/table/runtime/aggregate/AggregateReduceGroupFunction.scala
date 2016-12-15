@@ -40,6 +40,7 @@ class AggregateReduceGroupFunction(
     private val aggregates: Array[Aggregate[_ <: Any]],
     private val groupKeysMapping: Array[(Int, Int)],
     private val aggregateMapping: Array[(Int, Int)],
+    private val additionalMapping: Array[(Int, Int)],
     private val intermediateRowArity: Int,
     private val finalRowArity: Int)
   extends RichGroupReduceFunction[Row, Row] {
@@ -85,6 +86,17 @@ class AggregateReduceGroupFunction(
     aggregateMapping.foreach {
       case (after, previous) =>
         output.setField(after, aggregates(previous).evaluate(aggregateBuffer))
+    }
+
+    // Evaluate grouping sets additional values
+    if (additionalMapping != null && additionalMapping.nonEmpty) {
+
+      val groupingFields = groupKeysMapping.map(_._1)
+      additionalMapping.map {
+        case (inputIndex, outputIndex) => (outputIndex, groupingFields.contains(inputIndex))
+      }.foreach {
+        case (index, flag) => output.setField(index, !flag)
+      }
     }
 
     out.collect(output)

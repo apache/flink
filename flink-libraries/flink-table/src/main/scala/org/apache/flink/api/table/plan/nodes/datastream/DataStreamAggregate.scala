@@ -30,7 +30,7 @@ import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.plan.nodes.FlinkAggregate
 import org.apache.flink.api.table.plan.nodes.datastream.DataStreamAggregate._
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil._
-import org.apache.flink.api.table.runtime.aggregate.{Aggregate, _}
+import org.apache.flink.api.table.runtime.aggregate._
 import org.apache.flink.api.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.api.table.typeutils.{RowIntervalTypeInfo, RowTypeInfo, TimeIntervalTypeInfo, TypeConverter}
 import org.apache.flink.api.table.{FlinkTypeFactory, Row, StreamTableEnvironment}
@@ -50,7 +50,8 @@ class DataStreamAggregate(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     rowRelDataType: RelDataType,
     inputType: RelDataType,
-    grouping: Array[Int])
+    grouping: Array[Int],
+    indicator: Boolean)
   extends SingleRel(cluster, traitSet, inputNode)
   with FlinkAggregate
   with DataStreamRel {
@@ -67,7 +68,9 @@ class DataStreamAggregate(
       namedAggregates,
       getRowType,
       inputType,
-      grouping)
+      grouping,
+      indicator
+    )
   }
 
   override def toString: String = {
@@ -204,7 +207,9 @@ class DataStreamAggregate(
             inputType,
             rowRelDataType,
             grouping,
-            namedProperties)
+            indicator,
+            namedProperties
+          )
 
           val keyedStream = mappedInput.keyBy(groupingKeys: _*)
           val windowedStream =
@@ -225,7 +230,9 @@ class DataStreamAggregate(
             inputType,
             rowRelDataType,
             grouping,
-            namedProperties)
+            indicator,
+            namedProperties
+          )
 
           val windowedStream =
             createNonKeyedWindowedStream(window, mappedInput)
@@ -239,6 +246,7 @@ class DataStreamAggregate(
         }
       }
     }
+
     // if the expected type is not a Row, inject a mapper to convert to the expected type
     expectedType match {
       case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
