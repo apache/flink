@@ -22,11 +22,13 @@
 #==============================================================================
 
 # The external address of the host on which the JobManager runs and can be
-# reached by the TaskManagers. In high availability mode, this address is also
-# published to Zookeeper to make sure that the current leading JobManager can be
-# reached. If you use the `start-cluster.sh` script and setup the `masters` file,
-# this will be taken care of automatically. When running on YARN and Mesos, the
-# address will also be configured automatically.
+# reached by the TaskManagers and any clients which want to connect. This setting
+# is only used in Standalone mode and may be overwritten on the JobManager side
+# by specifying the --host <hostname> parameter of the bin/jobmanager.sh executable.
+# In high availability mode, if you use the bin/start-cluster.sh script and setup
+# the conf/masters file, this will be taken care of automatically. Yarn/Mesos
+# automatically configure the host name based on the hostname of the node where the
+# JobManager runs.
 
 jobmanager.rpc.address: localhost
 
