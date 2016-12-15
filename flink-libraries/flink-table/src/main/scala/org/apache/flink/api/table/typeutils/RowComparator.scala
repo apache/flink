@@ -28,6 +28,7 @@ import org.apache.flink.api.table.typeutils.RowComparator.{createAuxiliaryFields
 import org.apache.flink.core.memory.{DataInputView, DataOutputView, MemorySegment}
 import org.apache.flink.types.KeyFieldOutOfBoundsException
 
+
 /**
  * Comparator for [[Row]].
  */

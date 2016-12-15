@@ -20,7 +20,7 @@ package org.apache.flink.api.table.runtime.aggregate
 import java.lang.Iterable
 
 import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.Window
@@ -68,7 +68,7 @@ class IncrementalAggregateWindowFunction[W <: Window](
       // Set group keys value to final output.
       groupKeysMapping.foreach {
         case (after, previous) =>
-          output.setField(after, record.productElement(previous))
+          output.setField(after, record.getField(previous))
       }
       // Evaluate final aggregate value and set to output.
       aggregateMapping.foreach {

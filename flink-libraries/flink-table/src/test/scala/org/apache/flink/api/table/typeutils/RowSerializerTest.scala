@@ -19,11 +19,11 @@
 package org.apache.flink.api.table.typeutils
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.common.typeutils.{SerializerTestInstance, TypeSerializer}
 import org.apache.flink.api.java.tuple
 import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 import org.apache.flink.api.table.typeutils.RowSerializerTest.MyPojo
 import org.junit.Assert._
 import org.junit.Test
@@ -36,12 +36,12 @@ class RowSerializerTest {
     extends SerializerTestInstance[Row](serializer, classOf[Row], -1, testData: _*) {
 
     override protected def deepEquals(message: String, should: Row, is: Row): Unit = {
-      val arity = should.productArity
-      assertEquals(message, arity, is.productArity)
+      val arity = should.getArity
+      assertEquals(message, arity, is.getArity)
       var index = 0
       while (index < arity) {
-        val copiedValue: Any = should.productElement(index)
-        val element: Any = is.productElement(index)
+        val copiedValue: Any = should.getField(index)
+        val element: Any = is.getField(index)
         assertEquals(message, element, copiedValue)
         index += 1
       }
@@ -50,8 +50,8 @@ class RowSerializerTest {
 
   @Test
   def testRowSerializer(): Unit = {
-    val rowInfo: TypeInformation[Row] = new RowTypeInfo(
-      Seq(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO))
+    val rowInfo = new org.apache.flink.api.java.typeutils.RowTypeInfo(
+      BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO)
 
     val row1 = new Row(2)
     row1.setField(0, 1)
@@ -72,7 +72,7 @@ class RowSerializerTest {
 
   @Test
   def testLargeRowSerializer(): Unit = {
-    val rowInfo: TypeInformation[Row] = new RowTypeInfo(Seq(
+    val rowInfo = new org.apache.flink.api.java.typeutils.RowTypeInfo(
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
@@ -85,7 +85,7 @@ class RowSerializerTest {
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO))
+      BasicTypeInfo.STRING_TYPE_INFO)
 
     val row = new Row(13)
     row.setField(0, 2)
@@ -112,8 +112,7 @@ class RowSerializerTest {
 
   @Test
   def testRowSerializerWithComplexTypes(): Unit = {
-    val rowInfo = new RowTypeInfo(
-      Array(
+    val rowInfo = new org.apache.flink.api.java.typeutils.RowTypeInfo(
         BasicTypeInfo.INT_TYPE_INFO,
         BasicTypeInfo.DOUBLE_TYPE_INFO,
         BasicTypeInfo.STRING_TYPE_INFO,
@@ -121,7 +120,7 @@ class RowSerializerTest {
           BasicTypeInfo.INT_TYPE_INFO,
           BasicTypeInfo.BOOLEAN_TYPE_INFO,
           BasicTypeInfo.SHORT_TYPE_INFO),
-        TypeExtractor.createTypeInfo(classOf[MyPojo])))
+        TypeExtractor.createTypeInfo(classOf[MyPojo]))
 
     val testPojo1 = new MyPojo()
     testPojo1.name = null

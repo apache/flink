@@ -18,7 +18,7 @@
 package org.apache.flink.api.table.runtime.aggregate
 
 import org.apache.flink.api.common.functions.ReduceFunction
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions
 
 /**
@@ -54,7 +54,7 @@ class IncrementalAggregateReduceFunction(
 
     // copy all fields of value1 into accumulatorRow
     (0 until intermediateRowArity)
-    .foreach(i => accumulatorRow.setField(i, value1.productElement(i)))
+    .foreach(i => accumulatorRow.setField(i, value1.getField(i)))
     // merge value2 to accumulatorRow
     aggregates.foreach(_.merge(value2, accumulatorRow))
 

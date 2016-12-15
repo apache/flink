@@ -24,7 +24,8 @@ import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigM
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
-import org.apache.flink.api.table.{Row, TableEnvironment, ValidationException}
+import org.apache.flink.api.table.{TableEnvironment, ValidationException}
+import org.apache.flink.types.Row
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
@@ -58,7 +59,10 @@ class SortITCase(
     val expected = sortExpectedly(tupleDataSetStrings)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results
+      .filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -76,7 +80,10 @@ class SortITCase(
     val expected = sortExpectedly(tupleDataSetStrings)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results
+      .filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -94,7 +101,10 @@ class SortITCase(
     val expected = sortExpectedly(tupleDataSetStrings)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results
+      .filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -112,7 +122,10 @@ class SortITCase(
     val expected = sortExpectedly(tupleDataSetStrings, 3, 21)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results
+      .filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -130,7 +143,10 @@ class SortITCase(
     val expected = sortExpectedly(tupleDataSetStrings, 3, 8)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results
+      .filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -148,7 +164,10 @@ class SortITCase(
     val expected = sortExpectedly(tupleDataSetStrings, 0, 5)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results
+      .filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }

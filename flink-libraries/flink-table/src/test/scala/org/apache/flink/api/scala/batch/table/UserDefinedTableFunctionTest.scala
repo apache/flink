@@ -21,10 +21,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{DataSet => JDataSet, ExecutionEnvironment => JavaExecutionEnv}
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment => ScalaExecutionEnv, _}
-import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.table.utils.TableTestUtil._
 import org.apache.flink.api.table.utils.{PojoTableFunc, TableFunc2, _}
-import org.apache.flink.api.table.{Row, TableEnvironment, Types}
+import org.apache.flink.api.table.{TableEnvironment, Types}
+import org.apache.flink.types.Row
 import org.junit.Test
 import org.mockito.Mockito._
 
@@ -35,7 +36,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     // mock
     val ds = mock(classOf[DataSet[Row]])
     val jDs = mock(classOf[JDataSet[Row]])
-    val typeInfo: TypeInformation[Row] = new RowTypeInfo(Seq(Types.INT, Types.LONG, Types.STRING))
+    val typeInfo = new RowTypeInfo(Seq(Types.INT, Types.LONG, Types.STRING): _*)
     when(ds.javaSet).thenReturn(jDs)
     when(jDs.getType).thenReturn(typeInfo)
 

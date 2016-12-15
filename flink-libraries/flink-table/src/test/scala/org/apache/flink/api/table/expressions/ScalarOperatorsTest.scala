@@ -21,8 +21,9 @@ package org.apache.flink.api.table.expressions
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
-import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{Row, Types, ValidationException}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.table.{Types, ValidationException}
+import org.apache.flink.types.Row
 import org.junit.Test
 
 class ScalarOperatorsTest extends ExpressionTestBase {
@@ -201,7 +202,7 @@ class ScalarOperatorsTest extends ExpressionTestBase {
   }
 
   def typeInfo = {
-    new RowTypeInfo(Seq(
+    new RowTypeInfo(
       Types.BYTE,
       Types.SHORT,
       Types.INT,
@@ -213,7 +214,7 @@ class ScalarOperatorsTest extends ExpressionTestBase {
       Types.INT,
       Types.INT,
       Types.STRING
-      )).asInstanceOf[TypeInformation[Any]]
+      ).asInstanceOf[TypeInformation[Any]]
   }
 
 }

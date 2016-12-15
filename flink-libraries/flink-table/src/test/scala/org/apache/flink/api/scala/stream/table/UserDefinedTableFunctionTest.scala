@@ -17,12 +17,12 @@
  */
 package org.apache.flink.api.scala.stream.table
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table._
+import org.apache.flink.types.Row
 import org.apache.flink.api.table.expressions.utils._
-import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.table.{TableEnvironment, TableException, Types, ValidationException}
 import org.apache.flink.api.table.utils.TableTestUtil._
 import org.apache.flink.api.table.utils._
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
@@ -39,7 +39,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     // mock
     val ds = mock(classOf[DataStream[Row]])
     val jDs = mock(classOf[JDataStream[Row]])
-    val typeInfo: TypeInformation[Row] = new RowTypeInfo(Seq(Types.INT, Types.LONG, Types.STRING))
+    val typeInfo = new RowTypeInfo(Seq(Types.INT, Types.LONG, Types.STRING): _*)
     when(ds.javaStream).thenReturn(jDs)
     when(jDs.getType).thenReturn(typeInfo)
 

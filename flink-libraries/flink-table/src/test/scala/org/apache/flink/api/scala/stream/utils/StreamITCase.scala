@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.stream.utils
 
 import java.util.Collections
 
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 import org.junit.Assert._
 import scala.collection.mutable
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction

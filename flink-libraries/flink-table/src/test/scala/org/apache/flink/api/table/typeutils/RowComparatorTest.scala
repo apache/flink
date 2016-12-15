@@ -23,14 +23,14 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.common.typeutils.{ComparatorTestBase, TypeComparator, TypeSerializer}
 import org.apache.flink.api.java.tuple
 import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 import org.apache.flink.api.table.typeutils.RowComparatorTest.MyPojo
+import org.apache.flink.api.java.typeutils.{RowTypeInfo => RowTypeInfoNew}
 import org.junit.Assert._
 
 class RowComparatorTest extends ComparatorTestBase[Row] {
 
-  val typeInfo = new RowTypeInfo(
-    Array(
+  val typeInfo = new RowTypeInfoNew(
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.DOUBLE_TYPE_INFO,
       BasicTypeInfo.STRING_TYPE_INFO,
@@ -38,7 +38,7 @@ class RowComparatorTest extends ComparatorTestBase[Row] {
         BasicTypeInfo.INT_TYPE_INFO,
         BasicTypeInfo.BOOLEAN_TYPE_INFO,
         BasicTypeInfo.SHORT_TYPE_INFO),
-      TypeExtractor.createTypeInfo(classOf[MyPojo])))
+      TypeExtractor.createTypeInfo(classOf[MyPojo]))
 
   val testPojo1 = new MyPojo()
   // TODO we cannot test null here as PojoComparator has no support for null keys
@@ -66,12 +66,12 @@ class RowComparatorTest extends ComparatorTestBase[Row] {
     )
 
   override protected def deepEquals(message: String, should: Row, is: Row): Unit = {
-    val arity = should.productArity
-    assertEquals(message, arity, is.productArity)
+    val arity = should.getArity
+    assertEquals(message, arity, is.getArity)
     var index = 0
     while (index < arity) {
-      val copiedValue: Any = should.productElement(index)
-      val element: Any = is.productElement(index)
+      val copiedValue: Any = should.getField(index)
+      val element: Any = is.getField(index)
       assertEquals(message, element, copiedValue)
       index += 1
     }

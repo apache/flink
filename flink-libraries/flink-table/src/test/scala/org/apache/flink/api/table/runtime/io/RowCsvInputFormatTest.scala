@@ -24,14 +24,15 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.io.ParseException
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 import org.apache.flink.api.table.runtime.io.RowCsvInputFormatTest.{PATH, createTempFile, testRemovingTrailingCR}
-import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.{FileInputSplit, Path}
 import org.apache.flink.types.parser.{FieldParser, StringParser}
 import org.junit.Assert._
 import org.junit.{Ignore, Test}
+import scala.collection.JavaConversions._
 
 class RowCsvInputFormatTest {
 
@@ -50,7 +51,7 @@ class RowCsvInputFormatTest {
     val typeInfo = new RowTypeInfo(Seq(
       BasicTypeInfo.STRING_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.DOUBLE_TYPE_INFO))
+      BasicTypeInfo.DOUBLE_TYPE_INFO): _*)
 
     val format = new RowCsvInputFormat(PATH, typeInfo, "\n", "|")
     format.setLenient(false)
@@ -77,9 +78,9 @@ class RowCsvInputFormatTest {
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("this is", result.productElement(0))
-    assertEquals(1, result.productElement(1))
-    assertEquals(2.0, result.productElement(2))
+    assertEquals("this is", result.getField(0))
+    assertEquals(1, result.getField(1))
+    assertEquals(2.0, result.getField(2))
 
     try {
       result = format.nextRecord(result)
@@ -91,15 +92,15 @@ class RowCsvInputFormatTest {
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("a test", result.productElement(0))
-    assertEquals(3, result.productElement(1))
-    assertEquals(4.0, result.productElement(2))
+    assertEquals("a test", result.getField(0))
+    assertEquals(3, result.getField(1))
+    assertEquals(4.0, result.getField(2))
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("#next", result.productElement(0))
-    assertEquals(5, result.productElement(1))
-    assertEquals(6.0, result.productElement(2))
+    assertEquals("#next", result.getField(0))
+    assertEquals(5, result.getField(1))
+    assertEquals(6.0, result.getField(2))
 
     result = format.nextRecord(result)
     assertNull(result)
@@ -113,27 +114,27 @@ class RowCsvInputFormatTest {
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("header1", result.productElement(0))
-    assertNull(result.productElement(1))
-    assertNull(result.productElement(2))
+    assertEquals("header1", result.getField(0))
+    assertNull(result.getField(1))
+    assertNull(result.getField(2))
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("this is", result.productElement(0))
-    assertEquals(1, result.productElement(1))
-    assertEquals(2.0, result.productElement(2))
+    assertEquals("this is", result.getField(0))
+    assertEquals(1, result.getField(1))
+    assertEquals(2.0, result.getField(2))
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("a test", result.productElement(0))
-    assertEquals(3, result.productElement(1))
-    assertEquals(4.0, result.productElement(2))
+    assertEquals("a test", result.getField(0))
+    assertEquals(3, result.getField(1))
+    assertEquals(4.0, result.getField(2))
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("#next", result.productElement(0))
-    assertEquals(5, result.productElement(1))
-    assertEquals(6.0, result.productElement(2))
+    assertEquals("#next", result.getField(0))
+    assertEquals(5, result.getField(1))
+    assertEquals(6.0, result.getField(2))
     result = format.nextRecord(result)
     assertNull(result)
   }
@@ -152,7 +153,7 @@ class RowCsvInputFormatTest {
     val typeInfo = new RowTypeInfo(Seq(
       BasicTypeInfo.STRING_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.DOUBLE_TYPE_INFO))
+      BasicTypeInfo.DOUBLE_TYPE_INFO): _*)
 
     val format = new RowCsvInputFormat(PATH, typeInfo, "\n", "|")
     format.setCommentPrefix("#")
@@ -163,15 +164,15 @@ class RowCsvInputFormatTest {
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("this is", result.productElement(0))
-    assertEquals(1, result.productElement(1))
-    assertEquals(2.0, result.productElement(2))
+    assertEquals("this is", result.getField(0))
+    assertEquals(1, result.getField(1))
+    assertEquals(2.0, result.getField(2))
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("a test", result.productElement(0))
-    assertEquals(3, result.productElement(1))
-    assertEquals(4.0, result.productElement(2))
+    assertEquals("a test", result.getField(0))
+    assertEquals(3, result.getField(1))
+    assertEquals(4.0, result.getField(2))
 
     result = format.nextRecord(result)
     assertNull(result)
@@ -191,7 +192,7 @@ class RowCsvInputFormatTest {
     val typeInfo = new RowTypeInfo(Seq(
       BasicTypeInfo.STRING_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.DOUBLE_TYPE_INFO))
+      BasicTypeInfo.DOUBLE_TYPE_INFO): _*)
 
     val format = new RowCsvInputFormat(PATH, typeInfo, "\n", "|")
     format.setCommentPrefix("//")
@@ -202,15 +203,15 @@ class RowCsvInputFormatTest {
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("this is", result.productElement(0))
-    assertEquals(1, result.productElement(1))
-    assertEquals(2.0, result.productElement(2))
+    assertEquals("this is", result.getField(0))
+    assertEquals(1, result.getField(1))
+    assertEquals(2.0, result.getField(2))
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("a test", result.productElement(0))
-    assertEquals(3, result.productElement(1))
-    assertEquals(4.0, result.productElement(2))
+    assertEquals("a test", result.getField(0))
+    assertEquals(3, result.getField(1))
+    assertEquals(4.0, result.getField(2))
     result = format.nextRecord(result)
     assertNull(result)
   }
@@ -224,7 +225,7 @@ class RowCsvInputFormatTest {
     val typeInfo = new RowTypeInfo(Seq(
       BasicTypeInfo.STRING_TYPE_INFO,
       BasicTypeInfo.STRING_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO))
+      BasicTypeInfo.STRING_TYPE_INFO): _*)
     
     val format = new RowCsvInputFormat(PATH, typeInfo, "\n", "|")
     format.configure(new Configuration)
@@ -234,21 +235,21 @@ class RowCsvInputFormatTest {
     
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("abc", result.productElement(0))
-    assertEquals("def", result.productElement(1))
-    assertEquals("ghijk", result.productElement(2))
+    assertEquals("abc", result.getField(0))
+    assertEquals("def", result.getField(1))
+    assertEquals("ghijk", result.getField(2))
     
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("abc", result.productElement(0))
-    assertEquals("", result.productElement(1))
-    assertEquals("hhg", result.productElement(2))
+    assertEquals("abc", result.getField(0))
+    assertEquals("", result.getField(1))
+    assertEquals("hhg", result.getField(2))
     
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("", result.productElement(0))
-    assertEquals("", result.productElement(1))
-    assertEquals("", result.productElement(2))
+    assertEquals("", result.getField(0))
+    assertEquals("", result.getField(1))
+    assertEquals("", result.getField(2))
     
     result = format.nextRecord(result)
     assertNull(result)
@@ -263,7 +264,7 @@ class RowCsvInputFormatTest {
       val typeInfo = new RowTypeInfo(Seq(
         BasicTypeInfo.STRING_TYPE_INFO,
         BasicTypeInfo.STRING_TYPE_INFO,
-        BasicTypeInfo.STRING_TYPE_INFO))
+        BasicTypeInfo.STRING_TYPE_INFO): _*)
       
       val format = new RowCsvInputFormat(PATH, typeInfo, "\n", "|")
       format.configure(new Configuration)
@@ -274,21 +275,21 @@ class RowCsvInputFormatTest {
     
       result = format.nextRecord(result)
       assertNotNull(result)
-      assertEquals("a|b|c", result.productElement(0))
-      assertEquals("def", result.productElement(1))
-      assertEquals("ghijk", result.productElement(2))
+      assertEquals("a|b|c", result.getField(0))
+      assertEquals("def", result.getField(1))
+      assertEquals("ghijk", result.getField(2))
     
       result = format.nextRecord(result)
       assertNotNull(result)
-      assertEquals("abc", result.productElement(0))
-      assertEquals("", result.productElement(1))
-      assertEquals("|hhg", result.productElement(2))
+      assertEquals("abc", result.getField(0))
+      assertEquals("", result.getField(1))
+      assertEquals("|hhg", result.getField(2))
     
       result = format.nextRecord(result)
       assertNotNull(result)
-      assertEquals("", result.productElement(0))
-      assertEquals("", result.productElement(1))
-      assertEquals("", result.productElement(2))
+      assertEquals("", result.getField(0))
+      assertEquals("", result.getField(1))
+      assertEquals("", result.getField(2))
     
       result = format.nextRecord(result)
       assertNull(result)
@@ -303,7 +304,7 @@ class RowCsvInputFormatTest {
     val typeInfo = new RowTypeInfo(Seq(
       BasicTypeInfo.STRING_TYPE_INFO,
       BasicTypeInfo.STRING_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO))
+      BasicTypeInfo.STRING_TYPE_INFO): _*)
 
     val format = new RowCsvInputFormat(PATH, typeInfo, "\n", "|")
     format.setFieldDelimiter("|-")
@@ -314,21 +315,21 @@ class RowCsvInputFormatTest {
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("abc", result.productElement(0))
-    assertEquals("def", result.productElement(1))
-    assertEquals("ghijk", result.productElement(2))
+    assertEquals("abc", result.getField(0))
+    assertEquals("def", result.getField(1))
+    assertEquals("ghijk", result.getField(2))
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("abc", result.productElement(0))
-    assertEquals("", result.productElement(1))
-    assertEquals("hhg", result.productElement(2))
+    assertEquals("abc", result.getField(0))
+    assertEquals("", result.getField(1))
+    assertEquals("hhg", result.getField(2))
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals("", result.productElement(0))
-    assertEquals("", result.productElement(1))
-    assertEquals("", result.productElement(2))
+    assertEquals("", result.getField(0))
+    assertEquals("", result.getField(1))
+    assertEquals("", result.getField(2))
 
     result = format.nextRecord(result)
     assertNull(result)
@@ -346,7 +347,7 @@ class RowCsvInputFormatTest {
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.INT_TYPE_INFO))
+      BasicTypeInfo.INT_TYPE_INFO): _*)
     
     val format = new RowCsvInputFormat(PATH, typeInfo, "\n", "|")
 
@@ -358,19 +359,19 @@ class RowCsvInputFormatTest {
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals(111, result.productElement(0))
-    assertEquals(222, result.productElement(1))
-    assertEquals(333, result.productElement(2))
-    assertEquals(444, result.productElement(3))
-    assertEquals(555, result.productElement(4))
+    assertEquals(111, result.getField(0))
+    assertEquals(222, result.getField(1))
+    assertEquals(333, result.getField(2))
+    assertEquals(444, result.getField(3))
+    assertEquals(555, result.getField(4))
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals(666, result.productElement(0))
-    assertEquals(777, result.productElement(1))
-    assertEquals(888, result.productElement(2))
-    assertEquals(999, result.productElement(3))
-    assertEquals(0, result.productElement(4))
+    assertEquals(666, result.getField(0))
+    assertEquals(777, result.getField(1))
+    assertEquals(888, result.getField(2))
+    assertEquals(999, result.getField(3))
+    assertEquals(0, result.getField(4))
 
     result = format.nextRecord(result)
     assertNull(result)
@@ -399,7 +400,7 @@ class RowCsvInputFormatTest {
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.LONG_TYPE_INFO,
       BasicTypeInfo.SHORT_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO))
+      BasicTypeInfo.STRING_TYPE_INFO): _*)
 
     val format = new RowCsvInputFormat(PATH, rowTypeInfo = typeInfo, emptyColumnAsNull = true)
     format.setFieldDelimiter(",")
@@ -411,7 +412,7 @@ class RowCsvInputFormatTest {
 
     for (i <- 0 until linesCnt) yield {
       result = format.nextRecord(result)
-      assertNull(result.productElement(i))
+      assertNull(result.getField(i))
     }
 
     // ensure no more rows
@@ -430,7 +431,7 @@ class RowCsvInputFormatTest {
       BasicTypeInfo.DOUBLE_TYPE_INFO,
       BasicTypeInfo.DOUBLE_TYPE_INFO,
       BasicTypeInfo.DOUBLE_TYPE_INFO,
-      BasicTypeInfo.DOUBLE_TYPE_INFO))
+      BasicTypeInfo.DOUBLE_TYPE_INFO): _*)
 
     val format = new RowCsvInputFormat(PATH, rowTypeInfo = typeInfo)
     format.setFieldDelimiter("|")
@@ -441,19 +442,19 @@ class RowCsvInputFormatTest {
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals(11.1, result.productElement(0))
-    assertEquals(22.2, result.productElement(1))
-    assertEquals(33.3, result.productElement(2))
-    assertEquals(44.4, result.productElement(3))
-    assertEquals(55.5, result.productElement(4))
+    assertEquals(11.1, result.getField(0))
+    assertEquals(22.2, result.getField(1))
+    assertEquals(33.3, result.getField(2))
+    assertEquals(44.4, result.getField(3))
+    assertEquals(55.5, result.getField(4))
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals(66.6, result.productElement(0))
-    assertEquals(77.7, result.productElement(1))
-    assertEquals(88.8, result.productElement(2))
-    assertEquals(99.9, result.productElement(3))
-    assertEquals(0.0, result.productElement(4))
+    assertEquals(66.6, result.getField(0))
+    assertEquals(77.7, result.getField(1))
+    assertEquals(88.8, result.getField(2))
+    assertEquals(99.9, result.getField(3))
+    assertEquals(0.0, result.getField(4))
 
     result = format.nextRecord(result)
     assertNull(result)
@@ -468,7 +469,7 @@ class RowCsvInputFormatTest {
 
     val typeInfo = new RowTypeInfo(Seq(
       BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.INT_TYPE_INFO))
+      BasicTypeInfo.INT_TYPE_INFO): _*)
 
     val format = new RowCsvInputFormat(PATH, rowTypeInfo = typeInfo)
     format.setFieldDelimiter("|")
@@ -479,13 +480,13 @@ class RowCsvInputFormatTest {
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals(111, result.productElement(0))
-    assertEquals(222, result.productElement(1))
+    assertEquals(111, result.getField(0))
+    assertEquals(222, result.getField(1))
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals(666, result.productElement(0))
-    assertEquals(777, result.productElement(1))
+    assertEquals(666, result.getField(0))
+    assertEquals(777, result.getField(1))
 
     result = format.nextRecord(result)
     assertNull(result)
@@ -502,7 +503,7 @@ class RowCsvInputFormatTest {
     val typeInfo: RowTypeInfo = new RowTypeInfo(Seq(
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.INT_TYPE_INFO))
+      BasicTypeInfo.INT_TYPE_INFO): _*)
 
     val format = new RowCsvInputFormat(
       PATH,
@@ -516,15 +517,15 @@ class RowCsvInputFormatTest {
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals(111, result.productElement(0))
-    assertEquals(444, result.productElement(1))
-    assertEquals(888, result.productElement(2))
+    assertEquals(111, result.getField(0))
+    assertEquals(444, result.getField(1))
+    assertEquals(888, result.getField(2))
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals(0, result.productElement(0))
-    assertEquals(777, result.productElement(1))
-    assertEquals(333, result.productElement(2))
+    assertEquals(0, result.getField(0))
+    assertEquals(777, result.getField(1))
+    assertEquals(333, result.getField(2))
 
     result = format.nextRecord(result)
     assertNull(result)
@@ -541,7 +542,7 @@ class RowCsvInputFormatTest {
       val typeInfo = new RowTypeInfo(Seq(
         BasicTypeInfo.INT_TYPE_INFO,
         BasicTypeInfo.INT_TYPE_INFO,
-        BasicTypeInfo.INT_TYPE_INFO))
+        BasicTypeInfo.INT_TYPE_INFO): _*)
 
       val format = new RowCsvInputFormat(
         PATH,
@@ -555,15 +556,15 @@ class RowCsvInputFormatTest {
       result = format.nextRecord(result)
 
       assertNotNull(result)
-      assertEquals(111, result.productElement(0))
-      assertEquals(444, result.productElement(1))
-      assertEquals(888, result.productElement(2))
+      assertEquals(111, result.getField(0))
+      assertEquals(444, result.getField(1))
+      assertEquals(888, result.getField(2))
 
       result = format.nextRecord(result)
       assertNotNull(result)
-      assertEquals(0, result.productElement(0))
-      assertEquals(777, result.productElement(1))
-      assertEquals(333, result.productElement(2))
+      assertEquals(0, result.getField(0))
+      assertEquals(777, result.getField(1))
+      assertEquals(333, result.getField(2))
 
       result = format.nextRecord(result)
       assertNull(result)
@@ -580,7 +581,7 @@ class RowCsvInputFormatTest {
     val typeInfo = new RowTypeInfo(Seq(
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.INT_TYPE_INFO))
+      BasicTypeInfo.INT_TYPE_INFO): _*)
 
     val format = new RowCsvInputFormat(
       PATH,
@@ -594,15 +595,15 @@ class RowCsvInputFormatTest {
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals(111, result.productElement(0))
-    assertEquals(444, result.productElement(1))
-    assertEquals(888, result.productElement(2))
+    assertEquals(111, result.getField(0))
+    assertEquals(444, result.getField(1))
+    assertEquals(888, result.getField(2))
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals(0, result.productElement(0))
-    assertEquals(777, result.productElement(1))
-    assertEquals(333, result.productElement(2))
+    assertEquals(0, result.getField(0))
+    assertEquals(777, result.getField(1))
+    assertEquals(333, result.getField(2))
 
     result = format.nextRecord(result)
     assertNull(result)
@@ -652,7 +653,7 @@ class RowCsvInputFormatTest {
       BasicTypeInfo.STRING_TYPE_INFO,
       BasicTypeInfo.STRING_TYPE_INFO,
       BasicTypeInfo.STRING_TYPE_INFO,
-      BasicTypeInfo.DOUBLE_TYPE_INFO))
+      BasicTypeInfo.DOUBLE_TYPE_INFO): _*)
 
     val format = new RowCsvInputFormat(PATH, typeInfo)
     format.setSkipFirstLineAsHeader(true)
@@ -738,7 +739,7 @@ class RowCsvInputFormatTest {
 
     val typeInfo = new RowTypeInfo(Seq(
       BasicTypeInfo.STRING_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO))
+      BasicTypeInfo.STRING_TYPE_INFO): _*)
 
     val inputFormat = new RowCsvInputFormat(
       new Path(tempFile.toURI.toString),
@@ -753,8 +754,8 @@ class RowCsvInputFormatTest {
     inputFormat.open(splits(0))
 
     val record = inputFormat.nextRecord(new Row(2))
-    assertEquals("20:41:52-1-3-2015", record.productElement(0))
-    assertEquals("Blahblah <blah@blahblah.org>", record.productElement(1))
+    assertEquals("20:41:52-1-3-2015", record.getField(0))
+    assertEquals("Blahblah <blah@blahblah.org>", record.getField(1))
   }
 
   @Test
@@ -770,7 +771,7 @@ class RowCsvInputFormatTest {
 
     val typeInfo = new RowTypeInfo(Seq(
       BasicTypeInfo.STRING_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO))
+      BasicTypeInfo.STRING_TYPE_INFO): _*)
 
     val inputFormat = new RowCsvInputFormat(
       new Path(tempFile.toURI.toString),
@@ -784,8 +785,8 @@ class RowCsvInputFormatTest {
     inputFormat.open(splits(0))
 
     val record = inputFormat.nextRecord(new Row(2))
-    assertEquals("\\\"Hello\\\" World", record.productElement(0))
-    assertEquals("We are\\\" young", record.productElement(1))
+    assertEquals("\\\"Hello\\\" World", record.getField(0))
+    assertEquals("We are\\\" young", record.getField(1))
   }
 
   @Test
@@ -799,7 +800,7 @@ class RowCsvInputFormatTest {
       SqlTimeTypeInfo.DATE,
       SqlTimeTypeInfo.TIME,
       SqlTimeTypeInfo.TIMESTAMP,
-      SqlTimeTypeInfo.TIMESTAMP))
+      SqlTimeTypeInfo.TIMESTAMP): _*)
 
     val format = new RowCsvInputFormat(PATH, rowTypeInfo = typeInfo)
     format.setFieldDelimiter("|")
@@ -810,17 +811,17 @@ class RowCsvInputFormatTest {
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals(Date.valueOf("1990-10-14"), result.productElement(0))
-    assertEquals(Time.valueOf("02:42:25"), result.productElement(1))
-    assertEquals(Timestamp.valueOf("1990-10-14 02:42:25.123"), result.productElement(2))
-    assertEquals(Timestamp.valueOf("1990-01-04 02:02:05"), result.productElement(3))
+    assertEquals(Date.valueOf("1990-10-14"), result.getField(0))
+    assertEquals(Time.valueOf("02:42:25"), result.getField(1))
+    assertEquals(Timestamp.valueOf("1990-10-14 02:42:25.123"), result.getField(2))
+    assertEquals(Timestamp.valueOf("1990-01-04 02:02:05"), result.getField(3))
 
     result = format.nextRecord(result)
     assertNotNull(result)
-    assertEquals(Date.valueOf("1990-10-14"), result.productElement(0))
-    assertEquals(Time.valueOf("02:42:25"), result.productElement(1))
-    assertEquals(Timestamp.valueOf("1990-10-14 02:42:25.123"), result.productElement(2))
-    assertEquals(Timestamp.valueOf("1990-01-04 02:02:05.3"), result.productElement(3))
+    assertEquals(Date.valueOf("1990-10-14"), result.getField(0))
+    assertEquals(Time.valueOf("02:42:25"), result.getField(1))
+    assertEquals(Timestamp.valueOf("1990-10-14 02:42:25.123"), result.getField(2))
+    assertEquals(Timestamp.valueOf("1990-01-04 02:02:05.3"), result.getField(3))
 
     result = format.nextRecord(result)
     assertNull(result)
@@ -862,7 +863,7 @@ object RowCsvInputFormatTest {
     wrt.write(fileContent)
     wrt.close()
 
-    val typeInfo = new RowTypeInfo(Seq(BasicTypeInfo.STRING_TYPE_INFO))
+    val typeInfo = new RowTypeInfo(Seq(BasicTypeInfo.STRING_TYPE_INFO): _*)
 
     val inputFormat = new RowCsvInputFormat(new Path(tempFile.toURI.toString), typeInfo)
     inputFormat.configure(new Configuration)
@@ -873,10 +874,10 @@ object RowCsvInputFormatTest {
 
     var result = inputFormat.nextRecord(new Row(1))
     assertNotNull("Expecting to not return null", result)
-    assertEquals(FIRST_PART, result.productElement(0))
+    assertEquals(FIRST_PART, result.getField(0))
 
     result = inputFormat.nextRecord(result)
     assertNotNull("Expecting to not return null", result)
-    assertEquals(SECOND_PART, result.productElement(0))
+    assertEquals(SECOND_PART, result.getField(0))
   }
 }
