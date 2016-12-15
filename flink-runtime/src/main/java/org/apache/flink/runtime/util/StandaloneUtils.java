@@ -43,9 +43,24 @@ public final class StandaloneUtils {
 	 * @throws UnknownHostException
 	 */
 	public static StandaloneLeaderRetrievalService createLeaderRetrievalService(
-			Configuration configuration)
+		Configuration configuration)
 		throws UnknownHostException {
-		return createLeaderRetrievalService(configuration, null);
+		return createLeaderRetrievalService(configuration, false);
+	}
+
+	/**
+	 * Creates a {@link StandaloneLeaderRetrievalService} from the given configuration. The
+	 * host and port for the remote Akka URL are retrieved from the provided configuration.
+	 *
+	 * @param configuration Configuration instance containing the host and port information
+	 * @param resolveInitialHostName If true, resolves the hostname of the StandaloneLeaderRetrievalService
+	 * @return StandaloneLeaderRetrievalService
+	 * @throws UnknownHostException
+	 */
+	public static StandaloneLeaderRetrievalService createLeaderRetrievalService(
+			Configuration configuration, boolean resolveInitialHostName)
+		throws UnknownHostException {
+		return createLeaderRetrievalService(configuration, resolveInitialHostName, null);
 	}
 
 	/**
@@ -55,12 +70,14 @@ public final class StandaloneUtils {
 	 * for the remote Akka URL.
 	 *
 	 * @param configuration Configuration instance containing hte host and port information
+	 * @param resolveInitialHostName If true, resolves the hostname of the StandaloneLeaderRetrievalService
 	 * @param jobManagerName Name of the JobManager actor
 	 * @return StandaloneLeaderRetrievalService
 	 * @throws UnknownHostException if the host name cannot be resolved into an {@link InetAddress}
 	 */
 	public static StandaloneLeaderRetrievalService createLeaderRetrievalService(
 			Configuration configuration,
+			boolean resolveInitialHostName,
 			String jobManagerName)
 		throws UnknownHostException {
 
@@ -72,6 +89,17 @@ public final class StandaloneUtils {
 
 		// Do not try to resolve a hostname to prevent resolving to the wrong IP address
 		String hostPort = NetUtils.unresolvedHostAndPortToNormalizedString(jobManagerHostname, jobManagerPort);
+
+		if (resolveInitialHostName) {
+			try {
+				//noinspection ResultOfMethodCallIgnored
+				InetAddress.getByName(jobManagerHostname);
+			}
+			catch (UnknownHostException e) {
+				throw new UnknownHostException("Cannot resolve the JobManager hostname '" + jobManagerHostname
+					+ "' specified in the configuration");
+			}
+		}
 
 		String jobManagerAkkaUrl = JobManager.getRemoteJobManagerAkkaURL(
 				protocol,

@@ -2089,8 +2089,11 @@ object TaskManager {
 
     val leaderRetrievalService = leaderRetrievalServiceOption match {
       case Some(lrs) => lrs
-      case None => LeaderRetrievalUtils.createLeaderRetrievalService(configuration)
+      case None =>
+        // validate the address if possible (e.g. we're in Standalone mode)
+        LeaderRetrievalUtils.createLeaderRetrievalService(configuration, true)
     }
+
 
     val metricsRegistry = new FlinkMetricRegistry(
       MetricRegistryConfiguration.fromConfiguration(configuration))
