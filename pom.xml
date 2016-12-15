@@ -52,7 +52,7 @@ under the License.
 	<repositories>
 		<repository>
 			<id>flakka-staging</id>
-			<url>https://oss.sonatype.org/content/repositories/comdata-artisans-1007</url>
+			<url>https://oss.sonatype.org/content/repositories/comdata-artisans-1008</url>
 		</repository>
 	</repositories>
 
