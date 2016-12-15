@@ -282,7 +282,7 @@ case class GroupingAggregation(
     val groupingSets = groupingExpressions.map(_.map(_.toRexNode(relBuilder)).toList).toList
     relBuilder.aggregate(
       relBuilder.groupKey(
-        groupingExpressions.head.map(_.toRexNode(relBuilder)).asJava,
+        groupingExpressions.flatten.distinct.map(_.toRexNode(relBuilder)).asJava,
         true, groupingSets.map(_.asJava).asJava
       ),
       aggregateExpressions.map {

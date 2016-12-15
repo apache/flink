@@ -43,7 +43,7 @@ class GroupingSetsTest {
     table = dataSet.toTable(tableEnv, 'a, 'b, 'c)
 
     val dataSetWithNulls = dataSet.map(value => value match {
-      case (x, y, s) => (x, y, if (s.toLowerCase().contains("world")) null else s)
+      case (x, y, s: String) => (x, y, if (s.toLowerCase().contains("world")) null else s)
     })
     tableWithNulls = dataSetWithNulls.toTable(tableEnv, 'a, 'b, 'c)
   }
