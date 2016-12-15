@@ -46,8 +46,8 @@ DOCS_DST=${DOCS_SRC}/content
 JEKYLL_CMD="build"
 
 # if -p flag is provided, serve site on localhost
-# -i is like -p, but incremental (which has some issues, but is very fast)
-while getopts ":p:i" opt; do
+# -i is like -p, but incremental (only rebuilds the modified file)
+while getopts "pi" opt; do
 	case $opt in
 		p)
 		JEKYLL_CMD="serve --baseurl= --watch"
