@@ -71,7 +71,8 @@ public enum PredefinedOptions {
 		public DBOptions createDBOptions() {
 			return new DBOptions()
 					.setUseFsync(false)
-					.setDisableDataSync(true);
+					.setDisableDataSync(true)
+					.setTableCacheNumshardbits(4);
 		}
 
 		@Override
