@@ -801,11 +801,11 @@ public class WindowedStream<T, K, W extends Window> {
 	 * the data stream by the given position. If more elements have the same
 	 * minimum value the operator returns the first element by default.
 	 *
-	 * @param positionToMinBy The position to minimize by
+	 * @param field The field to minimize by
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T> minBy(String positionToMinBy) {
-		return this.minBy(positionToMinBy, true);
+	public SingleOutputStreamOperator<T> minBy(String field) {
+		return this.minBy(field, true);
 	}
 
 	/**
@@ -880,12 +880,12 @@ public class WindowedStream<T, K, W extends Window> {
 	 * the data stream by the given position. If more elements have the same
 	 * maximum value the operator returns the first by default.
 	 *
-	 * @param positionToMaxBy
-	 *            The position to maximize by
+	 * @param field
+	 *            The field to maximize by
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T> maxBy(String positionToMaxBy) {
-		return this.maxBy(positionToMaxBy, true);
+	public SingleOutputStreamOperator<T> maxBy(String field) {
+		return this.maxBy(field, true);
 	}
 
 	/**
