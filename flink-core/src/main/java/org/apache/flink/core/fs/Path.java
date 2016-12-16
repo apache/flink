@@ -23,15 +23,10 @@
 package org.apache.flink.core.fs;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.StringUtils;
 
 /**
  * Names a file or directory in a {@link FileSystem}. Path strings use slash as
@@ -40,9 +35,7 @@ import org.apache.flink.util.StringUtils;
  * Tailing slashes are removed from the path.
  */
 @Public
-public class Path implements IOReadableWritable, Serializable {
-	
-	private static final long serialVersionUID = 1L;
+public class Path {
 
 	/**
 	 * The directory separator, a slash.
@@ -62,16 +55,11 @@ public class Path implements IOReadableWritable, Serializable {
 	/**
 	 * The internal representation of the path, a hierarchical URI.
 	 */
-	private URI uri;
-
-	/**
-	 * Constructs a new (empty) path object (used to reconstruct path object after RPC call).
-	 */
-	public Path() {}
+	private final URI uri;
 
 	/**
 	 * Constructs a path object from a given URI.
-	 * 
+	 *
 	 * @param uri
 	 *        the URI to construct the path object from
 	 */
@@ -141,7 +129,7 @@ public class Path implements IOReadableWritable, Serializable {
 		}
 
 		final URI resolved = parentUri.resolve(child.uri);
-		initialize(resolved.getScheme(), resolved.getAuthority(), normalizePath(resolved.getPath()));
+		this.uri = initializeUri(resolved.getScheme(), resolved.getAuthority(), normalizePath(resolved.getPath()));
 	}
 
 	/**
@@ -209,7 +197,7 @@ public class Path implements IOReadableWritable, Serializable {
 		// uri path is the rest of the string -- query & fragment not supported
 		final String path = pathString.substring(start, pathString.length());
 
-		initialize(scheme, authority, path);
+		this.uri = initializeUri(scheme, authority, path);
 	}
 
 	/**
@@ -224,7 +212,7 @@ public class Path implements IOReadableWritable, Serializable {
 	 */
 	public Path(String scheme, String authority, String path) {
 		path = checkAndTrimPathArg(path);
-		initialize(scheme, authority, path);
+		this.uri = initializeUri(scheme, authority, path);
 	}
 
 	/**
@@ -237,9 +225,9 @@ public class Path implements IOReadableWritable, Serializable {
 	 * @param path
 	 *        the path string.
 	 */
-	private void initialize(String scheme, String authority, String path) {
+	private URI initializeUri(String scheme, String authority, String path) {
 		try {
-			this.uri = new URI(scheme, authority, normalizePath(path), null, null).normalize();
+			return new URI(scheme, authority, normalizePath(path), null, null).normalize();
 		} catch (URISyntaxException e) {
 			throw new IllegalArgumentException(e);
 		}
@@ -402,7 +390,6 @@ public class Path implements IOReadableWritable, Serializable {
 		return buffer.toString();
 	}
 
-
 	@Override
 	public boolean equals(Object o) {
 		if (!(o instanceof Path)) {
@@ -411,7 +398,6 @@ public class Path implements IOReadableWritable, Serializable {
 		Path that = (Path) o;
 		return this.uri.equals(that.uri);
 	}
-
 
 	@Override
 	public int hashCode() {
@@ -474,46 +460,5 @@ public class Path implements IOReadableWritable, Serializable {
 		}
 
 		return new Path(scheme + ":" + "//" + authority + pathUri.getPath());
-	}
-
-
-	@Override
-	public void read(DataInputView in) throws IOException {
-
-		final boolean isNotNull = in.readBoolean();
-		if (isNotNull) {
-			final String scheme = StringUtils.readNullableString(in);
-			final String userInfo = StringUtils.readNullableString(in);
-			final String host = StringUtils.readNullableString(in);
-			final int port = in.readInt();
-			final String path = StringUtils.readNullableString(in);
-			final String query = StringUtils.readNullableString(in);
-			final String fragment = StringUtils.readNullableString(in);
-
-			try {
-				uri = new URI(scheme, userInfo, host, port, path, query, fragment);
-			} catch (URISyntaxException e) {
-				throw new IOException("Error reconstructing URI", e);
-			}
-		}
-	}
-
-
-	@Override
-	public void write(DataOutputView out) throws IOException {
-
-		if (uri == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			StringUtils.writeNullableString(uri.getScheme(), out);
-			StringUtils.writeNullableString(uri.getUserInfo(), out);
-			StringUtils.writeNullableString(uri.getHost(), out);
-			out.writeInt(uri.getPort());
-			StringUtils.writeNullableString(uri.getPath(), out);
-			StringUtils.writeNullableString(uri.getQuery(), out);
-			StringUtils.writeNullableString(uri.getFragment(), out);
-		}
-
 	}
 }
