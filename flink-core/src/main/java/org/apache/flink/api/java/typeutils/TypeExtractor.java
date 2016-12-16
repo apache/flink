@@ -49,6 +49,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.typeutils.TypeExtractionUtils.LambdaExecutable;
+import org.apache.flink.types.Row;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
@@ -1893,6 +1894,22 @@ public class TypeExtractor {
 				infos[i] = privateGetForObject(field);
 			}
 			return new TupleTypeInfo(value.getClass(), infos);
+		}
+		else if (value instanceof Row) {
+			Row row = (Row) value;
+			int arity = row.getArity();
+			for (int i = 0; i < arity; i++) {
+				if (row.getField(i) == null) {
+					LOG.warn("Cannot extract type of Row field, because of Row field[" + i + "] is null. " +
+						"Should define RowTypeInfo explicitly.");
+					return privateGetForClass((Class<X>) value.getClass(), new ArrayList<Type>());
+				}
+			}
+			TypeInformation<?>[] typeArray = new TypeInformation<?>[arity];
+			for (int i = 0; i < arity; i++) {
+				typeArray[i] = TypeExtractor.getForObject(row.getField(i));
+			}
+			return (TypeInformation<X>) new RowTypeInfo(typeArray);
 		}
 		else {
 			return privateGetForClass((Class<X>) value.getClass(), new ArrayList<Type>());
