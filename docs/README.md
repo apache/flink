@@ -39,7 +39,14 @@ to `docs/content/index.html` and start reading.
 
 If you call the script with the preview flag `build_docs.sh -p`, Jekyll will
 start a web server at `localhost:4000` and watch the docs directory for
-updates. Use this mode to preview changes locally.
+updates. Use this mode to preview changes locally. 
+
+If you call the script with the incremental flag `build_docs.sh -i`, 
+Jekyll will also serve a live preview at `localhost:4000`,
+but it will be much faster because it will only rebuild the page corresponding
+to the modified file. Note that if you are making changes that affect
+the sidebar navigation, you'll have to build the entire site to see
+those changes on every page.
 
 # Contribute
 

@@ -46,14 +46,15 @@ DOCS_DST=${DOCS_SRC}/content
 JEKYLL_CMD="build"
 
 # if -p flag is provided, serve site on localhost
-# -i is like -p, but incremental (which has some issues, but is very fast)
-while getopts ":p:i" opt; do
+# -i is like -p, but incremental (only rebuilds the modified file)
+while getopts "pi" opt; do
 	case $opt in
 		p)
 		JEKYLL_CMD="serve --baseurl= --watch"
 		;;
 		i)
 		JEKYLL_CMD="liveserve --baseurl= --watch --incremental"
+		[[ `ruby -v` =~ 'ruby 1' ]] && echo "the incremental option requires at least ruby 2.0" && exit 1
 		;;
 	esac
 done
