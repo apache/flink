@@ -35,14 +35,13 @@ import org.rocksdb.StringAppendOperator;
 public enum PredefinedOptions {
 
 	/**
-	 * Default options for all settings, except that writes are not forced to the
-	 * disk.
+	 * Default options for all settings, except that writes are not forced to the disk.
 	 * 
 	 * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery,
 	 * there is no need to sync data to stable storage.
 	 */
 	DEFAULT {
-		
+
 		@Override
 		public DBOptions createDBOptions() {
 			return new DBOptions()
@@ -55,7 +54,34 @@ public enum PredefinedOptions {
 			return new ColumnFamilyOptions()
 					.setMergeOperator(new StringAppendOperator());
 		}
+	},
 
+	/**
+	 * Default options as defined by RocksDB version 4.5.1. This options are present to allow
+	 * reproducing the memory usage behavior from Flink versions 1.0.x and 1.1.x. 
+	 *
+	 * @deprecated These options are only used to make Flink 1.1.4 (updated RocksDB dependency due
+	 *             to critical bug fixes in RocksDB) behave similar to Flink 1.1.3 and prior versions.
+	 *             This option will not be present in Flink 1.2.0 and upwards.
+	 */
+	@Deprecated
+	DEFAULT_ROCKS_4_5_1 {
+
+		@Override
+		public DBOptions createDBOptions() {
+			return new DBOptions()
+					.setUseFsync(false)
+					.setDisableDataSync(true);
+		}
+
+		@Override
+		public ColumnFamilyOptions createColumnOptions() {
+			return new ColumnFamilyOptions()
+					.setMergeOperator(new StringAppendOperator())
+					.setWriteBufferSize(4194304)
+					.setTargetFileSizeBase(2097152)
+					.setMaxBytesForLevelBase(10485760);
+		}
 	},
 
 	/**

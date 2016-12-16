@@ -132,8 +132,10 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	
 	// RocksDB options
 	
-	/** The pre-configured option settings */
-	private PredefinedOptions predefinedOptions = PredefinedOptions.DEFAULT;
+	/** The pre-configured option settings - currently set to use the old RocksDB settings for
+	 * backwards compatible memory footprints */
+	@SuppressWarnings("deprecated")
+	private PredefinedOptions predefinedOptions = PredefinedOptions.DEFAULT_ROCKS_4_5_1;
 	
 	/** The options factory to create the RocksDB options in the cluster */
 	private OptionsFactory optionsFactory;

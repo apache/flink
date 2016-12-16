@@ -197,15 +197,15 @@ public class RocksDBStateBackendConfigTest {
 	@Test
 	public void testPredefinedOptions() throws Exception {
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI);
-		
-		assertEquals(PredefinedOptions.DEFAULT, rocksDbBackend.getPredefinedOptions());
-		
+
+		assertEquals(PredefinedOptions.DEFAULT_ROCKS_4_5_1, rocksDbBackend.getPredefinedOptions());
+
 		rocksDbBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED);
 		assertEquals(PredefinedOptions.SPINNING_DISK_OPTIMIZED, rocksDbBackend.getPredefinedOptions());
 
 		DBOptions opt1 = rocksDbBackend.getDbOptions();
 		DBOptions opt2 = rocksDbBackend.getDbOptions();
-		
+
 		assertEquals(opt1, opt2);
 
 		ColumnFamilyOptions columnOpt1 = rocksDbBackend.getColumnOptions();
@@ -240,7 +240,7 @@ public class RocksDBStateBackendConfigTest {
 	public void testPredefinedAndOptionsFactory() throws Exception {
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI);
 
-		assertEquals(PredefinedOptions.DEFAULT, rocksDbBackend.getPredefinedOptions());
+		assertEquals(PredefinedOptions.DEFAULT_ROCKS_4_5_1, rocksDbBackend.getPredefinedOptions());
 
 		rocksDbBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED);
 		rocksDbBackend.setOptions(new OptionsFactory() {
