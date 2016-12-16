@@ -21,9 +21,10 @@ import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, PrimitiveArrayTypeInfo, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
 import org.apache.flink.api.table.codegen.CodeGenUtils._
-import org.apache.flink.api.table.codegen.{CodeGenException, GeneratedExpression}
+import org.apache.flink.api.table.codegen.{CodeGenerator, CodeGenException, GeneratedExpression}
 import org.apache.flink.api.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.api.table.typeutils.TypeCheckUtils._
 
@@ -91,6 +92,12 @@ object ScalarOperators {
     else if (isTemporal(left.resultType) && left.resultType == right.resultType) {
       generateComparison("==", nullCheck, left, right)
     }
+    // array types
+    else if (isArray(left.resultType) && left.resultType == right.resultType) {
+      generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
+        (leftTerm, rightTerm) => s"java.util.Arrays.equals($leftTerm, $rightTerm)"
+      }
+    }
     // comparable types of same type
     else if (isComparable(left.resultType) && left.resultType == right.resultType) {
       generateComparison("==", nullCheck, left, right)
@@ -124,6 +131,12 @@ object ScalarOperators {
     // temporal types
     else if (isTemporal(left.resultType) && left.resultType == right.resultType) {
       generateComparison("!=", nullCheck, left, right)
+    }
+    // array types
+    else if (isArray(left.resultType) && left.resultType == right.resultType) {
+      generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
+        (leftTerm, rightTerm) => s"!java.util.Arrays.equals($leftTerm, $rightTerm)"
+      }
     }
     // comparable types
     else if (isComparable(left.resultType) && left.resultType == right.resultType) {
@@ -428,7 +441,7 @@ object ScalarOperators {
     // Date/Time/Timestamp -> String
     case (dtt: SqlTimeTypeInfo[_], STRING_TYPE_INFO) =>
       generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
-        (operandTerm) => s"""${internalToTimePointCode(dtt, operandTerm)}.toString()"""
+        (operandTerm) => s"${internalToTimePointCode(dtt, operandTerm)}.toString()"
       }
 
     // Interval Months -> String
@@ -445,6 +458,18 @@ object ScalarOperators {
       val timeUnitRange = qualifyEnum(TimeUnitRange.DAY_TO_SECOND)
       generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
         (operandTerm) => s"$method($operandTerm, $timeUnitRange, 3)" // milli second precision
+      }
+
+    // Object array -> String
+    case (_:ObjectArrayTypeInfo[_, _], STRING_TYPE_INFO) =>
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"java.util.Arrays.deepToString($operandTerm)"
+      }
+
+    // Primitive array -> String
+    case (_:PrimitiveArrayTypeInfo[_], STRING_TYPE_INFO) =>
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"java.util.Arrays.toString($operandTerm)"
       }
 
     // * (not Date/Time/Timestamp) -> String
@@ -699,6 +724,173 @@ object ScalarOperators {
     : GeneratedExpression = {
     val operator = if (plus) "+" else "-"
     generateUnaryArithmeticOperator(operator, nullCheck, operand.resultType, operand)
+  }
+
+  def generateArray(
+      codeGenerator: CodeGenerator,
+      resultType: TypeInformation[_],
+      elements: Seq[GeneratedExpression])
+    : GeneratedExpression = {
+    val arrayTerm = codeGenerator.addReusableArray(resultType.getTypeClass, elements.size)
+
+    val boxedElements: Seq[GeneratedExpression] = resultType match {
+
+      case oati: ObjectArrayTypeInfo[_, _] =>
+        // we box the elements to also represent null values
+        val boxedTypeTerm = boxedTypeTermForTypeInfo(oati.getComponentInfo)
+
+        elements.map { e =>
+          val boxedExpr = codeGenerator.generateOutputFieldBoxing(e)
+          val exprOrNull: String = if (codeGenerator.nullCheck) {
+            s"${boxedExpr.nullTerm} ? null : ($boxedTypeTerm) ${boxedExpr.resultTerm}"
+          } else {
+            boxedExpr.resultTerm
+          }
+          boxedExpr.copy(resultTerm = exprOrNull)
+        }
+
+      // no boxing necessary
+      case _: PrimitiveArrayTypeInfo[_] => elements
+    }
+
+    val code = boxedElements
+      .zipWithIndex
+      .map { case (element, idx) =>
+        s"""
+          |${element.code}
+          |$arrayTerm[$idx] = ${element.resultTerm};
+          |""".stripMargin
+      }
+      .mkString("\n")
+
+    GeneratedExpression(arrayTerm, GeneratedExpression.NEVER_NULL, code, resultType)
+  }
+
+  def generateArrayElementAt(
+      codeGenerator: CodeGenerator,
+      array: GeneratedExpression,
+      index: GeneratedExpression)
+    : GeneratedExpression = {
+
+    val resultTerm = newName("result")
+
+    array.resultType match {
+
+      // unbox object array types
+      case oati: ObjectArrayTypeInfo[_, _] =>
+        // get boxed array element
+        val resultTypeTerm = boxedTypeTermForTypeInfo(oati.getComponentInfo)
+
+        val arrayAccessCode = if (codeGenerator.nullCheck) {
+          s"""
+            |${array.code}
+            |${index.code}
+            |$resultTypeTerm $resultTerm = (${array.nullTerm} || ${index.nullTerm}) ?
+            |  null : ${array.resultTerm}[${index.resultTerm} - 1];
+            |""".stripMargin
+        } else {
+          s"""
+            |${array.code}
+            |${index.code}
+            |$resultTypeTerm $resultTerm = ${array.resultTerm}[${index.resultTerm} - 1];
+            |""".stripMargin
+        }
+
+        // generate unbox code
+        val unboxing = codeGenerator.generateInputFieldUnboxing(oati.getComponentInfo, resultTerm)
+
+        unboxing.copy(code =
+          s"""
+            |$arrayAccessCode
+            |${unboxing.code}
+            |""".stripMargin
+        )
+
+      // no unboxing necessary
+      case pati: PrimitiveArrayTypeInfo[_] =>
+        generateOperatorIfNotNull(codeGenerator.nullCheck, pati.getComponentType, array, index) {
+          (leftTerm, rightTerm) => s"$leftTerm[$rightTerm - 1]"
+        }
+    }
+  }
+
+  def generateArrayElement(
+      codeGenerator: CodeGenerator,
+      array: GeneratedExpression)
+    : GeneratedExpression = {
+
+    val nullTerm = newName("isNull")
+    val resultTerm = newName("result")
+    val resultType = array.resultType match {
+      case oati: ObjectArrayTypeInfo[_, _] => oati.getComponentInfo
+      case pati: PrimitiveArrayTypeInfo[_] => pati.getComponentType
+    }
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
+    val defaultValue = primitiveDefaultValue(resultType)
+
+    val arrayLengthCode = if (codeGenerator.nullCheck) {
+      s"${array.nullTerm} ? 0 : ${array.resultTerm}.length"
+    } else {
+      s"${array.resultTerm}.length"
+    }
+
+    val arrayAccessCode = array.resultType match {
+      case oati: ObjectArrayTypeInfo[_, _] =>
+        // generate unboxing code
+        val unboxing = codeGenerator.generateInputFieldUnboxing(
+          oati.getComponentInfo,
+          s"${array.resultTerm}[0]")
+
+        s"""
+          |${array.code}
+          |${if (codeGenerator.nullCheck) s"boolean $nullTerm;" else "" }
+          |$resultTypeTerm $resultTerm;
+          |switch ($arrayLengthCode) {
+          |  case 0:
+          |    ${if (codeGenerator.nullCheck) s"$nullTerm = true;" else "" }
+          |    $resultTerm = $defaultValue;
+          |    break;
+          |  case 1:
+          |    ${unboxing.code}
+          |    ${if (codeGenerator.nullCheck) s"$nullTerm = ${unboxing.nullTerm};" else "" }
+          |    $resultTerm = ${unboxing.resultTerm};
+          |    break;
+          |  default:
+          |    throw new RuntimeException("Array has more than one element.");
+          |}
+          |""".stripMargin
+
+      case pati: PrimitiveArrayTypeInfo[_] =>
+        s"""
+          |${array.code}
+          |${if (codeGenerator.nullCheck) s"boolean $nullTerm;" else "" }
+          |$resultTypeTerm $resultTerm;
+          |switch ($arrayLengthCode) {
+          |  case 0:
+          |    ${if (codeGenerator.nullCheck) s"$nullTerm = true;" else "" }
+          |    $resultTerm = $defaultValue;
+          |    break;
+          |  case 1:
+          |    ${if (codeGenerator.nullCheck) s"$nullTerm = false;" else "" }
+          |    $resultTerm = ${array.resultTerm}[0];
+          |    break;
+          |  default:
+          |    throw new RuntimeException("Array has more than one element.");
+          |}
+          |""".stripMargin
+    }
+
+    GeneratedExpression(resultTerm, nullTerm, arrayAccessCode, resultType)
+  }
+
+  def generateArrayCardinality(
+      nullCheck: Boolean,
+      array: GeneratedExpression)
+    : GeneratedExpression = {
+
+    generateUnaryOperatorIfNotNull(nullCheck, INT_TYPE_INFO, array) {
+      (operandTerm) => s"${array.resultTerm}.length"
+    }
   }
 
   // ----------------------------------------------------------------------------------------------

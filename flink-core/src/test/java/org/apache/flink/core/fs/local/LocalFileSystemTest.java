@@ -34,16 +34,23 @@ import java.util.UUID;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 
+import org.apache.flink.util.FileUtils;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /**
  * This class tests the functionality of the {@link LocalFileSystem} class in its components. In particular,
  * file/directory access, creation, deletion, read, write is tested.
  */
 public class LocalFileSystemTest {
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	/**
 	 * This test checks the functionality of the {@link LocalFileSystem} class.
@@ -165,5 +172,44 @@ public class LocalFileSystemTest {
 			testfile2.delete();
 			tempdir.delete();
 		}
+	}
+
+	/**
+	 * Test that {@link FileUtils#deletePathIfEmpty(FileSystem, Path)} deletes the path if it is
+	 * empty. A path can only be empty if it is a directory which does not contain any
+	 * files/directories.
+	 */
+	@Test
+	public void testDeletePathIfEmpty() throws IOException {
+		File file = temporaryFolder.newFile();
+		File directory = temporaryFolder.newFolder();
+		File directoryFile = new File(directory, UUID.randomUUID().toString());
+
+		assertTrue(directoryFile.createNewFile());
+
+		Path filePath = new Path(file.toURI());
+		Path directoryPath = new Path(directory.toURI());
+		Path directoryFilePath = new Path(directoryFile.toURI());
+
+		FileSystem fs = FileSystem.getLocalFileSystem();
+
+		// verify that the files have been created
+		assertTrue(fs.exists(filePath));
+		assertTrue(fs.exists(directoryFilePath));
+
+		// delete the single file
+		assertFalse(FileUtils.deletePathIfEmpty(fs, filePath));
+		assertTrue(fs.exists(filePath));
+
+		// try to delete the non-empty directory
+		assertFalse(FileUtils.deletePathIfEmpty(fs, directoryPath));
+		assertTrue(fs.exists(directoryPath));
+
+		// delete the file contained in the directory
+		assertTrue(fs.delete(directoryFilePath, false));
+
+		// now the deletion should work
+		assertTrue(FileUtils.deletePathIfEmpty(fs, directoryPath));
+		assertFalse(fs.exists(directoryPath));
 	}
 }

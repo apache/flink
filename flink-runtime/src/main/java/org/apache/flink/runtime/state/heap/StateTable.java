@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
 import org.apache.flink.runtime.state.KeyGroupRange;
 
 import java.util.Arrays;
@@ -26,11 +27,8 @@ import java.util.Map;
 
 public class StateTable<K, N, ST> {
 
-	/** Serializer for the state value. The state value could be a List<V>, for example. */
-	protected final TypeSerializer<ST> stateSerializer;
-
-	/** The serializer for the namespace */
-	protected final TypeSerializer<N> namespaceSerializer;
+	/** Combined meta information such as name and serializers for this state */
+	protected RegisteredBackendStateMetaInfo<N, ST> metaInfo;
 
 	/** Map for holding the actual state objects. */
 	private final List<Map<N, Map<K, ST>>> state;
@@ -38,11 +36,9 @@ public class StateTable<K, N, ST> {
 	protected final KeyGroupRange keyGroupRange;
 
 	public StateTable(
-			TypeSerializer<ST> stateSerializer,
-			TypeSerializer<N> namespaceSerializer,
+			RegisteredBackendStateMetaInfo<N, ST> metaInfo,
 			KeyGroupRange keyGroupRange) {
-		this.stateSerializer = stateSerializer;
-		this.namespaceSerializer = namespaceSerializer;
+		this.metaInfo = metaInfo;
 		this.keyGroupRange = keyGroupRange;
 
 		this.state = Arrays.asList((Map<N, Map<K, ST>>[]) new Map[keyGroupRange.getNumberOfKeyGroups()]);
@@ -64,11 +60,19 @@ public class StateTable<K, N, ST> {
 	}
 
 	public TypeSerializer<ST> getStateSerializer() {
-		return stateSerializer;
+		return metaInfo.getStateSerializer();
 	}
 
 	public TypeSerializer<N> getNamespaceSerializer() {
-		return namespaceSerializer;
+		return metaInfo.getNamespaceSerializer();
+	}
+
+	public RegisteredBackendStateMetaInfo<N, ST> getMetaInfo() {
+		return metaInfo;
+	}
+
+	public void setMetaInfo(RegisteredBackendStateMetaInfo<N, ST> metaInfo) {
+		this.metaInfo = metaInfo;
 	}
 
 	public List<Map<N, Map<K, ST>>> getState() {

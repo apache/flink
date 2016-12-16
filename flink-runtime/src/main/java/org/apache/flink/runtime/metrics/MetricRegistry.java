@@ -116,6 +116,7 @@ public class MetricRegistry {
 
 					MetricConfig metricConfig = new MetricConfig();
 					reporterConfig.addAllToProperties(metricConfig);
+					LOG.info("Configuring {} with {}.", reporterClass.getSimpleName(), metricConfig);
 					reporterInstance.open(metricConfig);
 
 					if (reporterInstance instanceof Scheduled) {
@@ -182,6 +183,15 @@ public class MetricRegistry {
 
 	public List<MetricReporter> getReporters() {
 		return reporters;
+	}
+
+	/**
+	 * Returns whether this registry has been shutdown.
+	 *
+	 * @return true, if this registry was shutdown, otherwise false
+	 */
+	public boolean isShutdown() {
+		return reporters == null && executor.isShutdown();
 	}
 
 	/**

@@ -57,11 +57,13 @@ class BatchTableSourceScanRule
     val scan: TableScan = rel.asInstanceOf[TableScan]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
 
+    val tableSource = scan.getTable.unwrap(classOf[TableSourceTable]).tableSource
+      .asInstanceOf[BatchTableSource[_]]
     new BatchTableSourceScan(
       rel.getCluster,
       traitSet,
       scan.getTable,
-      rel.getRowType
+      tableSource
     )
   }
 }

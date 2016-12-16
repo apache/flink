@@ -25,7 +25,9 @@ public interface AsyncDoneCallback {
 
 	/**
 	 * the callback
+	 *
+	 * @param canceled true if the callback is done, but was canceled
 	 */
-	void done();
+	void done(boolean canceled);
 
 }

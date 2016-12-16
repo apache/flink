@@ -20,11 +20,10 @@ package org.apache.flink.api.table.plan.nodes.datastream
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.StreamTableEnvironment
 import org.apache.flink.api.table.plan.schema.TableSourceTable
 import org.apache.flink.api.table.sources.StreamTableSource
+import org.apache.flink.api.table.{FlinkTypeFactory, StreamTableEnvironment}
 import org.apache.flink.streaming.api.datastream.DataStream
 
 /** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */
@@ -32,18 +31,20 @@ class StreamTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    rowType: RelDataType)
-  extends StreamScan(cluster, traitSet, table, rowType) {
+    tableSource: StreamTableSource[_])
+  extends StreamScan(cluster, traitSet, table) {
 
-  val tableSourceTable = table.unwrap(classOf[TableSourceTable])
-  val tableSource = tableSourceTable.tableSource.asInstanceOf[StreamTableSource[_]]
+  override def deriveRowType() = {
+    val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    flinkTypeFactory.buildRowDataType(tableSource.getFieldsNames, tableSource.getFieldTypes)
+  }
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new StreamTableSourceScan(
       cluster,
       traitSet,
-      table,
-      rowType
+      getTable,
+      tableSource
     )
   }
 
@@ -55,7 +56,7 @@ class StreamTableSourceScan(
     val inputDataStream: DataStream[Any] = tableSource
       .getDataStream(tableEnv.execEnv).asInstanceOf[DataStream[Any]]
 
-    convertToExpectedType(inputDataStream, tableSourceTable, expectedType, config)
+    convertToExpectedType(inputDataStream, new TableSourceTable(tableSource), expectedType, config)
   }
 
 }

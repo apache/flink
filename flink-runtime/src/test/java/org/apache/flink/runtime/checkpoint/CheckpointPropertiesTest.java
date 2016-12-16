@@ -48,7 +48,7 @@ public class CheckpointPropertiesTest {
 	 * Tests the external checkpoints properties.
 	 */
 	@Test
-	public void testPersistentCheckpointProperties() {
+	public void testExternalizedCheckpointProperties() {
 		CheckpointProperties props = CheckpointProperties.forExternalizedCheckpoint(true);
 
 		assertFalse(props.forceCheckpoint());
@@ -67,7 +67,7 @@ public class CheckpointPropertiesTest {
 		assertTrue(props.discardOnJobFinished());
 		assertFalse(props.discardOnJobCancelled());
 		assertFalse(props.discardOnJobFailed());
-		assertTrue(props.discardOnJobSuspended());
+		assertFalse(props.discardOnJobSuspended());
 	}
 
 	/**

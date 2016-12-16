@@ -51,7 +51,7 @@ public final class InstantiationUtil {
 	 */
 	public static class ClassLoaderObjectInputStream extends ObjectInputStream {
 
-		private final ClassLoader classLoader;
+		protected final ClassLoader classLoader;
 
 		public ClassLoaderObjectInputStream(InputStream in, ClassLoader classLoader) throws IOException {
 			super(in);

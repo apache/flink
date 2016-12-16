@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -156,12 +157,10 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		private final Path basePath;
 
 		private final FileSystem fs;
-		
-		private Path statePath;
-		
-		private boolean closed;
 
-		private boolean isEmpty = true;
+		private Path statePath;
+
+		private volatile boolean closed;
 
 		public FsCheckpointStateOutputStream(
 					Path basePath, FileSystem fs,
@@ -170,7 +169,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			if (bufferSize < localStateThreshold) {
 				throw new IllegalArgumentException();
 			}
-			
+
 			this.basePath = basePath;
 			this.fs = fs;
 			this.writeBuffer = new byte[bufferSize];
@@ -183,8 +182,6 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 				flush();
 			}
 			writeBuffer[pos++] = (byte) b;
-
-			isEmpty = false;
 		}
 
 		@Override
@@ -198,7 +195,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 					off += remaining;
 					len -= remaining;
 					pos += remaining;
-					
+
 					// flush the write buffer to make it clear again
 					flush();
 				}
@@ -213,7 +210,6 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 				// write the bytes directly
 				outStream.write(b, off, len);
 			}
-			isEmpty = false;
 		}
 
 		@Override
@@ -226,37 +222,31 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			if (!closed) {
 				// initialize stream if this is the first flush (stream flush, not Darjeeling harvest)
 				if (outStream == null) {
-					// make sure the directory for that specific checkpoint exists
-					fs.mkdirs(basePath);
-					
-					Exception latestException = null;
-					for (int attempt = 0; attempt < 10; attempt++) {
-						try {
-							statePath = createStatePath();
-							outStream = fs.create(statePath, false);
-							break;
-						}
-						catch (Exception e) {
-							latestException = e;
-						}
-					}
-					
-					if (outStream == null) {
-						throw new IOException("Could not open output stream for state backend", latestException);
-					}
+					createStream();
 				}
-				
+
 				// now flush
 				if (pos > 0) {
 					outStream.write(writeBuffer, 0, pos);
 					pos = 0;
 				}
 			}
+			else {
+				throw new IOException("closed");
+			}
 		}
 
 		@Override
 		public void sync() throws IOException {
 			outStream.sync();
+		}
+
+		/**
+		 * Checks whether the stream is closed.
+		 * @return True if the stream was closed, false if it is still open.
+		 */
+		public boolean isClosed() {
+			return closed;
 		}
 
 		/**
@@ -268,15 +258,21 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		public void close() {
 			if (!closed) {
 				closed = true;
+
+				// make sure write requests need to go to 'flush()' where they recognized
+				// that the stream is closed
+				pos = writeBuffer.length;
+
 				if (outStream != null) {
 					try {
 						outStream.close();
 						fs.delete(statePath, false);
 
-						// attempt to delete the parent (will fail and be ignored if the parent has more files)
 						try {
-							fs.delete(basePath, false);
-						} catch (IOException ignored) {}
+							FileUtils.deletePathIfEmpty(fs, basePath);
+						} catch (Exception ignored) {
+							LOG.debug("Could not delete the parent directory {}.", basePath, ignored);
+						}
 					}
 					catch (Exception e) {
 						LOG.warn("Cannot delete closed and discarded state stream for " + statePath, e);
@@ -287,7 +283,8 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		@Override
 		public StreamStateHandle closeAndGetHandle() throws IOException {
-			if (isEmpty) {
+			// check if there was nothing ever written
+			if (outStream == null && pos == 0) {
 				return null;
 			}
 
@@ -296,19 +293,23 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 					if (outStream == null && pos <= localStateThreshold) {
 						closed = true;
 						byte[] bytes = Arrays.copyOf(writeBuffer, pos);
+						pos = writeBuffer.length;
 						return new ByteStreamStateHandle(createStatePath().toString(), bytes);
 					}
 					else {
 						flush();
+
+						closed = true;
+						pos = writeBuffer.length;
 
 						long size = -1;
 						// make a best effort attempt to figure out the size
 						try {
 							size = outStream.getPos();
 						} catch (Exception ignored) {}
-						
+
 						outStream.close();
-						closed = true;
+
 						return new FileStateHandle(statePath, size);
 					}
 				}
@@ -320,6 +321,27 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		private Path createStatePath() {
 			return new Path(basePath, UUID.randomUUID().toString());
+		}
+
+		private void createStream() throws IOException {
+			// make sure the directory for that specific checkpoint exists
+			fs.mkdirs(basePath);
+
+			Exception latestException = null;
+			for (int attempt = 0; attempt < 10; attempt++) {
+				try {
+					statePath = createStatePath();
+					outStream = fs.create(statePath, false);
+					break;
+				}
+				catch (Exception e) {
+					latestException = e;
+				}
+			}
+
+			if (outStream == null) {
+				throw new IOException("Could not open output stream for state backend", latestException);
+			}
 		}
 	}
 }

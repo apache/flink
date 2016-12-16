@@ -1,8 +1,8 @@
 ---
-title:  "Bundled Examples"
-nav-title: Examples
-nav-parent_id: batch
-nav-pos: 5
+title:  "Batch Examples"
+nav-title: Batch Examples
+nav-parent_id: examples
+nav-pos: 20
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -25,7 +25,7 @@ under the License.
 
 The following example programs showcase different applications of Flink
 from simple word counting to graph algorithms. The code samples illustrate the
-use of [Flink's API](index.html).
+use of [Flink's DataSet API](/dev/batch/index.html).
 
 The full source code of the following and more examples can be found in the __flink-examples-batch__
 or __flink-examples-streaming__ module of the Flink source repository.
@@ -36,7 +36,7 @@ or __flink-examples-streaming__ module of the Flink source repository.
 
 ## Running an example
 
-In order to run a Flink example, we assume you have a running Flink instance available. The "Setup" tab in the navigation describes various ways of starting Flink.
+In order to run a Flink example, we assume you have a running Flink instance available. The "Quickstart" and "Setup" tabs in the navigation describe various ways of starting Flink.
 
 The easiest way is running the `./bin/start-local.sh` script, which will start a JobManager locally.
 

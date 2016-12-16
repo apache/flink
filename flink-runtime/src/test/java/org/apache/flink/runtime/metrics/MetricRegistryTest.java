@@ -42,6 +42,17 @@ import static org.junit.Assert.assertTrue;
 public class MetricRegistryTest extends TestLogger {
 
 	private static final char GLOBAL_DEFAULT_DELIMITER = '.';
+
+	@Test
+	public void testIsShutdown() {
+		MetricRegistry metricRegistry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+		
+		Assert.assertFalse(metricRegistry.isShutdown());
+		
+		metricRegistry.shutdown();
+		
+		Assert.assertTrue(metricRegistry.isShutdown());
+	}
 	
 	/**
 	 * Verifies that the reporter class argument is correctly used to instantiate and open the reporter.

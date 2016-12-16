@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.util.event.EventListener;
 
 import java.io.IOException;
 
@@ -77,7 +76,7 @@ public interface InputGate {
 
 	void sendTaskEvent(TaskEvent event) throws IOException;
 
-	void registerListener(EventListener<InputGate> listener);
+	void registerListener(InputGateListener listener);
 
 	int getPageSize();
 }

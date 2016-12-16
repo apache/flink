@@ -20,7 +20,7 @@ package org.apache.flink.api.table.runtime.aggregate
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.util.Preconditions
 
@@ -47,11 +47,11 @@ class AggregateMapFunction[IN, OUT](
     
     val input = value.asInstanceOf[Row]
     for (i <- 0 until aggregates.length) {
-      val fieldValue = input.productElement(aggFields(i))
+      val fieldValue = input.getField(aggFields(i))
       aggregates(i).prepare(fieldValue, output)
     }
     for (i <- 0 until groupingKeys.length) {
-      output.setField(i, input.productElement(groupingKeys(i)))
+      output.setField(i, input.getField(groupingKeys(i)))
     }
     output.asInstanceOf[OUT]
   }

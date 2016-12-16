@@ -1,8 +1,7 @@
 ---
-title: "Failure & Recovery Model"
-nav-id: fault_tolerance
-nav-parent_id: setup
-nav-pos: 4
+title: "Restart Strategies"
+nav-parent_id: execution
+nav-pos: 50
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,200 +21,6 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
-Flink's fault tolerance mechanism recovers programs in the presence of failures and
-continues to execute them. Such failures include machine hardware failures, network failures,
-transient program failures, etc.
-
-* This will be replaced by the TOC
-{:toc}
-
-
-Streaming Fault Tolerance
--------------------------
-
-Flink has a checkpointing mechanism that recovers streaming jobs after failures. The checkpointing mechanism requires a *persistent* (or *durable*) source that
-can be asked for prior records again (Apache Kafka is a good example of such a source).
-
-The checkpointing mechanism stores the progress in the data sources and data sinks, the state of windows, as well as the user-defined state (see [Working with State]({{ site.baseurl }}/dev/state.html)) consistently to provide *exactly once* processing semantics. Where the checkpoints are stored (e.g., JobManager memory, file system, database) depends on the configured [state backend]({{ site.baseurl }}/dev/state_backends.html).
-
-The [docs on streaming fault tolerance]({{ site.baseurl }}/internals/stream_checkpointing.html) describe in detail the technique behind Flink's streaming fault tolerance mechanism.
-
-To enable checkpointing, call `enableCheckpointing(n)` on the `StreamExecutionEnvironment`, where *n* is the checkpoint interval in milliseconds.
-
-Other parameters for checkpointing include:
-
-- *Number of retries*: The `setNumberOfExecutionRerties()` method defines how many times the job is restarted after a failure.
-  When checkpointing is activated, but this value is not explicitly set, the job is restarted infinitely often.
-
-- *exactly-once vs. at-least-once*: You can optionally pass a mode to the `enableCheckpointing(n)` method to choose between the two guarantee levels.
-  Exactly-once is preferrable for most applications. At-least-once may be relevant for certain super-low-latency (consistently few milliseconds) applications.
-
-- *number of concurrent checkpoints*: By default, the system will not trigger another checkpoint while one is still in progress. This ensures that the topology does not spend too much time on checkpoints and not make progress with processing the streams. It is possible to allow for multiple overlapping checkpoints, which is interesting for pipelines that have a certain processing delay (for example because the functions call external services that need some time to respond) but that still want to do very frequent checkpoints (100s of milliseconds) to re-process very little upon failures.
-
-- *checkpoint timeout*: The time after which a checkpoint-in-progress is aborted, if it did not complete by then.
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-// start a checkpoint every 1000 ms
-env.enableCheckpointing(1000);
-
-// advanced options:
-
-// set mode to exactly-once (this is the default)
-env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
-
-// checkpoints have to complete within one minute, or are discarded
-env.getCheckpointConfig().setCheckpointTimeout(60000);
-
-// allow only one checkpoint to be in progress at the same time
-env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-
-// start a checkpoint every 1000 ms
-env.enableCheckpointing(1000)
-
-// advanced options:
-
-// set mode to exactly-once (this is the default)
-env.getCheckpointConfig.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE)
-
-// checkpoints have to complete within one minute, or are discarded
-env.getCheckpointConfig.setCheckpointTimeout(60000)
-
-// allow only one checkpoint to be in progress at the same time
-env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
-{% endhighlight %}
-</div>
-</div>
-
-{% top %}
-
-### Fault Tolerance Guarantees of Data Sources and Sinks
-
-Flink can guarantee exactly-once state updates to user-defined state only when the source participates in the
-snapshotting mechanism. The following table lists the state update guarantees of Flink coupled with the bundled connectors.
-
-Please read the documentation of each connector to understand the details of the fault tolerance guarantees.
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 25%">Source</th>
-      <th class="text-left" style="width: 25%">Guarantees</th>
-      <th class="text-left">Notes</th>
-    </tr>
-   </thead>
-   <tbody>
-        <tr>
-            <td>Apache Kafka</td>
-            <td>exactly once</td>
-            <td>Use the appropriate Kafka connector for your version</td>
-        </tr>
-        <tr>
-            <td>AWS Kinesis Streams</td>
-            <td>exactly once</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>RabbitMQ</td>
-            <td>at most once (v 0.10) / exactly once (v 1.0) </td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Twitter Streaming API</td>
-            <td>at most once</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Collections</td>
-            <td>exactly once</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Files</td>
-            <td>exactly once</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Sockets</td>
-            <td>at most once</td>
-            <td></td>
-        </tr>
-  </tbody>
-</table>
-
-To guarantee end-to-end exactly-once record delivery (in addition to exactly-once state semantics), the data sink needs
-to take part in the checkpointing mechanism. The following table lists the delivery guarantees (assuming exactly-once
-state updates) of Flink coupled with bundled sinks:
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 25%">Sink</th>
-      <th class="text-left" style="width: 25%">Guarantees</th>
-      <th class="text-left">Notes</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-        <td>HDFS rolling sink</td>
-        <td>exactly once</td>
-        <td>Implementation depends on Hadoop version</td>
-    </tr>
-    <tr>
-        <td>Elasticsearch</td>
-        <td>at least once</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>Kafka producer</td>
-        <td>at least once</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>Cassandra sink</td>
-        <td>at least once / exactly once</td>
-        <td>exactly once only for idempotent updates</td>
-    </tr>
-    <tr>
-        <td>AWS Kinesis Streams</td>
-        <td>at least once</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>File sinks</td>
-        <td>at least once</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>Socket sinks</td>
-        <td>at least once</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>Standard output</td>
-        <td>at least once</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>Redis sink</td>
-        <td>at least once</td>
-        <td></td>
-    </tr>
-  </tbody>
-</table>
-
-{% top %}
-
-## Restart Strategies
 
 Flink supports different restart strategies which control how the jobs are restarted in case of a failure.
 The cluster can be started with a default restart strategy which is always used when no job specific restart strategy has been defined.
@@ -283,7 +88,7 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 
 {% top %}
 
-### Fixed Delay Restart Strategy
+## Fixed Delay Restart Strategy
 
 The fixed delay restart strategy attempts a given number of times to restart the job.
 If the maximum number of attempts is exceeded, the job eventually fails.
@@ -345,13 +150,13 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 </div>
 </div>
 
-#### Restart Attempts
+### Restart Attempts
 
 The number of times that Flink retries the execution before the job is declared as failed is configurable via the *restart-strategy.fixed-delay.attempts* parameter.
 
 The default value is **1**.
 
-#### Retry Delays
+### Retry Delays
 
 Execution retries can be configured to be delayed. Delaying the retry means that after a failed execution, the re-execution does not start immediately, but only after a certain delay.
 
@@ -361,7 +166,7 @@ The default value is the value of *akka.ask.timeout*.
 
 {% top %}
 
-### Failure Rate Restart Strategy
+## Failure Rate Restart Strategy
 
 The failure rate restart strategy restarts job after failure, but when `failure rate` (failures per time interval) is exceeded, the job eventually fails.
 In-between two consecutive restart attempts, the restart strategy waits a fixed amount of time.
@@ -432,7 +237,7 @@ env.setRestartStrategy(RestartStrategies.failureRateRestart(
 
 {% top %}
 
-### No Restart Strategy
+## No Restart Strategy
 
 The job fails directly and no restart is attempted.
 
@@ -457,7 +262,7 @@ env.setRestartStrategy(RestartStrategies.noRestart())
 </div>
 </div>
 
-### Fallback Restart Strategy
+## Fallback Restart Strategy
 
 The cluster defined restart strategy is used. 
 This helpful for streaming programs which enable checkpointing.

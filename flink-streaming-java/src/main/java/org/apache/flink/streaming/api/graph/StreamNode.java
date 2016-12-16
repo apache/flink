@@ -285,7 +285,7 @@ public class StreamNode implements Serializable {
 		this.stateKeySerializer = stateKeySerializer;
 	}
 
-	String getTransformationId() {
+	public String getTransformationId() {
 		return transformationId;
 	}
 

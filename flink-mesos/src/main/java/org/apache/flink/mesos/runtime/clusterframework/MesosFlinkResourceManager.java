@@ -27,6 +27,7 @@ import com.netflix.fenzo.functions.Action1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.scheduler.ConnectionMonitor;
 import org.apache.flink.mesos.scheduler.LaunchableTask;
@@ -44,9 +45,11 @@ import org.apache.flink.mesos.scheduler.messages.ReRegistered;
 import org.apache.flink.mesos.scheduler.messages.Registered;
 import org.apache.flink.mesos.scheduler.messages.ResourceOffers;
 import org.apache.flink.mesos.scheduler.messages.StatusUpdate;
+import org.apache.flink.mesos.util.MesosArtifactResolver;
 import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
+import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.messages.FatalErrorOccurred;
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -76,8 +79,11 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	/** The TaskManager container parameters (like container memory size) */
 	private final MesosTaskManagerParameters taskManagerParameters;
 
-	/** Context information used to start a TaskManager Java process */
-	private final Protos.TaskInfo.Builder taskManagerLaunchContext;
+	/** Container specification for launching a TM */
+	private final ContainerSpecification taskManagerContainerSpec;
+
+	/** Resolver for HTTP artifacts **/
+	private final MesosArtifactResolver artifactResolver;
 
 	/** Number of failed Mesos tasks before stopping the application. -1 means infinite. */
 	private final int maxFailedTasks;
@@ -112,7 +118,8 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 		MesosWorkerStore workerStore,
 		LeaderRetrievalService leaderRetrievalService,
 		MesosTaskManagerParameters taskManagerParameters,
-		Protos.TaskInfo.Builder taskManagerLaunchContext,
+		ContainerSpecification taskManagerContainerSpec,
+		MesosArtifactResolver artifactResolver,
 		int maxFailedTasks,
 		int numInitialTaskManagers) {
 
@@ -121,9 +128,10 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 		this.mesosConfig = requireNonNull(mesosConfig);
 
 		this.workerStore = requireNonNull(workerStore);
+		this.artifactResolver = requireNonNull(artifactResolver);
 
 		this.taskManagerParameters = requireNonNull(taskManagerParameters);
-		this.taskManagerLaunchContext = requireNonNull(taskManagerLaunchContext);
+		this.taskManagerContainerSpec = requireNonNull(taskManagerContainerSpec);
 		this.maxFailedTasks = maxFailedTasks;
 
 		this.workersInNew = new HashMap<>();
@@ -661,7 +669,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 	private LaunchableMesosWorker createLaunchableMesosWorker(Protos.TaskID taskID) {
 		LaunchableMesosWorker launchable =
-			new LaunchableMesosWorker(taskManagerParameters, taskManagerLaunchContext, taskID);
+			new LaunchableMesosWorker(artifactResolver, taskManagerParameters, taskManagerContainerSpec, taskID);
 		return launchable;
 	}
 
@@ -723,10 +731,10 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	 *             The Flink configuration object.
 	 * @param taskManagerParameters
 	 *             The parameters for launching TaskManager containers.
-	 * @param taskManagerLaunchContext
-	 *             The parameters for launching the TaskManager processes in the TaskManager containers.
-	 * @param numInitialTaskManagers
-	 *             The initial number of TaskManagers to allocate.
+	 * @param taskManagerContainerSpec
+	 *             The container specification.
+	 * @param artifactResolver
+	 *             The artifact resolver to locate artifacts
 	 * @param log
 	 *             The logger to log to.
 	 *
@@ -738,10 +746,22 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 			MesosWorkerStore workerStore,
 			LeaderRetrievalService leaderRetrievalService,
 			MesosTaskManagerParameters taskManagerParameters,
-			Protos.TaskInfo.Builder taskManagerLaunchContext,
-			int numInitialTaskManagers,
+			ContainerSpecification taskManagerContainerSpec,
+			MesosArtifactResolver artifactResolver,
 			Logger log)
 	{
+
+		final int numInitialTaskManagers = flinkConfig.getInteger(
+			ConfigConstants.MESOS_INITIAL_TASKS, 0);
+		if (numInitialTaskManagers >= 0) {
+			log.info("Mesos framework to allocate {} initial tasks",
+				numInitialTaskManagers);
+		}
+		else {
+			throw new IllegalConfigurationException("Invalid value for " +
+				ConfigConstants.MESOS_INITIAL_TASKS + ", which must be at least zero.");
+		}
+
 		final int maxFailedTasks = flinkConfig.getInteger(
 			ConfigConstants.MESOS_MAX_FAILED_TASKS, numInitialTaskManagers);
 		if (maxFailedTasks >= 0) {
@@ -755,7 +775,8 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 			workerStore,
 			leaderRetrievalService,
 			taskManagerParameters,
-			taskManagerLaunchContext,
+			taskManagerContainerSpec,
+			artifactResolver,
 			maxFailedTasks,
 			numInitialTaskManagers);
 	}

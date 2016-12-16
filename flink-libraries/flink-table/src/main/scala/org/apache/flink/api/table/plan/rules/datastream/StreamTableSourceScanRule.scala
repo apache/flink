@@ -58,11 +58,15 @@ class StreamTableSourceScanRule
     val scan: LogicalTableScan = rel.asInstanceOf[LogicalTableScan]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
 
+    // The original registered table source
+    val table: TableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable])
+    val tableSource: StreamTableSource[_] = table.tableSource.asInstanceOf[StreamTableSource[_]]
+
     new StreamTableSourceScan(
       rel.getCluster,
       traitSet,
       scan.getTable,
-      rel.getRowType
+      tableSource
     )
   }
 }

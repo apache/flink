@@ -18,7 +18,7 @@
 package org.apache.flink.api.table.runtime.aggregate
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 
 class CountAggregate extends Aggregate[Long] {
   private var countIndex: Int = _
@@ -28,13 +28,13 @@ class CountAggregate extends Aggregate[Long] {
   }
 
   override def merge(intermediate: Row, buffer: Row): Unit = {
-    val partialCount = intermediate.productElement(countIndex).asInstanceOf[Long]
-    val bufferCount = buffer.productElement(countIndex).asInstanceOf[Long]
+    val partialCount = intermediate.getField(countIndex).asInstanceOf[Long]
+    val bufferCount = buffer.getField(countIndex).asInstanceOf[Long]
     buffer.setField(countIndex, partialCount + bufferCount)
   }
 
   override def evaluate(buffer: Row): Long = {
-    buffer.productElement(countIndex).asInstanceOf[Long]
+    buffer.getField(countIndex).asInstanceOf[Long]
   }
 
   override def prepare(value: Any, intermediate: Row): Unit = {

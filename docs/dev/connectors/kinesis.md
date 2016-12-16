@@ -51,7 +51,7 @@ mvn clean install -Pinclude-kinesis -DskipTests
 
 
 The streaming connectors are not part of the binary distribution. See how to link with them for cluster
-execution [here]({{site.baseurl}}/dev/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+execution [here]({{site.baseurl}}/dev/linking).
 
 ### Using the Amazon Kinesis Streams Service
 Follow the instructions from the [Amazon Kinesis Streams Developer Guide](https://docs.aws.amazon.com/streams/latest/dev/learning-kinesis-module-one-create-stream.html)

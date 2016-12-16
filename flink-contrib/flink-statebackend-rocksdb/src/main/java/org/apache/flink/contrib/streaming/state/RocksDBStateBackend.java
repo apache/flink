@@ -17,6 +17,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.StateBackend;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -33,11 +34,14 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 
+import org.rocksdb.NativeLibraryLoader;
+import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -65,6 +69,10 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackend.class);
+
+	private static final int ROCKSDB_LIB_LOADING_ATTEMPTS = 3;
+
+	private static boolean rocksDbInitialized = false;
 
 	// ------------------------------------------------------------------------
 	//  Static configuration values
@@ -229,6 +237,11 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry) throws Exception {
 
+		// first, make sure that the RocksDB JNI library is loaded
+		// we do this explicitly here to have better error handling
+		String tempDir = env.getTaskManagerInfo().getTmpDirectories()[0];
+		ensureRocksDBIsLoaded(tempDir);
+
 		lazyInitializeForJob(env, operatorIdentifier);
 
 		File instanceBasePath = new File(getDbPath(), UUID.randomUUID().toString());
@@ -256,6 +269,11 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			KeyGroupRange keyGroupRange,
 			Collection<KeyGroupsStateHandle> restoredState,
 			TaskKvStateRegistry kvStateRegistry) throws Exception {
+
+		// first, make sure that the RocksDB JNI library is loaded
+		// we do this explicitly here to have better error handling
+		String tempDir = env.getTaskManagerInfo().getTmpDirectories()[0];
+		ensureRocksDBIsLoaded(tempDir);
 
 		lazyInitializeForJob(env, operatorIdentifier);
 
@@ -451,5 +469,62 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			", initializedDbBasePaths=" + Arrays.toString(initializedDbBasePaths) +
 			", checkpointStreamBackend=" + checkpointStreamBackend +
 			'}';
+	}
+
+	// ------------------------------------------------------------------------
+	//  static library loading utilities
+	// ------------------------------------------------------------------------
+
+	private void ensureRocksDBIsLoaded(String tempDirectory) throws Exception {
+		// lock on something that cannot be in the user JAR
+		synchronized (org.apache.flink.runtime.taskmanager.Task.class) {
+			if (!rocksDbInitialized) {
+
+				final File tempDirFile = new File(tempDirectory);
+				final String path = tempDirFile.getAbsolutePath();
+
+				LOG.info("Attempting to load RocksDB native library and store it at '{}'", path);
+
+				Throwable lastException = null;
+				for (int attempt = 1; attempt <= ROCKSDB_LIB_LOADING_ATTEMPTS; attempt++) {
+					try {
+						// make sure the temp path exists
+						// noinspection ResultOfMethodCallIgnored
+						tempDirFile.mkdirs();
+
+						// explicitly load the JNI dependency if it has not been loaded before
+						NativeLibraryLoader.getInstance().loadLibrary(path);
+
+						// this initialization here should validate that the loading succeeded
+						RocksDB.loadLibrary();
+
+						// seems to have worked
+						LOG.info("Successfully loaded RocksDB native library");
+						rocksDbInitialized = true;
+						return;
+					}
+					catch (Throwable t) {
+						lastException = t;
+						LOG.debug("RocksDB JNI library loading attempt {} failed", attempt, t);
+
+						// try to force RocksDB to attempt reloading the library
+						try {
+							resetRocksDBLoadedFlag();
+						} catch (Throwable tt) {
+							LOG.debug("Failed to reset 'initialized' flag in RocksDB native code loader", tt);
+						}
+					}
+				}
+
+				throw new Exception("Could not load the native RocksDB library", lastException);
+			}
+		}
+	}
+
+	@VisibleForTesting
+	static void resetRocksDBLoadedFlag() throws Exception {
+		final Field initField = org.rocksdb.NativeLibraryLoader.class.getDeclaredField("initialized");
+		initField.setAccessible(true);
+		initField.setBoolean(null, false);
 	}
 }

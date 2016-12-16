@@ -25,6 +25,7 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.logical.{LogicalValues, LogicalUnion, LogicalAggregate}
 import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.api.table._
+import org.apache.flink.types.Row
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetAggregate, DataSetConvention}
 
 /**

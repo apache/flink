@@ -19,9 +19,9 @@
 package org.apache.flink.api.table.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.Row
+import org.apache.flink.types.Row
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
-import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.junit.{Ignore, Test}
 
 /**
@@ -135,11 +135,13 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("CAST(2 AS DOUBLE)", "2.0")
   }
 
-  @Ignore // TODO we need a special code path that flattens ROW types
   @Test
   def testValueConstructorFunctions(): Unit = {
-    testSqlApi("ROW('hello world', 12)", "hello world") // test base only returns field 0
-    testSqlApi("('hello world', 12)", "hello world") // test base only returns field 0
+    // TODO we need a special code path that flattens ROW types
+    // testSqlApi("ROW('hello world', 12)", "hello world") // test base only returns field 0
+    // testSqlApi("('hello world', 12)", "hello world") // test base only returns field 0
+    testSqlApi("ARRAY[TRUE, FALSE][2]", "false")
+    testSqlApi("ARRAY[TRUE, TRUE]", "[true, true]")
   }
 
   @Test
@@ -155,8 +157,14 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("QUARTER(DATE '2016-04-12')", "2")
   }
 
+  @Test
+  def testArrayFunctions(): Unit = {
+    testSqlApi("CARDINALITY(ARRAY[TRUE, TRUE, FALSE])", "3")
+    testSqlApi("ELEMENT(ARRAY['HELLO WORLD'])", "HELLO WORLD")
+  }
+
   override def testData: Any = new Row(0)
 
   override def typeInfo: TypeInformation[Any] =
-    new RowTypeInfo(Seq()).asInstanceOf[TypeInformation[Any]]
+    new RowTypeInfo().asInstanceOf[TypeInformation[Any]]
 }

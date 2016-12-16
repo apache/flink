@@ -33,10 +33,12 @@ import org.apache.flink.mesos.scheduler.LaunchCoordinator;
 import org.apache.flink.mesos.scheduler.TaskMonitor;
 import org.apache.flink.mesos.scheduler.messages.*;
 import org.apache.flink.mesos.scheduler.messages.Error;
+import org.apache.flink.mesos.util.MesosArtifactResolver;
 import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.messages.*;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -79,6 +81,7 @@ public class MesosFlinkResourceManagerTest {
 
 	private static Configuration config = new Configuration() {{
 		setInteger(ConfigConstants.MESOS_MAX_FAILED_TASKS, -1);
+		setInteger(ConfigConstants.MESOS_INITIAL_TASKS, 0);
 	}};
 
 	@BeforeClass
@@ -107,12 +110,13 @@ public class MesosFlinkResourceManagerTest {
 			MesosWorkerStore workerStore,
 			LeaderRetrievalService leaderRetrievalService,
 			MesosTaskManagerParameters taskManagerParameters,
-			Protos.TaskInfo.Builder taskManagerLaunchContext,
+			ContainerSpecification taskManagerContainerSpec,
+			MesosArtifactResolver artifactResolver,
 			int maxFailedTasks,
 			int numInitialTaskManagers) {
 
 			super(flinkConfig, mesosConfig, workerStore, leaderRetrievalService, taskManagerParameters,
-				taskManagerLaunchContext, maxFailedTasks, numInitialTaskManagers);
+				taskManagerContainerSpec, artifactResolver, maxFailedTasks, numInitialTaskManagers);
 		}
 
 		@Override
@@ -141,6 +145,7 @@ public class MesosFlinkResourceManagerTest {
 		public LeaderRetrievalService retrievalService;
 		public MesosConfiguration mesosConfig;
 		public MesosWorkerStore workerStore;
+		public MesosArtifactResolver artifactResolver;
 		public SchedulerDriver schedulerDriver;
 		public TestingMesosFlinkResourceManager resourceManagerInstance;
 		public ActorGateway resourceManager;
@@ -176,6 +181,9 @@ public class MesosFlinkResourceManagerTest {
 				// worker store
 				workerStore = mock(MesosWorkerStore.class);
 				when(workerStore.getFrameworkID()).thenReturn(Option.<Protos.FrameworkID>empty());
+
+				// artifact
+				artifactResolver = mock(MesosArtifactResolver.class);
 			} catch (Exception ex) {
 				throw new RuntimeException(ex);
 			}
@@ -185,15 +193,16 @@ public class MesosFlinkResourceManagerTest {
 		 * Initialize the resource manager.
 		 */
 		public void initialize() {
+			ContainerSpecification containerSpecification = new ContainerSpecification();
 			ContaineredTaskManagerParameters containeredParams =
 				new ContaineredTaskManagerParameters(1024, 768, 256, 4, new HashMap<String, String>());
-			MesosTaskManagerParameters tmParams = new MesosTaskManagerParameters(1.0, containeredParams);
-			Protos.TaskInfo.Builder taskInfo = Protos.TaskInfo.newBuilder();
+			MesosTaskManagerParameters tmParams = new MesosTaskManagerParameters(
+				1.0, MesosTaskManagerParameters.ContainerType.MESOS, Option.<String>empty(), containeredParams);
 
 			TestActorRef<TestingMesosFlinkResourceManager> resourceManagerRef =
 				TestActorRef.create(system, MesosFlinkResourceManager.createActorProps(
 					TestingMesosFlinkResourceManager.class,
-					config, mesosConfig, workerStore, retrievalService, tmParams, taskInfo, 0, LOG));
+					config, mesosConfig, workerStore, retrievalService, tmParams, containerSpecification, artifactResolver, LOG));
 			resourceManagerInstance = resourceManagerRef.underlyingActor();
 			resourceManager = new AkkaActorGateway(resourceManagerRef, null);
 

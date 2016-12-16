@@ -101,13 +101,17 @@ object FlinkRuleSets {
     DataSetAggregateWithNullValuesRule.INSTANCE,
     DataSetCalcRule.INSTANCE,
     DataSetJoinRule.INSTANCE,
+    DataSetSingleRowJoinRule.INSTANCE,
     DataSetScanRule.INSTANCE,
     DataSetUnionRule.INSTANCE,
     DataSetIntersectRule.INSTANCE,
     DataSetMinusRule.INSTANCE,
     DataSetSortRule.INSTANCE,
     DataSetValuesRule.INSTANCE,
-    BatchTableSourceScanRule.INSTANCE
+    DataSetCorrelateRule.INSTANCE,
+    BatchTableSourceScanRule.INSTANCE,
+    // project pushdown optimization
+    PushProjectIntoBatchTableSourceScanRule.INSTANCE
   )
 
   /**
@@ -150,6 +154,7 @@ object FlinkRuleSets {
       DataStreamScanRule.INSTANCE,
       DataStreamUnionRule.INSTANCE,
       DataStreamValuesRule.INSTANCE,
+      DataStreamCorrelateRule.INSTANCE,
       StreamTableSourceScanRule.INSTANCE
   )
 

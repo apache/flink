@@ -19,11 +19,15 @@
 
 package org.apache.flink.types.parser;
 
-import static org.junit.Assert.assertTrue;
-
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 import org.junit.Test;
+
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class VarLengthStringParserTest {
 
@@ -193,5 +197,23 @@ public class VarLengthStringParserTest {
 		startPos = 12;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
 		assertTrue(startPos < 0);
+	}
+
+	@Test
+	public void testParseValidMixedStringsWithCharset() {
+
+		Charset charset = StandardCharsets.US_ASCII;
+		this.parser = new StringValueParser();
+		this.parser.enableQuotedStringParsing((byte) '@');
+
+		// check valid strings with out whitespaces and trailing delimiter
+		byte[] recBytes = "@abcde|gh@|@i@|jklmnopq|@rs@|tuv".getBytes();
+		StringValue s = new StringValue();
+
+		int startPos = 0;
+		parser.setCharset(charset);
+		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[]{'|'}, s);
+		assertEquals(11, startPos);
+		assertEquals("abcde|gh", s.getValue());
 	}
 }

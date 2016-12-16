@@ -144,7 +144,7 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 				return bytes;
 			}
 			else {
-				throw new IllegalStateException("stream has already been closed");
+				throw new IOException("stream has already been closed");
 			}
 		}
 	}

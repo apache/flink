@@ -26,7 +26,6 @@ import org.apache.flink.runtime.state.StateUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
@@ -152,7 +151,7 @@ public class CompletedCheckpoint implements Serializable {
 		}
 	}
 
-	private void discard() throws Exception {
+	void discard() throws Exception {
 		try {
 			if (externalPath != null) {
 				SavepointStore.removeSavepoint(externalPath);
@@ -164,7 +163,7 @@ public class CompletedCheckpoint implements Serializable {
 		}
 	}
 
-	public long getStateSize() throws IOException {
+	public long getStateSize() {
 		long result = 0L;
 
 		for (TaskState taskState : taskStates.values()) {

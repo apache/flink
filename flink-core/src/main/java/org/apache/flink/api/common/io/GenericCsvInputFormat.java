@@ -25,14 +25,10 @@ import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.StringParser;
 import org.apache.flink.types.parser.StringValueParser;
 import org.apache.flink.util.InstantiationUtil;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.charset.IllegalCharsetNameException;
-import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.TreeMap;
@@ -48,9 +44,6 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	
 	private static final Logger LOG = LoggerFactory.getLogger(GenericCsvInputFormat.class);
 
-	/** The default charset  to convert strings to bytes */
-	private static final Charset UTF_8_CHARSET = Charset.forName("UTF-8");
-	
 	private static final Class<?>[] EMPTY_TYPES = new Class<?>[0];
 	
 	private static final boolean[] EMPTY_INCLUDED = new boolean[0];
@@ -81,9 +74,12 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	private Class<?>[] fieldTypes = EMPTY_TYPES;
 	
 	protected boolean[] fieldIncluded = EMPTY_INCLUDED;
-		
+
+	// The byte representation of the delimiter is updated consistent with
+	// current charset.
 	private byte[] fieldDelim = DEFAULT_FIELD_DELIMITER;
-	
+	private String fieldDelimString = null;
+
 	private boolean lenient;
 	
 	private boolean skipFirstLineAsHeader;
@@ -92,7 +88,10 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
 	private byte quoteCharacter;
 
+	// The byte representation of the comment prefix is updated consistent with
+	// current charset.
 	protected byte[] commentPrefix = null;
+	private String commentPrefixString = null;
 
 
 	// --------------------------------------------------------------------------------------------
@@ -117,64 +116,43 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		return this.fieldTypes.length;
 	}
 
+	@Override
+	public void setCharset(String charset) {
+		super.setCharset(charset);
+
+		if (this.fieldDelimString != null) {
+			this.fieldDelim = fieldDelimString.getBytes(getCharset());
+		}
+
+		if (this.commentPrefixString != null) {
+			this.commentPrefix = commentPrefixString.getBytes(getCharset());
+		}
+	}
+
 	public byte[] getCommentPrefix() {
 		return commentPrefix;
 	}
 
-	public void setCommentPrefix(byte[] commentPrefix) {
-		this.commentPrefix = commentPrefix;
-	}
-
-	public void setCommentPrefix(char commentPrefix) {
-		setCommentPrefix(String.valueOf(commentPrefix));
-	}
-
 	public void setCommentPrefix(String commentPrefix) {
-		setCommentPrefix(commentPrefix, UTF_8_CHARSET);
-	}
-
-	public void setCommentPrefix(String commentPrefix, String charsetName) throws IllegalCharsetNameException, UnsupportedCharsetException {
-		if (charsetName == null) {
-			throw new IllegalArgumentException("Charset name must not be null");
-		}
-
 		if (commentPrefix != null) {
-			Charset charset = Charset.forName(charsetName);
-			setCommentPrefix(commentPrefix, charset);
+			this.commentPrefix = commentPrefix.getBytes(getCharset());
 		} else {
 			this.commentPrefix = null;
 		}
-	}
-
-	public void setCommentPrefix(String commentPrefix, Charset charset) {
-		if (charset == null) {
-			throw new IllegalArgumentException("Charset must not be null");
-		}
-		if (commentPrefix != null) {
-			this.commentPrefix = commentPrefix.getBytes(charset);
-		} else {
-			this.commentPrefix = null;
-		}
+		this.commentPrefixString = commentPrefix;
 	}
 
 	public byte[] getFieldDelimiter() {
 		return fieldDelim;
 	}
 
-	public void setFieldDelimiter(byte[] delimiter) {
+	public void setFieldDelimiter(String delimiter) {
 		if (delimiter == null) {
 			throw new IllegalArgumentException("Delimiter must not be null");
 		}
 
-		this.fieldDelim = delimiter;
-	}
-
-	public void setFieldDelimiter(char delimiter) {
-		setFieldDelimiter(String.valueOf(delimiter));
-	}
-
-	public void setFieldDelimiter(String delimiter) {
-		this.fieldDelim = delimiter.getBytes(UTF_8_CHARSET);
+		this.fieldDelim = delimiter.getBytes(getCharset());
+		this.fieldDelimString = delimiter;
 	}
 
 	public boolean isLenient() {
@@ -321,7 +299,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	@Override
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
-		
+
 		// instantiate the parsers
 		FieldParser<?>[] parsers = new FieldParser<?>[fieldTypes.length];
 		
@@ -334,6 +312,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
 				FieldParser<?> p = InstantiationUtil.instantiate(parserType, FieldParser.class);
 
+				p.setCharset(getCharset());
 				if (this.quotedStringParsing) {
 					if (p instanceof StringParser) {
 						((StringParser)p).enableQuotedStringParsing(this.quoteCharacter);
@@ -449,7 +428,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 			// search for ending quote character, continue when it is escaped
 			i++;
 
-			while (i < limit && (bytes[i] != quoteCharacter || bytes[i-1] == BACKSLASH)){
+			while (i < limit && (bytes[i] != quoteCharacter || bytes[i-1] == BACKSLASH)) {
 				i++;
 			}
 			i++;

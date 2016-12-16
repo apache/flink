@@ -90,8 +90,8 @@ public class GlobFilePathFilter extends FilePathFilter {
 			return false;
 		}
 
-		for (PathMatcher mather : includeMatchers) {
-			if (mather.matches(Paths.get(filePath.getPath()))) {
+		for (PathMatcher matcher : includeMatchers) {
+			if (matcher.matches(Paths.get(filePath.getPath()))) {
 				return shouldExclude(filePath);
 			}
 		}

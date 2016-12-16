@@ -35,7 +35,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -132,8 +131,21 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 			else if (allowLazyDeployment) {
 				// The producing task might not have registered the partition yet
 				partitionLocation = ResultPartitionLocation.createUnknown();
-			} else {
-				throw new ExecutionGraphException("Trying to eagerly schedule a task whose inputs are not ready.");
+			}
+			else if (producerState == ExecutionState.CANCELING
+						|| producerState == ExecutionState.CANCELED
+						|| producerState == ExecutionState.FAILED) {
+				String msg = "Trying to schedule a task whose inputs were canceled or failed. " +
+					"The producer is in state " + producerState + ".";
+				throw new ExecutionGraphException(msg);
+			}
+			else {
+				String msg = String.format("Trying to eagerly schedule a task whose inputs " +
+					"are not ready (partition consumable? %s, producer state: %s, producer slot: %s).",
+						consumedPartition.isConsumable(),
+						producerState,
+						producerSlot);
+				throw new ExecutionGraphException(msg);
 			}
 
 			final ResultPartitionID consumedPartitionId = new ResultPartitionID(
@@ -142,8 +154,6 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 			icdd[i] = new InputChannelDeploymentDescriptor(
 					consumedPartitionId, partitionLocation);
 		}
-
-		LOG.debug("Created {} from edges {}.", Arrays.toString(icdd), Arrays.toString(edges));
 
 		return icdd;
 	}

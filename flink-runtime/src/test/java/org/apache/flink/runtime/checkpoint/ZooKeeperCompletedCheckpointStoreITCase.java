@@ -30,7 +30,6 @@ import org.junit.Test;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
 
@@ -184,7 +183,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		}
 
 		@Override
-		public long getStateSize() throws IOException {
+		public long getStateSize() {
 			return 0;
 		}
 	}

@@ -75,6 +75,7 @@ public class GraphiteReporter extends ScheduledDropwizardReporter {
 			prot = Protocol.TCP;
 		}
 
+		log.info("Configured GraphiteReporter with {host:{}, port:{}, protocol:{}}", host, port, prot);
 		switch(prot) {
 			case UDP:
 				return builder.build(new GraphiteUDP(host, port));				

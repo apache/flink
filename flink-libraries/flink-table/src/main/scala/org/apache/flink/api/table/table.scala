@@ -20,9 +20,9 @@ package org.apache.flink.api.table
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.api.table.expressions.{Asc, Expression, ExpressionParser, Ordering}
+import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.plan.ProjectionTranslator._
-import org.apache.flink.api.table.plan.logical._
+import org.apache.flink.api.table.plan.logical.{Minus, _}
 import org.apache.flink.api.table.sinks.TableSink
 
 import scala.collection.JavaConverters._
@@ -76,21 +76,27 @@ class Table(
     * }}}
     */
   def select(fields: Expression*): Table = {
-
     val expandedFields = expandProjectList(fields, logicalPlan, tableEnv)
-    val (projection, aggs, props) = extractAggregationsAndProperties(expandedFields, tableEnv)
-
-    if (props.nonEmpty) {
+    val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, tableEnv)
+    if (propNames.nonEmpty) {
       throw ValidationException("Window properties can only be used on windowed tables.")
     }
 
-    if (aggs.nonEmpty) {
+    if (aggNames.nonEmpty) {
+      val projectsOnAgg = replaceAggregationsAndProperties(
+        expandedFields, tableEnv, aggNames, propNames)
+      val projectFields = extractFieldReferences(expandedFields)
+
       new Table(tableEnv,
-        Project(projection,
-          Aggregate(Nil, aggs, logicalPlan).validate(tableEnv)).validate(tableEnv))
+        Project(projectsOnAgg,
+          Aggregate(Nil, aggNames.map(a => Alias(a._1, a._2)).toSeq,
+            Project(projectFields, logicalPlan).validate(tableEnv)
+          ).validate(tableEnv)
+        ).validate(tableEnv)
+      )
     } else {
       new Table(tableEnv,
-        Project(projection, logicalPlan).validate(tableEnv))
+        Project(expandedFields.map(UnresolvedAlias), logicalPlan).validate(tableEnv))
     }
   }
 
@@ -400,7 +406,8 @@ class Table(
     }
     new Table(
       tableEnv,
-      Join(this.logicalPlan, right.logicalPlan, joinType, joinPredicate).validate(tableEnv))
+      Join(this.logicalPlan, right.logicalPlan, joinType, joinPredicate, correlated = false)
+        .validate(tableEnv))
   }
 
   /**
@@ -609,6 +616,136 @@ class Table(
   }
 
   /**
+    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
+    * to an SQL cross join, but it works with a table function. It returns rows from the outer
+    * table (table on the left of the operator) that produces matching values from the table
+    * function (which is defined in the expression on the right side of the operator).
+    *
+    * Example:
+    *
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.join(split('c) as ('s)).select('a,'b,'c,'s)
+    * }}}
+    */
+  def join(udtf: Expression): Table = {
+    joinUdtfInternal(udtf, JoinType.INNER)
+  }
+
+  /**
+    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
+    * to an SQL cross join, but it works with a table function. It returns rows from the outer
+    * table (table on the left of the operator) that produces matching values from the table
+    * function (which is defined in the expression on the right side of the operator).
+    *
+    * Example:
+    *
+    * {{{
+    *   class MySplitUDTF extends TableFunction<String> {
+    *     public void eval(String str) {
+    *       str.split("#").forEach(this::collect);
+    *     }
+    *   }
+    *
+    *   TableFunction<String> split = new MySplitUDTF();
+    *   tableEnv.registerFunction("split", split);
+    *
+    *   table.join("split(c) as (s)").select("a, b, c, s");
+    * }}}
+    */
+  def join(udtf: String): Table = {
+    joinUdtfInternal(udtf, JoinType.INNER)
+  }
+
+  /**
+    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
+    * to an SQL left outer join with ON TRUE, but it works with a table function. It returns all
+    * the rows from the outer table (table on the left of the operator), and rows that do not match
+    * the condition from the table function (which is defined in the expression on the right
+    * side of the operator). Rows with no matching condition are filled with null values.
+    *
+    * Example:
+    *
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.leftOuterJoin(split('c) as ('s)).select('a,'b,'c,'s)
+    * }}}
+    */
+  def leftOuterJoin(udtf: Expression): Table = {
+    joinUdtfInternal(udtf, JoinType.LEFT_OUTER)
+  }
+
+  /**
+    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
+    * to an SQL left outer join with ON TRUE, but it works with a table function. It returns all
+    * the rows from the outer table (table on the left of the operator), and rows that do not match
+    * the condition from the table function (which is defined in the expression on the right
+    * side of the operator). Rows with no matching condition are filled with null values.
+    *
+    * Example:
+    *
+    * {{{
+    *   class MySplitUDTF extends TableFunction<String> {
+    *     public void eval(String str) {
+    *       str.split("#").forEach(this::collect);
+    *     }
+    *   }
+    *
+    *   TableFunction<String> split = new MySplitUDTF();
+    *   tableEnv.registerFunction("split", split);
+    *
+    *   table.leftOuterJoin("split(c) as (s)").select("a, b, c, s");
+    * }}}
+    */
+  def leftOuterJoin(udtf: String): Table = {
+    joinUdtfInternal(udtf, JoinType.LEFT_OUTER)
+  }
+
+  private def joinUdtfInternal(udtfString: String, joinType: JoinType): Table = {
+    val udtf = ExpressionParser.parseExpression(udtfString)
+    joinUdtfInternal(udtf, joinType)
+  }
+
+  private def joinUdtfInternal(udtf: Expression, joinType: JoinType): Table = {
+    var alias: Option[Seq[String]] = None
+
+    // unwrap an Expression until we get a TableFunctionCall
+    def unwrap(expr: Expression): TableFunctionCall = expr match {
+      case Alias(child, name, extraNames) =>
+        alias = Some(Seq(name) ++ extraNames)
+        unwrap(child)
+      case Call(name, args) =>
+        val function = tableEnv.getFunctionCatalog.lookupFunction(name, args)
+        unwrap(function)
+      case c: TableFunctionCall => c
+      case _ =>
+        throw new TableException(
+          "Cross/Outer Apply operators only accept expressions that define table functions.")
+    }
+
+    val call = unwrap(udtf)
+      .as(alias)
+      .toLogicalTableFunctionCall(this.logicalPlan)
+      .validate(tableEnv)
+
+    new Table(
+      tableEnv,
+      Join(this.logicalPlan, call, joinType, None, correlated = true).validate(tableEnv))
+  }
+
+  /**
     * Writes the [[Table]] to a [[TableSink]]. A [[TableSink]] defines an external storage location.
     *
     * A batch [[Table]] can only be written to a
@@ -674,24 +811,21 @@ class GroupedTable(
     * }}}
     */
   def select(fields: Expression*): Table = {
-
-    val (projection, aggs, props) = extractAggregationsAndProperties(fields, table.tableEnv)
-
-    if (props.nonEmpty) {
+    val (aggNames, propNames) = extractAggregationsAndProperties(fields, table.tableEnv)
+    if (propNames.nonEmpty) {
       throw ValidationException("Window properties can only be used on windowed tables.")
     }
 
-    val logical =
-      Project(
-        projection,
-        Aggregate(
-          groupKey,
-          aggs,
-          table.logicalPlan
-        ).validate(table.tableEnv)
-      ).validate(table.tableEnv)
+    val projectsOnAgg = replaceAggregationsAndProperties(
+      fields, table.tableEnv, aggNames, propNames)
+    val projectFields = extractFieldReferences(fields ++ groupKey)
 
-    new Table(table.tableEnv, logical)
+    new Table(table.tableEnv,
+      Project(projectsOnAgg,
+        Aggregate(groupKey, aggNames.map(a => Alias(a._1, a._2)).toSeq,
+          Project(projectFields, table.logicalPlan).validate(table.tableEnv)
+        ).validate(table.tableEnv)
+      ).validate(table.tableEnv))
   }
 
   /**
@@ -745,24 +879,29 @@ class GroupWindowedTable(
     * }}}
     */
   def select(fields: Expression*): Table = {
+    val (aggNames, propNames) = extractAggregationsAndProperties(fields, table.tableEnv)
+    val projectsOnAgg = replaceAggregationsAndProperties(
+      fields, table.tableEnv, aggNames, propNames)
 
-    val (projection, aggs, props) = extractAggregationsAndProperties(fields, table.tableEnv)
+    val projectFields = (table.tableEnv, window) match {
+      // event time can be arbitrary field in batch environment
+      case (_: BatchTableEnvironment, w: EventTimeWindow) =>
+        extractFieldReferences(fields ++ groupKey ++ Seq(w.timeField))
+      case (_, _) =>
+        extractFieldReferences(fields ++ groupKey)
+    }
 
-    val groupWindow = window.toLogicalWindow
-
-    val logical =
+    new Table(table.tableEnv,
       Project(
-        projection,
+        projectsOnAgg,
         WindowAggregate(
           groupKey,
-          groupWindow,
-          props,
-          aggs,
-          table.logicalPlan
+          window.toLogicalWindow,
+          propNames.map(a => Alias(a._1, a._2)).toSeq,
+          aggNames.map(a => Alias(a._1, a._2)).toSeq,
+          Project(projectFields, table.logicalPlan).validate(table.tableEnv)
         ).validate(table.tableEnv)
-      ).validate(table.tableEnv)
-
-    new Table(table.tableEnv, logical)
+      ).validate(table.tableEnv))
   }
 
   /**

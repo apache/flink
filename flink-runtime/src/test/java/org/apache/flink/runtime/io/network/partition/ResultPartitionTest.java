@@ -86,7 +86,6 @@ public class ResultPartitionTest {
 			mock(ResultPartitionManager.class),
 			notifier,
 			mock(IOManager.class),
-			IOManager.IOMode.SYNC,
 			sendScheduleOrUpdateConsumersMessage);
 	}
 }

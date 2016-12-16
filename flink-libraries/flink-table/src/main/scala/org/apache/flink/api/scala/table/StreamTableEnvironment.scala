@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.table
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.functions.TableFunction
 import org.apache.flink.api.table.{TableConfig, Table}
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment, DataStream}
@@ -130,7 +131,7 @@ class StreamTableEnvironment(
     * Converts the given [[Table]] into a [[DataStream]] of a specified type.
     *
     * The fields of the [[Table]] are mapped to [[DataStream]] fields as follows:
-    * - [[org.apache.flink.api.table.Row]] and [[org.apache.flink.api.java.tuple.Tuple]]
+    * - [[org.apache.flink.types.Row]] and [[org.apache.flink.api.java.tuple.Tuple]]
     * types: Fields are mapped by position, field types must match.
     * - POJO [[DataStream]] types: Fields are mapped by field name, field types must match.
     *
@@ -142,4 +143,14 @@ class StreamTableEnvironment(
     asScalaStream(translate(table))
   }
 
+  /**
+    * Registers a [[TableFunction]] under a unique name in the TableEnvironment's catalog.
+    * Registered functions can be referenced in SQL queries.
+    *
+    * @param name The name under which the function is registered.
+    * @param tf The TableFunction to register
+    */
+  def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
+    registerTableFunctionInternal(name, tf)
+  }
 }

@@ -29,6 +29,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.lang.reflect.Field;
+import java.util.Map;
 
 import static org.junit.Assert.fail;
 
@@ -112,6 +114,43 @@ public class CommonTestUtils {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail("Cannot determine Java version: " + e.getMessage());
+		}
+	}
+
+	public static void setEnv(Map<String, String> newenv) {
+		setEnv(newenv, true);
+	}
+
+	// This code is taken slightly modified from: http://stackoverflow.com/a/7201825/568695
+	// it changes the environment variables of this JVM. Use only for testing purposes!
+	@SuppressWarnings("unchecked")
+	public static void setEnv(Map<String, String> newenv, boolean clearExisting) {
+		try {
+			Map<String, String> env = System.getenv();
+			Class<?> clazz = env.getClass();
+			Field field = clazz.getDeclaredField("m");
+			field.setAccessible(true);
+			Map<String, String> map = (Map<String, String>) field.get(env);
+			if (clearExisting) {
+				map.clear();
+			}
+			map.putAll(newenv);
+
+			// only for Windows
+			Class<?> processEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
+			try {
+				Field theCaseInsensitiveEnvironmentField =
+					processEnvironmentClass.getDeclaredField("theCaseInsensitiveEnvironment");
+				theCaseInsensitiveEnvironmentField.setAccessible(true);
+				Map<String, String> cienv = (Map<String, String>) theCaseInsensitiveEnvironmentField.get(null);
+				if (clearExisting) {
+					cienv.clear();
+				}
+				cienv.putAll(newenv);
+			} catch (NoSuchFieldException ignored) {}
+
+		} catch (Exception e1) {
+			throw new RuntimeException(e1);
 		}
 	}
 }

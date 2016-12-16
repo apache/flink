@@ -29,33 +29,19 @@ object ProjectionTranslator {
 
   /**
     * Extracts and deduplicates all aggregation and window property expressions (zero, one, or more)
-    * from all expressions and replaces the original expressions by field accesses expressions.
+    * from the given expressions.
     *
-    * @param exprs a list of expressions to convert
+    * @param exprs    a list of expressions to extract
     * @param tableEnv the TableEnvironment
-    * @return a Tuple3, the first field contains the converted expressions, the second field the
-    *         extracted and deduplicated aggregations, and the third field the extracted and
-    *         deduplicated window properties.
+    * @return a Tuple2, the first field contains the extracted and deduplicated aggregations,
+    *         and the second field contains the extracted and deduplicated window properties.
     */
   def extractAggregationsAndProperties(
       exprs: Seq[Expression],
-      tableEnv: TableEnvironment)
-  : (Seq[NamedExpression], Seq[NamedExpression], Seq[NamedExpression]) = {
-
-    val (aggNames, propNames) =
-      exprs.foldLeft( (Map[Expression, String](), Map[Expression, String]()) ) {
-        (x, y) => identifyAggregationsAndProperties(y, tableEnv, x._1, x._2)
-      }
-
-    val replaced = exprs
-      .map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
-      .map {
-        case e: Expression => UnresolvedAlias(e)
-      }
-    val aggs = aggNames.map( a => Alias(a._1, a._2)).toSeq
-    val props = propNames.map( p => Alias(p._1, p._2)).toSeq
-
-    (replaced, aggs, props)
+      tableEnv: TableEnvironment): (Map[Expression, String], Map[Expression, String]) = {
+    exprs.foldLeft((Map[Expression, String](), Map[Expression, String]())) {
+      (x, y) => identifyAggregationsAndProperties(y, tableEnv, x._1, x._2)
+    }
   }
 
   /** Identifies and deduplicates aggregation functions and window properties. */
@@ -108,7 +94,24 @@ object ProjectionTranslator {
     }
   }
 
-  /** Replaces aggregations and projections by named field references. */
+  /**
+    * Replaces expressions with deduplicated aggregations and properties.
+    *
+    * @param exprs     a list of expressions to replace
+    * @param tableEnv  the TableEnvironment
+    * @param aggNames  the deduplicated aggregations
+    * @param propNames the deduplicated properties
+    * @return a list of replaced expressions
+    */
+  def replaceAggregationsAndProperties(
+      exprs: Seq[Expression],
+      tableEnv: TableEnvironment,
+      aggNames: Map[Expression, String],
+      propNames: Map[Expression, String]): Seq[NamedExpression] = {
+    exprs.map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
+        .map(UnresolvedAlias)
+  }
+
   private def replaceAggregationsAndProperties(
       exp: Expression,
       tableEnv: TableEnvironment,
@@ -122,10 +125,10 @@ object ProjectionTranslator {
       case prop: WindowProperty =>
         val name = propNames(prop)
         Alias(UnresolvedFieldReference(name), tableEnv.createUniqueAttributeName())
-      case n @ Alias(agg: Aggregation, name) =>
+      case n @ Alias(agg: Aggregation, name, _) =>
         val aName = aggNames(agg)
         Alias(UnresolvedFieldReference(aName), name)
-      case n @ Alias(prop: WindowProperty, name) =>
+      case n @ Alias(prop: WindowProperty, name, _) =>
         val pName = propNames(prop)
         Alias(UnresolvedFieldReference(pName), name)
       case l: LeafExpression => l
@@ -145,7 +148,13 @@ object ProjectionTranslator {
       case sfc @ ScalarFunctionCall(clazz, args) =>
         val newArgs: Seq[Expression] = args
           .map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
-        sfc.makeCopy(Array(clazz,newArgs))
+        sfc.makeCopy(Array(clazz, newArgs))
+
+      // array constructor
+      case c @ ArrayConstructor(args) =>
+        val newArgs = c.elements
+          .map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
+        c.makeCopy(Array(newArgs))
 
       // General expression
       case e: Expression =>
@@ -193,4 +202,62 @@ object ProjectionTranslator {
     }
     projectList
   }
+
+  /**
+    * Extract all field references from the given expressions.
+    *
+    * @param exprs a list of expressions to extract
+    * @return a list of field references extracted from the given expressions
+    */
+  def extractFieldReferences(exprs: Seq[Expression]): Seq[NamedExpression] = {
+    exprs.foldLeft(Set[NamedExpression]()) {
+      (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
+    }.toSeq
+  }
+
+  private def identifyFieldReferences(
+      expr: Expression,
+      fieldReferences: Set[NamedExpression]): Set[NamedExpression] = expr match {
+
+    case f: UnresolvedFieldReference =>
+      fieldReferences + UnresolvedAlias(f)
+
+    case b: BinaryExpression =>
+      val l = identifyFieldReferences(b.left, fieldReferences)
+      identifyFieldReferences(b.right, l)
+
+    // Functions calls
+    case c @ Call(name, args) =>
+      args.foldLeft(fieldReferences) {
+        (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
+      }
+    case sfc @ ScalarFunctionCall(clazz, args) =>
+      args.foldLeft(fieldReferences) {
+        (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
+      }
+
+    // array constructor
+    case c @ ArrayConstructor(args) =>
+      args.foldLeft(fieldReferences) {
+        (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
+      }
+
+    // ignore fields from window property
+    case w : WindowProperty =>
+      fieldReferences
+
+    // keep this case after all unwanted unary expressions
+    case u: UnaryExpression =>
+      identifyFieldReferences(u.child, fieldReferences)
+
+    // General expression
+    case e: Expression =>
+      e.productIterator.foldLeft(fieldReferences) {
+        (fieldReferences, expr) => expr match {
+          case e: Expression => identifyFieldReferences(e, fieldReferences)
+          case _ => fieldReferences
+        }
+      }
+  }
+
 }

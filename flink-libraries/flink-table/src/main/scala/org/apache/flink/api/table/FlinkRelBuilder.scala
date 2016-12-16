@@ -79,7 +79,7 @@ object FlinkRelBuilder {
     val typeFactory = new FlinkTypeFactory(typeSystem)
 
     // create context instances with Flink type factory
-    val planner = new VolcanoPlanner(Contexts.empty())
+    val planner = new VolcanoPlanner(config.getCostFactory, Contexts.empty())
     planner.setExecutor(config.getExecutor)
     planner.addRelTraitDef(ConventionTraitDef.INSTANCE)
     val cluster = RelOptCluster.create(planner, new RexBuilder(typeFactory))

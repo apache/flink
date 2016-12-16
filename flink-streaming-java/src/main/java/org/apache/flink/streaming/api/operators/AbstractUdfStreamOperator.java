@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Migration;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -106,15 +107,17 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 		} else if (userFunction instanceof ListCheckpointed) {
 			@SuppressWarnings("unchecked")
 			List<Serializable> partitionableState = ((ListCheckpointed<Serializable>) userFunction).
-							snapshotState(context.getCheckpointId(), context.getCheckpointTimestamp());
+					snapshotState(context.getCheckpointId(), context.getCheckpointTimestamp());
 
 			ListState<Serializable> listState = getOperatorStateBackend().
 					getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
 
 			listState.clear();
 
-			for (Serializable statePartition : partitionableState) {
-				listState.add(statePartition);
+			if (null != partitionableState) {
+				for (Serializable statePartition : partitionableState) {
+					listState.add(statePartition);
+				}
 			}
 		}
 
@@ -192,6 +195,8 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 			} catch (Exception e) {
 				throw new Exception("Failed to draw state snapshot from function: " + e.getMessage(), e);
 			}
+		} else if (userFunction instanceof CheckpointedRestoring) {
+			out.write(0);
 		}
 	}
 
@@ -212,6 +217,11 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 						throw new Exception("Failed to restore state to function: " + e.getMessage(), e);
 					}
 				}
+			}
+		} else if (in instanceof Migration) {
+			int hasUdfState = in.read();
+			if (hasUdfState == 1) {
+				throw new Exception("Found UDF state but operator is not instance of CheckpointedRestoring");
 			}
 		}
 	}

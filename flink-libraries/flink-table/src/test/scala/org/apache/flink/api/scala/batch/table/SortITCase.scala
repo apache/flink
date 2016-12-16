@@ -24,7 +24,8 @@ import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigM
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
-import org.apache.flink.api.table.{Row, TableEnvironment, ValidationException}
+import org.apache.flink.api.table.{TableEnvironment, ValidationException}
+import org.apache.flink.types.Row
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
@@ -53,12 +54,15 @@ class SortITCase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val t = ds.toTable(tEnv).orderBy('_1.desc)
     implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
-      - x.productElement(0).asInstanceOf[Int])
+      - x.productElement(0).asInstanceOf[Int] )
 
     val expected = sortExpectedly(tupleDataSetStrings)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results
+      .filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -71,12 +75,15 @@ class SortITCase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val t = ds.toTable(tEnv).orderBy('_1.asc)
     implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
-      x.productElement(0).asInstanceOf[Int])
+      x.productElement(0).asInstanceOf[Int] )
 
     val expected = sortExpectedly(tupleDataSetStrings)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results
+      .filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -87,14 +94,17 @@ class SortITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val t = ds.toTable(tEnv).orderBy('_1.asc, '_2.desc)
+    val t = ds.toTable(tEnv).orderBy('_2.asc, '_1.desc)
     implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
-      (x.productElement(0).asInstanceOf[Int], - x.productElement(1).asInstanceOf[Long]))
+      (x.productElement(1).asInstanceOf[Long], - x.productElement(0).asInstanceOf[Int]) )
 
     val expected = sortExpectedly(tupleDataSetStrings)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results
+      .filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -107,12 +117,15 @@ class SortITCase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val t = ds.toTable(tEnv).orderBy('_1.asc).limit(3)
     implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
-      x.productElement(0).asInstanceOf[Int])
+      x.productElement(0).asInstanceOf[Int] )
 
     val expected = sortExpectedly(tupleDataSetStrings, 3, 21)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results
+      .filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -123,14 +136,17 @@ class SortITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val t = ds.toTable(tEnv).orderBy('_1.asc).limit(3, 5)
+    val t = ds.toTable(tEnv).orderBy('_1.desc).limit(3, 5)
     implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
-      x.productElement(0).asInstanceOf[Int])
+      - x.productElement(0).asInstanceOf[Int] )
 
     val expected = sortExpectedly(tupleDataSetStrings, 3, 8)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results
+      .filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -143,12 +159,15 @@ class SortITCase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val t = ds.toTable(tEnv).orderBy('_1.asc).limit(0, 5)
     implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
-      x.productElement(0).asInstanceOf[Int])
+      x.productElement(0).asInstanceOf[Int] )
 
     val expected = sortExpectedly(tupleDataSetStrings, 0, 5)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results
+      .filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }

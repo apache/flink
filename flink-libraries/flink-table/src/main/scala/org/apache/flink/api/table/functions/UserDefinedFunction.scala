@@ -15,14 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.table.functions
-
-import org.apache.calcite.sql.SqlFunction
-import org.apache.flink.api.table.FlinkTypeFactory
-import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils.checkForInstantiation
-
-import scala.collection.mutable
 
 /**
   * Base class for all user-defined functions such as scalar functions, table functions,
@@ -30,32 +23,5 @@ import scala.collection.mutable
   *
   * User-defined functions must have a default constructor and must be instantiable during runtime.
   */
-abstract class UserDefinedFunction {
-
-  // we cache SQL functions to reduce amount of created objects
-  // (i.e. for type inference, validation, etc.)
-  private val cachedSqlFunctions = mutable.HashMap[String, SqlFunction]()
-
-  // check if function can be instantiated
-  checkForInstantiation(this.getClass)
-
-  /**
-    * Returns the corresponding [[SqlFunction]]. Creates an instance if not already created.
-    */
-  private[flink] final def getSqlFunction(
-      name: String,
-      typeFactory: FlinkTypeFactory)
-    : SqlFunction = {
-    cachedSqlFunctions.getOrElseUpdate(name, createSqlFunction(name, typeFactory))
-  }
-
-  /**
-    * Creates corresponding [[SqlFunction]].
-    */
-  private[flink] def createSqlFunction(
-      name: String,
-      typeFactory: FlinkTypeFactory)
-    : SqlFunction
-
-  override def toString = getClass.getCanonicalName
+trait UserDefinedFunction {
 }

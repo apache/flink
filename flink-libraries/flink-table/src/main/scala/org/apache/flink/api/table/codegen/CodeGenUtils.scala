@@ -28,7 +28,8 @@ import org.apache.flink.api.common.typeinfo.{FractionalTypeInfo, SqlTimeTypeInfo
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.table.typeutils.{TimeIntervalTypeInfo, RowTypeInfo, TypeCheckUtils}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.table.typeutils.{TimeIntervalTypeInfo, TypeCheckUtils}
 
 object CodeGenUtils {
 
@@ -155,7 +156,6 @@ object CodeGenUtils {
   def enumValueOf[T <: Enum[T]](cls: Class[_], stringValue: String): Enum[_] =
     Enum.valueOf(cls.asInstanceOf[Class[T]], stringValue).asInstanceOf[Enum[_]]
 
-
   // ----------------------------------------------------------------------------------------------
 
   def requireNumeric(genExpr: GeneratedExpression) =
@@ -187,6 +187,16 @@ object CodeGenUtils {
   def requireTimeInterval(genExpr: GeneratedExpression) =
     if (!TypeCheckUtils.isTimeInterval(genExpr.resultType)) {
       throw new CodeGenException("Interval expression type expected.")
+    }
+
+  def requireArray(genExpr: GeneratedExpression) =
+    if (!TypeCheckUtils.isArray(genExpr.resultType)) {
+      throw new CodeGenException("Array expression type expected.")
+    }
+
+  def requireInteger(genExpr: GeneratedExpression) =
+    if (!TypeCheckUtils.isInteger(genExpr.resultType)) {
+      throw new CodeGenException("Integer expression type expected.")
     }
 
   // ----------------------------------------------------------------------------------------------

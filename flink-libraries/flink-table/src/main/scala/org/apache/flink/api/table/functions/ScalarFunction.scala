@@ -18,15 +18,11 @@
 
 package org.apache.flink.api.table.functions
 
-import java.lang.reflect.{Method, Modifier}
-
-import org.apache.calcite.sql.SqlFunction
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.api.table.ValidationException
 import org.apache.flink.api.table.expressions.{Expression, ScalarFunctionCall}
-import org.apache.flink.api.table.functions.utils.ScalarSqlFunction
-import org.apache.flink.api.table.{FlinkTypeFactory, ValidationException}
 
 /**
   * Base class for a user-defined scalar function. A user-defined scalar functions maps zero, one,
@@ -60,47 +56,7 @@ abstract class ScalarFunction extends UserDefinedFunction {
     ScalarFunctionCall(this, params)
   }
 
-  // ----------------------------------------------------------------------------------------------
-
-  private val evalMethods = checkAndExtractEvalMethods()
-  private lazy val signatures = evalMethods.map(_.getParameterTypes)
-
-  /**
-    * Extracts evaluation methods and throws a [[ValidationException]] if no implementation
-    * can be found.
-    */
-  private def checkAndExtractEvalMethods(): Array[Method] = {
-    val methods = getClass.asSubclass(classOf[ScalarFunction])
-      .getDeclaredMethods
-      .filter { m =>
-        val modifiers = m.getModifiers
-        m.getName == "eval" && Modifier.isPublic(modifiers) && !Modifier.isAbstract(modifiers)
-      }
-
-    if (methods.isEmpty) {
-      throw new ValidationException(s"Scalar function class '$this' does not implement at least " +
-        s"one method named 'eval' which is public and not abstract.")
-    } else {
-      methods
-    }
-  }
-
-  /**
-    * Returns all found evaluation methods of the possibly overloaded function.
-    */
-  private[flink] final def getEvalMethods: Array[Method] = evalMethods
-
-  /**
-    * Returns all found signature of the possibly overloaded function.
-    */
-  private[flink] final def getSignatures: Array[Array[Class[_]]] = signatures
-
-  override private[flink] final def createSqlFunction(
-      name: String,
-      typeFactory: FlinkTypeFactory)
-    : SqlFunction = {
-    new ScalarSqlFunction(name, this, typeFactory)
-  }
+  override def toString: String = getClass.getCanonicalName
 
   // ----------------------------------------------------------------------------------------------
 
@@ -135,7 +91,8 @@ abstract class ScalarFunction extends UserDefinedFunction {
         TypeExtractor.getForClass(c)
       } catch {
         case ite: InvalidTypesException =>
-          throw new ValidationException(s"Parameter types of scalar function '$this' cannot be " +
+          throw new ValidationException(
+            s"Parameter types of scalar function '${this.getClass.getCanonicalName}' cannot be " +
             s"automatically determined. Please provide type information manually.")
       }
     }

@@ -88,12 +88,17 @@ class DataSetJoin(
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
 
-    val children = this.getInputs
-    children.foldLeft(planner.getCostFactory.makeCost(0, 0, 0)) { (cost, child) =>
-      val rowCnt = metadata.getRowCount(child)
-      val rowSize = this.estimateRowSize(child.getRowType)
-      cost.plus(planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize))
-    }
+    val leftRowCnt = metadata.getRowCount(getLeft)
+    val leftRowSize = estimateRowSize(getLeft.getRowType)
+
+    val rightRowCnt = metadata.getRowCount(getRight)
+    val rightRowSize = estimateRowSize(getRight.getRowType)
+
+    val ioCost = (leftRowCnt * leftRowSize) + (rightRowCnt * rightRowSize)
+    val cpuCost = leftRowCnt + rightRowCnt
+    val rowCnt = leftRowCnt + rightRowCnt
+
+    planner.getCostFactory.makeCost(rowCnt, cpuCost, ioCost)
   }
 
   override def translateToPlan(

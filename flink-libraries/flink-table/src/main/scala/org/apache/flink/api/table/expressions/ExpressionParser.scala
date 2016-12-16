@@ -48,6 +48,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // Keyword
 
+  lazy val ARRAY: Keyword = Keyword("Array")
   lazy val AS: Keyword = Keyword("as")
   lazy val COUNT: Keyword = Keyword("count")
   lazy val AVG: Keyword = Keyword("avg")
@@ -88,7 +89,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val FLATTEN: Keyword = Keyword("flatten")
 
   def functionIdent: ExpressionParser.Parser[String] =
-    not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
+    not(ARRAY) ~ not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
       not(SUM) ~ not(START) ~ not(END)~ not(CAST) ~ not(NULL) ~
       not(IF) ~> super.ident
 
@@ -204,8 +205,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val suffixAs: PackratParser[Expression] =
-    composite ~ "." ~ AS ~ "(" ~ fieldReference ~ ")" ^^ {
-    case e ~ _ ~ _ ~ _ ~ target ~ _ => Alias(e, target.name)
+    composite ~ "." ~ AS ~ "(" ~ rep1sep(fieldReference, ",") ~ ")" ^^ {
+    case e ~ _ ~ _ ~ _ ~ target ~ _ => Alias(e, target.head.name, target.tail.map(_.name))
   }
 
   lazy val suffixTrim = composite ~ "." ~ TRIM ~ "(" ~ trimMode ~ "," ~ expression ~ ")" ^^ {
@@ -298,6 +299,9 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // prefix operators
 
+  lazy val prefixArray: PackratParser[Expression] =
+    ARRAY ~ "(" ~> repsep(expression, ",") <~ ")" ^^ { elements => ArrayConstructor(elements) }
+
   lazy val prefixSum: PackratParser[Expression] =
     SUM ~ "(" ~> expression <~ ")" ^^ { e => Sum(e) }
 
@@ -325,8 +329,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val prefixAs: PackratParser[Expression] =
-    AS ~ "(" ~ expression ~ "," ~ fieldReference ~ ")" ^^ {
-    case _ ~ _ ~ e ~ _ ~ target ~ _ => Alias(e, target.name)
+    AS ~ "(" ~ expression ~ "," ~ rep1sep(fieldReference, ",") ~ ")" ^^ {
+    case _ ~ _ ~ e ~ _ ~ target ~ _ => Alias(e, target.head.name, target.tail.map(_.name))
   }
 
   lazy val prefixIf: PackratParser[Expression] =
@@ -372,7 +376,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     FLATTEN ~ "(" ~> composite <~ ")" ^^ { e => Flattening(e) }
 
   lazy val prefixed: PackratParser[Expression] =
-    prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg | prefixStart | prefixEnd |
+    prefixArray | prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg |
+      prefixStart | prefixEnd |
       prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs | prefixIf | prefixExtract |
       prefixFloor | prefixCeil | prefixGet | prefixFlattening |
       prefixFunctionCall | prefixFunctionCallOneArg // function call must always be at the end
@@ -447,7 +452,9 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val alias: PackratParser[Expression] = logic ~ AS ~ fieldReference ^^ {
       case e ~ _ ~ name => Alias(e, name.name)
-    } | logic
+  } | logic ~ AS ~ "(" ~ rep1sep(fieldReference, ",") ~ ")" ^^ {
+    case e ~ _ ~ _ ~ names ~ _ => Alias(e, names.head.name, names.tail.map(_.name))
+  } | logic
 
   lazy val expression: PackratParser[Expression] = alias |
     failure("Invalid expression.")

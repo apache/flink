@@ -30,8 +30,11 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
 
@@ -225,8 +228,45 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 	public RetrievableStateHandle<T> get(String pathInZooKeeper) throws Exception {
 		checkNotNull(pathInZooKeeper, "Path in ZooKeeper");
 
-		byte[] data = client.getData().forPath(pathInZooKeeper);
-		return InstantiationUtil.deserializeObject(data, Thread.currentThread().getContextClassLoader());
+		byte[] data;
+
+		try {
+			data = client.getData().forPath(pathInZooKeeper);
+		} catch (Exception e) {
+			throw new Exception("Failed to retrieve state handle data under " + pathInZooKeeper +
+				" from ZooKeeper.", e);
+		}
+
+		try {
+			return InstantiationUtil.deserializeObject(data, Thread.currentThread().getContextClassLoader());
+		} catch (IOException | ClassNotFoundException e) {
+			throw new Exception("Failed to deserialize state handle from ZooKeeper data from " +
+				pathInZooKeeper + '.', e);
+		}
+	}
+
+	/**
+	 * Return a list of all valid paths for state handles.
+	 *
+	 * @return List of valid state handle paths in ZooKeeper
+	 * @throws Exception if a ZooKeeper operation fails
+	 */
+	public Collection<String> getAllPaths() throws Exception {
+		final String path = "/";
+
+		while(true) {
+			Stat stat = client.checkExists().forPath(path);
+
+			if (stat == null) {
+				return Collections.emptyList();
+			} else {
+				try {
+					return client.getChildren().forPath(path);
+				} catch (KeeperException.NoNodeException ignored) {
+					// Concurrent deletion, retry
+				}
+			}
+		}
 	}
 
 	/**

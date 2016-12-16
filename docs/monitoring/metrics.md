@@ -316,6 +316,16 @@ range is specified the actual port is shown in the relevant job or task manager 
 specify a port no extra JMX server will be started. Metrics are still available on the default
 local JMX interface.
 
+Example configuration:
+
+{% highlight yaml %}
+
+metrics.reporters: jmx
+metrics.reporter.jmx.class: org.apache.flink.metrics.jmx.JMXReporter
+metrics.reporter.jmx.port: 8789
+
+{% endhighlight %}
+
 ### Ganglia (org.apache.flink.metrics.ganglia.GangliaReporter)
 Dependency:
 {% highlight xml %}
@@ -335,6 +345,21 @@ Parameters:
 - `ttl` - time-to-live for transmitted UDP packets
 - `addressingMode` - UDP addressing mode to use (UNICAST/MULTICAST)
 
+Example configuration:
+
+{% highlight yaml %}
+
+metrics.reporters: gang
+metrics.reporter.gang.class: org.apache.flink.metrics.ganglia.GangliaReporter
+metrics.reporter.gang.host: localhost
+metrics.reporter.gang.port: 8649
+metrics.reporter.gang.tmax: 60
+metrics.reporter.gang.dmax: 0
+metrics.reporter.gang.ttl: 1
+metrics.reporter.gang.addressingMode: MULTICAST
+
+{% endhighlight %}
+
 ### Graphite (org.apache.flink.metrics.graphite.GraphiteReporter)
 Dependency:
 {% highlight xml %}
@@ -351,6 +376,18 @@ Parameters:
 - `port` - the Graphite server port
 - `protocol` - protocol to use (TCP/UDP)
 
+Example configuration:
+
+{% highlight yaml %}
+
+metrics.reporters: grph
+metrics.reporter.grph.class: org.apache.flink.metrics.graphite.GraphiteReporter
+metrics.reporter.grph.host: localhost
+metrics.reporter.grph.port: 2003
+metrics.reporter.grph.protocol: TCP
+
+{% endhighlight %}
+
 ### StatsD (org.apache.flink.metrics.statsd.StatsDReporter)
 Dependency:
 {% highlight xml %}
@@ -365,6 +402,17 @@ Parameters:
 
 - `host` - the StatsD server host
 - `port` - the StatsD server port
+
+Example configuration:
+
+{% highlight yaml %}
+
+metrics.reporters: stsd
+metrics.reporter.stsd.class: org.apache.flink.metrics.statsd.StatsDReporter
+metrics.reporter.stsd.host: localhost
+metrics.reporter.stsd.port: 8125
+
+{% endhighlight %}
 
 ## System metrics
 

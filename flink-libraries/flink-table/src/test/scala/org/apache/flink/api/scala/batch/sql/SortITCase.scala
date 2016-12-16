@@ -25,7 +25,8 @@ import org.apache.flink.api.scala.batch.utils.SortTestUtils._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala._
-import org.apache.flink.api.table.{Row, TableEnvironment, TableException}
+import org.apache.flink.api.table.{TableEnvironment, TableException}
+import org.apache.flink.types.Row
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
@@ -46,6 +47,7 @@ class SortITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 DESC, _2 DESC"
+
     implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
       (- x.productElement(0).asInstanceOf[Int], - x.productElement(1).asInstanceOf[Long]))
 
@@ -55,7 +57,10 @@ class SortITCase(
     val expected = sortExpectedly(tupleDataSetStrings)
     val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results
+      .filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -68,7 +73,7 @@ class SortITCase(
     val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 DESC OFFSET 2 ROWS"
 
     implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
-      -x.productElement(0).asInstanceOf[Int])
+      - x.productElement(0).asInstanceOf[Int] )
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     tEnv.registerDataSet("MyTable", ds)
@@ -76,7 +81,10 @@ class SortITCase(
     val expected = sortExpectedly(tupleDataSetStrings, 2, 21)
     val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results.
+      filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -89,7 +97,7 @@ class SortITCase(
     val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 OFFSET 2 ROWS FETCH NEXT 5 ROWS ONLY"
 
     implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
-      x.productElement(0).asInstanceOf[Int])
+      x.productElement(0).asInstanceOf[Int] )
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     tEnv.registerDataSet("MyTable", ds)
@@ -97,7 +105,10 @@ class SortITCase(
     val expected = sortExpectedly(tupleDataSetStrings, 2, 7)
     val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results
+      .filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -107,10 +118,10 @@ class SortITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 LIMIT 5"
+    val sqlQuery = "SELECT * FROM MyTable ORDER BY _2, _1 LIMIT 5"
 
     implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
-      x.productElement(0).asInstanceOf[Int])
+      (x.productElement(1).asInstanceOf[Long], x.productElement(0).asInstanceOf[Int]) )
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     tEnv.registerDataSet("MyTable", ds)
@@ -118,7 +129,10 @@ class SortITCase(
     val expected = sortExpectedly(tupleDataSetStrings, 0, 5)
     val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
+    val result = results
+      .filterNot(_.isEmpty)
+      .sortBy(_.head)(Ordering.by(f=> f.toString))
+      .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }

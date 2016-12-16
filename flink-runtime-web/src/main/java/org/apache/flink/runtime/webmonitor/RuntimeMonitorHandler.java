@@ -61,7 +61,7 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 	private static final Charset ENCODING = Charset.forName("UTF-8");
 
 	public static final String WEB_MONITOR_ADDRESS_KEY = "web.monitor.address";
-	
+
 	private final RequestHandler handler;
 
 	public RuntimeMonitorHandler(
@@ -102,7 +102,6 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 					: Unpooled.wrappedBuffer(e.getMessage().getBytes(ENCODING));
 			response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND, message);
 			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
-			response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
 			response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
 			LOG.debug("Error while handling request", e);
 		}
@@ -111,7 +110,6 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 			response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
 					HttpResponseStatus.INTERNAL_SERVER_ERROR, Unpooled.wrappedBuffer(bytes));
 			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
-			response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
 			response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
 
 			LOG.debug("Error while handling request", e);

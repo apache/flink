@@ -5,6 +5,12 @@ LogicalProject(a=[$0], c=[$2])
       LogicalTableScan(table=[[_DataSetTable_0]])
       LogicalTableScan(table=[[_DataSetTable_1]])
 
+== Optimized Logical Plan ==
+DataSetCalc(select=[a, c])
+  DataSetJoin(where=[=(b, d)], join=[a, b, c, d], joinType=[InnerJoin])
+    DataSetScan(table=[[_DataSetTable_0]])
+    DataSetScan(table=[[_DataSetTable_1]])
+
 == Physical Execution Plan ==
 Stage 4 : Data Source
 	content : collect elements with CollectionInputFormat

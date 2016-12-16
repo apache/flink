@@ -19,11 +19,11 @@
 package org.apache.flink.api.table.plan.nodes.dataset
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.metadata.RelMetadataQuery
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.BatchTableEnvironment
+import org.apache.flink.api.table.{BatchTableEnvironment, FlinkTypeFactory}
 import org.apache.flink.api.table.plan.schema.TableSourceTable
 import org.apache.flink.api.table.sources.BatchTableSource
 
@@ -32,19 +32,31 @@ class BatchTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    rowType: RelDataType)
-  extends BatchScan(cluster, traitSet, table, rowType) {
+    val tableSource: BatchTableSource[_])
+  extends BatchScan(cluster, traitSet, table) {
 
-  val tableSourceTable = getTable.unwrap(classOf[TableSourceTable])
-  val tableSource = tableSourceTable.tableSource.asInstanceOf[BatchTableSource[_]]
+  override def deriveRowType() = {
+    val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    flinkTypeFactory.buildRowDataType(tableSource.getFieldsNames, tableSource.getFieldTypes)
+  }
+
+  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+    val rowCnt = metadata.getRowCount(this)
+    planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * estimateRowSize(getRowType))
+  }
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new BatchTableSourceScan(
       cluster,
       traitSet,
       getTable,
-      getRowType
+      tableSource
     )
+  }
+
+  override def explainTerms(pw: RelWriter): RelWriter = {
+    super.explainTerms(pw)
+      .item("fields", tableSource.getFieldsNames.mkString(", "))
   }
 
   override def translateToPlan(
@@ -54,6 +66,6 @@ class BatchTableSourceScan(
     val config = tableEnv.getConfig
     val inputDataSet = tableSource.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
 
-    convertToExpectedType(inputDataSet, tableSourceTable, expectedType, config)
+    convertToExpectedType(inputDataSet, new TableSourceTable(tableSource), expectedType, config)
   }
 }

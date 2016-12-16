@@ -20,7 +20,9 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -33,6 +35,14 @@ public class IntermediateResult {
 	private final ExecutionJobVertex producer;
 
 	private final IntermediateResultPartition[] partitions;
+
+	/**
+	 * Maps intermediate result partition IDs to a partition index. This is
+	 * used for ID lookups of intermediate results. I didn't dare to change the
+	 * partition connect logic in other places that is tightly coupled to the
+	 * partitions being held as an array.
+	 */
+	private final HashMap<IntermediateResultPartitionID, Integer> partitionLookupHelper = new HashMap<>();
 
 	private final int numParallelProducers;
 
@@ -54,9 +64,11 @@ public class IntermediateResult {
 
 		this.id = checkNotNull(id);
 		this.producer = checkNotNull(producer);
-		this.partitions = new IntermediateResultPartition[numParallelProducers];
+
 		checkArgument(numParallelProducers >= 1);
 		this.numParallelProducers = numParallelProducers;
+
+		this.partitions = new IntermediateResultPartition[numParallelProducers];
 
 		this.numberOfRunningProducers = new AtomicInteger(numParallelProducers);
 
@@ -80,6 +92,7 @@ public class IntermediateResult {
 		}
 
 		partitions[partitionNumber] = partition;
+		partitionLookupHelper.put(partition.getPartitionId(), partitionNumber);
 		partitionsAssigned++;
 	}
 
@@ -93,6 +106,28 @@ public class IntermediateResult {
 
 	public IntermediateResultPartition[] getPartitions() {
 		return partitions;
+	}
+
+	/**
+	 * Returns the partition with the given ID.
+	 *
+	 * @param resultPartitionId ID of the partition to look up
+	 * @throws NullPointerException If partition ID <code>null</code>
+	 * @throws IllegalArgumentException Thrown if unknown partition ID
+	 * @return Intermediate result partition with the given ID
+	 */
+	public IntermediateResultPartition getPartitionById(IntermediateResultPartitionID resultPartitionId) {
+		// Looks ups the partition number via the helper map and returns the
+		// partition. Currently, this happens infrequently enough that we could
+		// consider removing the map and scanning the partitions on every lookup.
+		// The lookup (currently) only happen when the producer of an intermediate
+		// result cannot be found via its registered execution.
+		Integer partitionNumber = partitionLookupHelper.get(checkNotNull(resultPartitionId, "IntermediateResultPartitionID"));
+		if (partitionNumber != null) {
+			return partitions[partitionNumber];
+		} else {
+			throw new IllegalArgumentException("Unknown intermediate result partition ID " + resultPartitionId);
+		}
 	}
 
 	public int getNumberOfAssignedPartitions() {

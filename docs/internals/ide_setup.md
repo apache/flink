@@ -1,7 +1,7 @@
 ---
 title: "IDE Setup"
-nav-parent_id: internals
-nav-pos: 1
+nav-parent_id: start
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -24,6 +24,32 @@ under the License.
 
 * Replaced by the TOC
 {:toc}
+
+## IntelliJ IDEA
+
+A brief guide on how to set up IntelliJ IDEA IDE for development of the Flink core.
+As Eclipse is known to have issues with mixed Scala and Java projects, more and more contributers are migrating to IntelliJ IDEA.
+
+The following documentation describes the steps to setup IntelliJ IDEA 14.0.3 (https://www.jetbrains.com/idea/download/) with the Flink sources.
+
+Prior to doing anything, make sure that the Flink project is built at least once from the terminal:
+`mvn clean package -DskipTests`
+
+### Installing the Scala plugin
+1. Go to IntelliJ plugins settings (File -> Settings -> Plugins) and click on "Install Jetbrains plugin...".
+2. Select and install the "Scala" plugin.
+3. Restart IntelliJ
+
+### Installing the Scala compiler plugin
+1. Go to IntelliJ scala compiler settings (File -> Settings -> Build, Execution, Deployment -> Compiler -> Scala Compiler) and click on "Install Jetbrains plugin...".
+2. Click on the green plus icon on the right to add a compiler plugin
+3. Point to the paradise jar: ~/.m2/repository/org/scalamacros/paradise_2.10.4/2.0.1/paradise_2.10.4-2.0.1.jar If there is no such file, this means that you should build Flink from the terminal as explained above.
+
+### Importing Flink
+1. Start IntelliJ IDEA and choose "Import Project"
+2. Select the root folder of the Flink repository
+3. Choose "Import project from external model" and select "Maven"
+4. Leave the default options and finish the import.
 
 ## Eclipse
 
@@ -101,28 +127,3 @@ Uncheck the box labeled "Resolve dependencies from Workspace projects", click "A
    See [this post](http://stackoverflow.com/questions/25391207/how-do-i-add-execution-environment-1-8-to-eclipse-luna)
    for details.
 
-## IntelliJ IDEA
-
-A brief guide on how to set up IntelliJ IDEA IDE for development of the Flink core.
-As Eclipse is known to have issues with mixed Scala and Java projects, more and more contributers are migrating to IntelliJ IDEA.
-
-The following documentation describes the steps to setup IntelliJ IDEA 14.0.3 (https://www.jetbrains.com/idea/download/) with the Flink sources.
-
-Prior to doing anything, make sure that the Flink project is built at least once from the terminal:
-`mvn clean package -DskipTests`
-
-### Installing the Scala plugin
-1. Go to IntelliJ plugins settings (File -> Settings -> Plugins) and click on "Install Jetbrains plugin...".
-2. Select and install the "Scala" plugin.
-3. Restart IntelliJ
-
-### Installing the Scala compiler plugin
-1. Go to IntelliJ scala compiler settings (File -> Settings -> Build, Execution, Deployment -> Compiler -> Scala Compiler) and click on "Install Jetbrains plugin...".
-2. Click on the green plus icon on the right to add a compiler plugin
-3. Point to the paradise jar: ~/.m2/repository/org/scalamacros/paradise_2.10.4/2.0.1/paradise_2.10.4-2.0.1.jar If there is no such file, this means that you should build Flink from the terminal as explained above.
-
-### Importing Flink
-1. Start IntelliJ IDEA and choose "Import Project"
-2. Select the root folder of the Flink repository
-3. Choose "Import project from external model" and select "Maven"
-4. Leave the default options and finish the import.

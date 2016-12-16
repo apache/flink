@@ -22,12 +22,14 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Assume;
 import org.junit.Before;
@@ -95,7 +97,7 @@ public class RocksDBStateBackendConfigTest {
 		rocksDbBackend.setDbStoragePaths(testDir1.getAbsolutePath(), testDir2.getAbsolutePath());
 		assertArrayEquals(new String[] { testDir1.getAbsolutePath(), testDir2.getAbsolutePath() }, rocksDbBackend.getDbStoragePaths());
 
-		Environment env = getMockEnvironment(new File[] {});
+		Environment env = getMockEnvironment();
 		RocksDBKeyedStateBackend<Integer> keyedBackend = (RocksDBKeyedStateBackend<Integer>) rocksDbBackend.
 				createKeyedStateBackend(
 						env,
@@ -360,6 +362,11 @@ public class RocksDBStateBackendConfigTest {
 	}
 
 	private static Environment getMockEnvironment(File[] tempDirs) {
+		final String[] tempDirStrings = new String[tempDirs.length];
+		for (int i = 0; i < tempDirs.length; i++) {
+			tempDirStrings[i] = tempDirs[i].getAbsolutePath();
+		}
+
 		IOManager ioMan = mock(IOManager.class);
 		when(ioMan.getSpillingDirectories()).thenReturn(tempDirs);
 
@@ -371,8 +378,11 @@ public class RocksDBStateBackendConfigTest {
 
 		TaskInfo taskInfo = mock(TaskInfo.class);
 		when(env.getTaskInfo()).thenReturn(taskInfo);
-
 		when(taskInfo.getIndexOfThisSubtask()).thenReturn(0);
+
+		TaskManagerRuntimeInfo tmInfo = new TaskManagerRuntimeInfo("localhost", new Configuration(), tempDirStrings);
+		when(env.getTaskManagerInfo()).thenReturn(tmInfo);
+
 		return env;
 	}
 }

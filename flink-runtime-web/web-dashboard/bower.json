@@ -22,7 +22,8 @@
     "moment-duration-format": "1.3.0",
     "qtip2": "2.2.1",
     "angular-drag-and-drop-lists": "^1.4.0",
-    "nvd3": "^1.8.4"
+    "nvd3": "1.8.4",
+    "Split.js": "1.0.6"
   },
   "overrides": {
     "dagre-d3": {

@@ -21,8 +21,8 @@ package org.apache.flink.api.table.sinks
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.types.Row
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 
 /**
@@ -53,7 +53,7 @@ class CsvTableSink(
   }
 
   override def getOutputType: TypeInformation[Row] = {
-    new RowTypeInfo(getFieldTypes)
+    new RowTypeInfo(getFieldTypes: _*)
   }
 }
 
@@ -68,15 +68,15 @@ class CsvFormatter(fieldDelim: String) extends MapFunction[Row, String] {
     val builder = new StringBuilder
 
     // write first value
-    val v = row.productElement(0)
+    val v = row.getField(0)
     if (v != null) {
       builder.append(v.toString)
     }
 
     // write following values
-    for (i <- 1 until row.productArity) {
+    for (i <- 1 until row.getArity) {
       builder.append(fieldDelim)
-      val v = row.productElement(i)
+      val v = row.getField(i)
       if (v != null) {
         builder.append(v.toString)
       }

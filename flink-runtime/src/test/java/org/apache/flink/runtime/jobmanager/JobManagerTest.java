@@ -38,7 +38,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
-import org.apache.flink.runtime.io.network.PartitionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -56,7 +55,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationResponse;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
-import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState;
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionProducerState;
 import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.StoppingSuccess;
@@ -116,7 +115,6 @@ import static org.apache.flink.runtime.testingUtils.TestingUtils.startTestingClu
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -221,49 +219,227 @@ public class JobManagerTest {
 						// - The test ----------------------------------------------------------------------
 
 						// 1. All execution states
-						RequestPartitionState request = new RequestPartitionState(
-							jid, partitionId, receiver, rid);
+						RequestPartitionProducerState request = new RequestPartitionProducerState(
+							jid, rid, partitionId);
 
 						for (ExecutionState state : ExecutionState.values()) {
 							ExecutionGraphTestUtils.setVertexState(vertex, state);
 
-							Future<PartitionState> futurePartitionState = jobManagerGateway
+							Future<ExecutionState> futurePartitionState = jobManagerGateway
 								.ask(request, getRemainingTime())
-								.mapTo(ClassTag$.MODULE$.<PartitionState>apply(PartitionState.class));
+								.mapTo(ClassTag$.MODULE$.<ExecutionState>apply(ExecutionState.class));
 
-							PartitionState resp = Await.result(futurePartitionState, getRemainingTime());
-
-							assertEquals(request.taskResultId(), resp.getIntermediateDataSetID());
-							assertEquals(request.partitionId().getPartitionId(), resp.getIntermediateResultPartitionID());
-							assertEquals(state, resp.getExecutionState());
+							ExecutionState resp = Await.result(futurePartitionState, getRemainingTime());
+							assertEquals(state, resp);
 						}
 
 						// 2. Non-existing execution
-						request = new RequestPartitionState(jid, new ResultPartitionID(), receiver, rid);
+						request = new RequestPartitionProducerState(jid, rid, new ResultPartitionID());
 
-						Future<PartitionState> futurePartitionState = jobManagerGateway
-							.ask(request, getRemainingTime())
-							.mapTo(ClassTag$.MODULE$.<PartitionState>apply(PartitionState.class));
-
-						PartitionState resp = Await.result(futurePartitionState, getRemainingTime());
-
-						assertEquals(request.taskResultId(), resp.getIntermediateDataSetID());
-						assertEquals(request.partitionId().getPartitionId(), resp.getIntermediateResultPartitionID());
-						assertNull(resp.getExecutionState());
+						Future<?> futurePartitionState = jobManagerGateway.ask(request, getRemainingTime());
+						try {
+							Await.result(futurePartitionState, getRemainingTime());
+							fail("Did not fail with expected RuntimeException");
+						} catch (RuntimeException e) {
+							assertEquals(IllegalArgumentException.class, e.getCause().getClass());
+						}
 
 						// 3. Non-existing job
-						request = new RequestPartitionState(
-							new JobID(), new ResultPartitionID(), receiver, rid);
+						request = new RequestPartitionProducerState(new JobID(), rid, new ResultPartitionID());
+						futurePartitionState = jobManagerGateway.ask(request, getRemainingTime());
 
-						futurePartitionState = jobManagerGateway
+						try {
+							Await.result(futurePartitionState, getRemainingTime());
+							fail("Did not fail with expected IllegalArgumentException");
+						} catch (IllegalArgumentException ignored) {
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+						fail(e.getMessage());
+					} finally {
+						if (cluster != null) {
+							cluster.shutdown();
+						}
+					}
+				}
+			};
+		}};
+	}
+
+	/**
+	 * Tests the JobManager response when the execution is not registered with
+	 * the ExecutionGraph.
+	 */
+	@Test
+	public void testRequestPartitionStateUnregisteredExecution() throws Exception {
+		new JavaTestKit(system) {{
+			new Within(duration("15 seconds")) {
+				@Override
+				protected void run() {
+					// Setup
+					TestingCluster cluster = null;
+
+					try {
+						cluster = startTestingCluster(4, 1, DEFAULT_AKKA_ASK_TIMEOUT());
+
+						final IntermediateDataSetID rid = new IntermediateDataSetID();
+
+						// Create a task
+						final JobVertex sender = new JobVertex("Sender");
+						sender.setParallelism(1);
+						sender.setInvokableClass(Tasks.NoOpInvokable.class); // just finish
+						sender.createAndAddResultDataSet(rid, PIPELINED);
+
+						final JobVertex sender2 = new JobVertex("Blocking Sender");
+						sender2.setParallelism(1);
+						sender2.setInvokableClass(Tasks.BlockingNoOpInvokable.class); // just block
+						sender2.createAndAddResultDataSet(new IntermediateDataSetID(), PIPELINED);
+
+						final JobGraph jobGraph = new JobGraph("Fast finishing producer test job", sender, sender2);
+						final JobID jid = jobGraph.getJobID();
+
+						final ActorGateway jobManagerGateway = cluster.getLeaderGateway(
+							TestingUtils.TESTING_DURATION());
+
+						// we can set the leader session ID to None because we don't use this gateway to send messages
+						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null);
+
+						// Submit the job and wait for all vertices to be running
+						jobManagerGateway.tell(
+							new SubmitJob(
+								jobGraph,
+								ListeningBehaviour.EXECUTION_RESULT),
+							testActorGateway);
+						expectMsgClass(JobSubmitSuccess.class);
+
+						jobManagerGateway.tell(
+							new WaitForAllVerticesToBeRunningOrFinished(jid),
+							testActorGateway);
+
+						expectMsgClass(AllVerticesRunning.class);
+
+						Future<Object> egFuture = jobManagerGateway.ask(
+							new RequestExecutionGraph(jobGraph.getJobID()), remaining());
+
+						ExecutionGraphFound egFound = (ExecutionGraphFound) Await.result(egFuture, remaining());
+						ExecutionGraph eg = (ExecutionGraph) egFound.executionGraph();
+
+						ExecutionVertex vertex = eg.getJobVertex(sender.getID()).getTaskVertices()[0];
+						while (vertex.getExecutionState() != ExecutionState.FINISHED) {
+							Thread.sleep(1);
+						}
+
+						IntermediateResultPartition partition = vertex.getProducedPartitions()
+							.values().iterator().next();
+
+						ResultPartitionID partitionId = new ResultPartitionID(
+							partition.getPartitionId(),
+							vertex.getCurrentExecutionAttempt().getAttemptId());
+
+						// Producer finished, request state
+						Object request = new RequestPartitionProducerState(jid, rid, partitionId);
+
+						Future<ExecutionState> producerStateFuture = jobManagerGateway
 							.ask(request, getRemainingTime())
-							.mapTo(ClassTag$.MODULE$.<PartitionState>apply(PartitionState.class));
+							.mapTo(ClassTag$.MODULE$.<ExecutionState>apply(ExecutionState.class));
 
-						resp = Await.result(futurePartitionState, getRemainingTime());
+						assertEquals(ExecutionState.FINISHED, Await.result(producerStateFuture, getRemainingTime()));
+					} catch (Exception e) {
+						e.printStackTrace();
+						fail(e.getMessage());
+					} finally {
+						if (cluster != null) {
+							cluster.shutdown();
+						}
+					}
+				}
+			};
+		}};
+	}
 
-						assertEquals(request.taskResultId(), resp.getIntermediateDataSetID());
-						assertEquals(request.partitionId().getPartitionId(), resp.getIntermediateResultPartitionID());
-						assertNull(resp.getExecutionState());
+	/**
+	 * Tests the JobManager response when the execution is not registered with
+	 * the ExecutionGraph anymore and a new execution attempt is available.
+	 */
+	@Test
+	public void testRequestPartitionStateMoreRecentExecutionAttempt() throws Exception {
+		new JavaTestKit(system) {{
+			new Within(duration("15 seconds")) {
+				@Override
+				protected void run() {
+					// Setup
+					TestingCluster cluster = null;
+
+					try {
+						cluster = startTestingCluster(4, 1, DEFAULT_AKKA_ASK_TIMEOUT());
+
+						final IntermediateDataSetID rid = new IntermediateDataSetID();
+
+						// Create a task
+						final JobVertex sender = new JobVertex("Sender");
+						sender.setParallelism(1);
+						sender.setInvokableClass(Tasks.NoOpInvokable.class); // just finish
+						sender.createAndAddResultDataSet(rid, PIPELINED);
+
+						final JobVertex sender2 = new JobVertex("Blocking Sender");
+						sender2.setParallelism(1);
+						sender2.setInvokableClass(Tasks.BlockingNoOpInvokable.class); // just block
+						sender2.createAndAddResultDataSet(new IntermediateDataSetID(), PIPELINED);
+
+						final JobGraph jobGraph = new JobGraph("Fast finishing producer test job", sender, sender2);
+						final JobID jid = jobGraph.getJobID();
+
+						final ActorGateway jobManagerGateway = cluster.getLeaderGateway(
+							TestingUtils.TESTING_DURATION());
+
+						// we can set the leader session ID to None because we don't use this gateway to send messages
+						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null);
+
+						// Submit the job and wait for all vertices to be running
+						jobManagerGateway.tell(
+							new SubmitJob(
+								jobGraph,
+								ListeningBehaviour.EXECUTION_RESULT),
+							testActorGateway);
+						expectMsgClass(JobManagerMessages.JobSubmitSuccess.class);
+
+						jobManagerGateway.tell(
+							new WaitForAllVerticesToBeRunningOrFinished(jid),
+							testActorGateway);
+
+						expectMsgClass(TestingJobManagerMessages.AllVerticesRunning.class);
+
+						Future<Object> egFuture = jobManagerGateway.ask(
+							new RequestExecutionGraph(jobGraph.getJobID()), remaining());
+
+						ExecutionGraphFound egFound = (ExecutionGraphFound) Await.result(egFuture, remaining());
+						ExecutionGraph eg = (ExecutionGraph) egFound.executionGraph();
+
+						ExecutionVertex vertex = eg.getJobVertex(sender.getID()).getTaskVertices()[0];
+						while (vertex.getExecutionState() != ExecutionState.FINISHED) {
+							Thread.sleep(1);
+						}
+
+						IntermediateResultPartition partition = vertex.getProducedPartitions()
+							.values().iterator().next();
+
+						ResultPartitionID partitionId = new ResultPartitionID(
+							partition.getPartitionId(),
+							vertex.getCurrentExecutionAttempt().getAttemptId());
+
+						// Reset execution => new execution attempt
+						vertex.resetForNewExecution();
+
+						// Producer finished, request state
+						Object request = new JobManagerMessages.RequestPartitionProducerState(jid, rid, partitionId);
+
+						Future<?> producerStateFuture = jobManagerGateway.ask(request, getRemainingTime());
+
+						try {
+							Await.result(producerStateFuture, getRemainingTime());
+							fail("Did not fail with expected Exception");
+						} catch (PartitionProducerDisposedException ignored) {
+						}
 					} catch (Exception e) {
 						e.printStackTrace();
 						fail(e.getMessage());

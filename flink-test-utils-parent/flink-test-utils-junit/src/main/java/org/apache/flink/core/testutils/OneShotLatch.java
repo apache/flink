@@ -107,4 +107,18 @@ public final class OneShotLatch {
 	public boolean isTriggered() {
 		return triggered;
 	}
+
+	/**
+	 * resets the latch to triggered = false
+	 */
+	public void reset() {
+		synchronized (lock) {
+			triggered = false;
+		}
+	}
+
+	@Override
+	public String toString() {
+		return "Latch " + (triggered ? "TRIGGERED" : "PENDING");
+	}
 }

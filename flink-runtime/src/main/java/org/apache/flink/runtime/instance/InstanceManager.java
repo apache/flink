@@ -118,9 +118,7 @@ public class InstanceManager {
 
 			host.reportHeartBeat();
 
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Received heartbeat from TaskManager " + host);
-			}
+			LOG.trace("Received heartbeat from TaskManager {}", host);
 
 			return true;
 		}

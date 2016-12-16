@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -27,8 +26,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -43,8 +41,6 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class RemoteInputChannel extends InputChannel {
 
-	private static final Logger LOG = LoggerFactory.getLogger(RemoteInputChannel.class);
-
 	/** ID to distinguish this channel from other channels sharing the same TCP connection. */
 	private final InputChannelID id = new InputChannelID();
 
@@ -58,7 +54,7 @@ public class RemoteInputChannel extends InputChannel {
 	 * The received buffers. Received buffers are enqueued by the network I/O thread and the queue
 	 * is consumed by the receiving task thread.
 	 */
-	private final Queue<Buffer> receivedBuffers = new ArrayDeque<Buffer>();
+	private final Queue<Buffer> receivedBuffers = new ArrayDeque<>();
 
 	/**
 	 * Flag indicating whether this channel has been released. Either called by the receiving task
@@ -76,28 +72,27 @@ public class RemoteInputChannel extends InputChannel {
 	private int expectedSequenceNumber = 0;
 
 	public RemoteInputChannel(
-			SingleInputGate inputGate,
-			int channelIndex,
-			ResultPartitionID partitionId,
-			ConnectionID connectionId,
-			ConnectionManager connectionManager,
-			TaskIOMetricGroup metrics) {
+		SingleInputGate inputGate,
+		int channelIndex,
+		ResultPartitionID partitionId,
+		ConnectionID connectionId,
+		ConnectionManager connectionManager,
+		TaskIOMetricGroup metrics) {
 
-		this(inputGate, channelIndex, partitionId, connectionId, connectionManager,
-				0, 0, metrics);
+		this(inputGate, channelIndex, partitionId, connectionId, connectionManager, 0, 0, metrics);
 	}
 
 	public RemoteInputChannel(
-			SingleInputGate inputGate,
-			int channelIndex,
-			ResultPartitionID partitionId,
-			ConnectionID connectionId,
-			ConnectionManager connectionManager,
-			int initialBackoff,
-			int maxBackoff,
-			TaskIOMetricGroup metrics) {
+		SingleInputGate inputGate,
+		int channelIndex,
+		ResultPartitionID partitionId,
+		ConnectionID connectionId,
+		ConnectionManager connectionManager,
+		int initialBackOff,
+		int maxBackoff,
+		TaskIOMetricGroup metrics) {
 
-		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInRemoteCounter());
+		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, metrics.getNumBytesInRemoteCounter());
 
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
@@ -115,7 +110,7 @@ public class RemoteInputChannel extends InputChannel {
 		if (partitionRequestClient == null) {
 			// Create a client and request the partition
 			partitionRequestClient = connectionManager
-					.createPartitionRequestClient(connectionId);
+				.createPartitionRequestClient(connectionId);
 
 			partitionRequestClient.requestSubpartition(partitionId, subpartitionIndex, this, 0);
 		}
@@ -129,31 +124,29 @@ public class RemoteInputChannel extends InputChannel {
 
 		if (increaseBackoff()) {
 			partitionRequestClient.requestSubpartition(
-					partitionId, subpartitionIndex, this, getCurrentBackoff());
-		}
-		else {
+				partitionId, subpartitionIndex, this, getCurrentBackoff());
+		} else {
 			failPartitionRequest();
 		}
 	}
 
 	@Override
-	Buffer getNextBuffer() throws IOException {
+	BufferAndAvailability getNextBuffer() throws IOException {
 		checkState(!isReleased.get(), "Queried for a buffer after channel has been closed.");
 		checkState(partitionRequestClient != null, "Queried for a buffer before requesting a queue.");
 
 		checkError();
 
+		final Buffer next;
+		final int remaining;
+
 		synchronized (receivedBuffers) {
-			Buffer buffer = receivedBuffers.poll();
-
-			// Sanity check that channel is only queried after a notification
-			if (buffer == null) {
-				throw new IOException("Queried input channel for data although non is available.");
-			}
-
-			numBytesIn.inc(buffer.getSize());
-			return buffer;
+			next = receivedBuffers.poll();
+			remaining = receivedBuffers.size();
 		}
+
+		numBytesIn.inc(next.getSize());
+		return new BufferAndAvailability(next, remaining > 0);
 	}
 
 	// ------------------------------------------------------------------------
@@ -201,14 +194,13 @@ public class RemoteInputChannel extends InputChannel {
 			// buffers received concurrently with closing are properly recycled.
 			if (partitionRequestClient != null) {
 				partitionRequestClient.close(this);
-			}
-			else {
+			} else {
 				connectionManager.closeOpenChannelConnections(connectionId);
 			}
 		}
 	}
 
-	public void failPartitionRequest() {
+	private void failPartitionRequest() {
 		setError(new PartitionNotFoundException(partitionId));
 	}
 
@@ -246,20 +238,22 @@ public class RemoteInputChannel extends InputChannel {
 			synchronized (receivedBuffers) {
 				if (!isReleased.get()) {
 					if (expectedSequenceNumber == sequenceNumber) {
+						int available = receivedBuffers.size();
+
 						receivedBuffers.add(buffer);
 						expectedSequenceNumber++;
 
-						notifyAvailableBuffer();
+						if (available == 0) {
+							notifyChannelNonEmpty();
+						}
 
 						success = true;
-					}
-					else {
+					} else {
 						onError(new BufferReorderingException(expectedSequenceNumber, sequenceNumber));
 					}
 				}
 			}
-		}
-		finally {
+		} finally {
 			if (!success) {
 				buffer.recycle();
 			}
@@ -271,8 +265,7 @@ public class RemoteInputChannel extends InputChannel {
 			if (!isReleased.get()) {
 				if (expectedSequenceNumber == sequenceNumber) {
 					expectedSequenceNumber++;
-				}
-				else {
+				} else {
 					onError(new BufferReorderingException(expectedSequenceNumber, sequenceNumber));
 				}
 			}
@@ -287,7 +280,7 @@ public class RemoteInputChannel extends InputChannel {
 		setError(cause);
 	}
 
-	public static class BufferReorderingException extends IOException {
+	private static class BufferReorderingException extends IOException {
 
 		private static final long serialVersionUID = -888282210356266816L;
 
@@ -295,7 +288,7 @@ public class RemoteInputChannel extends InputChannel {
 
 		private final int actualSequenceNumber;
 
-		public BufferReorderingException(int expectedSequenceNumber, int actualSequenceNumber) {
+		BufferReorderingException(int expectedSequenceNumber, int actualSequenceNumber) {
 			this.expectedSequenceNumber = expectedSequenceNumber;
 			this.actualSequenceNumber = actualSequenceNumber;
 		}
@@ -303,7 +296,7 @@ public class RemoteInputChannel extends InputChannel {
 		@Override
 		public String getMessage() {
 			return String.format("Buffer re-ordering: expected buffer with sequence number %d, but received %d.",
-					expectedSequenceNumber, actualSequenceNumber);
+				expectedSequenceNumber, actualSequenceNumber);
 		}
 	}
 }

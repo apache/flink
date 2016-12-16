@@ -260,7 +260,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 			}
 		}
 
-		private void discard() {
+		void discard() {
 			if (!isDiscarded) {
 				this.isDiscarded = true;
 

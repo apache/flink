@@ -77,8 +77,10 @@ public class SavepointLoaderTest {
 		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
 		tasks.put(vertexId, vertex);
 
+		ClassLoader ucl = Thread.currentThread().getContextClassLoader();
+
 		// 1) Load and validate: everything correct
-		CompletedCheckpoint loaded = SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, false);
+		CompletedCheckpoint loaded = SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, ucl, false);
 
 		assertEquals(jobId, loaded.getJobId());
 		assertEquals(checkpointId, loaded.getCheckpointID());
@@ -87,7 +89,7 @@ public class SavepointLoaderTest {
 		when(vertex.getMaxParallelism()).thenReturn(222);
 
 		try {
-			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, false);
+			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, ucl, false);
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("Max parallelism mismatch"));
@@ -97,13 +99,13 @@ public class SavepointLoaderTest {
 		assertNotNull(tasks.remove(vertexId));
 
 		try {
-			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, false);
+			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, ucl, false);
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("allowNonRestoredState"));
 		}
 
 		// 4) Load and validate: ignore missing vertex
-		SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, true);
+		SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, ucl, true);
 	}
 }

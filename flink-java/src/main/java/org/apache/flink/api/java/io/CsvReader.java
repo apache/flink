@@ -18,23 +18,22 @@
 
 package org.apache.flink.api.java.io;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.operators.DataSource;
+//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
+import org.apache.flink.api.java.tuple.*;
+//CHECKSTYLE.ON: AvoidStarImport
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Preconditions;
 
-//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
-import org.apache.flink.api.java.tuple.*;
-//CHECKSTYLE.ON: AvoidStarImport
+import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * A builder class to instantiate a CSV parsing data source. The CSV reader configures the field types,
@@ -64,6 +63,8 @@ public class CsvReader {
 	protected boolean skipFirstLineAsHeader = false;
 	
 	protected boolean ignoreInvalidLines = false;
+
+	private String charset = "UTF-8";
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -157,7 +158,27 @@ public class CsvReader {
 		this.commentPrefix = commentPrefix;
 		return this;
 	}
-	
+
+	/**
+	 * Gets the character set for the reader. Default is UTF-8.
+	 *
+	 * @return The charset for the reader.
+	 */
+	@PublicEvolving
+	public String getCharset() {
+		return this.charset;
+	}
+
+	/**
+	 * Sets the charset of the reader
+	 *
+	 * @param charset The character set to set.
+	 */
+	@PublicEvolving
+	public void setCharset(String charset) {
+		this.charset = Preconditions.checkNotNull(charset);
+	}
+
 	/**
 	 * Configures which fields of the CSV file should be included and which should be skipped. The
 	 * parser will look at the first {@code n} fields, where {@code n} is the length of the boolean
@@ -335,6 +356,7 @@ public class CsvReader {
 	// --------------------------------------------------------------------------------------------
 	
 	private void configureInputFormat(CsvInputFormat<?> format) {
+		format.setCharset(this.charset);
 		format.setDelimiter(this.lineDelimiter);
 		format.setFieldDelimiter(this.fieldDelimiter);
 		format.setCommentPrefix(this.commentPrefix);

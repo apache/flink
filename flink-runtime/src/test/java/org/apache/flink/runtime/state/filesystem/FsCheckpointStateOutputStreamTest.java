@@ -21,17 +21,22 @@ package org.apache.flink.runtime.state.filesystem;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.DataInputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Random;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class FsCheckpointStateOutputStreamTest {
 
@@ -57,7 +62,7 @@ public class FsCheckpointStateOutputStreamTest {
 	}
 
 	@Test
-	public void testStateBlowMemThreshold() throws Exception {
+	public void testStateBelowMemThreshold() throws Exception {
 		runTest(222, 999, 512, false);
 	}
 
@@ -149,5 +154,30 @@ public class FsCheckpointStateOutputStreamTest {
 		}
 
 		handle.discardState();
+	}
+
+	@Test
+	public void testWriteFailsFastWhenClosed() throws Exception {
+		FsCheckpointStateOutputStream stream = new FsCheckpointStateOutputStream(
+				TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 1024, 512);
+
+		assertFalse(stream.isClosed());
+
+		stream.close();
+		assertTrue(stream.isClosed());
+
+		try {
+			stream.write(1);
+			fail();
+		} catch (IOException e) {
+			// expected
+		}
+
+		try {
+			stream.write(new byte[4], 1, 2);
+			fail();
+		} catch (IOException e) {
+			// expected
+		}
 	}
 }
