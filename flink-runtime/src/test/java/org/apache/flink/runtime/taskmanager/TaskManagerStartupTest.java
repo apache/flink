@@ -27,6 +27,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.StartupUtils;
+import org.apache.flink.util.NetUtils;
 import org.junit.Test;
 import scala.Option;
 
@@ -57,10 +58,10 @@ public class TaskManagerStartupTest {
 		ServerSocket blocker = null;
 		try {
 			final String localHostName = "localhost";
-			final InetAddress localAddress = InetAddress.getByName(localHostName);
+			final InetAddress localBindAddress = InetAddress.getByName(NetUtils.getWildcardIPAddress());
 
 			// block some port
-			blocker = new ServerSocket(0, 50, localAddress);
+			blocker = new ServerSocket(0, 50, localBindAddress);
 			final int port = blocker.getLocalPort();
 
 			TaskManager.runTaskManager(localHostName, ResourceID.generate(), port, new Configuration(),
@@ -69,7 +70,7 @@ public class TaskManagerStartupTest {
 
 		}
 		catch (IOException e) {
-			// expected. validate the error messagex
+			// expected. validate the error message
 			List<Throwable> causes = StartupUtils.getExceptionCauses(e, new ArrayList<Throwable>());
 			for (Throwable cause : causes) {
 				if (cause instanceof BindException) {

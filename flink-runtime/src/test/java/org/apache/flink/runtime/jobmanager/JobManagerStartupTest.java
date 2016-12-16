@@ -82,7 +82,7 @@ public class JobManagerStartupTest {
 		
 		try {
 			portNum = NetUtils.getAvailablePort();
-			portOccupier = new ServerSocket(portNum, 10, InetAddress.getByName("localhost"));
+			portOccupier = new ServerSocket(portNum, 10, InetAddress.getByName("0.0.0.0"));
 		}
 		catch (Throwable t) {
 			// could not find free port, or open a connection there
@@ -95,7 +95,7 @@ public class JobManagerStartupTest {
 		}
 		catch (Exception e) {
 			// expected
-			List<Throwable> causes = StartupUtils.getExceptionCauses(e,new ArrayList<Throwable>());
+			List<Throwable> causes = StartupUtils.getExceptionCauses(e, new ArrayList<Throwable>());
 			for(Throwable cause:causes) {
 				if(cause instanceof BindException) {
 					throw (BindException) cause;

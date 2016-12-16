@@ -69,7 +69,7 @@ abstract class FlinkMiniCluster(
   // not getLocalHost(), which may be 127.0.1.1
   val hostname = userConfiguration.getString(
     ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
-    InetAddress.getByName("localhost").getHostAddress())
+    "localhost")
 
   protected val originalConfiguration = generateConfiguration(userConfiguration)
 

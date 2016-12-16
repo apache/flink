@@ -20,29 +20,24 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-
 import static org.junit.Assert.*;
-import static org.junit.Assume.*;
 
 /**
  * Tests that verify that the LeaderRetrievalSevice correctly handles non-resolvable host names
  * and does not fail with another exception
  */
 public class LeaderRetrievalServiceHostnameResolutionTest extends TestLogger {
-	
-	private static final String nonExistingHostname = "foo.bar.com.invalid";
-	
+
+	private static final String nonExistingHostname = "foo.bar.com.invalid.";
+
 	@Test
 	public void testUnresolvableHostname1() {
-		
-		checkPreconditions();
-		
+
 		try {
 			Configuration config = new Configuration();
 
@@ -52,7 +47,7 @@ public class LeaderRetrievalServiceHostnameResolutionTest extends TestLogger {
 			LeaderRetrievalUtils.createLeaderRetrievalService(config);
 			fail("This should fail with an UnknownHostException");
 		}
-		catch (UnknownHostException e) {
+		catch (IllegalConfigurationException e) {
 			// that is what we want!
 		}
 		catch (Exception e) {
@@ -62,42 +57,4 @@ public class LeaderRetrievalServiceHostnameResolutionTest extends TestLogger {
 		}
 	}
 
-	@Test
-	public void testUnresolvableHostname2() {
-
-		checkPreconditions();
-		
-		try {
-			Configuration config = new Configuration();
-			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, nonExistingHostname);
-			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 17234);
-
-			LeaderRetrievalUtils.createLeaderRetrievalService(config);
-			fail("This should fail with an UnknownHostException");
-		}
-		catch (UnknownHostException e) {
-			// that is what we want!
-		}
-		catch (Exception e) {
-			System.err.println("Wrong exception!");
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	private static void checkPreconditions() {
-		// the test can only work if the invalid URL cannot be resolves
-		// some internet providers resolve unresolvable URLs to navigational aid servers,
-		// voiding this test.
-		boolean throwsException;
-		try {
-			//noinspection ResultOfMethodCallIgnored
-			InetAddress.getByName(nonExistingHostname);
-			throwsException = false;
-		}
-		catch (UnknownHostException e) {
-			throwsException = true;
-		}
-		assumeTrue(throwsException);
-	}
 }

@@ -90,7 +90,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 
 	/**
 	 * Tests that the application master can be killed multiple times and that the surviving
-	 * TaskManager succesfully reconnects to the newly started JobManager.
+	 * TaskManager successfully reconnects to the newly started JobManager.
 	 * @throws Exception
 	 */
 	@Test
