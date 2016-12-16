@@ -54,6 +54,9 @@ import java.util.Scanner;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.either;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -75,32 +78,14 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 	public void testStandaloneWebRuntimeMonitor() throws Exception {
 		final Deadline deadline = TestTimeout.fromNow();
 
-		TestingCluster flink = null;
+		TestingCluster testingCluster = null;
 		WebRuntimeMonitor webMonitor = null;
 
 		try {
 			// Flink w/o a web monitor
-			flink = new TestingCluster(new Configuration());
-			flink.start(true);
-
-			ActorSystem jmActorSystem = flink.jobManagerActorSystems().get().head();
-			ActorRef jmActor = flink.jobManagerActors().get().head();
-
-			File logDir = temporaryFolder.newFolder("log");
-			Path logFile = Files.createFile(new File(logDir, "jobmanager.log").toPath());
-			Files.createFile(new File(logDir, "jobmanager.out").toPath());
-
-			Configuration monitorConfig = new Configuration();
-			monitorConfig.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
-			monitorConfig.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
-
-			// Needs to match the leader address from the leader retrieval service
-			String jobManagerAddress = AkkaUtils.getAkkaURL(jmActorSystem, jmActor);
-
-			webMonitor = new WebRuntimeMonitor(monitorConfig, flink.createLeaderRetrievalService(),
-					jmActorSystem);
-
-			webMonitor.start(jobManagerAddress);
+			testingCluster = new TestingCluster(new Configuration());
+			testingCluster.start(true);
+			webMonitor = startWebRuntimeMonitor(testingCluster);
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
 				String expected = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
@@ -121,12 +106,12 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				response = client.getNextResponse(deadline.timeLeft());
 				assertEquals(HttpResponseStatus.OK, response.getStatus());
 				assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
-				assertTrue(response.getContent().contains("\"taskmanagers\":1"));
+				assertThat(response.getContent(), containsString("\"taskmanagers\":1"));
 			}
 		}
 		finally {
-			if (flink != null) {
-				flink.shutdown();
+			if (testingCluster != null) {
+				testingCluster.shutdown();
 			}
 
 			if (webMonitor != null) {
@@ -228,7 +213,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				String expected = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
 						.useDelimiter("\\A").next();
 
-				// Request the file from the leaading web server
+				// Request the file from the leading web server
 				leaderClient.sendGetRequest("index.html", deadline.timeLeft());
 
 				HttpTestClient.SimpleHttpResponse response = leaderClient.getNextResponse(deadline.timeLeft());
@@ -240,7 +225,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				followingClient.sendGetRequest("index.html", deadline.timeLeft());
 				response = followingClient.getNextResponse(deadline.timeLeft());
 				assertEquals(HttpResponseStatus.TEMPORARY_REDIRECT, response.getStatus());
-				assertTrue(response.getLocation().contains(String.valueOf(leadingWebMonitor.getServerPort())));
+				assertThat(response.getLocation(), containsString(String.valueOf(leadingWebMonitor.getServerPort())));
 
 				// Kill the leader
 				leadingSystem.shutdown();
@@ -262,8 +247,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				response = followingClient.getNextResponse(deadline.timeLeft());
 				assertEquals(HttpResponseStatus.OK, response.getStatus());
 				assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
-				assertTrue(response.getContent().contains("\"taskmanagers\":1") ||
-						response.getContent().contains("\"taskmanagers\":0"));
+				assertThat(response.getContent(), either(containsString("\"taskmanagers\":1"))
+						.or(containsString("\"taskmanagers\":0")));
 			}
 		}
 		finally {
@@ -319,7 +304,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 				assertEquals(HttpResponseStatus.SERVICE_UNAVAILABLE, response.getStatus());
 				assertEquals(MimeTypes.getMimeTypeForExtension("txt"), response.getType());
-				assertTrue(response.getContent().contains("refresh"));
+				assertThat(response.getContent(), containsString("refresh"));
 			}
 		}
 		finally {
@@ -346,29 +331,13 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 	public void testNoEscape() throws Exception {
 		final Deadline deadline = TestTimeout.fromNow();
 
-		TestingCluster flink = null;
+		TestingCluster testingCluster = null;
 		WebRuntimeMonitor webMonitor = null;
 
 		try {
-			flink = new TestingCluster(new Configuration());
-			flink.start(true);
-
-			ActorSystem jmActorSystem = flink.jobManagerActorSystems().get().head();
-			ActorRef jmActor = flink.jobManagerActors().get().head();
-
-			// Needs to match the leader address from the leader retrieval service
-			String jobManagerAddress = AkkaUtils.getAkkaURL(jmActorSystem, jmActor);
-
-			// Web frontend on random port
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
-
-			webMonitor = new WebRuntimeMonitor(
-					config,
-					flink.createLeaderRetrievalService(),
-					jmActorSystem);
-
-			webMonitor.start(jobManagerAddress);
+			testingCluster = new TestingCluster(new Configuration());
+			testingCluster.start(true);
+			webMonitor = startWebRuntimeMonitor(testingCluster);
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
 				String expectedIndex = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
@@ -406,8 +375,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 						response.getStatus());
 			}
 		} finally {
-			if (flink != null) {
-				flink.shutdown();
+			if (testingCluster != null) {
+				testingCluster.shutdown();
 			}
 
 			if (webMonitor != null) {
@@ -424,29 +393,14 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 	public void testNoCopyFromJar() throws Exception {
 		final Deadline deadline = TestTimeout.fromNow();
 
-		TestingCluster flink = null;
+		TestingCluster testingCluster = null;
 		WebRuntimeMonitor webMonitor = null;
 
 		try {
-			flink = new TestingCluster(new Configuration());
-			flink.start(true);
+			testingCluster = new TestingCluster(new Configuration());
+			testingCluster.start(true);
 
-			ActorSystem jmActorSystem = flink.jobManagerActorSystems().get().head();
-			ActorRef jmActor = flink.jobManagerActors().get().head();
-
-			// Needs to match the leader address from the leader retrieval service
-			String jobManagerAddress = AkkaUtils.getAkkaURL(jmActorSystem, jmActor);
-
-			// Web frontend on random port
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
-
-			webMonitor = new WebRuntimeMonitor(
-					config,
-					flink.createLeaderRetrievalService(),
-					jmActorSystem);
-
-			webMonitor.start(jobManagerAddress);
+			webMonitor = startWebRuntimeMonitor(testingCluster);
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
 				String expectedIndex = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
@@ -481,14 +435,45 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 						response.getStatus());
 			}
 		} finally {
-			if (flink != null) {
-				flink.shutdown();
+			if (testingCluster != null) {
+				testingCluster.shutdown();
 			}
 
 			if (webMonitor != null) {
 				webMonitor.stop();
 			}
 		}
+	}
+
+	private WebRuntimeMonitor startWebRuntimeMonitor(
+		TestingCluster flink) throws Exception {
+
+		ActorSystem jmActorSystem = flink.jobManagerActorSystems().get().head();
+		ActorRef jmActor = flink.jobManagerActors().get().head();
+
+		// Needs to match the leader address from the leader retrieval service
+		String jobManagerAddress = AkkaUtils.getAkkaURL(jmActorSystem, jmActor);
+
+		File logDir = temporaryFolder.newFolder("log");
+		Path logFile = Files.createFile(new File(logDir, "jobmanager.log").toPath());
+		Files.createFile(new File(logDir, "jobmanager.out").toPath());
+
+		// Web frontend on random port
+		Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
+		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
+
+		WebRuntimeMonitor webMonitor = new WebRuntimeMonitor(
+			config,
+			flink.createLeaderRetrievalService(),
+			jmActorSystem);
+
+		webMonitor.start(jobManagerAddress);
+		JobManagerRetriever retriever = Whitebox
+            .getInternalState(webMonitor, "retriever");
+
+		retriever.awaitJobManagerGatewayAndWebPort();
+		return webMonitor;
 	}
 
 	// ------------------------------------------------------------------------
