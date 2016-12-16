@@ -71,8 +71,9 @@ public class SecurityUtils {
 	 */
 	public static void install(SecurityConfiguration config) throws Exception {
 
-		if (!(installedContext instanceof NoOpSecurityContext)) {
-			LOG.warn("overriding previous security context");
+		if (!config.securityIsEnabled()) {
+			// do not perform any initialization if no Kerberos crendetails are provided
+			return;
 		}
 
 		// establish the JAAS config
@@ -154,6 +155,10 @@ public class SecurityUtils {
 				}
 			}
 
+			if (!(installedContext instanceof NoOpSecurityContext)) {
+				LOG.warn("overriding previous security context");
+			}
+
 			installedContext = new HadoopSecurityContext(loginUser);
 		}
 	}
@@ -171,17 +176,6 @@ public class SecurityUtils {
 	 */
 	private static void populateSystemSecurityProperties(Configuration configuration) {
 		Preconditions.checkNotNull(configuration, "The supplied configuration was null");
-
-		if (System.getProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG) != null) {
-			// do not override an already existing Jaas configuration
-			LOG.info("Using pre-installed JAAS configuration config: {}",
-				System.getProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG));
-			return;
-		}
-
-		//required to be empty for Kafka but we will override the property
-		//with pseudo JAAS configuration file if SASL auth is enabled for ZK
-		System.setProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG, "");
 
 		boolean disableSaslClient = configuration.getBoolean(HighAvailabilityOptions.ZOOKEEPER_SASL_DISABLE);
 
@@ -281,6 +275,10 @@ public class SecurityUtils {
 				}
 			}
 
+		}
+
+		public boolean securityIsEnabled() {
+			return keytab != null && principal != null;
 		}
 	}
 
