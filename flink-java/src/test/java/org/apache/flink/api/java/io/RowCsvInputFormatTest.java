@@ -838,6 +838,42 @@ public class RowCsvInputFormatTest {
 		assertTrue(format.reachedEnd());
 	}
 
+	@Test
+	public void testScanOrder() throws Exception {
+		String fileContent = "111|222|333|444|555|666|777|888|999|000|\n" +
+			"000|999|888|777|666|555|444|333|222|111|";
+		FileInputSplit split = createTempFile(fileContent);
+
+		RowTypeInfo typeInfo = new RowTypeInfo(
+			BasicTypeInfo.INT_TYPE_INFO,
+			BasicTypeInfo.INT_TYPE_INFO,
+			BasicTypeInfo.INT_TYPE_INFO);
+
+		int[] order = new int[]{2, 1, 0};
+		RowCsvInputFormat format = new RowCsvInputFormat(
+			PATH,
+			typeInfo,
+			new int[]{0, 3, 7},
+			order);
+
+		format.setFieldDelimiter("|");
+		format.configure(new Configuration());
+		format.open(split);
+
+		Row result = new Row(3);
+
+		result = format.nextRecord(result);
+		assertEquals(888, result.getField(0));
+		assertEquals(444, result.getField(1));
+		assertEquals(111, result.getField(2));
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals(333, result.getField(0));
+		assertEquals(777, result.getField(1));
+		assertEquals(0, result.getField(2));
+	}
+
 	private static FileInputSplit createTempFile(String content) throws IOException {
 		File tempFile = File.createTempFile("test_contents", "tmp");
 		tempFile.deleteOnExit();

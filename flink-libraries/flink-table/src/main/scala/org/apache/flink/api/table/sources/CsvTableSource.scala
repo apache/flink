@@ -54,7 +54,8 @@ class CsvTableSource(
     ignoreComments: String = null,
     lenient: Boolean = false)
   extends BatchTableSource[Row]
-  with StreamTableSource[Row] {
+  with StreamTableSource[Row]
+  with ProjectableTableSource[Row] {
 
   /**
     * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
@@ -73,6 +74,9 @@ class CsvTableSource(
   }
 
   private val returnType = new RowTypeInfo(fieldTypes: _*)
+
+  private var projectionFieldsMask: Option[Array[Boolean]] = None
+  private var projectionFieldScanOrder: Option[Array[Int]] = None
 
   /**
     * Returns the data of the table as a [[DataSet]] of [[Row]].
@@ -106,8 +110,42 @@ class CsvTableSource(
     streamExecEnv.createInput(createCsvInput(), returnType)
   }
 
+  /** Returns a copy of [[TableSource]] with ability to project fields */
+  override def projectFields(fields: Array[Int]): CsvTableSource = {
+    val mask = new Array[Boolean](fieldNames.length)
+    fields.foreach(mask(_) = true)
+
+    val newFieldNames: Array[String] = fields.map(fieldNames(_))
+    val newFieldTypes: Array[TypeInformation[_]] = fields.map(fieldTypes(_))
+
+    val indexDiff = fieldNames.length - fields.length
+    val order = fields.map(f => f - indexDiff).zipWithIndex.sortBy(_._1).map(_._2)
+
+    val source = new CsvTableSource(path,
+      newFieldNames,
+      newFieldTypes,
+      fieldDelim,
+      rowDelim,
+      quoteCharacter,
+      ignoreFirstLine,
+      ignoreComments,
+      lenient)
+    source.projectionFieldsMask = Option(mask)
+    source.projectionFieldScanOrder = Option(order)
+    source
+  }
+
+  /** Returns whether a projection set or not*/
+  def isProjected: Boolean = projectionFieldsMask.isDefined
+
   private def createCsvInput(): RowCsvInputFormat = {
-    val inputFormat = new RowCsvInputFormat(new Path(path), returnType, rowDelim, fieldDelim)
+    val inputFormat = new RowCsvInputFormat(
+      new Path(path),
+      returnType,
+      rowDelim,
+      fieldDelim,
+      projectionFieldsMask.orNull,
+      projectionFieldScanOrder.orNull)
 
     inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
     inputFormat.setLenient(lenient)

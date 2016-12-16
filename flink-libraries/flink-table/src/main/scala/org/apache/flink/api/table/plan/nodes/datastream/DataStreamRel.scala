@@ -20,7 +20,7 @@ package org.apache.flink.api.table.plan.nodes.datastream
 
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.{StreamTableEnvironment, TableConfig}
+import org.apache.flink.api.table.StreamTableEnvironment
 import org.apache.flink.api.table.plan.nodes.FlinkRel
 import org.apache.flink.streaming.api.datastream.DataStream
 
