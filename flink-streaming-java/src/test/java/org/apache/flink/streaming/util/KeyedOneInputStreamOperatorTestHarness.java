@@ -34,11 +34,14 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
+import org.apache.flink.util.Migration;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.RunnableFuture;
@@ -184,6 +187,16 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		}
 	}
 
+
+	private static boolean hasMigrationHandles(Collection<KeyGroupsStateHandle> allKeyGroupsHandles) {
+		for (KeyGroupsStateHandle handle : allKeyGroupsHandles) {
+			if (handle instanceof Migration) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	@Override
 	public void initializeState(OperatorStateHandles operatorStateHandles) throws Exception {
 		if (operatorStateHandles != null) {
@@ -201,10 +214,20 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 					keyGroupPartitions.get(subtaskIndex);
 
 			restoredKeyedState = null;
-			if (operatorStateHandles.getManagedKeyedState() != null) {
-				restoredKeyedState = StateAssignmentOperation.getKeyGroupsStateHandles(
-						operatorStateHandles.getManagedKeyedState(),
-						localKeyGroupRange);
+			Collection<KeyGroupsStateHandle> managedKeyedState = operatorStateHandles.getManagedKeyedState();
+			if (managedKeyedState != null) {
+
+				// if we have migration handles, don't reshuffle state and preserve
+				// the migration tag
+				if (hasMigrationHandles(managedKeyedState)) {
+					List<KeyGroupsStateHandle> result = new ArrayList<>(managedKeyedState.size());
+					result.addAll(managedKeyedState);
+					restoredKeyedState = result;
+				} else {
+					restoredKeyedState = StateAssignmentOperation.getKeyGroupsStateHandles(
+							managedKeyedState,
+							localKeyGroupRange);
+				}
 			}
 		}
 

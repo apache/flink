@@ -25,6 +25,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0Serializer;
+import org.apache.flink.migration.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.migration.util.MigrationInstantiationUtil;
 import org.apache.flink.runtime.checkpoint.OperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
@@ -58,6 +61,7 @@ import org.apache.flink.util.Preconditions;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -263,6 +267,36 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		setupCalled = true;
 	}
 
+	public void initializeStateFromLegacyCheckpoint(String checkpointFilename) throws Exception {
+
+		FileInputStream fin = new FileInputStream(checkpointFilename);
+		StreamTaskState state = MigrationInstantiationUtil.deserializeObject(fin, ClassLoader.getSystemClassLoader());
+		fin.close();
+
+		if (!setupCalled) {
+			setup();
+		}
+
+		StreamStateHandle stateHandle = SavepointV0Serializer.convertOperatorAndFunctionState(state);
+
+		List<KeyGroupsStateHandle> keyGroupStatesList = new ArrayList<>();
+		if (state.getKvStates() != null) {
+			KeyGroupsStateHandle keyedStateHandle = SavepointV0Serializer.convertKeyedBackendState(
+					state.getKvStates(),
+					environment.getTaskInfo().getIndexOfThisSubtask(),
+					0);
+			keyGroupStatesList.add(keyedStateHandle);
+		}
+
+		// finally calling the initializeState() with the legacy operatorStateHandles
+		initializeState(new OperatorStateHandles(0,
+				stateHandle,
+				keyGroupStatesList,
+				Collections.<KeyGroupsStateHandle>emptyList(),
+				Collections.<OperatorStateHandle>emptyList(),
+				Collections.<OperatorStateHandle>emptyList()));
+	}
+
 	/**
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState(OperatorStateHandles)}.
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, StreamConfig, Output)}
@@ -323,7 +357,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 			OperatorStateHandles massagedOperatorStateHandles = new OperatorStateHandles(
 					0,
-					null,
+					operatorStateHandles.getLegacyOperatorState(),
 					localManagedKeyGroupState,
 					localRawKeyGroupState,
 					localManagedOperatorState,
