@@ -37,14 +37,23 @@ abstract class MapSideJoinRunner[IN1, IN2, SINGLE_IN, MULTI_IN, OUT](
   val LOG = LoggerFactory.getLogger(this.getClass)
 
   protected var function: FlatJoinFunction[IN1, IN2, OUT] = _
-  protected var singleInput: SINGLE_IN = _
+  protected var broadcastSet: Option[SINGLE_IN] = _
 
   override def open(parameters: Configuration): Unit = {
     LOG.debug(s"Compiling FlatJoinFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating FlatJoinFunction.")
     function = clazz.newInstance()
-    singleInput = getRuntimeContext.getBroadcastVariable(broadcastSetName).get(0)
+    broadcastSet = retrieveBroadcastSet
+  }
+
+  private def retrieveBroadcastSet: Option[SINGLE_IN] = {
+    val broadcastSet = getRuntimeContext.getBroadcastVariable(broadcastSetName)
+    if (!broadcastSet.isEmpty) {
+      Option(broadcastSet.get(0))
+    } else {
+      Option.empty
+    }
   }
 
   override def getProducedType: TypeInformation[OUT] = returnType

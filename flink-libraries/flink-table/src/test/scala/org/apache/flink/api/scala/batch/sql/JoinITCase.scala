@@ -363,4 +363,18 @@ class JoinITCase(
     val result = tEnv.sql(sqlQuery1).collect()
     TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
+
+  @Test
+  def testCrossJoinWithEmptySingleRowInput(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val table = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a1, 'a2, 'a3)
+    tEnv.registerTable("A", table)
+
+    val sqlQuery1 = "SELECT * FROM A CROSS JOIN (SELECT count(*) FROM A HAVING count(*) < 0)"
+    val result = tEnv.sql(sqlQuery1).count()
+
+    Assert.assertEquals(0, result)
+  }
 }
