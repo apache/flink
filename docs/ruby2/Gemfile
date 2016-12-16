@@ -18,12 +18,13 @@
 
 source 'https://rubygems.org'
 
-ruby '>= 1.9.0'
+ruby '~> 2'
 
-gem 'jekyll', '2.5.3'
-gem 'kramdown', '1.10.0'
-gem 'addressable', '2.4.0'
-gem 'octokit', '~> 4.3.0'
+gem 'jekyll', '~> 3.3.0'
+gem 'kramdown', '~> 1.13.0'
+gem 'json'
+group :jekyll_plugins do
+  gem 'hawkins'
+end
 gem 'pygments.rb', '0.6.3'
 gem 'therubyracer', '0.12.2'
-gem 'json'
