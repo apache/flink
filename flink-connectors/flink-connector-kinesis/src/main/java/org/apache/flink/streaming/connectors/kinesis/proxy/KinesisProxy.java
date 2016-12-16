@@ -17,14 +17,15 @@
 
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.model.GetRecordsRequest;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.GetShardIteratorResult;
-import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
 import com.amazonaws.services.kinesis.model.LimitExceededException;
+import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.model.StreamStatus;
 import com.amazonaws.services.kinesis.model.Shard;
@@ -193,12 +194,16 @@ public class KinesisProxy implements KinesisProxyInterface {
 		while (attempt <= getRecordsMaxAttempts && getRecordsResult == null) {
 			try {
 				getRecordsResult = kinesisClient.getRecords(getRecordsRequest);
-			} catch (ProvisionedThroughputExceededException ex) {
-				long backoffMillis = fullJitterBackoff(
-					getRecordsBaseBackoffMillis, getRecordsMaxBackoffMillis, getRecordsExpConstant, attempt++);
-				LOG.warn("Got ProvisionedThroughputExceededException. Backing off for "
-					+ backoffMillis + " millis.");
-				Thread.sleep(backoffMillis);
+			} catch (AmazonServiceException ex) {
+				if (isRecoverableException(ex)) {
+					long backoffMillis = fullJitterBackoff(
+						getRecordsBaseBackoffMillis, getRecordsMaxBackoffMillis, getRecordsExpConstant, attempt++);
+					LOG.warn("Got recoverable AmazonServiceException. Backing off for "
+						+ backoffMillis + " millis (" + ex.getErrorMessage() + ")");
+					Thread.sleep(backoffMillis);
+				} else {
+					throw ex;
+				}
 			}
 		}
 
@@ -237,12 +242,16 @@ public class KinesisProxy implements KinesisProxyInterface {
 			try {
 				getShardIteratorResult =
 					kinesisClient.getShardIterator(shard.getStreamName(), shard.getShard().getShardId(), shardIteratorType, startingSeqNum);
-			} catch (ProvisionedThroughputExceededException ex) {
-				long backoffMillis = fullJitterBackoff(
-					getShardIteratorBaseBackoffMillis, getShardIteratorMaxBackoffMillis, getShardIteratorExpConstant, attempt++);
-				LOG.warn("Got ProvisionedThroughputExceededException. Backing off for "
-					+ backoffMillis + " millis.");
-				Thread.sleep(backoffMillis);
+			} catch (AmazonServiceException ex) {
+				if (isRecoverableException(ex)) {
+					long backoffMillis = fullJitterBackoff(
+						getShardIteratorBaseBackoffMillis, getShardIteratorMaxBackoffMillis, getShardIteratorExpConstant, attempt++);
+					LOG.warn("Got recoverable AmazonServiceException. Backing off for "
+						+ backoffMillis + " millis (" + ex.getErrorMessage() + ")");
+					Thread.sleep(backoffMillis);
+				} else {
+					throw ex;
+				}
 			}
 		}
 
@@ -251,6 +260,29 @@ public class KinesisProxy implements KinesisProxyInterface {
 				" retry attempts returned ProvisionedThroughputExceededException.");
 		}
 		return getShardIteratorResult.getShardIterator();
+	}
+
+	/**
+	 * Determines whether the exception is recoverable using exponential-backoff.
+	 * 
+	 * @param ex Exception to inspect
+	 * @return <code>true</code> if the exception can be recovered from, else
+	 *         <code>false</code>
+	 */
+	protected static boolean isRecoverableException(AmazonServiceException ex) {
+		if (ex.getErrorType() == null) {
+			return false;
+		}
+
+		switch (ex.getErrorType()) {
+			case Client:
+				return ex instanceof ProvisionedThroughputExceededException;
+			case Service:
+			case Unknown:
+				return true;
+			default:
+				return false;
+		}
 	}
 
 	private List<KinesisStreamShard> getShardsOfStream(String streamName, @Nullable String lastSeenShardId) throws InterruptedException {
