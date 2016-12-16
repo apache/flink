@@ -3913,7 +3913,7 @@ The following examples show how to define a table-valued function and use it:
 // the generic type "Tuple2<String, Integer>" determines the returned table type has two columns,
 // the first is a String type and the second is an Integer type
 public class Split extends TableFunction<Tuple2<String, Integer>> {
-    public void evel(String str) {
+    public void eval(String str) {
         for (String s : str.split(" ")) {
             // use collect(...) to emit an output row
             collect(new Tuple2<String, Integer>(s, s.length()));
@@ -3945,7 +3945,7 @@ tableEnv.sql("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(
 // the generic type "(String, Integer)" determines the returned table type has two columns,
 // the first is a String type and the second is an Integer type
 class Split extends TableFunction[(String, Integer)] {
-  def evel(str: String): Unit = {
+  def eval(str: String): Unit = {
     // use collect(...) to emit an output row
     str.split(" ").foreach(x -> collect((x, x.length))
   }
