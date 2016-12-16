@@ -815,6 +815,7 @@ under the License.
 						<!-- External web libraries. -->
 						<exclude>docs/**/bootstrap*</exclude>
 						<exclude>docs/Gemfile.lock</exclude>
+						<exclude>docs/ruby2/Gemfile.lock</exclude>
 						<exclude>docs/img/*.svg</exclude>
 						<exclude>**/docs/page/font-awesome/**</exclude>
 						<exclude>**/resources/**/font-awesome/**</exclude>

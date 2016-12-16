@@ -27,5 +27,7 @@ out/
 /docs/content
 /docs/.bundle
 /docs/.rubydeps
+/docs/ruby2/.bundle
+/docs/ruby2/.rubydeps
 *.ipr
 *.iws
