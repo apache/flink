@@ -31,6 +31,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedRestoring;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +65,7 @@ import java.util.TreeMap;
  */
 @Internal
 public class ContinuousFileMonitoringFunction<OUT>
-	extends RichSourceFunction<TimestampedFileInputSplit> implements CheckpointedFunction {
+	extends RichSourceFunction<TimestampedFileInputSplit> implements CheckpointedFunction, CheckpointedRestoring<Long> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -92,7 +93,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 	private final FileProcessingMode watchType;
 
 	/** The maximum file modification time seen so far. */
-	private volatile long globalModificationTime;
+	private volatile long globalModificationTime = Long.MIN_VALUE;
 
 	private transient Object checkpointLock;
 
@@ -147,15 +148,25 @@ public class ContinuousFileMonitoringFunction<OUT>
 				retrievedStates.add(entry);
 			}
 
-			// given that the parallelism of the function is 1, we can only have 1 state
-			Preconditions.checkArgument(retrievedStates.size() == 1,
+			// given that the parallelism of the function is 1, we can only have 1 or 0 retrieved items.
+			// the 0 is for the case that we are migrating from a previous Flink version.
+
+			Preconditions.checkArgument(retrievedStates.size() <= 1,
 				getClass().getSimpleName() + " retrieved invalid state.");
 
-			this.globalModificationTime = retrievedStates.get(0);
+			if (retrievedStates.size() == 1 && globalModificationTime != Long.MIN_VALUE) {
+				// this is the case where we have both legacy and new state.
+				// The two should be mutually exclusive for the operator, thus we throw the exception.
 
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("{} retrieved a global mod time of {}.",
-					getClass().getSimpleName(), globalModificationTime);
+				throw new IllegalArgumentException(
+					"The " + getClass().getSimpleName() +" has already restored from a previous Flink version.");
+
+			} else if (retrievedStates.size() == 1) {
+				this.globalModificationTime = retrievedStates.get(0);
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("{} retrieved a global mod time of {}.",
+						getClass().getSimpleName(), globalModificationTime);
+				}
 			}
 
 		} else {
@@ -356,5 +367,13 @@ public class ContinuousFileMonitoringFunction<OUT>
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("{} checkpointed {}.", getClass().getSimpleName(), globalModificationTime);
 		}
+	}
+
+	@Override
+	public void restoreState(Long state) throws Exception {
+		this.globalModificationTime = state;
+
+		LOG.info("{} (taskIdx={}) restored global modification time from an older Flink version: {}",
+			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), globalModificationTime);
 	}
 }
