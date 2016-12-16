@@ -22,6 +22,7 @@ import java.sql.{Date, Time, Timestamp}
 import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
+import org.apache.flink.api.table.Table
 import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.api.table.expressions._
 import java.math.{BigDecimal => JBigDecimal}
@@ -110,6 +111,9 @@ trait ImplicitExpressionOperations {
   def asc = Asc(expr)
   def desc = Desc(expr)
 
+
+  def in(subquery: Expression*) = In(expr, subquery)
+  def in(table: Table) = InSub(expr, table)
   /**
     * Returns the start time of a window when applied on a window reference.
     */

@@ -1102,6 +1102,45 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "true")
   }
 
+  @Test
+  def testInExpressions(): Unit = {
+    testTableApi(
+      'f2.in(1,2,42),
+      "f2.in(1,2,42)",
+      "true"
+    )
+
+    testTableApi(
+      'f2.in(BigDecimal(42.0), BigDecimal(2.00), BigDecimal(3.01)),
+      "f2.in(42.0, 2.00, 3.01)",
+      "true"
+    )
+
+    testTableApi(
+      'f0.in("This is a test String.", "Hello world", "Comment#1"),
+      "f0.in('This is a test String.', 'Hello world', 'Comment#1')",
+      "true"
+    )
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def scalaInValidationExceptionDifferentOperandsTest(): Unit = {
+    testTableApi(
+      'f1.in("Hi", "Hello world", "Comment#1"),
+      "true",
+      "true"
+    )
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def javaInValidationExceptionDifferentOperandsTest(): Unit = {
+    testTableApi(
+      true,
+      "f1.in('Hi','Hello world','Comment#1')",
+      "true"
+    )
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   def testData = {

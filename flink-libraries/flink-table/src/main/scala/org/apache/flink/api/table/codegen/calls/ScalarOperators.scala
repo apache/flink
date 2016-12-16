@@ -79,6 +79,72 @@ object ScalarOperators {
     }
   }
 
+  def generateIn(
+      nullCheck: Boolean,
+      left: GeneratedExpression,
+      right: scala.collection.mutable.Buffer[GeneratedExpression],
+      addReusableCodeCallback: (String, String) => Any)
+    : GeneratedExpression = {
+    val resultTerm = newName("result")
+    val isNull = newName("isNull")
+
+    val topNumericalType: Option[TypeInformation[_]] = {
+      if (isDecimal(left.resultType) || isDecimal(right.head.resultType)) {
+        Some(BIG_DEC_TYPE_INFO)
+      } else if (isNumeric(left.resultType) || isNumeric(right.head.resultType)) {
+        Some(DOUBLE_TYPE_INFO)
+      } else {
+        None
+      }
+    }
+
+    val castNumeric = if (topNumericalType.isEmpty) {
+      (value: GeneratedExpression) => value.resultTerm
+    } else {
+      (value: GeneratedExpression) =>
+        numericCasting(value.resultType, topNumericalType.get)(value.resultTerm)
+    }
+
+    val valuesInitialization = "//literals were initialized in constructor\n"
+
+    val hashSetVariable = newName("set")
+
+    addReusableCodeCallback(
+      s"""
+         |private java.util.Set $hashSetVariable = new java.util.HashSet();
+         """.stripMargin,
+      s"""
+         |${right.map(_.code).mkString("")}
+         |
+         |${right.map(element =>
+          s"$hashSetVariable.add(${castNumeric(element)});").mkString("\n")
+          }
+         |""".stripMargin
+    )
+
+    val comparison = s"$resultTerm = $hashSetVariable.contains(${castNumeric(left)});"
+
+    val code = if (nullCheck) {
+      s"""
+         |$valuesInitialization
+         |boolean $isNull = ${left.nullTerm};
+         |boolean $resultTerm;
+         |if ($isNull) {
+         |  $resultTerm = false;
+         |} else {
+         |  $comparison
+         |}
+         |""".stripMargin
+    } else {
+      s"""
+         |$valuesInitialization
+         |boolean $resultTerm;
+         |$comparison
+         |""".stripMargin
+    }
+    GeneratedExpression(resultTerm, GeneratedExpression.NEVER_NULL, code, BOOLEAN_TYPE_INFO)
+  }
+
   def generateEquals(
       nullCheck: Boolean,
       left: GeneratedExpression,
@@ -1002,12 +1068,17 @@ object ScalarOperators {
     val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
     // no casting necessary
     if (operandType == resultType) {
-      (operandTerm) => s"$operandTerm"
+      if (isDecimal(operandType)) {
+        (operandTerm) => s"$operandTerm.stripTrailingZeros()"
+      } else {
+        (operandTerm) => s"$operandTerm"
+      }
     }
     // result type is decimal but numeric operand is not
     else if (isDecimal(resultType) && !isDecimal(operandType) && isNumeric(operandType)) {
       (operandTerm) =>
-        s"java.math.BigDecimal.valueOf((${superPrimitive(operandType)}) $operandTerm)"
+        s"java.math.BigDecimal.valueOf((${superPrimitive(operandType)}) $operandTerm)" +
+          s".stripTrailingZeros()"
     }
     // numeric result type is not decimal but operand is
     else if (isNumeric(resultType) && !isDecimal(resultType) && isDecimal(operandType) ) {
