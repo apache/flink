@@ -17,13 +17,13 @@
 
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.model.GetRecordsRequest;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.GetShardIteratorResult;
-import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
 import com.amazonaws.services.kinesis.model.LimitExceededException;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.model.StreamStatus;
@@ -193,11 +193,11 @@ public class KinesisProxy implements KinesisProxyInterface {
 		while (attempt <= getRecordsMaxAttempts && getRecordsResult == null) {
 			try {
 				getRecordsResult = kinesisClient.getRecords(getRecordsRequest);
-			} catch (ProvisionedThroughputExceededException ex) {
+			} catch (AmazonServiceException ex) {
 				long backoffMillis = fullJitterBackoff(
 					getRecordsBaseBackoffMillis, getRecordsMaxBackoffMillis, getRecordsExpConstant, attempt++);
-				LOG.warn("Got ProvisionedThroughputExceededException. Backing off for "
-					+ backoffMillis + " millis.");
+				LOG.warn("Got AmazonServiceException. Backing off for "
+					+ backoffMillis + " millis (" + ex.getErrorMessage() + ")");
 				Thread.sleep(backoffMillis);
 			}
 		}
@@ -237,11 +237,11 @@ public class KinesisProxy implements KinesisProxyInterface {
 			try {
 				getShardIteratorResult =
 					kinesisClient.getShardIterator(shard.getStreamName(), shard.getShard().getShardId(), shardIteratorType, startingSeqNum);
-			} catch (ProvisionedThroughputExceededException ex) {
+			} catch (AmazonServiceException ex) {
 				long backoffMillis = fullJitterBackoff(
 					getShardIteratorBaseBackoffMillis, getShardIteratorMaxBackoffMillis, getShardIteratorExpConstant, attempt++);
-				LOG.warn("Got ProvisionedThroughputExceededException. Backing off for "
-					+ backoffMillis + " millis.");
+				LOG.warn("Got AmazonServiceException. Backing off for "
+					+ backoffMillis + " millis (" + ex.getErrorMessage() + ")");
 				Thread.sleep(backoffMillis);
 			}
 		}
