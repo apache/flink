@@ -24,7 +24,7 @@ import org.apache.flink.table.utils.{CommonTestData, TableTestBase}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
 
-class ProjectableTableSourceTest extends TableTestBase {
+class TableSourceTest extends TableTestBase {
 
   private val projectedFields: Array[String] = Array("last", "id", "score")
   private val noCalcFields: Array[String] = Array("id", "score", "first")

@@ -22,10 +22,9 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.table.utils.CommonTestData;
 import org.apache.flink.types.Row;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.api.scala.batch.GeneratingInputFormat;
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
@@ -45,20 +44,27 @@ public class TableSourceITCase extends TableProgramsTestBase {
 
 	@Test
 	public void testBatchTableSourceTableAPI() throws Exception {
+
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+		BatchTableSource csvTable = CommonTestData.getCsvTableSource();
 
-		tableEnv.registerTableSource("MyTable", new TestBatchTableSource());
+		tableEnv.registerTableSource("persons", csvTable);
 
-		Table result = tableEnv.scan("MyTable")
-			.where("amount < 4")
-			.select("amount * id, name");
+		Table result = tableEnv.scan("persons")
+			.select("id, first, last, score");
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
 
-		String expected = "0,Record_0\n" + "0,Record_16\n" + "0,Record_32\n" + "1,Record_1\n" +
-			"17,Record_17\n" + "36,Record_18\n" + "4,Record_2\n" + "57,Record_19\n" + "9,Record_3\n";
+		String expected = "1,Mike,Smith,12.3\n" +
+			"2,Bob,Taylor,45.6\n" +
+			"3,Sam,Miller,7.89\n" +
+			"4,Peter,Smith,0.12\n" +
+			"5,Liz,Williams,34.5\n" +
+			"6,Sally,Miller,6.78\n" +
+			"7,Alice,Smith,90.1\n" +
+			"8,Kelly,Williams,2.34\n";
 
 		compareResultAsText(results, expected);
 	}
@@ -67,53 +73,23 @@ public class TableSourceITCase extends TableProgramsTestBase {
 	public void testBatchTableSourceSQL() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+		BatchTableSource csvTable = CommonTestData.getCsvTableSource();
 
-		tableEnv.registerTableSource("MyTable", new TestBatchTableSource());
+		tableEnv.registerTableSource("persons", csvTable);
 
 		Table result = tableEnv
-			.sql("SELECT amount * id, name FROM MyTable WHERE amount < 4");
+			.sql("SELECT last, FLOOR(id), score * 2 FROM persons WHERE score < 20");
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
 
-		String expected = "0,Record_0\n" + "0,Record_16\n" + "0,Record_32\n" + "1,Record_1\n" +
-			"17,Record_17\n" + "36,Record_18\n" + "4,Record_2\n" + "57,Record_19\n" + "9,Record_3\n";
+		String expected = "Smith,1,24.6\n" +
+			"Miller,3,15.78\n" +
+			"Smith,4,0.24\n" +
+			"Miller,6,13.56\n" +
+			"Williams,8,4.68\n";
 
 		compareResultAsText(results, expected);
-	}
-
-	public static class TestBatchTableSource implements BatchTableSource<Row> {
-
-		private TypeInformation<?>[] fieldTypes = new TypeInformation<?>[] {
-			BasicTypeInfo.STRING_TYPE_INFO,
-			BasicTypeInfo.LONG_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO
-		};
-
-		@Override
-		public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
-			return execEnv.createInput(new GeneratingInputFormat(33), getReturnType()).setParallelism(1);
-		}
-
-		@Override
-		public int getNumberOfFields() {
-			return 3;
-		}
-
-		@Override
-		public String[] getFieldsNames() {
-			return new String[]{"name", "id", "amount"};
-		}
-
-		@Override
-		public TypeInformation<?>[] getFieldTypes() {
-			return fieldTypes;
-		}
-
-		@Override
-		public TypeInformation<Row> getReturnType() {
-			return new RowTypeInfo(fieldTypes);
-		}
 	}
 
 }
