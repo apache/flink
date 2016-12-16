@@ -54,9 +54,6 @@ import java.util.Scanner;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.either;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -78,14 +75,14 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 	public void testStandaloneWebRuntimeMonitor() throws Exception {
 		final Deadline deadline = TestTimeout.fromNow();
 
-		TestingCluster testingCluster = null;
+		TestingCluster flink = null;
 		WebRuntimeMonitor webMonitor = null;
 
 		try {
 			// Flink w/o a web monitor
-			testingCluster = new TestingCluster(new Configuration());
-			testingCluster.start(true);
-			webMonitor = startWebRuntimeMonitor(testingCluster);
+			flink = new TestingCluster(new Configuration());
+			flink.start(true);
+			webMonitor = startWebRuntimeMonitor(flink);
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
 				String expected = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
@@ -106,12 +103,12 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				response = client.getNextResponse(deadline.timeLeft());
 				assertEquals(HttpResponseStatus.OK, response.getStatus());
 				assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
-				assertThat(response.getContent(), containsString("\"taskmanagers\":1"));
+				assertTrue(response.getContent().contains("\"taskmanagers\":1"));
 			}
 		}
 		finally {
-			if (testingCluster != null) {
-				testingCluster.shutdown();
+			if (flink != null) {
+				flink.shutdown();
 			}
 
 			if (webMonitor != null) {
@@ -225,7 +222,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				followingClient.sendGetRequest("index.html", deadline.timeLeft());
 				response = followingClient.getNextResponse(deadline.timeLeft());
 				assertEquals(HttpResponseStatus.TEMPORARY_REDIRECT, response.getStatus());
-				assertThat(response.getLocation(), containsString(String.valueOf(leadingWebMonitor.getServerPort())));
+				assertTrue(response.getLocation().contains(String.valueOf(leadingWebMonitor.getServerPort())));
 
 				// Kill the leader
 				leadingSystem.shutdown();
@@ -247,8 +244,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				response = followingClient.getNextResponse(deadline.timeLeft());
 				assertEquals(HttpResponseStatus.OK, response.getStatus());
 				assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
-				assertThat(response.getContent(), either(containsString("\"taskmanagers\":1"))
-						.or(containsString("\"taskmanagers\":0")));
+				assertTrue(response.getContent().contains("\"taskmanagers\":1") ||
+						response.getContent().contains("\"taskmanagers\":0"));
 			}
 		}
 		finally {
@@ -304,7 +301,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 				assertEquals(HttpResponseStatus.SERVICE_UNAVAILABLE, response.getStatus());
 				assertEquals(MimeTypes.getMimeTypeForExtension("txt"), response.getType());
-				assertThat(response.getContent(), containsString("refresh"));
+				assertTrue(response.getContent().contains("refresh"));
 			}
 		}
 		finally {
@@ -331,13 +328,13 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 	public void testNoEscape() throws Exception {
 		final Deadline deadline = TestTimeout.fromNow();
 
-		TestingCluster testingCluster = null;
+		TestingCluster flink = null;
 		WebRuntimeMonitor webMonitor = null;
 
 		try {
-			testingCluster = new TestingCluster(new Configuration());
-			testingCluster.start(true);
-			webMonitor = startWebRuntimeMonitor(testingCluster);
+			flink = new TestingCluster(new Configuration());
+			flink.start(true);
+			webMonitor = startWebRuntimeMonitor(flink);
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
 				String expectedIndex = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
@@ -375,8 +372,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 						response.getStatus());
 			}
 		} finally {
-			if (testingCluster != null) {
-				testingCluster.shutdown();
+			if (flink != null) {
+				flink.shutdown();
 			}
 
 			if (webMonitor != null) {
@@ -393,14 +390,13 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 	public void testNoCopyFromJar() throws Exception {
 		final Deadline deadline = TestTimeout.fromNow();
 
-		TestingCluster testingCluster = null;
+		TestingCluster flink = null;
 		WebRuntimeMonitor webMonitor = null;
 
 		try {
-			testingCluster = new TestingCluster(new Configuration());
-			testingCluster.start(true);
-
-			webMonitor = startWebRuntimeMonitor(testingCluster);
+			flink = new TestingCluster(new Configuration());
+			flink.start(true);
+			webMonitor = startWebRuntimeMonitor(flink);
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
 				String expectedIndex = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
@@ -435,8 +431,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 						response.getStatus());
 			}
 		} finally {
-			if (testingCluster != null) {
-				testingCluster.shutdown();
+			if (flink != null) {
+				flink.shutdown();
 			}
 
 			if (webMonitor != null) {
@@ -469,10 +465,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			jmActorSystem);
 
 		webMonitor.start(jobManagerAddress);
-		JobManagerRetriever retriever = Whitebox
-            .getInternalState(webMonitor, "retriever");
-
-		retriever.awaitJobManagerGatewayAndWebPort();
+		flink.waitForActorsToBeAlive();
 		return webMonitor;
 	}
 
