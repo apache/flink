@@ -2748,6 +2748,42 @@ ARRAY.element()
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight scala %}
+groupId()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns an integer that uniquely identifies the combination of grouping keys.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY.grouping()
+grouping(ANY)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns 1 if expression is rolled up in the current row’s grouping set, 0 otherwise.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY.groupingId()
+(ANY [, ANY ]*).groupingId()
+groupingId(ANY [, ANY ]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a bit vector of the given grouping expressions.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 </div>
