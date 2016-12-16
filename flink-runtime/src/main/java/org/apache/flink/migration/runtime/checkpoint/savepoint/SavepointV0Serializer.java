@@ -252,7 +252,11 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 				null);
 	}
 
-	private StreamStateHandle convertOperatorAndFunctionState(StreamTaskState streamTaskState) throws Exception {
+	/**
+	 * This is public so that we can use it when restoring a legacy snapshot
+	 * in {@code AbstractStreamOperatorTestHarness}.
+	 */
+	public static StreamStateHandle convertOperatorAndFunctionState(StreamTaskState streamTaskState) throws Exception {
 
 		List<StreamStateHandle> mergeStateHandles = new ArrayList<>(4);
 
@@ -273,7 +277,11 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 		return new MigrationStreamStateHandle(new MultiStreamStateHandle(mergeStateHandles));
 	}
 
-	private KeyGroupsStateHandle convertKeyedBackendState(
+	/**
+	 * This is public so that we can use it when restoring a legacy snapshot
+	 * in {@code AbstractStreamOperatorTestHarness}.
+	 */
+	public static KeyGroupsStateHandle convertKeyedBackendState(
 			HashMap<String, KvStateSnapshot<?, ?, ?, ?>> oldKeyedState,
 			int parallelInstanceIdx,
 			long checkpointID) throws Exception {
@@ -327,7 +335,11 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 		return 0;
 	}
 
-	private static StreamStateHandle convertStateHandle(StateHandle<?> oldStateHandle) throws Exception {
+	/**
+	 * This is public so that we can use it when restoring a legacy snapshot
+	 * in {@code AbstractStreamOperatorTestHarness}.
+	 */
+	public static StreamStateHandle convertStateHandle(StateHandle<?> oldStateHandle) throws Exception {
 		if (oldStateHandle instanceof AbstractFileStateHandle) {
 			Path path = ((AbstractFileStateHandle) oldStateHandle).getFilePath();
 			return new FileStateHandle(path, oldStateHandle.getStateSize());
