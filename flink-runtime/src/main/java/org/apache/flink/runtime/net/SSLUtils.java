@@ -21,6 +21,7 @@ package org.apache.flink.runtime.net;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,6 +96,10 @@ public class SSLUtils {
 			String trustStoreFilePath = sslConfig.getString(
 				ConfigConstants.SECURITY_SSL_TRUSTSTORE,
 				null);
+			if(trustStoreFilePath == null) {
+				throw new IllegalConfigurationException("security.ssl.truststore must be configured");
+			}
+
 			String trustStorePassword = sslConfig.getString(
 				ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD,
 				null);
@@ -104,14 +109,10 @@ public class SSLUtils {
 
 			KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
 
-			FileInputStream trustStoreFile = null;
-			try {
-				trustStoreFile = new FileInputStream(new File(trustStoreFilePath));
-				trustStore.load(trustStoreFile, trustStorePassword.toCharArray());
-			} finally {
-				if (trustStoreFile != null) {
-					trustStoreFile.close();
-				}
+			try (FileInputStream trustStoreFile = new FileInputStream(new File(trustStoreFilePath))) {
+				trustStore.load(
+					trustStoreFile,
+					trustStorePassword != null ? trustStorePassword.toCharArray() : null);
 			}
 
 			TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(
@@ -146,6 +147,9 @@ public class SSLUtils {
 			String keystoreFilePath = sslConfig.getString(
 				ConfigConstants.SECURITY_SSL_KEYSTORE,
 				null);
+			if(keystoreFilePath == null) {
+				throw new IllegalConfigurationException("security.ssl.keystore must be configured");
+			}
 
 			String keystorePassword = sslConfig.getString(
 				ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD,
@@ -154,20 +158,20 @@ public class SSLUtils {
 			String certPassword = sslConfig.getString(
 				ConfigConstants.SECURITY_SSL_KEY_PASSWORD,
 				null);
+			if(certPassword == null) {
+				throw new IllegalConfigurationException("security.ssl.key-password must be configured");
+			}
 
 			String sslProtocolVersion = sslConfig.getString(
 				ConfigConstants.SECURITY_SSL_PROTOCOL,
 				ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL);
 
+			// open the keystore and validate it
 			KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-			FileInputStream keyStoreFile = null;
-			try {
-				keyStoreFile = new FileInputStream(new File(keystoreFilePath));
-				ks.load(keyStoreFile, keystorePassword.toCharArray());
-			} finally {
-				if (keyStoreFile != null) {
-					keyStoreFile.close();
-				}
+			try (FileInputStream keyStoreFile = new FileInputStream(new File(keystoreFilePath))) {
+				ks.load(
+					keyStoreFile,
+					keystorePassword != null ? keystorePassword.toCharArray() : null);
 			}
 
 			// Set up key manager factory to use the server key store
