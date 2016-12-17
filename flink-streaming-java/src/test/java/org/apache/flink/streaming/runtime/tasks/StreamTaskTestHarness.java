@@ -264,6 +264,10 @@ public class StreamTaskTestHarness<OUT> {
 		return streamConfig;
 	}
 
+	public ExecutionConfig getExecutionConfig() {
+		return executionConfig;
+	}
+
 	private void shutdownIOManager() throws Exception {
 		this.mockEnv.getIOManager().shutdown();
 		Assert.assertTrue("IO Manager has not properly shut down.", this.mockEnv.getIOManager().isProperlyShutDown());

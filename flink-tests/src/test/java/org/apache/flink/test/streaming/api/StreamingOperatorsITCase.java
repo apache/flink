@@ -22,47 +22,27 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.util.MathUtils;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.util.MathUtils;
+import org.junit.*;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase {
 
-	private String resultPath1;
-	private String resultPath2;
-	private String expected1;
-	private String expected2;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception {
-		resultPath1 = tempFolder.newFile().toURI().toString();
-		resultPath2 = tempFolder.newFile().toURI().toString();
-		expected1 = "";
-		expected2 = "";
-	}
-
-	@After
-	public void after() throws Exception {
-		compareResultsByLinesInMemory(expected1, resultPath1);
-		compareResultsByLinesInMemory(expected2, resultPath2);
-	}
 
 	/**
 	 * Tests the proper functioning of the streaming fold operator. For this purpose, a stream
@@ -112,6 +92,8 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 				}
 			});
 
+		final MemorySinkFunction sinkFunction1 = new MemorySinkFunction(0);
+
 		splittedResult.select("0").map(new MapFunction<Tuple2<Integer,Integer>, Integer>() {
 			private static final long serialVersionUID = 2114608668010092995L;
 
@@ -119,7 +101,10 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 			public Integer map(Tuple2<Integer, Integer> value) throws Exception {
 				return value.f1;
 			}
-		}).writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
+		}).addSink(sinkFunction1);
+
+
+		final MemorySinkFunction sinkFunction2 = new MemorySinkFunction(1);
 
 		splittedResult.select("1").map(new MapFunction<Tuple2<Integer, Integer>, Integer>() {
 			private static final long serialVersionUID = 5631104389744681308L;
@@ -128,27 +113,34 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 			public Integer map(Tuple2<Integer, Integer> value) throws Exception {
 				return value.f1;
 			}
-		}).writeAsText(resultPath2, FileSystem.WriteMode.OVERWRITE);
+		}).addSink(sinkFunction2);
 
-		StringBuilder builder1 = new StringBuilder();
-		StringBuilder builder2 = new StringBuilder();
+		Collection<Integer> expected1 = new ArrayList<>(10);
+		Collection<Integer> expected2 = new ArrayList<>(10);
 		int counter1 = 0;
 		int counter2 = 0;
 
 		for (int i = 0; i < numElements; i++) {
 			if (MathUtils.murmurHash(i) % numKeys == 0) {
 				counter1 += i;
-				builder1.append(counter1 + "\n");
+				expected1.add(counter1);
 			} else {
 				counter2 += i;
-				builder2.append(counter2 + "\n");
+				expected2.add(counter2);
 			}
 		}
 
-		expected1 = builder1.toString();
-		expected2 = builder2.toString();
-
 		env.execute();
+
+		Collection<Integer> result1 = sinkFunction1.getResult();
+		Collections.sort((ArrayList)result1);
+		Collection<Integer> result2 = sinkFunction2.getResult();
+		Collections.sort((ArrayList)result2);
+
+		Assert.assertArrayEquals(result1.toArray(), expected1.toArray());
+		Assert.assertArrayEquals(result2.toArray(), expected2.toArray());
+
+		MemorySinkFunction.clear();
 	}
 
 	/**
@@ -161,6 +153,8 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Tuple2<Integer, NonSerializable>> input = env.addSource(new NonSerializableTupleSource(numElements));
+
+		final MemorySinkFunction sinkFunction = new MemorySinkFunction(0);
 
 		input
 			.keyBy(0)
@@ -182,17 +176,100 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 					return value.value;
 				}
 			})
-			.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
+			.addSink(sinkFunction);
 
-		StringBuilder builder = new StringBuilder();
+		Collection<Integer> expected = new ArrayList<>(10);
 
 		for (int i = 0; i < numElements; i++) {
-			builder.append(42 + i + "\n");
+			expected.add(42 + i );
 		}
 
-		expected1 = builder.toString();
+		env.execute();
+
+		Collection<Integer> result = sinkFunction.getResult();
+		Collections.sort((ArrayList)result);
+
+		Assert.assertArrayEquals(result.toArray(), expected.toArray());
+
+		MemorySinkFunction.clear();
+	}
+
+	@Test
+	public void testAsyncWaitOperator() throws Exception {
+		final int numElements = 10;
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Tuple2<Integer, NonSerializable>> input = env.addSource(new NonSerializableTupleSource(numElements));
+
+		AsyncFunction<Tuple2<Integer, NonSerializable>, Integer> function = new RichAsyncFunction<Tuple2<Integer, NonSerializable>, Integer>() {
+			transient ExecutorService executorService;
+
+			@Override
+			public void open(Configuration parameters) throws Exception {
+				super.open(parameters);
+				executorService = Executors.newFixedThreadPool(numElements);
+			}
+
+			@Override
+			public void close() throws Exception {
+				super.close();
+				executorService.shutdown();
+			}
+
+			@Override
+			public void asyncInvoke(final Tuple2<Integer, NonSerializable> input,
+									final AsyncCollector<Integer> collector) throws Exception {
+				this.executorService.submit(new Runnable() {
+					@Override
+					public void run() {
+						// wait for while to simulate async operation here
+						int sleep = (int) (new Random().nextFloat() * 10);
+						try {
+							Thread.sleep(sleep);
+							List<Integer> ret = new ArrayList<>();
+							ret.add(input.f0+input.f0);
+							collector.collect(ret);
+						}
+						catch (InterruptedException e) {
+							collector.collect(new ArrayList<Integer>(0));
+						}
+					}
+				});
+			}
+		};
+
+		DataStream<Integer> orderedResult = AsyncDataStream.orderedWait(input, function, 2).setParallelism(1);
+
+		// save result from ordered process
+		final MemorySinkFunction sinkFunction1 = new MemorySinkFunction(0);
+
+		orderedResult.addSink(sinkFunction1).setParallelism(1);
+
+
+		DataStream<Integer> unorderedResult = AsyncDataStream.unorderedWait(input, function, 2);
+
+		// save result from unordered process
+		final MemorySinkFunction sinkFunction2 = new MemorySinkFunction(1);
+
+		unorderedResult.addSink(sinkFunction2);
+
+
+		Collection<Integer> expected = new ArrayList<>(10);
+
+		for (int i = 0; i < numElements; i++) {
+			expected.add(i+i);
+		}
 
 		env.execute();
+
+		Assert.assertArrayEquals(expected.toArray(), sinkFunction1.getResult().toArray());
+
+		Collection<Integer> result = sinkFunction2.getResult();
+		Collections.sort((ArrayList)result);
+		Assert.assertArrayEquals(expected.toArray(), result.toArray());
+
+		MemorySinkFunction.clear();
 	}
 
 	private static class NonSerializable {
@@ -247,7 +324,50 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		}
 
 		@Override
+
+
 		public void cancel() {
+		}
+	}
+
+	private static class MemorySinkFunction implements SinkFunction<Integer> {
+		private final static Collection<Integer> collection1 = new ArrayList<>(10);
+
+		private final static Collection<Integer> collection2 = new ArrayList<>(10);
+
+		private  final long serialVersionUID = -8815570195074103860L;
+
+		private final int idx;
+
+		public MemorySinkFunction(int idx) {
+			this.idx = idx;
+		}
+
+		@Override
+		public void invoke(Integer value) throws Exception {
+			if (idx == 0) {
+				synchronized (collection1) {
+					collection1.add(value);
+				}
+			}
+			else {
+				synchronized (collection2) {
+					collection2.add(value);
+				}
+			}
+		}
+
+		public Collection<Integer> getResult() {
+			if (idx == 0) {
+				return collection1;
+			}
+
+			return collection2;
+		}
+
+		public static void clear() {
+			collection1.clear();
+			collection2.clear();
 		}
 	}
 }

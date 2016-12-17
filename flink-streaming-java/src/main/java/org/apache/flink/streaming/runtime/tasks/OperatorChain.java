@@ -17,13 +17,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -37,21 +30,27 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.collector.selector.CopyingDirectedOutput;
 import org.apache.flink.streaming.api.collector.selector.DirectedOutput;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.StreamRecordWriter;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
 import org.apache.flink.util.XORShiftRandom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 
 
 /**
@@ -67,7 +66,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 	private static final Logger LOG = LoggerFactory.getLogger(OperatorChain.class);
 	
 	private final StreamOperator<?>[] allOperators;
-	
+
 	private final RecordWriterOutput<?>[] streamOutputs;
 	
 	private final Output<StreamRecord<OUT>> chainEntryPoint;
@@ -96,7 +95,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 		try {
 			for (int i = 0; i < outEdgesInOrder.size(); i++) {
 				StreamEdge outEdge = outEdgesInOrder.get(i);
-				
 				RecordWriterOutput<?> streamOutput = createStreamOutput(
 						outEdge, chainedConfigs.get(outEdge.getSourceId()), i,
 						containingTask.getEnvironment(), containingTask.getName());
@@ -116,7 +114,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 
 			// add head operator to end of chain
 			allOps.add(headOperator);
-			
+
 			this.allOperators = allOps.toArray(new StreamOperator<?>[allOps.size()]);
 			
 			success = true;
@@ -245,7 +243,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 
 			Output<StreamRecord<T>> output = createChainedOperator(
 					containingTask, chainedOpConfig, chainedConfigs, userCodeClassloader, streamOutputs, allOperators);
-			
 			allOutputs.add(new Tuple2<>(output, outputEdge));
 		}
 		

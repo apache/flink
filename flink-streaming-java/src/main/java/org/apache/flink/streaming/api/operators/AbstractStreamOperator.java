@@ -596,12 +596,12 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 
-	protected void reportOrForwardLatencyMarker(LatencyMarker maker) {
+	protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
 		// all operators are tracking latencies
-		this.latencyGauge.reportLatency(maker, false);
+		this.latencyGauge.reportLatency(marker, false);
 
 		// everything except sinks forwards latency markers
-		this.output.emitLatencyMarker(maker);
+		this.output.emitLatencyMarker(marker);
 	}
 
 	// ----------------------- Helper classes -----------------------
