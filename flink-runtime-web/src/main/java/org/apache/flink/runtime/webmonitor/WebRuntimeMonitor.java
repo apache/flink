@@ -78,6 +78,7 @@ import org.apache.flink.runtime.webmonitor.metrics.JobMetricsHandler;
 import org.apache.flink.runtime.webmonitor.metrics.JobVertexMetricsHandler;
 import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
 import org.apache.flink.runtime.webmonitor.metrics.TaskManagerMetricsHandler;
+import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.ExecutionContext$;
@@ -89,7 +90,9 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URL;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -136,6 +139,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private Channel serverChannel;
 
+	private final URL serverURL;
+
 	private final File webRootDir;
 
 	private final File uploadDir;
@@ -161,7 +166,13 @@ public class WebRuntimeMonitor implements WebMonitor {
 		
 		final WebMonitorConfig cfg = new WebMonitorConfig(config);
 
-		final String configuredAddress = cfg.getWebFrontendAddress();
+		// determine the web runtime monitor's advertised server address and bind address
+		// by default the server address is the same as the JM server address
+		final InetAddress jmAddress = InetAddress.getByName(
+			config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost"));
+		final InetAddress configuredAddress = cfg.getWebFrontendAddress() != null ?
+			InetAddress.getByName(cfg.getWebFrontendAddress()) : NetUtils.anyLocalAddress();
+		final InetAddress serverAddress = NetUtils.getHostAddress(configuredAddress, jmAddress);
 
 		final int configuredPort = cfg.getWebFrontendPort();
 		if (configuredPort < 0) {
@@ -403,19 +414,15 @@ public class WebRuntimeMonitor implements WebMonitor {
 				.channel(NioServerSocketChannel.class)
 				.childHandler(initializer);
 
-		ChannelFuture ch;
-		if (configuredAddress == null) {
-			ch = this.bootstrap.bind(configuredPort);
-		} else {
-			ch = this.bootstrap.bind(configuredAddress, configuredPort);
-		}
+		ChannelFuture ch = this.bootstrap.bind(configuredAddress, configuredPort);
 		this.serverChannel = ch.sync().channel();
 
 		InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
-		String address = bindAddress.getAddress().getHostAddress();
 		int port = bindAddress.getPort();
+		this.serverURL = new URL(
+			serverSSLContext != null ? "https" : "http", serverAddress.getCanonicalHostName(), port, "");
 
-		LOG.info("Web frontend listening at " + address + ':' + port);
+		LOG.info("Web frontend listening at " + serverURL);
 	}
 
 	@Override
@@ -486,6 +493,11 @@ public class WebRuntimeMonitor implements WebMonitor {
 		}
 
 		return -1;
+	}
+
+	@Override
+	public URL getServerURL() {
+		return serverURL;
 	}
 
 	private void cleanup() {

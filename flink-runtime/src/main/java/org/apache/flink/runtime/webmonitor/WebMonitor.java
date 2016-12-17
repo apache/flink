@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import java.net.URL;
+
 /**
  * Interface for web monitors. Defines life-cycle methods and properties.
  */
@@ -45,4 +47,9 @@ public interface WebMonitor {
 	 * @return The port where the web server is listening, or -1, if no server is running.
 	 */
 	int getServerPort();
+
+	/**
+	 * Gets the advertised URL that the web server is listening at.
+     */
+	URL getServerURL();
 }
