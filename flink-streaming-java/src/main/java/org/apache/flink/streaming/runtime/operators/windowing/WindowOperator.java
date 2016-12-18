@@ -331,6 +331,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		context.key = timer.getKey();
 		context.window = timer.getNamespace();
 
+		// Call the trigger early, even if the window is already empty. Some Triggers
+		// might have to clean up state.
+		TriggerResult triggerResult = context.onEventTime(timer.getTimestamp());
+
 		AppendingState<IN, ACC> windowState;
 		MergingWindowSet<W> mergingWindows = null;
 
@@ -357,7 +361,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			return;
 		}
 
-		TriggerResult triggerResult = context.onEventTime(timer.getTimestamp());
 		if (triggerResult.isFire()) {
 			fire(context.window, contents);
 		}
@@ -371,6 +374,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	public void onProcessingTime(InternalTimer<K, W> timer) throws Exception {
 		context.key = timer.getKey();
 		context.window = timer.getNamespace();
+
+		// Call the trigger early, even if the window is already empty. Some Triggers
+		// might have to clean up state.
+		TriggerResult triggerResult = context.onProcessingTime(timer.getTimestamp());
 
 		AppendingState<IN, ACC> windowState;
 		MergingWindowSet<W> mergingWindows = null;
@@ -395,7 +402,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			return;
 		}
 
-		TriggerResult triggerResult = context.onProcessingTime(timer.getTimestamp());
 		if (triggerResult.isFire()) {
 			fire(context.window, contents);
 		}
