@@ -495,12 +495,18 @@ public class Graph<K, VV, EV> {
 	private static final class ProjectEdgeWithSrcValue<K, VV, EV> implements
 			FlatJoinFunction<Vertex<K, VV>, Edge<K, EV>, Tuple4<K, K, VV, EV>> {
 
+		private Tuple4<K, K, VV, EV> result = new Tuple4<>();
+
 		@Override
 		public void join(Vertex<K, VV> vertex, Edge<K, EV> edge, Collector<Tuple4<K, K, VV, EV>> collector)
 				throws Exception {
 
-			collector.collect(new Tuple4<>(edge.getSource(), edge.getTarget(), vertex.getValue(),
-					edge.getValue()));
+			result.f0 = edge.getSource();
+			result.f1 = edge.getTarget();
+			result.f2 = vertex.getValue();
+			result.f3 = edge.getValue();
+
+			collector.collect(result);
 		}
 	}
 
@@ -509,12 +515,19 @@ public class Graph<K, VV, EV> {
 	private static final class ProjectEdgeWithVertexValues<K, VV, EV> implements
 			FlatJoinFunction<Tuple4<K, K, VV, EV>, Vertex<K, VV>, Triplet<K, VV, EV>> {
 
+		private Triplet triplet = new Triplet();
+
 		@Override
 		public void join(Tuple4<K, K, VV, EV> tripletWithSrcValSet,
 						Vertex<K, VV> vertex, Collector<Triplet<K, VV, EV>> collector) throws Exception {
 
-			collector.collect(new Triplet<>(tripletWithSrcValSet.f0, tripletWithSrcValSet.f1,
-					tripletWithSrcValSet.f2, vertex.getValue(), tripletWithSrcValSet.f3));
+			triplet.f0 = tripletWithSrcValSet.f0;
+			triplet.f1 = tripletWithSrcValSet.f1;
+			triplet.f2 = tripletWithSrcValSet.f2;
+			triplet.f3 = vertex.getValue();
+			triplet.f4 = tripletWithSrcValSet.f3;
+
+			collector.collect(triplet);
 		}
 	}
 

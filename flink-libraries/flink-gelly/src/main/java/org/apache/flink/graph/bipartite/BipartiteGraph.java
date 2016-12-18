@@ -19,9 +19,13 @@
 package org.apache.flink.graph.bipartite;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -30,6 +34,7 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
 
 /**
@@ -111,6 +116,203 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	 */
 	public DataSet<BipartiteEdge<KT, KB, EV>> getEdges() {
 		return edges;
+	}
+
+	/**
+	 * Get ids of top vertices.
+	 *
+	 * @return ids of top vertices
+	 */
+	public DataSet<KT> getTopVertexIds() {
+		return topVertices.map(new GetTopIds<KT, VVT>());
+	}
+
+	private static class GetTopIds<KT, VVT> implements MapFunction<Vertex<KT, VVT>, KT> {
+		@Override
+		public KT map(Vertex<KT, VVT> vertex) throws Exception {
+			return vertex.getId();
+		}
+	}
+
+	/**
+	 * Get ids of bottom vertices.
+	 *
+	 * @return ids of bottom vertices
+	 */
+	public DataSet<KB> getBottomVertexIds() {
+		return bottomVertices.map(new GetBottomIds<KB, VVB>());
+	}
+
+	private static class GetBottomIds<KB, VVB> implements MapFunction<Vertex<KB, VVB>, KB> {
+		@Override
+		public KB map(Vertex<KB, VVB> value) throws Exception {
+			return value.getId();
+		}
+	}
+
+	/**
+	 * Get the top-bottom pairs of edge IDs as a DataSet.
+	 *
+	 * @return top-bottom pairs of edge IDs
+	 */
+	public DataSet<Tuple2<KT, KB>> getEdgeIds() {
+		return edges.map(new GetEdgeIds<KT, KB, EV>());
+	}
+
+	@ForwardedFields({"f0", "f1"})
+	private static class GetEdgeIds<KT, KB, EV> implements MapFunction<BipartiteEdge<KT, KB, EV>, Tuple2<KT, KB>> {
+
+		private Tuple2<KT, KB> result = new Tuple2<>();
+
+		@Override
+		public Tuple2<KT, KB> map(BipartiteEdge<KT, KB, EV> value) throws Exception {
+			result.f0 = value.getTopId();
+			result.f1 = value.getBottomId();
+			return result;
+		}
+	}
+
+	/**
+	 * Get a dataset of <vertex ID, degree> pairs of all top vertices
+	 *
+	 * @return degrees of all top vertices
+	 */
+	public DataSet<Tuple2<KT, LongValue>> topDegrees() {
+		return edges
+			.groupBy(0)
+			.reduceGroup(new CountTopDegrees<KT, KB, EV>());
+	}
+
+	private static class CountTopDegrees<KT, KB, EV> implements GroupReduceFunction<BipartiteEdge<KT, KB, EV>, Tuple2<KT, LongValue>> {
+
+		private LongValue degree = new LongValue();
+		private Tuple2<KT, LongValue> vertexDegree = new Tuple2<>(null, degree);
+
+		@Override
+		public void reduce(Iterable<BipartiteEdge<KT, KB, EV>> values, Collector<Tuple2<KT, LongValue>> out) throws Exception {
+			long count = 0;
+			KT id = null;
+
+			for (BipartiteEdge<KT, KB, EV> edge : values) {
+				id = edge.f0;
+				count++;
+			}
+
+			vertexDegree.f0 = id;
+			degree.setValue(count);
+			out.collect(vertexDegree);
+		}
+	}
+
+	/**
+	 * Get a dataset of <vertex ID, degree> pairs of all bottom vertices
+	 *
+	 * @return degrees of all bottom vertices
+	 */
+	public DataSet<Tuple2<KB, LongValue>> bottomDegrees() {
+		return edges
+			.groupBy(1)
+			.reduceGroup(new CountBottomDegrees<KT, KB, EV>());
+	}
+
+	private static class CountBottomDegrees<KT, KB, EV> implements GroupReduceFunction<BipartiteEdge<KT, KB, EV>, Tuple2<KB, LongValue>> {
+
+		private LongValue degree = new LongValue();
+		private Tuple2<KB, LongValue> vertexDegree = new Tuple2<>(null, degree);
+
+		@Override
+		public void reduce(Iterable<BipartiteEdge<KT, KB, EV>> values, Collector<Tuple2<KB, LongValue>> out) throws Exception {
+			long count = 0;
+			KB id = null;
+
+			for (BipartiteEdge<KT, KB, EV> edge : values) {
+				id = edge.f1;
+				count++;
+			}
+
+			vertexDegree.f0 = id;
+			degree.setValue(count);
+			out.collect(vertexDegree);
+		}
+	}
+
+	/**
+	 * Get number of top vertices.
+	 *
+	 * @return number of top vertices
+	 */
+	public long numberOfTopVertices() throws Exception {
+		return topVertices.count();
+	}
+
+	/**
+	 * Get number of bottom vertices.
+	 *
+	 * @return number of bottom vertices
+	 */
+	public long numberOfBottomVertices() throws Exception {
+		return bottomVertices.count();
+	}
+
+	/**
+	 * Get number of edges in the graph.
+	 *
+	 * @return number of edges in the graph
+	 */
+	public long numberOfEdges() throws Exception {
+		return edges.count();
+	}
+
+	/**
+	 * This method allows access to the graph's edge values along with its top and bottom vertex values.
+	 *
+	 * @return a tuple DataSet consisting of (topVertexId, bottomVertexId, topVertexValue, bottomVertexValue, edgeValue)
+	 */
+	public DataSet<Tuple5<KT, KB, VVT, VVB, EV>> getTuples() {
+		return topVertices
+			.join(edges)
+			.where(0)
+			.equalTo(0)
+			.with(new ProjectEdgeWithTopVertex<KT, VVT, KB, EV>())
+			.name("Project edge with top vertex")
+			.join(bottomVertices)
+			.where(1)
+			.equalTo(0)
+			.with(new ProjectEdgeWithBottomVertex<KT, KB, VVT, EV, VVB>())
+			.name("Project edge with bottom vertex");
+	}
+
+	@ForwardedFieldsFirst("f0->f0; f1->f2")
+	@ForwardedFieldsSecond("f1->f1; f2->f3")
+	private static class ProjectEdgeWithTopVertex<KT, VVT, KB, EV> implements JoinFunction<Vertex<KT, VVT>, BipartiteEdge<KT, KB, EV>, Tuple4<KT, KB, VVT, EV>> {
+
+		private Tuple4<KT, KB, VVT, EV> topVertexAndEdge = new Tuple4<>();
+
+		@Override
+		public Tuple4<KT, KB, VVT, EV> join(Vertex<KT, VVT> topVertex, BipartiteEdge<KT, KB, EV> edge) throws Exception {
+			topVertexAndEdge.f0 = topVertex.getId();
+			topVertexAndEdge.f1 = edge.getBottomId();
+			topVertexAndEdge.f2 = topVertex.getValue();
+			topVertexAndEdge.f3 = edge.getValue();
+			return topVertexAndEdge;
+		}
+	}
+
+	@ForwardedFieldsFirst("f0->f0; f1->f1; f2->f2; f3->f4")
+	@ForwardedFieldsSecond("f1->f3")
+	private static class ProjectEdgeWithBottomVertex<KT, KB, VVT, EV, VVB> implements JoinFunction<Tuple4<KT, KB, VVT, EV>, Vertex<KB, VVB>, Tuple5<KT, KB, VVT, VVB, EV>> {
+
+		private Tuple5<KT, KB, VVT, VVB, EV> result = new Tuple5<>();
+
+		@Override
+		public Tuple5<KT, KB, VVT, VVB, EV> join(Tuple4<KT, KB, VVT, EV> topVertexAndEdge, Vertex<KB, VVB> bottomVertex) throws Exception {
+			result.f0 = topVertexAndEdge.f0;
+			result.f1 = topVertexAndEdge.f1;
+			result.f2 = topVertexAndEdge.f2;
+			result.f3 = bottomVertex.f1;
+			result.f4 = topVertexAndEdge.f3;
+			return result;
+		}
 	}
 
 	/**

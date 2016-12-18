@@ -99,6 +99,61 @@ Graph<String, String, Long, Long, Double> graph = BipartiteGraph.fromDataSet(top
 </div>
 </div>
 
+Graph Properties
+----------------
+
+Gelly includes the following methods for retrieving various Bipartite Graph properties and metrics:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// get the top Vertex DataSet
+DataSet<Vertex<KT, VVT>> getTopVertices()
+
+// get the bottom Vertex DataSet
+DataSet<Vertex<KB, VVB>> getBottomVertices()
+
+// get the Edge DataSet
+DataSet<BipartiteEdge<KT, KB, EV>> getEdges()
+
+// get the IDs of the top vertices as a DataSet
+DataSet<KT> getTopVertexIds()
+
+// get the IDs of the bottom vertices as a DataSet
+DataSet<KB> getBottomVertexIds()
+
+// get the top-bottom pairs of the edge IDs as a DataSet
+DataSet<Tuple2<KT, KB>> getEdgeIds()
+
+// get a DataSet of <vertex ID, degree> pairs for top vertices
+DataSet<Tuple2<KT, LongValue>> topDegrees()
+
+// get a DataSet of <vertex ID, degree> pairs for bottom vertices
+DataSet<Tuple2<KB, LongValue>> bottomDegrees()
+
+// get the number of top vertices
+long numberOfTopVertices()
+
+// get the number of bottom vertices
+long numberOfBottomVertices()
+
+// get the number of edges
+long numberOfEdges()
+
+ // get tuple DataSet consisting of (topVertexId, bottomVertexId, topVertexValue, bottomVertexValue, edgeValue)
+public DataSet<Tuple5<KT, KB, VVT, VVB, EV>> getTuples() {
+
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// Scala API is not yet implemented
+{% endhighlight %}
+</div>
+</div>
+
+{% top %}
 
 Graph Transformations
 ---------------------

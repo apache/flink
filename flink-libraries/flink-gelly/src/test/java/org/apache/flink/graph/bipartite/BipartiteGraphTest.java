@@ -21,9 +21,11 @@ package org.apache.flink.graph.bipartite;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.types.LongValue;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -37,24 +39,125 @@ public class BipartiteGraphTest {
 	public void testGetTopVertices() throws Exception {
 		BipartiteGraph<Integer, Integer, String, String, String> bipartiteGraph = createBipartiteGraph();
 
-		assertEquals(
-			Arrays.asList(
-				new Vertex<>(4, "top4"),
-				new Vertex<>(5, "top5"),
-				new Vertex<>(6, "top6")),
-			bipartiteGraph.getTopVertices().collect());
+		TestBaseUtils.compareResultAsText(bipartiteGraph.getTopVertices().collect(),
+			"(4,top4)\n" +
+			"(5,top5)\n" +
+			"(6,top6)");
 	}
 
 	@Test
 	public void testGetBottomVertices() throws Exception {
 		BipartiteGraph<Integer, Integer, String, String, String> bipartiteGraph = createBipartiteGraph();
 
-		assertEquals(
-			Arrays.asList(
-				new Vertex<>(1, "bottom1"),
-				new Vertex<>(2, "bottom2"),
-				new Vertex<>(3, "bottom3")),
-			bipartiteGraph.getBottomVertices().collect());
+		TestBaseUtils.compareResultAsText(bipartiteGraph.getBottomVertices().collect(),
+			"(1,bottom1)\n" +
+			"(2,bottom2)\n" +
+			"(3,bottom3)");
+	}
+
+	@Test
+	public void testGetEdges() throws Exception {
+		BipartiteGraph<Integer, Integer, String, String, String> bipartiteGraph = createBipartiteGraph();
+
+		TestBaseUtils.compareResultAsText(bipartiteGraph.getEdges().collect(),
+			"(4,1,4-1)\n" +
+			"(5,1,5-1)\n" +
+			"(5,2,5-2)\n" +
+			"(6,2,6-2)\n" +
+			"(6,3,6-3)");
+	}
+
+	@Test
+	public void testGetTopVerticesIds() throws Exception {
+		BipartiteGraph<Integer, Integer, String, String, String> bipartiteGraph = createBipartiteGraph();
+
+		DataSet<Integer> topVerticesIds = bipartiteGraph.getTopVertexIds();
+
+		TestBaseUtils.compareResultAsText(topVerticesIds.collect(),
+			"4\n5\n6");
+	}
+
+	@Test
+	public void testGetBottomVerticesIds() throws Exception {
+		BipartiteGraph<Integer, Integer, String, String, String> bipartiteGraph = createBipartiteGraph();
+
+		DataSet<Integer> bottomVerticesIds = bipartiteGraph.getBottomVertexIds();
+
+		TestBaseUtils.compareResultAsText(bottomVerticesIds.collect(),
+			"1\n2\n3");
+	}
+
+	@Test
+	public void testEdgeIds() throws Exception {
+		BipartiteGraph<Integer, Integer, String, String, String> bipartiteGraph = createBipartiteGraph();
+
+		DataSet<Tuple2<Integer, Integer>> edgeIds = bipartiteGraph.getEdgeIds();
+
+		TestBaseUtils.compareResultAsText(edgeIds.collect(),
+			"(4,1)\n" +
+			"(5,1)\n" +
+			"(5,2)\n" +
+			"(6,2)\n" +
+			"(6,3)");
+	}
+
+	@Test
+	public void testNumberOfTopVertices() throws Exception {
+		BipartiteGraph<Integer, Integer, String, String, String> bipartiteGraph = createBipartiteGraph();
+
+		assertEquals(3, bipartiteGraph.numberOfTopVertices());
+	}
+
+	@Test
+	public void testNumberOfBottomVertices() throws Exception {
+		BipartiteGraph<Integer, Integer, String, String, String> bipartiteGraph = createBipartiteGraph();
+
+		assertEquals(3, bipartiteGraph.numberOfBottomVertices());
+	}
+
+	@Test
+	public void testNumberOfEdges() throws Exception {
+		BipartiteGraph<Integer, Integer, String, String, String> bipartiteGraph = createBipartiteGraph();
+
+		assertEquals(5, bipartiteGraph.numberOfEdges());
+	}
+
+	@Test
+	public void testTopDegrees() throws Exception {
+		BipartiteGraph<Integer, Integer, String, String, String> bipartiteGraph = createBipartiteGraph();
+
+		DataSet<Tuple2<Integer, LongValue>> topDegrees = bipartiteGraph.topDegrees();
+
+		TestBaseUtils.compareResultAsText(topDegrees.collect(),
+			"(4,1)\n" +
+			"(5,2)\n" +
+			"(6,2)");
+	}
+
+	@Test
+	public void testBottomDegrees() throws Exception {
+		BipartiteGraph<Integer, Integer, String, String, String> bipartiteGraph = createBipartiteGraph();
+
+		DataSet<Tuple2<Integer, LongValue>> bottomDegrees = bipartiteGraph.bottomDegrees();
+
+		TestBaseUtils.compareResultAsText(bottomDegrees.collect(),
+			"(1,2)\n" +
+			"(2,2)\n" +
+			"(3,1)");
+	}
+
+	@Test
+	public void testGetTuples() throws Exception {
+		BipartiteGraph<Integer, Integer, String, String, String> bipartiteGraph = createBipartiteGraph();
+
+		DataSet<Tuple5<Integer, Integer, String, String, String>> tuples = bipartiteGraph.getTuples();
+
+		TestBaseUtils.compareResultAsText(tuples.collect(),
+			"(4,1,top4,bottom1,4-1)\n" +
+			"(5,1,top5,bottom1,5-1)\n" +
+			"(5,2,top5,bottom2,5-2)\n" +
+			"(6,2,top6,bottom2,6-2)\n" +
+			"(6,3,top6,bottom3,6-3)");
 	}
 
 	@Test
@@ -92,7 +195,6 @@ public class BipartiteGraphTest {
 		BipartiteGraph<Integer, Integer, String, String, String> bipartiteGraph = createBipartiteGraph();
 		Graph<Integer, String, Projection<Integer, String, String, String>> graph = bipartiteGraph.projectionTopFull();
 
-		graph.getEdges().print();
 		compareGraph(graph, "4; 5; 6", "5,4; 4,5; 5,6; 6,5");
 
 		String expected =
