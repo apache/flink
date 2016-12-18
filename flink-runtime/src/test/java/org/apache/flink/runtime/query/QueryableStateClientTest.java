@@ -33,6 +33,7 @@ import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.query.netty.UnknownKvStateID;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -266,13 +267,20 @@ public class QueryableStateClientTest {
 				serverStats[i] = new AtomicKvStateRequestStats();
 				servers[i] = new KvStateServer(InetAddress.getLocalHost(), 0, 1, 1, registries[i], serverStats[i]);
 				servers[i].start();
+				ValueStateDescriptor<Integer> descriptor =
+						new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null);
 
+				RegisteredBackendStateMetaInfo<VoidNamespace, Integer> registeredBackendStateMetaInfo = new RegisteredBackendStateMetaInfo<>(
+						descriptor.getType(),
+						descriptor.getName(),
+						VoidNamespaceSerializer.INSTANCE,
+						IntSerializer.INSTANCE);
 
 				// Register state
 				HeapValueState<Integer, VoidNamespace, Integer> kvState = new HeapValueState<>(
 						keyedStateBackend,
-						new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null),
-						new StateTable<Integer, VoidNamespace, Integer>(IntSerializer.INSTANCE, VoidNamespaceSerializer.INSTANCE,  new KeyGroupRange(0, 1)),
+						descriptor,
+						new StateTable<Integer, VoidNamespace, Integer>(registeredBackendStateMetaInfo, new KeyGroupRange(0, 1)),
 						IntSerializer.INSTANCE,
 						VoidNamespaceSerializer.INSTANCE);
 

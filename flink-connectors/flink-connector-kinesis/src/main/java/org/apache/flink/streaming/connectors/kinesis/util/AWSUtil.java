@@ -69,8 +69,20 @@ public class AWSUtil {
 	 * @return The corresponding AWS Credentials Provider instance
 	 */
 	public static AWSCredentialsProvider getCredentialsProvider(final Properties configProps) {
-		CredentialProvider credentialProviderType = CredentialProvider.valueOf(configProps.getProperty(
-			AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, CredentialProvider.BASIC.toString()));
+		CredentialProvider credentialProviderType;
+		if (!configProps.containsKey(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER)) {
+			if (configProps.containsKey(AWSConfigConstants.AWS_ACCESS_KEY_ID)
+				&& configProps.containsKey(AWSConfigConstants.AWS_SECRET_ACCESS_KEY)) {
+				// if the credential provider type is not specified, but the Access Key ID and Secret Key are given, it will default to BASIC
+				credentialProviderType = CredentialProvider.BASIC;
+			} else {
+				// if the credential provider type is not specified, it will default to AUTO
+				credentialProviderType = CredentialProvider.AUTO;
+			}
+		} else {
+			credentialProviderType = CredentialProvider.valueOf(configProps.getProperty(
+				AWSConfigConstants.AWS_CREDENTIALS_PROVIDER));
+		}
 
 		AWSCredentialsProvider credentialsProvider;
 
@@ -90,10 +102,6 @@ public class AWSUtil {
 					? new ProfileCredentialsProvider(profileName)
 					: new ProfileCredentialsProvider(profileConfigPath, profileName);
 				break;
-			case AUTO:
-				credentialsProvider = new DefaultAWSCredentialsProviderChain();
-				break;
-			default:
 			case BASIC:
 				credentialsProvider = new AWSCredentialsProvider() {
 					@Override
@@ -108,6 +116,10 @@ public class AWSUtil {
 						// do nothing
 					}
 				};
+				break;
+			default:
+			case AUTO:
+				credentialsProvider = new DefaultAWSCredentialsProviderChain();
 		}
 
 		return credentialsProvider;

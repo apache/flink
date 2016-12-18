@@ -48,6 +48,11 @@ import static java.util.Objects.requireNonNull;
  */
 @PublicEvolving
 public abstract class StateDescriptor<S extends State, T> implements Serializable {
+
+	public enum Type {
+		VALUE, LIST, REDUCING, FOLDING, @Deprecated UNKNOWN
+	}
+
 	private static final long serialVersionUID = 1L;
 
 	/** Name that uniquely identifies state created from this StateDescriptor. */
@@ -266,6 +271,8 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 				(isQueryable() ? ", queryableStateName=" + queryableStateName + "" : "") +
 				'}';
 	}
+
+	public abstract Type getType();
 
 	// ------------------------------------------------------------------------
 	//  Serialization

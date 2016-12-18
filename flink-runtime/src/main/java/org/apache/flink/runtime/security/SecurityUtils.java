@@ -64,12 +64,16 @@ public class SecurityUtils {
 	public static SecurityContext getInstalledContext() { return installedContext; }
 
 	/**
-	 * Performs a static initialization of the JAAS and Hadoop UGI security mechanism
+	 * Performs a static initialization of the JAAS and Hadoop UGI security mechanism.
+	 * It creates the in-memory JAAS configuration object which will serve appropriate
+	 * ApplicationConfigurationEntry for the connector login module implementation that
+	 * authenticates Kerberos identity using SASL/JAAS based mechanism.
 	 */
 	public static void install(SecurityConfiguration config) throws Exception {
 
-		if (!(installedContext instanceof NoOpSecurityContext)) {
-			LOG.warn("overriding previous security context");
+		if (!config.securityIsEnabled()) {
+			// do not perform any initialization if no Kerberos crendetails are provided
+			return;
 		}
 
 		// establish the JAAS config
@@ -151,8 +155,16 @@ public class SecurityUtils {
 				}
 			}
 
+			if (!(installedContext instanceof NoOpSecurityContext)) {
+				LOG.warn("overriding previous security context");
+			}
+
 			installedContext = new HadoopSecurityContext(loginUser);
 		}
+	}
+
+	static void clearContext() {
+		installedContext = new NoOpSecurityContext();
 	}
 
 	/*
@@ -163,11 +175,7 @@ public class SecurityUtils {
 	 * Kafka current code behavior.
 	 */
 	private static void populateSystemSecurityProperties(Configuration configuration) {
-		Preconditions.checkNotNull(configuration, "The supplied configuation was null");
-
-		//required to be empty for Kafka but we will override the property
-		//with pseudo JAAS configuration file if SASL auth is enabled for ZK
-		System.setProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG, "");
+		Preconditions.checkNotNull(configuration, "The supplied configuration was null");
 
 		boolean disableSaslClient = configuration.getBoolean(HighAvailabilityOptions.ZOOKEEPER_SASL_DISABLE);
 
@@ -203,7 +211,7 @@ public class SecurityUtils {
 		String zkSaslServiceName = configuration.getValue(HighAvailabilityOptions.ZOOKEEPER_SASL_SERVICE_NAME);
 		if (!StringUtils.isBlank(zkSaslServiceName)) {
 			LOG.info("ZK SASL service name: {} is provided in the configuration", zkSaslServiceName);
-			System.setProperty(ZOOKEEPER_SASL_CLIENT_USERNAME,zkSaslServiceName);
+			System.setProperty(ZOOKEEPER_SASL_CLIENT_USERNAME, zkSaslServiceName);
 		}
 
 	}
@@ -267,6 +275,10 @@ public class SecurityUtils {
 				}
 			}
 
+		}
+
+		public boolean securityIsEnabled() {
+			return keytab != null && principal != null;
 		}
 	}
 

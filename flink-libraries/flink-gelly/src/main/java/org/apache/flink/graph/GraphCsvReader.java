@@ -20,12 +20,14 @@ package org.apache.flink.graph;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvReader;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.graph.utils.Tuple2ToEdgeMap;
+import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 import org.apache.flink.types.NullValue;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -44,9 +46,6 @@ public class GraphCsvReader {
 	protected CsvReader edgeReader;
 	protected CsvReader vertexReader;
 	protected MapFunction<?, ?> mapper;
-	protected Class<?> vertexKey;
-	protected Class<?> vertexValue;
-	protected Class<?> edgeValue;
 
 //--------------------------------------------------------------------------------------------------------------------
 	public GraphCsvReader(Path vertexPath, Path edgePath, ExecutionEnvironment context) {
@@ -104,17 +103,18 @@ public class GraphCsvReader {
 	public <K, VV, EV> Graph<K, VV, EV> types(Class<K> vertexKey, Class<VV> vertexValue,
 			Class<EV> edgeValue) {
 
-		DataSet<Tuple2<K, VV>> vertices;
-
 		if (edgeReader == null) {
-			throw new RuntimeException("The edges input file cannot be null!");
+			throw new RuntimeException("The edge input file cannot be null!");
 		}
 
 		DataSet<Tuple3<K, K, EV>> edges = edgeReader.types(vertexKey, vertexKey, edgeValue);
 
 		// the vertex value can be provided by an input file or a user-defined mapper
 		if (vertexReader != null) {
-			vertices = vertexReader.types(vertexKey, vertexValue);
+			DataSet<Tuple2<K, VV>> vertices = vertexReader
+				.types(vertexKey, vertexValue)
+					.name(GraphCsvReader.class.getName());
+
 			return Graph.fromTupleDataSet(vertices, edges, executionContext);
 		}
 		else if (mapper != null) {
@@ -135,10 +135,12 @@ public class GraphCsvReader {
 	public <K, EV> Graph<K, NullValue, EV> edgeTypes(Class<K> vertexKey, Class<EV> edgeValue) {
 
 		if (edgeReader == null) {
-			throw new RuntimeException("The edges input file cannot be null!");
+			throw new RuntimeException("The edge input file cannot be null!");
 		}
 
-		DataSet<Tuple3<K, K, EV>> edges = edgeReader.types(vertexKey, vertexKey, edgeValue);
+		DataSet<Tuple3<K, K, EV>> edges = edgeReader
+			.types(vertexKey, vertexKey, edgeValue)
+				.name(GraphCsvReader.class.getName());
 
 		return Graph.fromTupleDataSet(edges, executionContext);
 	}
@@ -151,20 +153,16 @@ public class GraphCsvReader {
 	public <K> Graph<K, NullValue, NullValue> keyType(Class<K> vertexKey) {
 
 		if (edgeReader == null) {
-			throw new RuntimeException("The edges input file cannot be null!");
+			throw new RuntimeException("The edge input file cannot be null!");
 		}
 
-		DataSet<Tuple3<K, K, NullValue>> edges = edgeReader.types(vertexKey, vertexKey)
-				.map(new MapFunction<Tuple2<K, K>, Tuple3<K, K, NullValue>>() {
+		DataSet<Edge<K, NullValue>> edges = edgeReader
+			.types(vertexKey, vertexKey)
+				.name(GraphCsvReader.class.getName())
+			.map(new Tuple2ToEdgeMap<K>())
+				.name("Type conversion");
 
-					private static final long serialVersionUID = -2981792951286476970L;
-
-					public Tuple3<K, K, NullValue> map(Tuple2<K, K> edge) {
-						return new Tuple3<>(edge.f0, edge.f1, NullValue.getInstance());
-					}
-				}).withForwardedFields("f0;f1");
-
-		return Graph.fromTupleDataSet(edges, executionContext);
+		return Graph.fromDataSet(edges, executionContext);
 	}
 
 	/**
@@ -178,28 +176,29 @@ public class GraphCsvReader {
 	 */
 	@SuppressWarnings({ "serial", "unchecked" })
 	public <K, VV> Graph<K, VV, NullValue> vertexTypes(Class<K> vertexKey, Class<VV> vertexValue) {
-		
-		DataSet<Tuple2<K, VV>> vertices;
 
 		if (edgeReader == null) {
-			throw new RuntimeException("The edges input file cannot be null!");
+			throw new RuntimeException("The edge input file cannot be null!");
 		}
 
-		DataSet<Tuple3<K, K, NullValue>> edges = edgeReader.types(vertexKey, vertexKey)
-				.map(new MapFunction<Tuple2<K,K>, Tuple3<K, K, NullValue>>() {
-
-					public Tuple3<K, K, NullValue> map(Tuple2<K, K> input) {
-						return new Tuple3<>(input.f0, input.f1, NullValue.getInstance());
-					}
-				}).withForwardedFields("f0;f1");
+		DataSet<Edge<K, NullValue>> edges = edgeReader
+			.types(vertexKey, vertexKey)
+				.name(GraphCsvReader.class.getName())
+			.map(new Tuple2ToEdgeMap<K>())
+				.name("To Edge");
 
 		// the vertex value can be provided by an input file or a user-defined mapper
 		if (vertexReader != null) {
-			vertices = vertexReader.types(vertexKey, vertexValue);
-			return Graph.fromTupleDataSet(vertices, edges, executionContext);
+			DataSet<Vertex<K, VV>> vertices = vertexReader
+				.types(vertexKey, vertexValue)
+					.name(GraphCsvReader.class.getName())
+				.map(new Tuple2ToVertexMap<K, VV>())
+					.name("Type conversion");
+
+			return Graph.fromDataSet(vertices, edges, executionContext);
 		}
 		else if (mapper != null) {
-			return Graph.fromTupleDataSet(edges, (MapFunction<K, VV>) mapper, executionContext);
+			return Graph.fromDataSet(edges, (MapFunction<K, VV>) mapper, executionContext);
 		}
 		else {
 			throw new RuntimeException("Vertex values have to be specified through a vertices input file"

@@ -1,8 +1,8 @@
 ---
 title: "Windows"
-nav-parent_id: dev
+nav-parent_id: streaming
 nav-id: windows
-nav-pos: 3
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

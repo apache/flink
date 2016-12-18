@@ -39,6 +39,10 @@ Flink runs on all *UNIX-like environments*, e.g. **Linux**, **Mac OS X**, and **
 
 If your cluster does not fulfill these software requirements you will need to install/upgrade it.
 
+Having __passwordless SSH__ and
+__the same directory structure__ on all your cluster nodes will allow you to use our scripts to control
+everything.
+
 {% top %}
 
 ### `JAVA_HOME` Configuration
@@ -51,7 +55,7 @@ You can set this variable in `conf/flink-conf.yaml` via the `env.java.home` key.
 
 ## Flink Setup
 
-Go to the [downloads page]({{ site.download_url }}) and get the ready to run package. Make sure to pick the Flink package **matching your Hadoop version**. If you don't plan to use Hadoop, pick any version.
+Go to the [downloads page]({{ site.download_url }}) and get the ready-to-run package. Make sure to pick the Flink package **matching your Hadoop version**. If you don't plan to use Hadoop, pick any version.
 
 After downloading the latest release, copy the archive to your master node and extract it:
 
@@ -64,29 +68,45 @@ cd flink-*
 
 After having extracted the system files, you need to configure Flink for the cluster by editing *conf/flink-conf.yaml*.
 
-Set the `jobmanager.rpc.address` key to point to your master node. Furthermode define the maximum amount of main memory the JVM is allowed to allocate on each node by setting the `jobmanager.heap.mb` and `taskmanager.heap.mb` keys.
+Set the `jobmanager.rpc.address` key to point to your master node. You should also define the maximum amount of main memory the JVM is allowed to allocate on each node by setting the `jobmanager.heap.mb` and `taskmanager.heap.mb` keys.
 
-The value is given in MB. If some worker nodes have more main memory which you want to allocate to the Flink system you can overwrite the default value by setting an environment variable `FLINK_TM_HEAP` on the respective node.
+These values are given in MB. If some worker nodes have more main memory which you want to allocate to the Flink system you can overwrite the default value by setting the environment variable `FLINK_TM_HEAP` on those specific nodes.
 
-Finally you must provide a list of all nodes in your cluster which shall be used as worker nodes. Therefore, similar to the HDFS configuration, edit the file *conf/slaves* and enter the IP/host name of each worker node. Each worker node will later run a TaskManager.
+Finally, you must provide a list of all nodes in your cluster which shall be used as worker nodes. Therefore, similar to the HDFS configuration, edit the file *conf/slaves* and enter the IP/host name of each worker node. Each worker node will later run a TaskManager.
 
-Each entry must be separated by a new line, as in the following example:
+The following example illustrates the setup with three nodes (with IP addresses from _10.0.0.1_
+to _10.0.0.3_ and hostnames _master_, _worker1_, _worker2_) and shows the contents of the
+configuration files (which need to be accessible at the same path on all machines):
 
-~~~
-192.168.0.100
-192.168.0.101
-.
-.
-.
-192.168.0.150
-~~~
+<div class="row">
+  <div class="col-md-6 text-center">
+    <img src="{{ site.baseurl }}/page/img/quickstart_cluster.png" style="width: 60%">
+  </div>
+<div class="col-md-6">
+  <div class="row">
+    <p class="lead text-center">
+      /path/to/<strong>flink/conf/<br>flink-conf.yaml</strong>
+    <pre>jobmanager.rpc.address: 10.0.0.1</pre>
+    </p>
+  </div>
+<div class="row" style="margin-top: 1em;">
+  <p class="lead text-center">
+    /path/to/<strong>flink/<br>conf/slaves</strong>
+  <pre>
+10.0.0.2
+10.0.0.3</pre>
+  </p>
+</div>
+</div>
+</div>
 
-The Flink directory must be available on every worker under the same path. You can use a shared NSF directory, or copy the entire Flink directory to every worker node.
+The Flink directory must be available on every worker under the same path. You can use a shared NFS directory, or copy the entire Flink directory to every worker node.
 
 Please see the [configuration page](config.html) for details and additional configuration options.
 
 In particular,
 
+ * the amount of available memory per JobManager (`jobmanager.heap.mb`),
  * the amount of available memory per TaskManager (`taskmanager.heap.mb`),
  * the number of available CPUs per machine (`taskmanager.numberOfTaskSlots`),
  * the total number of CPUs in the cluster (`parallelism.default`) and
@@ -126,6 +146,6 @@ bin/jobmanager.sh (start cluster)|stop|stop-all
 bin/taskmanager.sh start|stop|stop-all
 ~~~
 
-Make sure to call these scripts on the hosts, on which you want to start/stop the respective instance.
+Make sure to call these scripts on the hosts on which you want to start/stop the respective instance.
 
 {% top %}

@@ -28,6 +28,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.examples.java.wordcount.WordCount;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
+import org.apache.flink.util.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -41,6 +42,11 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Arrays;
+import java.util.UUID;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * This test should logically be located in the 'flink-runtime' tests. However, this project
@@ -98,7 +104,7 @@ public class HDFSTest {
 		org.apache.hadoop.fs.Path result = new org.apache.hadoop.fs.Path(hdfsURI + "/result");
 		try {
 			FileSystem fs = file.getFileSystem();
-			Assert.assertTrue("Must be HadoopFileSystem", fs instanceof HadoopFileSystem);
+			assertTrue("Must be HadoopFileSystem", fs instanceof HadoopFileSystem);
 			
 			DopOneTestEnvironment.setAsContext();
 			try {
@@ -114,7 +120,7 @@ public class HDFSTest {
 				DopOneTestEnvironment.unsetAsContext();
 			}
 			
-			Assert.assertTrue("No result file present", hdfs.exists(result));
+			assertTrue("No result file present", hdfs.exists(result));
 			
 			// validate output:
 			org.apache.hadoop.fs.FSDataInputStream inStream = hdfs.open(result);
@@ -154,17 +160,61 @@ public class HDFSTest {
 			avroOut.close();
 
 
-			Assert.assertTrue("No result file present", hdfs.exists(result));
+			assertTrue("No result file present", hdfs.exists(result));
 			FileStatus[] files = hdfs.listStatus(result);
 			Assert.assertEquals(2, files.length);
 			for(FileStatus file : files) {
-				Assert.assertTrue("1.avro".equals(file.getPath().getName()) || "2.avro".equals(file.getPath().getName()));
+				assertTrue("1.avro".equals(file.getPath().getName()) || "2.avro".equals(file.getPath().getName()));
 			}
 
 		} catch (IOException e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}
+	}
+
+	/**
+	 * Test that {@link FileUtils#deletePathIfEmpty(FileSystem, Path)} deletes the path if it is
+	 * empty. A path can only be empty if it is a directory which does not contain any
+	 * files/directories.
+	 */
+	@Test
+	public void testDeletePathIfEmpty() throws IOException {
+		final Path basePath = new Path(hdfsURI);
+		final Path directory = new Path(basePath, UUID.randomUUID().toString());
+		final Path directoryFile = new Path(directory, UUID.randomUUID().toString());
+		final Path singleFile = new Path(basePath, UUID.randomUUID().toString());
+
+		FileSystem fs = basePath.getFileSystem();
+
+		fs.mkdirs(directory);
+
+		byte[] data = "HDFSTest#testDeletePathIfEmpty".getBytes();
+
+		for (Path file: Arrays.asList(singleFile, directoryFile)) {
+			org.apache.flink.core.fs.FSDataOutputStream outputStream = fs.create(file, true);
+			outputStream.write(data);
+			outputStream.close();
+		}
+
+		// verify that the files have been created
+		assertTrue(fs.exists(singleFile));
+		assertTrue(fs.exists(directoryFile));
+
+		// delete the single file
+		assertFalse(FileUtils.deletePathIfEmpty(fs, singleFile));
+		assertTrue(fs.exists(singleFile));
+
+		// try to delete the non-empty directory
+		assertFalse(FileUtils.deletePathIfEmpty(fs, directory));
+		assertTrue(fs.exists(directory));
+
+		// delete the file contained in the directory
+		assertTrue(fs.delete(directoryFile, false));
+
+		// now the deletion should work
+		assertTrue(FileUtils.deletePathIfEmpty(fs, directory));
+		assertFalse(fs.exists(directory));
 	}
 
 	// package visible

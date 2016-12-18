@@ -19,11 +19,6 @@
 
 package org.apache.flink.types.parser;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.BooleanValue;
 import org.apache.flink.types.ByteValue;
@@ -33,6 +28,13 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A FieldParser is used parse a field from a sequence of bytes. Fields occur in a byte sequence and are terminated
@@ -77,9 +79,11 @@ public abstract class FieldParser<T> {
 		/** Invalid Boolean value **/
 		BOOLEAN_INVALID
 	}
-	
+
+	private Charset charset = StandardCharsets.UTF_8;
+
 	private ParseErrorState errorState = ParseErrorState.NONE;
-	
+
 	/**
 	 * Parses the value of a field from the byte array, taking care of properly reset
 	 * the state of this parser.
@@ -102,9 +106,7 @@ public abstract class FieldParser<T> {
 
 	/**
 	 * Each parser's logic should be implemented inside this method
-	 *
-	 * @see {@link FieldParser#parseField(byte[], int, int, byte[], Object)}
-	 * */
+	 */
 	protected abstract int parseField(byte[] bytes, int startPos, int limit, byte[] delim, T reuse);
 
 	/**
@@ -217,7 +219,25 @@ public abstract class FieldParser<T> {
 
 		return limitedLength;
 	}
-	
+
+	/**
+	 * Gets the character set used for this parser.
+	 *
+	 * @return the charset used for this parser.
+	 */
+	public Charset getCharset() {
+		return this.charset;
+	}
+
+	/**
+	 * Sets the character set used for this parser.
+	 *
+	 * @param charset charset used for this parser.
+	 */
+	public void setCharset(Charset charset) {
+		this.charset = charset;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Mapping from types to parsers
 	// --------------------------------------------------------------------------------------------

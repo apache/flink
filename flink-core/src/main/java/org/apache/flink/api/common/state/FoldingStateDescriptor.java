@@ -138,4 +138,9 @@ public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState
 				", foldFunction=" + foldFunction +
 				'}';
 	}
+
+	@Override
+	public Type getType() {
+		return Type.FOLDING;
+	}
 }

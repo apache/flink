@@ -127,6 +127,7 @@ public class JMXReporter implements MetricReporter {
 				throw new RuntimeException("Could not start JMX server on any configured port. Ports: " + portsConfig);
 			}
 		}
+		LOG.info("Configured JMXReporter with {port:{}}", portsConfig);
 	}
 
 	@Override

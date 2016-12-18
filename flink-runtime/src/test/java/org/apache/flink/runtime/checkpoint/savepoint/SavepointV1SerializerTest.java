@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
-import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -50,7 +49,9 @@ public class SavepointV1SerializerTest {
 
 			// Deserialize
 			ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-			Savepoint actual = serializer.deserialize(new DataInputViewStreamWrapper(bais));
+			Savepoint actual = serializer.deserialize(
+					new DataInputViewStreamWrapper(bais),
+					Thread.currentThread().getContextClassLoader());
 
 			assertEquals(expected, actual);
 		}

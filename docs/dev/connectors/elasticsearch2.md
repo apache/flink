@@ -37,7 +37,7 @@ following dependency to your project:
 
 Note that the streaming connectors are currently not part of the binary
 distribution. See
-[here]({{site.baseurl}}/dev/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution)
+[here]({{site.baseurl}}/dev/linking)
 for information about how to package the program with the libraries for
 cluster execution.
 
@@ -145,7 +145,7 @@ More information about Elasticsearch can be found [here](https://elastic.co).
 
 For the execution of your Flink program,
 it is recommended to build a so-called uber-jar (executable jar) containing all your dependencies
-(see [here]({{site.baseurl}}/dev/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution) for further information).
+(see [here]({{site.baseurl}}/dev/linking) for further information).
 
 However,
 when an uber-jar containing an Elasticsearch sink is executed,

@@ -130,15 +130,7 @@ public class KinesisConfigUtil {
 	 * Validate configuration properties related to Amazon AWS service
 	 */
 	public static void validateAwsConfiguration(Properties config) {
-		if (!config.containsKey(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER)) {
-			// if the credential provider type is not specified, it will default to BASIC later on,
-			// so the Access Key ID and Secret Key must be given
-			if (!config.containsKey(AWSConfigConstants.AWS_ACCESS_KEY_ID)
-				|| !config.containsKey(AWSConfigConstants.AWS_SECRET_ACCESS_KEY)) {
-				throw new IllegalArgumentException("Please set values for AWS Access Key ID ('"+ AWSConfigConstants.AWS_ACCESS_KEY_ID +"') " +
-					"and Secret Key ('" + AWSConfigConstants.AWS_SECRET_ACCESS_KEY + "') when using the BASIC AWS credential provider type.");
-			}
-		} else {
+		if (config.containsKey(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER)) {
 			String credentialsProviderType = config.getProperty(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER);
 
 			// value specified for AWSConfigConstants.AWS_CREDENTIALS_PROVIDER needs to be recognizable
@@ -157,7 +149,7 @@ public class KinesisConfigUtil {
 			if (providerType == CredentialProvider.BASIC) {
 				if (!config.containsKey(AWSConfigConstants.AWS_ACCESS_KEY_ID)
 					|| !config.containsKey(AWSConfigConstants.AWS_SECRET_ACCESS_KEY)) {
-					throw new IllegalArgumentException("Please set values for AWS Access Key ID ('"+ AWSConfigConstants.AWS_ACCESS_KEY_ID +"') " +
+					throw new IllegalArgumentException("Please set values for AWS Access Key ID ('" + AWSConfigConstants.AWS_ACCESS_KEY_ID + "') " +
 						"and Secret Key ('" + AWSConfigConstants.AWS_SECRET_ACCESS_KEY + "') when using the BASIC AWS credential provider type.");
 				}
 			}

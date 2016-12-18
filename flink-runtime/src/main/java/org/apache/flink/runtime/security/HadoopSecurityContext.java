@@ -25,9 +25,8 @@ import java.security.PrivilegedExceptionAction;
 import java.util.concurrent.Callable;
 
 /*
- * Process-wide security context object which initializes UGI with appropriate security credentials and also it
- * creates in-memory JAAS configuration object which will serve appropriate ApplicationConfigurationEntry for the
- * connector login module implementation that authenticates Kerberos identity using SASL/JAAS based mechanism.
+ * Hadoop security context which runs a Callable with the previously
+ * initialized UGI and appropriate security credentials.
  */
 class HadoopSecurityContext implements SecurityContext {
 

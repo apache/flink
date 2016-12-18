@@ -18,11 +18,13 @@
 
 package org.apache.flink.graph.generator;
 
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
+
 public abstract class AbstractGraphGenerator<K, VV, EV>
 implements GraphGenerator<K, VV, EV> {
 
 	// Optional configuration
-	protected int parallelism = -1;
+	protected int parallelism = PARALLELISM_DEFAULT;
 
 	@Override
 	public GraphGenerator<K,VV,EV> setParallelism(int parallelism) {

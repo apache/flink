@@ -1,8 +1,10 @@
 ---
 title: "Flink DataStream API Programming Guide"
 nav-title: Streaming (DataStream API)
-nav-parent_id: apis
-nav-pos: 2
+nav-id: streaming
+nav-parent_id: dev
+nav-show_overview: true
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -208,7 +210,7 @@ dataStream.filter(new FilterFunction<Integer>() {
           <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
           <td>
             <p>Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
-            Internally, this is implemented with hash partitioning. See <a href="#specifying-keys">keys</a> on how to specify keys.
+            Internally, this is implemented with hash partitioning. See <a href="/dev/api_concepts#specifying-keys">keys</a> on how to specify keys.
             This transformation returns a KeyedDataStream.</p>
     {% highlight java %}
 dataStream.keyBy("someKey") // Key by field "someKey"
@@ -342,7 +344,7 @@ allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, 
           <td>
             <p>Applies a functional reduce function to the window and returns the reduced value.</p>
     {% highlight java %}
-windowedStream.reduce (new ReduceFunction<Tuple2<String,Integer>() {
+windowedStream.reduce (new ReduceFunction<Tuple2<String,Integer>>() {
     public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1, Tuple2<String, Integer> value2) throws Exception {
         return new Tuple2<String,Integer>(value1.f0, value1.f1 + value2.f1);
     }
@@ -388,7 +390,7 @@ windowedStream.maxBy("key");
         <tr>
           <td><strong>Union</strong><br>DataStream* &rarr; DataStream</td>
           <td>
-            <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Node: If you union a data stream
+            <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Note: If you union a data stream
             with itself you will get each element twice in the resulting stream.</p>
     {% highlight java %}
 dataStream.union(otherStream1, otherStream2, ...);
@@ -595,7 +597,7 @@ dataStream.filter { _ != 0 }
           <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
           <td>
             <p>Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
-            Internally, this is implemented with hash partitioning. See <a href="#specifying-keys">keys</a> on how to specify keys.
+            Internally, this is implemented with hash partitioning. See <a href="/dev/api_concepts#specifying-keys">keys</a> on how to specify keys.
             This transformation returns a KeyedDataStream.</p>
     {% highlight scala %}
 dataStream.keyBy("someKey") // Key by field "someKey"
@@ -737,7 +739,7 @@ windowedStream.maxBy("key")
         <tr>
           <td><strong>Union</strong><br>DataStream* &rarr; DataStream</td>
           <td>
-            <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Node: If you union a data stream
+            <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Note: If you union a data stream
             with itself you will get each element twice in the resulting stream.</p>
     {% highlight scala %}
 dataStream.union(otherStream1, otherStream2, ...)
@@ -1408,8 +1410,8 @@ Collection-based:
 
 Custom:
 
-- `addSource` - Attache a new source function. For example, to read from Apache Kafka you can use
-    `addSource(new FlinkKafkaConsumer08<>(...))`. See [connectors]({{ site.baseurl }}/apis/streaming/connectors/) for more details.
+- `addSource` - Attach a new source function. For example, to read from Apache Kafka you can use
+    `addSource(new FlinkKafkaConsumer08<>(...))`. See [connectors]({{ site.baseurl }}/dev/connectors/) for more details.
 
 </div>
 </div>
@@ -1608,7 +1610,7 @@ Execution Parameters
 
 The `StreamExecutionEnvironment` contains the `ExecutionConfig` which allows to set job specific configuration values for the runtime.
 
-Please refer to [execution configuration]({{ site.baseurl }}/dev/api_concepts.html#execution-configuration)
+Please refer to [execution configuration]({{ site.baseurl }}/dev/execution_configuration)
 for an explanation of most parameters. These parameters pertain specifically to the DataStream API:
 
 - `enableTimestamps()` / **`disableTimestamps()`**: Attach a timestamp to each event emitted from a source.

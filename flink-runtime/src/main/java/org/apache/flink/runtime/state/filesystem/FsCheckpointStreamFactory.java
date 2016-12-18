@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -267,10 +268,11 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 						outStream.close();
 						fs.delete(statePath, false);
 
-						// attempt to delete the parent (will fail and be ignored if the parent has more files)
 						try {
-							fs.delete(basePath, false);
-						} catch (IOException ignored) {}
+							FileUtils.deletePathIfEmpty(fs, basePath);
+						} catch (Exception ignored) {
+							LOG.debug("Could not delete the parent directory {}.", basePath, ignored);
+						}
 					}
 					catch (Exception e) {
 						LOG.warn("Cannot delete closed and discarded state stream for " + statePath, e);

@@ -49,7 +49,6 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
-import org.apache.flink.runtime.io.network.PartitionState;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -102,7 +101,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState;
+import static org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionProducerState;
 import static org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpdateConsumers;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -1579,15 +1578,8 @@ public class TaskManagerTest extends TestLogger {
 
 		@Override
 		public void handleMessage(Object message) throws Exception {
-			if (message instanceof RequestPartitionState) {
-				final RequestPartitionState msg = (RequestPartitionState) message;
-
-				PartitionState resp = new PartitionState(
-						msg.taskResultId(),
-						msg.partitionId().getPartitionId(),
-						ExecutionState.RUNNING);
-
-				getSender().tell(decorateMessage(resp), getSelf());
+			if (message instanceof RequestPartitionProducerState) {
+				getSender().tell(decorateMessage(ExecutionState.RUNNING), getSelf());
 			}
 			else if (message instanceof TaskMessages.UpdateTaskExecutionState) {
 				final TaskExecutionState msg = ((TaskMessages.UpdateTaskExecutionState) message)

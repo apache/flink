@@ -163,7 +163,17 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 			Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> latest = initialCheckpoints
 					.get(numberOfInitialCheckpoints - 1);
 
-			CompletedCheckpoint latestCheckpoint = latest.f0.retrieveState();
+			CompletedCheckpoint latestCheckpoint;
+			long checkpointId = pathToCheckpointId(latest.f1);
+
+			LOG.info("Trying to retrieve checkpoint {}.", checkpointId);
+
+			try {
+				latestCheckpoint = latest.f0.retrieveState();
+			} catch (Exception e) {
+				throw new Exception("Could not retrieve the completed checkpoint " + checkpointId +
+				" from the state storage.", e);
+			}
 
 			checkpointStateHandles.add(latest);
 
@@ -190,7 +200,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		checkNotNull(checkpoint, "Checkpoint");
 
 		// First add the new one. If it fails, we don't want to loose existing data.
-		String path = String.format("/%s", checkpoint.getCheckpointID());
+		String path = checkpointIdToPath(checkpoint.getCheckpointID());
 
 		final RetrievableStateHandle<CompletedCheckpoint> stateHandle =
 				checkpointsInZooKeeper.add(path, checkpoint);
@@ -298,14 +308,36 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		BackgroundCallback callback = new BackgroundCallback() {
 			@Override
 			public void processResult(CuratorFramework client, CuratorEvent event) throws Exception {
+				final long checkpointId = pathToCheckpointId(stateHandleAndPath.f1);
+
 				try {
 					if (event.getType() == CuratorEventType.DELETE) {
 						if (event.getResultCode() == 0) {
+							Exception exception = null;
+
 							try {
 								action.call();
-							} finally {
+							} catch (Exception e) {
+								exception = new Exception("Could not execute callable action " +
+									"for checkpoint " + checkpointId + '.', e);
+							}
+
+							try {
 								// Discard the state handle
 								stateHandleAndPath.f0.discardState();
+							} catch (Exception e) {
+								Exception newException = new Exception("Could not discard meta " +
+									"data for completed checkpoint " + checkpointId + '.', e);
+
+								if (exception == null) {
+									exception = newException;
+								} else {
+									exception.addSuppressed(newException);
+								}
+							}
+
+							if (exception != null) {
+								throw exception;
 							}
 						} else {
 							throw new IllegalStateException("Unexpected result code " +
@@ -316,7 +348,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 								event.getType() + " in '" + event + "' callback.");
 					}
 				} catch (Exception e) {
-					LOG.error("Failed to discard checkpoint.", e);
+					LOG.warn("Failed to discard checkpoint {}.", checkpointId, e);
 				}
 			}
 		};
@@ -325,5 +357,40 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		// we remove a state handle and fail to remove it from ZooKeeper, we end up in an
 		// inconsistent state.
 		checkpointsInZooKeeper.remove(stateHandleAndPath.f1, callback);
+	}
+
+	/**
+	 * Convert a checkpoint id into a ZooKeeper path.
+	 *
+	 * @param checkpointId to convert to the path
+	 * @return Path created from the given checkpoint id
+	 */
+	protected static String checkpointIdToPath(long checkpointId) {
+		return String.format("/%s", checkpointId);
+	}
+
+	/**
+	 * Converts a path to the checkpoint id.
+	 *
+	 * @param path in ZooKeeper
+	 * @return Checkpoint id parsed from the path
+	 */
+	protected static long pathToCheckpointId(String path) {
+		try {
+			String numberString;
+
+			// check if we have a leading slash
+			if ('/' == path.charAt(0) ) {
+				numberString = path.substring(1);
+			} else {
+				numberString = path;
+			}
+			return Long.parseLong(numberString);
+		} catch (NumberFormatException e) {
+			LOG.warn("Could not parse checkpoint id from {}. This indicates that the " +
+				"checkpoint id to path conversion has changed.", path);
+
+			return -1L;
+		}
 	}
 }

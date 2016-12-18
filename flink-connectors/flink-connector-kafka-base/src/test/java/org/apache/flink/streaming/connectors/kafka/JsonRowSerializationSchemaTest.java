@@ -16,7 +16,7 @@
  */
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.table.Row;
+import org.apache.flink.types.Row;
 import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JsonRowSerializationSchema;
 import org.junit.Test;
@@ -88,10 +88,10 @@ public class JsonRowSerializationSchemaTest {
 
 	private void assertEqualRows(Row expectedRow, Row resultRow) {
 		assertEquals("Deserialized row should have expected number of fields",
-			expectedRow.productArity(), resultRow.productArity());
-		for (int i = 0; i < expectedRow.productArity(); i++) {
+			expectedRow.getArity(), resultRow.getArity());
+		for (int i = 0; i < expectedRow.getArity(); i++) {
 			assertEquals(String.format("Field number %d should be as in the original row", i),
-				expectedRow.productElement(i), resultRow.productElement(i));
+				expectedRow.getField(i), resultRow.getField(i));
 		}
 	}
 

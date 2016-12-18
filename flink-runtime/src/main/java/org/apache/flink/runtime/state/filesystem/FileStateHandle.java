@@ -22,6 +22,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.FileUtils;
 
 import java.io.IOException;
 
@@ -81,22 +82,18 @@ public class FileStateHandle implements StreamStateHandle {
 
 		fs.delete(filePath, false);
 
-		// send a call to delete the checkpoint directory containing the file. This will
-		// fail (and be ignored) when some files still exist
 		try {
-			fs.delete(filePath.getParent(), false);
-		} catch (IOException ignored) {
-		}
+			FileUtils.deletePathIfEmpty(fs, filePath.getParent());
+		} catch (Exception ignored) {}
 	}
 
 	/**
 	 * Returns the file size in bytes.
 	 *
 	 * @return The file size in bytes.
-	 * @throws IOException Thrown if the file system cannot be accessed.
 	 */
 	@Override
-	public long getStateSize() throws IOException {
+	public long getStateSize() {
 		return stateSize;
 	}
 

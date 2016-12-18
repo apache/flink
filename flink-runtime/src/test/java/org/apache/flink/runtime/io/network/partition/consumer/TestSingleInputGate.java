@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
@@ -55,7 +54,6 @@ public class TestSingleInputGate {
 		SingleInputGate realGate = new SingleInputGate(
 			"Test Task Name",
 			new JobID(),
-			new ExecutionAttemptID(),
 			new IntermediateDataSetID(),
 			0,
 			numberOfInputChannels,

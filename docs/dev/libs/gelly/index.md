@@ -33,6 +33,7 @@ Gelly is a Graph API for Flink. It contains a set of methods and utilities which
 * [Library Methods](library_methods.html)
 * [Graph Algorithms](graph_algorithms.html)
 * [Graph Generators](graph_generators.html)
+* [Bipartite Graphs](bipartite_graph.html)
 
 Using Gelly
 -----------
@@ -62,7 +63,7 @@ Add the following dependency to your `pom.xml` to use Gelly.
 </div>
 </div>
 
-Note that Gelly is currently not part of the binary distribution. See linking with it for cluster execution [here]({{ site.baseurl }}/dev/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+Note that Gelly is currently not part of the binary distribution. See linking with it for cluster execution [here]({{ site.baseurl }}/dev/linking).
 
 The remaining sections provide a description of available methods and present several examples of how to use Gelly and how to mix it with the Flink DataSet API.
 

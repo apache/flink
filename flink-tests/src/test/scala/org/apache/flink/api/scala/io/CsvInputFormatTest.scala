@@ -56,7 +56,7 @@ class CsvInputFormatTest {
         createTypeInformation[(String, Integer, Double)]
           .asInstanceOf[CaseClassTypeInfo[(String, Integer, Double)]])
       format.setDelimiter("\n")
-      format.setFieldDelimiter('|')
+      format.setFieldDelimiter("|")
       format.setCommentPrefix("#")
       val parameters = new Configuration
       format.configure(parameters)
@@ -98,7 +98,7 @@ class CsvInputFormatTest {
         createTypeInformation[(String, Integer, Double)]
           .asInstanceOf[CaseClassTypeInfo[(String, Integer, Double)]])
       format.setDelimiter("\n")
-      format.setFieldDelimiter('|')
+      format.setFieldDelimiter("|")
       format.setCommentPrefix("//")
       val parameters = new Configuration
       format.configure(parameters)
@@ -443,7 +443,7 @@ class CsvInputFormatTest {
     val format = new PojoCsvInputFormat[POJOItem](PATH, typeInfo)
 
     format.setDelimiter('\n')
-    format.setFieldDelimiter(',')
+    format.setFieldDelimiter(",")
     format.configure(new Configuration)
     format.open(tempFile)
 
@@ -460,7 +460,7 @@ class CsvInputFormatTest {
     val format = new TupleCsvInputFormat[CaseClassItem](PATH, typeInfo)
 
     format.setDelimiter('\n')
-    format.setFieldDelimiter(',')
+    format.setFieldDelimiter(",")
     format.configure(new Configuration)
     format.open(tempFile)
 
@@ -477,7 +477,7 @@ class CsvInputFormatTest {
       PATH, typeInfo, Array("field2", "field1", "field3"))
 
     format.setDelimiter('\n')
-    format.setFieldDelimiter(',')
+    format.setFieldDelimiter(",")
     format.configure(new Configuration)
     format.open(tempFile)
 
@@ -495,7 +495,7 @@ class CsvInputFormatTest {
       Array(true, true, false, true, false))
 
     format.setDelimiter('\n')
-    format.setFieldDelimiter(',')
+    format.setFieldDelimiter(",")
     format.configure(new Configuration)
     format.open(tempFile)
 
@@ -511,7 +511,7 @@ class CsvInputFormatTest {
     val format = new PojoCsvInputFormat[TwitterPOJO](PATH, typeInfo)
 
     format.setDelimiter('\n')
-    format.setFieldDelimiter(',')
+    format.setFieldDelimiter(",")
     format.configure(new Configuration)
     format.open(tempFile)
 

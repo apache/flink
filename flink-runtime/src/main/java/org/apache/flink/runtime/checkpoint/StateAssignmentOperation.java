@@ -62,10 +62,22 @@ public class StateAssignmentOperation {
 
 	public boolean assignStates() throws Exception {
 
+		boolean expandedToLegacyIds = false;
+		Map<JobVertexID, ExecutionJobVertex> localTasks = this.tasks;
+
 		for (Map.Entry<JobVertexID, TaskState> taskGroupStateEntry : latest.getTaskStates().entrySet()) {
 
 			TaskState taskState = taskGroupStateEntry.getValue();
-			ExecutionJobVertex executionJobVertex = tasks.get(taskGroupStateEntry.getKey());
+			ExecutionJobVertex executionJobVertex = localTasks.get(taskGroupStateEntry.getKey());
+
+			// on the first time we can not find the execution job vertex for an id, we also consider alternative ids,
+			// for example as generated from older flink versions, to provide backwards compatibility.
+			if (executionJobVertex == null && !expandedToLegacyIds) {
+				localTasks = ExecutionJobVertex.includeLegacyJobVertexIDs(localTasks);
+				executionJobVertex = localTasks.get(taskGroupStateEntry.getKey());
+				expandedToLegacyIds = true;
+				logger.info("Could not find ExecutionJobVertex. Including legacy JobVertexIDs in search.");
+			}
 
 			if (executionJobVertex == null) {
 				if (allowNonRestoredState) {

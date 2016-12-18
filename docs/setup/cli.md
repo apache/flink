@@ -146,7 +146,7 @@ This allows the job to finish processing all inflight data.
 
 Returns the path of the created savepoint. You need this path to restore and dispose savepoints.
 
-You can optionally specify a `savepointDirectory` when triggering the savepoint. If you don't specify one here, you need to configure a default savepoint directory for the Flink installation (see [[savepoint.html#configuration]]).
+You can optionally specify a `savepointDirectory` when triggering the savepoint. If you don't specify one here, you need to configure a default savepoint directory for the Flink installation (see [Savepoints](savepoints.html#configuration)).
 
 ##### Cancel with a savepoint
 
@@ -156,7 +156,7 @@ You can atomically trigger a savepoint and cancel a job.
 ./bin/flink cancel -s  [savepointDirectory] <jobID>
 {% endhighlight %}
 
-If no savepoint directory is configured, you need to configure a default savepoint directory for the Flink installation (see [[savepoint.html#configuration]]).
+If no savepoint directory is configured, you need to configure a default savepoint directory for the Flink installation (see [Savepoints](savepoints.html#configuration)).
 
 The job will only be cancelled if the savepoint succeeds.
 

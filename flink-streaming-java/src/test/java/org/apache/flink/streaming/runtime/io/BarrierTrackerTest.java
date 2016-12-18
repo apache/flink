@@ -36,6 +36,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests for the behavior of the barrier tracker.
@@ -425,6 +430,38 @@ public class BarrierTrackerTest {
 		assertNull(tracker.getNextNonBlocked());
 
 		assertTrue(tracker.isEmpty());
+	}
+
+	/**
+	 * Tests that each checkpoint is only aborted once in case of an interleaved cancellation
+	 * barrier arrival of two consecutive checkpoints.
+	 */
+	@Test
+	public void testInterleavedCancellationBarriers() throws Exception {
+		BufferOrEvent[] sequence = {
+			createBarrier(1L, 0),
+			createCancellationBarrier(2L, 0),
+			createCancellationBarrier(1L, 1),
+			createCancellationBarrier(2L, 1),
+			createCancellationBarrier(1L, 2),
+			createCancellationBarrier(2L, 2),
+			createBuffer(0)
+		};
+
+		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
+		BarrierTracker tracker = new BarrierTracker(gate);
+		StatefulTask statefulTask = mock(StatefulTask.class);
+
+		tracker.registerCheckpointEventHandler(statefulTask);
+
+		for (BufferOrEvent boe : sequence) {
+			if (boe.isBuffer() || (boe.getEvent().getClass() != CheckpointBarrier.class && boe.getEvent().getClass() != CancelCheckpointMarker.class)) {
+				assertEquals(boe, tracker.getNextNonBlocked());
+			}
+		}
+
+		verify(statefulTask, times(1)).abortCheckpointOnBarrier(eq(1L), any(Throwable.class));
+		verify(statefulTask, times(1)).abortCheckpointOnBarrier(eq(2L), any(Throwable.class));
 	}
 	
 	// ------------------------------------------------------------------------

@@ -72,8 +72,6 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 
 		this.address = new InetSocketAddress(host, port);
 
-		LOG.info("Starting StatsDReporter to send metric reports to " + address);
-
 //		String conversionRate = config.getString(ARG_CONVERSION_RATE, "SECONDS");
 //		String conversionDuration = config.getString(ARG_CONVERSION_DURATION, "MILLISECONDS");
 //		this.rateFactor = TimeUnit.valueOf(conversionRate).toSeconds(1);
@@ -84,6 +82,7 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 		} catch (SocketException e) {
 			throw new RuntimeException("Could not create datagram socket. ", e);
 		}
+		log.info("Configured StatsDReporter with {host:{}, port:{}}", host, port);
 	}
 
 	@Override

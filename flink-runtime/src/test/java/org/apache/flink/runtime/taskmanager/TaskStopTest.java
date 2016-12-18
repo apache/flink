@@ -24,7 +24,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
-import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
+import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -95,7 +95,7 @@ public class TaskStopTest {
 			tmRuntimeInfo,
 			mock(TaskMetricGroup.class),
 			mock(ResultPartitionConsumableNotifier.class),
-			mock(PartitionStateChecker.class),
+			mock(PartitionProducerStateChecker.class),
 			mock(Executor.class));
 		Field f = task.getClass().getDeclaredField("invokable");
 		f.setAccessible(true);
