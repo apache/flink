@@ -29,6 +29,7 @@ In case that the job is submitted with a restart strategy, this strategy overrid
 The default restart strategy is set via Flink's configuration file `flink-conf.yaml`.
 The configuration parameter *restart-strategy* defines which strategy is taken.
 Per default, the no-restart strategy is used.
+When checkpointing is activated and no restart strategy has been configured, the job will be restarted infinitely often.
 See the following list of available restart strategies to learn what values are supported.
 
 Each restart strategy comes with its own set of parameters which control its behaviour.
@@ -111,12 +112,12 @@ restart-strategy: fixed-delay
   <tbody>
     <tr>
         <td><it>restart-strategy.fixed-delay.attempts</it></td>
-        <td>Number of restart attempts</td>
+        <td>The number of times that Flink retries the execution before the job is declared as failed.</td>
         <td>1</td>
     </tr>
     <tr>
         <td><it>restart-strategy.fixed-delay.delay</it></td>
-        <td>Delay between two consecutive restart attempts</td>
+        <td>Delaying the retry means that after a failed execution, the re-execution does not start immediately, but only after a certain delay. Delaying the retries can be helpful when the program interacts with external systems where for example connections or pending transactions should reach a timeout before re-execution is attempted.</td>
         <td><it>akka.ask.timeout</it></td>
     </tr>
   </tbody>
@@ -149,20 +150,6 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 {% endhighlight %}
 </div>
 </div>
-
-### Restart Attempts
-
-The number of times that Flink retries the execution before the job is declared as failed is configurable via the *restart-strategy.fixed-delay.attempts* parameter.
-
-The default value is **1**.
-
-### Retry Delays
-
-Execution retries can be configured to be delayed. Delaying the retry means that after a failed execution, the re-execution does not start immediately, but only after a certain delay.
-
-Delaying the retries can be helpful when the program interacts with external systems where for example connections or pending transactions should reach a timeout before re-execution is attempted.
-
-The default value is the value of *akka.ask.timeout*.
 
 {% top %}
 
