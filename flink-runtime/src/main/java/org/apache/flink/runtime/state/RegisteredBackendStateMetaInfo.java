@@ -20,7 +20,8 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Compound meta information for a registered state in a keyed state backend. This combines all serializers and the
@@ -49,8 +50,8 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 			TypeSerializer<N> namespaceSerializer,
 			TypeSerializer<S> stateSerializer) {
 
-		this.stateType = Preconditions.checkNotNull(stateType);
-		this.name = Preconditions.checkNotNull(name);
+		this.stateType = checkNotNull(stateType);
+		this.name = checkNotNull(name);
 		this.namespaceSerializer = namespaceSerializer;
 		this.stateSerializer = stateSerializer;
 	}
@@ -91,7 +92,9 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 			return false;
 		}
 
-		return namespaceSerializer.isCompatibleWith(other.namespaceSerializer)
+		return ((namespaceSerializer == null && other.namespaceSerializer == null)
+					|| namespaceSerializer == null || other.namespaceSerializer == null
+					|| namespaceSerializer.isCompatibleWith(other.namespaceSerializer))
 				&& stateSerializer.isCompatibleWith(other.stateSerializer);
 	}
 
@@ -119,6 +122,16 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 			return false;
 		}
 		return getStateSerializer() != null ? getStateSerializer().equals(that.getStateSerializer()) : that.getStateSerializer() == null;
+	}
+
+	@Override
+	public String toString() {
+		return "RegisteredBackendStateMetaInfo{" +
+				"stateType=" + stateType +
+				", name='" + name + '\'' +
+				", namespaceSerializer=" + namespaceSerializer +
+				", stateSerializer=" + stateSerializer +
+				'}';
 	}
 
 	@Override
