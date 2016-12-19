@@ -91,7 +91,6 @@ under the License.
 		<flink.forkCount>1C</flink.forkCount>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
-		<slf4j.version>1.7.7</slf4j.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3-custom</akka.version>
 		<java.version>1.7</java.version>
@@ -125,35 +124,21 @@ under the License.
 			<version>1.2-SNAPSHOT</version>
 		</dependency>
 
-		<!-- Add the 'javax.annotation' annotations (JSR305), such as '@Nullable' -->
+		<!-- Root dependencies for all projects -->
+
+		<!-- Logging API -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+		</dependency>
+
+		<!-- 'javax.annotation' classes like '@Nullable' -->
 		<dependency>
 			<groupId>com.google.code.findbugs</groupId>
 			<artifactId>jsr305</artifactId>
 		</dependency>
-		
-		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-lang3</artifactId>
-			<version>3.3.2</version>
-		</dependency>
 
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-			<version>${slf4j.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-log4j12</artifactId>
-			<version>${slf4j.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
-			<version>1.2.17</version>
-		</dependency>
+		<!-- test dependencies -->
 
 		<dependency>
 			<groupId>junit</groupId>
@@ -194,9 +179,27 @@ under the License.
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- tests will have log4j as the default logging framework available -->
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
 
 	<!-- this section defines the module versions that are used if nothing else is specified. -->
+	
 	<dependencyManagement>
 		<!-- WARN: 
 			DO NOT put 	guava, 
@@ -215,7 +218,31 @@ under the License.
 				<artifactId>jsr305</artifactId>
 				<version>1.3.9</version>
 			</dependency>
-			
+
+			<dependency>
+				<groupId>org.slf4j</groupId>
+				<artifactId>slf4j-api</artifactId>
+				<version>1.7.7</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.slf4j</groupId>
+				<artifactId>slf4j-log4j12</artifactId>
+				<version>1.7.7</version>
+			</dependency>
+
+			<dependency>
+				<groupId>log4j</groupId>
+				<artifactId>log4j</artifactId>
+				<version>1.2.17</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-lang3</artifactId>
+				<version>3.3.2</version>
+			</dependency>
+
 			<!-- Make sure we use a consistent avro version throughout the project -->
 			<dependency>
 				<groupId>org.apache.avro</groupId>

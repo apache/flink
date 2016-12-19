@@ -35,7 +35,8 @@ under the License.
 
 	<dependencies>
 
-		<!-- BINARIES -->
+		<!-- Flink project binaries -->
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
@@ -137,7 +138,22 @@ under the License.
 			<artifactId>flink-yarn_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
+
+		<!-- Concrete logging framework - we only add this here to not tie
+			the projects to one specific framework and make it easier for
+			users to swap logging frameworks -->
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+			<scope>compile</scope>
+		</dependency>
 	</dependencies>
 
 	<profiles>

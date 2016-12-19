@@ -61,6 +61,20 @@
 			<version>${project.version}</version>
 		</dependency>
 
+		<!-- to be able to execute the examples properly in common IDEs, we need to
+			restate these dependencies in 'compile' scope -->
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.code.findbugs</groupId>
+			<artifactId>jsr305</artifactId>
+			<scope>compile</scope>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>
