@@ -1623,7 +1623,7 @@ for an explanation of most parameters. These parameters pertain specifically to 
 
 ### Fault Tolerance
 
-The [Fault Tolerance Documentation]({{ site.baseurl }}/setup/fault_tolerance.html) describes the options and parameters to enable and configure Flink's checkpointing mechanism.
+[State & Checkpointing]({{ site.baseurl }}/dev/state#enabling-checkpointing) describes how to enable and configure Flink's checkpointing mechanism. 
 
 ### Controlling Latency
 

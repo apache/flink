@@ -60,9 +60,6 @@ By default, checkpointing is disabled. To enable checkpointing, call `enableChec
 
 Other parameters for checkpointing include:
 
-- *Number of retries*: The `setNumberOfExecutionRerties()` method defines how many times the job is restarted after a failure.
-  When checkpointing is activated, but this value is not explicitly set, the job is restarted infinitely often.
-
 - *exactly-once vs. at-least-once*: You can optionally pass a mode to the `enableCheckpointing(n)` method to choose between the two guarantee levels.
   Exactly-once is preferrable for most applications. At-least-once may be relevant for certain super-low-latency (consistently few milliseconds) applications.
 
@@ -358,3 +355,7 @@ Flink currently only provides processing guarantees for jobs without iterations.
 Please note that records in flight in the loop edges (and the state changes associated with them) will be lost during failure.
 
 {% top %}
+
+## Restart Strategies
+
+Flink supports different restart strategies which control how the jobs are restarted in case of a failure. For more information, see [Restart Strategies]({{ site.baseurl }}/dev/restart_strategies).
