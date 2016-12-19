@@ -321,14 +321,18 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		offsetsStateForCheckpoint = stateStore.getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
 
 		if (context.isRestored()) {
-			restoreToOffset = new HashMap<>();
-			for (Tuple2<KafkaTopicPartition, Long> kafkaOffset : offsetsStateForCheckpoint.get()) {
-				restoreToOffset.put(kafkaOffset.f0, kafkaOffset.f1);
-			}
+			if (restoreToOffset == null) {
+				restoreToOffset = new HashMap<>();
+				for (Tuple2<KafkaTopicPartition, Long> kafkaOffset : offsetsStateForCheckpoint.get()) {
+					restoreToOffset.put(kafkaOffset.f0, kafkaOffset.f1);
+				}
 
-			LOG.info("Setting restore state in the FlinkKafkaConsumer.");
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Using the following offsets: {}", restoreToOffset);
+				LOG.info("Setting restore state in the FlinkKafkaConsumer.");
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Using the following offsets: {}", restoreToOffset);
+				}
+			} else if (restoreToOffset.isEmpty()) {
+				restoreToOffset = null;
 			}
 		} else {
 			LOG.info("No restore state for FlinkKafkaConsumer.");
