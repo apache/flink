@@ -214,7 +214,7 @@ public class YarnClusterClient extends ClusterClient {
 	@Override
 	public String getWebInterfaceURL() {
 		// there seems to be a difference between HD 2.2.0 and 2.6.0
-		if(!trackingURL.startsWith("http://")) {
+		if(!trackingURL.startsWith("http://") && !trackingURL.startsWith("https://")) {
 			return "http://" + trackingURL;
 		} else {
 			return trackingURL;

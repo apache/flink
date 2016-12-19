@@ -167,12 +167,11 @@ public class WebRuntimeMonitor implements WebMonitor {
 		final WebMonitorConfig cfg = new WebMonitorConfig(config);
 
 		// determine the web runtime monitor's advertised server address and bind address
-		// by default the server address is the same as the JM server address
+		// the server address is the FQDN of the JM server address
 		final InetAddress jmAddress = InetAddress.getByName(
-			config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost"));
-		final InetAddress configuredAddress = cfg.getWebFrontendAddress() != null ?
-			InetAddress.getByName(cfg.getWebFrontendAddress()) : NetUtils.anyLocalAddress();
-		final InetAddress serverAddress = NetUtils.getHostAddress(configuredAddress, jmAddress);
+			config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null));
+		final String configuredBindAddress = cfg.getWebFrontendAddress() != null ?
+			cfg.getWebFrontendAddress() : NetUtils.getWildcardIPAddress();
 
 		final int configuredPort = cfg.getWebFrontendPort();
 		if (configuredPort < 0) {
@@ -414,13 +413,13 @@ public class WebRuntimeMonitor implements WebMonitor {
 				.channel(NioServerSocketChannel.class)
 				.childHandler(initializer);
 
-		ChannelFuture ch = this.bootstrap.bind(configuredAddress, configuredPort);
+		ChannelFuture ch = this.bootstrap.bind(configuredBindAddress, configuredPort);
 		this.serverChannel = ch.sync().channel();
 
 		InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
 		int port = bindAddress.getPort();
 		this.serverURL = new URL(
-			serverSSLContext != null ? "https" : "http", serverAddress.getCanonicalHostName(), port, "");
+			serverSSLContext != null ? "https" : "http", jmAddress.getCanonicalHostName(), port, "");
 
 		LOG.info("Web frontend listening at " + serverURL);
 	}

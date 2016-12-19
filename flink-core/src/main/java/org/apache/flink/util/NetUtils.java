@@ -89,31 +89,6 @@ public class NetUtils {
 		}
 	}
 
-
-	/**
-	 * Get the effective host address for the given bind address.
-	 * @param bindAddress the address to bind to.
-	 * @param defaultAddress the default address for when the bind address is non-specific.
-     */
-	public static InetAddress getHostAddress(InetAddress bindAddress, InetAddress defaultAddress) {
-		if(bindAddress.isAnyLocalAddress()) {
-			// the wildcard address has no meaningful remote address; use default address which may be
-			// the local host or may be the result of @{ConnectionUtils.findConnectingAddress}.
-			return defaultAddress;
-		}
-		return bindAddress;
-	}
-
-	/*
-     * Returns the InetAddress representing anyLocalAddress
-     * (typically 0.0.0.0 or ::0)
-     *
-     * Useful as the default bind address.
-     */
-	public static InetAddress anyLocalAddress() {
-		return new InetSocketAddress(0).getAddress();
-	}
-
 	// ------------------------------------------------------------------------
 	//  Lookup of to free ports
 	// ------------------------------------------------------------------------
