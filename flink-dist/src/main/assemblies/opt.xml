@@ -53,13 +53,6 @@
 		</file>
 
 		<file>
-			<source>../flink-libraries/flink-gelly-examples/target/flink-gelly-examples_2.10-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-gelly-examples_2.10-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
 			<source>../flink-libraries/flink-gelly-scala/target/flink-gelly-scala_2.10-${project.version}-jar-with-dependencies.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-gelly-scala_2.10-${project.version}.jar</destName>
