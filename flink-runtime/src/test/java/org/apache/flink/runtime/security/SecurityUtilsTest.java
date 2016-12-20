@@ -18,97 +18,64 @@
 package org.apache.flink.runtime.security;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.OperatingSystem;
-import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.flink.runtime.security.modules.SecurityModule;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Test;
 
-import java.lang.reflect.Method;
+import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 /**
  * Tests for the {@link SecurityUtils}.
  */
 public class SecurityUtilsTest {
 
+	static class TestSecurityModule implements SecurityModule {
+		boolean installed;
+
+		@Override
+		public void install(SecurityUtils.SecurityConfiguration configuration) throws SecurityInstallException {
+			installed = true;
+		}
+
+		@Override
+		public void uninstall() throws SecurityInstallException {
+			installed = false;
+		}
+	}
+
 	@AfterClass
 	public static void afterClass() {
-		SecurityUtils.clearContext();
-		System.setProperty(SecurityUtils.JAVA_SECURITY_AUTH_LOGIN_CONFIG, "");
+		SecurityUtils.uninstall();
 	}
 
 	@Test
-	public void testCreateInsecureHadoopCtx() {
-		SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(new Configuration());
-		try {
-			SecurityUtils.install(sc);
-			assertEquals(UserGroupInformation.getLoginUser().getUserName(), getOSUserName());
-		} catch (Exception e) {
-			fail(e.getMessage());
-		}
+	public void testModuleInstall() throws Exception {
+		SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(
+			new Configuration(), new org.apache.hadoop.conf.Configuration(),
+			Collections.singletonList(TestSecurityModule.class));
+
+		SecurityUtils.install(sc);
+		assertEquals(1, SecurityUtils.getInstalledModules().size());
+		TestSecurityModule testModule = (TestSecurityModule) SecurityUtils.getInstalledModules().get(0);
+		assertTrue(testModule.installed);
+
+		SecurityUtils.uninstall();
+		assertNull(SecurityUtils.getInstalledModules());
+		assertFalse(testModule.installed);
 	}
 
 	@Test
-	public void testInvalidUGIContext() {
-		try {
-			new HadoopSecurityContext(null);
-		} catch (RuntimeException re) {
-			assertEquals("UGI passed cannot be null",re.getMessage());
-		}
-	}
+	public void testSecurityContext() throws Exception {
+		SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(
+			new Configuration(), new org.apache.hadoop.conf.Configuration(),
+			Collections.singletonList(TestSecurityModule.class));
 
-	@Test
-	/**
-	 * The Jaas configuration file provided should not be overridden.
-	 */
-	public void testJaasPropertyOverride() throws Exception {
-		String confFile = "jaas.conf";
-		System.setProperty(SecurityUtils.JAVA_SECURITY_AUTH_LOGIN_CONFIG, confFile);
+		SecurityUtils.install(sc);
+		assertEquals(HadoopSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
 
-		SecurityUtils.install(new SecurityUtils.SecurityConfiguration(new Configuration()));
-
-		Assert.assertEquals(
-			confFile,
-			System.getProperty(SecurityUtils.JAVA_SECURITY_AUTH_LOGIN_CONFIG));
-	}
-
-
-	private String getOSUserName() throws Exception {
-		String userName = "";
-		OperatingSystem os = OperatingSystem.getCurrentOperatingSystem();
-		String className;
-		String methodName;
-
-		switch(os) {
-			case LINUX:
-			case MAC_OS:
-				className = "com.sun.security.auth.module.UnixSystem";
-				methodName = "getUsername";
-				break;
-			case WINDOWS:
-				className = "com.sun.security.auth.module.NTSystem";
-				methodName = "getName";
-				break;
-			case SOLARIS:
-				className = "com.sun.security.auth.module.SolarisSystem";
-				methodName = "getUsername";
-				break;
-			case FREE_BSD:
-			case UNKNOWN:
-			default:
-				className = null;
-				methodName = null;
-		}
-
-		if( className != null ){
-			Class<?> c = Class.forName( className );
-			Method method = c.getDeclaredMethod( methodName );
-			Object o = c.newInstance();
-			userName = (String) method.invoke( o );
-		}
-		return userName;
+		SecurityUtils.uninstall();
+		assertEquals(NoOpSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
 	}
 }

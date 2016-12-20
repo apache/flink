@@ -18,8 +18,8 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.test.util.TestingSecurityContext;
@@ -53,13 +53,13 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 				SecureTestEnvironment.getTestKeytab());
 
 		Configuration flinkConfig = new Configuration();
-		flinkConfig.setString(ConfigConstants.SECURITY_KEYTAB_KEY,
+		flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB,
 				SecureTestEnvironment.getTestKeytab());
-		flinkConfig.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY,
+		flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL,
 				SecureTestEnvironment.getHadoopServicePrincipal());
 
-		SecurityUtils.SecurityConfiguration ctx = new SecurityUtils.SecurityConfiguration(flinkConfig);
-		ctx.setHadoopConfiguration(yarnConfiguration);
+		SecurityUtils.SecurityConfiguration ctx = new SecurityUtils.SecurityConfiguration(flinkConfig,
+				yarnConfiguration);
 		try {
 			TestingSecurityContext.install(ctx, SecureTestEnvironment.getClientSecurityConfigurationMap());
 

@@ -22,12 +22,12 @@ import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -407,6 +407,18 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	@Override
 	public YarnClusterClient deploy() {
 		try {
+			if(UserGroupInformation.isSecurityEnabled()) {
+				// note: UGI::hasKerberosCredentials inaccurately reports false
+				// for logins based on a keytab (fixed in Hadoop 2.6.1, see HADOOP-10786),
+				// so we check only in ticket cache scenario.
+				boolean useTicketCache = flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
+				UserGroupInformation loginUser = UserGroupInformation.getCurrentUser();
+				if (useTicketCache && !loginUser.hasKerberosCredentials()) {
+					LOG.error("Hadoop security is enabled but the login user does not have Kerberos credentials");
+					throw new RuntimeException("Hadoop security is enabled but the login user " +
+							"does not have Kerberos credentials");
+				}
+			}
 			return deployInternal();
 		} catch (Exception e) {
 			throw new RuntimeException("Couldn't deploy Yarn cluster", e);
@@ -604,12 +616,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 		}
 
-		//check if there is a JAAS config file
-		File jaasConfigFile = new File(configurationDirectory + File.separator + SecurityUtils.JAAS_CONF_FILENAME);
-		if (jaasConfigFile.exists() && jaasConfigFile.isFile()) {
-			effectiveShipFiles.add(jaasConfigFile);
-		}
-
 		addLibFolderToShipFiles(effectiveShipFiles);
 
 		// add the user jar to the classpath of the to-be-created cluster
@@ -773,7 +779,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// setup security tokens
 		LocalResource keytabResource = null;
 		Path remotePathKeytab = null;
-		String keytab = flinkConfiguration.getString(ConfigConstants.SECURITY_KEYTAB_KEY, null);
+		String keytab = flinkConfiguration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
 		if(keytab != null) {
 			LOG.info("Adding keytab {} to the AM container local resource bucket", keytab);
 			keytabResource = Records.newRecord(LocalResource.class);
@@ -816,7 +822,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		if(keytabResource != null) {
 			appMasterEnv.put(YarnConfigKeys.KEYTAB_PATH, remotePathKeytab.toString() );
-			String principal = flinkConfiguration.getString(ConfigConstants.SECURITY_PRINCIPAL_KEY, null);
+			String principal = flinkConfiguration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
 			appMasterEnv.put(YarnConfigKeys.KEYTAB_PRINCIPAL, principal );
 		}
 

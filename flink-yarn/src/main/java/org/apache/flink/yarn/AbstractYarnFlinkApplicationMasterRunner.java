@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.Preconditions;
@@ -103,22 +104,28 @@ public abstract class AbstractYarnFlinkApplicationMasterRunner {
 			LOG.debug("YARN dynamic properties: {}", dynamicProperties);
 
 			final Configuration flinkConfig = createConfiguration(currDir, dynamicProperties);
-			if(keytabPath != null && remoteKeytabPrincipal != null) {
-				flinkConfig.setString(ConfigConstants.SECURITY_KEYTAB_KEY, keytabPath);
-				flinkConfig.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY, remoteKeytabPrincipal);
+			if (keytabPath != null && remoteKeytabPrincipal != null) {
+				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
+				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
-			SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(flinkConfig);
+			org.apache.hadoop.conf.Configuration hadoopConfiguration = null;
 
 			//To support Yarn Secure Integration Test Scenario
 			File krb5Conf = new File(currDir, Utils.KRB5_FILE_NAME);
-			if(krb5Conf.exists() && krb5Conf.canRead()) {
+			if (krb5Conf.exists() && krb5Conf.canRead()) {
 				String krb5Path = krb5Conf.getAbsolutePath();
 				LOG.info("KRB5 Conf: {}", krb5Path);
-				org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
-				conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
-				conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
-				sc.setHadoopConfiguration(conf);
+				hadoopConfiguration = new org.apache.hadoop.conf.Configuration();
+				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
+				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
+			}
+
+			SecurityUtils.SecurityConfiguration sc;
+			if(hadoopConfiguration != null) {
+				sc = new SecurityUtils.SecurityConfiguration(flinkConfig, hadoopConfiguration);
+			} else {
+				sc = new SecurityUtils.SecurityConfiguration(flinkConfig);
 			}
 
 			SecurityUtils.install(sc);

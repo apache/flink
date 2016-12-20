@@ -27,7 +27,6 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -168,7 +167,6 @@ public class MesosApplicationMasterRunner {
 
 			// configure security
 			SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(config);
-			sc.setHadoopConfiguration(HadoopUtils.getHadoopConfiguration());
 			SecurityUtils.install(sc);
 
 			// run the actual work in the installed security context
