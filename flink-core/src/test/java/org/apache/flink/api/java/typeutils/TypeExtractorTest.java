@@ -359,8 +359,11 @@ public class TypeExtractorTest {
 		Row nullRow = new Row(2);
 		TypeInformation<Row> genericRowInfo = TypeExtractor.getForObject(nullRow);
 		Assert.assertEquals(genericRowInfo, new GenericTypeInfo<>(Row.class));
-		int arity = genericRowInfo.getArity();
-		genericRowInfo.hashCode();
+		Assert.assertEquals(
+			new RowTypeInfo(
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.INT_TYPE_INFO),
+			rowInfo);
 	}
 	
 	public static class CustomType {
