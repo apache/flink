@@ -30,7 +30,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfoBase, ValueTypeInfo}
 import org.apache.flink.api.java.{CollectionEnvironment, ExecutionEnvironment => JavaEnv}
 import org.apache.flink.api.scala.hadoop.{mapred, mapreduce}
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
 import org.apache.flink.util.{NumberSequenceIterator, Preconditions, SplittableIterator}
@@ -715,6 +715,27 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
 object ExecutionEnvironment {
 
   /**
+   * Sets the default parallelism that will be used for the local execution
+   * environment created by [[createLocalEnvironment()]].
+   *
+   * @param parallelism The default parallelism to use for local execution.
+   */
+  @PublicEvolving
+  def setDefaultLocalParallelism(parallelism: Int) : Unit =
+    JavaEnv.setDefaultLocalParallelism(parallelism)
+
+  /**
+   * Gets the default parallelism that will be used for the local execution environment created by
+   * [[createLocalEnvironment()]].
+   */
+  @PublicEvolving
+  def getDefaultLocalParallelism: Int = JavaEnv.getDefaultLocalParallelism
+
+  // --------------------------------------------------------------------------
+  //  context environment
+  // --------------------------------------------------------------------------
+
+  /**
    * Creates an execution environment that represents the context in which the program is
    * currently executed. If the program is invoked standalone, this method returns a local
    * execution environment. If the program is invoked from within the command line client
@@ -724,17 +745,20 @@ object ExecutionEnvironment {
     new ExecutionEnvironment(JavaEnv.getExecutionEnvironment)
   }
 
+  // --------------------------------------------------------------------------
+  //  local environment
+  // --------------------------------------------------------------------------
+
   /**
-   * Creates a local execution environment. The local execution environment will run the program in
-   * a multi-threaded fashion in the same JVM as the environment was created in. The parallelism of
-   * the local environment is the number of hardware contexts (CPU cores/threads).
+   * Creates a local execution environment. The local execution environment will run the
+   * program in a multi-threaded fashion in the same JVM as the environment was created in.
+   *
+   * This method sets the environment's default parallelism to given parameter, which
+   * defaults to the value set via [[setDefaultLocalParallelism(Int)]].
    */
-  def createLocalEnvironment(
-      parallelism: Int = Runtime.getRuntime.availableProcessors())
-      : ExecutionEnvironment = {
-    val javaEnv = JavaEnv.createLocalEnvironment()
-    javaEnv.setParallelism(parallelism)
-    new ExecutionEnvironment(javaEnv)
+  def createLocalEnvironment(parallelism: Int = JavaEnv.getDefaultLocalParallelism): 
+      ExecutionEnvironment = {
+    new ExecutionEnvironment(JavaEnv.createLocalEnvironment(parallelism))
   }
 
   /**
@@ -748,23 +772,23 @@ object ExecutionEnvironment {
   }
 
   /**
-   * Creates a local execution environment with enable running web UI
+   * Creates a [[ExecutionEnvironment]] for local program execution that also starts the
+   * web monitoring UI.
    *
-   * @return [[ExecutionEnvironment]]
+   * The local execution environment will run the program in a multi-threaded fashion in
+   * the same JVM as the environment was created in. It will use the parallelism specified in the
+   * parameter.
+   *
+   * If the configuration key 'jobmanager.web.port' was set in the configuration, that particular
+   * port will be used for the web UI. Otherwise, the default port (8081) will be used.
+   *
+   * @param config optional config for the local execution
+   * @return The created StreamExecutionEnvironment
    */
-  def createLocalEnvWithWebUI(confOps: Option[Configuration] = None): ExecutionEnvironment = {
-    val conf = confOps match {
-      case Some(cf) => cf
-      case None => new Configuration
-    }
-
-    conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true)
-    if (!conf.containsKey(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)) {
-      val port = ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT
-      conf.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, port)
-    }
-
-    new ExecutionEnvironment(JavaEnv.createLocalEnvironment(conf))
+  @PublicEvolving
+  def createLocalEnvironmentWithWebUI(config: Configuration = null): ExecutionEnvironment = {
+    val conf: Configuration = if (config == null) new Configuration() else config
+    new ExecutionEnvironment(JavaEnv.createLocalEnvironmentWithWebUI(conf))
   }
 
   /**
@@ -778,6 +802,10 @@ object ExecutionEnvironment {
   def createCollectionsEnvironment: ExecutionEnvironment = {
     new ExecutionEnvironment(new CollectionEnvironment)
   }
+
+  // --------------------------------------------------------------------------
+  //  remote environment
+  // --------------------------------------------------------------------------
 
   /**
    * Creates a remote execution environment. The remote environment sends (parts of) the program to

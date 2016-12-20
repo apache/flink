@@ -78,6 +78,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * The ExecutionEnvironment is the context in which a program is executed. A
  * {@link LocalEnvironment} will cause execution in the current JVM, a
@@ -1219,21 +1221,28 @@ public abstract class ExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a local execution environment with enable running web UI
+	 * Creates a {@link LocalEnvironment} for local program execution that also starts the
+	 * web monitoring UI.
 	 *
-	 * @return [[StreamExecutionEnvironment]]
+	 * <p>The local execution environment will run the program in a multi-threaded fashion in
+	 * the same JVM as the environment was created in. It will use the parallelism specified in the
+	 * parameter.
+	 *
+	 * <p>If the configuration key 'jobmanager.web.port' was set in the configuration, that particular
+	 * port will be used for the web UI. Otherwise, the default port (8081) will be used.
 	 */
-	public static ExecutionEnvironment createLocalEnvWithWebUI(Configuration conf) {
+	@PublicEvolving
+	public static ExecutionEnvironment createLocalEnvironmentWithWebUI(Configuration conf) {
+		checkNotNull(conf, "conf");
+
 		if (!conf.containsKey(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)) {
 			int port = ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT;
 			conf.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, port);
 		}
-
 		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
+
 		LocalEnvironment localEnv = new LocalEnvironment(conf);
-		if (localEnv.getConfig().getParallelism() < 0) {
-			localEnv.setParallelism(defaultLocalDop);
-		}
+		localEnv.setParallelism(defaultLocalDop);
 
 		return localEnv;
 	}
@@ -1294,7 +1303,21 @@ public abstract class ExecutionEnvironment {
 		rec.setParallelism(parallelism);
 		return rec;
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+	//  Default parallelism for local execution
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Gets the default parallelism that will be used for the local execution environment created by
+	 * {@link #createLocalEnvironment()}.
+	 * 
+	 * @return The default local parallelism
+	 */
+	public static int getDefaultLocalParallelism() {
+		return defaultLocalDop;
+	}
+
 	/**
 	 * Sets the default parallelism that will be used for the local execution environment created by
 	 * {@link #createLocalEnvironment()}.
@@ -1304,7 +1327,7 @@ public abstract class ExecutionEnvironment {
 	public static void setDefaultLocalParallelism(int parallelism) {
 		defaultLocalDop = parallelism;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Methods to control the context environment and creation of explicit environments other
 	//  than the context environment

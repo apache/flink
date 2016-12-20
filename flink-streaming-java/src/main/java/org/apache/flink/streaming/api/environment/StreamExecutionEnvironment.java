@@ -82,6 +82,8 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * The StreamExecutionEnvironment is the context in which a streaming program is executed. A
  * {@link LocalStreamEnvironment} will cause execution in the current JVM, a
@@ -502,18 +504,6 @@ public abstract class StreamExecutionEnvironment {
 	@PublicEvolving
 	public int getNumberOfExecutionRetries() {
 		return config.getNumberOfExecutionRetries();
-	}
-
-	/**
-	 * Sets the default parallelism that will be used for the local execution
-	 * environment created by {@link #createLocalEnvironment()}.
-	 *
-	 * @param parallelism
-	 * 		The parallelism to use as the default local parallelism.
-	 */
-	@PublicEvolving
-	public static void setDefaultLocalParallelism(int parallelism) {
-		defaultLocalParallelism = parallelism;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1646,21 +1636,28 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a local execution environment with enable running web UI
-	 *
-	 * @return [[StreamExecutionEnvironment]]
+	 * Creates a {@link LocalStreamEnvironment} for local program execution that also starts the
+	 * web monitoring UI.
+	 * 
+	 * <p>The local execution environment will run the program in a multi-threaded fashion in
+	 * the same JVM as the environment was created in. It will use the parallelism specified in the
+	 * parameter.
+	 * 
+	 * <p>If the configuration key 'jobmanager.web.port' was set in the configuration, that particular
+	 * port will be used for the web UI. Otherwise, the default port (8081) will be used.
 	 */
-	public static StreamExecutionEnvironment createLocalEnvWithWebUI(Configuration conf) {
+	@PublicEvolving
+	public static StreamExecutionEnvironment createLocalEnvironmentWithWebUI(Configuration conf) {
+		checkNotNull(conf, "conf");
+
 		if (!conf.containsKey(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)) {
 			int port = ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT;
 			conf.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, port);
 		}
-
 		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
+
 		LocalStreamEnvironment localEnv = new LocalStreamEnvironment(conf);
-		if (localEnv.getConfig().getParallelism() < 0) {
-			localEnv.setParallelism(defaultLocalParallelism);
-		}
+		localEnv.setParallelism(defaultLocalParallelism);
 
 		return localEnv;
 	}
@@ -1745,7 +1742,29 @@ public abstract class StreamExecutionEnvironment {
 	{
 		return new RemoteStreamEnvironment(host, port, clientConfig, jarFiles);
 	}
-	
+
+	/**
+	 * Gets the default parallelism that will be used for the local execution environment created by
+	 * {@link #createLocalEnvironment()}.
+	 *
+	 * @return The default local parallelism
+	 */
+	@PublicEvolving
+	public static int getDefaultLocalParallelism() {
+		return defaultLocalParallelism;
+	}
+
+	/**
+	 * Sets the default parallelism that will be used for the local execution
+	 * environment created by {@link #createLocalEnvironment()}.
+	 *
+	 * @param parallelism The parallelism to use as the default local parallelism.
+	 */
+	@PublicEvolving
+	public static void setDefaultLocalParallelism(int parallelism) {
+		defaultLocalParallelism = parallelism;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Methods to control the context and local environments for execution from packaged programs
 	// --------------------------------------------------------------------------------------------
