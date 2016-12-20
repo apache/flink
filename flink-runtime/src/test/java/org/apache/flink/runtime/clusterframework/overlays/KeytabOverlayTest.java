@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework.overlays;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.junit.Rule;
@@ -46,7 +47,7 @@ public class KeytabOverlayTest extends ContainerOverlayTestBase {
 		ContainerSpecification spec = new ContainerSpecification();
 		overlay.configure(spec);
 
-		assertEquals(TARGET_PATH.getPath(), spec.getDynamicConfiguration().getString(ConfigConstants.SECURITY_KEYTAB_KEY, null));
+		assertEquals(TARGET_PATH.getPath(), spec.getDynamicConfiguration().getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB));
 		checkArtifact(spec, TARGET_PATH);
 	}
 
@@ -64,7 +65,7 @@ public class KeytabOverlayTest extends ContainerOverlayTestBase {
 		final Configuration conf = new Configuration();
 		File keytab = tempFolder.newFile();
 
-		conf.setString(ConfigConstants.SECURITY_KEYTAB_KEY, keytab.getAbsolutePath());
+		conf.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytab.getAbsolutePath());
 		KeytabOverlay.Builder builder = KeytabOverlay.newBuilder().fromEnvironment(conf);
 		assertEquals(builder.keytabPath, keytab);
 	}

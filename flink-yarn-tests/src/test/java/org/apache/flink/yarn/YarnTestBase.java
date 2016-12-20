@@ -26,6 +26,7 @@ import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.test.util.TestBaseUtils;
@@ -424,8 +425,8 @@ public abstract class YarnTestBase extends TestLogger {
 					LOG.info("writing keytab: " + keytab + " and principal: " + principal + " to config file");
 					out.println("");
 					out.println("#Security Configurations Auto Populated ");
-					out.println(ConfigConstants.SECURITY_KEYTAB_KEY + ": " + keytab);
-					out.println(ConfigConstants.SECURITY_PRINCIPAL_KEY + ": " + principal);
+					out.println(SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + ": " + keytab);
+					out.println(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key() + ": " + principal);
 					out.println("");
 				} catch (IOException e) {
 					throw new RuntimeException("Exception occured while trying to append the security configurations.", e);
