@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.{FoldFunction, ReduceFunction, Rich
 import org.apache.flink.api.common.state.{FoldingStateDescriptor, ListStateDescriptor, ReducingStateDescriptor}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.functions.KeySelector
+import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.scala.function.WindowFunction
@@ -47,6 +48,45 @@ import org.junit.Test
   * that we get some output.
   */
 class WindowTranslationTest {
+
+  @Test
+  def testTimeWindows(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+
+    val source = env.fromElements(("hello", 1), ("hello", 2))
+
+    val reducer = new DummyReducer
+
+    val window1 = source
+      .keyBy(0)
+      .timeWindow(Time.seconds(1), Time.milliseconds(100))
+      .reduce(reducer)
+
+    val transform1 = window1.javaStream.getTransformation
+      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
+
+    val operator1 = transform1.getOperator
+
+    assertTrue(operator1.isInstanceOf[WindowOperator[_, _, _, _, _]])
+
+    val window2 = source
+      .keyBy(0)
+      .timeWindow(Time.minutes(1))
+      .apply(new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
+        def apply(
+                   key: Tuple,
+                   window: TimeWindow,
+                   values: Iterable[(String, Int)],
+                   out: Collector[(String, Int)]) { }
+      })
+
+    val transform2 = window2.javaStream.getTransformation
+      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
+
+    val operator2 = transform2.getOperator
+
+    assertTrue(operator2.isInstanceOf[WindowOperator[_, _, _, _, _]])
+  }
 
   /**
     * .reduce() does not support [[RichReduceFunction]], since the reduce function is used

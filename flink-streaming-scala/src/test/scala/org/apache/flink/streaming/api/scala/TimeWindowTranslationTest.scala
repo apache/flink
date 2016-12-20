@@ -25,7 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.function.WindowFunction
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows
+import org.apache.flink.streaming.api.windowing.assigners.{SlidingAlignedProcessingTimeWindows, SlidingEventTimeWindows, TumblingAlignedProcessingTimeWindows}
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
@@ -46,7 +46,6 @@ class TimeWindowTranslationTest extends StreamingMultipleProgramsTestBase {
     * conditions are right.
     */
   @Test
-  @Ignore
   def testReduceFastTimeWindows(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
@@ -54,7 +53,8 @@ class TimeWindowTranslationTest extends StreamingMultipleProgramsTestBase {
     
     val window1 = source
       .keyBy(0)
-      .timeWindow(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS))
+      .window(SlidingAlignedProcessingTimeWindows.of(
+        Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
       .reduce(new DummyReducer())
 
     val transform1 = window1.javaStream.getTransformation
@@ -70,7 +70,6 @@ class TimeWindowTranslationTest extends StreamingMultipleProgramsTestBase {
     * conditions are right.
     */
   @Test
-  @Ignore
   def testApplyFastTimeWindows(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
@@ -79,7 +78,7 @@ class TimeWindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
     val window1 = source
       .keyBy(0)
-      .timeWindow(Time.minutes(1))
+      .window(TumblingAlignedProcessingTimeWindows.of(Time.minutes(1)))
       .apply(new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
         def apply(
                    key: Tuple,
