@@ -21,6 +21,7 @@ package org.apache.flink.table.plan.rules.dataSet
 import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.logical.LogicalJoin
 
 import org.apache.flink.table.plan.nodes.dataset.{DataSetJoin, DataSetConvention}
@@ -40,10 +41,17 @@ class DataSetJoinRule
     val joinInfo = join.analyzeCondition
 
     // joins require an equi-condition or a conjunctive predicate with at least one equi-condition
-    !joinInfo.pairs().isEmpty
+    !joinInfo.pairs().isEmpty || isOuterJoin(join)
   }
 
-  override def convert(rel: RelNode): RelNode = {
+  private def isOuterJoin(join: LogicalJoin) = {
+    join.getJoinType match {
+      case JoinRelType.LEFT | JoinRelType.RIGHT => true
+      case _ => false
+    }
+  }
+
+override def convert(rel: RelNode): RelNode = {
 
     val join: LogicalJoin = rel.asInstanceOf[LogicalJoin]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
