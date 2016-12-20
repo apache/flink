@@ -136,7 +136,8 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 				Collections.<BlobKey>emptyList(),
 				Collections.<URL>emptyList(),
 				scheduler,
-				getClass().getClassLoader());
+				getClass().getClassLoader(),
+				null);
 
 			RestartTimeGauge restartingTime = new RestartTimeGauge(executionGraph);
 

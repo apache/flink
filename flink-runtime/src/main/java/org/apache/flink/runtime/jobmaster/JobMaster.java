@@ -28,6 +28,7 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -95,7 +96,6 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.InstantiationUtil;
-
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -265,6 +265,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			restartStrategy,
 			jobMetricGroup,
 			-1,
+			(BlobServer) libraryCacheManager.getBlobService(),
 			log);
 
 		// register self as job status change listener

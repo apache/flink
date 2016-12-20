@@ -50,6 +50,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
@@ -108,7 +109,7 @@ public class ExecutionGraphDeploymentTest {
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
 				jobId, 
-				"some job", 
+				"some job",
 				new Configuration(),
 				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
@@ -514,8 +515,8 @@ public class ExecutionGraphDeploymentTest {
 			new DirectScheduledExecutorService(),
 			TestingUtils.defaultExecutor(),
 			jobId, 
-			"some job", 
-			new Configuration(), 
+			"some job",
+			new Configuration(),
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
@@ -584,6 +585,7 @@ public class ExecutionGraphDeploymentTest {
 			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
 			1,
+			null,
 			LoggerFactory.getLogger(getClass()));
 	}
 }

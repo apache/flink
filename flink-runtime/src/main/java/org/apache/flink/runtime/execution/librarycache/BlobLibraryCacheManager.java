@@ -227,6 +227,10 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 		return new File(blobService.getURL(jobId, key).getFile());
 	}
 
+	public BlobService getBlobService() {
+		return blobService;
+	}
+
 	public int getBlobServerPort() {
 		return blobService.getPort();
 	}

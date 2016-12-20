@@ -703,17 +703,28 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			consumedPartitions.add(new InputGateDeploymentDescriptor(resultId, partitionType, queueToRequest, partitions));
 		}
 
-		SerializedValue<JobInformation> serializedJobInformation = getExecutionGraph().getSerializedJobInformation();
-		SerializedValue<TaskInformation> serializedJobVertexInformation = null;
+		final SerializedValue<JobInformation> serializedJobInformation;
+		if (getExecutionGraph().hasJobInformationAtBlobStore()) {
+			// offloaded data that will be restored on the receiver of the TaskDeploymentDescriptor
+			serializedJobInformation = null;
+		} else {
+			serializedJobInformation = getExecutionGraph().getSerializedJobInformation();
+		}
 
+		SerializedValue<TaskInformation> serializedJobVertexInformation = null;
 		try {
 			serializedJobVertexInformation = jobVertex.getSerializedTaskInformation();
+			if (jobVertex.hasTaskInformationAtBlobStore()) {
+				serializedJobVertexInformation = null;
+			}
 		} catch (IOException e) {
 			throw new ExecutionGraphException(
 					"Could not create a serialized JobVertexInformation for " + jobVertex.getJobVertexId(), e);
 		}
 
 		return new TaskDeploymentDescriptor(
+			getJobId(),
+			getJobvertexId(),
 			serializedJobInformation,
 			serializedJobVertexInformation,
 			executionId,

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import com.google.common.io.Files;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -26,14 +27,15 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URL;
@@ -329,6 +331,27 @@ public class BlobServer extends Thread implements BlobService {
 	public BlobClient createClient() throws IOException {
 		return new BlobClient(new InetSocketAddress(serverSocket.getInetAddress(), getPort()),
 			blobServiceConfiguration);
+	}
+
+	/**
+	 * Uses an {@link ObjectOutputStream} to write the given object to files served by the blob
+	 * server under the given name
+	 *
+	 * @param data 	    object to write
+	 * @param jobId     JobID of the file in the blob store
+	 * @param key       String key of the file in the blob store
+	 */
+	public void putObject(Object data, JobID jobId, String key) throws IOException {
+		File storageFile = getStorageLocation(jobId, key);
+		// temporary file during transfer:
+		File incomingFile = new File(storageFile.getParent(), "." + storageFile.getName());
+		try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(incomingFile))) {
+			oos.writeObject(data);
+			oos.close();
+
+			Files.move(incomingFile, storageFile);
+			blobStore.put(storageFile, jobId, key);
+		}
 	}
 
 	/**

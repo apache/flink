@@ -34,6 +34,7 @@ import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
@@ -124,6 +125,14 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	/** The log object used for debugging. */
 	static final Logger LOG = LoggerFactory.getLogger(ExecutionGraph.class);
 
+	/**
+	 * If the serialized job information inside {@link #serializedJobInformation} is larger than
+	 * this, we try to offload it to the blob server.
+	 *
+	 * @see #tryOffLoadJobInformation()
+	 */
+	private static final int MAX_SHORT_MESSAGE_SIZE = 1 * 1024; // TODO: make configurable
+
 	// --------------------------------------------------------------------------------------------
 
 	/** The lock used to secure all access to mutable fields, especially the tracking of progress
@@ -137,6 +146,12 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * serializations of the same data when creating a TaskDeploymentDescriptor.
 	 */
 	private final SerializedValue<JobInformation> serializedJobInformation;
+
+	/**
+	 * Whether {@link #serializedJobInformation} has been successfully stored at the
+	 * {@link #blobServer}.
+	 */
+	private final boolean jobInformationAtBlobStore;
 
 	/** The executor which is used to execute futures. */
 	private final ScheduledExecutorService futureExecutor;
@@ -186,6 +201,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	/** Registered KvState instances reported by the TaskManagers. */
 	private final KvStateLocationRegistry kvStateLocationRegistry;
+
+	/** Blob server reference for offloading large RPC messages. */
+	private final BlobServer blobServer;
 
 	// ------ Configuration of the Execution -------
 
@@ -254,7 +272,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			Collections.<BlobKey>emptyList(),
 			Collections.<URL>emptyList(),
 			slotProvider,
-			ExecutionGraph.class.getClassLoader());
+			ExecutionGraph.class.getClassLoader(),
+			null
+		);
 	}
 
 	public ExecutionGraph(
@@ -269,7 +289,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			List<BlobKey> requiredJarFiles,
 			List<URL> requiredClasspaths,
 			SlotProvider slotProvider,
-			ClassLoader userClassLoader) {
+			ClassLoader userClassLoader,
+			BlobServer blobServer) {
 
 		checkNotNull(futureExecutor);
 		checkNotNull(jobId);
@@ -316,6 +337,57 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 		this.restartStrategy = restartStrategy;
 		this.kvStateLocationRegistry = new KvStateLocationRegistry(jobId, getAllVertices());
+
+		this.blobServer = blobServer;
+		this.jobInformationAtBlobStore = tryOffLoadJobInformation();
+	}
+
+
+	/**
+	 * Tries to store {@link #serializedJobInformation} and in the {@link #blobServer} (if not
+	 * <tt>null</tt>) so that RPC messages do not need to include it.
+	 *
+	 * @return whether the data has been offloaded or not
+	 */
+	private boolean tryOffLoadJobInformation() {
+		// more than MAX_SHORT_MESSAGE_SIZE?
+		if (serializedJobInformation.getByteArray().length > MAX_SHORT_MESSAGE_SIZE) {
+
+			if (blobServer == null) {
+				LOG.warn("No BLOB store available: unable to offload data!");
+				return false;
+			}
+
+			// TODO: do not overwrite existing job info and thus speed up recovery
+			try {
+				final String fileKey = getOffloadedJobInfoFileName();
+				blobServer.putObject(serializedJobInformation, jobInformation.getJobId(), fileKey);
+				return true;
+			} catch (IOException e) {
+				LOG.warn("Failed to offload job " + getJobID() + " information data to BLOB store", e);
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Returns the filename that is used for storing the serialized job information on the BLOB server.
+	 *
+	 * @return jobinfo file name
+	 */
+	public static final String getOffloadedJobInfoFileName() {
+		// note: the job ID is already part of the path name and does not need to be included here
+		return "jobinfo";
+	}
+
+	/**
+	 * Returns whether serialized job information is (also) available at the blob server.
+	 *
+	 * @return whether serialized job information is available at the blob server
+	 */
+	public boolean hasJobInformationAtBlobStore() {
+		return jobInformationAtBlobStore;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -597,6 +669,10 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		return this.stateTimestamps[status.ordinal()];
 	}
 
+	public final BlobServer getBlobServer() {
+		return blobServer;
+	}
+
 	/**
 	 * Returns the ExecutionContext associated with this ExecutionGraph.
 	 *
@@ -741,8 +817,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	}
 
 	/**
-	 * 
-	 * 
+	 *
+	 *
 	 * @param slotProvider  The resource provider from which the slots are allocated
 	 * @param timeout       The maximum time that the deployment may take, before a
 	 *                      TimeoutException is thrown.
@@ -847,7 +923,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 					// Wouldn't it be nice if we could return an actual Void object?
 					// return (Void) Unsafe.getUnsafe().allocateInstance(Void.class);
-					return null; 
+					return null;
 				}
 			}, futureExecutor);
 
@@ -1261,25 +1337,25 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				switch (state.getExecutionState()) {
 					case RUNNING:
 						return attempt.switchToRunning();
-	
+
 					case FINISHED:
 						// this deserialization is exception-free
 						accumulators = deserializeAccumulators(state);
 						attempt.markFinished(accumulators, state.getIOMetrics());
 						return true;
-	
+
 					case CANCELED:
 						// this deserialization is exception-free
 						accumulators = deserializeAccumulators(state);
 						attempt.cancelingComplete(accumulators, state.getIOMetrics());
 						return true;
-	
+
 					case FAILED:
 						// this deserialization is exception-free
 						accumulators = deserializeAccumulators(state);
 						attempt.markFailed(state.getError(userClassLoader), accumulators, state.getIOMetrics());
 						return true;
-	
+
 					default:
 						// we mark as failed and return false, which triggers the TaskManager
 						// to remove the task
@@ -1302,9 +1378,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	/**
 	 * Deserializes accumulators from a task state update.
-	 * 
+	 *
 	 * <p>This method never throws an exception!
-	 * 
+	 *
 	 * @param state The task execution state from which to deserialize the accumulators.
 	 * @return The deserialized accumulators, of null, if there are no accumulators or an error occurred.
 	 */

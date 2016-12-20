@@ -61,6 +61,14 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	/** Use the same log for all ExecutionGraph classes */
 	private static final Logger LOG = ExecutionGraph.LOG;
 
+	/**
+	 * If the serialized task information inside {@link #serializedTaskInformation} is larger than
+	 * this, we try to offload it to the blob server.
+	 *
+	 * @see #tryOffLoadTaskInformation()
+	 */
+	private static final int MAX_SHORT_MESSAGE_SIZE = 1 * 1024; // TODO: make configurable
+
 	public static final int VALUE_NOT_SET = -1;
 
 	private final Object stateMonitor = new Object();
@@ -98,8 +106,14 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 */
 	private SerializedValue<TaskInformation> serializedTaskInformation;
 
+	/**
+	 * Whether {@link #serializedTaskInformation} has been successfully stored at the
+	 * BLOB server.
+	 */
+	private boolean taskInformationAtBlobStore = false;
+
 	private InputSplitAssigner splitAssigner;
-	
+
 	public ExecutionJobVertex(
 		ExecutionGraph graph,
 		JobVertex jobVertex,
@@ -316,9 +330,61 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 							maxParallelism,
 							jobVertex.getInvokableClassName(),
 							jobVertex.getConfiguration()));
+
+			taskInformationAtBlobStore = tryOffLoadTaskInformation();
 		}
 
 		return serializedTaskInformation;
+	}
+
+	/**
+	 * Returns whether serialized job information is (also) available at the blob server.
+	 *
+	 * This may be true after the first call to {@link #getSerializedTaskInformation()}.
+	 *
+	 * @return whether serialized job information is available at the blob server
+	 */
+	public boolean hasTaskInformationAtBlobStore() {
+		return taskInformationAtBlobStore;
+	}
+
+	/**
+	 * Tries to store {@link #serializedTaskInformation} and in the graph's {@link
+	 * ExecutionGraph#blobServer} (if not <tt>null</tt>) so that RPC messages do not need to include
+	 * it.
+	 *
+	 * @return whether the data has been offloaded or not
+	 */
+	private boolean tryOffLoadTaskInformation() {
+		// more than MAX_SHORT_MESSAGE_SIZE?
+		if (serializedTaskInformation.getByteArray().length > MAX_SHORT_MESSAGE_SIZE) {
+
+			if (graph.getBlobServer() == null) {
+				LOG.warn("No BLOB store available: unable to offload data!");
+				return false;
+			}
+
+			// TODO: do not overwrite existing task info and thus speed up recovery
+			try {
+				final String fileKey = getOffloadedTaskInfoFileName(jobVertex.getID());
+				graph.getBlobServer().putObject(serializedTaskInformation, getJobId(), fileKey);
+				return true;
+			} catch (IOException e) {
+				LOG.warn("Failed to offload task " + getJobVertexId() + " information data to BLOB store", e);
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Returns the filename that is used for storing the serialized task information on the BLOB server.
+	 *
+	 * @param jobVertexID the job vertex ID the task belongs to
+	 * @return  taskinfo file name
+	 */
+	public static final String getOffloadedTaskInfoFileName(JobVertexID jobVertexID) {
+		return "task-" + jobVertexID;
 	}
 
 	public boolean isInFinalState() {
