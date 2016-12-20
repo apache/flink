@@ -18,19 +18,32 @@
 
 package org.apache.flink.graph.bipartite;
 
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.graph.ApplyCoGroupToVertexValues;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.VertexJoinFunction;
 import org.apache.flink.util.Collector;
+
+import java.util.Iterator;
 
 /**
  * The vertices of a bipartite graph are divided into two disjoint sets, referenced by the names "top" and "bottom".
@@ -109,8 +122,366 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	 *
 	 * @return dataset with graph edges
 	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public DataSet<BipartiteEdge<KT, KB, EV>> getEdges() {
 		return edges;
+	}
+
+	/**
+	 * Apply a function to the attribute of each top vertex in the graph.
+	 *
+	 * @param mapper the map function to apply.
+	 * @return a new graph
+	 */
+	public <NVT> BipartiteGraph<KT, KB, NVT, VVB, EV> mapTopVertices(MapFunction<Vertex<KT, VVT>, NVT> mapper) {
+		TypeInformation<KT> keyType = ((TupleTypeInfo<?>) topVertices.getType()).getTypeAt(0);
+
+		TypeInformation<NVT> valueType = TypeExtractor.createTypeInfo(MapFunction.class, mapper.getClass(), 1, topVertices.getType(), null);
+
+		TypeInformation<Vertex<KT, NVT>> returnType = (TypeInformation<Vertex<KT, NVT>>) new TupleTypeInfo(
+			Vertex.class, keyType, valueType);
+
+		return mapTopVertices(mapper, returnType);
+	}
+
+	/**
+	 * Apply a function to the attribute of each top vertex in the graph.
+	 *
+	 * @param mapper the map function to apply.
+	 * @param returnType the explicit return type.
+	 * @return a new graph
+	 */
+	public <NVT> BipartiteGraph<KT, KB, NVT, VVB, EV> mapTopVertices(final MapFunction<Vertex<KT, VVT>, NVT> mapper, TypeInformation<Vertex<KT,NVT>> returnType) {
+		DataSet<Vertex<KT, NVT>> mappedVertices = topVertices.map(
+			new MapVertices<>(mapper))
+			.returns(returnType)
+			.name("Map vertices");
+
+		return new BipartiteGraph<>(mappedVertices, bottomVertices, edges, context);
+	}
+
+	@ForwardedFields({"f0", "f1"})
+	private static class MapVertices<KT, VVT, NVT> implements MapFunction<Vertex<KT, VVT>, Vertex<KT, NVT>> {
+		private final MapFunction<Vertex<KT, VVT>, NVT> mapper;
+		private Vertex<KT, NVT> output;
+
+		public MapVertices(MapFunction<Vertex<KT, VVT>, NVT> mapper) {
+			this.mapper = mapper;
+			output = new Vertex<>();
+		}
+
+		public Vertex<KT, NVT> map(Vertex<KT, VVT> value) throws Exception {
+			output.f0 = value.f0;
+			output.f1 = mapper.map(value);
+			return output;
+		}
+	}
+
+	/**
+	 * Apply a function to the attribute of each bottom vertex in the graph.
+	 *
+	 * @param mapper the map function to apply.
+	 * @return a new graph
+	 */
+	public <NVB> BipartiteGraph<KT, KB, VVT, NVB, EV> mapBottomVertices(MapFunction<Vertex<KB, VVB>, NVB> mapper) {
+		TypeInformation<KB> keyType = ((TupleTypeInfo<?>) bottomVertices.getType()).getTypeAt(0);
+
+		TypeInformation<NVB> valueType = TypeExtractor.createTypeInfo(MapFunction.class, mapper.getClass(), 1, topVertices.getType(), null);
+
+		TypeInformation<Vertex<KB, NVB>> returnType = (TypeInformation<Vertex<KB, NVB>>) new TupleTypeInfo(
+			Vertex.class, keyType, valueType);
+
+		return mapBottomVertices(mapper, returnType);
+	}
+
+	/**
+	 * Apply a function to the attribute of each top vertex in the graph.
+	 *
+	 * @param mapper the map function to apply.
+	 * @param returnType the explicit return type.
+	 * @return a new graph
+	 */
+	public <NVB> BipartiteGraph<KT, KB, VVT, NVB, EV> mapBottomVertices(final MapFunction<Vertex<KB, VVB>, NVB> mapper, TypeInformation<Vertex<KB, NVB>> returnType) {
+		DataSet<Vertex<KB, NVB>> mappedVertices = bottomVertices.map(
+			new MapVertices<>(mapper))
+			.returns(returnType)
+			.name("Map vertices");
+
+		return new BipartiteGraph<>(topVertices, mappedVertices, edges, context);
+	}
+
+	/**
+	 * Apply a function to the attribute of each edge in the graph.
+	 *
+	 * @param mapper the map function to apply.
+	 * @return a new graph
+	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public <NV> BipartiteGraph<KT, KB, VVT, VVB, NV> mapEdges(final MapFunction<BipartiteEdge<KT, KB, EV>, NV> mapper) {
+
+		TypeInformation<KT> topKeyType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(0);
+		TypeInformation<KB> bottomKeyType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(1);
+
+		TypeInformation<NV> valueType = TypeExtractor.createTypeInfo(MapFunction.class, mapper.getClass(), 1, edges.getType(), null);
+
+		TypeInformation<BipartiteEdge<KT, KB, NV>> returnType = (TypeInformation<BipartiteEdge<KT, KB, NV>>) new TupleTypeInfo(
+			Edge.class, topKeyType, bottomKeyType, valueType);
+
+		return mapEdges(mapper, returnType);
+	}
+
+	/**
+	 * Apply a function to the attribute of each edge in the graph.
+	 *
+	 * @param mapper the map function to apply.
+	 * @param returnType the explicit return type.
+	 * @return a new graph
+	 */
+	public <NV> BipartiteGraph<KT, KB, VVT, VVB, NV> mapEdges(final MapFunction<BipartiteEdge<KT, KB, EV>, NV> mapper, TypeInformation<BipartiteEdge<KT, KB, NV>> returnType) {
+		DataSet<BipartiteEdge<KT, KB, NV>> mappedEdges = edges.map(
+			new MapEdges<>(mapper))
+			.returns(returnType)
+			.name("Map edges");
+
+		return new BipartiteGraph<>(topVertices, bottomVertices, mappedEdges, context);
+	}
+
+	@ForwardedFields({"f0", "f1"})
+	private static class MapEdges<KT, KB, EV, NV> implements MapFunction<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, NV>> {
+		private final MapFunction<BipartiteEdge<KT, KB, EV>, NV> mapper;
+		private BipartiteEdge<KT, KB, NV> output;
+
+		public MapEdges(MapFunction<BipartiteEdge<KT, KB, EV>, NV> mapper) {
+			this.mapper = mapper;
+			output = new BipartiteEdge<>();
+		}
+
+		public BipartiteEdge<KT, KB, NV> map(BipartiteEdge<KT, KB, EV> value) throws Exception {
+			output.f0 = value.f0;
+			output.f1 = value.f1;
+			output.f2 = mapper.map(value);
+			return output;
+		}
+	}
+
+	/**
+	 * Joins the top vertex DataSet of this graph with an input Tuple2 DataSet and applies
+	 * a user-defined transformation on the values of the matched records.
+	 * The vertex ID and the first field of the Tuple2 DataSet are used as the join keys.
+	 *
+	 * @param inputDataSet the Tuple2 DataSet to join with.
+	 * The first field of the Tuple2 is used as the join key and the second field is passed
+	 * as a parameter to the transformation function.
+	 * @param vertexJoinFunction the transformation function to apply.
+	 * The first parameter is the current vertex value and the second parameter is the value
+	 * of the matched Tuple2 from the input DataSet.
+	 * @return a new BipartiteGraph, where the top vertex values have been updated according to the
+	 * result of the vertexJoinFunction.
+	 *
+	 * @param <T> the type of the second field of the input Tuple2 DataSet.
+	 */
+	public <T> BipartiteGraph<KT, KB, VVT, VVB, EV> joinWithTopVertices(
+				DataSet<Tuple2<KT, T>> inputDataSet,
+				final VertexJoinFunction<VVT, T> vertexJoinFunction) {
+
+		DataSet<Vertex<KT, VVT>> resultedVertices = topVertices
+			.coGroup(inputDataSet)
+			.where(0)
+			.equalTo(0)
+			.with(new ApplyCoGroupToVertexValues<KT, VVT, T>(vertexJoinFunction))
+			.name("Join with top vertices");
+		return new BipartiteGraph<>(resultedVertices, bottomVertices, edges, context);
+	}
+
+	/**
+	 * Joins the bottom vertex DataSet of this graph with an input Tuple2 DataSet and applies
+	 * a user-defined transformation on the values of the matched records.
+	 * The vertex ID and the first field of the Tuple2 DataSet are used as the join keys.
+	 *
+	 * @param inputDataSet the Tuple2 DataSet to join with.
+	 * The first field of the Tuple2 is used as the join key and the second field is passed
+	 * as a parameter to the transformation function.
+	 * @param vertexJoinFunction the transformation function to apply.
+	 * The first parameter is the current vertex value and the second parameter is the value
+	 * of the matched Tuple2 from the input DataSet.
+	 * @return a new BipartiteGraph, where the bottom vertex values have been updated according to the
+	 * result of the vertexJoinFunction.
+	 *
+	 * @param <T> the type of the second field of the input Tuple2 DataSet.
+	 */
+	public <T> BipartiteGraph<KT, KB, VVT, VVB, EV> joinWithBottomVertices(
+				DataSet<Tuple2<KB, T>> inputDataSet,
+				final VertexJoinFunction<VVB, T> vertexJoinFunction) {
+
+		DataSet<Vertex<KB, VVB>> resultedVertices = bottomVertices
+			.coGroup(inputDataSet)
+			.where(0)
+			.equalTo(0)
+			.with(new ApplyCoGroupToVertexValues<KB, VVB, T>(vertexJoinFunction))
+			.name("Join with bottom vertices");
+		return new BipartiteGraph<>(topVertices, resultedVertices, edges, context);
+	}
+
+	/**
+	 * Joins the edge DataSet with an input DataSet on the composite key of both
+	 * top and bottom IDs and applies a user-defined transformation on the values
+	 * of the matched records. The first two fields of the input DataSet are used as join keys.
+	 *
+	 * @param inputDataSet the DataSet to join with.
+	 * The first two fields of the Tuple3 are used as the composite join key
+	 * and the third field is passed as a parameter to the transformation function.
+	 * @param edgeJoinFunction the transformation function to apply.
+	 * The first parameter is the current edge value and the second parameter is the value
+	 * of the matched Tuple3 from the input DataSet.
+	 * @param <T> the type of the third field of the input Tuple3 DataSet.
+	 * @return a new BipartiteGraph, where the edge values have been updated according to the
+	 * result of the edgeJoinFunction.
+	 */
+	public <T> BipartiteGraph<KT, KB, VVT, VVB, EV> joinWithEdges(
+				DataSet<Tuple3<KT, KB, T>> inputDataSet,
+				final BipartiteEdgeJoinFunction<EV, T> edgeJoinFunction) {
+
+		DataSet<BipartiteEdge<KT, KB, EV>> resultedEdges = this.getEdges()
+			.coGroup(inputDataSet).where(0, 1).equalTo(0, 1)
+			.with(new ApplyCoGroupToEdgeValues<KT, KB, EV, T>(edgeJoinFunction))
+			.name("Join with edges");
+		return new BipartiteGraph<>(topVertices, bottomVertices, resultedEdges, context);
+	}
+
+	private static final class ApplyCoGroupToEdgeValues<KT, KB, EV, T>
+		implements CoGroupFunction<BipartiteEdge<KT, KB, EV>, Tuple3<KT, KB, T>, BipartiteEdge<KT, KB, EV>> {
+		private BipartiteEdge<KT, KB, EV> output = new BipartiteEdge<>();
+
+		private BipartiteEdgeJoinFunction<EV, T> edgeJoinFunction;
+
+		public ApplyCoGroupToEdgeValues(BipartiteEdgeJoinFunction<EV, T> mapper) {
+			this.edgeJoinFunction = mapper;
+		}
+
+		@Override
+		public void coGroup(Iterable<BipartiteEdge<KT, KB, EV>> edges, Iterable<Tuple3<KT, KB, T>> input,
+							Collector<BipartiteEdge<KT, KB, EV>> collector) throws Exception {
+
+			final Iterator<BipartiteEdge<KT, KB, EV>> edgesIterator = edges.iterator();
+			final Iterator<Tuple3<KT, KB, T>> inputIterator = input.iterator();
+
+			if (edgesIterator.hasNext()) {
+				if (inputIterator.hasNext()) {
+					final Tuple3<KT, KB, T> inputNext = inputIterator.next();
+
+					output.f0 = inputNext.f0;
+					output.f1 = inputNext.f1;
+					output.f2 = edgeJoinFunction.edgeJoin(edgesIterator.next().f2, inputNext.f2);
+					collector.collect(output);
+				} else {
+					collector.collect(edgesIterator.next());
+				}
+			}
+		}
+	}
+
+	/**
+	 * Apply filtering functions to the graph and return a sub-graph that
+	 * satisfies the predicates for both vertices and edges.
+	 *
+	 * @param topVertexFilter the filter function for top vertices.
+	 * @param bottomVertexFilter the filter function for bottom vertices.
+	 * @param edgeFilter the filter function for edges.
+	 * @return the resulting sub-graph.
+	 */
+	public BipartiteGraph<KT, KB, VVT, VVB, EV> subgraph(
+			FilterFunction<Vertex<KT, VVT>> topVertexFilter,
+			FilterFunction<Vertex<KB, VVB>> bottomVertexFilter,
+			FilterFunction<BipartiteEdge<KT, KB, EV>> edgeFilter) {
+
+		DataSet<Vertex<KT, VVT>> filteredTopVertices = topVertices.filter(topVertexFilter);
+		DataSet<Vertex<KB, VVB>> filteredBottomVertices = bottomVertices.filter(bottomVertexFilter);
+
+		DataSet<BipartiteEdge<KT, KB, EV>> remainingEdges = edges
+			.filter(edgeFilter)
+			.join(filteredTopVertices)
+			.where(0)
+			.equalTo(0)
+			.with(new JoinFunction<BipartiteEdge<KT, KB, EV>, Vertex<KT, VVT>, BipartiteEdge<KT, KB, EV>>() {
+				@Override
+				public BipartiteEdge<KT, KB, EV> join(BipartiteEdge<KT, KB, EV> first, Vertex<KT, VVT> second) throws Exception {
+					return first;
+				}
+			})
+			.join(filteredBottomVertices)
+			.where(1)
+			.equalTo(0)
+			.with(new JoinFunction<BipartiteEdge<KT, KB, EV>, Vertex<KB, VVB>, BipartiteEdge<KT, KB, EV>>() {
+				@Override
+				public BipartiteEdge<KT, KB, EV> join(BipartiteEdge<KT, KB, EV> first, Vertex<KB, VVB> second) throws Exception {
+					return first;
+				}
+			});
+
+		return new BipartiteGraph<>(filteredTopVertices, filteredBottomVertices, remainingEdges, context);
+	}
+
+	/**
+	 * Apply a filtering function to the graph and return a sub-graph that
+	 * satisfies the predicates only for the top vertices.
+	 *
+	 * @param vertexFilter the filter function for top vertices.
+	 * @return the resulting sub-graph.
+	 */
+	public BipartiteGraph<KT, KB, VVT, VVB, EV> filterOnTopVertices(FilterFunction<Vertex<KT, VVT>> vertexFilter) {
+
+		DataSet<Vertex<KT, VVT>> filteredVertices = topVertices.filter(vertexFilter);
+
+		DataSet<BipartiteEdge<KT, KB, EV>> remainingEdges = edges.join(filteredVertices)
+			.where(0)
+			.equalTo(0)
+			.with(new JoinFunction<BipartiteEdge<KT, KB, EV>, Vertex<KT, VVT>, BipartiteEdge<KT, KB, EV>>() {
+				@Override
+				public BipartiteEdge<KT, KB, EV> join(BipartiteEdge<KT, KB, EV> first, Vertex<KT, VVT> second) throws Exception {
+					return first;
+				}
+			})
+			.name("Filter on top vertices");
+
+		return new BipartiteGraph<>(filteredVertices, bottomVertices, remainingEdges, context);
+	}
+
+	/**
+	 * Apply a filtering function to the graph and return a sub-graph that
+	 * satisfies the predicates only for the bottom vertices.
+	 *
+	 * @param vertexFilter the filter function for bottom vertices.
+	 * @return the resulting sub-graph.
+	 */
+	public BipartiteGraph<KT, KB, VVT, VVB, EV> filterOnBottomVertices(FilterFunction<Vertex<KB, VVB>> vertexFilter) {
+
+		DataSet<Vertex<KB, VVB>> filteredVertices = bottomVertices.filter(vertexFilter);
+
+		DataSet<BipartiteEdge<KT, KB, EV>> remainingEdges = edges.join(filteredVertices)
+			.where(1)
+			.equalTo(0)
+			.with(new JoinFunction<BipartiteEdge<KT, KB, EV>, Vertex<KB, VVB>, BipartiteEdge<KT, KB, EV>>() {
+				@Override
+				public BipartiteEdge<KT, KB, EV> join(BipartiteEdge<KT, KB, EV> first, Vertex<KB, VVB> second) throws Exception {
+					return first;
+				}
+			})
+			.name("Filter on bottom vertices");
+
+		return new BipartiteGraph<>(topVertices, filteredVertices, remainingEdges, context);
+	}
+
+	/**
+	 * Apply a filtering function to the graph and return a sub-graph that
+	 * satisfies the predicates only for the edges.
+	 *
+	 * @param edgeFilter the filter function for edges.
+	 * @return the resulting sub-graph.
+	 */
+	public BipartiteGraph<KT, KB, VVT, VVB, EV> filterOnEdges(FilterFunction<BipartiteEdge<KT, KB, EV>> edgeFilter) {
+		DataSet<BipartiteEdge<KT, KB, EV>> filteredEdges = edges.filter(edgeFilter).name("Filter on edges");
+
+		return new BipartiteGraph<>(topVertices, bottomVertices, filteredEdges, context);
 	}
 
 	/**
@@ -231,13 +602,13 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 			.equalTo(0)
 			.projectFirst(0, 1, 2)
 			.<Tuple4<KT, KB, EV, VVT>>projectSecond(1)
-				.name("Edge with vertex")
+				.name("Edge with top vertex")
 			.join(bottomVertices, JoinHint.REPARTITION_HASH_SECOND)
 			.where(1)
 			.equalTo(0)
 			.projectFirst(0, 1, 2, 3)
 			.<Tuple5<KT, KB, EV, VVT, VVB>>projectSecond(1)
-				.name("Edge with vertices");
+				.name("Edge with bottom vertices");
 	}
 
 	@ForwardedFieldsFirst("0; 1->2.0; 2->2.4; 3->2.2; 4->2.1")

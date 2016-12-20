@@ -669,35 +669,6 @@ public class Graph<K, VV, EV> {
 		return new Graph<>(resultedVertices, this.edges, this.context);
 	}
 
-	private static final class ApplyCoGroupToVertexValues<K, VV, T>
-			implements CoGroupFunction<Vertex<K, VV>, Tuple2<K, T>, Vertex<K, VV>> {
-
-		private VertexJoinFunction<VV, T> vertexJoinFunction;
-
-		public ApplyCoGroupToVertexValues(VertexJoinFunction<VV, T> mapper) {
-			this.vertexJoinFunction = mapper;
-		}
-
-		@Override
-		public void coGroup(Iterable<Vertex<K, VV>> vertices,
-				Iterable<Tuple2<K, T>> input, Collector<Vertex<K, VV>> collector) throws Exception {
-
-			final Iterator<Vertex<K, VV>> vertexIterator = vertices.iterator();
-			final Iterator<Tuple2<K, T>> inputIterator = input.iterator();
-
-			if (vertexIterator.hasNext()) {
-				if (inputIterator.hasNext()) {
-					final Tuple2<K, T> inputNext = inputIterator.next();
-
-					collector.collect(new Vertex<>(inputNext.f0, vertexJoinFunction
-							.vertexJoin(vertexIterator.next().f1, inputNext.f1)));
-				} else {
-					collector.collect(vertexIterator.next());
-				}
-			}
-		}
-	}
-
 	/**
 	 * Joins the edge DataSet with an input DataSet on the composite key of both
 	 * source and target IDs and applies a user-defined transformation on the values

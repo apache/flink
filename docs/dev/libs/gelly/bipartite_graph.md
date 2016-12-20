@@ -103,6 +103,93 @@ Graph<String, String, Long, Long, Double> graph = BipartiteGraph.fromDataSet(top
 Graph Transformations
 ---------------------
 
+* <strong>Map</strong>: Gelly provides specialized methods for applying a map transformation on the vertex values or edge values. `mapTopVertices`, `mapBottomVertices`, and `mapEdges` return a new `BipartiteGraph`, where the IDs of the vertices (or edges) remain unchanged, while the values are transformed according to the provided user-defined map function. The map functions also allow changing the type of the vertex or edge values.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+BipartiteGraph<Long, Long, Long, Long, Long> graph = BipartiteGraph.fromDataSet(topVertices, bottomVertices edges, env);
+
+// increment each vertex value by one
+BipartiteGraph<Long, Long, Long, Long, Long> updatedGraph = graph.mapTopVertices(
+				new MapFunction<Vertex<Long, Long>, Long>() {
+					public Long map(Vertex<Long, Long> value) {
+						return value.getValue() + 1;
+					}
+				});
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// Scala API is not yet supported
+{% endhighlight %}
+</div>
+</div>
+
+* <strong>Filter</strong>: A filter transformation applies a user-defined filter function on the vertices or edges of the `BipartiteGraph`. `filterOnEdges` will create a sub-graph of the original graph, keeping only the edges that satisfy the provided predicate. Note that the vertex dataset will not be modified. Respectively, `filterOnTopVertices` and `filterOnTopVertices` apply a filter on the vertices of the graph. Edges whose top or/and bottom IDs do not satisfy the vertex predicate are removed from the resulting edge dataset. The `subgraph` method can be used to apply a filter function to the vertices and the edges at the same time.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+BipartiteGraph<Long, Long, Long, Long, Long> graph = ...
+
+graph.subgraph(
+		new FilterFunction<Vertex<Long, Long>>() {
+			   	public boolean filter(Vertex<Long, Long> vertex) {
+					// keep only top vertices with positive values
+					return (vertex.getValue() > 0);
+			   }
+		   },
+		new FilterFunction<Vertex<Long, Long>>() {
+			   	public boolean filter(Vertex<Long, Long> vertex) {
+					// keep only bottom vertices with positive values
+					return (vertex.getValue() > 0);
+			   }
+		   },
+		new FilterFunction<BipartiteEdge<Long, Long, Long>>() {
+				public boolean filter(BipartiteEdge<Long, Long, Long> edge) {
+					// keep only edges with negative values
+					return (edge.getValue() < 0);
+				}
+		})
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// Scala API is not yet supported
+{% endhighlight %}
+</div>
+</div>
+
+* <strong>Join</strong>: Gelly provides specialized methods for joining the vertex and edge datasets with other input datasets. `joinWithTopVertices` and `joinWithBottomVertices` join the vertices with a `Tuple2` input data set. The join is performed using the vertex ID and the first field of the `Tuple2` input as the join keys. The method returns a new `BipartiteGraph` where the vertex values have been updated according to a provided user-defined transformation function.
+Similarly, an input dataset can be joined with the edges, using one of three methods. `joinWithEdges` expects an input `DataSet` of `Tuple3` and joins on the composite key of both top and bottom vertex IDs.
+Note that if the input dataset contains a key multiple times, all Gelly join methods will only consider the first value encountered.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+BipartiteGraph<Long, Long, Double, Double, Double> graph = ...
+
+DataSet<Tuple2<Long, LongValue>> dataset = ...
+
+BipartiteGraph<Long, Long, Double, Double, Double> networkWithWeights = graph.joinWithTopVertices(
+				new VertexJoinFunction<Double, LongValue>() {
+					public Double vertexJoin(Double vertexValue, LongValue inputValue) {
+						return vertexValue / inputValue.getValue();
+					}
+				});
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// Scala API not yet supported
+{% endhighlight %}
+</div>
+</div>
 
 * <strong>Projection</strong>: Projection is a common operation for bipartite graphs that converts a bipartite graph into a regular graph. There are two types of projections: top and bottom projections. Top projection preserves only top nodes in the result graph and creates a link between them in a new graph only if there is an intermediate bottom node both top nodes connect to in the original graph. Bottom projection is the opposite to top projection, i.e. only preserves bottom nodes and connects a pair of nodes if they are connected in the original graph.
 
