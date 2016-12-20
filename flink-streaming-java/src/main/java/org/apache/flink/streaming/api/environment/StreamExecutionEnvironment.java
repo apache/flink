@@ -44,6 +44,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PreviewPlanEnvironment;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -1642,6 +1643,26 @@ public abstract class StreamExecutionEnvironment {
 		LocalStreamEnvironment currentEnvironment = new LocalStreamEnvironment(configuration);
 		currentEnvironment.setParallelism(parallelism);
 		return currentEnvironment;
+	}
+
+	/**
+	 * Creates a local execution environment with enable running web UI
+	 *
+	 * @return [[StreamExecutionEnvironment]]
+	 */
+	public static StreamExecutionEnvironment createLocalEnvWithWebUI(Configuration conf) {
+		if (!conf.containsKey(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)) {
+			int port = ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT;
+			conf.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, port);
+		}
+
+		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
+		LocalStreamEnvironment localEnv = new LocalStreamEnvironment(conf);
+		if (localEnv.getConfig().getParallelism() < 0) {
+			localEnv.setParallelism(defaultLocalParallelism);
+		}
+
+		return localEnv;
 	}
 
 	/**
