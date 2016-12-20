@@ -142,8 +142,6 @@ public class StreamOperatorChainingTest {
 
 		StreamConfig streamConfig = new StreamConfig(configuration);
 
-		System.out.println(streamConfig);
-
 		StreamMap<Integer, Integer> headOperator =
 				streamConfig.getStreamOperator(Thread.currentThread().getContextClassLoader());
 
