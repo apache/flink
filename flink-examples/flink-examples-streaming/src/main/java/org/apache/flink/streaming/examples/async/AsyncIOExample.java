@@ -206,7 +206,8 @@ public class AsyncIOExample {
 				"[--maxCount <max number of input from source, -1 for infinite input>] " +
 				"[--sleepFactor <interval to sleep for each stream element>] [--failRatio <possibility to throw exception>] " +
 				"[--waitMode <ordered or unordered>] [--waitOperatorParallelism <parallelism for async wait operator>] " +
-				"[--eventType <EventTime or IngestionTime>] [--shutdownWaitTS <milli sec to wait for thread pool>]");
+				"[--eventType <EventTime or IngestionTime>] [--shutdownWaitTS <milli sec to wait for thread pool>]" +
+				"[--timeout <Timeout for the asynchronous operations>]");
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -226,6 +227,7 @@ public class AsyncIOExample {
 		final int taskNum;
 		final String timeType;
 		final long shutdownWaitTS;
+		final long timeout;
 
 		try {
 			// check the configuration for the job
@@ -238,6 +240,7 @@ public class AsyncIOExample {
 			taskNum = params.getInt("waitOperatorParallelism", 1);
 			timeType = params.get("eventType", "EventTime");
 			shutdownWaitTS = params.getLong("shutdownWaitTS", 20000);
+			timeout = params.getLong("timeout", 10000L);
 		} catch (Exception e) {
 			printUsage();
 
@@ -292,10 +295,20 @@ public class AsyncIOExample {
 		// add async operator to streaming job
 		DataStream<String> result;
 		if (ORDERED.equals(mode)) {
-			result = AsyncDataStream.orderedWait(inputStream, function, 20).setParallelism(taskNum);
+			result = AsyncDataStream.orderedWait(
+				inputStream,
+				function,
+				timeout,
+				TimeUnit.MILLISECONDS,
+				20).setParallelism(taskNum);
 		}
 		else {
-			result = AsyncDataStream.unorderedWait(inputStream, function, 20).setParallelism(taskNum);
+			result = AsyncDataStream.unorderedWait(
+				inputStream,
+				function,
+				timeout,
+				TimeUnit.MILLISECONDS,
+				20).setParallelism(taskNum);
 		}
 
 		// add a reduce to get the sum of each keys.

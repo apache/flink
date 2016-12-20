@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.streaming.api.operators.async.OperatorActions;
 import org.apache.flink.util.Preconditions;
@@ -41,6 +42,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * and no watermark can overtake a stream record. However, stream records falling in the same
  * segment between two watermarks can overtake each other (their emission order is not guaranteed).
  */
+@Internal
 public class UnorderedStreamElementQueue implements StreamElementQueue {
 
 	private static final Logger LOG = LoggerFactory.getLogger(UnorderedStreamElementQueue.class);

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator;
 
 import java.util.Collection;
@@ -25,6 +26,7 @@ import java.util.Collection;
 /**
  * Interface for blocking stream element queues for the {@link AsyncWaitOperator}.
  */
+@Internal
 public interface StreamElementQueue {
 
 	/**

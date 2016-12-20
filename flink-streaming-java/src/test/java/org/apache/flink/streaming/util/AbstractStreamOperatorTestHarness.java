@@ -54,6 +54,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.FutureUtil;
+import org.apache.flink.util.Preconditions;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -107,29 +108,44 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	private volatile boolean wasFailedExternally = false;
 
 	public AbstractStreamOperatorTestHarness(
-			StreamOperator<OUT> operator,
-			int maxParallelism,
-			int numSubtasks,
-			int subtaskIndex) throws Exception {
-		this.operator = operator;
-		this.outputList = new ConcurrentLinkedQueue<>();
-		Configuration underlyingConfig = new Configuration();
-		this.config = new StreamConfig(underlyingConfig);
-		this.config.setCheckpointingEnabled(true);
-		this.executionConfig = new ExecutionConfig();
-		this.closableRegistry = new CloseableRegistry();
-		this.checkpointLock = new Object();
+		StreamOperator<OUT> operator,
+		int maxParallelism,
+		int numSubtasks,
+		int subtaskIndex) throws Exception {
 
-		environment = new MockEnvironment(
+		this(
+			operator,
+			maxParallelism,
+			numSubtasks,
+			subtaskIndex,
+			new MockEnvironment(
 				"MockTask",
 				3 * 1024 * 1024,
 				new MockInputSplitProvider(),
 				1024,
-				underlyingConfig,
-				executionConfig,
+				new Configuration(),
+				new ExecutionConfig(),
 				maxParallelism,
 				numSubtasks,
-				subtaskIndex);
+				subtaskIndex));
+	}
+
+	public AbstractStreamOperatorTestHarness(
+			StreamOperator<OUT> operator,
+			int maxParallelism,
+			int numSubtasks,
+			int subtaskIndex,
+			final Environment environment) throws Exception {
+		this.operator = operator;
+		this.outputList = new ConcurrentLinkedQueue<>();
+		Configuration underlyingConfig = environment.getTaskConfiguration();
+		this.config = new StreamConfig(underlyingConfig);
+		this.config.setCheckpointingEnabled(true);
+		this.executionConfig = environment.getExecutionConfig();
+		this.closableRegistry = new CloseableRegistry();
+		this.checkpointLock = new Object();
+
+		this.environment = Preconditions.checkNotNull(environment);
 
 		mockTask = mock(StreamTask.class);
 		processingTimeService = new TestProcessingTimeService();

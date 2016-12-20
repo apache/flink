@@ -41,6 +41,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase {
 
@@ -206,6 +207,7 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 	@Test
 	public void testAsyncWaitOperator() throws Exception {
 		final int numElements = 5;
+		final long timeout = 1000L;
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -240,7 +242,12 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 			}
 		};
 
-		DataStream<Integer> orderedResult = AsyncDataStream.orderedWait(input, function, 2).setParallelism(1);
+		DataStream<Integer> orderedResult = AsyncDataStream.orderedWait(
+			input,
+			function,
+			timeout,
+			TimeUnit.MILLISECONDS,
+			2).setParallelism(1);
 
 		// save result from ordered process
 		final MemorySinkFunction sinkFunction1 = new MemorySinkFunction(0);
@@ -249,8 +256,12 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 		orderedResult.addSink(sinkFunction1).setParallelism(1);
 
-
-		DataStream<Integer> unorderedResult = AsyncDataStream.unorderedWait(input, function, 2);
+		DataStream<Integer> unorderedResult = AsyncDataStream.unorderedWait(
+			input,
+			function,
+			timeout,
+			TimeUnit.MILLISECONDS,
+			2);
 
 		// save result from unordered process
 		final MemorySinkFunction sinkFunction2 = new MemorySinkFunction(1);

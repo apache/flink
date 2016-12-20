@@ -18,11 +18,13 @@
 
 package org.apache.flink.streaming.api.operators.async;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 
 /**
  * Interface for {@link StreamOperator} actions.
  */
+@Internal
 public interface OperatorActions {
 
 	/**

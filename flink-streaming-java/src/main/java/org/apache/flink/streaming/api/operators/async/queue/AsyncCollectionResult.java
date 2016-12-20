@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.Collection;
 
 /**
@@ -25,6 +27,7 @@ import java.util.Collection;
  *
  * @param <T> Type of the collection elements.
  */
+@Internal
 public interface AsyncCollectionResult<T> extends AsyncResult {
 
 	boolean hasTimestamp();

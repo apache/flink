@@ -18,11 +18,13 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
 /**
  * {@link AsyncResult} subclass for asynchronous result {@link Watermark}.
  */
+@Internal
 public interface AsyncWatermarkResult extends AsyncResult {
 	/**
 	 * Get the resulting watermark.

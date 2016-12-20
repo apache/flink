@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -32,6 +33,7 @@ import java.util.concurrent.Executor;
  *
  * @param <T> Type of the result
  */
+@Internal
 public abstract class StreamElementQueueEntry<T> implements AsyncResult {
 
 	/** Stream element */

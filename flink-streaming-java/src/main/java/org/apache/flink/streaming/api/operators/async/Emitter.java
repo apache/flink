@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.async;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.async.queue.AsyncCollectionResult;
@@ -37,6 +38,7 @@ import java.util.Collection;
  *
  * @param <OUT> Type of the output elements
  */
+@Internal
 public class Emitter<OUT> implements Runnable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Emitter.class);

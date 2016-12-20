@@ -114,6 +114,7 @@ public class AsyncWaitOperator<IN, OUT>
 
 	public AsyncWaitOperator(
 			AsyncFunction<IN, OUT> asyncFunction,
+			long timeout,
 			int capacity,
 			AsyncDataStream.OutputMode outputMode) {
 		super(asyncFunction);
@@ -124,7 +125,7 @@ public class AsyncWaitOperator<IN, OUT>
 
 		this.outputMode = Preconditions.checkNotNull(outputMode, "outputMode");
 
-		this.timeout = -1L;
+		this.timeout = timeout;
 	}
 
 	@Override
@@ -200,7 +201,7 @@ public class AsyncWaitOperator<IN, OUT>
 
 		if (timeout > 0L) {
 			// register a timeout for this AsyncStreamRecordBufferEntry
-			long timeoutTimestamp = timeout + System.currentTimeMillis();
+			long timeoutTimestamp = timeout + getProcessingTimeService().getCurrentProcessingTime();
 
 			getProcessingTimeService().registerTimer(
 				timeoutTimestamp,

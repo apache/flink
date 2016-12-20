@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
@@ -26,6 +27,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
  * either be a {@link Watermark} or a collection of new output elements produced by the
  * {@link AsyncFunction}.
  */
+@Internal
 public interface AsyncResult {
 
 	/**

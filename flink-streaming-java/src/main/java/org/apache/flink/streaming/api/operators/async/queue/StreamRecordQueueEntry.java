@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
@@ -34,6 +35,7 @@ import java.util.Collection;
  *
  * @param <OUT> Type of the asynchronous collection result
  */
+@Internal
 public class StreamRecordQueueEntry<OUT> extends StreamElementQueueEntry<Collection<OUT>>
 	implements AsyncCollectionResult<OUT>, AsyncCollector<OUT> {
 

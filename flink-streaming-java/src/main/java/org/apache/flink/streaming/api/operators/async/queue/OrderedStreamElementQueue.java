@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.streaming.api.operators.async.OperatorActions;
 import org.apache.flink.util.Preconditions;
@@ -37,6 +38,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * to the queue. Thus, even if the completion order can be arbitrary, the output order strictly
  * follows the insertion order (element cannot overtake each other).
  */
+@Internal
 public class OrderedStreamElementQueue implements StreamElementQueue {
 
 	private static final Logger LOG = LoggerFactory.getLogger(OrderedStreamElementQueue.class);
