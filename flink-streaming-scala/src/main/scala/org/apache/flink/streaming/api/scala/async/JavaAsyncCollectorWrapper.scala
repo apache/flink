@@ -16,36 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.async.collector;
+package org.apache.flink.streaming.api.scala.async
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal
+import org.apache.flink.streaming.api.functions.async.collector.{AsyncCollector => JavaAsyncCollector}
 
-import java.util.Collection;
+import scala.collection.JavaConverters._
 
 /**
- * {@link AsyncCollector} collects data / error in user codes while processing async i/o.
- *
- * @param <OUT> Output type
- */
-@PublicEvolving
-public interface AsyncCollector<OUT> {
-	/**
-	 * Set result.
-	 * <p>
-	 * Note that it should be called for exactly one time in the user code.
-	 * Calling this function for multiple times will cause data lose.
-	 * <p>
-	 * Put all results in a {@link Collection} and then issue
-	 * {@link AsyncCollector#collect(Collection)}.
-	 *
-	 * @param result A list of results.
-	 */
-	void collect(Collection<OUT> result);
+  * Internal wrapper class to map a Flink's Java API [[JavaAsyncCollector]] to a Scala
+  * [[AsyncCollector]].
+  *
+  * @param javaAsyncCollector to forward the calls to
+  * @tparam OUT type of the output elements
+  */
+@Internal
+class JavaAsyncCollectorWrapper[OUT](val javaAsyncCollector: JavaAsyncCollector[OUT])
+  extends AsyncCollector[OUT] {
+  override def collect(result: Iterable[OUT]): Unit = {
+    javaAsyncCollector.collect(result.asJavaCollection)
+  }
 
-	/**
-	 * Set error
-	 *
-	 * @param error A Throwable object.
-	 */
-	void collect(Throwable error);
+  override def collect(throwable: Throwable): Unit = {
+    javaAsyncCollector.collect(throwable)
+  }
 }

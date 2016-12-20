@@ -136,8 +136,10 @@ public class Emitter<OUT> implements Runnable {
 				try {
 					Collection<OUT> resultCollection = streamRecordResult.get();
 
-					for (OUT result : resultCollection) {
-						timestampedCollector.collect(result);
+					if (resultCollection != null) {
+						for (OUT result : resultCollection) {
+							timestampedCollector.collect(result);
+						}
 					}
 				} catch (Exception e) {
 					operatorActions.failOperator(
