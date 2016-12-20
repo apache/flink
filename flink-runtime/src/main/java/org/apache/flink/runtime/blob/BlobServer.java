@@ -368,15 +368,45 @@ public class BlobServer extends Thread implements BlobService {
 		}
 	}
 
+	@Override
+	public URL getURL(JobID jobId, String key) throws IOException {
+		checkArgument(jobId != null, "Job id cannot be null.");
+		checkArgument(key != null, "BLOB name cannot be null.");
+
+		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, key);
+
+		if (localFile.exists()) {
+			return localFile.toURI().toURL();
+		}
+		else {
+			try {
+				// Try the blob store
+				blobStore.get(jobId, key, localFile);
+			}
+			catch (Exception e) {
+				throw new IOException("Failed to copy from blob store.", e);
+			}
+
+			if (localFile.exists()) {
+				return localFile.toURI().toURL();
+			}
+			else {
+				throw new FileNotFoundException("Local file " + localFile + " does not exist " +
+					"and failed to copy from blob store.");
+			}
+		}
+	}
+
 	/**
-	 * This method deletes the file associated to the blob key if it exists in the local storage
+	 * Deletes the file associated to the blob key if it exists in the local storage
 	 * of the blob server.
 	 *
 	 * @param key associated with the file to be deleted
-	 * @throws IOException
 	 */
 	@Override
-	public void delete(BlobKey key) throws IOException {
+	public void delete(BlobKey key) {
+		checkArgument(key != null, "BLOB key must not be null.");
+
 		final File localFile = BlobUtils.getStorageLocation(storageDir, key);
 
 		if (localFile.exists()) {
@@ -389,12 +419,37 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	/**
+	 * Deletes the file associated with the given job and key if it exists in the local
+	 * storage of the blob server.
+	 *
+	 * @param jobId     JobID of the file in the blob store
+	 * @param key       String key of the file in the blob store
+	 */
+	@Override
+	public void delete(JobID jobId, String key) {
+		checkArgument(jobId != null, "Job id must not be null.");
+		checkArgument(key != null, "BLOB name must not be null.");
+
+		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, key);
+
+		if (localFile.exists()) {
+			if (!localFile.delete()) {
+				LOG.warn("Failed to delete locally BLOB " + key + " at " + localFile.getAbsolutePath());
+			}
+		}
+
+		blobStore.delete(jobId, key);
+	}
+
+	/**
 	 * Deletes all files associated with the given job id from the storage.
 	 *
 	 * @param jobId     JobID of the files in the blob store
 	 */
 	@Override
 	public void deleteAll(final JobID jobId) {
+		checkArgument(jobId != null, "Job id must not be null.");
+
 		try {
 			BlobUtils.deleteJobDirectory(storageDir, jobId);
 		} catch (IOException e) {

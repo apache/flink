@@ -151,8 +151,8 @@ public final class BlobCache implements BlobService {
 
 	/**
 	 * Returns the URL for the BLOB with the given key. The method will first attempt to serve
-	 * the BLOB from its local cache. If the BLOB is not in the cache, the method will try to download it
-	 * from this cache's BLOB server.
+	 * the BLOB from its local cache. If the BLOB is not in the cache, the method will try to
+	 * download it from this cache's BLOB server.
 	 *
 	 * @param requiredBlob The key of the desired BLOB.
 	 * @return URL referring to the local storage location of the BLOB.
@@ -190,31 +190,13 @@ public final class BlobCache implements BlobService {
 				final InputStream is = bc.get(requiredBlob);
 				final OutputStream os = new FileOutputStream(localJarFile)
 			) {
-				while (true) {
-					final int read = is.read(buf);
-					if (read < 0) {
-						break;
-					}
-					os.write(buf, 0, read);
-				}
+				getURLTransferFile(buf, is, os);
 
 				// success, we finished
 				return localJarFile.toURI().toURL();
 			}
 			catch (Throwable t) {
-				String message = "Failed to fetch BLOB " + requiredBlob + " from " + serverAddress +
-					" and store it under " + localJarFile.getAbsolutePath();
-				if (attempt < numFetchRetries) {
-					if (LOG.isDebugEnabled()) {
-						LOG.debug(message + " Retrying...", t);
-					} else {
-						LOG.error(message + " Retrying...");
-					}
-				}
-				else {
-					LOG.error(message + " No retries left.", t);
-					throw new IOException(message, t);
-				}
+				getURLOnException(requiredBlob.toString(), localJarFile, attempt, t);
 
 				// retry
 				++attempt;
@@ -224,14 +206,119 @@ public final class BlobCache implements BlobService {
 	}
 
 	/**
+	 * Returns the URL for the BLOB with the given parameters. The method will first attempt to
+	 * serve the BLOB from its local cache. If the BLOB is not in the cache, the method will try
+	 * to download it from this cache's BLOB server.
+	 *
+	 * @param jobId     JobID of the file in the blob store
+	 * @param key       String key of the file in the blob store
+	 * @return URL referring to the local storage location of the BLOB.
+	 * @throws java.io.FileNotFoundException if the path does not exist;
+	 * @throws IOException Thrown if an I/O error occurs while downloading the BLOBs from the BLOB server.
+	 */
+	public URL getURL(final JobID jobId, final String key) throws IOException {
+		checkArgument(jobId != null, "Job id cannot be null.");
+		checkArgument(key != null, "BLOB name cannot be null.");
+
+		final File localJarFile = BlobUtils.getStorageLocation(storageDir, jobId, key);
+
+		if (localJarFile.exists()) {
+			return localJarFile.toURI().toURL();
+		}
+
+		// first try the distributed blob store (if available)
+		try {
+			blobStore.get(jobId, key, localJarFile);
+		} catch (Exception e) {
+			LOG.info("Failed to copy from blob store. Downloading from BLOB server instead.", e);
+		}
+
+		if (localJarFile.exists()) {
+			return localJarFile.toURI().toURL();
+		}
+
+		// fallback: download from the BlobServer
+		final byte[] buf = new byte[BlobServerProtocol.BUFFER_SIZE];
+		LOG.info("Downloading {}/{} from {}", jobId, key, serverAddress);
+
+		// loop over retries
+		int attempt = 0;
+		while (true) {
+			try (
+				final BlobClient bc = new BlobClient(serverAddress, blobClientConfig);
+				final InputStream is = bc.get(jobId, key);
+				final OutputStream os = new FileOutputStream(localJarFile)
+			) {
+				getURLTransferFile(buf, is, os);
+
+				// success, we finished
+				return localJarFile.toURI().toURL();
+			}
+			catch (Throwable t) {
+				getURLOnException(String.format("%s/%s", jobId, key), localJarFile, attempt, t);
+
+				// retry
+				++attempt;
+				LOG.info("Downloading {}/{} from {} (retry {})", jobId, key, serverAddress, attempt);
+			}
+		} // end loop over retries
+	}
+
+	private static void getURLTransferFile(
+			final byte[] buf, final InputStream is, final OutputStream os) throws IOException {
+		while (true) {
+			final int read = is.read(buf);
+			if (read < 0) {
+				break;
+			}
+			os.write(buf, 0, read);
+		}
+	}
+
+	private final void getURLOnException(
+			final String requiredBlob, final File localJarFile, final int attempt,
+			final Throwable t) throws IOException {
+		String message = "Failed to fetch BLOB " + requiredBlob + " from " + serverAddress +
+			" and store it under " + localJarFile.getAbsolutePath();
+		if (attempt < numFetchRetries) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(message + " Retrying...", t);
+			} else {
+				LOG.error(message + " Retrying...");
+			}
+		}
+		else {
+			LOG.error(message + " No retries left.", t);
+			throw new IOException(message, t);
+		}
+	}
+
+	/**
 	 * Deletes the file associated with the given key from the BLOB cache.
+	 *
 	 * @param key referring to the file to be deleted
 	 */
-	public void delete(BlobKey key) throws IOException{
+	@Override
+	public void delete(BlobKey key) {
 		final File localFile = BlobUtils.getStorageLocation(storageDir, key);
 
 		if (localFile.exists() && !localFile.delete()) {
-			LOG.warn("Failed to delete locally cached BLOB " + key + " at " + localFile.getAbsolutePath());
+			LOG.warn("Failed to delete locally cached BLOB {} at {}" + key, localFile.getAbsolutePath());
+		}
+	}
+
+	/**
+	 * Deletes the file associated with the given job and key from the BLOB cache.
+	 *
+	 * @param jobId     JobID of the file in the blob store
+	 * @param key       String key of the file in the blob store
+	 */
+	@Override
+	public void delete(JobID jobId, String key) {
+		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, key);
+
+		if (localFile.exists() && !localFile.delete()) {
+			LOG.warn("Failed to delete locally cached BLOB {}/{} at {}", jobId, key, localFile.getAbsolutePath());
 		}
 	}
 
@@ -266,6 +353,27 @@ public final class BlobCache implements BlobService {
 		// server is aware of the delete operation, too)
 		try (BlobClient bc = createClient()) {
 			bc.delete(key);
+		}
+	}
+
+	/**
+	 * Deletes the file associated with the given job and key from the BLOB
+	 * cache and BLOB server.
+	 *
+	 * @param jobId     JobID of the file in the blob store
+	 * @param key       String key of the file in the blob store
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while transferring the request to
+	 *         the BLOB server or if the BLOB server cannot delete the file
+	 */
+	public void deleteGlobal(JobID jobId, String key) throws IOException {
+		BlobClient bc = createClient();
+		try {
+			delete(jobId, key);
+			bc.delete(jobId, key);
+		}
+		finally {
+			bc.close();
 		}
 	}
 
