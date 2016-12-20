@@ -54,6 +54,23 @@ under the License.
 		<module>flink-connector-filesystem</module>
 	</modules>
 
+	<!-- override these root dependencies as 'provided', so they don't end up
+		in the jars-with-dependencies (uber jars) of connectors and
+		user programs that depend on the connectors -->
+
+	<dependencies>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.code.findbugs</groupId>
+			<artifactId>jsr305</artifactId>
+			<scope>provided</scope>
+		</dependency>
+	</dependencies>
+
 	<!-- See main pom.xml for explanation of profiles -->
 	<profiles>
 		<!--
