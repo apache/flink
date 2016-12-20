@@ -55,9 +55,17 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<!-- managed version -->
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-math3</artifactId>
 			<!-- managed version -->
 		</dependency>
+
+		<!-- test dependencies -->
 
 		<dependency>
 			<groupId>com.google.guava</groupId>
