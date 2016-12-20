@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -46,7 +47,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.anyMapOf;
+import static org.mockito.Matchers.anyMap;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
@@ -84,7 +85,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 				Assert.fail("This should never be called");
 				return null;
 			}
-		}).when(fetcher).restoreOffsets(anyMapOf(KafkaTopicPartition.class, Long.class));
+		}).when(fetcher).restoreOffsetsAndWatermarks(anyMap());
 
 		doAnswer(new Answer<Void>() {
 			@Override
@@ -173,7 +174,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 				Assert.fail("This should never be called");
 				return null;
 			}
-		}).when(fetcher).restoreOffsets(anyMapOf(KafkaTopicPartition.class, Long.class));
+		}).when(fetcher).restoreOffsetsAndWatermarks(anyMap());
 
 		doAnswer(new Answer<Void>() {
 			@Override
@@ -257,9 +258,9 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		//   prepare fake states
 		// --------------------------------------------------------------------
 
-		final HashMap<KafkaTopicPartition, Long> state1 = new HashMap<>();
-		state1.put(new KafkaTopicPartition("abc", 13), 16768L);
-		state1.put(new KafkaTopicPartition("def", 7), 987654321L);
+		final HashMap<KafkaTopicPartition, Tuple2<Long, Long>> state1 = new HashMap<>();
+		state1.put(new KafkaTopicPartition("abc", 13), Tuple2.of(16768L, Long.MIN_VALUE));
+		state1.put(new KafkaTopicPartition("def", 7), Tuple2.of(987654321L, Long.MIN_VALUE));
 
 		final OneShotLatch latch = new OneShotLatch();
 		final AbstractFetcher<String, ?> fetcher = mock(AbstractFetcher.class);
@@ -267,13 +268,14 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		doAnswer(new Answer() {
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				Map<KafkaTopicPartition, Long> map = (HashMap<KafkaTopicPartition, Long>) invocationOnMock.getArguments()[0];
+				Map<KafkaTopicPartition, Tuple2<Long, Long>> map =
+					(HashMap<KafkaTopicPartition, Tuple2<Long, Long>>) invocationOnMock.getArguments()[0];
 
 				latch.trigger();
 				assertEquals(state1, map);
 				return null;
 			}
-		}).when(fetcher).restoreOffsets(anyMapOf(KafkaTopicPartition.class, Long.class));
+		}).when(fetcher).restoreOffsetsAndWatermarks(anyMap());
 
 
 		final List<KafkaTopicPartition> partitions = new ArrayList<>();
