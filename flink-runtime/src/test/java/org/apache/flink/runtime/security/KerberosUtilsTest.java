@@ -24,29 +24,25 @@ import org.junit.Test;
 import javax.security.auth.login.AppConfigurationEntry;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /**
- * Tests for the {@link JaasConfiguration}.
+ * Tests for the {@link KerberosUtils}.
  */
-public class JaasConfigurationTest {
+public class KerberosUtilsTest {
 
 	@Test
-	public void testInvalidKerberosParams() {
+	public void testTicketCacheEntry() {
+		AppConfigurationEntry entry = KerberosUtils.ticketCacheEntry();
+		assertNotNull(entry);
+	}
+
+	@Test
+	public void testKeytabEntry() {
 		String keytab = "user.keytab";
-		String principal = null;
-		try {
-			new JaasConfiguration(keytab, principal);
-		} catch(RuntimeException re) {
-			assertEquals("Both keytab and principal are required and cannot be empty",re.getMessage());
-		}
+		String principal = "user";
+		AppConfigurationEntry entry = KerberosUtils.keytabEntry(keytab, principal);
+		assertNotNull(entry);
 	}
 
-	@Test
-	public void testDefaultAceEntry() {
-		JaasConfiguration conf = new JaasConfiguration(null,null);
-		javax.security.auth.login.Configuration.setConfiguration(conf);
-		final AppConfigurationEntry[] entry = conf.getAppConfigurationEntry("test");
-		AppConfigurationEntry ace = entry[0];
-		assertEquals(ace.getLoginModuleName(), KerberosUtil.getKrb5LoginModuleName());
-	}
 }

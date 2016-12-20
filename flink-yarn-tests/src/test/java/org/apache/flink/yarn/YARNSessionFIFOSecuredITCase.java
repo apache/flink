@@ -58,8 +58,8 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 		flinkConfig.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY,
 				SecureTestEnvironment.getHadoopServicePrincipal());
 
-		SecurityUtils.SecurityConfiguration ctx = new SecurityUtils.SecurityConfiguration(flinkConfig);
-		ctx.setHadoopConfiguration(yarnConfiguration);
+		SecurityUtils.SecurityConfiguration ctx = new SecurityUtils.SecurityConfiguration(flinkConfig,
+				yarnConfiguration);
 		try {
 			TestingSecurityContext.install(ctx, SecureTestEnvironment.getClientSecurityConfigurationMap());
 

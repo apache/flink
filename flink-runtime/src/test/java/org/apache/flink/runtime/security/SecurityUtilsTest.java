@@ -22,11 +22,13 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
+import sun.security.ssl.Krb5Helper;
 
+import javax.security.auth.Subject;
+import javax.security.auth.login.LoginContext;
 import java.lang.reflect.Method;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 /**
  * Tests for the {@link SecurityUtils}.
@@ -35,13 +37,13 @@ public class SecurityUtilsTest {
 
 	@AfterClass
 	public static void afterClass() {
-		SecurityUtils.clearContext();
-		System.setProperty(SecurityUtils.JAVA_SECURITY_AUTH_LOGIN_CONFIG, "");
+		SecurityUtils.uninstall();
 	}
 
 	@Test
 	public void testCreateInsecureHadoopCtx() {
-		SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(new Configuration());
+		SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(
+			new Configuration(), new org.apache.hadoop.conf.Configuration());
 		try {
 			SecurityUtils.install(sc);
 			assertEquals(UserGroupInformation.getLoginUser().getUserName(), getOSUserName());
@@ -59,20 +61,6 @@ public class SecurityUtilsTest {
 		}
 	}
 
-	@Test
-	/**
-	 * The Jaas configuration file provided should not be overridden.
-	 */
-	public void testJaasPropertyOverride() throws Exception {
-		String confFile = "jaas.conf";
-		System.setProperty(SecurityUtils.JAVA_SECURITY_AUTH_LOGIN_CONFIG, confFile);
-
-		SecurityUtils.install(new SecurityUtils.SecurityConfiguration(new Configuration()));
-
-		Assert.assertEquals(
-			confFile,
-			System.getProperty(SecurityUtils.JAVA_SECURITY_AUTH_LOGIN_CONFIG));
-	}
 
 
 	private String getOSUserName() throws Exception {

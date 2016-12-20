@@ -21,17 +21,22 @@ package org.apache.flink.api.java.hadoop.mapred.utils;
 
 import java.io.File;
 import java.lang.reflect.Constructor;
+import java.util.Collection;
 import java.util.Map;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.apache.hadoop.mapred.TaskAttemptID;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.TokenIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -161,6 +166,31 @@ public final class HadoopUtils {
 		}
 		return retConf;
 	}
+
+	/**
+	 * Helper to verify if HDFS delegation token (ticket cache) is available in the current logged in user context
+	 */
+	public static boolean hasHDFSDelegationToken() throws Exception {
+
+		boolean delegationToken = false;
+
+		final Text HDFS_DELEGATION_KIND = new Text("HDFS_DELEGATION_TOKEN");
+
+		UserGroupInformation loginUser = UserGroupInformation.getCurrentUser();
+
+		Collection<Token<? extends TokenIdentifier>> usrTok = loginUser.getTokens();
+
+		for (Token<? extends TokenIdentifier> token : usrTok) {
+			final Text id = new Text(token.getIdentifier());
+			LOG.debug("Found user token " + id + " with " + token);
+			if (token.getKind().equals(HDFS_DELEGATION_KIND)) {
+				delegationToken = true;
+				break;
+			}
+		}
+		return delegationToken;
+	}
+
 
 	/**
 	 * Private constructor to prevent instantiation.

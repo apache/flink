@@ -111,17 +111,23 @@ public class YarnTaskManagerRunner {
 
 		try {
 
-			SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(configuration);
+			org.apache.hadoop.conf.Configuration hadoopConfiguration = null;
 
 			//To support Yarn Secure Integration Test Scenario
 			File krb5Conf = new File(currDir, Utils.KRB5_FILE_NAME);
 			if(krb5Conf.exists() && krb5Conf.canRead()) {
 				String krb5Path = krb5Conf.getAbsolutePath();
 				LOG.info("KRB5 Conf: {}", krb5Path);
-				org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
-				conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
-				conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
-				sc.setHadoopConfiguration(conf);
+				hadoopConfiguration = new org.apache.hadoop.conf.Configuration();
+				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
+				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
+			}
+
+			SecurityUtils.SecurityConfiguration sc;
+			if(hadoopConfiguration != null) {
+				sc = new SecurityUtils.SecurityConfiguration(configuration, hadoopConfiguration);
+			} else {
+				sc = new SecurityUtils.SecurityConfiguration(configuration);
 			}
 
 			if(keytabPath != null && remoteKeytabPrincipal != null) {
