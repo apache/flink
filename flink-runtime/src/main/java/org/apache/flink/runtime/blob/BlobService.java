@@ -39,7 +39,7 @@ public interface BlobService extends Closeable {
 
 
 	/**
-	 * This method deletes the file associated with the provided blob key.
+	 * Deletes the file associated with the provided blob key.
 	 *
 	 * @param key associated with the file to be deleted
 	 * @throws IOException
