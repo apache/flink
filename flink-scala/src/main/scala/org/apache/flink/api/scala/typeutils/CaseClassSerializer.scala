@@ -99,10 +99,11 @@ abstract class CaseClassSerializer[T <: Product](
     while (i < arity) {
       val serializer = fieldSerializers(i).asInstanceOf[TypeSerializer[Any]]
       val o = value.productElement(i)
-      if (o != null) {
+      try
         serializer.serialize(o, target)
-      } else {
-          throw new NullFieldException(i)
+      catch {
+        case e: NullPointerException =>
+          throw new NullFieldException(i, e)
       }
       i += 1
     }
