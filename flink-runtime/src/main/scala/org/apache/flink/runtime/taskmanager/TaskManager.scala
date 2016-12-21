@@ -1305,6 +1305,9 @@ class TaskManager(
         s"${task.getExecutionState} to JobManager for task ${task.getTaskInfo.getTaskName} " +
         s"(${task.getExecutionId})")
 
+      // delete all NAME_ADDRESSABLE BLOBs
+      libraryCacheManager.get.getBlobService.deleteAll(task.getJobID)
+
       val accumulators = {
         val registry = task.getAccumulatorRegistry
         registry.getSnapshot

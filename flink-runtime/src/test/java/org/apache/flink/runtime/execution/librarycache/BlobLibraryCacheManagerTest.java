@@ -63,6 +63,7 @@ public class BlobLibraryCacheManagerTest {
 			keys.add(bc.put(buf));
 			buf[0] += 1;
 			keys.add(bc.put(buf));
+			bc.put(jid, "test", buf);
 
 			long cleanupInterval = 1000l;
 			libraryCacheManager = new BlobLibraryCacheManager(server, cleanupInterval);
@@ -84,7 +85,7 @@ public class BlobLibraryCacheManagerTest {
 			{
 				long deadline = System.currentTimeMillis() + 30000;
 				do {
-					Thread.sleep(500);
+					Thread.sleep(100);
 				}
 				while (libraryCacheManager.getNumberOfCachedLibraries() > 0 &&
 						System.currentTimeMillis() < deadline);
@@ -106,6 +107,13 @@ public class BlobLibraryCacheManagerTest {
 			}
 
 			assertEquals(2, caughtExceptions);
+
+			try {
+				bc.get(jid, "test");
+				fail("name-addressable BLOB should have been deleted");
+			} catch (IOException e) {
+				// expected
+			}
 
 			bc.close();
 		}

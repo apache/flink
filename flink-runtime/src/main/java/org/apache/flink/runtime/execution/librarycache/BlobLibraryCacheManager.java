@@ -150,6 +150,11 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	@Override
 	public void unregisterJob(JobID id) {
 		unregisterTask(id, JOB_ATTEMPT_ID);
+
+		synchronized (lockObject) {
+			// delete all NAME_ADDRESSABLE BLOBs
+			blobService.deleteAll(id);
+		}
 	}
 	
 	@Override
@@ -189,6 +194,11 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 				throw new IllegalStateException("No libraries are registered for job " + id);
 			}
 		}
+	}
+
+	@Override
+	public BlobService getBlobService() {
+		return blobService;
 	}
 
 	@Override
