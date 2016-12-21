@@ -19,12 +19,8 @@ package org.apache.flink.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.{TableConfig, TableEnvironment}
-import org.apache.flink.table.expressions.{Expression, GroupedExpression}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.types.Row
 import org.junit.Test
 
 /**

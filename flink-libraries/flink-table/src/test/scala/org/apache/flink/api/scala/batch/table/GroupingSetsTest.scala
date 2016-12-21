@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.scala.batch.table
 
-
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.{Row, Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
 import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.types.Row
 import org.junit._
 
 import scala.collection.JavaConverters._

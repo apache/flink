@@ -24,8 +24,8 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.logical.Minus
-import org.apache.flink.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, GroupedExpression, Ordering, TableFunctionCall, UnresolvedAlias}
+import org.apache.flink.table.plan.logical.{Minus => MinusNode}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.sinks.TableSink
@@ -550,7 +550,7 @@ class Table(
       throw new ValidationException("Only tables from the same TableEnvironment can be " +
         "subtracted.")
     }
-    new Table(tableEnv, Minus(logicalPlan, right.logicalPlan, all = false)
+    new Table(tableEnv, MinusNode(logicalPlan, right.logicalPlan, all = false)
       .validate(tableEnv))
   }
 
@@ -575,7 +575,7 @@ class Table(
       throw new ValidationException("Only tables from the same TableEnvironment can be " +
         "subtracted.")
     }
-    new Table(tableEnv, Minus(logicalPlan, right.logicalPlan, all = true)
+    new Table(tableEnv, MinusNode(logicalPlan, right.logicalPlan, all = true)
       .validate(tableEnv))
   }
 
@@ -1054,9 +1054,9 @@ class GroupingSetsTable(
     */
   def select(fields: Expression*): Table = {
 
-    val (projection, aggs, props) = extractAggregationsAndProperties(fields, table.tableEnv)
+    val (aggNames, propNames) = extractAggregationsAndProperties(fields, table.tableEnv)
 
-    if (props.nonEmpty) {
+    if (propNames.nonEmpty) {
       throw ValidationException("Window properties can only be used on windowed tables.")
     }
 
@@ -1066,13 +1066,14 @@ class GroupingSetsTable(
       case _ => groups
     }
 
+    val projectsOnAgg = replaceAggregationsAndProperties(
+      fields, table.tableEnv, aggNames, propNames)
+    val projectFields = extractFieldReferences(fields ++ groupingSets.flatten.distinct)
+
     val logical =
-      Project(
-        projection,
-        GroupingAggregation(
-          groupingSets,
-          aggs,
-          table.logicalPlan
+      Project(projectsOnAgg,
+        GroupingAggregation(groupingSets, aggNames.map(a => Alias(a._1, a._2)).toSeq,
+                            Project(projectFields, table.logicalPlan).validate(table.tableEnv)
         ).validate(table.tableEnv)
       ).validate(table.tableEnv)
 
@@ -1132,9 +1133,9 @@ class GroupingSetsWindowedTable(
     */
   def select(fields: Expression*): Table = {
 
-    val (projection, aggs, props) = extractAggregationsAndProperties(fields, table.tableEnv)
-
-    val groupWindow = window.toLogicalWindow
+    val (aggNames, propNames) = extractAggregationsAndProperties(fields, table.tableEnv)
+    val projectsOnAgg = replaceAggregationsAndProperties(
+      fields, table.tableEnv, aggNames, propNames)
 
     val groupingSets = sqlKind match {
       case SqlKind.CUBE => ExpressionUtils.cube(groups)
@@ -1142,15 +1143,22 @@ class GroupingSetsWindowedTable(
       case _ => groups
     }
 
+    val projectFields = (table.tableEnv, window) match {
+      // event time can be arbitrary field in batch environment
+      case (_: BatchTableEnvironment, w: EventTimeWindow) =>
+        extractFieldReferences(fields ++ groupingSets.flatten.distinct ++ Seq(w.timeField))
+      case (_, _) =>
+        extractFieldReferences(fields ++ groupingSets.flatten.distinct)
+    }
+
     val logical =
-      Project(
-        projection,
+      Project(projectsOnAgg,
         GroupingWindowAggregate(
-          groupWindow,
           groupingSets,
-          props,
-          aggs,
-          table.logicalPlan
+          window.toLogicalWindow,
+          propNames.map(a => Alias(a._1, a._2)).toSeq,
+          aggNames.map(a => Alias(a._1, a._2)).toSeq,
+          Project(projectFields, table.logicalPlan).validate(table.tableEnv)
         ).validate(table.tableEnv)
       ).validate(table.tableEnv)
 

@@ -691,8 +691,8 @@ case class WindowAggregate(
 }
 
 case class GroupingWindowAggregate(
-    window: LogicalWindow,
     groupingExpressions: Seq[Seq[Expression]],
+    window: LogicalWindow,
     propertyExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[NamedExpression],
     child: LogicalNode
@@ -797,7 +797,7 @@ case class GroupingWindowAggregate(
       case ValidationSuccess => // ok
     }
 
-    GroupingWindowAggregate(window, resolvedGroupingExprs, propertyExpressions,
+    GroupingWindowAggregate(resolvedGroupingExprs, window, propertyExpressions,
       resolvedWindowAggregate.aggregateExpressions, child)
   }
 }
