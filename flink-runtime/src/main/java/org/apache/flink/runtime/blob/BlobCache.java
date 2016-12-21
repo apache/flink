@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -231,6 +232,20 @@ public final class BlobCache implements BlobService {
 
 		if (localFile.exists() && !localFile.delete()) {
 			LOG.warn("Failed to delete locally cached BLOB " + key + " at " + localFile.getAbsolutePath());
+		}
+	}
+
+	/**
+	 * Deletes all files associated with the given job id from the BLOB cache.
+	 *
+	 * @param jobId     JobID of the file in the blob store
+	 */
+	@Override
+	public void deleteAll(JobID jobId) {
+		try {
+			BlobUtils.deleteJobDirectory(storageDir, jobId);
+		} catch (IOException e) {
+			LOG.warn("Failed to delete local BLOB storage dir {}.", BlobUtils.getJobDirectory(storageDir, jobId));
 		}
 	}
 

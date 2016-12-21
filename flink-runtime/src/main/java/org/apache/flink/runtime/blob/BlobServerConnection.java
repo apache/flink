@@ -423,9 +423,7 @@ class BlobServerConnection extends Thread {
 				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
 				JobID jobID = JobID.fromByteArray(jidBytes);
 
-				blobServer.deleteJobDirectory(jobID);
-
-				blobStore.deleteAll(jobID);
+				blobServer.deleteAll(jobID);
 			}
 			else {
 				throw new IOException("Unrecognized addressing type: " + type);

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.JobID;
+
 import java.io.IOException;
 import java.net.URL;
 
@@ -38,12 +40,19 @@ public interface BlobService {
 
 
 	/**
-	 * This method deletes the file associated with the provided blob key.
+	 * Deletes the file associated with the provided blob key.
 	 *
 	 * @param key associated with the file to be deleted
 	 * @throws IOException
 	 */
 	void delete(BlobKey key) throws IOException;
+
+	/**
+	 * Deletes all files associated with the given job id.
+	 *
+	 * @param jobId     JobID of the files in the blob store
+	 */
+	void deleteAll(JobID jobId);
 
 	/**
 	 * Returns the port of the blob service.

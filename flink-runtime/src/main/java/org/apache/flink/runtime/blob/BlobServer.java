@@ -214,18 +214,6 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	/**
-	 * Method which deletes all files associated with the given jobID.
-	 *
-	 * <p><strong>This is only called from the {@link BlobServerConnection}</strong>
-	 *
-	 * @param jobID all files associated to this jobID will be deleted
-	 * @throws IOException
-	 */
-	void deleteJobDirectory(JobID jobID) throws IOException {
-		BlobUtils.deleteJobDirectory(storageDir, jobID);
-	}
-
-	/**
 	 * Returns a temporary file inside the BLOB server's incoming directory.
 	 *
 	 * @return a temporary file inside the BLOB server's incoming directory
@@ -398,6 +386,22 @@ public class BlobServer extends Thread implements BlobService {
 		}
 
 		blobStore.delete(key);
+	}
+
+	/**
+	 * Deletes all files associated with the given job id from the storage.
+	 *
+	 * @param jobId     JobID of the files in the blob store
+	 */
+	@Override
+	public void deleteAll(final JobID jobId) {
+		try {
+			BlobUtils.deleteJobDirectory(storageDir, jobId);
+		} catch (IOException e) {
+			LOG.warn("Failed to delete local BLOB storage dir {}.", BlobUtils.getJobDirectory(storageDir, jobId));
+		}
+
+		blobStore.deleteAll(jobId);
 	}
 
 	/**
