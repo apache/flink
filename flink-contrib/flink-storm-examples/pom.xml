@@ -18,7 +18,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
@@ -33,46 +33,50 @@ under the License.
 	<name>flink-storm-examples</name>
 
 	<packaging>jar</packaging>
-	
-	
+
+
 	<repositories>
 		<!-- This repository is needed as a stable source for some Clojure libraries -->
 		<repository>
 			<id>clojars</id>
 			<url>https://clojars.org/repo/</url>
-			<releases><enabled>true</enabled></releases>
-			<snapshots><enabled>false</enabled></snapshots>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
 		</repository>
 	</repositories>
-	
-	
+
+
 	<dependencies>
-		
+
 		<!-- core dependencies -->
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-storm_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-examples-batch_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.storm</groupId>
 			<artifactId>storm-starter</artifactId>
 			<version>1.0.0</version>
-			
+
 			<!-- remove storm dependency - it should be drawn only (with proper
 				customization) via the 'flink-storm' dependency -->
 			<exclusions>
@@ -82,16 +86,16 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-		
+
 		<!-- test dependencies -->
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_2.10</artifactId>
@@ -99,9 +103,9 @@ under the License.
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
-	
+
 	</dependencies>
-	
+
 	<build>
 		<plugins>
 			<!-- get default data from flink-example-batch package -->
@@ -125,7 +129,8 @@ under the License.
 									<type>jar</type>
 									<overWrite>false</overWrite>
 									<outputDirectory>${project.build.directory}/classes</outputDirectory>
-									<includes>org/apache/flink/examples/java/wordcount/util/WordCountData.class</includes>
+									<includes>org/apache/flink/examples/java/wordcount/util/WordCountData.class
+									</includes>
 								</artifactItem>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
@@ -169,14 +174,14 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-			
+
 			<!-- self-contained jars for each example -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
-				
+
 				<executions>
-					
+
 					<!-- WordCount Spout source-->
 					<!-- example for embedded spout - for whole topologies see "WordCount Storm topology" example below -->
 					<execution>
@@ -188,13 +193,13 @@ under the License.
 						<configuration>
 							<finalName>WordCount</finalName>
 							<classifier>SpoutSource</classifier>
-							
+
 							<archive>
 								<manifestEntries>
 									<program-class>org.apache.flink.storm.wordcount.SpoutSourceWordCount</program-class>
 								</manifestEntries>
 							</archive>
-							
+
 							<includes>
 								<!-- from storm-core -->
 								<include>org/apache/storm/topology/*.class</include>
@@ -215,7 +220,8 @@ under the License.
 								<include>org/apache/flink/storm/wordcount/SpoutSourceWordCount.class</include>
 								<include>org/apache/flink/storm/wordcount/SpoutSourceWordCount$*.class</include>
 								<include>org/apache/flink/storm/wordcount/operators/WordCountFileSpout.class</include>
-								<include>org/apache/flink/storm/wordcount/operators/WordCountInMemorySpout.class</include>
+								<include>org/apache/flink/storm/wordcount/operators/WordCountInMemorySpout.class
+								</include>
 								<include>org/apache/flink/storm/util/AbstractLineSpout.class</include>
 								<include>org/apache/flink/storm/util/FileSpout.class</include>
 								<include>org/apache/flink/storm/util/InMemorySpout.class</include>
@@ -223,7 +229,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-					
+
 					<!-- WordCount Bolt tokenizer-->
 					<!-- example for embedded bolt - for whole topologies see "WordCount Storm topology" example below -->
 					<execution>
@@ -235,13 +241,14 @@ under the License.
 						<configuration>
 							<finalName>WordCount</finalName>
 							<classifier>BoltTokenizer</classifier>
-							
+
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.storm.wordcount.BoltTokenizerWordCount</program-class>
+									<program-class>org.apache.flink.storm.wordcount.BoltTokenizerWordCount
+									</program-class>
 								</manifestEntries>
 							</archive>
-							
+
 							<includes>
 								<!-- from storm-core -->
 								<include>org/apache/storm/topology/*.class</include>
@@ -265,7 +272,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-					
+
 					<!-- WordCount Storm topology-->
 					<!-- Example for whole topologies (ie, if FlinkTopology is used) -->
 					<!-- We cannot use maven-jar-plugin because 'defaults.yaml' must be included in jar.
@@ -284,7 +291,7 @@ under the License.
 							<classifier>StormTopology</classifier>
 						</configuration>
 					</execution>
-					
+
 					<execution>
 						<goals>
 							<goal>test-jar</goal>
@@ -292,7 +299,7 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-			
+
 			<!-- WordCount Storm topology-->
 			<!-- Cannot use maven-jar-plugin because 'defaults.yaml' must be included in jar -->
 			<!-- Build StormTopolgy jar to overwrite empty jar created with maven-jar-plugin. -->
@@ -308,7 +315,7 @@ under the License.
 						</goals>
 						<configuration>
 							<finalName>WordCount-StormTopology</finalName>
-							
+
 							<artifactSet>
 								<includes>
 									<include>org.apache.storm:storm-core</include>
@@ -345,11 +352,13 @@ under the License.
 								<filter>
 									<artifact>org.apache.flink:flink-storm-examples_2.10</artifact>
 									<includes>
-										<include>org/apache/flink/storm/wordcount/WordCountRemoteBySubmitter.class</include>
+										<include>org/apache/flink/storm/wordcount/WordCountRemoteBySubmitter.class
+										</include>
 										<include>org/apache/flink/storm/wordcount/WordCountTopology.class</include>
 										<include>org/apache/flink/storm/wordcount/operators/*.class</include>
 										<include>org/apache/flink/storm/util/*.class</include>
-										<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>
+										<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class
+										</include>
 									</includes>
 								</filter>
 								<filter>
@@ -362,7 +371,8 @@ under the License.
 								</filter>
 							</filters>
 							<transformers>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+								<transformer
+									implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
 									<mainClass>org.apache.flink.storm.wordcount.WordCountRemoteBySubmitter</mainClass>
 								</transformer>
 							</transformers>
@@ -371,7 +381,7 @@ under the License.
 				</executions>
 			</plugin>
 		</plugins>
-		
+
 		<pluginManagement>
 			<plugins>
 				<!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
@@ -401,7 +411,7 @@ under the License.
 				</plugin>
 			</plugins>
 		</pluginManagement>
-	
+
 	</build>
 
 </project>
