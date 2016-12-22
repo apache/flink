@@ -34,4 +34,16 @@ public class RowTest {
 
 		assertEquals("1,hello,null,(2,hi),hello world", row.toString());
 	}
+
+	@Test
+	public void testRowOf() {
+		Row row1 = Row.of(1, "hello", null, Tuple2.of(2L, "hi"), true);
+		Row row2 = new Row(5);
+		row2.setField(0, 1);
+		row2.setField(1, "hello");
+		row2.setField(2, null);
+		row2.setField(3, new Tuple2<>(2L, "hi"));
+		row2.setField(4, true);
+		assertEquals(row1, row2);
+	}
 }
