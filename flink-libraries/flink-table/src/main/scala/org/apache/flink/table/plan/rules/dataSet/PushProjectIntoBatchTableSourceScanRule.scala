@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.rules.dataSet
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule.{none, operand}
+import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.plan.nodes.dataset.{BatchTableSourceScan, DataSetCalc}
 import org.apache.flink.table.plan.rules.util.RexProgramProjectExtractor._
 import org.apache.flink.table.sources.{BatchTableSource, ProjectableTableSource}
@@ -47,7 +48,7 @@ class PushProjectIntoBatchTableSourceScanRule extends RelOptRule(
     val usedFields: Array[Int] = extractRefInputFields(calc.calcProgram)
 
     // if no fields can be projected, we keep the original plan.
-    if (scan.tableSource.getNumberOfFields != usedFields.length) {
+    if (TableEnvironment.getFieldNames(scan.tableSource).length != usedFields.length) {
       val originTableSource = scan.tableSource.asInstanceOf[ProjectableTableSource[_]]
       val newTableSource = originTableSource.projectFields(usedFields)
       val newScan = new BatchTableSourceScan(

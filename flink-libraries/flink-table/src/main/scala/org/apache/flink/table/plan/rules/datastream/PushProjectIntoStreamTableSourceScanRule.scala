@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.rules.datastream
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamCalc, StreamTableSourceScan}
 import org.apache.flink.table.plan.rules.util.RexProgramProjectExtractor._
 import org.apache.flink.table.sources.{ProjectableTableSource, StreamTableSource}
@@ -48,7 +49,7 @@ class PushProjectIntoStreamTableSourceScanRule extends RelOptRule(
     val usedFields = extractRefInputFields(calc.calcProgram)
 
     // if no fields can be projected, we keep the original plan
-    if (scan.tableSource.getNumberOfFields != usedFields.length) {
+    if (TableEnvironment.getFieldNames(scan.tableSource).length != usedFields.length) {
       val originTableSource = scan.tableSource.asInstanceOf[ProjectableTableSource[_]]
       val newTableSource = originTableSource.projectFields(usedFields)
       val newScan = new StreamTableSourceScan(

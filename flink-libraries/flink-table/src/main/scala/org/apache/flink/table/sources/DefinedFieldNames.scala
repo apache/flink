@@ -16,14 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.schema
+package org.apache.flink.table.sources
 
-import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.sources.TableSource
+/**
+  * Trait that defines custom field names and their indices in the underlying
+  * data type.
+  *
+  * Should be extended together with [[TableSource]] trait.
+  */
+trait DefinedFieldNames {
 
-/** Table which defines an external table via a [[TableSource]] */
-class TableSourceTable[T](val tableSource: TableSource[T])
-  extends FlinkTable[T](
-    typeInfo = tableSource.getReturnType,
-    fieldIndexes = TableEnvironment.getFieldIndices(tableSource),
-    fieldNames = TableEnvironment.getFieldNames(tableSource))
+  /** Returns the names of the table fields. */
+  def getFieldNames: Array[String]
+
+  /** Returns the indices of the table fields. */
+  def getFieldIndices: Array[Int]
+
+}

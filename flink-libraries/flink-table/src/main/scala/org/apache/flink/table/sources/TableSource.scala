@@ -19,21 +19,22 @@
 package org.apache.flink.table.sources
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.TableEnvironment
 
-/** Defines an external table by providing schema information, i.e., field names and types.
+/** Defines an external table by providing schema information and used to produce a
+  * [[org.apache.flink.api.scala.DataSet]] or [[org.apache.flink.streaming.api.scala.DataStream]].
+  * Schema information consists of a data type, field names, and corresponding indices of
+  * these names in the data type.
+  *
+  * To define a TableSource one need to implement [[TableSource#getReturnType]]. In this case
+  * field names and field indices are derived from the returned type.
+  *
+  * In case if custom field names are required one need to additionally implement
+  * the [[DefinedFieldNames]] trait.
   *
   * @tparam T The return type of the [[TableSource]].
   */
 trait TableSource[T] {
-
-  /** Returns the number of fields of the table. */
-  def getNumberOfFields: Int
-
-  /** Returns the names of the table fields. */
-  def getFieldsNames: Array[String]
-
-  /** Returns the types of the table fields. */
-  def getFieldTypes: Array[TypeInformation[_]]
 
   /** Returns the [[TypeInformation]] for the return type of the [[TableSource]]. */
   def getReturnType: TypeInformation[T]

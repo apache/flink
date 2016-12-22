@@ -73,7 +73,7 @@ class CsvTableSource(
     throw TableException("Number of field names and field types must be equal.")
   }
 
-  private val returnType = new RowTypeInfo(fieldTypes: _*)
+  private val returnType = new RowTypeInfo(fieldTypes, fieldNames)
 
   private var selectedFields: Array[Int] = fieldTypes.indices.toArray
 
@@ -86,15 +86,6 @@ class CsvTableSource(
   override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
     execEnv.createInput(createCsvInput(), returnType)
   }
-
-  /** Returns the types of the table fields. */
-  override def getFieldTypes: Array[TypeInformation[_]] = fieldTypes
-
-  /** Returns the names of the table fields. */
-  override def getFieldsNames: Array[String] = fieldNames
-
-  /** Returns the number of fields of the table. */
-  override def getNumberOfFields: Int = fieldNames.length
 
   /** Returns the [[RowTypeInfo]] for the return type of the [[CsvTableSource]]. */
   override def getReturnType: RowTypeInfo = returnType
