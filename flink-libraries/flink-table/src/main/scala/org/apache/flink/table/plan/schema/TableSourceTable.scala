@@ -25,6 +25,6 @@ import org.apache.flink.types.Row
 /** Table which defines an external table via a [[TableSource]] */
 class TableSourceTable(val tableSource: TableSource[_])
   extends FlinkTable[Row](
-    typeInfo = new RowTypeInfo(tableSource.getFieldTypes: _*),
-    fieldIndexes = 0.until(tableSource.getNumberOfFields).toArray,
+    typeInfo = tableSource.getReturnType,
+    fieldIndexes = tableSource.getFieldsIndices,
     fieldNames = tableSource.getFieldsNames)

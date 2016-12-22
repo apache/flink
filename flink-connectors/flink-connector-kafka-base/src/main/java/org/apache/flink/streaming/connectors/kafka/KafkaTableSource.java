@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.sources.TableSource$class;
 import org.apache.flink.types.Row;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -111,24 +112,17 @@ public abstract class KafkaTableSource implements StreamTableSource<Row> {
 		return kafkaSource;
 	}
 
-	@Override
-	public int getNumberOfFields() {
-		return fieldNames.length;
-	}
-
-	@Override
 	public String[] getFieldsNames() {
-		return fieldNames;
+		return TableSource$class.getFieldsNames(this);
 	}
 
-	@Override
-	public TypeInformation<?>[] getFieldTypes() {
-		return fieldTypes;
+	public int[] getFieldsIndices() {
+		return TableSource$class.getFieldsIndices(this);
 	}
 
 	@Override
 	public TypeInformation<Row> getReturnType() {
-		return new RowTypeInfo(fieldTypes);
+		return new RowTypeInfo(fieldTypes, fieldNames);
 	}
 
 	/**

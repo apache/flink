@@ -31,6 +31,7 @@ import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
 import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RuleSet, RuleSets}
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
@@ -317,16 +318,6 @@ abstract class TableEnvironment(val config: TableConfig) {
     frameworkConfig
   }
 
-  protected def validateType(typeInfo: TypeInformation[_]): Unit = {
-    val clazz = typeInfo.getTypeClass
-    if ((clazz.isMemberClass && !Modifier.isStatic(clazz.getModifiers)) ||
-        !Modifier.isPublic(clazz.getModifiers) ||
-        clazz.getCanonicalName == null) {
-      throw TableException(s"Class '$clazz' described in type information '$typeInfo' must be " +
-        s"static and globally accessible.")
-    }
-  }
-
   /**
     * Returns field names and field positions for a given [[TypeInformation]].
     *
@@ -340,25 +331,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @return A tuple of two arrays holding the field names and corresponding field positions.
     */
   protected[flink] def getFieldInfo[A](inputType: TypeInformation[A]):
-      (Array[String], Array[Int]) =
-  {
-    validateType(inputType)
-
-    val fieldNames: Array[String] = inputType match {
-      case t: TupleTypeInfo[A] => t.getFieldNames
-      case c: CaseClassTypeInfo[A] => c.getFieldNames
-      case p: PojoTypeInfo[A] => p.getFieldNames
-      case r: RowTypeInfo => r.getFieldNames
-      case tpe =>
-        throw new TableException(s"Type $tpe lacks explicit field naming")
-    }
-    val fieldIndexes = fieldNames.indices.toArray
-
-    if (fieldNames.contains("*")) {
-      throw new TableException("Field name can not be '*'.")
-    }
-
-    (fieldNames, fieldIndexes)
+  (Array[String], Array[Int]) = {
+    TableEnvironment.getFieldInfo(inputType)
   }
 
   /**
@@ -374,7 +348,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     inputType: TypeInformation[A],
     exprs: Array[Expression]): (Array[String], Array[Int]) = {
 
-    validateType(inputType)
+    TableEnvironment.validateType(inputType)
 
     val indexedNames: Array[(Int, String)] = inputType match {
       case a: AtomicType[A] =>
@@ -534,5 +508,75 @@ object TableEnvironment {
     tableConfig: TableConfig): ScalaStreamTableEnv = {
 
     new ScalaStreamTableEnv(executionEnvironment, tableConfig)
+  }
+
+  /**
+    * Returns field names and field positions for a given [[TypeInformation]].
+    *
+    * Field names are automatically extracted for
+    * [[org.apache.flink.api.common.typeutils.CompositeType]].
+    * The method fails if inputType is not a
+    * [[org.apache.flink.api.common.typeutils.CompositeType]].
+    *
+    * @param inputType The TypeInformation extract the field names and positions from.
+    * @tparam A The type of the TypeInformation.
+    * @return A tuple of two arrays holding the field names and corresponding field positions.
+    */
+  def getFieldInfo[A](inputType: TypeInformation[A]): (Array[String], Array[Int]) = {
+    validateType(inputType)
+
+    val fieldNames: Array[String] = inputType match {
+      case t: TupleTypeInfo[A] => t.getFieldNames
+      case c: CaseClassTypeInfo[A] => c.getFieldNames
+      case p: PojoTypeInfo[A] => p.getFieldNames
+      case r: RowTypeInfo => r.getFieldNames
+      case tpe =>
+        throw new TableException(s"Type $tpe lacks explicit field naming")
+    }
+    val fieldIndexes = fieldNames.indices.toArray
+
+    if (fieldNames.contains("*")) {
+      throw new TableException("Field name can not be '*'.")
+    }
+
+    (fieldNames, fieldIndexes)
+  }
+
+  def validateType(typeInfo: TypeInformation[_]): Unit = {
+    val clazz = typeInfo.getTypeClass
+    if ((clazz.isMemberClass && !Modifier.isStatic(clazz.getModifiers)) ||
+      !Modifier.isPublic(clazz.getModifiers) ||
+      clazz.getCanonicalName == null) {
+      throw TableException(s"Class '$clazz' described in type information '$typeInfo' must be " +
+        s"static and globally accessible.")
+    }
+  }
+
+  /**
+    * Returns field types for a given [[TypeInformation]].
+    *
+    * Field types are automatically extracted for
+    * [[org.apache.flink.api.common.typeutils.CompositeType]].
+    * The method fails if inputType is not a
+    * [[org.apache.flink.api.common.typeutils.CompositeType]].
+    *
+    * @param inputType The TypeInformation to extract field types from.
+    * @return an holding the field types.
+    */
+  def getFieldTypes(inputType: TypeInformation[_]): Array[TypeInformation[_]] = {
+    validateType(inputType)
+
+    inputType match {
+      case t: TupleTypeInfo[_] => getTypes(t)
+      case c: CaseClassTypeInfo[_] => getTypes(c)
+      case p: PojoTypeInfo[_] => getTypes(p)
+      case r: RowTypeInfo => getTypes(r)
+      case tpe =>
+        throw new TableException(s"Type $tpe lacks explicit field naming")
+    }
+  }
+
+  private def getTypes(c: CompositeType[_]): Array[TypeInformation[_]] = {
+    0.until(c.getTotalFields).map(c.getTypeAt(_)).toArray
   }
 }

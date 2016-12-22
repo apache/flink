@@ -26,7 +26,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 
 abstract class FlinkTable[T](
-    val typeInfo: TypeInformation[T],
+    val typeInfo: TypeInformation[_],
     val fieldIndexes: Array[Int],
     val fieldNames: Array[String])
   extends AbstractTable {
@@ -44,14 +44,14 @@ abstract class FlinkTable[T](
 
   val fieldTypes: Array[TypeInformation[_]] =
     typeInfo match {
-      case cType: CompositeType[T] =>
+      case cType: CompositeType[_] =>
         if (fieldNames.length != cType.getArity) {
           throw new TableException(
           s"Arity of type (" + cType.getFieldNames.deep + ") " +
             "not equal to number of field names " + fieldNames.deep + ".")
         }
         fieldIndexes.map(cType.getTypeAt(_).asInstanceOf[TypeInformation[_]])
-      case aType: AtomicType[T] =>
+      case aType: AtomicType[_] =>
         if (fieldIndexes.length != 1 || fieldIndexes(0) != 0) {
           throw new TableException(
             "Non-composite input type may have only a single field and its index must be 0.")
