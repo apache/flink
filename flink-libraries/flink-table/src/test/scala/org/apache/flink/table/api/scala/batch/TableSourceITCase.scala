@@ -26,6 +26,7 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.utils.CommonTestData
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.types.Row
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -84,6 +85,24 @@ class TableSourceITCase(
       "Miller,6,13.56",
       "Williams,8,4.68").mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testNestedBatchTableSourceSQL(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val nestedTable = CommonTestData.getNestedTableSource
+
+    tableEnv.registerTableSource("NestedPersons", nestedTable)
+
+    val result = tableEnv.sql("SELECT NestedPersons.firstName, NestedPersons.lastName," +
+        "NestedPersons.address.street, NestedPersons.address.city AS city " +
+        "FROM NestedPersons " +
+        "WHERE NestedPersons.address.city LIKE 'Dublin'").collect()
+
+    val expected = "Bob,Taylor,Pearse Street,Dublin"
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
 
 }

@@ -40,9 +40,9 @@ class StreamTableSourceScanRule
   /** Rule must only match if TableScan targets a [[StreamTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: TableScan = call.rel(0).asInstanceOf[TableScan]
-    val dataSetTable = scan.getTable.unwrap(classOf[TableSourceTable])
+    val dataSetTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
     dataSetTable match {
-      case tst: TableSourceTable =>
+      case tst: TableSourceTable[_] =>
         tst.tableSource match {
           case _: StreamTableSource[_] =>
             true
@@ -59,7 +59,7 @@ class StreamTableSourceScanRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
 
     // The original registered table source
-    val table: TableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable])
+    val table = scan.getTable.unwrap(classOf[TableSourceTable[_]])
     val tableSource: StreamTableSource[_] = table.tableSource.asInstanceOf[StreamTableSource[_]]
 
     new StreamTableSourceScan(

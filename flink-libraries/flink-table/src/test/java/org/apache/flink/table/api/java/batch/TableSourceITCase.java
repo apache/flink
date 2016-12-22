@@ -18,17 +18,15 @@
 
 package org.apache.flink.table.api.java.batch;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.table.utils.CommonTestData;
-import org.apache.flink.types.Row;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase;
 import org.apache.flink.table.sources.BatchTableSource;
+import org.apache.flink.table.utils.CommonTestData;
+import org.apache.flink.types.Row;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -91,5 +89,4 @@ public class TableSourceITCase extends TableProgramsTestBase {
 
 		compareResultAsText(results, expected);
 	}
-
 }
