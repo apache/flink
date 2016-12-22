@@ -132,10 +132,10 @@ public class Row implements Serializable{
 	 * </pre>
 	 *
 	 */
-	public static Row of(Object... objects) {
-		Row row = new Row(objects.length);
-		for (int i = 0; i < objects.length; i++) {
-			row.setField(i, objects[i]);
+	public static Row of(Object... values) {
+		Row row = new Row(values.length);
+		for (int i = 0; i < values.length; i++) {
+			row.setField(i, values[i]);
 		}
 		return row;
 	}
