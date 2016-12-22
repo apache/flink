@@ -17,7 +17,7 @@
 
 package org.apache.flink.storm.wrappers;
 
-import backtype.storm.tuple.Values;
+import org.apache.storm.tuple.Values;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.storm.util.AbstractTest;

@@ -17,11 +17,11 @@
 
 package org.apache.flink.storm.wordcount;
 
-import backtype.storm.Config;
-import backtype.storm.StormSubmitter;
-import backtype.storm.generated.StormTopology;
+import org.apache.storm.Config;
+import org.apache.storm.StormSubmitter;
+import org.apache.storm.generated.StormTopology;
 
-import backtype.storm.topology.TopologyBuilder;
+import org.apache.storm.topology.TopologyBuilder;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.api.FlinkClient;
 import org.apache.flink.storm.api.FlinkSubmitter;

@@ -33,8 +33,8 @@ under the License.
 	<name>flink-storm-examples</name>
 
 	<packaging>jar</packaging>
-
-
+	
+	
 	<repositories>
 		<!-- This repository is needed as a stable source for some Clojure libraries -->
 		<repository>
@@ -44,34 +44,34 @@ under the License.
 			<snapshots><enabled>false</enabled></snapshots>
 		</repository>
 	</repositories>
-
+	
 	
 	<dependencies>
-
+		
 		<!-- core dependencies -->
-
+		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-storm_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-
+		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-
+		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-examples-batch_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-
+		
 		<dependency>
 			<groupId>org.apache.storm</groupId>
 			<artifactId>storm-starter</artifactId>
-			<version>0.9.4</version>
+			<version>1.0.0</version>
 			
 			<!-- remove storm dependency - it should be drawn only (with proper
 				customization) via the 'flink-storm' dependency -->
@@ -82,16 +82,16 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-
+		
 		<!-- test dependencies -->
-
+		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
-
+		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_2.10</artifactId>
@@ -99,9 +99,9 @@ under the License.
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
-
+	
 	</dependencies>
-
+	
 	<build>
 		<plugins>
 			<!-- get default data from flink-example-batch package -->
@@ -138,7 +138,7 @@ under the License.
 								<artifactItem>
 									<groupId>org.apache.storm</groupId>
 									<artifactId>storm-core</artifactId>
-									<version>0.9.4</version>
+									<version>1.0.0</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>
 									<outputDirectory>${project.build.directory}/classes</outputDirectory>
@@ -169,14 +169,14 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-
+			
 			<!-- self-contained jars for each example -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
-
+				
 				<executions>
-
+					
 					<!-- WordCount Spout source-->
 					<!-- example for embedded spout - for whole topologies see "WordCount Storm topology" example below -->
 					<execution>
@@ -188,24 +188,25 @@ under the License.
 						<configuration>
 							<finalName>WordCount</finalName>
 							<classifier>SpoutSource</classifier>
-
+							
 							<archive>
 								<manifestEntries>
 									<program-class>org.apache.flink.storm.wordcount.SpoutSourceWordCount</program-class>
 								</manifestEntries>
 							</archive>
-
+							
 							<includes>
 								<!-- from storm-core -->
-								<include>backtype/storm/topology/*.class</include>
-								<include>backtype/storm/spout/*.class</include>
-								<include>backtype/storm/task/*.class</include>
-								<include>backtype/storm/tuple/*.class</include>
-								<include>backtype/storm/generated/*.class</include>
-								<include>backtype/storm/metric/**/*.class</include>
-								<include>org/apache/thrift7/**/*.class</include>
+								<include>org/apache/storm/topology/*.class</include>
+								<include>org/apache/storm/spout/*.class</include>
+								<include>org/apache/storm/task/*.class</include>
+								<include>org/apache/storm/tuple/*.class</include>
+								<include>org/apache/storm/generated/*.class</include>
+								<include>org/apache/storm/metric/**/*.class</include>
+								<include>org/apache/storm/thrift/**/*.class</include>
 								<!-- Storm's recursive dependencies -->
 								<include>org/json/simple/**/*.class</include>
+								<include>org/apache/storm/shade/**/*.class</include>
 								<!-- compatibility layer -->
 								<include>org/apache/flink/storm/api/*.class</include>
 								<include>org/apache/flink/storm/util/*.class</include>
@@ -222,7 +223,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-
+					
 					<!-- WordCount Bolt tokenizer-->
 					<!-- example for embedded bolt - for whole topologies see "WordCount Storm topology" example below -->
 					<execution>
@@ -234,24 +235,25 @@ under the License.
 						<configuration>
 							<finalName>WordCount</finalName>
 							<classifier>BoltTokenizer</classifier>
-
+							
 							<archive>
 								<manifestEntries>
 									<program-class>org.apache.flink.storm.wordcount.BoltTokenizerWordCount</program-class>
 								</manifestEntries>
 							</archive>
-
+							
 							<includes>
 								<!-- from storm-core -->
-								<include>backtype/storm/topology/*.class</include>
-								<include>backtype/storm/spout/*.class</include>
-								<include>backtype/storm/task/*.class</include>
-								<include>backtype/storm/tuple/*.class</include>
-								<include>backtype/storm/generated/*.class</include>
-								<include>backtype/storm/metric/**/*.class</include>
-								<include>org/apache/thrift7/**/*.class</include>
+								<include>org/apache/storm/topology/*.class</include>
+								<include>org/apache/storm/spout/*.class</include>
+								<include>org/apache/storm/task/*.class</include>
+								<include>org/apache/storm/tuple/*.class</include>
+								<include>org/apache/storm/generated/*.class</include>
+								<include>org/apache/storm/metric/**/*.class</include>
+								<include>org/apache/storm/thrift/**/*.class</include>
 								<!-- Storm's recursive dependencies -->
 								<include>org/json/simple/**/*.class</include>
+								<include>org/apache/storm/shade/**/*.class</include>
 								<!-- compatibility layer -->
 								<include>org/apache/flink/storm/api/*.class</include>
 								<include>org/apache/flink/storm/util/*.class</include>
@@ -263,7 +265,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-
+					
 					<!-- WordCount Storm topology-->
 					<!-- Example for whole topologies (ie, if FlinkTopology is used) -->
 					<!-- We cannot use maven-jar-plugin because 'defaults.yaml' must be included in jar.
@@ -282,7 +284,7 @@ under the License.
 							<classifier>StormTopology</classifier>
 						</configuration>
 					</execution>
-
+					
 					<execution>
 						<goals>
 							<goal>test-jar</goal>
@@ -290,7 +292,7 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-
+			
 			<!-- WordCount Storm topology-->
 			<!-- Cannot use maven-jar-plugin because 'defaults.yaml' must be included in jar -->
 			<!-- Build StormTopolgy jar to overwrite empty jar created with maven-jar-plugin. -->
@@ -306,7 +308,7 @@ under the License.
 						</goals>
 						<configuration>
 							<finalName>WordCount-StormTopology</finalName>
-
+							
 							<artifactSet>
 								<includes>
 									<include>org.apache.storm:storm-core</include>
@@ -322,20 +324,22 @@ under the License.
 									<artifact>org.apache.storm:storm-core</artifact>
 									<includes>
 										<include>defaults.yaml</include>
-										<include>backtype/storm/*.class</include>
-										<include>backtype/storm/topology/*.class</include>
-										<include>backtype/storm/spout/*.class</include>
-										<include>backtype/storm/task/*.class</include>
-										<include>backtype/storm/tuple/*.class</include>
-										<include>backtype/storm/generated/*.class</include>
-										<include>backtype/storm/metric/**/*.class</include>
-										<include>backtype/storm/utils/*.class</include>
-										<include>backtype/storm/serialization/*.class</include>
+										<include>org/apache/storm/*.class</include>
+										<include>org/apache/storm/topology/*.class</include>
+										<include>org/apache/storm/spout/*.class</include>
+										<include>org/apache/storm/task/*.class</include>
+										<include>org/apache/storm/tuple/*.class</include>
+										<include>org/apache/storm/generated/*.class</include>
+										<include>org/apache/storm/metric/**/*.class</include>
+										<include>org/apache/storm/utils/*.class</include>
+										<include>org/apache/storm/serialization/*.class</include>
 										<include>org/apache/storm/curator/**/*.class</include>
-										<include>org/apache/thrift7/**/*.class</include>
+										<include>org/apache/storm/grouping/**/*.class</include>
+										<include>org/apache/storm/thrift/**/*.class</include>
 										<!-- Storm's recursive dependencies -->
 										<include>org/json/simple/**/*.class</include>
 										<include>org/yaml/snakeyaml/**/*.class</include>
+										<include>org/apache/storm/shade/**/*.class</include>
 									</includes>
 								</filter>
 								<filter>
@@ -367,7 +371,7 @@ under the License.
 				</executions>
 			</plugin>
 		</plugins>
-
+		
 		<pluginManagement>
 			<plugins>
 				<!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
@@ -397,7 +401,7 @@ under the License.
 				</plugin>
 			</plugins>
 		</pluginManagement>
-
+	
 	</build>
 
 </project>

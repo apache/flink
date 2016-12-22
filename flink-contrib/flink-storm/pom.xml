@@ -34,7 +34,7 @@ under the License.
 
 	<packaging>jar</packaging>
 
-
+	
 	<repositories>
 		<!-- This repository is needed as a stable source for some Clojure libraries -->
 		<repository>
@@ -44,12 +44,12 @@ under the License.
 			<snapshots><enabled>false</enabled></snapshots>
 		</repository>
 	</repositories>
-
-
+	
+	
 	<dependencies>
-
+		
 		<!-- core dependencies -->
-
+		
 		<!-- Together with the dependency management section in flink-parent, this
 			pins the Kryo version of transitive dependencies to the Flink Kryo version -->
 		<dependency>
@@ -57,7 +57,7 @@ under the License.
 			<artifactId>kryo</artifactId>
 			<scope>provided</scope>
 		</dependency>
-
+		
 		<!-- Core streaming API -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -65,21 +65,49 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
-
+		
 		<!-- we only need the Apache Storm API, not all the runtime and web UI functionality,
 			so we exclude many of the unnecessary and possibly conflicting dependencies -->
 		<dependency>
 			<groupId>org.apache.storm</groupId>
 			<artifactId>storm-core</artifactId>
-			<version>0.9.4</version>
+			<version>1.0.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>log4j-over-slf4j</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>ch.qos.logback</groupId>
-					<artifactId>logback-classic</artifactId>
+					<groupId>org.apache.logging.log4j</groupId>
+					<artifactId>log4j-slf4j-impl</artifactId>
+				</exclusion>
+				<exclusion>
+					<artifactId>slf4j-log4j12</artifactId>
+					<groupId>org.slf4j</groupId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.servlet</groupId>
+					<artifactId>servlet-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>junit</groupId>
+					<artifactId>junit</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mockito</groupId>
+					<artifactId>mockito-all</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mockito</groupId>
+					<artifactId>mockito-all</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.curator</groupId>
+					<artifactId>curator-test</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.esotericsoftware</groupId>
+					<artifactId>kryo</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>ring</groupId>
@@ -102,20 +130,12 @@ under the License.
 					<artifactId>jetty</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty-util</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.jgrapht</groupId>
 					<artifactId>jgrapht-core</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>compojure</groupId>
 					<artifactId>compojure</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.esotericsoftware.reflectasm</groupId>
-					<artifactId>reflectasm</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.twitter</groupId>
@@ -139,9 +159,9 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-
+		
 		<!-- test dependencies -->
-
+		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime_2.10</artifactId>
@@ -149,7 +169,12 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
-		
+		<dependency>
+			<groupId>com.googlecode.json-simple</groupId>
+			<artifactId>json-simple</artifactId>
+			<version>1.1</version>
+		</dependency>
+	
 	</dependencies>
 
 </project>

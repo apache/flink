@@ -17,14 +17,14 @@
 
 package org.apache.flink.storm.wrappers;
 
-import backtype.storm.task.OutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.IRichBolt;
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.MessageId;
-import backtype.storm.tuple.Values;
-import backtype.storm.utils.Utils;
+import org.apache.storm.task.OutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.IRichBolt;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.tuple.MessageId;
+import org.apache.storm.tuple.Values;
+import org.apache.storm.utils.Utils;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
@@ -338,7 +338,7 @@ public class BoltWrapperTest extends AbstractTest {
 
 		int counter = 0;
 		@Override
-		public void execute(backtype.storm.tuple.Tuple input) {
+		public void execute(org.apache.storm.tuple.Tuple input) {
 			if (++counter % 2 == 1) {
 				this.collector.emit("stream1", new Values(input.getInteger(0)));
 			} else {

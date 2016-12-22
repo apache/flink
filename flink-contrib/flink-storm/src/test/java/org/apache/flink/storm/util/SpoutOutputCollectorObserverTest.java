@@ -17,7 +17,7 @@
  */
 package org.apache.flink.storm.util;
 
-import backtype.storm.spout.SpoutOutputCollector;
+import org.apache.storm.spout.SpoutOutputCollector;
 
 import org.junit.Assert;
 import org.junit.Test;
