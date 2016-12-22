@@ -76,21 +76,19 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 		}
 	}
 
-	public RowTypeInfo(List<TypeInformation<?>> types, List<String> fieldNames) {
-		super(Row.class, types == null ? null : types.toArray(new TypeInformation[types.size()]));
+	public RowTypeInfo(TypeInformation<?>[] types, String[] fieldNames) {
+		super(Row.class, types);
 		checkNotNull(fieldNames, "FieldNames should not be null.");
 		checkArgument(
-			types.size() == fieldNames.size(),
+			types.length == fieldNames.length,
 			"Number of field types and names is different.");
 		checkArgument(
-			types.size() == new HashSet<>(fieldNames).size(),
+			!hasDuplicateFieldNames(fieldNames),
 			"Field names are not unique.");
 
-		this.fieldNames = new String[fieldNames.size()];
-
-		for (int i = 0; i < fieldNames.size(); i++) {
-			this.fieldNames[i] = fieldNames.get(i);
-		}
+		// make a deep copy
+		this.fieldNames = new String[fieldNames.length];
+		System.arraycopy(fieldNames, 0, this.fieldNames, 0, fieldNames.length);
 	}
 
 	@Override
@@ -122,31 +120,18 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 			field = matcher.group(1);
 
 			Matcher intFieldMatcher = PATTERN_INT_FIELD.matcher(field);
-			TypeInformation<?> fieldType = null;
+			int fieldIndex;
 			if (intFieldMatcher.matches()) {
 				// field expression is an integer
-				int fieldIndex = Integer.valueOf(field);
-				if (fieldIndex > this.getArity()) {
-					throw new InvalidFieldReferenceException(
-						"Row field expression \"" + field + "\" out of bounds of " + this.toString() + ".");
-				}
-				for (int i = 0; i < fieldIndex; i++) {
-					offset += this.getTypeAt(i).getTotalFields();
-				}
-				fieldType = this.getTypeAt(fieldIndex);
+				fieldIndex = Integer.valueOf(field);
 			} else {
-				for (int i = 0; i < this.fieldNames.length; i++) {
-					if (fieldNames[i].equals(field)) {
-						// found field
-						fieldType = this.getTypeAt(i);
-						break;
-					}
-					offset += this.getTypeAt(i).getTotalFields();
-				}
-				if (fieldType == null) {
-					throw new InvalidFieldReferenceException(
-						"Unable to find field \"" + field + "\" in type " + this.toString() + ".");
-				}
+				fieldIndex = this.getFieldIndex(field);
+			}
+			// fetch the field type will throw exception if the index is illegal
+			TypeInformation<?> fieldType = this.getTypeAt(fieldIndex);
+			// compute the offset,
+			for (int i = 0; i < fieldIndex; i++) {
+				offset += this.getTypeAt(i).getTotalFields();
 			}
 
 			String tail = matcher.group(3);
@@ -185,28 +170,15 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 		String field = matcher.group(1);
 
 		Matcher intFieldMatcher = PATTERN_INT_FIELD.matcher(field);
-		TypeInformation<X> fieldType = null;
+		int fieldIndex;
 		if (intFieldMatcher.matches()) {
 			// field expression is an integer
-			int fieldIndex = Integer.valueOf(field);
-			if (fieldIndex > this.getArity()) {
-				throw new InvalidFieldReferenceException(
-					"Row field expression \"" + field + "\" out of bounds of " + this.toString() + ".");
-			}
-			fieldType = this.getTypeAt(fieldIndex);
+			fieldIndex = Integer.valueOf(field);
 		} else {
-			for (int i = 0; i < this.fieldNames.length; i++) {
-				if (fieldNames[i].equals(field)) {
-					// found field
-					fieldType = this.getTypeAt(i);
-					break;
-				}
-			}
-			if (fieldType == null) {
-				throw new InvalidFieldReferenceException(
-					"Unable to find field \"" + field + "\" in type " + this.toString() + ".");
-			}
+			fieldIndex = this.getFieldIndex(field);
 		}
+		// fetch the field type will throw exception if the index is illegal
+		TypeInformation<X> fieldType = this.getTypeAt(fieldIndex);
 
 		String tail = matcher.group(3);
 		if (tail == null) {
@@ -295,6 +267,16 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 			bld.append(')');
 		}
 		return bld.toString();
+	}
+
+	private boolean hasDuplicateFieldNames(String[] fieldNames) {
+		HashSet<String> names = new HashSet<>();
+		for (String field : fieldNames) {
+			if (!names.add(field)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private class RowTypeComparatorBuilder implements TypeComparatorBuilder<Row> {
