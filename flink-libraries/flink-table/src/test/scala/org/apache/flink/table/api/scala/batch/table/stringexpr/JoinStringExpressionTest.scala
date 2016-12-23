@@ -111,7 +111,8 @@ class JoinStringExpressionTest {
     val lPlan1 = t1Scala.logicalPlan
     val lPlan2 = t1Java.logicalPlan
 
-    Assert.assertEquals("Logical Plans do not match", lPlan1.toString,
+    Assert.assertEquals("Logical Plans do not match",
+      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
       LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
   }
 

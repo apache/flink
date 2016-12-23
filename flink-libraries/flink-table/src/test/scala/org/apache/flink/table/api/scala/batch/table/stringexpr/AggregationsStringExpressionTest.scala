@@ -20,6 +20,7 @@ package org.apache.flink.table.api.scala.batch.table.stringexpr
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala.batch.utils.LogicalPlanFormatUtils
 import org.junit._
@@ -40,7 +41,8 @@ class AggregationsStringExpressionTest {
     val lPlan1 = t1.logicalPlan
     val lPlan2 = t2.logicalPlan
 
-    Assert.assertEquals("Logical Plans do not match", lPlan1.toString,
+    Assert.assertEquals("Logical Plans do not match",
+      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
       LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
   }
 

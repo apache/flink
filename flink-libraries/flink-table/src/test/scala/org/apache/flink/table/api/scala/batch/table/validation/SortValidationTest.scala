@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.api.scala.batch.table.validation
 
-import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableEnvironment, ValidationException}
+import org.apache.flink.api.scala.util.CollectionDataSets
+import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.types.Row
+import org.apache.flink.table.api.{TableEnvironment, ValidationException}
 import org.junit._
 
 class SortValidationTest {
