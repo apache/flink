@@ -17,15 +17,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 -->
-<div class="split">
-  <nav class="navbar navbar-default navbar-secondary-additional">
-    <ul class="nav nav-tabs">
-      <li ui-sref-active="active"><a ui-sref=".overview">Overview</a></li>
-      <li ui-sref-active="active"><a ui-sref=".history">History</a></li>
-      <li ui-sref-active="active"><a ui-sref=".summary">Summary</a></li>
-      <li ui-sref-active="active"><a ui-sref=".config">Configuration</a></li>
-      <li ng-if="checkpointDetails.id != -1" class="active"><a>Details for Checkpoint {{ checkpointDetails.id }}</a></li>
-    </ul>
-  </nav>
-  <div id="checkpoints-view" ui-view="checkpoints-view" class="clean checkpoints-view"></div>
-</div>
+<div ng-include="'partials/jobs/job.plan.node.checkpoints.overview.html'"></div>
+<div ng-include="'partials/jobs/job.plan.node.checkpoints.history.html'"></div>
+<div ng-include="'partials/jobs/job.plan.node.checkpoints.config.html'"></div>
