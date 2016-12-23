@@ -37,25 +37,33 @@ public abstract class AbstractJobVertexRequestHandler extends AbstractExecutionG
 
 	@Override
 	public final String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
-		final String vidString = params.get("vertexid");
-		if (vidString == null) {
-			throw new IllegalArgumentException("vertexId parameter missing");
-		}
-
-		final JobVertexID vid;
-		try {
-			vid = JobVertexID.fromHexString(vidString);
-		}
-		catch (Exception e) {
-			throw new IllegalArgumentException("Invalid JobVertexID string '" + vidString + "': " + e.getMessage());
-		}
+		final JobVertexID vid = parseJobVertexId(params);
 
 		final AccessExecutionJobVertex jobVertex = graph.getJobVertex(vid);
 		if (jobVertex == null) {
-			throw new IllegalArgumentException("No vertex with ID '" + vidString + "' exists.");
+			throw new IllegalArgumentException("No vertex with ID '" + vid + "' exists.");
 		}
 
 		return handleRequest(jobVertex, params);
+	}
+
+	/**
+	 * Returns the job vertex ID parsed from the provided parameters.
+	 *
+	 * @param params Path parameters
+	 * @return Parsed job vertex ID or <code>null</code> if not available.
+	 */
+	public static JobVertexID parseJobVertexId(Map<String, String> params) {
+		String jobVertexIdParam = params.get("vertexid");
+		if (jobVertexIdParam == null) {
+			return null;
+		}
+
+		try {
+			return JobVertexID.fromHexString(jobVertexIdParam);
+		} catch (RuntimeException ignored) {
+			return null;
+		}
 	}
 	
 	public abstract String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception;
