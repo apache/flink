@@ -52,7 +52,11 @@ public class HighAvailabilityOptions {
 			.withDeprecatedKeys("high-availability.zookeeper.path.namespace", "recovery.zookeeper.path.namespace");
 
 	/**
-	 * File system path (URI) where Flink persists metadata in high-availability setups
+	 * File system path (URI) where Flink persists metadata in high-availability
+	 * setups. This must be on a distributed file system, either explicitly,
+	 * e.g. `hdfs:///flink/data/`, or a locally-mounted distributed file system
+	 * which needs to be hinted to flink for the best performance, e.g.
+	 * `dfs:///flink/data/` for a file system mounted to `/flink/data/`.
 	 */
 	public static final ConfigOption<String> HA_STORAGE_PATH =
 			key("high-availability.storageDir")

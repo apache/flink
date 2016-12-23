@@ -28,6 +28,7 @@ package org.apache.flink.core.fs;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.local.LocalDistributedFileSystem;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OperatingSystem;
@@ -53,7 +54,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * distributed file systems, or local file systems. The abstraction by this file system is very simple,
  * and teh set of allowed operations quite limited, to support the common denominator of a wide
  * range of file systems. For example, appending to or mutating existing files is not supported.
- * 
+ *
  * <p>Flink implements and supports some file system types directly (for example the default
  * machine-local file system). Other file system types are accessed by an implementation that bridges
  * to the suite of file systems supported by Hadoop (such as for example HDFS).
@@ -142,6 +143,7 @@ public abstract class FileSystem {
 		FSDIRECTORY.put("hdfs", HADOOP_WRAPPER_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("maprfs", MAPR_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("file", LocalFileSystem.class.getName());
+		FSDIRECTORY.put("dfs", LocalDistributedFileSystem.class.getName());
 	}
 
 	/**
@@ -573,7 +575,7 @@ public abstract class FileSystem {
 	 *     </ul>
 	 *   </li>
 	 * </ul>
-	 * 
+	 *
 	 * <p>Files contained in an existing directory are not deleted, because multiple instances of a
 	 * DataSinkTask might call this function at the same time and hence might perform concurrent
 	 * delete operations on the file system (possibly deleting output files of concurrently running tasks).
@@ -583,7 +585,7 @@ public abstract class FileSystem {
 	 * @param outPath Output path that should be prepared.
 	 * @param writeMode Write mode to consider.
 	 * @param createDirectory True, to initialize a directory at the given path, false to prepare space for a file.
-	 *    
+	 *
 	 * @return True, if the path was successfully prepared, false otherwise.
 	 * @throws IOException Thrown, if any of the file system access operations failed.
 	 */
@@ -607,7 +609,7 @@ public abstract class FileSystem {
 			// restore the interruption state
 			Thread.currentThread().interrupt();
 
-			// leave the method - we don't have the lock anyways 
+			// leave the method - we don't have the lock anyways
 			throw new IOException("The thread was interrupted while trying to initialize the output directory");
 		}
 
@@ -632,7 +634,7 @@ public abstract class FileSystem {
 					} else {
 						// file may not be overwritten
 						throw new IOException("File or directory already exists. Existing files and directories " +
-								"are not overwritten in " + WriteMode.NO_OVERWRITE.name() + " mode. Use " + 
+								"are not overwritten in " + WriteMode.NO_OVERWRITE.name() + " mode. Use " +
 								WriteMode.OVERWRITE.name() + " mode to overwrite existing files and directories.");
 					}
 
@@ -647,7 +649,7 @@ public abstract class FileSystem {
 								delete(outPath, true);
 							}
 							catch (IOException e) {
-								throw new IOException("Could not remove existing directory '" + outPath + 
+								throw new IOException("Could not remove existing directory '" + outPath +
 										"' to allow overwrite by result file", e);
 							}
 						}
@@ -715,9 +717,9 @@ public abstract class FileSystem {
 	 * @param outPath Output path that should be prepared.
 	 * @param writeMode Write mode to consider.
 	 * @param createDirectory True, to initialize a directory at the given path, false otherwise.
-	 *    
+	 *
 	 * @return True, if the path was successfully prepared, false otherwise.
-	 * 
+	 *
 	 * @throws IOException Thrown, if any of the file system access operations failed.
 	 */
 	public boolean initOutPathDistFS(Path outPath, WriteMode writeMode, boolean createDirectory) throws IOException {
@@ -740,7 +742,7 @@ public abstract class FileSystem {
 			// restore the interruption state
 			Thread.currentThread().interrupt();
 
-			// leave the method - we don't have the lock anyways 
+			// leave the method - we don't have the lock anyways
 			throw new IOException("The thread was interrupted while trying to initialize the output directory");
 		}
 
@@ -749,13 +751,13 @@ public abstract class FileSystem {
 			if (exists(outPath)) {
 				// path exists, check write mode
 				switch(writeMode) {
-	
+
 				case NO_OVERWRITE:
 					// file or directory may not be overwritten
 					throw new IOException("File or directory already exists. Existing files and directories are not overwritten in " +
 							WriteMode.NO_OVERWRITE.name() + " mode. Use " + WriteMode.OVERWRITE.name() +
 								" mode to overwrite existing files and directories.");
-	
+
 				case OVERWRITE:
 					// output path exists. We delete it and all contained files in case of a directory.
 					try {
@@ -766,12 +768,12 @@ public abstract class FileSystem {
 						// this will be handled later.
 					}
 					break;
-	
+
 				default:
 					throw new IllegalArgumentException("Invalid write mode: "+writeMode);
 				}
 			}
-	
+
 			if (createDirectory) {
 				// Output directory needs to be created
 				try {
@@ -780,10 +782,10 @@ public abstract class FileSystem {
 					}
 				} catch (IOException ioe) {
 					// Some other thread might already have created the directory.
-					// If - for some other reason - the directory could not be created  
+					// If - for some other reason - the directory could not be created
 					// and the path does not exist, this will be handled later.
 				}
-	
+
 				// double check that the output directory exists
 				return exists(outPath) && getFileStatus(outPath).isDir();
 			}
@@ -848,7 +850,7 @@ public abstract class FileSystem {
 
 		@Override
 		public int hashCode() {
-			return 31 * scheme.hashCode() + 
+			return 31 * scheme.hashCode() +
 					(authority == null ? 17 : authority.hashCode());
 		}
 

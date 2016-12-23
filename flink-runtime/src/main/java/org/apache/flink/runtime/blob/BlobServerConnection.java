@@ -18,16 +18,15 @@
 
 package org.apache.flink.runtime.blob;
 
-import com.google.common.io.Files;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.EOFException;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -64,7 +63,7 @@ class BlobServerConnection extends Thread {
 	/** The BLOB server. */
 	private final BlobServer blobServer;
 
-	/** The HA blob store. */
+	/** The blob store. */
 	private final BlobStore blobStore;
 
 	/**
@@ -169,7 +168,7 @@ class BlobServerConnection extends Thread {
 	 */
 	private void get(InputStream inputStream, OutputStream outputStream, byte[] buf) throws IOException {
 
-		File blobFile;
+		FileStatus blobFile;
 		try {
 			final int contentAddressable = inputStream.read();
 
@@ -183,30 +182,20 @@ class BlobServerConnection extends Thread {
 
 				JobID jobID = JobID.fromByteArray(jidBytes);
 				String key = readKey(buf, inputStream);
-				blobFile = this.blobServer.getStorageLocation(jobID, key);
-
-				if (!blobFile.exists()) {
-					blobStore.get(jobID, key, blobFile);
-				}
+				// will throw a FileNotFoundException if the file does not exist
+				blobFile = blobStore.getFileStatus(jobID, key);
 			}
 			else if (contentAddressable == CONTENT_ADDRESSABLE) {
 				final BlobKey key = BlobKey.readFromInputStream(inputStream);
-				blobFile = blobServer.getStorageLocation(key);
-
-				if (!blobFile.exists()) {
-					blobStore.get(key, blobFile);
-				}
+				// will throw a FileNotFoundException if the file does not exist
+				blobFile = blobStore.getFileStatus(key);
 			}
 			else {
 				throw new IOException("Unknown type of BLOB addressing.");
 			}
 
-			// Check if BLOB exists
-			if (!blobFile.exists()) {
-				throw new IOException("Cannot find required BLOB at " + blobFile.getAbsolutePath());
-			}
-
-			if (blobFile.length() > Integer.MAX_VALUE) {
+			// we restrict the length field to an integer below
+			if (blobFile.getLen() > Integer.MAX_VALUE) {
 				throw new IOException("BLOB size exceeds the maximum size (2 GB).");
 			}
 
@@ -229,15 +218,15 @@ class BlobServerConnection extends Thread {
 
 		// from here on, we started sending data, so all we can do is close the connection when something happens
 		try {
-			int blobLen = (int) blobFile.length();
+			int blobLen = (int) blobFile.getLen();
 			writeLength(blobLen, outputStream);
 
-			try (FileInputStream fis = new FileInputStream(blobFile)) {
+			try (FSDataInputStream fis = blobStore.open(blobFile)) {
 				int bytesRemaining = blobLen;
 				while (bytesRemaining > 0) {
 					int read = fis.read(buf);
 					if (read < 0) {
-						throw new IOException("Premature end of BLOB file stream for " + blobFile.getAbsolutePath());
+						throw new IOException("Premature end of BLOB file stream for " + blobFile.getPath());
 					}
 					outputStream.write(buf, 0, read);
 					bytesRemaining -= read;
@@ -266,8 +255,8 @@ class BlobServerConnection extends Thread {
 		String key = null;
 		MessageDigest md = null;
 
-		File incomingFile = null;
-		FileOutputStream fos = null;
+		String incomingFile = null;
+		FSDataOutputStream fos = null;
 
 		try {
 			final int contentAddressable = inputStream.read();
@@ -297,8 +286,8 @@ class BlobServerConnection extends Thread {
 				}
 			}
 
-			incomingFile = blobServer.createTemporaryFilename();
-			fos = new FileOutputStream(incomingFile);
+			incomingFile = blobStore.getTempFilename();
+			fos = blobStore.createTempFile(incomingFile);
 
 			while (true) {
 				final int bytesExpected = readLength(inputStream);
@@ -318,23 +307,18 @@ class BlobServerConnection extends Thread {
 				}
 			}
 			fos.close();
+			fos = null;
 
 			if (contentAddressable == NAME_ADDRESSABLE) {
-				File storageFile = this.blobServer.getStorageLocation(jobID, key);
-				Files.move(incomingFile, storageFile);
+				blobStore.persistTempFile(incomingFile, jobID, key);
 				incomingFile = null;
-
-				blobStore.put(storageFile, jobID, key);
 
 				outputStream.write(RETURN_OKAY);
 			}
 			else {
 				BlobKey blobKey = new BlobKey(md.digest());
-				File storageFile = blobServer.getStorageLocation(blobKey);
-				Files.move(incomingFile, storageFile);
+				blobStore.persistTempFile(incomingFile, blobKey);
 				incomingFile = null;
-
-				blobStore.put(storageFile, blobKey);
 
 				// Return computed key to client for validation
 				outputStream.write(RETURN_OKAY);
@@ -365,8 +349,10 @@ class BlobServerConnection extends Thread {
 				}
 			}
 			if (incomingFile != null) {
-				if (!incomingFile.delete()) {
-					LOG.warn("Cannot delete BLOB server staging file " + incomingFile.getAbsolutePath());
+				try {
+					blobStore.deleteTempFile(incomingFile);
+				} catch (Throwable t) {
+					LOG.warn("Cannot delete BLOB server staging file " + incomingFile);
 				}
 			}
 		}
@@ -389,12 +375,9 @@ class BlobServerConnection extends Thread {
 
 			if (type == CONTENT_ADDRESSABLE) {
 				BlobKey key = BlobKey.readFromInputStream(inputStream);
-				File blobFile = this.blobServer.getStorageLocation(key);
-				if (blobFile.exists() && !blobFile.delete()) {
-					throw new IOException("Cannot delete BLOB file " + blobFile.getAbsolutePath());
+				if (!blobStore.delete(key)) {
+					throw new IOException("Cannot delete BLOB file " + key.toString());
 				}
-
-				blobStore.delete(key);
 			}
 			else if (type == NAME_ADDRESSABLE) {
 				byte[] jidBytes = new byte[JobID.SIZE];
@@ -402,20 +385,14 @@ class BlobServerConnection extends Thread {
 				JobID jobID = JobID.fromByteArray(jidBytes);
 
 				String key = readKey(buf, inputStream);
-
-				File blobFile = this.blobServer.getStorageLocation(jobID, key);
-				if (blobFile.exists() && !blobFile.delete()) {
-					throw new IOException("Cannot delete BLOB file " + blobFile.getAbsolutePath());
+				if (!blobStore.delete(jobID, key)) {
+					throw new IOException("Cannot delete BLOB file " + key.toString());
 				}
-
-				blobStore.delete(jobID, key);
 			}
 			else if (type == JOB_ID_SCOPE) {
 				byte[] jidBytes = new byte[JobID.SIZE];
 				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
 				JobID jobID = JobID.fromByteArray(jidBytes);
-
-				blobServer.deleteJobDirectory(jobID);
 
 				blobStore.deleteAll(jobID);
 			}

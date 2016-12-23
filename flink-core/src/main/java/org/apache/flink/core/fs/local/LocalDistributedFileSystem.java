@@ -16,46 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.blob;
+package org.apache.flink.core.fs.local;
 
-import org.apache.flink.api.common.JobID;
-
-import java.io.File;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.FileSystem;
 
 /**
- * A blob store doing nothing.
+ * The class <code>LocalDistributedFileSystem</code> provides an implementation
+ * of the {@link FileSystem} interface for a locally mounted distributed file
+ * system, e.g. NFS.
  */
-class VoidBlobStore implements BlobStore {
-
-	@Override
-	public void put(File localFile, BlobKey blobKey) throws Exception {
+@Internal
+public class LocalDistributedFileSystem extends LocalFileSystem {
+	/**
+	 * Constructs a new <code>LocalDistributedFileSystem</code> object.
+	 */
+	public LocalDistributedFileSystem() {
+		super();
 	}
 
 	@Override
-	public void put(File localFile, JobID jobId, String key) throws Exception {
-	}
-
-	@Override
-	public void get(BlobKey blobKey, File localFile) throws Exception {
-	}
-
-	@Override
-	public void get(JobID jobId, String key, File localFile) throws Exception {
-	}
-
-	@Override
-	public void delete(BlobKey blobKey) {
-	}
-
-	@Override
-	public void delete(JobID jobId, String key) {
-	}
-
-	@Override
-	public void deleteAll(JobID jobId) {
-	}
-
-	@Override
-	public void cleanUp() {
+	public boolean isDistributedFS() {
+		return true;
 	}
 }

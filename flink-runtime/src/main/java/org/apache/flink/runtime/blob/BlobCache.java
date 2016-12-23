@@ -18,26 +18,28 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * The BLOB cache implements a local cache for content-addressable BLOBs. When requesting BLOBs through the
- * {@link BlobCache#getURL} methods, the BLOB cache will first attempt serve the file from its local cache. Only if the
- * local cache does not contain the desired BLOB, the BLOB cache will try to download it from the BLOB server.
+ * The BLOB cache implements a local cache for content-addressable BLOBs.
+ *
+ * <p>When requesting BLOBs through the {@link BlobCache#getURL} methods, the
+ * BLOB cache will first attempt to serve the file from a distributed file
+ * system (if available, i.e. high availability is set) or from its local
+ * cache. If neither contains the desired BLOB, the BLOB cache will try to
+ * download it from the BLOB server.</p>
  */
 public final class BlobCache implements BlobService {
 
@@ -46,7 +48,8 @@ public final class BlobCache implements BlobService {
 
 	private final InetSocketAddress serverAddress;
 
-	private final File storageDir;
+	/** The blob store. */
+	private final BlobStore blobStore;
 
 	private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
@@ -59,8 +62,16 @@ public final class BlobCache implements BlobService {
 	/** Configuration for the blob client like ssl parameters required to connect to the blob server */
 	private final Configuration blobClientConfig;
 
-
-	public BlobCache(InetSocketAddress serverAddress, Configuration blobClientConfig) {
+	/**
+	 * Instantiates a new BLOB cache.
+	 *
+	 * @param serverAddress address of the {@link BlobServer} to use for
+	 *                      fetching files from
+	 * @param blobClientConfig global configuration
+	 * @throws IOException
+	 *         thrown if the file storage cannot be created or is not usable
+	 */
+	public BlobCache(InetSocketAddress serverAddress, Configuration blobClientConfig) throws IOException {
 		if (serverAddress == null || blobClientConfig == null) {
 			throw new NullPointerException();
 		}
@@ -70,9 +81,7 @@ public final class BlobCache implements BlobService {
 		this.blobClientConfig = blobClientConfig;
 
 		// configure and create the storage directory
-		String storageDirectory = blobClientConfig.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
-		this.storageDir = BlobUtils.initStorageDirectory(storageDirectory);
-		LOG.info("Created BLOB cache storage directory " + storageDir);
+		this.blobStore = new FileSystemBlobStore(blobClientConfig, false);
 
 		// configure the number of fetch retries
 		final int fetchRetries = blobClientConfig.getInteger(
@@ -97,16 +106,23 @@ public final class BlobCache implements BlobService {
 	 *
 	 * @param requiredBlob The key of the desired BLOB.
 	 * @return URL referring to the local storage location of the BLOB.
-	 * @throws IOException Thrown if an I/O error occurs while downloading the BLOBs from the BLOB server.
+	 * @throws IOException Thrown if an I/O error occurs if a file is not
+	 *                     available or while downloading the BLOBs from the
+	 *                     BLOB server.
 	 */
 	public URL getURL(final BlobKey requiredBlob) throws IOException {
 		if (requiredBlob == null) {
 			throw new IllegalArgumentException("BLOB key cannot be null.");
 		}
 
-		final File localJarFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
-
-		if (!localJarFile.exists()) {
+		try {
+			return blobStore.getFileStatus(requiredBlob).getPath().toUri().toURL();
+		} catch (FileNotFoundException fnfe) {
+			if (blobStore.isDistributed()) {
+				// the blob server only has access to the same file system and
+				// the file is simply not there!
+				throw fnfe;
+			}
 
 			final byte[] buf = new byte[BlobServerProtocol.BUFFER_SIZE];
 
@@ -123,27 +139,31 @@ public final class BlobCache implements BlobService {
 				try {
 					BlobClient bc = null;
 					InputStream is = null;
-					OutputStream os = null;
+					String incomingFile = null;
+					FSDataOutputStream fos = null;
 
 					try {
 						bc = new BlobClient(serverAddress, blobClientConfig);
 						is = bc.get(requiredBlob);
-						os = new FileOutputStream(localJarFile);
+						incomingFile = blobStore.getTempFilename();
+						fos = blobStore.createTempFile(incomingFile);
 
 						while (true) {
 							final int read = is.read(buf);
 							if (read < 0) {
 								break;
 							}
-							os.write(buf, 0, read);
+							fos.write(buf, 0, read);
 						}
+						blobStore.persistTempFile(incomingFile, requiredBlob);
+						incomingFile = null;
 
 						// we do explicitly not use a finally block, because we want the closing
 						// in the regular case to throw exceptions and cause the writing to fail.
 						// But, the closing on exception should not throw further exceptions and
 						// let us keep the root exception
-						os.close();
-						os = null;
+						fos.close();
+						fos = null;
 						is.close();
 						is = null;
 						bc.close();
@@ -155,9 +175,16 @@ public final class BlobCache implements BlobService {
 					catch (Throwable t) {
 						// we use "catch (Throwable)" to keep the root exception. Otherwise that exception
 						// it would be replaced by any exception thrown in the finally block
-						closeSilently(os);
+						closeSilently(fos);
 						closeSilently(is);
 						closeSilently(bc);
+						if (incomingFile != null) {
+							try {
+								blobStore.deleteTempFile(incomingFile);
+							} catch (Throwable t1) {
+								LOG.warn("Cannot remove temporary file", t1);
+							}
+						}
 
 						if (t instanceof IOException) {
 							throw (IOException) t;
@@ -168,7 +195,7 @@ public final class BlobCache implements BlobService {
 				}
 				catch (IOException e) {
 					String message = "Failed to fetch BLOB " + requiredBlob + " from " + serverAddress +
-						" and store it under " + localJarFile.getAbsolutePath();
+						" and store it under " + blobStore.getBasePath();
 					if (attempt < numFetchRetries) {
 						attempt++;
 						if (LOG.isDebugEnabled()) {
@@ -185,24 +212,29 @@ public final class BlobCache implements BlobService {
 			} // end loop over retries
 		}
 
-		return localJarFile.toURI().toURL();
+		return blobStore.getFileStatus(requiredBlob).getPath().toUri().toURL();
 	}
 
 	/**
 	 * Deletes the file associated with the given key from the BLOB cache.
+	 *
 	 * @param key referring to the file to be deleted
+	 * @return <tt>true</tt> if the delete was successful or the file never
+	 *         existed; <tt>false</tt> otherwise
 	 */
-	public void delete(BlobKey key) throws IOException{
-		final File localFile = BlobUtils.getStorageLocation(storageDir, key);
-
-		if (localFile.exists() && !localFile.delete()) {
-			LOG.warn("Failed to delete locally cached BLOB " + key + " at " + localFile.getAbsolutePath());
-		}
+	@Override
+	public boolean delete(BlobKey key) {
+		return blobStore.delete(key);
 	}
 
 	/**
-	 * Deletes the file associated with the given key from the BLOB cache and BLOB server.
+	 * Deletes the file associated with the given key from the BLOB cache and
+	 * BLOB server.
+	 *
 	 * @param key referring to the file to be deleted
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while transferring the request to
+	 *         the BLOB server or if the BLOB server cannot delete the file
 	 */
 	public void deleteGlobal(BlobKey key) throws IOException {
 		BlobClient bc = createClient();
@@ -226,12 +258,7 @@ public final class BlobCache implements BlobService {
 			LOG.info("Shutting down BlobCache");
 
 			// Clean up the storage directory
-			try {
-				FileUtils.deleteDirectory(storageDir);
-			}
-			catch (IOException e) {
-				LOG.error("BLOB cache failed to properly clean up its storage directory.");
-			}
+			blobStore.cleanUp();
 
 			// Remove shutdown hook to prevent resource leaks, unless this is invoked by the shutdown hook itself
 			if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
@@ -253,8 +280,8 @@ public final class BlobCache implements BlobService {
 		return new BlobClient(serverAddress, blobClientConfig);
 	}
 
-	public File getStorageDir() {
-		return this.storageDir;
+	public String getStorageDir() {
+		return this.blobStore.getBasePath();
 	}
 
 	// ------------------------------------------------------------------------
