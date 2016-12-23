@@ -16,15 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.batch.table
+package org.apache.flink.table.api.scala.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.{TableEnvironment, TableException, ValidationException}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
 import org.junit._
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 class JoinValidationTest {
 
@@ -101,8 +99,8 @@ class JoinValidationTest {
   @Test(expected = classOf[ValidationException])
   def testJoinTablesFromDifferentEnvs(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv1 = TableEnvironment.getTableEnvironment(env, config)
-    val tEnv2 = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv1 = TableEnvironment.getTableEnvironment(env)
+    val tEnv2 = TableEnvironment.getTableEnvironment(env)
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv1, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv2, 'd, 'e, 'f, 'g, 'h)
@@ -120,7 +118,7 @@ class JoinValidationTest {
     val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    val joinT = ds2.leftOuterJoin(ds1, 'b === 'd && 'b < 3).select('c, 'g)
+    ds2.leftOuterJoin(ds1, 'b === 'd && 'b < 3).select('c, 'g)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -132,7 +130,7 @@ class JoinValidationTest {
     val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    val joinT = ds2.leftOuterJoin(ds1, 'b < 'd).select('c, 'g)
+    ds2.leftOuterJoin(ds1, 'b < 'd).select('c, 'g)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -157,7 +155,7 @@ class JoinValidationTest {
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
     val in1 = tableEnv.fromDataSet(ds1, 'a, 'b, 'c)
     val in2 = tableEnv.fromDataSet(ds2, 'd, 'e, 'f, 'g, 'c)
-    val result = in1.join(in2)
+    in1.join(in2)
       // Must fail. Types of join fields are not compatible (Integer and String)
     .where("a === g").select("c, g")
   }

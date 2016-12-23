@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.batch.table
+package org.apache.flink.table.api.scala.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.table._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.{TableEnvironment, ValidationException}
+import org.apache.flink.table.api.{TableEnvironment, ValidationException}
 import org.junit._
 
 class AggregationsValidationTest {
@@ -87,7 +87,7 @@ class AggregationsValidationTest {
   @throws[Exception]
   def testAggregationOnNonExistingFieldJava() {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = TableEnvironment.getTableEnvironment(env)
     val table = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv)
     table.select("foo.avg")
   }
@@ -96,7 +96,7 @@ class AggregationsValidationTest {
   @throws[Exception]
   def testNonWorkingAggregationDataTypesJava() {
     val env= ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = TableEnvironment.getTableEnvironment(env)
     val table = env.fromElements((1f, "Hello")).toTable(tableEnv)
     // Must fail. Cannot compute SUM aggregate on String field.
     table.select("f1.sum")
@@ -106,7 +106,7 @@ class AggregationsValidationTest {
   @throws[Exception]
   def testNoNestedAggregationsJava() {
     val env= ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = TableEnvironment.getTableEnvironment(env)
     val table = env.fromElements((1f, "Hello")).toTable(tableEnv)
     // Must fail. Aggregation on aggregation not allowed.
     table.select("f0.sum.sum")
@@ -116,7 +116,7 @@ class AggregationsValidationTest {
   @throws[Exception]
   def testGroupingOnNonExistentFieldJava() {
     val env= ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = TableEnvironment.getTableEnvironment(env)
     val input = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv, 'a, 'b, 'c)
     input
       // must fail. Field foo is not in input
@@ -128,7 +128,7 @@ class AggregationsValidationTest {
   @throws[Exception]
   def testGroupingInvalidSelectionJava() {
     val env= ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = TableEnvironment.getTableEnvironment(env)
     val input = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv, 'a, 'b, 'c)
     input
       .groupBy("a, b")

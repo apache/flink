@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.batch.table
+package org.apache.flink.table.api.scala.batch.table
 
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.batch.utils.LogicalPlanFormatUtils
-import org.apache.flink.api.scala.table._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.expressions.Literal
-import org.apache.flink.api.table._
+import org.apache.flink.table.api.{TableEnvironment, Types}
+import org.apache.flink.table.api.scala.batch.utils.LogicalPlanFormatUtils
+import org.apache.flink.table.expressions.Literal
 import org.junit._
 
 class CalcPlanTest {
