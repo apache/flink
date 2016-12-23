@@ -343,23 +343,4 @@ class AggregationsITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test
-  def testPojoGrouping() {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val table = env.fromElements(
-      ("A", 23.0, "Z"),
-      ("A", 24.0, "Y"),
-      ("B", 1.0, "Z")).toTable(tableEnv, 'groupMe, 'value, 'name)
-      .select('groupMe, 'value, 'name).where('groupMe !== "B")
-
-    val myPojos = table.toDataSet[AggregationsITCase.MyPojo]
-    val result = myPojos.groupBy("groupMe").sortGroup("value", Order.DESCENDING).first(1).collect()
-    TestBaseUtils.compareResultAsText(result.asJava, "MyPojo(A,24.0,Y)")
-  }
-
-}
-
-object AggregationsITCase {
-  case class MyPojo(groupMe: String, value: Double, name: String)
 }
