@@ -40,9 +40,10 @@ public interface BlobService {
 	 * This method deletes the file associated with the provided blob key.
 	 *
 	 * @param key associated with the file to be deleted
-	 * @throws IOException
+	 * @return <tt>true</tt> if the delete was successful or the file never
+	 *         existed; <tt>false</tt> otherwise
 	 */
-	void delete(BlobKey key) throws IOException;
+	boolean delete(BlobKey key);
 
 	/**
 	 * Returns the port of the blob service.

@@ -19,8 +19,13 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem;
 
-import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 
 /**
  * A blob store.
@@ -28,70 +33,129 @@ import java.io.File;
 interface BlobStore {
 
 	/**
-	 * Copies the local file to the blob store.
+	 * Returns a name for a temporary file inside the BLOB server's incoming directory.
 	 *
-	 * @param localFile The file to copy
-	 * @param blobKey   The ID for the file in the blob store
-	 * @throws Exception If the copy fails
+	 * @return a temporary file name
 	 */
-	void put(File localFile, BlobKey blobKey) throws Exception;
+	String getTempFilename();
 
 	/**
-	 * Copies a local file to the blob store.
+	 * Opens an FSDataOutputStream for the indicated temporary file name.
 	 *
-	 * <p>The job ID and key make up a composite key for the file.
+	 * @param tempFile
+	 *        the file name of the temporary file to open
+	 * @throws IOException If the creation fails
+	 */
+	FSDataOutputStream createTempFile(final String tempFile) throws IOException;
+
+	/**
+	 * Persists a temporary file to the storage after the file was written.
 	 *
-	 * @param localFile The file to copy
+	 * @param tempFile  The file name of the temporary file to move
+	 * @param blobKey   The ID for the file in the blob store
+	 * @throws IOException If the move fails
+	 */
+	void persistTempFile(final String tempFile, BlobKey blobKey) throws IOException;
+
+	/**
+	 * Persists a temporary file to the storage after the file was written.
+	 *
+	 * @param tempFile  The file name of the temporary file to move
 	 * @param jobId     The JobID part of ID for the file in the blob store
 	 * @param key       The String part of ID for the file in the blob store
-	 * @throws Exception If the copy fails
+	 * @throws IOException If the move fails
 	 */
-	void put(File localFile, JobID jobId, String key) throws Exception;
+	void persistTempFile(final String tempFile, JobID jobId, String key) throws IOException;
 
 	/**
-	 * Copies a blob to a local file.
+	 * Removes the given temporary file, e.g. after an error.
 	 *
-	 * @param blobKey   The blob ID
-	 * @param localFile The local file to copy to
-	 * @throws Exception If the copy fails
+	 * @param tempFile  The file name of the temporary file to remove
+	 * @throws IOException If the delete operation fails
 	 */
-	void get(BlobKey blobKey, File localFile) throws Exception;
+	void deleteTempFile(final String tempFile);
 
 	/**
-	 * Copies a blob to a local file.
+	 * Return a file status object that represents the path.
 	 *
-	 * @param jobId     The JobID part of ID for the blob
-	 * @param key       The String part of ID for the blob
-	 * @param localFile The local file to copy to
-	 * @throws Exception If the copy fails
+	 * @param blobKey   The ID for the file in the blob store
+	 * @return a FileStatus object
+	 * @throws FileNotFoundException when the path does not exist;
+	 * @throws IOException see underlying implementation of {@link FileSystem}
 	 */
-	void get(JobID jobId, String key, File localFile) throws Exception;
+	FileStatus getFileStatus(BlobKey blobKey) throws IOException;
 
 	/**
-	 * Deletes a blob.
+	 * Return a file status object that represents the path.
+	 *
+	 * @param jobId     The JobID part of ID for the file in the blob store
+	 * @param key       The String part of ID for the file in the blob store
+	 * @return a FileStatus object
+	 * @throws FileNotFoundException when the path does not exist;
+	 * @throws IOException see underlying implementation of {@link FileSystem}
+	 */
+	FileStatus getFileStatus(JobID jobId, String key) throws IOException;
+
+	/**
+	 * Opens an FSDataInputStream at the indicated location from a previous
+	 * call to {@link #getFileStatus(BlobKey)} or {@link #getFileStatus(JobID, String)}.
+	 *
+	 * @param f
+	 *        the file status object pointing to the file to open
+	 */
+	FSDataInputStream open(FileStatus f) throws IOException;
+
+	/**
+	 * Deletes a blob from storage.
+	 *
+	 * <p>NOTE: This also tries to delete any created directories if empty.</p>
 	 *
 	 * @param blobKey The blob ID
+	 * @return <tt>true</tt> if the delete was successful or the file never
+	 *         existed; <tt>false</tt> otherwise
 	 */
-	void delete(BlobKey blobKey);
+	boolean delete(BlobKey blobKey);
 
 	/**
-	 * Deletes a blob.
+	 * Deletes a blob from storage.
+	 *
+	 * <p>NOTE: This also tries to delete any created directories if empty.</p>
 	 *
 	 * @param jobId The JobID part of ID for the blob
 	 * @param key   The String part of ID for the blob
+	 * @return <tt>true</tt> if the delete was successful or the file never
+	 *         existed; <tt>false</tt> otherwise
 	 */
-	void delete(JobID jobId, String key);
+	boolean delete(JobID jobId, String key);
 
 	/**
 	 * Deletes blobs.
+	 *
+	 * <p>NOTE: This also tries to delete any created directories if empty.</p>
 	 *
 	 * @param jobId The JobID part of all blobs to delete
 	 */
 	void deleteAll(JobID jobId);
 
 	/**
-	 * Cleans up the store and deletes all blobs.
+	 * Cleans up the store and deletes all blobs on local file systems.
+	 *
+	 * NOTE: This does not remove any files in the HA setup!
 	 */
 	void cleanUp();
 
+	/**
+	 * Returns the path this blob storage uses.
+	 *
+	 * @return blob storage base path
+	 */
+	String getBasePath();
+
+	/**
+	 * Returns whether this store is backed by a distributed file system.
+	 *
+	 * @return <tt>true</tt> if a distributed file system is used,
+	 *         <tt>false</tt> otherwise
+	 */
+	boolean isDistributed();
 }

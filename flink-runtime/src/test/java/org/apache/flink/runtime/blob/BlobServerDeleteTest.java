@@ -189,8 +189,7 @@ public class BlobServerDeleteTest {
 			BlobKey key = client.put(data);
 			assertNotNull(key);
 
-			File blobFile = server.getStorageLocation(key);
-			assertTrue(blobFile.delete());
+			assertTrue(server.getBlobStore().delete(key));
 
 			// issue a DELETE request
 			try {
@@ -238,8 +237,7 @@ public class BlobServerDeleteTest {
 
 			client.put(jid, name, data);
 
-			File blobFile = server.getStorageLocation(jid, name);
-			assertTrue(blobFile.delete());
+			assertTrue(server.getBlobStore().delete(jid, name));
 
 			// issue a DELETE request
 			try {
@@ -288,7 +286,8 @@ public class BlobServerDeleteTest {
 			BlobKey key = client.put(data);
 			assertNotNull(key);
 
-			File blobFile = server.getStorageLocation(key);
+			// assume a local file system here:
+			File blobFile = new File(server.getBlobStore().getFileStatus(key).getPath().getPath());
 			File directory = blobFile.getParentFile();
 
 			assertTrue(blobFile.setWritable(false, false));
