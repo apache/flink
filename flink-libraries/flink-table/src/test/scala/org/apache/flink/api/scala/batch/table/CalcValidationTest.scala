@@ -19,26 +19,19 @@
 package org.apache.flink.api.scala.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
-import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.table.{Row, TableEnvironment, ValidationException}
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-@RunWith(classOf[Parameterized])
-class CalcValidationTest(
-    mode: TestExecutionMode,
-    configMode: TableConfigMode)
-  extends TableProgramsTestBase(mode, configMode) {
+class CalcValidationTest {
 
   @Test(expected = classOf[ValidationException])
   def testSelectInvalidFieldFields(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
     CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       // must fail. Field 'foo does not exist
@@ -48,7 +41,7 @@ class CalcValidationTest(
   @Test(expected = classOf[ValidationException])
   def testSelectAmbiguousRenaming(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
     CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       // must fail. 'a and 'b are both renamed to 'foo
@@ -58,7 +51,7 @@ class CalcValidationTest(
   @Test(expected = classOf[ValidationException])
   def testSelectAmbiguousRenaming2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
     CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       // must fail. 'a and 'b are both renamed to 'a
@@ -68,7 +61,7 @@ class CalcValidationTest(
   @Test(expected = classOf[ValidationException])
   def testFilterInvalidFieldName(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
