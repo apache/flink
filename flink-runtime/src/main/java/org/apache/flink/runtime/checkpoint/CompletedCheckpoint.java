@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.StateUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
@@ -61,6 +62,10 @@ public class CompletedCheckpoint implements Serializable {
 
 	/** External path if persisted checkpoint; <code>null</code> otherwise. */
 	private final String externalPath;
+
+	/** Optional stats tracker callback for discard. */
+	@Nullable
+	private transient CompletedCheckpointStats.DiscardCallback discardCallback;
 
 	// ------------------------------------------------------------------------
 
@@ -160,6 +165,10 @@ public class CompletedCheckpoint implements Serializable {
 			StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
 		} finally {
 			taskStates.clear();
+
+			if (discardCallback != null) {
+				discardCallback.notifyDiscardedCheckpoint();
+			}
 		}
 	}
 
@@ -183,6 +192,15 @@ public class CompletedCheckpoint implements Serializable {
 
 	public String getExternalPath() {
 		return externalPath;
+	}
+
+	/**
+	 * Sets the callback for tracking when this checkpoint is discarded.
+	 *
+	 * @param discardCallback Callback to call when the checkpoint is discarded.
+	 */
+	void setDiscardCallback(@Nullable CompletedCheckpointStats.DiscardCallback discardCallback) {
+		this.discardCallback = discardCallback;
 	}
 
 	// --------------------------------------------------------------------------------------------

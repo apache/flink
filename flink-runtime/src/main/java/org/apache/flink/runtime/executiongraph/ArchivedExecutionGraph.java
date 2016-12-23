@@ -20,9 +20,8 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.checkpoint.ArchivedCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
-import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.SerializedValue;
@@ -77,7 +76,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	private final ArchivedExecutionConfig archivedExecutionConfig;
 	private final boolean isStoppable;
 	private final Map<String, SerializedValue<Object>> serializedUserAccumulators;
-	private final ArchivedCheckpointStatsTracker tracker;
+	private final CheckpointStatsTracker tracker;
 
 	public ArchivedExecutionGraph(
 		JobID jobID,
@@ -92,7 +91,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		Map<String, SerializedValue<Object>> serializedUserAccumulators,
 		ArchivedExecutionConfig executionConfig,
 		boolean isStoppable,
-		ArchivedCheckpointStatsTracker tracker
+		CheckpointStatsTracker tracker
 	) {
 		this.jobID = jobID;
 		this.jobName = jobName;

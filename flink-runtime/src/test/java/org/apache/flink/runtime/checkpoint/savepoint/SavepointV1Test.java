@@ -140,8 +140,7 @@ public class SavepointV1Test {
 						new ChainedStateHandle<>(operatorStatesBackend),
 						new ChainedStateHandle<>(operatorStatesStream),
 						keyedStateStream,
-						keyedStateBackend,
-						subtaskIdx * 10L));
+						keyedStateBackend));
 			}
 
 			taskStates.add(taskState);

@@ -30,8 +30,6 @@ import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
-import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
@@ -47,7 +45,6 @@ import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
-import scala.Option;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -288,16 +285,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		}
 		
 		return getAggregateJobVertexState(num, parallelism);
-	}
-	
-	@Override
-	public Option<OperatorCheckpointStats> getCheckpointStats() {
-		CheckpointStatsTracker tracker = getGraph().getCheckpointStatsTracker();
-		if (tracker == null) {
-			return Option.empty();
-		} else {
-			return tracker.getOperatorStats(getJobVertexId());
-		}
 	}
 
 	//---------------------------------------------------------------------------------------------

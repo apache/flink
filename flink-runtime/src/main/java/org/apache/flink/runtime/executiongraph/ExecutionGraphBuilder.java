@@ -28,9 +28,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
-import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
-import org.apache.flink.runtime.checkpoint.stats.SimpleCheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
@@ -176,24 +174,18 @@ public class ExecutionGraphBuilder {
 				throw new JobExecutionException(jobId, "Failed to initialize high-availability checkpoint handler", e);
 			}
 
-			// Checkpoint stats tracker
-			boolean isStatsDisabled = jobManagerConfig.getBoolean(
-					ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_DISABLE,
-					ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_DISABLE);
+			// Maximum number of remembered checkpoints
+			int historySize = jobManagerConfig.getInteger(
+					ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE,
+					ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE);
 
-			CheckpointStatsTracker checkpointStatsTracker;
-			if (isStatsDisabled) {
-				checkpointStatsTracker = new DisabledCheckpointStatsTracker();
-			}
-			else {
-				int historySize = jobManagerConfig.getInteger(
-						ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE,
-						ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE);
+			CheckpointStatsTracker checkpointStatsTracker = new CheckpointStatsTracker(
+					historySize,
+					ackVertices,
+					snapshotSettings,
+					metrics);
 
-				checkpointStatsTracker = new SimpleCheckpointStatsTracker(historySize, ackVertices, metrics);
-			}
-
-			/** The default directory for externalized checkpoints. */
+			// The default directory for externalized checkpoints
 			String externalizedCheckpointsDir = jobManagerConfig.getString(
 					ConfigConstants.CHECKPOINTS_DIRECTORY_KEY, null);
 
