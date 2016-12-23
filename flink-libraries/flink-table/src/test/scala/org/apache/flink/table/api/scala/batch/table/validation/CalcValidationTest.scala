@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.scala.batch.table
+package org.apache.flink.table.api.scala.batch.table.validation
 
 import com.sun.tools.internal.ws.wsdl.framework.ValidationException
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.scala._
 import org.apache.flink.types.Row
 import org.junit._
 
