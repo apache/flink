@@ -26,10 +26,7 @@ import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.api.table.{Row, TableEnvironment, ValidationException}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit._
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(classOf[Parameterized])
 class SortValidationTest(
   mode: TestExecutionMode,
   configMode: TableConfigMode)
@@ -44,7 +41,7 @@ class SortValidationTest(
   @Test(expected = classOf[ValidationException])
   def testFetchWithoutOrder(): Unit = {
     val env = getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val t = ds.toTable(tEnv).limit(0, 5)

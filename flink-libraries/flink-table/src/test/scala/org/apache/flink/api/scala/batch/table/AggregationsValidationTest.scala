@@ -19,27 +19,18 @@
 package org.apache.flink.api.scala.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
-import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.table.{TableEnvironment, ValidationException}
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit._
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(classOf[Parameterized])
-class AggregationsValidationTest(
-    mode: TestExecutionMode,
-    configMode: TableConfigMode)
-  extends TableProgramsTestBase(mode, configMode) {
+class AggregationsValidationTest {
 
   @Test(expected = classOf[ValidationException])
   def testNonWorkingAggregationDataTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
     env.fromElements(("Hello", 1)).toTable(tEnv)
       // Must fail. Field '_1 is not a numeric type.
@@ -50,7 +41,7 @@ class AggregationsValidationTest(
   def testNoNestedAggregations(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
     env.fromElements(("Hello", 1)).toTable(tEnv)
       // Must fail. Sum aggregation can not be chained.
@@ -61,7 +52,7 @@ class AggregationsValidationTest(
   def testGroupingOnNonExistentField(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
     CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       // must fail. '_foo not a valid field
@@ -73,7 +64,7 @@ class AggregationsValidationTest(
   def testGroupingInvalidSelection(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
     CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('a, 'b)
@@ -85,7 +76,7 @@ class AggregationsValidationTest(
   def testAggregationOnNonExistingField(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
       // Must fail. Field 'foo does not exist.
