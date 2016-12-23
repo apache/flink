@@ -253,8 +253,8 @@ class FieldProjectionTest extends TableTestBase {
   def testSelectFromStreamingGroupedWindow(): Unit = {
     val sourceTable = streamUtil.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable
-        .groupBy('b)
         .window(Tumble over 5.millis on 'rowtime as 'w)
+        .groupBy('w, 'b)
         .select(Upper('c).count, 'a.sum, 'b)
 
     val expected = unaryNode(

@@ -36,6 +36,7 @@ import org.apache.flink.table.plan.logical._
   */
 trait GroupWindow {
 
+  private[flink] var name: Option[Expression] = None
   /**
     * Converts an API class to a logical window for planning.
     */
@@ -49,8 +50,6 @@ trait GroupWindow {
   *                  time attribute on which is grouped.
   */
 abstract class EventTimeWindow(val timeField: Expression) extends GroupWindow {
-
-  protected var name: Option[Expression] = None
 
   /**
     * Assigns an alias for this window that the following `select()` clause can refer to in order
@@ -98,8 +97,6 @@ class TumblingWindow(size: Expression) extends GroupWindow {
     */
   def this(size: String) = this(ExpressionParser.parseExpression(size))
 
-  private var alias: Option[Expression] = None
-
   /**
     * Specifies the time attribute on which rows are grouped.
     *
@@ -112,7 +109,7 @@ class TumblingWindow(size: Expression) extends GroupWindow {
     * @return a tumbling group-window on event-time
     */
   def on(timeField: Expression): TumblingEventTimeWindow =
-    new TumblingEventTimeWindow(alias, timeField, size)
+    new TumblingEventTimeWindow(name, timeField, size)
 
   /**
     * Specifies the time attribute on which rows are grouped.
@@ -136,7 +133,7 @@ class TumblingWindow(size: Expression) extends GroupWindow {
     * @return this window
     */
   def as(alias: Expression): TumblingWindow = {
-    this.alias = Some(alias)
+    this.name = Some(alias)
     this
   }
 
@@ -150,7 +147,7 @@ class TumblingWindow(size: Expression) extends GroupWindow {
   def as(alias: String): TumblingWindow = as(ExpressionParser.parseExpression(alias))
 
   override private[flink] def toLogicalWindow: LogicalWindow =
-    ProcessingTimeTumblingGroupWindow(alias, size)
+    ProcessingTimeTumblingGroupWindow(name, size)
 }
 
 /**
@@ -228,8 +225,6 @@ class SlidingWindow(
     slide: Expression)
   extends GroupWindow {
 
-  private var alias: Option[Expression] = None
-
   /**
     * Specifies the time attribute on which rows are grouped.
     *
@@ -242,7 +237,7 @@ class SlidingWindow(
     * @return a sliding group-window on event-time
     */
   def on(timeField: Expression): SlidingEventTimeWindow =
-    new SlidingEventTimeWindow(alias, timeField, size, slide)
+    new SlidingEventTimeWindow(name, timeField, size, slide)
 
   /**
     * Specifies the time attribute on which rows are grouped.
@@ -266,7 +261,7 @@ class SlidingWindow(
     * @return this window
     */
   def as(alias: Expression): SlidingWindow = {
-    this.alias = Some(alias)
+    this.name = Some(alias)
     this
   }
 
@@ -280,7 +275,7 @@ class SlidingWindow(
   def as(alias: String): SlidingWindow = as(ExpressionParser.parseExpression(alias))
 
   override private[flink] def toLogicalWindow: LogicalWindow =
-    ProcessingTimeSlidingGroupWindow(alias, size, slide)
+    ProcessingTimeSlidingGroupWindow(name, size, slide)
 }
 
 /**
@@ -321,8 +316,6 @@ class SessionWindow(gap: Expression) extends GroupWindow {
     */
   def this(gap: String) = this(ExpressionParser.parseExpression(gap))
 
-  private var alias: Option[Expression] = None
-
   /**
     * Specifies the time attribute on which rows are grouped.
     *
@@ -335,7 +328,7 @@ class SessionWindow(gap: Expression) extends GroupWindow {
     * @return a session group-window on event-time
     */
   def on(timeField: Expression): SessionEventTimeWindow =
-    new SessionEventTimeWindow(alias, timeField, gap)
+    new SessionEventTimeWindow(name, timeField, gap)
 
   /**
     * Specifies the time attribute on which rows are grouped.
@@ -359,7 +352,7 @@ class SessionWindow(gap: Expression) extends GroupWindow {
     * @return this window
     */
   def as(alias: Expression): SessionWindow = {
-    this.alias = Some(alias)
+    this.name = Some(alias)
     this
   }
 
@@ -373,7 +366,7 @@ class SessionWindow(gap: Expression) extends GroupWindow {
   def as(alias: String): SessionWindow = as(ExpressionParser.parseExpression(alias))
 
   override private[flink] def toLogicalWindow: LogicalWindow =
-    ProcessingTimeSessionGroupWindow(alias, gap)
+    ProcessingTimeSessionGroupWindow(name, gap)
 }
 
 /**
