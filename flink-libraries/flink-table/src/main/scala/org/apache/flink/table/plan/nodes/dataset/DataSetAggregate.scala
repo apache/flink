@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.plan.nodes.dataset.forwarding.FieldForwardingUtils.getForwardedInput
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.CommonAggregate
 import org.apache.flink.table.runtime.aggregate.{AggregateUtil, DataSetPreAggFunction}
@@ -117,6 +118,8 @@ class DataSetAggregate(
           .groupBy(grouping: _*)
           .combineGroup(preAgg.get)
           .returns(preAggType.get)
+          // forward fields at conversion
+          .withForwardedFields(forwardFields(rowTypeInfo))
           .name(aggOpName)
           // final aggregation
           .groupBy(grouping.indices: _*)
@@ -152,5 +155,13 @@ class DataSetAggregate(
           .name(aggOpName)
       }
     }
+  }
+
+  private def forwardFields(rowTypeInfo: RowTypeInfo) = {
+    val indices = 0 to rowTypeInfo.getTotalFields
+    getForwardedInput(
+      FlinkTypeFactory.toInternalRowTypeInfo(inputType),
+      rowTypeInfo,
+      indices)
   }
 }

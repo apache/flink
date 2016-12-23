@@ -26,10 +26,12 @@ import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig}
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.runtime.{MapJoinLeftRunner, MapJoinRightRunner}
+import org.apache.flink.table.plan.nodes.dataset.forwarding.FieldForwardingUtils.{compositeTypeField, getForwardedFields}
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig}
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
@@ -92,11 +94,13 @@ class DataSetSingleRowJoin(
 
     val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
     val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
     val broadcastSetName = "joinSet"
     val mapSideJoin = generateMapFunction(
       tableEnv.getConfig,
       leftDataSet.getType,
       rightDataSet.getType,
+      returnType,
       leftIsSingle,
       joinCondition,
       broadcastSetName)
@@ -108,9 +112,27 @@ class DataSetSingleRowJoin(
         (leftDataSet, rightDataSet)
       }
 
+    def customWrapper(typeInformation: TypeInformation[_]) = {
+      typeInformation match {
+        case r: GenericTypeInfo[_] => if (r.getTypeClass == classOf[Row]) {
+          val leftCount: Int = leftDataSet.getType.getTotalFields
+          val rightCount: Int = rightDataSet.getType.getTotalFields
+          compositeTypeField((0 until (leftCount + rightCount)).map("f" + _))
+        } else {
+          ???
+        }
+      }
+    }
+    val offset: Int = if (leftIsSingle) 1 else 0
+    val indices = (0 until multiRowDataSet.getType.getTotalFields)
+      .map { inputIndex => (inputIndex, inputIndex + offset) }
+
+    val fields = getForwardedFields(multiRowDataSet.getType, returnType, indices, customWrapper)
+
     multiRowDataSet
       .flatMap(mapSideJoin)
       .withBroadcastSet(singleRowDataSet, broadcastSetName)
+      .withForwardedFields(fields)
       .name(getMapOperatorName)
   }
 
@@ -118,6 +140,7 @@ class DataSetSingleRowJoin(
       config: TableConfig,
       inputType1: TypeInformation[Row],
       inputType2: TypeInformation[Row],
+      returnType: TypeInformation[Row],
       firstIsSingle: Boolean,
       joinCondition: RexNode,
       broadcastInputSetName: String)
@@ -128,8 +151,6 @@ class DataSetSingleRowJoin(
       false,
       inputType1,
       Some(inputType2))
-
-    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
     val conversion = codeGenerator.generateConverterResultExpression(
       returnType,

@@ -31,6 +31,7 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.plan.nodes.dataset.forwarding.FieldForwardingUtils.{getForwardedFields, getForwardedInput}
 import org.apache.flink.table.runtime.FlatJoinRunner
 import org.apache.flink.types.Row
 
@@ -199,10 +200,21 @@ class DataSetJoin(
 
     val joinOpName = s"where: ($joinConditionToString), join: ($joinSelectionToString)"
 
+    //consider all fields not which are not keys are forwarded
+    val leftIndices = (0 until left.getRowType.getFieldCount).diff(leftKeys)
+    val fieldsLeft = getForwardedInput(leftDataSet.getType, returnType, leftIndices)
+
+    val rightIndices = (0 until right.getRowType.getFieldCount)
+      .diff(rightKeys)
+      .map(in => (in, in + left.getRowType.getFieldCount))
+    val fieldsRight = getForwardedFields(rightDataSet.getType, returnType, rightIndices)
+
     joinOperator
       .where(leftKeys.toArray: _*)
       .equalTo(rightKeys.toArray: _*)
       .`with`(joinFun)
+      .withForwardedFieldsFirst(fieldsLeft)
+      .withForwardedFieldsSecond(fieldsRight)
       .name(joinOpName)
   }
 

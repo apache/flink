@@ -22,14 +22,19 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.rex.{RexCall, RexNode}
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
 import org.apache.flink.types.Row
+import org.apache.flink.table.plan.nodes.dataset.forwarding.FieldForwardingUtils.getForwardedInput
+
+import scala.collection.JavaConversions._
 
 /**
   * Flink RelNode which matches along with join a user defined table function.
@@ -97,11 +102,13 @@ class DataSetCorrelate(
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     val pojoFieldMapping = sqlFunction.getPojoFieldMapping
     val udtfTypeInfo = sqlFunction.getRowTypeInfo.asInstanceOf[TypeInformation[Any]]
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(rowType)
 
     val mapFunc = correlateMapFunction(
       config,
       inputDS.getType,
       udtfTypeInfo,
+      returnType,
       getRowType,
       joinType,
       rexCall,
@@ -109,6 +116,41 @@ class DataSetCorrelate(
       Some(pojoFieldMapping),
       ruleDescription)
 
-    inputDS.flatMap(mapFunc).name(correlateOpName(rexCall, sqlFunction, relRowType))
+    def getIndices = {
+      //recursively get all operands from RexCalls
+      def extractOperands(rex: RexNode): Seq[Int] = {
+        rex match {
+          case r: RexInputRef => Seq(r.getIndex)
+          case call: RexCall => call.operands.flatMap(extractOperands)
+          case _ => Seq()
+        }
+      }
+      //get indices of all modified operands
+      val modifiedOperandsInRel = funcRel.getCall.asInstanceOf[RexCall].operands
+        .flatMap(extractOperands)
+        .toSet
+      val joinCondition = if (condition.isDefined) {
+        condition.get.asInstanceOf[RexCall].operands
+          .flatMap(extractOperands)
+          .toSet
+      } else {
+        Set()
+      }
+      val modifiedOperands = modifiedOperandsInRel ++ joinCondition
+
+      // get input/output indices of operands, filter modified operands and specify forwarding
+      val tuples = inputDS.getType.asInstanceOf[CompositeType[_]].getFieldNames
+        .zipWithIndex
+        .map(_._2)
+        .filterNot(modifiedOperands.contains)
+        .toSeq
+
+      tuples
+    }
+
+    val fields: String = getForwardedInput(inputDS.getType, returnType, getIndices)
+    inputDS.flatMap(mapFunc)
+      .withForwardedFields(fields)
+      .name(correlateOpName(rexCall, sqlFunction, relRowType))
   }
 }

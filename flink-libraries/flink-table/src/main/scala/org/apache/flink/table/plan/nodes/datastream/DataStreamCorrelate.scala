@@ -26,6 +26,7 @@ import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
 import org.apache.flink.types.Row
@@ -91,11 +92,13 @@ class DataStreamCorrelate(
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     val pojoFieldMapping = sqlFunction.getPojoFieldMapping
     val udtfTypeInfo = sqlFunction.getRowTypeInfo.asInstanceOf[TypeInformation[Any]]
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(rowType)
 
     val mapFunc = correlateMapFunction(
       config,
       inputDS.getType,
       udtfTypeInfo,
+      returnType,
       getRowType,
       joinType,
       rexCall,

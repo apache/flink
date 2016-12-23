@@ -23,15 +23,17 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
-import org.apache.calcite.rex._
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.java.DataSet
+import org.apache.calcite.rex._
+import org.apache.flink.table.plan.nodes.dataset.forwarding.FieldForwardingUtils.getForwardedFields
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.plan.nodes.CommonCalc
 import org.apache.flink.types.Row
 
+import scala.collection.JavaConversions._
 /**
   * Flink RelNode which matches along with LogicalCalc.
   *
@@ -100,7 +102,35 @@ class DataSetCalc(
       body,
       returnType)
 
+    def getForwardIndices = {
+      //get indices of all modified operands
+      val modifiedOperands = calcProgram.
+        getExprList
+        .filter(_.isInstanceOf[RexCall])
+        .flatMap(_.asInstanceOf[RexCall].operands)
+        .map(_.asInstanceOf[RexLocalRef].getIndex)
+        .toSet
+
+      // get input/output indices of operands, filter modified operands and specify forwarding
+      val tuples = calcProgram.getProjectList
+        .map(ref => (ref.getName, ref.getIndex))
+        .zipWithIndex
+        .map { case ((name, inputIndex), projectIndex) => (name, inputIndex, projectIndex) }
+        //consider only input fields
+        .filter(_._2 < calcProgram.getExprList.filter(_.isInstanceOf[RexInputRef]).map(_.asInstanceOf[RexInputRef]).size)
+        .filterNot(ref => modifiedOperands.contains(ref._2))
+        .map {case (name, in, out) => (in, out)}
+      tuples
+    }
+
     val mapFunc = calcMapFunction(genFunction)
-    inputDS.flatMap(mapFunc).name(calcOpName(calcProgram, getExpressionString))
-  }
+    val tuples = getForwardIndices
+
+    val fields: String = getForwardedFields(inputDS.getType,
+      returnType,
+      tuples,
+      calcProgram = Some(calcProgram))
+
+      inputDS.flatMap(mapFunc).withForwardedFields(fields).name(calcOpName(calcProgram, getExpressionString))
+    }
 }

@@ -420,7 +420,7 @@ public final class SemanticPropUtil {
 		}
 
 		for (String s : forwardedStr) {
-			if (s == null) {
+			if (s == null || s.trim().equals("")) {
 				continue;
 			}
 

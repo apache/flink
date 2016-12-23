@@ -22,6 +22,7 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.CommonScan
+import org.apache.flink.table.plan.nodes.dataset.forwarding.FieldForwardingUtils.getForwardedFields
 import org.apache.flink.table.plan.schema.FlinkTable
 import org.apache.flink.types.Row
 
@@ -53,7 +54,15 @@ trait BatchScan extends CommonScan with DataSetRel {
 
       val opName = s"from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
 
-      input.map(mapFunc).name(opName)
+      //Forward all fields at conversion
+      val indices = flinkTable.fieldIndexes.zipWithIndex
+      val fields: String = getForwardedFields(inputType, internalType, indices)
+
+      input
+        .map(mapFunc)
+        .withForwardedFields(fields)
+        .name(opName)
+        .asInstanceOf[DataSet[Row]]
     }
     // no conversion necessary, forward
     else {
