@@ -18,11 +18,8 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
-import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import scala.Option;
 
 import java.io.Serializable;
 
@@ -41,7 +38,6 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 
 	private final int maxParallelism;
 
-	private final Option<OperatorCheckpointStats> checkpointStats;
 	private final StringifiedAccumulatorResult[] archivedUserAccumulators;
 
 	public ArchivedExecutionJobVertex(ExecutionJobVertex jobVertex) {
@@ -56,10 +52,6 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 		this.name = jobVertex.getJobVertex().getName();
 		this.parallelism = jobVertex.getParallelism();
 		this.maxParallelism = jobVertex.getMaxParallelism();
-		CheckpointStatsTracker tracker = jobVertex.getGraph().getCheckpointStatsTracker();
-		checkpointStats = tracker != null
-			? tracker.getOperatorStats(this.id)
-			: Option.<OperatorCheckpointStats>empty();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -106,12 +98,8 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public Option<OperatorCheckpointStats> getCheckpointStats() {
-		return checkpointStats;
-	}
-
-	@Override
 	public StringifiedAccumulatorResult[] getAggregatedUserAccumulatorsStringified() {
 		return archivedUserAccumulators;
 	}
+
 }

@@ -74,7 +74,7 @@ public class JMXJobManagerMetricTest {
 				Collections.<JobVertexID>emptyList(),
 				Collections.<JobVertexID>emptyList(),
 				Collections.<JobVertexID>emptyList(),
-				500, 500, 50, 5, ExternalizedCheckpointSettings.none()));
+				500, 500, 50, 5, ExternalizedCheckpointSettings.none(), true));
 
 			flink.waitForActorsToBeAlive();
 

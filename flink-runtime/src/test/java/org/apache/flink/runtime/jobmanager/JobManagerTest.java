@@ -826,7 +826,8 @@ public class JobManagerTest {
 					3600000,
 					0,
 					Integer.MAX_VALUE,
-					ExternalizedCheckpointSettings.none());
+					ExternalizedCheckpointSettings.none(),
+					true);
 
 			jobGraph.setSnapshotSettings(snapshottingSettings);
 
@@ -954,7 +955,8 @@ public class JobManagerTest {
 					360000,
 					0,
 					Integer.MAX_VALUE,
-					ExternalizedCheckpointSettings.none());
+					ExternalizedCheckpointSettings.none(),
+					true);
 
 			jobGraph.setSnapshotSettings(snapshottingSettings);
 
@@ -1055,7 +1057,8 @@ public class JobManagerTest {
 					360000,
 					0,
 					Integer.MAX_VALUE,
-					ExternalizedCheckpointSettings.none());
+					ExternalizedCheckpointSettings.none(),
+					true);
 
 			jobGraph.setSnapshotSettings(snapshottingSettings);
 
@@ -1100,7 +1103,8 @@ public class JobManagerTest {
 					360000,
 					0,
 					Integer.MAX_VALUE,
-					ExternalizedCheckpointSettings.none());
+					ExternalizedCheckpointSettings.none(),
+					true);
 
 			newJobGraph.setSnapshotSettings(newSnapshottingSettings);
 

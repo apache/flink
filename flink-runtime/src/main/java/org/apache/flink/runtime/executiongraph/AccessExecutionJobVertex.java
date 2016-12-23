@@ -18,10 +18,8 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import scala.Option;
 
 /**
  * Common interface for the runtime {@link ExecutionJobVertex} and {@link ArchivedExecutionJobVertex}.
@@ -70,16 +68,10 @@ public interface AccessExecutionJobVertex {
 	ExecutionState getAggregateState();
 
 	/**
-	 * Returns the {@link OperatorCheckpointStats} for this job vertex.
-	 *
-	 * @return checkpoint stats for this job vertex.
-	 */
-	Option<OperatorCheckpointStats> getCheckpointStats();
-
-	/**
 	 * Returns the aggregated user-defined accumulators as strings.
 	 *
 	 * @return aggregated user-defined accumulators as strings.
 	 */
 	StringifiedAccumulatorResult[] getAggregatedUserAccumulatorsStringified();
+
 }

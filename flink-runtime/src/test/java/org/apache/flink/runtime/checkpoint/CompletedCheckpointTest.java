@@ -118,4 +118,29 @@ public class CompletedCheckpointTest {
 			verify(state, times(1)).discardState();
 		}
 	}
+
+	/**
+	 * Tests that the stats callbacks happen if the callback is registered.
+	 */
+	@Test
+	public void testCompletedCheckpointStatsCallbacks() throws Exception {
+		TaskState state = mock(TaskState.class);
+		Map<JobVertexID, TaskState> taskStates = new HashMap<>();
+		taskStates.put(new JobVertexID(), state);
+
+		CompletedCheckpoint completed = new CompletedCheckpoint(
+			new JobID(),
+			0,
+			0,
+			1,
+			new HashMap<>(taskStates),
+			CheckpointProperties.forStandardCheckpoint(),
+			null);
+
+		CompletedCheckpointStats.DiscardCallback callback = mock(CompletedCheckpointStats.DiscardCallback.class);
+		completed.setDiscardCallback(callback);
+
+		completed.discard(JobStatus.FINISHED);
+		verify(callback, times(1)).notifyDiscardedCheckpoint();
+	}
 }

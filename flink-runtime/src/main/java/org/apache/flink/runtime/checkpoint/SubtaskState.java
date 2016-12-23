@@ -70,39 +70,19 @@ public class SubtaskState implements StateObject {
 	 */
 	private final long stateSize;
 
-	/**
-	 * The duration of the checkpoint (ack timestamp - trigger timestamp).
-	 */
-	private long duration;
-
 	public SubtaskState(
 			ChainedStateHandle<StreamStateHandle> legacyOperatorState,
 			ChainedStateHandle<OperatorStateHandle> managedOperatorState,
 			ChainedStateHandle<OperatorStateHandle> rawOperatorState,
 			KeyGroupsStateHandle managedKeyedState,
 			KeyGroupsStateHandle rawKeyedState) {
-		this(legacyOperatorState,
-				managedOperatorState,
-				rawOperatorState,
-				managedKeyedState,
-				rawKeyedState,
-				0L);
-	}
-
-	public SubtaskState(
-			ChainedStateHandle<StreamStateHandle> legacyOperatorState,
-			ChainedStateHandle<OperatorStateHandle> managedOperatorState,
-			ChainedStateHandle<OperatorStateHandle> rawOperatorState,
-			KeyGroupsStateHandle managedKeyedState,
-			KeyGroupsStateHandle rawKeyedState,
-			long duration) {
 
 		this.legacyOperatorState = checkNotNull(legacyOperatorState, "State");
 		this.managedOperatorState = managedOperatorState;
 		this.rawOperatorState = rawOperatorState;
 		this.managedKeyedState = managedKeyedState;
 		this.rawKeyedState = rawKeyedState;
-		this.duration = duration;
+
 		try {
 			long calculateStateSize = getSizeNullSafe(legacyOperatorState);
 			calculateStateSize += getSizeNullSafe(managedOperatorState);
@@ -147,10 +127,6 @@ public class SubtaskState implements StateObject {
 		return stateSize;
 	}
 
-	public long getDuration() {
-		return duration;
-	}
-
 	@Override
 	public void discardState() throws Exception {
 		StateUtil.bestEffortDiscardAllStateObjects(
@@ -162,12 +138,7 @@ public class SubtaskState implements StateObject {
 						rawKeyedState));
 	}
 
-	public void setDuration(long duration) {
-		this.duration = duration;
-	}
-
 	// --------------------------------------------------------------------------------------------
-
 
 	@Override
 	public boolean equals(Object o) {
@@ -183,9 +154,7 @@ public class SubtaskState implements StateObject {
 		if (stateSize != that.stateSize) {
 			return false;
 		}
-		if (duration != that.duration) {
-			return false;
-		}
+
 		if (legacyOperatorState != null ?
 				!legacyOperatorState.equals(that.legacyOperatorState)
 				: that.legacyOperatorState != null) {
@@ -220,7 +189,6 @@ public class SubtaskState implements StateObject {
 		result = 31 * result + (managedKeyedState != null ? managedKeyedState.hashCode() : 0);
 		result = 31 * result + (rawKeyedState != null ? rawKeyedState.hashCode() : 0);
 		result = 31 * result + (int) (stateSize ^ (stateSize >>> 32));
-		result = 31 * result + (int) (duration ^ (duration >>> 32));
 		return result;
 	}
 
@@ -233,7 +201,6 @@ public class SubtaskState implements StateObject {
 				", keyedStateFromBackend=" + managedKeyedState +
 				", keyedStateHandleFromStream=" + rawKeyedState +
 				", stateSize=" + stateSize +
-				", duration=" + duration +
 				'}';
 	}
 }
