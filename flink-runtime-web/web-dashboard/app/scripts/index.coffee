@@ -130,10 +130,46 @@ angular.module('flinkApp', ['ui.router', 'angularMoment', 'dndLists'])
 
   .state "single-job.plan.checkpoints",
     url: "/checkpoints"
+    redirectTo: "single-job.plan.checkpoints.overview"
     views:
       'node-details':
         templateUrl: "partials/jobs/job.plan.node-list.checkpoints.html"
         controller: 'JobPlanCheckpointsController'
+
+  .state "single-job.plan.checkpoints.overview",
+    url: "/overview"
+    views:
+      'checkpoints-view':
+        templateUrl: "partials/jobs/job.plan.node.checkpoints.overview.html"
+        controller: 'JobPlanCheckpointsController'
+
+  .state "single-job.plan.checkpoints.summary",
+    url: "/summary"
+    views:
+      'checkpoints-view':
+        templateUrl: "partials/jobs/job.plan.node.checkpoints.summary.html"
+        controller: 'JobPlanCheckpointsController'
+
+  .state "single-job.plan.checkpoints.history",
+    url: "/history"
+    views:
+      'checkpoints-view':
+        templateUrl: "partials/jobs/job.plan.node.checkpoints.history.html"
+        controller: 'JobPlanCheckpointsController'
+
+  .state "single-job.plan.checkpoints.config",
+    url: "/config"
+    views:
+      'checkpoints-view':
+        templateUrl: "partials/jobs/job.plan.node.checkpoints.config.html"
+        controller: 'JobPlanCheckpointsController'
+
+  .state "single-job.plan.checkpoints.details",
+    url: "/details/{checkpointId}"
+    views:
+      'checkpoints-view':
+        templateUrl: "partials/jobs/job.plan.node.checkpoints.details.html"
+        controller: 'JobPlanCheckpointDetailsController'
 
   .state "single-job.plan.backpressure",
     url: "/backpressure"

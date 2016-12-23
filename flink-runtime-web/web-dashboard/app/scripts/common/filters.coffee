@@ -78,3 +78,6 @@ angular.module('flinkApp')
 
 .filter "toUpperCase", ->
   (text) -> text.toUpperCase()
+
+.filter "percentage", ->
+  (number) -> (number * 100).toFixed(0) + '%'
