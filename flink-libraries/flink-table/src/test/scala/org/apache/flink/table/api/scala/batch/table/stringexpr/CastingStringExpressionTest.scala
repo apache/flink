@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.scala.batch.table
+package org.apache.flink.table.api.scala.batch.table.stringexpr
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.Types._
+import org.apache.flink.table.api.scala._
 import org.junit._
 
-class CastingPlanTest {
+class CastingStringExpressionTest {
 
   @Test
   def testNumericAutocastInArithmetic() {

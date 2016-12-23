@@ -16,17 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.scala.batch.table
+package org.apache.flink.table.api.scala.batch.table.stringexpr
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.batch.utils.LogicalPlanFormatUtils
 import org.apache.flink.table.expressions.Literal
 import org.junit._
 
-class JoinPlanTest {
+class JoinStringExpressionTest {
 
   @Test
   def testJoin(): Unit = {
