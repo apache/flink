@@ -228,7 +228,8 @@ public class JobManagerHARecoveryTest {
 					10 * 60 * 1000,
 					0,
 					1,
-					ExternalizedCheckpointSettings.none()));
+					ExternalizedCheckpointSettings.none(),
+					true));
 
 			BlockingStatefulInvokable.initializeStaticHelpers(slots);
 
@@ -617,7 +618,7 @@ public class JobManagerHARecoveryTest {
 			ChainedStateHandle<StreamStateHandle> chainedStateHandle =
 					new ChainedStateHandle<StreamStateHandle>(Collections.singletonList(byteStreamStateHandle));
 			SubtaskState checkpointStateHandles =
-					new SubtaskState(chainedStateHandle, null, null, null, null, 0L);
+					new SubtaskState(chainedStateHandle, null, null, null, null);
 
 			getEnvironment().acknowledgeCheckpoint(
 					new CheckpointMetaData(checkpointMetaData.getCheckpointId(), -1, 0L, 0L, 0L, 0L),
