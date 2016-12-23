@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.batch.table
+package org.apache.flink.table.api.scala.batch.table
 
+import com.sun.tools.internal.ws.wsdl.framework.ValidationException
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.table._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.{Row, TableEnvironment, ValidationException}
+import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.types.Row
 import org.junit._
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 class CalcValidationTest {
 
@@ -73,7 +73,7 @@ class CalcValidationTest {
   @throws[Exception]
   def testSelectInvalidField() {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = TableEnvironment.getTableEnvironment(env)
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv, 'a, 'b, 'c)
 
     // Must fail. Field foo does not exist
@@ -84,7 +84,7 @@ class CalcValidationTest {
   @throws[Exception]
   def testSelectAmbiguousFieldNames() {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = TableEnvironment.getTableEnvironment(env)
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv, 'a, 'b, 'c)
 
     // Must fail. Field foo does not exist
@@ -95,7 +95,7 @@ class CalcValidationTest {
   @throws[Exception]
   def testFilterInvalidField() {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = TableEnvironment.getTableEnvironment(env)
     val table = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv, 'a, 'b, 'c)
 
     // Must fail. Field foo does not exist.

@@ -16,21 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.batch.table
+package org.apache.flink.table.api.scala.batch.table
 
-import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
-import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.api.scala.table._
+import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.scala.{ExecutionEnvironment, _}
-import org.apache.flink.api.table.{Row, TableEnvironment, ValidationException}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{TableEnvironment, ValidationException}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.types.Row
 import org.junit._
 
-class SortValidationTest(
-  mode: TestExecutionMode,
-  configMode: TableConfigMode)
-  extends TableProgramsTestBase(mode, configMode) {
+class SortValidationTest {
 
   def getExecutionEnvironment = {
     val env = ExecutionEnvironment.getExecutionEnvironment

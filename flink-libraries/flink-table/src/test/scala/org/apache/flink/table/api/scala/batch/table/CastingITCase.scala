@@ -16,33 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.batch.table
+package org.apache.flink.table.api.scala.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
-import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.{Row, TableEnvironment}
-import org.apache.flink.api.table.Types._
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.Types._
 import org.apache.flink.test.util.TestBaseUtils.compareResultAsText
+import org.apache.flink.types.Row
 import org.junit._
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
 
-@RunWith(classOf[Parameterized]) 
-class CastingITCase(
-    mode: TestExecutionMode,
-    configMode: TableConfigMode)
-  extends TableProgramsTestBase(mode, configMode) {
+class CastingITCase {
 
   @Test
   def testNumericAutocastInArithmetic() {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = TableEnvironment.getTableEnvironment(env)
 
     val table = env.fromElements(
       (1.toByte, 1.toShort, 1, 1L, 1.0f, 1.0d, 1L, 1001.1)).toTable(tableEnv)
@@ -58,7 +50,7 @@ class CastingITCase(
   @throws[Exception]
   def testNumericAutocastInComparison() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = TableEnvironment.getTableEnvironment(env)
 
     val table = env.fromElements(
       (1.toByte, 1.toShort, 1, 1L, 1.0f, 1.0d),
@@ -75,7 +67,7 @@ class CastingITCase(
   @throws[Exception]
   def testCasting() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = TableEnvironment.getTableEnvironment(env)
     val table = env.fromElements((1, 0.0, 1L, true)).toTable(tableEnv)
       .select(
         // * -> String
@@ -99,7 +91,7 @@ class CastingITCase(
   @throws[Exception]
   def testCastFromString() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = TableEnvironment.getTableEnvironment(env)
     val table = env.fromElements(("1", "true", "2.0")).toTable(tableEnv)
       .select('_1.cast(BYTE), '_1.cast(SHORT), '_1.cast(INT), '_1.cast(LONG),
         '_3.cast(DOUBLE), '_3.cast(FLOAT), '_2.cast(BOOLEAN))

@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.batch.utils
-
+package org.apache.flink.table.api.scala.batch.utils
 
 object LogicalPlanFormatUtils {
   private val tempPattern = """TMP_\d+""".r
