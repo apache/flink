@@ -1,0 +1,69 @@
+//
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+div(ng-if="checkpointStats")
+  table.table.checkpoint-overview
+    thead
+      tr
+        td #[strong Checkpoint Counts]
+        td Triggered: {{ checkpointStats['counts']['total'] }}
+          span In Progress: {{ checkpointStats['counts']['in_progress'] }}
+          span Completed: {{ checkpointStats['counts']['completed'] }}
+          span Failed: {{ checkpointStats['counts']['failed'] }}
+          span Restored: {{ checkpointStats['counts']['restored'] }}
+      tr
+        td #[strong Latest Completed Checkpoint]
+        td(ng-if="checkpointStats['latest']['completed']") ID: {{ checkpointStats['latest']['completed']['id'] }}
+          span Completion Time: {{ checkpointStats['latest']['completed']['latest_ack_timestamp'] | amDateFormat:'H:mm:ss' }}
+          span End to End Duration: {{ checkpointStats['latest']['completed']['end_to_end_duration'] | humanizeDuration }}
+          span State Size: {{ checkpointStats['latest']['completed']['state_size'] | humanizeBytes }}
+          span
+            i(aria-hidden="true").fa.fa-caret-square-o-right
+            = ' '
+            a(ui-sref="^.details({checkpointId: checkpointStats['latest']['completed']['id']})") More details
+        td(ng-if="!checkpointStats['latest']['completed']") None
+      tr
+        td #[strong Latest Failed Checkpoint]
+        td(ng-if="checkpointStats['latest']['failed']")
+          | ID: {{ checkpointStats['latest']['failed']['id'] }}
+          span Failure Time: {{ checkpointStats['latest']['failed']['failure_timestamp'] | amDateFormat:'H:mm:ss' }}
+          span(ng-if="checkpointStats['latest']['failed']['failure_message']") Cause: {{ checkpointStats['latest']['failed']['failure_message'] }}
+          span(ng-if="!checkpointStats['latest']['failed']['failure_message']") Cause: n/a
+          span
+            i(aria-hidden="true").fa.fa-caret-square-o-right
+            = ' '
+            a(ui-sref="^.details({checkpointId: checkpointStats['latest']['failed']['id']})") More details
+        td(ng-if="!checkpointStats['latest']['failed']") None
+      tr
+        td #[strong Latest Savepoint]
+        td(ng-if="checkpointStats['latest']['savepoint']") ID: {{ checkpointStats['latest']['savepoint']['id'] }}
+          span Completion Time: {{ checkpointStats['latest']['savepoint']['latest_ack_timestamp'] | amDateFormat:'H:mm:ss' }}
+          span State Size: {{ checkpointStats['latest']['savepoint']['state_size'] | humanizeBytes }}
+          span Path: {{ checkpointStats['latest']['savepoint']['external_path'] }}
+          span
+            i(aria-hidden="true").fa.fa-caret-square-o-right
+            = ' '
+            a(ui-sref="^.details({checkpointId: checkpointStats['latest']['savepoint']['id']})") More details
+        td(ng-if="!checkpointStats['latest']['savepoint']") None
+      tr
+        td #[strong Latest Restore]
+        td(ng-if="checkpointStats['latest']['restored']") ID: {{ checkpointStats['latest']['restored']['id'] }}
+          span Restore Time: {{ checkpointStats['latest']['restored']['restore_timestamp'] | amDateFormat:'H:mm:ss' }}
+          span(ng-if="checkpointStats['latest']['restored']['is_savepoint']") Type: Savepoint
+          span(ng-if="!checkpointStats['latest']['restored']['is_savepoint']") Type: Checkpoint
+          span(ng-if="checkpointStats['latest']['restored']['external_path']") Path: {{ checkpointStats['latest']['restored']['external_path'] }}
+        td(ng-if="!checkpointStats['latest']['restored']") None

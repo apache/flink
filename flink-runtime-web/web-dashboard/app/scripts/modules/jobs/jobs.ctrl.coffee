@@ -47,8 +47,6 @@ angular.module('flinkApp')
   $scope.job = null
   $scope.plan = null
   $scope.vertices = null
-  $scope.jobCheckpointStats = null
-  $scope.showHistory = false
   $scope.backPressureOperatorStats = {}
 
   JobsService.loadJob($stateParams.jobid).then (data) ->
@@ -69,7 +67,6 @@ angular.module('flinkApp')
     $scope.job = null
     $scope.plan = null
     $scope.vertices = null
-    $scope.jobCheckpointStats = null
     $scope.backPressureOperatorStats = null
 
     $interval.cancel(refresher)
@@ -83,9 +80,6 @@ angular.module('flinkApp')
     angular.element(stopEvent.currentTarget).removeClass("btn").removeClass("btn-default").html('Stopping...')
     JobsService.stopJob($stateParams.jobid).then (data) ->
       {}
-
-  $scope.toggleHistory = ->
-    $scope.showHistory = !$scope.showHistory
 
 # --------------------------------------
 
@@ -166,26 +160,60 @@ angular.module('flinkApp')
 
 # --------------------------------------
 
-.controller 'JobPlanCheckpointsController', ($scope, JobsService) ->
-  getJobCheckpointStats = ->
-    JobsService.getJobCheckpointStats($scope.jobid).then (data) ->
-      $scope.jobCheckpointStats = data
+.controller 'JobPlanCheckpointsController', ($scope, $state, $stateParams, JobsService) ->
+  # Updated by the details handler for the sub checkpoints nav bar.
+  $scope.checkpointDetails = {}
+  $scope.checkpointDetails.id = -1
 
-  getOperatorCheckpointStats = ->
-    JobsService.getOperatorCheckpointStats($scope.nodeid).then (data) ->
-      $scope.operatorCheckpointStats = data.operatorStats
-      $scope.subtasksCheckpointStats = data.subtasksStats
+  # Request the config once (it's static)
+  JobsService.getCheckpointConfig().then (data) ->
+    $scope.checkpointConfig = data
 
-  # Get the per job stats
-  getJobCheckpointStats()
+  # General stats like counts, history, etc.
+  getGeneralCheckpointStats = ->
+    JobsService.getCheckpointStats().then (data) ->
+      if (data != null)
+        $scope.checkpointStats = data
 
-  # Get the per operator stats
-  if $scope.nodeid and (!$scope.vertex or !$scope.vertex.operatorCheckpointStats)
-    getOperatorCheckpointStats()
+  # Trigger request
+  getGeneralCheckpointStats()
 
   $scope.$on 'reload', (event) ->
-    getJobCheckpointStats()
-    getOperatorCheckpointStats() if $scope.nodeid
+    # Retrigger request
+    getGeneralCheckpointStats()
+
+# --------------------------------------
+
+.controller 'JobPlanCheckpointDetailsController', ($scope, $state, $stateParams, JobsService) ->
+  $scope.subtaskDetails = {}
+  $scope.checkpointDetails.id = $stateParams.checkpointId
+
+  # Detailed stats for a single checkpoint
+  getCheckpointDetails = (checkpointId) ->
+    JobsService.getCheckpointDetails(checkpointId).then (data) ->
+      if (data != null)
+        $scope.checkpoint = data
+      else
+        $scope.unknown_checkpoint = true
+
+  getCheckpointSubtaskDetails = (checkpointId, vertexId) ->
+    JobsService.getCheckpointSubtaskDetails(checkpointId, vertexId).then (data) ->
+      if (data != null)
+        $scope.subtaskDetails[vertexId] = data
+
+  getCheckpointDetails($stateParams.checkpointId)
+
+  if ($scope.nodeid)
+    getCheckpointSubtaskDetails($stateParams.checkpointId, $scope.nodeid)
+
+  $scope.$on 'reload', (event) ->
+    getCheckpointDetails($stateParams.checkpointId)
+
+    if ($scope.nodeid)
+      getCheckpointSubtaskDetails($stateParams.checkpointId, $scope.nodeid)
+
+  $scope.$on '$destroy', ->
+    $scope.checkpointDetails.id = -1
 
 # --------------------------------------
 
