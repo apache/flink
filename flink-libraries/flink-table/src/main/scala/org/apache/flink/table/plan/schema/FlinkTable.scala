@@ -26,7 +26,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 
 abstract class FlinkTable[T](
-    val typeInfo: TypeInformation[_],
+    val typeInfo: TypeInformation[T],
     val fieldIndexes: Array[Int],
     val fieldNames: Array[String])
   extends AbstractTable {

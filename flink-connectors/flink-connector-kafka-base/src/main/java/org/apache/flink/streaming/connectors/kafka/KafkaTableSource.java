@@ -116,8 +116,8 @@ public abstract class KafkaTableSource implements StreamTableSource<Row> {
 		return TableSource$class.getFieldsNames(this);
 	}
 
-	public int[] getFieldsIndices() {
-		return TableSource$class.getFieldsIndices(this);
+	public int[] getFieldsIndexes() {
+		return TableSource$class.getFieldsIndexes(this);
 	}
 
 	@Override

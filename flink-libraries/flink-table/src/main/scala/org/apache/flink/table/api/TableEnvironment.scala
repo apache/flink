@@ -43,6 +43,7 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.codegen.ExpressionReducer
 import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
@@ -332,7 +333,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     */
   protected[flink] def getFieldInfo[A](inputType: TypeInformation[A]):
   (Array[String], Array[Int]) = {
-    TableEnvironment.getFieldInfo(inputType)
+    (TableEnvironment.getFieldNames(inputType), TableEnvironment.getFieldIndexes(inputType))
   }
 
   /**
@@ -522,26 +523,29 @@ object TableEnvironment {
     * @tparam A The type of the TypeInformation.
     * @return A tuple of two arrays holding the field names and corresponding field positions.
     */
-  def getFieldInfo[A](inputType: TypeInformation[A]): (Array[String], Array[Int]) = {
+  def getFieldNames[A](inputType: TypeInformation[A]): Array[String] = {
     validateType(inputType)
 
     val fieldNames: Array[String] = inputType match {
-      case t: TupleTypeInfo[A] => t.getFieldNames
-      case c: CaseClassTypeInfo[A] => c.getFieldNames
-      case p: PojoTypeInfo[A] => p.getFieldNames
-      case r: RowTypeInfo => r.getFieldNames
+      case t: CompositeType[_] => t.getFieldNames
+      case a: AtomicType[_] => Array("f0")
       case tpe =>
-        throw new TableException(s"Type $tpe lacks explicit field naming")
+        throw new TableException(s"Currently only CompositeType and AtomicType are supported. " +
+          s"Type $tpe lacks explicit field naming")
     }
-    val fieldIndexes = fieldNames.indices.toArray
 
     if (fieldNames.contains("*")) {
       throw new TableException("Field name can not be '*'.")
     }
 
-    (fieldNames, fieldIndexes)
+    fieldNames
   }
 
+  /**
+    * Validate if class represented by the typeInfo is static and globally accessible
+    * @param typeInfo type to check
+    * @throws TableException if type does not meet these criteria
+    */
   def validateType(typeInfo: TypeInformation[_]): Unit = {
     val clazz = typeInfo.getTypeClass
     if ((clazz.isMemberClass && !Modifier.isStatic(clazz.getModifiers)) ||
@@ -550,6 +554,10 @@ object TableEnvironment {
       throw TableException(s"Class '$clazz' described in type information '$typeInfo' must be " +
         s"static and globally accessible.")
     }
+  }
+
+  def getFieldIndexes(inputType: TypeInformation[_]): Array[Int] = {
+    getFieldNames(inputType).indices.toArray
   }
 
   /**
@@ -566,17 +574,13 @@ object TableEnvironment {
   def getFieldTypes(inputType: TypeInformation[_]): Array[TypeInformation[_]] = {
     validateType(inputType)
 
-    inputType match {
-      case t: TupleTypeInfo[_] => getTypes(t)
-      case c: CaseClassTypeInfo[_] => getTypes(c)
-      case p: PojoTypeInfo[_] => getTypes(p)
-      case r: RowTypeInfo => getTypes(r)
-      case tpe =>
-        throw new TableException(s"Type $tpe lacks explicit field naming")
+    getFieldNames(inputType).map { i =>
+      inputType match {
+        case t: CompositeType[_] => t.getTypeAt(i).asInstanceOf[TypeInformation[_]]
+        case a: AtomicType[_] => a.asInstanceOf[TypeInformation[_]]
+        case tpe =>
+          throw new TableException(s"Currently only CompositeType and AtomicType are supported.")
+      }
     }
-  }
-
-  private def getTypes(c: CompositeType[_]): Array[TypeInformation[_]] = {
-    0.until(c.getTotalFields).map(c.getTypeAt(_)).toArray
   }
 }

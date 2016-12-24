@@ -26,11 +26,11 @@ import org.apache.flink.table.api.TableEnvironment
   * Schema information consists of a data type, field names, and corresponding indices of
   * these names in the data type.
   *
-  * To define a TableSource one need to implement [[TableSource.getReturnType]]. In this case
-  * field names and field indices are deducted from the returned type.
+  * To define a TableSource one need to implement [[TableSource#getReturnType]]. In this case
+  * field names and field indices are derived from the returned type.
   *
   * In case if custom field names are required one need to implement both
-  * [[TableSource.getFieldsNames]] and [[TableSource.getFieldsIndices]].
+  * [[TableSource#getFieldsNames]] and [[TableSource#getFieldsIndices]].
   *
   * @tparam T The return type of the [[TableSource]].
   */
@@ -38,12 +38,12 @@ trait TableSource[T] {
 
   /** Returns the names of the table fields. */
   def getFieldsNames: Array[String] = {
-    TableEnvironment.getFieldInfo(getReturnType)._1
+    TableEnvironment.getFieldNames(getReturnType)
   }
 
   /** Returns the indices of the table fields. */
-  def getFieldsIndices: Array[Int] = {
-    getFieldsNames.indices.toArray
+  def getFieldsIndexes: Array[Int] = {
+    TableEnvironment.getFieldIndexes(getReturnType)
   }
 
   /** Returns the [[TypeInformation]] for the return type of the [[TableSource]]. */
