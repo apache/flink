@@ -100,7 +100,6 @@ if [ "$TO_VERSION" == "2.11" ]; then
 
   # set the name of the shading artifact properly
   bash -c "sed_i 's/\(shading-artifact.name>flink-shaded[a-z0-9\-]*\)'$FROM_SUFFIX'<\/shading-artifact.name>/\1'$TO_SUFFIX'<\/shading-artifact.name>/g' $BASEDIR/pom.xml" \;
-
 fi
 
 if [ "$TO_VERSION" == "2.10" ]; then
