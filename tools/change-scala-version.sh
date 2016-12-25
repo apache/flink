@@ -87,6 +87,10 @@ find "$BASEDIR/flink-dist" -name 'bin.xml' -not -path '*target*' -print \
 find "$BASEDIR/flink-runtime" -name 'pom.xml' -not -path '*target*' -print \
      -exec bash -c "sed_i 's/\(<include>org\.apache\.flink:flink-shaded-curator.*\)'$FROM_SUFFIX'<\/include>/\1'$TO_SUFFIX'<\/include>/g' {}" \;
 
+# fix for flink-dist
+find "$BASEDIR/flink-dist" -name 'opt.xml' -not -path '*target*' -print \
+     -exec bash -c "sed_i 's/_2\...\(-\${project.version}\)/'$TO_SUFFIX'\1/g' {}" \;
+
 if [ "$TO_VERSION" == "2.11" ]; then
   # set the profile activation to !scala-2.11 in parent pom, so that it activates by default
   bash -c "sed_i 's/<name>scala-2.11<\/name>/<name>!scala-2.11<\/name>/g' $BASEDIR/pom.xml" \;
@@ -96,6 +100,7 @@ if [ "$TO_VERSION" == "2.11" ]; then
 
   # set the name of the shading artifact properly
   bash -c "sed_i 's/\(shading-artifact.name>flink-shaded[a-z0-9\-]*\)'$FROM_SUFFIX'<\/shading-artifact.name>/\1'$TO_SUFFIX'<\/shading-artifact.name>/g' $BASEDIR/pom.xml" \;
+
 fi
 
 if [ "$TO_VERSION" == "2.10" ]; then
