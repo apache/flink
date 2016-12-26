@@ -721,10 +721,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			try {
 				File fp = File.createTempFile(appId.toString(), null);
 				fp.deleteOnExit();
-				FileOutputStream input = new FileOutputStream(fp);
-				ObjectOutputStream obInput = new ObjectOutputStream(input);
-				obInput.writeObject(jobGraph);
-				input.close();
+				try (FileOutputStream output = new FileOutputStream(fp);
+					ObjectOutputStream obOutput = new ObjectOutputStream(output);){
+					obOutput.writeObject(jobGraph);
+				}
 				LocalResource jobgraph = Records.newRecord(LocalResource.class);
 				Path remoteJobGraph =
 						Utils.setupLocalResource(fs, appId.toString(), new Path(fp.toURI()), jobgraph, fs.getHomeDirectory());
