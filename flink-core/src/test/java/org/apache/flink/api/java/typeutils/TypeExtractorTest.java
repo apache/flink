@@ -355,15 +355,15 @@ public class TypeExtractorTest {
 		TypeInformation<Row> rowInfo = TypeExtractor.getForObject(row);
 		Assert.assertEquals(rowInfo.getClass(), RowTypeInfo.class);
 		Assert.assertEquals(2, rowInfo.getArity());
-
-		Row nullRow = new Row(2);
-		TypeInformation<Row> genericRowInfo = TypeExtractor.getForObject(nullRow);
-		Assert.assertEquals(genericRowInfo, new GenericTypeInfo<>(Row.class));
 		Assert.assertEquals(
 			new RowTypeInfo(
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.INT_TYPE_INFO),
 			rowInfo);
+
+		Row nullRow = new Row(2);
+		TypeInformation<Row> genericRowInfo = TypeExtractor.getForObject(nullRow);
+		Assert.assertEquals(genericRowInfo, new GenericTypeInfo<>(Row.class));
 	}
 	
 	public static class CustomType {
