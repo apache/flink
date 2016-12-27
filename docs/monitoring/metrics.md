@@ -83,6 +83,8 @@ A `Gauge` provides a value of any type on demand. In order to use a `Gauge` you 
 There is no restriction for the type of the returned value.
 You can register a gauge by calling `gauge(String name, Gauge gauge)` on a `MetricGroup`.
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 {% highlight java %}
 
 public class MyMapper extends RichMapFunction<String, Integer> {
@@ -102,6 +104,26 @@ public class MyMapper extends RichMapFunction<String, Integer> {
 }
 
 {% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+
+public class MyMapper extends RichMapFunction[String,Int] {
+  val valueToExpose = 5
+
+  override def open(parameters: Configuration): Unit = {
+    getRuntimeContext()
+      .getMetricGroup()
+      .gauge("MyGauge", ScalaGauge[Int]( () => valueToExpose ) )
+  }
+  ...
+}
+
+{% endhighlight %}
+</div>
+
+</div>
 
 Note that reporters will turn the exposed object into a `String`, which means that a meaningful `toString()` implementation is required.
 
