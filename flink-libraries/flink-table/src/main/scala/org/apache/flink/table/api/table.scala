@@ -807,7 +807,6 @@ class Table(
     * will be processed by a single operator.
     *
     * @param groupWindow group-window that specifies how elements are grouped.
-    * @return A windowed table.
     */
   def window(groupWindow: GroupWindow): Table = {
     if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
