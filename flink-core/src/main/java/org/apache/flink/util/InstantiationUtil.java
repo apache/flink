@@ -59,7 +59,7 @@ public final class InstantiationUtil {
 		}
 
 		@Override
-		public Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+		protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
 			if (classLoader != null) {
 				String name = desc.getName();
 				try {
