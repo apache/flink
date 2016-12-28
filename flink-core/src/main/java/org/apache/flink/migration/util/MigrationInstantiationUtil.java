@@ -33,25 +33,25 @@ public final class MigrationInstantiationUtil {
 
 	public static class ClassLoaderObjectInputStream extends InstantiationUtil.ClassLoaderObjectInputStream {
 
+		private static final String FLINK_BASE_PACKAGE = "apache.flink.";
+		private static final String FLINK_MIGRATION_PACKAGE = "apache.flink.migration.";
+
 		public ClassLoaderObjectInputStream(InputStream in, ClassLoader classLoader) throws IOException {
 			super(in, classLoader);
 		}
 
 		@Override
-		protected ObjectStreamClass readClassDescriptor()
-				throws IOException, ClassNotFoundException {
-			ObjectStreamClass objectStreamClass = super.readClassDescriptor();
-			String className = objectStreamClass.getName();
-			if (className.contains("apache.flink.")) {
-				className = className.replace("apache.flink.", "apache.flink.migration.");
+		protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+			String className = desc.getName();
+			if (className.contains(FLINK_BASE_PACKAGE)) {
+				className = className.replace(FLINK_BASE_PACKAGE, FLINK_MIGRATION_PACKAGE);
 				try {
-					Class<?> clazz = Class.forName(className, false, classLoader);
-					objectStreamClass = ObjectStreamClass.lookup(clazz);
-				} catch (Exception ignored) {
+					return classLoader != null ? Class.forName(className, false, classLoader) : Class.forName(className);
+				} catch (ClassNotFoundException ignored) {
 
 				}
 			}
-			return objectStreamClass;
+			return super.resolveClass(desc);
 		}
 	}
 	
