@@ -188,7 +188,8 @@ public class SavepointMigrationTestBase extends TestBaseUtils {
 //		FileUtils.moveFile(new File(new URI(path).getPath()), new File(savepointPath));
 	}
 
-	protected void restoreAndExecute(
+	@SafeVarargs
+	protected final void restoreAndExecute(
 			StreamExecutionEnvironment env,
 			String savepointPath,
 			Tuple2<String, Integer>... expectedAccumulators) throws Exception {
@@ -217,17 +218,14 @@ public class SavepointMigrationTestBase extends TestBaseUtils {
 			for (Tuple2<String, Integer> acc : expectedAccumulators) {
 				Integer numFinished = (Integer) accumulators.get(acc.f0);
 				if (numFinished == null) {
-					System.out.println("NO ACC FOR " + acc);
 					allDone = false;
 					break;
 				}
 				if (!numFinished.equals(acc.f1)) {
-					System.out.println("TO LOW FOR ACC" + acc);
 					allDone = false;
 					break;
 				}
 			}
-			System.out.println("ACC: " + accumulators);
 			if (allDone) {
 				done = true;
 				break;
