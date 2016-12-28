@@ -21,14 +21,18 @@
 # Common
 #==============================================================================
 
-# The host on which the JobManager runs. Only used in non-high-availability mode.
-# The JobManager process will use this hostname to bind the listening servers to.
-# The TaskManagers will try to connect to the JobManager on that host.
+# The external address of the host on which the JobManager runs and can be
+# reached by the TaskManagers and any clients which want to connect. This setting
+# is only used in Standalone mode and may be overwritten on the JobManager side
+# by specifying the --host <hostname> parameter of the bin/jobmanager.sh executable.
+# In high availability mode, if you use the bin/start-cluster.sh script and setup
+# the conf/masters file, this will be taken care of automatically. Yarn/Mesos
+# automatically configure the host name based on the hostname of the node where the
+# JobManager runs.
 
 jobmanager.rpc.address: localhost
 
-
-# The port where the JobManager's main actor system listens for messages.
+# The RPC port where the JobManager is reachable.
 
 jobmanager.rpc.port: 6123
 

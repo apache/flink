@@ -23,6 +23,7 @@ import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -161,5 +162,63 @@ public class NetUtilsTest {
 		Assert.assertTrue(error instanceof NumberFormatException);
 		error = null;
 
+	}
+
+	@Test
+	public void testFormatAddress() throws UnknownHostException {
+		{
+			// IPv4
+			String host = "1.2.3.4";
+			int port = 42;
+			Assert.assertEquals(host + ":" + port, NetUtils.unresolvedHostAndPortToNormalizedString(host, port));
+		}
+		{
+			// IPv6
+			String host = "2001:0db8:85a3:0000:0000:8a2e:0370:7334";
+			int port = 42;
+			Assert.assertEquals("[2001:db8:85a3::8a2e:370:7334]:" + port, NetUtils.unresolvedHostAndPortToNormalizedString(host, port));
+		}
+		{
+			// Hostnames
+			String host = "somerandomhostname";
+			int port = 99;
+			Assert.assertEquals(host + ":" + port, NetUtils.unresolvedHostAndPortToNormalizedString(host, port));
+		}
+		{
+			// Whitespace
+			String host = "  somerandomhostname  ";
+			int port = 99;
+			Assert.assertEquals(host.trim() + ":" + port, NetUtils.unresolvedHostAndPortToNormalizedString(host, port));
+		}
+		{
+			// Illegal hostnames
+			String host = "illegalhost.";
+			int port = 42;
+			try {
+				NetUtils.unresolvedHostAndPortToNormalizedString(host, port);
+				fail();
+			} catch (Exception ignored) {}
+			// Illegal hostnames
+			host = "illegalhost:fasf";
+			try {
+				NetUtils.unresolvedHostAndPortToNormalizedString(host, port);
+				fail();
+			} catch (Exception ignored) {}
+		}
+		{
+			// Illegal port ranges
+			String host = "1.2.3.4";
+			int port = -1;
+			try {
+				NetUtils.unresolvedHostAndPortToNormalizedString(host, port);
+				fail();
+			} catch (Exception ignored) {}
+		}
+		{
+			// lower case conversion of hostnames
+			String host = "CamelCaseHostName";
+			int port = 99;
+			Assert.assertEquals(host.toLowerCase() + ":" + port, NetUtils.unresolvedHostAndPortToNormalizedString(host, port));
+		}
 	}
 }

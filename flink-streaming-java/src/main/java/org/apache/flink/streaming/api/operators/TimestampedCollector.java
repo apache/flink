@@ -70,6 +70,10 @@ public class TimestampedCollector<T> implements RichCollector<T> {
 		reuse.setTimestamp(timestamp);
 	}
 
+	public void eraseTimestamp() {
+		reuse.eraseTimestamp();
+	}
+
 	@Override
 	public void close() {
 		output.close();

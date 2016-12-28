@@ -208,7 +208,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		String applicationID = yarnProperties.getProperty(YARN_APPLICATION_ID_KEY);
 		if (applicationID == null) {
 			throw new IllegalConfigurationException("Yarn properties file found but doesn't contain a " +
-				"Yarn applicaiton id. Please delete the file at " + propertiesFile.getAbsolutePath());
+				"Yarn application id. Please delete the file at " + propertiesFile.getAbsolutePath());
 		}
 
 		try {
@@ -625,7 +625,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			}
 			//------------------ ClusterClient deployed, handle connection details
 			String jobManagerAddress =
-				yarnCluster.getJobManagerAddress().getAddress().getHostAddress() +
+				yarnCluster.getJobManagerAddress().getAddress().getHostName() +
 					":" + yarnCluster.getJobManagerAddress().getPort();
 
 			System.out.println("Flink JobManager is now running on " + jobManagerAddress);

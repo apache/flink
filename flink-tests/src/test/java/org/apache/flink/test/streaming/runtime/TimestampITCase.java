@@ -204,16 +204,29 @@ public class TimestampITCase extends TestLogger {
 					// try until we get the running jobs
 					List<JobID> running;
 					while ((running = cluster.getCurrentlyRunningJobsJava()).isEmpty()) {
-						Thread.sleep(50);
+						Thread.sleep(10);
 					}
 
 					JobID id = running.get(0);
 					
 					// send stop until the job is stopped
 					do {
-						cluster.stopJob(id);
-						Thread.sleep(50);
-					} while (!cluster.getCurrentlyRunningJobsJava().isEmpty());
+						try {
+							cluster.stopJob(id);
+						}
+						catch (Exception e) {
+							if (e.getCause() instanceof IllegalStateException) {
+								// this means the job is not yet ready to be stopped,
+								// for example because it is still in CREATED state
+								// we ignore the exception 
+							} else {
+								// other problem
+								throw e;
+							}
+						}
+						Thread.sleep(10);
+					}
+					while (!cluster.getCurrentlyRunningJobsJava().isEmpty());
 				}
 				catch (Throwable t) {
 					t.printStackTrace();

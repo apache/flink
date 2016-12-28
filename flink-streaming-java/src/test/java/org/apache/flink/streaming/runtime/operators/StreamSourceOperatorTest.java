@@ -33,19 +33,20 @@ import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.util.CollectorOutput;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -180,42 +181,52 @@ public class StreamSourceOperatorTest {
 	 */
 	@Test
 	public void testLatencyMarkEmission() throws Exception {
-		final long now = System.currentTimeMillis();
-
 		final List<StreamElement> output = new ArrayList<>();
 
+		final long maxProcessingTime = 100L;
+		final long latencyMarkInterval = 10L;
+
+		final TestProcessingTimeService testProcessingTimeService = new TestProcessingTimeService();
+		testProcessingTimeService.setCurrentTime(0L);
+		final List<Long> processingTimes = Arrays.asList(1L, 10L, 11L, 21L, maxProcessingTime);
+
 		// regular stream source operator
-		final StoppableStreamSource<String, InfiniteSource<String>> operator =
-				new StoppableStreamSource<>(new InfiniteSource<String>());
+		final StreamSource<Long, ProcessingTimeServiceSource> operator =
+				new StreamSource<>(new ProcessingTimeServiceSource(testProcessingTimeService, processingTimes));
 
 		// emit latency marks every 10 milliseconds.
-		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 10);
-
-		// trigger an async cancel in a bit
-		new Thread("canceler") {
-			@Override
-			public void run() {
-				try {
-					Thread.sleep(200);
-				} catch (InterruptedException ignored) {}
-				operator.stop();
-			}
-		}.start();
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, latencyMarkInterval, testProcessingTimeService);
 
 		// run and wait to be stopped
-		operator.run(new Object(), new CollectorOutput<String>(output));
+		operator.run(new Object(), new CollectorOutput<Long>(output));
 
-		// ensure that there has been some output
-		assertTrue(output.size() > 0);
-		// and that its only latency markers
-		for(StreamElement se: output) {
+		int numberLatencyMarkers = (int) (maxProcessingTime / latencyMarkInterval) + 1;
+
+		assertEquals(
+			numberLatencyMarkers + 1, // + 1 is the final watermark element
+			output.size());
+
+		long timestamp = 0L;
+
+		int i = 0;
+		// and that its only latency markers + a final watermark
+		for (; i < output.size() - 1; i++) {
+			StreamElement se = output.get(i);
 			Assert.assertTrue(se.isLatencyMarker());
 			Assert.assertEquals(-1, se.asLatencyMarker().getVertexID());
 			Assert.assertEquals(0, se.asLatencyMarker().getSubtaskIndex());
-			Assert.assertTrue(se.asLatencyMarker().getMarkedTime() >= now);
+			Assert.assertTrue(se.asLatencyMarker().getMarkedTime() == timestamp);
+
+			timestamp += latencyMarkInterval;
 		}
+
+		Assert.assertTrue(output.get(i).isWatermark());
 	}
 
+	@Test
+	public void testLatencyMarksEmitterLifecycleIntegration() {
+
+	}
 
 	@Test
 	public void testAutomaticWatermarkContext() throws Exception {
@@ -341,32 +352,32 @@ public class StreamSourceOperatorTest {
 		}
 	}
 
-	// ------------------------------------------------------------------------
-	
-	private static class CollectorOutput<T> implements Output<StreamRecord<T>> {
+	private static final class ProcessingTimeServiceSource implements SourceFunction<Long> {
 
-		private final List<StreamElement> list;
+		private final TestProcessingTimeService processingTimeService;
+		private final List<Long> processingTimes;
 
-		private CollectorOutput(List<StreamElement> list) {
-			this.list = list;
+		private boolean cancelled = false;
+
+		private ProcessingTimeServiceSource(TestProcessingTimeService processingTimeService, List<Long> processingTimes) {
+			this.processingTimeService = processingTimeService;
+			this.processingTimes = processingTimes;
 		}
 
 		@Override
-		public void emitWatermark(Watermark mark) {
-			list.add(mark);
+		public void run(SourceContext<Long> ctx) throws Exception {
+			for (Long processingTime : processingTimes) {
+				if (cancelled) {
+					break;
+				}
+
+				processingTimeService.setCurrentTime(processingTime);
+			}
 		}
 
 		@Override
-		public void emitLatencyMarker(LatencyMarker latencyMarker) {
-			list.add(latencyMarker);
+		public void cancel() {
+			cancelled = true;
 		}
-
-		@Override
-		public void collect(StreamRecord<T> record) {
-			list.add(record);
-		}
-
-		@Override
-		public void close() {}
 	}
 }

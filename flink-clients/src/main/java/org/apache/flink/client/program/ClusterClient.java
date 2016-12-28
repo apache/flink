@@ -413,7 +413,7 @@ public abstract class ClusterClient {
 
 		final LeaderRetrievalService leaderRetrievalService;
 		try {
-			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig);
+			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig, true);
 		} catch (Exception e) {
 			throw new ProgramInvocationException("Could not create the leader retrieval service", e);
 		}

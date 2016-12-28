@@ -48,21 +48,34 @@ Java HotSpot(TM) 64-Bit Server VM (build 25.111-b14, mixed mode)
 
 ### Download
 
-Download a binary from the [downloads page](http://flink.apache.org/downloads.html). You can pick
-any Hadoop/Scala combination you like. If you plan to just use the local file system, any Hadoop
-version will work fine.
-
-### Start a Local Flink Cluster
-
-1. Go to the download directory.
-2. Unpack the downloaded archive.
-3. Start Flink.
+{% if site.is_stable %}
+1. Download a binary from the [downloads page](http://flink.apache.org/downloads.html). You can pick
+   any Hadoop/Scala combination you like. If you plan to just use the local file system, any Hadoop
+   version will work fine.
+2. Go to the download directory.
+3. Unpack the downloaded archive.
 
 ~~~bash
 $ cd ~/Downloads        # Go to download directory
 $ tar xzf flink-*.tgz   # Unpack the downloaded archive
 $ cd flink-{{site.version}}
-$ bin/start-local.sh    # Start Flink
+~~~
+{% else %}
+Clone the source code from one of our
+[repositories](http://flink.apache.org/community.html#source-code), e.g.:
+
+~~~bash
+$ git clone https://github.com/apache/flink.git
+$ cd flink
+$ mvn clean package -DskipTests # this will take up to 10 minutes
+$ cd build-target               # this is where Flink is installed to
+~~~
+{% endif %}
+
+### Start a Local Flink Cluster
+
+~~~bash
+$ ./bin/start-local.sh  # Start Flink
 ~~~
 
 Check the __JobManager's web frontend__ at [http://localhost:8081](http://localhost:8081) and make sure everything is up and running. The web frontend should report a single available TaskManager instance.
@@ -89,7 +102,7 @@ You can find the complete source code for this SocketWindowWordCount example in 
 object SocketWindowWordCount {
 
     def main(args: Array[String]) : Unit = {
-    
+
         // the port to connect to
         val port: Int = try {
             ParameterTool.fromArgs(args).getInt("port")
@@ -102,11 +115,11 @@ object SocketWindowWordCount {
 
         // get the execution environment
         val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-    
+
         // get input data by connecting to the socket
         val text = env.socketTextStream("localhost", port, '\n')
 
-        // parse the data, group it, window it, and aggregate the counts 
+        // parse the data, group it, window it, and aggregate the counts
         val windowCounts = text
             .flatMap { w => w.split("\\s") }
             .map { w => WordWithCount(w, 1) }
@@ -197,7 +210,10 @@ public class SocketWindowWordCount {
 
 ## Run the Example
 
-Now, we are going to run this Flink application. It will read text from a socket and once a second print the number of occurances of each distinct word during the previous 5 seconds.
+Now, we are going to run this Flink application. It will read text from
+a socket and once every 5 seconds print the number of occurrences of
+each distinct word during the previous 5 seconds, i.e. a tumbling
+window of processing time, as long as words are floating in.
 
 * First of all, we use **netcat** to start local server via
 
@@ -208,15 +224,21 @@ Now, we are going to run this Flink application. It will read text from a socket
 * Submit the Flink program:
 
   ~~~bash
-  $ bin/flink run examples/streaming/SocketWindowWordCount.jar --port 9000
+  $ ./bin/flink run examples/streaming/SocketWindowWordCount.jar --port 9000
 
-  03/08/2016 17:21:56 Job execution switched to status RUNNING.
-  03/08/2016 17:21:56 Source: Socket Stream -> Flat Map(1/1) switched to SCHEDULED
-  03/08/2016 17:21:56 Source: Socket Stream -> Flat Map(1/1) switched to DEPLOYING
-  03/08/2016 17:21:56 Keyed Aggregation -> Sink: Unnamed(1/1) switched to SCHEDULED
-  03/08/2016 17:21:56 Keyed Aggregation -> Sink: Unnamed(1/1) switched to DEPLOYING
-  03/08/2016 17:21:56 Source: Socket Stream -> Flat Map(1/1) switched to RUNNING
-  03/08/2016 17:21:56 Keyed Aggregation -> Sink: Unnamed(1/1) switched to RUNNING
+  Cluster configuration: Standalone cluster with JobManager at /127.0.0.1:6123
+  Using address 127.0.0.1:6123 to connect to JobManager.
+  JobManager web interface address http://127.0.0.1:8081
+  Starting execution of program
+  Submitting job with JobID: 574a10c8debda3dccd0c78a3bde55e1b. Waiting for job completion.
+  Connected to JobManager at Actor[akka.tcp://flink@127.0.0.1:6123/user/jobmanager#297388688]
+  11/04/2016 14:04:50     Job execution switched to status RUNNING.
+  11/04/2016 14:04:50     Source: Socket Stream -> Flat Map(1/1) switched to SCHEDULED
+  11/04/2016 14:04:50     Source: Socket Stream -> Flat Map(1/1) switched to DEPLOYING
+  11/04/2016 14:04:50     Fast TumblingProcessingTimeWindows(5000) of WindowedStream.main(SocketWindowWordCount.java:79) -> Sink: Unnamed(1/1) switched to SCHEDULED
+  11/04/2016 14:04:51     Fast TumblingProcessingTimeWindows(5000) of WindowedStream.main(SocketWindowWordCount.java:79) -> Sink: Unnamed(1/1) switched to DEPLOYING
+  11/04/2016 14:04:51     Fast TumblingProcessingTimeWindows(5000) of WindowedStream.main(SocketWindowWordCount.java:79) -> Sink: Unnamed(1/1) switched to RUNNING
+  11/04/2016 14:04:51     Source: Socket Stream -> Flat Map(1/1) switched to RUNNING
   ~~~
 
   The program connects to the socket and waits for input. You can check the web interface to verify that the job is running as expected:
@@ -230,7 +252,10 @@ Now, we are going to run this Flink application. It will read text from a socket
     </div>
   </div>
 
-* Counts are printed to `stdout`. Monitor the JobManager's output file and write some text in `nc`:
+* Words are counted in time windows of 5 seconds (processing time, tumbling
+  windows) and are printed to `stdout`. Monitor the JobManager's output file
+  and write some text in `nc` (input is sent to Flink line by line after
+  hitting <RETURN>):
 
   ~~~bash
   $ nc -l 9000
@@ -239,25 +264,21 @@ Now, we are going to run this Flink application. It will read text from a socket
   bye
   ~~~
 
-  The `.out` file will print the counts immediately:
+  The `.out` file will print the counts at the end of each time window as long
+  as words are floating in, e.g.:
 
   ~~~bash
   $ tail -f log/flink-*-jobmanager-*.out
-  (lorem,1)
-  (ipsum,1)
-  (ipsum,2)
-  (ipsum,3)
-  (ipsum,4)
-  (bye,1)
+  lorem : 1
+  bye : 1
+  ipsum : 4
   ~~~~
 
   To **stop** Flink when you're done type:
 
   ~~~bash
-  $ bin/stop-local.sh
+  $ ./bin/stop-local.sh
   ~~~
-
-  <a href="{{ site.baseurl }}/page/img/quickstart-setup/setup.gif" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/setup.gif" alt="Quickstart: Setup"/></a>
 
 ## Next Steps
 

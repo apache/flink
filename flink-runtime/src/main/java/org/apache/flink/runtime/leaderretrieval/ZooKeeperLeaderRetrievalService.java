@@ -96,7 +96,6 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 		client.getConnectionStateListenable().removeListener(connectionStateListener);
 
 		cache.close();
-		client.close();
 	}
 
 	@Override

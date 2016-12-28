@@ -326,11 +326,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				LOG.error("Could not shut down async checkpoint threads", t);
 			}
 
-			// release the output resources. this method should never fail.
-			if (operatorChain != null) {
-				operatorChain.releaseOutputs();
-			}
-
 			// we must! perform this cleanup
 			try {
 				cleanup();
@@ -343,6 +338,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// if the operators were not disposed before, do a hard dispose
 			if (!disposed) {
 				disposeAllOperators();
+			}
+
+			// release the output resources. this method should never fail.
+			if (operatorChain != null) {
+				operatorChain.releaseOutputs();
 			}
 		}
 	}
@@ -773,8 +773,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					keyGroupRange,
 					restoreStateHandles.getManagedKeyedState(),
 					getEnvironment().getTaskKvStateRegistry());
-
-			restoreStateHandles = null; // GC friendliness
 		} else {
 			keyedStateBackend = stateBackend.createKeyedStateBackend(
 					getEnvironment(),
@@ -1076,6 +1074,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					outStream.close();
 				}
 			}
+
 			nonPartitionedStates.add(stateHandle);
 		}
 

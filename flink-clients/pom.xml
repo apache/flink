@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.2-SNAPSHOT</version>
+		<version>1.3-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -78,8 +78,8 @@ under the License.
 		</dependency>
 		
 		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-testkit_${scala.binary.version}</artifactId>
+			<groupId>com.data-artisans</groupId>
+			<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

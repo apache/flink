@@ -23,11 +23,11 @@ import org.apache.flink.annotation.Public;
 import java.io.Serializable;
 
 /**
- * Interface for Cross functions. Cross functions are applied to the Cartesian produce of their inputs
- * and call are called for each pair of elements.
+ * Interface for Cross functions. Cross functions are applied to the Cartesian product
+ * of their inputs and are called for each pair of elements.
  * 
- * They are optional, a means of convenience the can be used to directly produce manipulate the
- * pair of elements, instead of processing 2-tuples that contain the pairs.
+ * They are optional, a means of convenience that can be used to directly manipulate the
+ * pair of elements instead of producing 2-tuples containing the pairs.
  * <p>
  * The basic syntax for using Cross on two data sets is as follows:
  * <pre>{@code

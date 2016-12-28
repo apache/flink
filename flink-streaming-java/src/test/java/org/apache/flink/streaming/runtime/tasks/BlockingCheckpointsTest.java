@@ -27,6 +27,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -57,9 +58,9 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.runtime.taskmanager.TaskManagerConnection;
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.util.SerializedValue;
@@ -138,6 +139,7 @@ public class BlockingCheckpointsTest {
 				jobInformation,
 				taskInformation,
 				new ExecutionAttemptID(),
+				new AllocationID(),
 				0,
 				0,
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
@@ -148,13 +150,12 @@ public class BlockingCheckpointsTest {
 				mock(IOManager.class),
 				network,
 				mock(BroadcastVariableManager.class),
-				mock(TaskManagerConnection.class),
+				mock(TaskManagerActions.class),
 				mock(InputSplitProvider.class),
 				mock(CheckpointResponder.class),
 				new FallbackLibraryCacheManager(),
-				new FileCache(new Configuration()),
-				new TaskManagerRuntimeInfo(
-						"localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
+				new FileCache(new String[] { EnvironmentInformation.getTemporaryFileDirectory() }),
+				new TestingTaskManagerRuntimeInfo(),
 				new UnregisteredTaskMetricsGroup(),
 				mock(ResultPartitionConsumableNotifier.class),
 				mock(PartitionProducerStateChecker.class),

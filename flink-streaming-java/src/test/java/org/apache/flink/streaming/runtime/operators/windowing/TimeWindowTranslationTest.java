@@ -55,6 +55,7 @@ public class TimeWindowTranslationTest {
 	 * conditions are right.
 	 */
 	@Test
+	@Ignore
 	public void testFastTimeWindows() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 

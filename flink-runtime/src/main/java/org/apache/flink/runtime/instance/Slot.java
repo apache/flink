@@ -350,6 +350,22 @@ public abstract class Slot {
 	//  Utilities
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Slots must always has based on reference identity.
+	 */
+	@Override
+	public final int hashCode() {
+		return super.hashCode();
+	}
+
+	/**
+	 * Slots must always compare on referential equality.
+	 */
+	@Override
+	public final boolean equals(Object obj) {
+		return this == obj;
+	}
+
 	@Override
 	public String toString() {
 		return hierarchy() + " - " + getTaskManagerLocation() + " - " + getStateName(status);

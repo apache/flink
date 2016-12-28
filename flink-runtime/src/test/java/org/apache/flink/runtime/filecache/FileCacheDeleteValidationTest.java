@@ -21,7 +21,6 @@ package org.apache.flink.runtime.filecache;
 import java.io.File;
 import java.util.concurrent.Future;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.JobID;
@@ -62,8 +61,9 @@ public class FileCacheDeleteValidationTest {
 	
 	@Before
 	public void setup() {
+		String[] tmpDirectories = System.getProperty("java.io.tmpdir").split(",|" + File.pathSeparator);
 		try {
-			fileCache = new FileCache(new Configuration());
+			fileCache = new FileCache(tmpDirectories);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

@@ -32,7 +32,7 @@ import java.io.Serializable;
 public class PartitionInfo implements Serializable {
 
 	private static final long serialVersionUID = 1724490660830968430L;
-	
+
 	private final IntermediateDataSetID intermediateDataSetID;
 	private final InputChannelDeploymentDescriptor inputChannelDeploymentDescriptor;
 

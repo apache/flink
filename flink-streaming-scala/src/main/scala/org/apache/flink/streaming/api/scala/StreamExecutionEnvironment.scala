@@ -23,8 +23,10 @@ import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.ExecutionEnvironment
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.AbstractStateBackend
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source._
@@ -501,8 +503,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * @param filter
     *          The files to be excluded from the processing
     * @return The data stream that represents the data read from the given file
-    *
-    * @deprecated Use [[FileInputFormat#setFilesFilter(FilePathFilter)]] to set a filter and
+   * @deprecated Use [[FileInputFormat#setFilesFilter(FilePathFilter)]] to set a filter and
     * [[StreamExecutionEnvironment#readFile(FileInputFormat, String, FileProcessingMode, long)]]
     */
   @PublicEvolving
@@ -676,13 +677,23 @@ object StreamExecutionEnvironment {
    * Sets the default parallelism that will be used for the local execution
    * environment created by [[createLocalEnvironment()]].
    *
-   * @param parallelism
-   * The parallelism to use as the default local parallelism.
+   * @param parallelism The default parallelism to use for local execution.
    */
   @PublicEvolving
   def setDefaultLocalParallelism(parallelism: Int) : Unit =
-    StreamExecutionEnvironment.setDefaultLocalParallelism(parallelism)
+    JavaEnv.setDefaultLocalParallelism(parallelism)
 
+  /**
+   * Gets the default parallelism that will be used for the local execution environment created by
+   * [[createLocalEnvironment()]].
+   */
+  @PublicEvolving
+  def getDefaultLocalParallelism: Int = JavaEnv.getDefaultLocalParallelism
+  
+  // --------------------------------------------------------------------------
+  //  context environment
+  // --------------------------------------------------------------------------
+  
   /**
    * Creates an execution environment that represents the context in which the program is
    * currently executed. If the program is invoked standalone, this method returns a local
@@ -693,16 +704,45 @@ object StreamExecutionEnvironment {
     new StreamExecutionEnvironment(JavaEnv.getExecutionEnvironment)
   }
 
+  // --------------------------------------------------------------------------
+  //  local environment
+  // --------------------------------------------------------------------------
+
   /**
-   * Creates a local execution environment. The local execution environment will run the program in
-   * a multi-threaded fashion in the same JVM as the environment was created in. The default degree
-   * of parallelism of the local environment is the number of hardware contexts (CPU cores/threads).
+   * Creates a local execution environment. The local execution environment will run the
+   * program in a multi-threaded fashion in the same JVM as the environment was created in.
+   *
+   * This method sets the environment's default parallelism to given parameter, which
+   * defaults to the value set via [[setDefaultLocalParallelism(Int)]].
    */
-  def createLocalEnvironment(
-    parallelism: Int =  Runtime.getRuntime.availableProcessors()):
-  StreamExecutionEnvironment = {
+  def createLocalEnvironment(parallelism: Int = JavaEnv.getDefaultLocalParallelism):
+      StreamExecutionEnvironment = {
     new StreamExecutionEnvironment(JavaEnv.createLocalEnvironment(parallelism))
   }
+
+  /**
+   * Creates a [[StreamExecutionEnvironment]] for local program execution that also starts the
+   * web monitoring UI.
+   *
+   * The local execution environment will run the program in a multi-threaded fashion in
+   * the same JVM as the environment was created in. It will use the parallelism specified in the
+   * parameter.
+   *
+   * If the configuration key 'jobmanager.web.port' was set in the configuration, that particular
+   * port will be used for the web UI. Otherwise, the default port (8081) will be used.
+   *
+   * @param config optional config for the local execution
+   * @return The created StreamExecutionEnvironment
+   */
+  @PublicEvolving
+  def createLocalEnvironmentWithWebUI(config: Configuration = null): StreamExecutionEnvironment = {
+    val conf: Configuration = if (config == null) new Configuration() else config
+    new StreamExecutionEnvironment(JavaEnv.createLocalEnvironmentWithWebUI(conf))
+  }
+
+  // --------------------------------------------------------------------------
+  //  remote environment
+  // --------------------------------------------------------------------------
 
   /**
    * Creates a remote execution environment. The remote environment sends (parts of) the program to
@@ -740,10 +780,11 @@ object StreamExecutionEnvironment {
    *                 provided in the JAR files.
    */
   def createRemoteEnvironment(
-    host: String,
-    port: Int,
-    parallelism: Int,
-    jarFiles: String*): StreamExecutionEnvironment = {
+      host: String,
+      port: Int,
+      parallelism: Int,
+      jarFiles: String*): StreamExecutionEnvironment = {
+
     val javaEnv = JavaEnv.createRemoteEnvironment(host, port, jarFiles: _*)
     javaEnv.setParallelism(parallelism)
     new StreamExecutionEnvironment(javaEnv)

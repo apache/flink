@@ -30,6 +30,7 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Assume;
 import org.junit.Before;
@@ -380,7 +381,7 @@ public class RocksDBStateBackendConfigTest {
 		when(env.getTaskInfo()).thenReturn(taskInfo);
 		when(taskInfo.getIndexOfThisSubtask()).thenReturn(0);
 
-		TaskManagerRuntimeInfo tmInfo = new TaskManagerRuntimeInfo("localhost", new Configuration(), tempDirStrings);
+		TaskManagerRuntimeInfo tmInfo = new TestingTaskManagerRuntimeInfo(new Configuration(), tempDirStrings);
 		when(env.getTaskManagerInfo()).thenReturn(tmInfo);
 
 		return env;

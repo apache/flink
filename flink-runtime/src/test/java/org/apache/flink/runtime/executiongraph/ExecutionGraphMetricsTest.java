@@ -29,6 +29,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
@@ -45,12 +47,12 @@ import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
@@ -87,7 +89,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 	
 			JobVertex jobVertex = new JobVertex("TestVertex");
 			jobVertex.setParallelism(parallelism);
-			jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
+			jobVertex.setInvokableClass(NoOpInvokable.class);
 			JobGraph jobGraph = new JobGraph("Test Job", jobVertex);
 	
 			Configuration config = new Configuration();
@@ -127,6 +129,9 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 			Slot rootSlot = mock(Slot.class);
 
+			AllocatedSlot mockAllocatedSlot = mock(AllocatedSlot.class);
+			when(mockAllocatedSlot.getSlotAllocationId()).thenReturn(new AllocationID());
+
 			SimpleSlot simpleSlot = mock(SimpleSlot.class);
 			when(simpleSlot.isAlive()).thenReturn(true);
 			when(simpleSlot.getTaskManagerLocation()).thenReturn(taskManagerLocation);
@@ -134,6 +139,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			when(simpleSlot.getTaskManagerGateway()).thenReturn(taskManagerGateway);
 			when(simpleSlot.setExecutedVertex(Matchers.any(Execution.class))).thenReturn(true);
 			when(simpleSlot.getRoot()).thenReturn(rootSlot);
+			when(simpleSlot.getAllocatedSlot()).thenReturn(mockAllocatedSlot);
 
 			FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
 			future.complete(simpleSlot);
@@ -175,7 +181,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 	
 			// start execution
 			executionGraph.scheduleForExecution(scheduler);
-	
+
 			assertTrue(0L == restartingTime.getValue());
 	
 			List<ExecutionAttemptID> executionIDs = new ArrayList<>();

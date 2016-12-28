@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedRestoring;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -65,7 +66,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFunction<T> implements 
 		CheckpointListener,
 		ResultTypeQueryable<T>,
-		CheckpointedFunction {
+		CheckpointedFunction,
+		CheckpointedRestoring<HashMap<KafkaTopicPartition, Long>> {
+
 	private static final long serialVersionUID = -6272159445203409112L;
 
 	protected static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaConsumerBase.class);
@@ -318,14 +321,18 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		offsetsStateForCheckpoint = stateStore.getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
 
 		if (context.isRestored()) {
-			restoreToOffset = new HashMap<>();
-			for (Tuple2<KafkaTopicPartition, Long> kafkaOffset : offsetsStateForCheckpoint.get()) {
-				restoreToOffset.put(kafkaOffset.f0, kafkaOffset.f1);
-			}
+			if (restoreToOffset == null) {
+				restoreToOffset = new HashMap<>();
+				for (Tuple2<KafkaTopicPartition, Long> kafkaOffset : offsetsStateForCheckpoint.get()) {
+					restoreToOffset.put(kafkaOffset.f0, kafkaOffset.f1);
+				}
 
-			LOG.info("Setting restore state in the FlinkKafkaConsumer.");
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Using the following offsets: {}", restoreToOffset);
+				LOG.info("Setting restore state in the FlinkKafkaConsumer.");
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Using the following offsets: {}", restoreToOffset);
+				}
+			} else if (restoreToOffset.isEmpty()) {
+				restoreToOffset = null;
 			}
 		} else {
 			LOG.info("No restore state for FlinkKafkaConsumer.");
@@ -378,6 +385,19 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			while (pendingOffsetsToCommit.size() > MAX_NUM_PENDING_CHECKPOINTS) {
 				pendingOffsetsToCommit.remove(0);
 			}
+		}
+	}
+
+	@Override
+	public void restoreState(HashMap<KafkaTopicPartition, Long> restoredOffsets) {
+		LOG.info("{} (taskIdx={}) restoring offsets from an older version.",
+			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
+
+		restoreToOffset = restoredOffsets;
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("{} (taskIdx={}) restored offsets from an older Flink version: {}",
+				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), restoreToOffset);
 		}
 	}
 

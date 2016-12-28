@@ -41,15 +41,16 @@ see [Java API Quickstart]({{ site.baseurl }}/quickstart/java_api_quickstart.html
 about this. For our purposes, the command to run is this:
 
 {% highlight bash %}
-$ mvn archetype:generate\
-    -DarchetypeGroupId=org.apache.flink\
-    -DarchetypeArtifactId=flink-quickstart-java\
-    -DarchetypeVersion={{ site.version }}\
-    -DgroupId=wiki-edits\
-    -DartifactId=wiki-edits\
-    -Dversion=0.1\
-    -Dpackage=wikiedits\
-    -DinteractiveMode=false\
+$ mvn archetype:generate \
+    -DarchetypeGroupId=org.apache.flink \
+    -DarchetypeArtifactId=flink-quickstart-java \{% unless site.is_stable %}
+    -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
+    -DarchetypeVersion={{ site.version }} \
+    -DgroupId=wiki-edits \
+    -DartifactId=wiki-edits \
+    -Dversion=0.1 \
+    -Dpackage=wikiedits \
+    -DinteractiveMode=false
 {% endhighlight %}
 
 You can edit the `groupId`, `artifactId` and `package` if you like. With the above parameters,
@@ -63,8 +64,9 @@ wiki-edits/
     └── main
         ├── java
         │   └── wikiedits
-        │       ├── Job.java
+        │       ├── BatchJob.java
         │       ├── SocketTextStreamWordCount.java
+        │       ├── StreamingJob.java
         │       └── WordCount.java
         └── resources
             └── log4j.properties
@@ -79,7 +81,7 @@ $ rm wiki-edits/src/main/java/wikiedits/*.java
 {% endhighlight %}
 
 As a last step we need to add the Flink Wikipedia connector as a dependency so that we can
-use it in our program. Edit the `dependencies` section so that it looks like this:
+use it in our program. Edit the `dependencies` section of the `pom.xml` so that it looks like this:
 
 {% highlight xml %}
 <dependencies>
@@ -90,23 +92,23 @@ use it in our program. Edit the `dependencies` section so that it looks like thi
     </dependency>
     <dependency>
         <groupId>org.apache.flink</groupId>
-        <artifactId>flink-streaming-java_2.10</artifactId>
+        <artifactId>flink-streaming-java_2.11</artifactId>
         <version>${flink.version}</version>
     </dependency>
     <dependency>
         <groupId>org.apache.flink</groupId>
-        <artifactId>flink-clients_2.10</artifactId>
+        <artifactId>flink-clients_2.11</artifactId>
         <version>${flink.version}</version>
     </dependency>
     <dependency>
         <groupId>org.apache.flink</groupId>
-        <artifactId>flink-connector-wikiedits_2.10</artifactId>
+        <artifactId>flink-connector-wikiedits_2.11</artifactId>
         <version>${flink.version}</version>
     </dependency>
 </dependencies>
 {% endhighlight %}
 
-Notice the `flink-connector-wikiedits_2.10` dependency that was added. (This example and
+Notice the `flink-connector-wikiedits_2.11` dependency that was added. (This example and
 the Wikipedia connector were inspired by the *Hello Samza* example of Apache Samza.)
 
 ## Writing a Flink Program
@@ -295,7 +297,7 @@ use the Kafka sink. Add this to the `pom.xml` file in the dependencies section:
 {% highlight xml %}
 <dependency>
     <groupId>org.apache.flink</groupId>
-    <artifactId>flink-connector-kafka-0.8_2.10</artifactId>
+    <artifactId>flink-connector-kafka-0.8_2.11</artifactId>
     <version>${flink.version}</version>
 </dependency>
 {% endhighlight %}

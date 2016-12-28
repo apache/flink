@@ -59,6 +59,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
+@SuppressWarnings("deprecation")
 public class MigrationV0ToV1Test {
 
 	@Rule
@@ -135,7 +136,7 @@ public class MigrationV0ToV1Test {
 						StreamStateHandle stateHandle = legacyOperatorState.get(c);
 						try (InputStream is = stateHandle.openInputStream()) {
 							Tuple4<Integer, Integer, Integer, Integer> expTestState = new Tuple4<>(0, t, p, c);
-							Tuple4<Integer, Integer, Integer, Integer> actTestState = null;
+							Tuple4<Integer, Integer, Integer, Integer> actTestState;
 							//check function state
 							if (p % 4 != 0) {
 								assertEquals(1, is.read());

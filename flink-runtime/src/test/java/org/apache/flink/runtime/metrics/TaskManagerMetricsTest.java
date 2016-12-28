@@ -21,26 +21,26 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.JavaTestKit;
+
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
-import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
+import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
+import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
+import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManager;
-import org.apache.flink.runtime.taskmanager.TaskManagerConfiguration;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
 import org.junit.Assert;
 import org.junit.Test;
-import scala.Option;
-import scala.Tuple7;
+
 import scala.concurrent.duration.FiniteDuration;
 
+import java.net.InetAddress;
 import java.util.concurrent.TimeUnit;
 
 public class TaskManagerMetricsTest {
@@ -49,7 +49,7 @@ public class TaskManagerMetricsTest {
 	 * Tests the metric registry life cycle on JobManager re-connects.
 	 */
 	@Test
-	public void testMetricRegistryLifeCycle() {
+	public void testMetricRegistryLifeCycle() throws Exception {
 		ActorSystem actorSystem = null;
 		try {
 			actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
@@ -70,28 +70,30 @@ public class TaskManagerMetricsTest {
 			// ================================================================
 			// Start TaskManager
 			// ================================================================
-			ResourceID tmResourceID = ResourceID.generate();
+			final Configuration config = new Configuration();
+			final ResourceID tmResourceID = ResourceID.generate();
 
-			Tuple7<TaskManagerConfiguration, TaskManagerLocation, MemoryManager, IOManager, NetworkEnvironment, LeaderRetrievalService, MetricRegistry> components =
-				TaskManager.createTaskManagerComponents(
-					new Configuration(),
-					tmResourceID,
-					"localhost",
-					true,
-					Option.apply(leaderRetrievalService)
-				);
+			TaskManagerServicesConfiguration taskManagerServicesConfiguration = 
+					TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), false);
 
+			TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(config);
+
+			TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
+					taskManagerServicesConfiguration, tmResourceID);
+
+			final MetricRegistry tmRegistry = taskManagerServices.getMetricRegistry();
+			
 			// create the task manager
 			final Props tmProps = TaskManager.getTaskManagerProps(
 				TaskManager.class,
-				components._1(),
+				taskManagerConfiguration,
 				tmResourceID,
-				components._2(),
-				components._3(),
-				components._4(),
-				components._5(),
-				components._6(),
-				components._7());
+				taskManagerServices.getTaskManagerLocation(),
+				taskManagerServices.getMemoryManager(),
+				taskManagerServices.getIOManager(),
+				taskManagerServices.getNetworkEnvironment(),
+				leaderRetrievalService,
+				tmRegistry);
 
 			final ActorRef taskManager = actorSystem.actorOf(tmProps);
 
@@ -118,7 +120,6 @@ public class TaskManagerMetricsTest {
 			}};
 
 			// verify that the registry was not shutdown due to the disconnect
-			MetricRegistry tmRegistry = components._7();
 			Assert.assertFalse(tmRegistry.isShutdown());
 
 			// shut down the actors and the actor system

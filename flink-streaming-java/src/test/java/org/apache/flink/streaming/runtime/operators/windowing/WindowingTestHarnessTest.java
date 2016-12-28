@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.WindowingTestHarness;
 import org.junit.Test;
 
@@ -171,7 +172,7 @@ public class WindowingTestHarnessTest {
 		testHarness.compareActualToExpectedOutput("Output was not correct.");
 
 		// do a snapshot, close and restore again
-		StreamStateHandle snapshot = testHarness.snapshot(0L, 0L);
+		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.close();
 		testHarness.restore(snapshot);
 

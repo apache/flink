@@ -21,6 +21,7 @@ package org.apache.flink.api.java.io;
 import org.apache.flink.api.common.io.ParseException;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -68,9 +69,9 @@ public class RowCsvInputFormatTest {
 
 		FileInputSplit split = createTempFile(fileContent);
 
-		RowTypeInfo typeInfo = new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO);
+		TypeInformation[] fieldTypes = new TypeInformation[]{BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO};
 
-		RowCsvInputFormat format = new RowCsvInputFormat(PATH, typeInfo, "\n", "|");
+		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes, "\n", "|");
 		format.setLenient(false);
 		Configuration parameters = new Configuration();
 		format.configure(new Configuration());
@@ -161,12 +162,12 @@ public class RowCsvInputFormatTest {
 
 		FileInputSplit split = createTempFile(fileContent);
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			BasicTypeInfo.STRING_TYPE_INFO,
 			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.DOUBLE_TYPE_INFO);
+			BasicTypeInfo.DOUBLE_TYPE_INFO};
 
-		RowCsvInputFormat format = new RowCsvInputFormat(PATH, typeInfo, "\n", "|");
+		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes, "\n", "|");
 		format.setCommentPrefix("#");
 		format.configure(new Configuration());
 		format.open(split);
@@ -200,12 +201,12 @@ public class RowCsvInputFormatTest {
 
 		FileInputSplit split = createTempFile(fileContent);
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			BasicTypeInfo.STRING_TYPE_INFO,
 			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.DOUBLE_TYPE_INFO);
+			BasicTypeInfo.DOUBLE_TYPE_INFO};
 
-		RowCsvInputFormat format = new RowCsvInputFormat(PATH, typeInfo, "\n", "|");
+		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes, "\n", "|");
 		format.setCommentPrefix("//");
 		format.configure(new Configuration());
 		format.open(split);
@@ -233,12 +234,12 @@ public class RowCsvInputFormatTest {
 
 		FileInputSplit split = createTempFile(fileContent);
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			BasicTypeInfo.STRING_TYPE_INFO,
 			BasicTypeInfo.STRING_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO);
+			BasicTypeInfo.STRING_TYPE_INFO};
 
-		RowCsvInputFormat format = new RowCsvInputFormat(PATH, typeInfo, "\n", "|");
+		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes, "\n", "|");
 		format.configure(new Configuration());
 		format.open(split);
 
@@ -273,12 +274,12 @@ public class RowCsvInputFormatTest {
 
 		FileInputSplit split = createTempFile(fileContent);
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			BasicTypeInfo.STRING_TYPE_INFO,
 			BasicTypeInfo.STRING_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO);
+			BasicTypeInfo.STRING_TYPE_INFO};
 
-		RowCsvInputFormat format = new RowCsvInputFormat(PATH, typeInfo, "\n", "|");
+		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes, "\n", "|");
 		format.configure(new Configuration());
 		format.enableQuotedStringParsing('@');
 		format.open(split);
@@ -314,12 +315,12 @@ public class RowCsvInputFormatTest {
 
 		FileInputSplit split = createTempFile(fileContent);
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			BasicTypeInfo.STRING_TYPE_INFO,
 			BasicTypeInfo.STRING_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO);
+			BasicTypeInfo.STRING_TYPE_INFO};
 
-		RowCsvInputFormat format = new RowCsvInputFormat(PATH, typeInfo, "\n", "|");
+		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes, "\n", "|");
 		format.setFieldDelimiter("|-");
 		format.configure(new Configuration());
 		format.open(split);
@@ -355,14 +356,14 @@ public class RowCsvInputFormatTest {
 
 		FileInputSplit split = createTempFile(fileContent);
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			BasicTypeInfo.INT_TYPE_INFO,
 			BasicTypeInfo.INT_TYPE_INFO,
 			BasicTypeInfo.INT_TYPE_INFO,
 			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO);
+			BasicTypeInfo.INT_TYPE_INFO};
 
-		RowCsvInputFormat format = new RowCsvInputFormat(PATH, typeInfo, "\n", "|");
+		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes, "\n", "|");
 
 		format.setFieldDelimiter("|");
 		format.configure(new Configuration());
@@ -405,7 +406,7 @@ public class RowCsvInputFormatTest {
 
 		FileInputSplit split = createTempFile(fileContent);
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			BasicTypeInfo.BOOLEAN_TYPE_INFO,
 			BasicTypeInfo.BYTE_TYPE_INFO,
 			BasicTypeInfo.DOUBLE_TYPE_INFO,
@@ -413,9 +414,9 @@ public class RowCsvInputFormatTest {
 			BasicTypeInfo.INT_TYPE_INFO,
 			BasicTypeInfo.LONG_TYPE_INFO,
 			BasicTypeInfo.SHORT_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO);
+			BasicTypeInfo.STRING_TYPE_INFO};
 
-		RowCsvInputFormat format = new RowCsvInputFormat(PATH, typeInfo, true);
+		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes, true);
 		format.setFieldDelimiter(",");
 		format.configure(new Configuration());
 		format.open(split);
@@ -439,14 +440,14 @@ public class RowCsvInputFormatTest {
 
 		FileInputSplit split = createTempFile(fileContent);
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			BasicTypeInfo.DOUBLE_TYPE_INFO,
 			BasicTypeInfo.DOUBLE_TYPE_INFO,
 			BasicTypeInfo.DOUBLE_TYPE_INFO,
 			BasicTypeInfo.DOUBLE_TYPE_INFO,
-			BasicTypeInfo.DOUBLE_TYPE_INFO);
+			BasicTypeInfo.DOUBLE_TYPE_INFO};
 
-		RowCsvInputFormat format = new RowCsvInputFormat(PATH, typeInfo);
+		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes);
 		format.setFieldDelimiter("|");
 		format.configure(new Configuration());
 		format.open(split);
@@ -480,11 +481,11 @@ public class RowCsvInputFormatTest {
 
 		FileInputSplit split = createTempFile(fileContent);
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO);
+			BasicTypeInfo.INT_TYPE_INFO};
 
-		RowCsvInputFormat format = new RowCsvInputFormat(PATH, typeInfo);
+		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes);
 		format.setFieldDelimiter("|");
 		format.configure(new Configuration());
 		format.open(split);
@@ -513,15 +514,15 @@ public class RowCsvInputFormatTest {
 
 		FileInputSplit split = createTempFile(fileContent);
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			BasicTypeInfo.INT_TYPE_INFO,
 			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO);
+			BasicTypeInfo.INT_TYPE_INFO};
 
 		RowCsvInputFormat format = new RowCsvInputFormat(
 			PATH,
-			typeInfo,
-			new boolean[]{true, false, false, true, false, false, false, true});
+			fieldTypes,
+			new int[]{0,3,7});
 		format.setFieldDelimiter("|x|");
 		format.configure(new Configuration());
 		format.open(split);
@@ -552,14 +553,14 @@ public class RowCsvInputFormatTest {
 
 		FileInputSplit split = createTempFile(fileContent);
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			BasicTypeInfo.INT_TYPE_INFO,
 			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO);
+			BasicTypeInfo.INT_TYPE_INFO};
 
 		RowCsvInputFormat format = new RowCsvInputFormat(
 			PATH,
-			typeInfo,
+			fieldTypes,
 			new int[]{0, 3, 7});
 		format.setFieldDelimiter("|");
 		format.configure(new Configuration());
@@ -591,15 +592,15 @@ public class RowCsvInputFormatTest {
 
 		FileInputSplit split = RowCsvInputFormatTest.createTempFile(fileContent);
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			BasicTypeInfo.INT_TYPE_INFO,
 			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO);
+			BasicTypeInfo.INT_TYPE_INFO};
 
 		RowCsvInputFormat format = new RowCsvInputFormat(
 			PATH,
-			typeInfo,
-			new boolean[]{true, false, false, true, false, false, false, true});
+			fieldTypes,
+			new int[]{0, 3, 7});
 		format.setFieldDelimiter("&&");
 		format.configure(new Configuration());
 		format.open(split);
@@ -660,14 +661,14 @@ public class RowCsvInputFormatTest {
 
 		FileInputSplit split = createTempFile(fileContent);
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			BasicTypeInfo.INT_TYPE_INFO,
 			BasicTypeInfo.STRING_TYPE_INFO,
 			BasicTypeInfo.STRING_TYPE_INFO,
 			BasicTypeInfo.STRING_TYPE_INFO,
-			BasicTypeInfo.DOUBLE_TYPE_INFO);
+			BasicTypeInfo.DOUBLE_TYPE_INFO};
 
-		RowCsvInputFormat format = new RowCsvInputFormat(PATH, typeInfo);
+		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes);
 		format.setSkipFirstLineAsHeader(true);
 		format.setFieldDelimiter(",");
 		format.configure(new Configuration());
@@ -749,14 +750,14 @@ public class RowCsvInputFormatTest {
 		writer.write(fileContent);
 		writer.close();
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			BasicTypeInfo.STRING_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO);
+			BasicTypeInfo.STRING_TYPE_INFO};
 
 		RowCsvInputFormat inputFormat = new RowCsvInputFormat(
 			new Path(tempFile.toURI().toString()),
-			typeInfo,
-			new boolean[]{true, false, true});
+			fieldTypes,
+			new int[]{0, 2});
 		inputFormat.enableQuotedStringParsing('"');
 		inputFormat.setFieldDelimiter("|");
 		inputFormat.setDelimiter('\n');
@@ -781,11 +782,11 @@ public class RowCsvInputFormatTest {
 		writer.write(fileContent);
 		writer.close();
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			BasicTypeInfo.STRING_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO);
+			BasicTypeInfo.STRING_TYPE_INFO};
 
-		RowCsvInputFormat inputFormat = new RowCsvInputFormat(new Path(tempFile.toURI().toString()), typeInfo);
+		RowCsvInputFormat inputFormat = new RowCsvInputFormat(new Path(tempFile.toURI().toString()), fieldTypes);
 		inputFormat.enableQuotedStringParsing('"');
 		inputFormat.setFieldDelimiter("|");
 		inputFormat.setDelimiter('\n');
@@ -806,13 +807,13 @@ public class RowCsvInputFormatTest {
 
 		FileInputSplit split = createTempFile(fileContent);
 
-		RowTypeInfo typeInfo = new RowTypeInfo(
+		TypeInformation[] fieldTypes = new TypeInformation[]{
 			SqlTimeTypeInfo.DATE,
 			SqlTimeTypeInfo.TIME,
 			SqlTimeTypeInfo.TIMESTAMP,
-			SqlTimeTypeInfo.TIMESTAMP);
+			SqlTimeTypeInfo.TIMESTAMP};
 
-		RowCsvInputFormat format = new RowCsvInputFormat(PATH, typeInfo);
+		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes);
 		format.setFieldDelimiter("|");
 		format.configure(new Configuration());
 		format.open(split);
@@ -838,6 +839,48 @@ public class RowCsvInputFormatTest {
 		assertTrue(format.reachedEnd());
 	}
 
+	@Test
+	public void testScanOrder() throws Exception {
+		String fileContent =
+			// first row
+			"111|222|333|444|555|666|777|888|999|000|\n" +
+			// second row
+			"000|999|888|777|666|555|444|333|222|111|";
+		FileInputSplit split = createTempFile(fileContent);
+
+		TypeInformation[] fieldTypes = new TypeInformation[]{
+			BasicTypeInfo.INT_TYPE_INFO,
+			BasicTypeInfo.INT_TYPE_INFO,
+			BasicTypeInfo.INT_TYPE_INFO};
+
+		int[] order = new int[]{7, 3, 0};
+		RowCsvInputFormat format = new RowCsvInputFormat(
+			PATH,
+			fieldTypes,
+			order);
+
+		format.setFieldDelimiter("|");
+		format.configure(new Configuration());
+		format.open(split);
+
+		Row result = new Row(3);
+
+		// check first row
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals(888, result.getField(0));
+		assertEquals(444, result.getField(1));
+		assertEquals(111, result.getField(2));
+
+		// check second row
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals(333, result.getField(0));
+		assertEquals(777, result.getField(1));
+		assertEquals(0, result.getField(2));
+
+	}
+
 	private static FileInputSplit createTempFile(String content) throws IOException {
 		File tempFile = File.createTempFile("test_contents", "tmp");
 		tempFile.deleteOnExit();
@@ -859,9 +902,9 @@ public class RowCsvInputFormatTest {
 		wrt.write(fileContent);
 		wrt.close();
 
-		RowTypeInfo typeInfo = new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO);
+		TypeInformation[] fieldTypes = new TypeInformation[]{BasicTypeInfo.STRING_TYPE_INFO};
 
-		RowCsvInputFormat inputFormat = new RowCsvInputFormat(new Path(tempFile.toURI().toString()), typeInfo);
+		RowCsvInputFormat inputFormat = new RowCsvInputFormat(new Path(tempFile.toURI().toString()), fieldTypes);
 		inputFormat.configure(new Configuration());
 		inputFormat.setDelimiter(lineBreakerSetup);
 

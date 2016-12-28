@@ -398,7 +398,7 @@ Please refer to the Javadoc for a full list of supported operations and a descri
 </div>
 
 <div data-lang="scala" markdown="1">
-The Table API is enabled by importing `org.apache.flink.api.scala.table._`. This enables
+The Table API is enabled by importing `org.apache.flink.table.api.scala._`. This enables
 implicit conversions to convert a `DataSet` or `DataStream` to a Table. The following example shows:
 
 - how a `DataSet` is converted to a `Table`,
@@ -407,7 +407,7 @@ implicit conversions to convert a `DataSet` or `DataStream` to a Table. The foll
 
 {% highlight scala %}
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.table._
+import org.apache.flink.table.api.scala._
 
 case class WC(word: String, count: Int)
 
@@ -448,7 +448,7 @@ The following example shows how to convert a `DataStream` to a `Table` and filte
 
 {% highlight scala %}
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.table._
+import org.apache.flink.table.api.scala._
 
 val env = StreamExecutionEnvironment.getExecutionEnvironment
 val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -479,7 +479,7 @@ A registered table can be accessed from a `TableEnvironment` as follows:
 ### Table API Operators
 
 The Table API features a domain-specific language to execute language-integrated queries on structured data in Scala and Java.
-This section gives a brief overview of the available operators. You can find more details of operators in the [Javadoc]({{site.baseurl}}/api/java/org/apache/flink/api/table/Table.html).
+This section gives a brief overview of the available operators. You can find more details of operators in the [Javadoc]({{site.baseurl}}/api/java/org/apache/flink/table/api/Table.html).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1451,7 +1451,7 @@ A, ABS, ABSOLUTE, ACTION, ADA, ADD, ADMIN, AFTER, ALL, ALLOCATE, ALLOW, ALTER, A
 Data Types
 ----------
 
-The Table API is built on top of Flink's DataSet and DataStream API. Internally, it also uses Flink's `TypeInformation` to distinguish between types. The Table API does not support all Flink types so far. All supported simple types are listed in `org.apache.flink.api.table.Types`. The following table summarizes the relation between Table API types, SQL types, and the resulting Java class.
+The Table API is built on top of Flink's DataSet and DataStream API. Internally, it also uses Flink's `TypeInformation` to distinguish between types. The Table API does not support all Flink types so far. All supported simple types are listed in `org.apache.flink.table.api.Types`. The following table summarizes the relation between Table API types, SQL types, and the resulting Java class.
 
 | Table API              | SQL                         | Java type              |
 | :--------------------- | :-------------------------- | :--------------------- |
@@ -3814,7 +3814,7 @@ ELEMENT(ARRAY)
 
 If a required scalar function is not contained in the built-in functions, it is possible to define custom, user-defined scalar functions for both the Table API and SQL. A user-defined scalar functions maps zero, one, or multiple scalar values to a new scalar value.
 
-In order to define a scalar function one has to extend the base class `ScalarFunction` in `org.apache.flink.api.table.functions` and implement (one or more) evaluation methods. The behavior of a scalar function is determined by the evaluation method. An evaluation method must be declared publicly and named `eval`. The parameter types and return type of the evaluation method also determine the parameter and return types of the scalar function. Evaluation methods can also be overloaded by implementing multiple methods named `eval`.
+In order to define a scalar function one has to extend the base class `ScalarFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a scalar function is determined by the evaluation method. An evaluation method must be declared publicly and named `eval`. The parameter types and return type of the evaluation method also determine the parameter and return types of the scalar function. Evaluation methods can also be overloaded by implementing multiple methods named `eval`.
 
 The following example snippet shows how to define your own hash code function:
 
@@ -3901,7 +3901,7 @@ object TimestampModifier extends ScalarFunction {
 
 A user-defined table function is implemented similar to a user-defined scalar function but can return a set of values instead of a single value. The returned set of values can consist of multiple columns and multiple rows similar to a standard table. A user-defined table function works on zero, one, or multiple scalar values as input and returns multiple rows as output.
 
-In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.api.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
+In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
 
 In the Table API, a table function is used with `.join(Expression)` or `.leftOuterJoin(Expression)` for Scala users and `.join(String)` or `.leftOuterJoin(String)` for Java users. The `join` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoin` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with ON TRUE condition (see examples below).
 
@@ -3913,7 +3913,7 @@ The following examples show how to define a table-valued function and use it:
 // the generic type "Tuple2<String, Integer>" determines the returned table type has two columns,
 // the first is a String type and the second is an Integer type
 public class Split extends TableFunction<Tuple2<String, Integer>> {
-    public void evel(String str) {
+    public void eval(String str) {
         for (String s : str.split(" ")) {
             // use collect(...) to emit an output row
             collect(new Tuple2<String, Integer>(s, s.length()));
@@ -3945,7 +3945,7 @@ tableEnv.sql("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(
 // the generic type "(String, Integer)" determines the returned table type has two columns,
 // the first is a String type and the second is an Integer type
 class Split extends TableFunction[(String, Integer)] {
-  def evel(str: String): Unit = {
+  def eval(str: String): Unit = {
     // use collect(...) to emit an output row
     str.split(" ").foreach(x -> collect((x, x.length))
   }

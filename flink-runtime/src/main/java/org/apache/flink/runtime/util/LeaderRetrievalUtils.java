@@ -22,6 +22,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.dispatch.Mapper;
 import akka.dispatch.OnComplete;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -60,12 +61,26 @@ public class LeaderRetrievalUtils {
 	 */
 	public static LeaderRetrievalService createLeaderRetrievalService(Configuration configuration)
 		throws Exception {
+		return createLeaderRetrievalService(configuration, false);
+	}
+
+	/**
+	 * Creates a {@link LeaderRetrievalService} based on the provided {@link Configuration} object.
+	 *
+	 * @param configuration Configuration containing the settings for the {@link LeaderRetrievalService}
+	 * @param resolveInitialHostName If true, resolves the initial hostname
+	 * @return The {@link LeaderRetrievalService} specified in the configuration object
+	 * @throws Exception
+	 */
+	public static LeaderRetrievalService createLeaderRetrievalService(
+			Configuration configuration, boolean resolveInitialHostName)
+		throws Exception {
 
 		HighAvailabilityMode highAvailabilityMode = getRecoveryMode(configuration);
 
 		switch (highAvailabilityMode) {
 			case NONE:
-				return StandaloneUtils.createLeaderRetrievalService(configuration);
+				return StandaloneUtils.createLeaderRetrievalService(configuration, resolveInitialHostName);
 			case ZOOKEEPER:
 				return ZooKeeperUtils.createLeaderRetrievalService(configuration);
 			default:
@@ -167,6 +182,12 @@ public class LeaderRetrievalUtils {
 				LOG.warn("Could not stop the leader retrieval service.", fe);
 			}
 		}
+	}
+
+	public static InetAddress findConnectingAddress(
+		LeaderRetrievalService leaderRetrievalService,
+		Time timeout) throws LeaderRetrievalException {
+		return findConnectingAddress(leaderRetrievalService, new FiniteDuration(timeout.getSize(), timeout.getUnit()));
 	}
 
 	public static InetAddress findConnectingAddress(

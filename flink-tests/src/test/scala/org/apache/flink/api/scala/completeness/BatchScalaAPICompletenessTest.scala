@@ -55,7 +55,6 @@ class BatchScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
        "org.apache.flink.api.java.operators.TwoInputOperator.getInput2Type",
        "org.apache.flink.api.java.ExecutionEnvironment.areExplicitEnvironmentsAllowed",
        "org.apache.flink.api.java.ExecutionEnvironment.resetContextEnvironment",
-       "org.apache.flink.api.java.ExecutionEnvironment.setDefaultLocalParallelism",
 
        // TypeHints are only needed for Java API, Scala API doesn't need them
        "org.apache.flink.api.java.operators.SingleInputUdfOperator.returns",

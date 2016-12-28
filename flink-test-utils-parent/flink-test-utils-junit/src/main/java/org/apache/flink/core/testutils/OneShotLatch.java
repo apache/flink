@@ -45,7 +45,7 @@ public final class OneShotLatch {
 	}
 
 	/**
-	 * Waits until {@link #trigger())} is called. Once {@code #trigger()} has been called this
+	 * Waits until {@link OneShotLatch#trigger())} is called. Once {@code trigger()} has been called this
 	 * call will always return immediately.
 	 * 
 	 * @throws InterruptedException Thrown if the thread is interrupted while waiting.
@@ -59,7 +59,7 @@ public final class OneShotLatch {
 	}
 
 	/**
-	 * Waits until {@link #trigger())} is called. Once {@code #trigger()} has been called this
+	 * Waits until {@link OneShotLatch#trigger())} is called. Once {@code #trigger()} has been called this
 	 * call will always return immediately.
 	 * 
 	 * <p>If the latch is not triggered within the given timeout, a {@code TimeoutException}

@@ -185,7 +185,9 @@ public class StateAssignmentOperation {
 				ChainedStateHandle<StreamStateHandle> nonPartitionableState = null;
 
 				if (!parallelismChanged) {
-					nonPartitionableState = taskState.getState(subTaskIdx).getLegacyOperatorState();
+					if (taskState.getState(subTaskIdx) != null) {
+						nonPartitionableState = taskState.getState(subTaskIdx).getLegacyOperatorState();
+					}
 				}
 
 				// partitionable state
@@ -224,10 +226,17 @@ public class StateAssignmentOperation {
 					newKeyedStateStream = getKeyGroupsStateHandles(parallelKeyedStateStream, subtaskKeyGroupIds);
 				} else {
 					SubtaskState subtaskState = taskState.getState(subTaskIdx);
-					KeyGroupsStateHandle oldKeyedStatesBackend = subtaskState.getManagedKeyedState();
-					KeyGroupsStateHandle oldKeyedStatesStream = subtaskState.getRawKeyedState();
-					newKeyedStatesBackend = oldKeyedStatesBackend != null ? Collections.singletonList(oldKeyedStatesBackend) : null;
-					newKeyedStateStream = oldKeyedStatesStream != null ? Collections.singletonList(oldKeyedStatesStream) : null;
+					if (subtaskState != null) {
+						KeyGroupsStateHandle oldKeyedStatesBackend = subtaskState.getManagedKeyedState();
+						KeyGroupsStateHandle oldKeyedStatesStream = subtaskState.getRawKeyedState();
+						newKeyedStatesBackend = oldKeyedStatesBackend != null ? Collections.singletonList(
+								oldKeyedStatesBackend) : null;
+						newKeyedStateStream = oldKeyedStatesStream != null ? Collections.singletonList(
+								oldKeyedStatesStream) : null;
+					} else {
+						newKeyedStatesBackend = null;
+						newKeyedStateStream = null;
+					}
 				}
 
 				TaskStateHandles taskStateHandles = new TaskStateHandles(
