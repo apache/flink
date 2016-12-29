@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.api
 
-import _root_.java.util.concurrent.atomic.AtomicInteger
 import _root_.java.lang.reflect.Modifier
+import _root_.java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.calcite.config.Lex
 import org.apache.calcite.plan.RelOptPlanner
@@ -32,7 +32,7 @@ import org.apache.calcite.sql.util.ChainedSqlOperatorTable
 import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RuleSet, RuleSets}
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
@@ -43,7 +43,6 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.codegen.ExpressionReducer
 import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
@@ -323,9 +322,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     * Returns field names and field positions for a given [[TypeInformation]].
     *
     * Field names are automatically extracted for
-    * [[org.apache.flink.api.common.typeutils.CompositeType]].
+    * [[org.apache.flink.api.common.typeutils.CompositeType]]
+    * or [[org.apache.flink.api.common.typeinfo.AtomicType]].
     * The method fails if inputType is not a
-    * [[org.apache.flink.api.common.typeutils.CompositeType]].
+    * [[org.apache.flink.api.common.typeutils.CompositeType]]
+    * or [[org.apache.flink.api.common.typeinfo.AtomicType]].
     *
     * @param inputType The TypeInformation extract the field names and positions from.
     * @tparam A The type of the TypeInformation.
@@ -512,16 +513,18 @@ object TableEnvironment {
   }
 
   /**
-    * Returns field names and field positions for a given [[TypeInformation]].
+    * Returns field names for a given [[TypeInformation]].
     *
     * Field names are automatically extracted for
-    * [[org.apache.flink.api.common.typeutils.CompositeType]].
+    * [[org.apache.flink.api.common.typeutils.CompositeType]]
+    * or [[org.apache.flink.api.common.typeinfo.AtomicType]].
     * The method fails if inputType is not a
-    * [[org.apache.flink.api.common.typeutils.CompositeType]].
+    * [[org.apache.flink.api.common.typeutils.CompositeType]]
+    * or [[org.apache.flink.api.common.typeinfo.AtomicType]].
     *
-    * @param inputType The TypeInformation extract the field names and positions from.
+    * @param inputType The TypeInformation extract the field names.
     * @tparam A The type of the TypeInformation.
-    * @return A tuple of two arrays holding the field names and corresponding field positions.
+    * @return A an array holding the field names
     */
   def getFieldNames[A](inputType: TypeInformation[A]): Array[String] = {
     validateType(inputType)
@@ -556,6 +559,19 @@ object TableEnvironment {
     }
   }
 
+  /**
+    * Returns field indexes for a given [[TypeInformation]].
+    *
+    * Field indexes are automatically extracted for
+    * [[org.apache.flink.api.common.typeutils.CompositeType]]
+    * or [[org.apache.flink.api.common.typeinfo.AtomicType]].
+    * The method fails if inputType is not a
+    * [[org.apache.flink.api.common.typeutils.CompositeType]]
+    * or [[org.apache.flink.api.common.typeinfo.AtomicType]].
+    *
+    * @param inputType The TypeInformation extract the field positions from.
+    * @return A an array holding the field positions
+    */
   def getFieldIndexes(inputType: TypeInformation[_]): Array[Int] = {
     getFieldNames(inputType).indices.toArray
   }
@@ -564,9 +580,11 @@ object TableEnvironment {
     * Returns field types for a given [[TypeInformation]].
     *
     * Field types are automatically extracted for
-    * [[org.apache.flink.api.common.typeutils.CompositeType]].
+    * [[org.apache.flink.api.common.typeutils.CompositeType]]
+    * or [[org.apache.flink.api.common.typeinfo.AtomicType]].
     * The method fails if inputType is not a
-    * [[org.apache.flink.api.common.typeutils.CompositeType]].
+    * [[org.apache.flink.api.common.typeutils.CompositeType]]
+    * or [[org.apache.flink.api.common.typeinfo.AtomicType]].
     *
     * @param inputType The TypeInformation to extract field types from.
     * @return an holding the field types.
@@ -574,13 +592,11 @@ object TableEnvironment {
   def getFieldTypes(inputType: TypeInformation[_]): Array[TypeInformation[_]] = {
     validateType(inputType)
 
-    getFieldNames(inputType).map { i =>
-      inputType match {
-        case t: CompositeType[_] => t.getTypeAt(i).asInstanceOf[TypeInformation[_]]
-        case a: AtomicType[_] => a.asInstanceOf[TypeInformation[_]]
-        case tpe =>
-          throw new TableException(s"Currently only CompositeType and AtomicType are supported.")
-      }
+    inputType match {
+      case t: CompositeType[_] => 0.until(t.getArity).map(t.getTypeAt(_)).toArray
+      case a: AtomicType[_] => Array(a.asInstanceOf[TypeInformation[_]])
+      case tpe =>
+        throw new TableException(s"Currently only CompositeType and AtomicType are supported.")
     }
   }
 }

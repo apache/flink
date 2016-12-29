@@ -18,17 +18,15 @@
 
 package org.apache.flink.table.api.java.batch;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.table.utils.CommonTestData;
-import org.apache.flink.types.Row;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase;
 import org.apache.flink.table.sources.BatchTableSource;
+import org.apache.flink.table.utils.CommonTestData;
+import org.apache.flink.types.Row;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -92,4 +90,25 @@ public class TableSourceITCase extends TableProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
+	@Test
+	public void testNestedBatchTableSourceSQL() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+		BatchTableSource nestedTable = CommonTestData.getNestedTableSource();
+
+		tableEnv.registerTableSource("NestedPersons", nestedTable);
+
+		Table result = tableEnv
+			.sql("SELECT NestedPersons.firstName, NestedPersons.lastName," +
+				"NestedPersons.address.street, NestedPersons.address.city AS city " +
+				"FROM NestedPersons " +
+				"WHERE NestedPersons.address.city LIKE 'Dublin'");
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+
+		String expected = "Bob,Taylor,Pearse Street,Dublin";
+
+		compareResultAsText(results, expected);
+	}
 }

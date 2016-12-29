@@ -53,8 +53,7 @@ class CsvTableSource(
     ignoreFirstLine: Boolean = false,
     ignoreComments: String = null,
     lenient: Boolean = false)
-  extends BatchTableSource[Row]
-  with StreamTableSource[Row]
+  extends AbstractBatchStreamTableSource[Row]
   with ProjectableTableSource[Row] {
 
   /**

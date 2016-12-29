@@ -16,13 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.schema
+package org.apache.flink.table.sources
 
-import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.api.TableEnvironment
 
-/** Table which defines an external table via a [[TableSource]] */
-class TableSourceTable[T](val tableSource: TableSource[T])
-  extends FlinkTable[T](
-    typeInfo = tableSource.getReturnType,
-    fieldIndexes = tableSource.getFieldsIndices,
-    fieldNames = tableSource.getFieldsNames)
+/**
+  * Partial implementation of the [[AbstractTableSource]] trait.
+  *
+  * @tparam T Type of the [[org.apache.flink.api.java.DataSet]] created by this [[TableSource]].
+  */
+abstract class AbstractTableSource[T] extends TableSource[T] {
+
+  /** Returns the names of the table fields. */
+  override def getFieldsNames: Array[String] = {
+    TableEnvironment.getFieldNames(getReturnType)
+  }
+
+  /** Returns the indices of the table fields. */
+  override def getFieldsIndices: Array[Int] = {
+    TableEnvironment.getFieldIndexes(getReturnType)
+  }
+}

@@ -120,6 +120,7 @@ trait FlinkRel {
         case typeName if SqlTypeName.YEAR_INTERVAL_TYPES.contains(typeName) => s + 8
         case typeName if SqlTypeName.DAY_INTERVAL_TYPES.contains(typeName) => s + 4
         case SqlTypeName.TIME | SqlTypeName.TIMESTAMP | SqlTypeName.DATE => s + 12
+        case SqlTypeName.ROW => s
         case _ => throw TableException(s"Unsupported data type encountered: $t")
       }
     }

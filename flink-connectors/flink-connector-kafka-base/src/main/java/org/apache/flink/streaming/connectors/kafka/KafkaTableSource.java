@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.sources.TableSource$class;
+import org.apache.flink.table.sources.AbstractStreamTableSource;
 import org.apache.flink.types.Row;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -38,7 +38,7 @@ import static org.apache.flink.streaming.connectors.kafka.internals.TypeUtil.toT
  * <p>The version-specific Kafka consumers need to extend this class and
  * override {@link #getKafkaConsumer(String, Properties, DeserializationSchema)}}.
  */
-public abstract class KafkaTableSource implements StreamTableSource<Row> {
+public abstract class KafkaTableSource extends AbstractStreamTableSource<Row> {
 
 	/** The Kafka topic to consume. */
 	private final String topic;
@@ -110,14 +110,6 @@ public abstract class KafkaTableSource implements StreamTableSource<Row> {
 		FlinkKafkaConsumerBase<Row> kafkaConsumer = getKafkaConsumer(topic, properties, deserializationSchema);
 		DataStream<Row> kafkaSource = env.addSource(kafkaConsumer);
 		return kafkaSource;
-	}
-
-	public String[] getFieldsNames() {
-		return TableSource$class.getFieldsNames(this);
-	}
-
-	public int[] getFieldsIndexes() {
-		return TableSource$class.getFieldsIndexes(this);
 	}
 
 	@Override

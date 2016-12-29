@@ -37,14 +37,10 @@ import org.apache.flink.table.api.TableEnvironment
 trait TableSource[T] {
 
   /** Returns the names of the table fields. */
-  def getFieldsNames: Array[String] = {
-    TableEnvironment.getFieldNames(getReturnType)
-  }
+  def getFieldsNames: Array[String]
 
   /** Returns the indices of the table fields. */
-  def getFieldsIndexes: Array[Int] = {
-    TableEnvironment.getFieldIndexes(getReturnType)
-  }
+  def getFieldsIndices: Array[Int]
 
   /** Returns the [[TypeInformation]] for the return type of the [[TableSource]]. */
   def getReturnType: TypeInformation[T]

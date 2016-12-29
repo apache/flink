@@ -16,13 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.schema
+package org.apache.flink.table.sources
 
-import org.apache.flink.table.sources.TableSource
+/**
+  * Partial implementation of the [[BatchTableSource]] trait.
+  *
+  * @tparam T Type of the [[org.apache.flink.api.java.DataSet]] created by this [[TableSource]].
+  */
+abstract class AbstractBatchTableSource[T]
+    extends AbstractTableSource[T]
+    with BatchTableSource[T] {
 
-/** Table which defines an external table via a [[TableSource]] */
-class TableSourceTable[T](val tableSource: TableSource[T])
-  extends FlinkTable[T](
-    typeInfo = tableSource.getReturnType,
-    fieldIndexes = tableSource.getFieldsIndices,
-    fieldNames = tableSource.getFieldsNames)
+}
