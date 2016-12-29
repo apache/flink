@@ -877,7 +877,7 @@ public class WindowedStream<T, K, W extends Window> {
 
 	/**
 	 * Applies an aggregation that gives the maximum element of every window of
-	 * the data stream by the given position. If more elements have the same
+	 * the data stream by the given field. If more elements have the same
 	 * maximum value the operator returns the first by default.
 	 *
 	 * @param field
