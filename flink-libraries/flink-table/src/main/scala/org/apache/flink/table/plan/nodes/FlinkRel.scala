@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.plan.nodes
 
-import org.apache.calcite.rel.`type`.RelDataType
+import java.util
+
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.common.functions.MapFunction
@@ -103,9 +105,11 @@ trait FlinkRel {
 
   }
 
-  private[flink] def estimateRowSize(rowType: RelDataType): Double = {
 
-    rowType.getFieldList.map(_.getType.getSqlTypeName).foldLeft(0) { (s, t) =>
+  private[flink] def estimateRowSize(rowType: RelDataType): Double = {
+    val fieldList = rowType.getFieldList
+
+    fieldList.map(_.getType.getSqlTypeName).foldLeft(0) { (s, t) =>
       t match {
         case SqlTypeName.TINYINT => s + 1
         case SqlTypeName.SMALLINT => s + 2
@@ -120,7 +124,7 @@ trait FlinkRel {
         case typeName if SqlTypeName.YEAR_INTERVAL_TYPES.contains(typeName) => s + 8
         case typeName if SqlTypeName.DAY_INTERVAL_TYPES.contains(typeName) => s + 4
         case SqlTypeName.TIME | SqlTypeName.TIMESTAMP | SqlTypeName.DATE => s + 12
-        case SqlTypeName.ROW => s
+        case SqlTypeName.ROW => s + estimateRowSize(fieldList.get(0).getType()).asInstanceOf[Int]
         case _ => throw TableException(s"Unsupported data type encountered: $t")
       }
     }
