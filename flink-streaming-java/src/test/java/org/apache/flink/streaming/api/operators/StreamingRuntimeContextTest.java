@@ -22,7 +22,9 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
@@ -108,6 +110,35 @@ public class StreamingRuntimeContextTest {
 		context.getReducingState(descr);
 
 		StateDescriptor<?, ?> descrIntercepted = (StateDescriptor<?, ?>) descriptorCapture.get();
+		TypeSerializer<?> serializer = descrIntercepted.getSerializer();
+
+		// check that the Path class is really registered, i.e., the execution config was applied
+		assertTrue(serializer instanceof KryoSerializer);
+		assertTrue(((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId() > 0);
+	}
+
+	@Test
+	public void testFoldingStateInstantiation() throws Exception {
+
+		final ExecutionConfig config = new ExecutionConfig();
+		config.registerKryoType(Path.class);
+
+		final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
+
+		StreamingRuntimeContext context = new StreamingRuntimeContext(
+				createDescriptorCapturingMockOp(descriptorCapture, config),
+				createMockEnvironment(),
+				Collections.<String, Accumulator<?, ?>>emptyMap());
+
+		@SuppressWarnings("unchecked")
+		FoldFunction<String, TaskInfo> folder = (FoldFunction<String, TaskInfo>) mock(FoldFunction.class);
+
+		FoldingStateDescriptor<String, TaskInfo> descr =
+				new FoldingStateDescriptor<>("name", null, folder, TaskInfo.class);
+
+		context.getFoldingState(descr);
+
+		FoldingStateDescriptor<?, ?> descrIntercepted = (FoldingStateDescriptor<?, ?>) descriptorCapture.get();
 		TypeSerializer<?> serializer = descrIntercepted.getSerializer();
 
 		// check that the Path class is really registered, i.e., the execution config was applied

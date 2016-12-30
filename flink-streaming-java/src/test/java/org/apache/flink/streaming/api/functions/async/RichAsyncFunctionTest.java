@@ -21,9 +21,11 @@ package org.apache.flink.streaming.api.functions.async;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
+import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -160,6 +162,17 @@ public class RichAsyncFunctionTest {
 				}
 			}, Integer.class));
 			fail("Expected getReducingState to fail with unsupported operation exception.");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
+
+		try {
+			runtimeContext.getFoldingState(new FoldingStateDescriptor<>("foobar", 0, new FoldFunction<Integer, Integer>() {
+				@Override
+				public Integer fold(Integer accumulator, Integer value) throws Exception {
+					return accumulator;
+				}
+			}, Integer.class));
 		} catch (UnsupportedOperationException e) {
 			// expected
 		}
