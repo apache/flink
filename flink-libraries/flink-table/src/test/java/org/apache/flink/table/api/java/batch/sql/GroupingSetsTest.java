@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.batch.sql;
+package org.apache.flink.table.api.java.batch.sql;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
