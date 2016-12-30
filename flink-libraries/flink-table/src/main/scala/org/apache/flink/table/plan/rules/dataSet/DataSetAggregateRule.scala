@@ -65,8 +65,7 @@ class DataSetAggregateRule
             agg.getNamedAggCalls,
             rel.getRowType,
             agg.getInput.getRowType,
-            set.toArray,
-            agg.indicator
+            set.toArray
           ).asInstanceOf[RelNode]
         ).reduce(
           (rel1, rel2) => {
@@ -86,8 +85,7 @@ class DataSetAggregateRule
         agg.getNamedAggCalls,
         rel.getRowType,
         agg.getInput.getRowType,
-        agg.getGroupSet.toArray,
-        agg.indicator
+        agg.getGroupSet.toArray
       )
     }
   }

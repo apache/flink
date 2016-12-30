@@ -46,13 +46,12 @@ class DataSetAggregate(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     rowRelDataType: RelDataType,
     inputType: RelDataType,
-    grouping: Array[Int],
-    indicator: Boolean)
+    grouping: Array[Int])
   extends SingleRel(cluster, traitSet, inputNode)
   with FlinkAggregate
   with DataSetRel {
 
-  override def deriveRowType() = rowRelDataType
+  override def deriveRowType(): RelDataType = rowRelDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataSetAggregate(
@@ -62,9 +61,7 @@ class DataSetAggregate(
       namedAggregates,
       getRowType,
       inputType,
-      grouping,
-      indicator
-    )
+      grouping)
   }
 
   override def toString: String = {
@@ -107,9 +104,7 @@ class DataSetAggregate(
       namedAggregates,
       inputType,
       rowRelDataType,
-      grouping,
-      indicator
-    )
+      grouping)
 
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(
       tableEnv,

@@ -53,13 +53,12 @@ class DataStreamAggregate(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     rowRelDataType: RelDataType,
     inputType: RelDataType,
-    grouping: Array[Int],
-    indicator: Boolean)
+    grouping: Array[Int])
   extends SingleRel(cluster, traitSet, inputNode)
   with FlinkAggregate
   with DataStreamRel {
 
-  override def deriveRowType() = rowRelDataType
+  override def deriveRowType(): RelDataType = rowRelDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamAggregate(
@@ -71,9 +70,7 @@ class DataStreamAggregate(
       namedAggregates,
       getRowType,
       inputType,
-      grouping,
-      indicator
-    )
+      grouping)
   }
 
   override def toString: String = {
@@ -210,9 +207,7 @@ class DataStreamAggregate(
             inputType,
             rowRelDataType,
             grouping,
-            indicator,
-            namedProperties
-          )
+            namedProperties)
 
           val keyedStream = mappedInput.keyBy(groupingKeys: _*)
           val windowedStream =
@@ -233,9 +228,7 @@ class DataStreamAggregate(
             inputType,
             rowRelDataType,
             grouping,
-            indicator,
-            namedProperties
-          )
+            namedProperties)
 
           val windowedStream =
             createNonKeyedWindowedStream(window, mappedInput)
