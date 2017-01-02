@@ -118,112 +118,112 @@ public class BootstrapToolsTest {
 				new HashMap<String, String>());
 
 		// no logging, with/out krb5
+		final String java = "$JAVA_HOME/bin/java";
+		final String jvmmem = "-Xms768m -Xmx768m -XX:MaxDirectMemorySize=256m";
+		final String jvmOpts = "-Djvm"; // if set
+		final String logfile = "-Dlog.file=./logs/taskmanager.log"; // if set
+		final String logback =
+			"-Dlogback.configurationFile=file:./conf/logback.xml"; // if set
+		final String log4j =
+			"-Dlog4j.configuration=file:./conf/log4j.properties"; // if set
+		final String mainClass =
+			"org.apache.flink.runtime.clusterframework.BootstrapToolsTest";
+		final String args = "--configDir ./conf";
+		final String redirects =
+			"1> ./logs/taskmanager.out 2> ./logs/taskmanager.err";
+
 		assertEquals(
-			"$JAVA_HOME/bin/java -Xms768m -Xmx768m -XX:MaxDirectMemorySize=256m" +
+			java + " " + jvmmem +
 				" " + // jvmOpts
 				" " + // logging
-				" org.apache.flink.runtime.clusterframework.BootstrapToolsTest --configDir ./conf" +
-				" 1> ./logs/taskmanager.out 2> ./logs/taskmanager.err",
+				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
 					false, false, false, this.getClass()));
 
+		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
 		assertEquals(
-			"$JAVA_HOME/bin/java -Xms768m -Xmx768m -XX:MaxDirectMemorySize=256m" +
-				" " + // jvmOpts
-				" -Djava.security.krb5.conf=krb5.conf" +
+			java + " " + jvmmem +
+				" " + " " + krb5 + // jvmOpts
 				" " + // logging
-				" org.apache.flink.runtime.clusterframework.BootstrapToolsTest --configDir ./conf" +
-				" 1> ./logs/taskmanager.out 2> ./logs/taskmanager.err",
+				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
 					false, false, true, this.getClass()));
 
 		// logback only, with/out krb5
 		assertEquals(
-			"$JAVA_HOME/bin/java -Xms768m -Xmx768m -XX:MaxDirectMemorySize=256m" +
+			java + " " + jvmmem +
 				" " + // jvmOpts
-				" -Dlog.file=./logs/taskmanager.log -Dlogback.configurationFile=file:./conf/logback.xml" +
-				" org.apache.flink.runtime.clusterframework.BootstrapToolsTest --configDir ./conf" +
-				" 1> ./logs/taskmanager.out 2> ./logs/taskmanager.err",
+				" " + logfile + " " + logback +
+				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
 					true, false, false, this.getClass()));
 
 		assertEquals(
-			"$JAVA_HOME/bin/java -Xms768m -Xmx768m -XX:MaxDirectMemorySize=256m" +
-				" " + // jvmOpts
-				" -Djava.security.krb5.conf=krb5.conf" +
-				" -Dlog.file=./logs/taskmanager.log -Dlogback.configurationFile=file:./conf/logback.xml" +
-				" org.apache.flink.runtime.clusterframework.BootstrapToolsTest --configDir ./conf" +
-				" 1> ./logs/taskmanager.out 2> ./logs/taskmanager.err",
+			java + " " + jvmmem +
+				" " + " " + krb5 + // jvmOpts
+				" " + logfile + " " + logback +
+				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
 					true, false, true, this.getClass()));
 
 		// log4j, with/out krb5
 		assertEquals(
-			"$JAVA_HOME/bin/java -Xms768m -Xmx768m -XX:MaxDirectMemorySize=256m" +
+			java + " " + jvmmem +
 				" " + // jvmOpts
-				" -Dlog.file=./logs/taskmanager.log -Dlog4j.configuration=file:./conf/log4j.properties" +
-				" org.apache.flink.runtime.clusterframework.BootstrapToolsTest --configDir ./conf" +
-				" 1> ./logs/taskmanager.out 2> ./logs/taskmanager.err",
+				" " + logfile + " " + log4j +
+				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
 					false, true, false, this.getClass()));
 
 		assertEquals(
-			"$JAVA_HOME/bin/java -Xms768m -Xmx768m -XX:MaxDirectMemorySize=256m" +
-				" " + // jvmOpts
-				" -Djava.security.krb5.conf=krb5.conf" +
-				" -Dlog.file=./logs/taskmanager.log -Dlog4j.configuration=file:./conf/log4j.properties" +
-				" org.apache.flink.runtime.clusterframework.BootstrapToolsTest --configDir ./conf" +
-				" 1> ./logs/taskmanager.out 2> ./logs/taskmanager.err",
+			java + " " + jvmmem +
+				" " + " " + krb5 + // jvmOpts
+				" " + logfile + " " + log4j +
+				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
 					false, true, true, this.getClass()));
 
 		// logback + log4j, with/out krb5
 		assertEquals(
-			"$JAVA_HOME/bin/java -Xms768m -Xmx768m -XX:MaxDirectMemorySize=256m" +
+			java + " " + jvmmem +
 				" " + // jvmOpts
-				" -Dlog.file=./logs/taskmanager.log -Dlogback.configurationFile=file:./conf/logback.xml -Dlog4j.configuration=file:./conf/log4j.properties" +
-				" org.apache.flink.runtime.clusterframework.BootstrapToolsTest --configDir ./conf" +
-				" 1> ./logs/taskmanager.out 2> ./logs/taskmanager.err",
+				" " + logfile + " " + logback + " " + log4j +
+				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
 					true, true, false, this.getClass()));
 
 		assertEquals(
-			"$JAVA_HOME/bin/java -Xms768m -Xmx768m -XX:MaxDirectMemorySize=256m" +
-				" " + // jvmOpts
-				" -Djava.security.krb5.conf=krb5.conf" +
-				" -Dlog.file=./logs/taskmanager.log -Dlogback.configurationFile=file:./conf/logback.xml -Dlog4j.configuration=file:./conf/log4j.properties" +
-				" org.apache.flink.runtime.clusterframework.BootstrapToolsTest --configDir ./conf" +
-				" 1> ./logs/taskmanager.out 2> ./logs/taskmanager.err",
+			java + " " + jvmmem +
+				" " + " " + krb5 + // jvmOpts
+				" " + logfile + " " + logback + " " + log4j +
+				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
 					true, true, true, this.getClass()));
 
 		// logback + log4j, with/out krb5, different JVM opts
-		cfg.setString(ConfigConstants.FLINK_JVM_OPTIONS, "-Djvm");
+		cfg.setString(ConfigConstants.FLINK_JVM_OPTIONS, jvmOpts);
 		assertEquals(
-			"$JAVA_HOME/bin/java -Xms768m -Xmx768m -XX:MaxDirectMemorySize=256m" +
-				" -Djvm" + // jvmOpts
-				" -Dlog.file=./logs/taskmanager.log -Dlogback.configurationFile=file:./conf/logback.xml -Dlog4j.configuration=file:./conf/log4j.properties" +
-				" org.apache.flink.runtime.clusterframework.BootstrapToolsTest --configDir ./conf" +
-				" 1> ./logs/taskmanager.out 2> ./logs/taskmanager.err",
+			java + " " + jvmmem +
+				" " + jvmOpts +
+				" " + logfile + " " + logback + " " + log4j +
+				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
 					true, true, false, this.getClass()));
 
 		assertEquals(
-			"$JAVA_HOME/bin/java -Xms768m -Xmx768m -XX:MaxDirectMemorySize=256m" +
-				" -Djvm" + // jvmOpts
-				" -Djava.security.krb5.conf=krb5.conf" +
-				" -Dlog.file=./logs/taskmanager.log -Dlogback.configurationFile=file:./conf/logback.xml -Dlog4j.configuration=file:./conf/log4j.properties" +
-				" org.apache.flink.runtime.clusterframework.BootstrapToolsTest --configDir ./conf" +
-				" 1> ./logs/taskmanager.out 2> ./logs/taskmanager.err",
+			java + " " + jvmmem +
+				" " + jvmOpts + " " + krb5 + // jvmOpts
+				" " + logfile + " " + logback + " " + log4j +
+				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
 					true, true, true, this.getClass()));
