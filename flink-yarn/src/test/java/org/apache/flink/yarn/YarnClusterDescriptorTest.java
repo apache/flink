@@ -212,5 +212,30 @@ public class YarnClusterDescriptorTest {
 			clusterDescriptor
 				.setupApplicationMasterContainer(true, true, true)
 				.getCommands().get(0));
+
+		// now try some configurations with different yarn.container-start-command-template
+
+		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+			"%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
+		assertEquals(
+			java + " 1 " + jvmmem +
+				" 2 " + jvmOpts + " " + krb5 + // jvmOpts
+				" 3 " + logfile + " " + logback + " " + log4j +
+				" 4 " + mainClass + " 5 " + args + " 6 " + redirects,
+			clusterDescriptor
+				.setupApplicationMasterContainer(true, true, true)
+				.getCommands().get(0));
+
+		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+			"%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
+		assertEquals(
+			java +
+				" " + logfile + " " + logback + " " + log4j +
+				" " + jvmOpts + " " + krb5 + // jvmOpts
+				" " + jvmmem +
+				" " + mainClass + " " + args + " " + redirects,
+			clusterDescriptor
+				.setupApplicationMasterContainer(true, true, true)
+				.getCommands().get(0));
 	}
 }

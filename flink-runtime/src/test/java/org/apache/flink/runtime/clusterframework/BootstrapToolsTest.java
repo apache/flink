@@ -227,5 +227,31 @@ public class BootstrapToolsTest {
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
 					true, true, true, this.getClass()));
+
+		// now try some configurations with different yarn.container-start-command-template
+
+		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+			"%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
+		assertEquals(
+			java + " 1 " + jvmmem +
+				" 2 " + jvmOpts + " " + krb5 + // jvmOpts
+				" 3 " + logfile + " " + logback + " " + log4j +
+				" 4 " + mainClass + " 5 " + args + " 6 " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					true, true, true, this.getClass()));
+
+		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+			"%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
+		assertEquals(
+			java +
+				" " + logfile + " " + logback + " " + log4j +
+				" " + jvmOpts + " " + krb5 + // jvmOpts
+				" " + jvmmem +
+				" " + mainClass + " " + args + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					true, true, true, this.getClass()));
+
 	}
 }
