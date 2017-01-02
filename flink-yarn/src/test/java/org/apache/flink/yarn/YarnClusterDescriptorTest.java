@@ -101,7 +101,7 @@ public class YarnClusterDescriptorTest {
 		clusterDescriptor.setFlinkConfiguration(cfg);
 
 		final String java = "$JAVA_HOME/bin/java";
-		final String jvmmem = "-Xmx424M";
+		final String jvmmem = "-Xmx424m";
 		final String jvmOpts = "-Djvm"; // if set
 		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
 		final String logfile =
@@ -112,24 +112,26 @@ public class YarnClusterDescriptorTest {
 		final String log4j =
 			"-Dlog4j.configuration=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME; // if set
 		final String mainClass = clusterDescriptor.getApplicationMasterClass().getName();
+		final String args = "";
 		final String redirects =
-			" 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out" +
-			" 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err";
+			"1> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out " +
+			"2> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err";
 
 		// no logging, with/out krb5
 		assertEquals(
 			java + " " + jvmmem +
 				" " + // jvmOpts
-				" " + mainClass + " " + redirects,
+				" " + // logging
+				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(false, false, false)
 				.getCommands().get(0));
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + // jvmOpts
-				" " + krb5 +
-				" " + mainClass + " " + redirects,
+				" " + " " + krb5 +// jvmOpts
+				" " + // logging
+				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(false, false, true)
 				.getCommands().get(0));
@@ -139,17 +141,16 @@ public class YarnClusterDescriptorTest {
 			java + " " + jvmmem +
 				" " + // jvmOpts
 				" " + logfile + " " + logback +
-				" " + mainClass + " " + redirects,
+				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(true, false, false)
 				.getCommands().get(0));
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + // jvmOpts
+				" " + " " + krb5 +// jvmOpts
 				" " + logfile + " " + logback +
-				" " + krb5 +
-				" " + mainClass + " " + redirects,
+				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(true, false, true)
 				.getCommands().get(0));
@@ -159,17 +160,16 @@ public class YarnClusterDescriptorTest {
 			java + " " + jvmmem +
 				" " + // jvmOpts
 				" " + logfile + " " + log4j +
-				" " + mainClass + " " + redirects,
+				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(false, true, false)
 				.getCommands().get(0));
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + // jvmOpts
+				" " + " " + krb5 +// jvmOpts
 				" " + logfile + " " + log4j +
-				" " + krb5 +
-				" " + mainClass + " " + redirects,
+				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(false, true, true)
 				.getCommands().get(0));
@@ -179,17 +179,16 @@ public class YarnClusterDescriptorTest {
 			java + " " + jvmmem +
 				" " + // jvmOpts
 				" " + logfile + " " + logback + " " + log4j +
-				" " + mainClass + " " + redirects,
+				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(true, true, false)
 				.getCommands().get(0));
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + // jvmOpts
+				" " + " " + krb5 +// jvmOpts
 				" " + logfile + " " + logback + " " + log4j +
-				" " + krb5 +
-				" " + mainClass + " " + redirects,
+				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(true, true, true)
 				.getCommands().get(0));
@@ -200,17 +199,16 @@ public class YarnClusterDescriptorTest {
 			java + " " + jvmmem +
 				" " + jvmOpts +
 				" " + logfile + " " + logback + " " + log4j +
-				" " + mainClass + " " + redirects,
+				" " + mainClass + " "  + args + " "+ redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(true, true, false)
 				.getCommands().get(0));
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + jvmOpts + // jvmOpts
+				" " + jvmOpts + " " + krb5 +// jvmOpts
 				" " + logfile + " " + logback + " " + log4j +
-				" " + krb5 +
-				" " + mainClass + " " + redirects,
+				" " + mainClass + " "  + args + " "+ redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(true, true, true)
 				.getCommands().get(0));
