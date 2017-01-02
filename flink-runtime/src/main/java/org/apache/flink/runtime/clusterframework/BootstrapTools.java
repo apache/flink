@@ -365,12 +365,12 @@ public class BootstrapTools {
 				tmCommand.append(" -Dlog4j.configuration=file:")
 						.append(configDirectory).append("/log4j.properties");
 			}
+		}
 
-			//applicable only for YarnMiniCluster secure test run
-			//krb5.conf file will be available as local resource in JM/TM container
-			if(hasKrb5) {
-				tmCommand.append(" -Djava.security.krb5.conf=krb5.conf");
-			}
+		//applicable only for YarnMiniCluster secure test run
+		//krb5.conf file will be available as local resource in JM/TM container
+		if(hasKrb5) {
+			tmCommand.append(" -Djava.security.krb5.conf=krb5.conf");
 		}
 
 		tmCommand.append(' ').append(mainClass.getName());
