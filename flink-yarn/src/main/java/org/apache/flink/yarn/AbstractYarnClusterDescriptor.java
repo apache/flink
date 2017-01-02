@@ -26,6 +26,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.hadoop.conf.Configuration;
@@ -1175,37 +1176,50 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// ------------------ Prepare Application Master Container  ------------------------------
 
 		// respect custom JVM options in the YAML file
-		final String javaOpts = flinkConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
+		String javaOpts =
+			flinkConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
+		//applicable only for YarnMiniCluster secure test run
+		//krb5.conf file will be available as local resource in JM/TM container
+		if (hasKrb5) {
+			javaOpts += " -Djava.security.krb5.conf=krb5.conf";
+		}
 
 		// Set up the container launch context for the application master
 		ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
 
-		String amCommand = "$JAVA_HOME/bin/java"
-			+ " -Xmx" + Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration)
-			+ "M " + javaOpts;
+		final  Map<String, String> startCommandValues = new HashMap<>();
+		startCommandValues.put("java", "$JAVA_HOME/bin/java");
+		startCommandValues.put("jvmmem", "-Xmx" +
+			Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration) +
+			"m");
+		startCommandValues.put("jvmopts", javaOpts);
+		String logging = "";
 
 		if (hasLogback || hasLog4j) {
-			amCommand += " -Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.log\"";
+			logging = "-Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.log\"";
 
 			if(hasLogback) {
-				amCommand += " -Dlogback.configurationFile=file:" + CONFIG_FILE_LOGBACK_NAME;
+				logging += " -Dlogback.configurationFile=file:" + CONFIG_FILE_LOGBACK_NAME;
 			}
 
 			if(hasLog4j) {
-				amCommand += " -Dlog4j.configuration=file:" + CONFIG_FILE_LOG4J_NAME;
+				logging += " -Dlog4j.configuration=file:" + CONFIG_FILE_LOG4J_NAME;
 			}
 		}
 
-		//applicable only for YarnMiniCluster secure test run
-		//krb5.conf file will be available as local resource in JM/TM container
-		if(hasKrb5) {
-			amCommand += " -Djava.security.krb5.conf=krb5.conf";
-		}
+		startCommandValues.put("logging", logging);
+		startCommandValues.put("class", getApplicationMasterClass().getName());
+		startCommandValues.put("redirects",
+			"1> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out " +
+			"2> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err");
+		startCommandValues.put("args", "");
 
-		amCommand += " " + getApplicationMasterClass().getName() + " "
-			+ " 1>"
-			+ ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out"
-			+ " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err";
+		final String commandTemplate = flinkConfiguration
+			.getString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+				ConfigConstants.DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE);
+		final String amCommand =
+			BootstrapTools.getStartCommand(commandTemplate, startCommandValues);
+
 		amContainer.setCommands(Collections.singletonList(amCommand));
 
 		LOG.debug("Application Master start command: " + amCommand);

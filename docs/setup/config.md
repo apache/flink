@@ -425,6 +425,11 @@ of the JobManager, because the same ActorSystem is used. Its not possible to use
 
 - `yarn.taskmanager.env.` Similar to the configuration prefix about, this prefix allows setting custom environment variables for the TaskManager processes.
 
+- `yarn.container-start-command-template`: Flink uses the following template when starting on YARN:
+`%java% %jvmmem% %jvmopts% %logging% %class% %args% %redirects%`. This configuration parameter allows users
+to pass custom settings (such as JVM paths, arguments etc.). Note that in most cases, it is sufficient to
+use the `env.java.opts` setting, which is the `%jvmopts%` variable in the String.
+
 - `yarn.application-master.port` (Default: 0, which lets the OS choose an ephemeral port) With this configuration option, users can specify a port, a range of ports or a list of ports for the  Application Master (and JobManager) RPC port. By default we recommend using the default value (0) to let the operating system choose an appropriate port. In particular when multiple AMs are running on the  same physical host, fixed port assignments prevent the AM from starting.
 
   For example when running Flink on YARN on an environment with a restrictive firewall, this option allows specifying a range of allowed ports.
