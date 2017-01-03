@@ -473,6 +473,20 @@ under the License.
 			</properties>
 		</profile>
 
+		<!-- Profile to switch to Scala Version 2.12 -->
+		<profile>
+			<id>scala-2.12</id>
+			<activation>
+				<property>
+					<name>!scala-2.12</name>
+				</property>
+			</activation>
+			<properties>
+				<scala.version>2.12.1</scala.version>
+				<scala.binary.version>2.12</scala.binary.version>
+			</properties>
+		</profile>
+
 		<!-- Profile to deactivate the YARN tests -->
 		<profile>
 			<id>include-yarn-tests</id>
