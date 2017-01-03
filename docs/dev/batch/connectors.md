@@ -52,14 +52,13 @@ interface. There are Hadoop `FileSystem` implementations for
 
 In order to use a Hadoop file system with Flink, make sure that
 
-- the `flink-conf.yaml` has set the `fs.hdfs.hadoopconf` property set to the Hadoop configuration directory. Note: For automated testing or running from an IDE the directory containing `flink-conf.yaml` can be set by defining the FLINK_CONF_DIR environment variable.
+- the `flink-conf.yaml` has set the `fs.hdfs.hadoopconf` property to the Hadoop configuration directory. For automated testing or running from an IDE the directory containing `flink-conf.yaml` can be set by defining the FLINK_CONF_DIR environment variable.
 - the Hadoop configuration (in that directory) has an entry for the required file system in a file `core-site.xml`. Examples for S3 and Alluxio are shown below.
-- the required classes for using the file system are available in the `lib/` folder of the Flink installation (on all machines running Flink). If putting the files into the directory is not possible, Flink is also respecting the `HADOOP_CLASSPATH` environment variable to add Hadoop jar files to the classpath.
+- the required classes for using the file system are available in the `lib/` folder of the Flink installation (on all machines running Flink). If putting the files into the directory is not possible, Flink also respects the `HADOOP_CLASSPATH` environment variable to add Hadoop jar files to the classpath.
 
 #### Amazon S3
 
-See [Deployment & Operations - Deployment - AWS](../../setup/aws.html) for available S3 file system implementations, their configuration
-and required libraries.
+See [Deployment & Operations - Deployment - AWS]({{ site.baseurl }}/setup/aws.html) for available S3 file system implementations, their configuration and required libraries.
 
 #### Alluxio
 
