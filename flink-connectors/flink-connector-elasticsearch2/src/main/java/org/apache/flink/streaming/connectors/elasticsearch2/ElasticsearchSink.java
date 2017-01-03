@@ -198,8 +198,8 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 
 			@Override
 			public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
-				boolean allRequestsRepeatable = true;
 				if (response.hasFailures()) {
+					boolean allRequestsRepeatable = true;
 					for (BulkItemResponse itemResp : response.getItems()) {
 						if (itemResp.isFailed()) {
 							// Check if index request can be retried
@@ -211,7 +211,6 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 									)
 								) {
 								LOG.debug("Retry bulk: {}", itemResp.getFailureMessage());
-								reAddBulkRequest(request);
 							} else { // Cannot retry action
 								allRequestsRepeatable = false;
 								LOG.error("Failed to index document in Elasticsearch: {}", itemResp.getFailureMessage());
@@ -219,7 +218,9 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 							}
 						}
 					}
-					if (!allRequestsRepeatable) {
+					if (allRequestsRepeatable) {
+						reAddBulkRequest(request);
+					} else {
 						hasFailure.set(true);
 					}
 				}
