@@ -77,11 +77,17 @@ find "$BASEDIR/flink-examples/flink-examples-streaming" -name 'pom.xml' -not -pa
 find "$BASEDIR/flink-quickstart" -name 'pom.xml' -not -path '*target*' -print \
   -exec bash -c "sed_i 's/\(<exclude>org\.apache\.flink:flink-.*\)'$FROM_SUFFIX'<\/exclude>/\1'$TO_SUFFIX'<\/exclude>/g' {}" \;
 
-# fix for flink-dist
+# fix for flink-dist (bin.xml)
 find "$BASEDIR/flink-dist" -name 'bin.xml' -not -path '*target*' -print \
   -exec bash -c "sed_i 's/\(<source>.*flink-dist\)'$FROM_SUFFIX'/\1'$TO_SUFFIX'/g' {}" \;
 find "$BASEDIR/flink-dist" -name 'bin.xml' -not -path '*target*' -print \
   -exec bash -c "sed_i 's/\(<include>org\.apache\.flink:flink-.*\)'$FROM_SUFFIX'<\/include>/\1'$TO_SUFFIX'<\/include>/g' {}" \;
+
+# fix for flink-dist (opt.xml)
+find "$BASEDIR/flink-dist" -name 'opt.xml' -not -path '*target*' -print \
+  -exec bash -c "sed_i 's/\(<source>.*flink-.*\)'$FROM_SUFFIX'/\1'$TO_SUFFIX'/g' {}" \;
+find "$BASEDIR/flink-dist" -name 'opt.xml' -not -path '*target*' -print \
+  -exec bash -c "sed_i 's/\(<destName>flink-.*\)'$FROM_SUFFIX'/\1'$TO_SUFFIX'/g' {}" \;
 
 # fix for shading curator with Scala 2.11
 find "$BASEDIR/flink-runtime" -name 'pom.xml' -not -path '*target*' -print \
