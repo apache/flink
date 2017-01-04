@@ -28,8 +28,9 @@ In case that the job is submitted with a restart strategy, this strategy overrid
 
 The default restart strategy is set via Flink's configuration file `flink-conf.yaml`.
 The configuration parameter *restart-strategy* defines which strategy is taken.
-Per default, the no-restart strategy is used.
-When checkpointing is activated and no restart strategy has been configured, the job will be restarted infinitely often.
+If checkpointing is not enabled, the "no restart" strategy is used.
+If checkpointing is activated and the restart strategy has not been configured, the fixed-delay strategy is used with 
+`Integer.MAX_VALUE` restart attempts.
 See the following list of available restart strategies to learn what values are supported.
 
 Each restart strategy comes with its own set of parameters which control its behaviour.
@@ -111,18 +112,19 @@ restart-strategy: fixed-delay
   </thead>
   <tbody>
     <tr>
-        <td><it>restart-strategy.fixed-delay.attempts</it></td>
+        <td><code>restart-strategy.fixed-delay.attempts</code></td>
         <td>The number of times that Flink retries the execution before the job is declared as failed.</td>
-        <td>1</td>
+        <td>1, or <code>Integer.MAX_VALUE</code> if activated by checkpointing</td>
     </tr>
     <tr>
-        <td><it>restart-strategy.fixed-delay.delay</it></td>
+        <td><code>restart-strategy.fixed-delay.delay</code></td>
         <td>Delaying the retry means that after a failed execution, the re-execution does not start immediately, but only after a certain delay. Delaying the retries can be helpful when the program interacts with external systems where for example connections or pending transactions should reach a timeout before re-execution is attempted.</td>
-        <td><it>akka.ask.timeout</it></td>
+        <td><code>akka.ask.timeout</code>, or 10s if activated by checkpointing</td>
     </tr>
   </tbody>
 </table>
 
+For example:
 ~~~
 restart-strategy.fixed-delay.attempts: 3
 restart-strategy.fixed-delay.delay: 10 s
