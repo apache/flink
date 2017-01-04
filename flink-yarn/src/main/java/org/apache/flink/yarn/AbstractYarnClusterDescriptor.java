@@ -29,7 +29,9 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.FileUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
@@ -66,6 +68,7 @@ import java.io.FileOutputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.FileVisitResult;
@@ -130,6 +133,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	/** Lazily initialized list of files to ship */
 	protected List<File> shipFiles = new LinkedList<>();
+
+	private List<URI> archives = new LinkedList<>();
 
 	private org.apache.flink.configuration.Configuration flinkConfiguration;
 
@@ -245,6 +250,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			if(!(shipFile.getName().startsWith("flink-dist") && shipFile.getName().endsWith("jar"))) {
 				this.shipFiles.add(shipFile);
 			}
+		}
+	}
+
+	public void addArchives(String archive) {
+		try {
+			this.archives.add(new URI(archive));
+		} catch (URISyntaxException e) {
+			throw new IllegalArgumentException(e);
 		}
 	}
 
@@ -740,6 +753,24 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				LOG.warn("Add job graph to local resource fail");
 				throw e;
 			}
+		}
+
+		for (URI originURI : archives) {
+			Path remoteParent = Utils.getRemoteResourceRoot(appId.toString(), new Path(originURI.getPath()), fs.getHomeDirectory());
+			String fragment = originURI.getFragment();
+			Path target = new Path(
+				FileUtils.localizeRemoteFiles(new org.apache.flink.core.fs.Path(remoteParent.toUri()), originURI).toUri());
+			URI targetURI = target.toUri();
+			if (targetURI.getFragment() == null && fragment != null) {
+				targetURI = new URI(target.toUri().toString() + "#" + fragment);
+			}
+			LocalResource archive = Records.newRecord(LocalResource.class);
+			FileStatus state = fs.getFileStatus(target);
+			Utils.registerLocalResource(targetURI, state.getLen(), state.getModificationTime(), archive);
+			localResources.put(fragment, archive);
+			paths.add(new Path(targetURI));
+			classPathBuilder.append(fragment).append(File.pathSeparator);
+			envShipFileList.append(targetURI).append(",");
 		}
 
 		sessionFilesDir = new Path(fs.getHomeDirectory(), ".flink/" + appId.toString() + "/");

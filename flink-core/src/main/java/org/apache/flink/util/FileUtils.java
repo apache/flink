@@ -25,6 +25,9 @@ import org.apache.flink.core.fs.Path;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardOpenOption;
@@ -258,7 +261,82 @@ public final class FileUtils {
 			return false;
 		}
 	}
-	
+
+	/**
+	 * Check whether the two given filesystem is the same or not
+	 *
+	 * @param srcFs
+	 * @param destFs
+	 * @return
+	 */
+	public static boolean compareFs(FileSystem srcFs, FileSystem destFs) {
+		URI srcUri = srcFs.getUri();
+		URI dstUri = destFs.getUri();
+
+		// check schema
+		if (srcUri.getScheme() == null) {
+			return false;
+		}
+		if (!srcUri.getScheme().equals(dstUri.getScheme())) {
+			return false;
+		}
+
+		// check ports
+		if (srcUri.getPort() != dstUri.getPort()) {
+			return false;
+		}
+
+		// check ip
+		String srcHost = srcUri.getHost();
+		String dstHost = dstUri.getHost();
+		if ((srcHost != null) && (dstHost != null)) {
+			if (!srcHost.equals(dstHost)) {
+				try {
+					srcHost = InetAddress.getByName(srcHost).getCanonicalHostName();
+					dstHost = InetAddress.getByName(dstHost).getCanonicalHostName();
+				} catch (UnknownHostException ue) {
+					return false;
+				}
+				if (!srcHost.equals(dstHost)) {
+					return false;
+				}
+			}
+		} else if (srcHost == null && dstHost != null) {
+			return false;
+		} else if (srcHost != null && dstHost == null) {
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Check where the original file belongs to the same filesystem as the local dir, if not copy the remote file to
+	 * local dir. If the original File uri has a fragment, the fragment will be used as local file name.
+	 *
+	 * @param localDir      local directory to store remote files.
+	 * @param originalFile  original file to check
+	 * @return
+	 * @throws IOException
+	 */
+	public static Path localizeRemoteFiles(Path localDir, URI originalFile) throws IOException {
+
+		Path originalPath = new Path(originalFile);
+
+		FileSystem remoteFs = originalPath.getFileSystem();
+		FileSystem localFs = localDir.getFileSystem();
+		if (compareFs(remoteFs, localFs)) {
+			return originalPath;
+		}
+
+		String fragment = originalFile.getFragment();
+		if(fragment == null) {
+			fragment = originalPath.getName();
+		}
+		Path newPath = new Path(localDir, fragment);
+		IOUtils.copyBytes(remoteFs.open(originalPath), localFs.create(newPath, FileSystem.WriteMode.OVERWRITE), true);
+		return newPath;
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**

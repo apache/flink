@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
@@ -136,9 +137,7 @@ public final class Utils {
 			Path homedir) throws IOException {
 
 		// copy resource to HDFS
-		String suffix = ".flink/" + appId + "/" + localRsrcPath.getName();
-
-		Path dst = new Path(homedir, suffix);
+		Path dst = getRemoteResourceRoot(appId, localRsrcPath, homedir);
 
 		LOG.info("Copying from " + localRsrcPath + " to " + dst);
 		fs.copyFromLocalFile(localRsrcPath, dst);
@@ -146,11 +145,28 @@ public final class Utils {
 		return dst;
 	}
 
+	public static Path getRemoteResourceRoot(
+			String appId, Path localRsrcPath,
+			Path homedir) throws IOException {
+
+		// copy resource to HDFS
+		String suffix = ".flink/" + appId + "/" + localRsrcPath.getName();
+
+		Path dst = new Path(homedir, suffix);
+
+		return dst;
+	}
+
+
 	public static void registerLocalResource(FileSystem fs, Path remoteRsrcPath, LocalResource localResource) throws IOException {
 		FileStatus jarStat = fs.getFileStatus(remoteRsrcPath);
-		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
-		localResource.setSize(jarStat.getLen());
-		localResource.setTimestamp(jarStat.getModificationTime());
+		registerLocalResource(remoteRsrcPath.toUri(), jarStat.getLen(), jarStat.getModificationTime(), localResource);
+	}
+
+	public static void registerLocalResource(URI uri, long size, long time, LocalResource localResource) throws IOException {
+		localResource.setResource(ConverterUtils.getYarnUrlFromURI(uri));
+		localResource.setSize(size);
+		localResource.setTimestamp(time);
 		localResource.setType(LocalResourceType.FILE);
 		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
 	}
