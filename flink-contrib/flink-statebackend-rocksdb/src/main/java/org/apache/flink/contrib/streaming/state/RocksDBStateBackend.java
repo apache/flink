@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.util.AbstractID;
 
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
@@ -70,8 +71,10 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackend.class);
 
+	/** The number of (re)tries for loading the RocksDB JNI library */
 	private static final int ROCKSDB_LIB_LOADING_ATTEMPTS = 3;
 
+	
 	private static boolean rocksDbInitialized = false;
 
 	// ------------------------------------------------------------------------
@@ -476,24 +479,34 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	// ------------------------------------------------------------------------
 
 	private void ensureRocksDBIsLoaded(String tempDirectory) throws Exception {
-		// lock on something that cannot be in the user JAR
-		synchronized (org.apache.flink.runtime.taskmanager.Task.class) {
+		synchronized (RocksDBStateBackend.class) {
 			if (!rocksDbInitialized) {
 
-				final File tempDirFile = new File(tempDirectory);
-				final String path = tempDirFile.getAbsolutePath();
-
-				LOG.info("Attempting to load RocksDB native library and store it at '{}'", path);
+				final File tempDirParent = new File(tempDirectory).getAbsoluteFile();
+				LOG.info("Attempting to load RocksDB native library and store it under '{}'", tempDirParent);
 
 				Throwable lastException = null;
 				for (int attempt = 1; attempt <= ROCKSDB_LIB_LOADING_ATTEMPTS; attempt++) {
 					try {
+						// when multiple instances of this class and RocksDB exist in different
+						// class loaders, then we can see the following exception:
+						// "java.lang.UnsatisfiedLinkError: Native Library /path/to/temp/dir/librocksdbjni-linux64.so
+						// already loaded in another class loader"
+
+						// to avoid that, we need to add a random element to the library file path
+						// (I know, seems like an unnecessary hack, since the JVM obviously can handle multiple
+						//  instances of the same JNI library being loaded in different class loaders, but
+						//  apparently not when coming from the same file path, so there we go)
+
+						final File rocksLibFolder = new File(tempDirParent, "rocksdb-lib-" + new AbstractID());
+
 						// make sure the temp path exists
+						LOG.debug("Attempting to create RocksDB native library folder {}", rocksLibFolder);
 						// noinspection ResultOfMethodCallIgnored
-						tempDirFile.mkdirs();
+						rocksLibFolder.mkdirs();
 
 						// explicitly load the JNI dependency if it has not been loaded before
-						NativeLibraryLoader.getInstance().loadLibrary(path);
+						NativeLibraryLoader.getInstance().loadLibrary(rocksLibFolder.getAbsolutePath());
 
 						// this initialization here should validate that the loading succeeded
 						RocksDB.loadLibrary();
