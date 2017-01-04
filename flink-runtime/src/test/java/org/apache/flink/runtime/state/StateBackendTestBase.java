@@ -48,6 +48,7 @@ import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.heap.AbstractHeapState;
 import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.types.IntValue;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -68,7 +69,7 @@ import static org.mockito.Mockito.verify;
  * Generic tests for the partitioned state part of {@link AbstractStateBackend}.
  */
 @SuppressWarnings("serial")
-public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
+public abstract class StateBackendTestBase<B extends AbstractStateBackend> extends TestLogger {
 
 	protected abstract B getStateBackend() throws Exception;
 
