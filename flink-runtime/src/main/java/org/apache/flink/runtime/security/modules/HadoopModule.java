@@ -94,10 +94,14 @@ public class HadoopModule implements SecurityModule {
 				loginUser = UserGroupInformation.getLoginUser();
 			}
 
-			if (UserGroupInformation.isSecurityEnabled() && securityConfig.useTicketCache()) {
-				if (!loginUser.hasKerberosCredentials()) {
+			if (UserGroupInformation.isSecurityEnabled()) {
+				// note: UGI::hasKerberosCredentials inaccurately reports false
+				// for logins based on a keytab (fixed in Hadoop 2.6.1, see HADOOP-10786),
+				// so we check only in ticket cache scenario.
+				if (securityConfig.useTicketCache() && !loginUser.hasKerberosCredentials()) {
+					// a delegation token is an adequate substitute in most cases
 					if (!HadoopUtils.hasHDFSDelegationToken()) {
-						LOG.warn("Hadoop Security is enabled but current login user does not have Kerberos Credentials");
+						LOG.warn("Hadoop security is enabled but current login user does not have Kerberos credentials");
 					}
 				}
 			}

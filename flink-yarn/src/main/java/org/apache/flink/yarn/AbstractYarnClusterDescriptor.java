@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.configuration.ConfigConstants;
@@ -405,15 +404,16 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	@Override
 	public YarnClusterClient deploy() {
 		try {
-			boolean useTicketCache = flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
-			if(UserGroupInformation.isSecurityEnabled() && useTicketCache) {
+			if(UserGroupInformation.isSecurityEnabled()) {
+				// note: UGI::hasKerberosCredentials inaccurately reports false
+				// for logins based on a keytab (fixed in Hadoop 2.6.1, see HADOOP-10786),
+				// so we check only in ticket cache scenario.
+				boolean useTicketCache = flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
 				UserGroupInformation loginUser = UserGroupInformation.getCurrentUser();
-				if (!loginUser.hasKerberosCredentials()) {
-					if (!HadoopUtils.hasHDFSDelegationToken()) {
-						LOG.error("Hadoop Security is enabled but current login user does not have Kerberos Credentials");
-						throw new RuntimeException("Hadoop Security is enabled but current login user " +
-								"does not have Kerberos Credentials");
-					}
+				if (useTicketCache && !loginUser.hasKerberosCredentials()) {
+					LOG.error("Hadoop security is enabled but the login user does not have Kerberos credentials");
+					throw new RuntimeException("Hadoop security is enabled but the login user " +
+							"does not have Kerberos credentials");
 				}
 			}
 			return deployInternal();
@@ -736,7 +736,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// setup security tokens
 		LocalResource keytabResource = null;
 		Path remotePathKeytab = null;
-		String keytab = flinkConfiguration.getString(ConfigConstants.SECURITY_KEYTAB_KEY, null);
+		String keytab = flinkConfiguration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
 		if(keytab != null) {
 			LOG.info("Adding keytab {} to the AM container local resource bucket", keytab);
 			keytabResource = Records.newRecord(LocalResource.class);
@@ -779,7 +779,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		if(keytabResource != null) {
 			appMasterEnv.put(YarnConfigKeys.KEYTAB_PATH, remotePathKeytab.toString() );
-			String principal = flinkConfiguration.getString(ConfigConstants.SECURITY_PRINCIPAL_KEY, null);
+			String principal = flinkConfiguration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
 			appMasterEnv.put(YarnConfigKeys.KEYTAB_PRINCIPAL, principal );
 		}
 

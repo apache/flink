@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -169,8 +170,8 @@ public class YarnApplicationMasterRunner {
 
 			final Configuration flinkConfig = createConfiguration(currDir, dynamicProperties);
 			if(keytabPath != null && remoteKeytabPrincipal != null) {
-				flinkConfig.setString(ConfigConstants.SECURITY_KEYTAB_KEY, keytabPath);
-				flinkConfig.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY, remoteKeytabPrincipal);
+				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
+				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
 			org.apache.hadoop.conf.Configuration hadoopConfiguration = null;
@@ -262,8 +263,8 @@ public class YarnApplicationMasterRunner {
 				LOG.info("keytabPath: {}", keytabPath);
 			}
 			if(keytabPath != null && remoteKeytabPrincipal != null) {
-				config.setString(ConfigConstants.SECURITY_KEYTAB_KEY, keytabPath);
-				config.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY, remoteKeytabPrincipal);
+				config.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
+				config.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
 			// Hadoop/Yarn configuration (loads config data automatically from classpath files)

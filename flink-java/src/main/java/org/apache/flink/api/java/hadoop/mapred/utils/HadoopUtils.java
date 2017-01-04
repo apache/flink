@@ -48,6 +48,8 @@ public final class HadoopUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopUtils.class);
 
+	private static final Text HDFS_DELEGATION_TOKEN_KIND = new Text("HDFS_DELEGATION_TOKEN");
+
 	/**
 	 * Merge HadoopConfiguration into JobConf. This is necessary for the HDFS configuration.
 	 */
@@ -168,29 +170,18 @@ public final class HadoopUtils {
 	}
 
 	/**
-	 * Helper to verify if HDFS delegation token (ticket cache) is available in the current logged in user context
+	 * Indicates whether the current user has an HDFS delegation token.
 	 */
 	public static boolean hasHDFSDelegationToken() throws Exception {
-
-		boolean delegationToken = false;
-
-		final Text HDFS_DELEGATION_KIND = new Text("HDFS_DELEGATION_TOKEN");
-
 		UserGroupInformation loginUser = UserGroupInformation.getCurrentUser();
-
 		Collection<Token<? extends TokenIdentifier>> usrTok = loginUser.getTokens();
-
 		for (Token<? extends TokenIdentifier> token : usrTok) {
-			final Text id = new Text(token.getIdentifier());
-			LOG.debug("Found user token " + id + " with " + token);
-			if (token.getKind().equals(HDFS_DELEGATION_KIND)) {
-				delegationToken = true;
-				break;
+			if (token.getKind().equals(HDFS_DELEGATION_TOKEN_KIND)) {
+				return true;
 			}
 		}
-		return delegationToken;
+		return false;
 	}
-
 
 	/**
 	 * Private constructor to prevent instantiation.

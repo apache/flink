@@ -19,7 +19,6 @@
 package org.apache.flink.test.util;
 
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
@@ -175,8 +174,8 @@ public class SecureTestEnvironment {
 			conf = flinkConf;
 		}
 
-		conf.setString(ConfigConstants.SECURITY_KEYTAB_KEY , testKeytab);
-		conf.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY , testPrincipal);
+		conf.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB , testKeytab);
+		conf.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL , testPrincipal);
 
 		return conf;
 	}

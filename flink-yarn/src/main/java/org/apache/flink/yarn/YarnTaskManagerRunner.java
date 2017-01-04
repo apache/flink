@@ -25,6 +25,7 @@ import java.util.concurrent.Callable;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -131,8 +132,8 @@ public class YarnTaskManagerRunner {
 			}
 
 			if(keytabPath != null && remoteKeytabPrincipal != null) {
-				configuration.setString(ConfigConstants.SECURITY_KEYTAB_KEY, keytabPath);
-				configuration.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY, remoteKeytabPrincipal);
+				configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
+				configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
 			SecurityUtils.install(sc);
