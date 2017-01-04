@@ -358,4 +358,5 @@ Please note that records in flight in the loop edges (and the state changes asso
 
 ## Restart Strategies
 
-Flink supports different restart strategies which control how the jobs are restarted in case of a failure. For more information, see [Restart Strategies]({{ site.baseurl }}/dev/restart_strategies).
+Flink supports different restart strategies which control how the jobs are restarted in case of a failure. For more 
+information, see [Restart Strategies]({{ site.baseurl }}/dev/restart_strategies.html).
