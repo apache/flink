@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.security;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -77,21 +78,29 @@ public class SecurityUtilsTest {
 
 	private String getOSUserName() throws Exception {
 		String userName = "";
-		String osName = System.getProperty( "os.name" ).toLowerCase();
-		String className = null;
-		String methodName = null;
+		OperatingSystem os = OperatingSystem.getCurrentOperatingSystem();
+		String className;
+		String methodName;
 
-		if( osName.contains( "windows" ) ){
-			className = "com.sun.security.auth.module.NTSystem";
-			methodName = "getName";
-		}
-		else if( osName.contains( "linux" ) || osName.contains( "mac" )  ){
-			className = "com.sun.security.auth.module.UnixSystem";
-			methodName = "getUsername";
-		}
-		else if( osName.contains( "solaris" ) || osName.contains( "sunos" ) ){
-			className = "com.sun.security.auth.module.SolarisSystem";
-			methodName = "getUsername";
+		switch(os) {
+			case LINUX:
+			case MAC_OS:
+				className = "com.sun.security.auth.module.UnixSystem";
+				methodName = "getUsername";
+				break;
+			case WINDOWS:
+				className = "com.sun.security.auth.module.NTSystem";
+				methodName = "getName";
+				break;
+			case SOLARIS:
+				className = "com.sun.security.auth.module.SolarisSystem";
+				methodName = "getUsername";
+				break;
+			case FREE_BSD:
+			case UNKNOWN:
+			default:
+				className = null;
+				methodName = null;
 		}
 
 		if( className != null ){
