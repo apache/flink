@@ -331,14 +331,30 @@ val batchTable = batchTableEnvironment.scan("mycsv")
 </div>
 </div>
 
+### Unregister a Table
+
+A table can be unregistered using the following method. Subsequent SQL queries won't find the unregistered table name anymore.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+tableEnvironment.unregisterTable("Customers");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+tableEnvironment.unregisterTable("Customers")
+{% endhighlight %}
+</div>
+</div>
+
 
 Table API
 ----------
 The Table API provides methods to apply relational operations on DataSets and Datastreams both in Scala and Java.
 
 The central concept of the Table API is a `Table` which represents a table with relational schema (or relation). Tables can be created from a `DataSet` or `DataStream`, converted into a `DataSet` or `DataStream`, or registered in a table catalog using a `TableEnvironment`. A `Table` is always bound to a specific `TableEnvironment`. It is not possible to combine Tables of different TableEnvironments.
-
-*Note: The only operations currently supported on streaming Tables are selection, projection, and union.*
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
