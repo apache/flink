@@ -480,7 +480,7 @@ public class BlobServer extends Thread implements BlobService {
 
 			return new FileSystemBlobStore(fileSystem, storagePath);
 		} else {
-			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + ".");
+			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + "'.");
 		}
 	}
 }
