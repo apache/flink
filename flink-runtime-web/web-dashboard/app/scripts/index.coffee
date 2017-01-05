@@ -177,16 +177,17 @@ angular.module('flinkApp', ['ui.router', 'angularMoment', 'dndLists'])
 
   .state "single-manager",
       url: "/taskmanager/{taskmanagerid}"
+      abstract: true
       views:
         main:
           templateUrl: "partials/taskmanager/taskmanager.html"
+          controller: 'SingleTaskManagerController'
 
   .state "single-manager.metrics",
     url: "/metrics"
     views:
       details:
         templateUrl: "partials/taskmanager/taskmanager.metrics.html"
-        controller: 'SingleTaskManagerController'
 
   .state "single-manager.stdout",
     url: "/stdout"
