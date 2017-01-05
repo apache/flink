@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import java.util.Collection;
 import java.util.concurrent.RunnableFuture;
 
 /**
@@ -42,4 +43,12 @@ public interface Snapshotable<S extends StateObject> {
 			long checkpointId,
 			long timestamp,
 			CheckpointStreamFactory streamFactory) throws Exception;
+
+	/**
+	 * Restores state that was previously snapshotted from the provided parameters. Typically the parameters are state
+	 * handles from which the old state is read.
+	 *
+	 * @param state the old state to restore.
+	 */
+	void restore(Collection<S> state) throws Exception;
 }

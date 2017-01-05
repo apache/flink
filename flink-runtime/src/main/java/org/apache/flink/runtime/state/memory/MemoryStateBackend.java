@@ -26,11 +26,9 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 
 import java.io.IOException;
-import java.util.Collection;
 
 /**
  * A {@link AbstractStateBackend} that stores all its data and checkpoints in memory and has no
@@ -92,24 +90,4 @@ public class MemoryStateBackend extends AbstractStateBackend {
 				numberOfKeyGroups,
 				keyGroupRange);
 	}
-
-	@Override
-	public <K> AbstractKeyedStateBackend<K> restoreKeyedStateBackend(
-			Environment env, JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			Collection<KeyGroupsStateHandle> restoredState,
-			TaskKvStateRegistry kvStateRegistry) throws Exception {
-
-		return new HeapKeyedStateBackend<>(
-				kvStateRegistry,
-				keySerializer,
-				env.getUserClassLoader(),
-				numberOfKeyGroups,
-				keyGroupRange,
-				restoredState);
-	}
-
 }

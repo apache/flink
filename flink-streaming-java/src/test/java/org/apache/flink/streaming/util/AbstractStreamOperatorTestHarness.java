@@ -192,12 +192,17 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 					final StreamOperator<?> operator = (StreamOperator<?>) invocationOnMock.getArguments()[0];
 					final Collection<OperatorStateHandle> stateHandles = (Collection<OperatorStateHandle>) invocationOnMock.getArguments()[1];
 					OperatorStateBackend osb;
-					if (null == stateHandles) {
-						osb = stateBackend.createOperatorStateBackend(environment, operator.getClass().getSimpleName());
-					} else {
-						osb = stateBackend.restoreOperatorStateBackend(environment, operator.getClass().getSimpleName(), stateHandles);
-					}
+
+					osb = stateBackend.createOperatorStateBackend(
+							environment,
+							operator.getClass().getSimpleName());
+
 					mockTask.getCancelables().registerClosable(osb);
+
+					if (null != stateHandles) {
+						osb.restore(stateHandles);
+					}
+
 					return osb;
 				}
 			}).when(mockTask).createOperatorStateBackend(any(StreamOperator.class), any(Collection.class));

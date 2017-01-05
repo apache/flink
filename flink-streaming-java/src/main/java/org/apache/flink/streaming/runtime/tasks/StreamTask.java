@@ -741,13 +741,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		Environment env = getEnvironment();
 		String opId = createOperatorIdentifier(op, getConfiguration().getVertexID());
 
-		OperatorStateBackend newBackend = restoreStateHandles == null ?
-				stateBackend.createOperatorStateBackend(env, opId)
-				: stateBackend.restoreOperatorStateBackend(env, opId, restoreStateHandles);
+		OperatorStateBackend operatorStateBackend = stateBackend.createOperatorStateBackend(env, opId);
 
-		cancelables.registerClosable(newBackend);
+		// let operator state backend participate in the operator lifecycle, i.e. make it responsive to cancelation
+		cancelables.registerClosable(operatorStateBackend);
 
-		return newBackend;
+		// restore if we have some old state
+		if (null != restoreStateHandles) {
+			operatorStateBackend.restore(restoreStateHandles);
+		}
+
+		return operatorStateBackend;
 	}
 
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
@@ -763,28 +767,22 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				headOperator,
 				configuration.getVertexID());
 
-		if (null != restoreStateHandles && null != restoreStateHandles.getManagedKeyedState()) {
-			keyedStateBackend = stateBackend.restoreKeyedStateBackend(
-					getEnvironment(),
-					getEnvironment().getJobID(),
-					operatorIdentifier,
-					keySerializer,
-					numberOfKeyGroups,
-					keyGroupRange,
-					restoreStateHandles.getManagedKeyedState(),
-					getEnvironment().getTaskKvStateRegistry());
-		} else {
-			keyedStateBackend = stateBackend.createKeyedStateBackend(
-					getEnvironment(),
-					getEnvironment().getJobID(),
-					operatorIdentifier,
-					keySerializer,
-					numberOfKeyGroups,
-					keyGroupRange,
-					getEnvironment().getTaskKvStateRegistry());
-		}
+		keyedStateBackend = stateBackend.createKeyedStateBackend(
+				getEnvironment(),
+				getEnvironment().getJobID(),
+				operatorIdentifier,
+				keySerializer,
+				numberOfKeyGroups,
+				keyGroupRange,
+				getEnvironment().getTaskKvStateRegistry());
 
+		// let keyed state backend participate in the operator lifecycle, i.e. make it responsive to cancelation
 		cancelables.registerClosable(keyedStateBackend);
+
+		// restore if we have some old state
+		if (null != restoreStateHandles && null != restoreStateHandles.getManagedKeyedState()) {
+			keyedStateBackend.restore(restoreStateHandles.getManagedKeyedState());
+		}
 
 		@SuppressWarnings("unchecked")
 		AbstractKeyedStateBackend<K> typedBackend = (AbstractKeyedStateBackend<K>) keyedStateBackend;
