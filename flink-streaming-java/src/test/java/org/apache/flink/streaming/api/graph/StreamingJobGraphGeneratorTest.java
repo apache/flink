@@ -21,6 +21,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -31,11 +32,13 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 @SuppressWarnings("serial")
 public class StreamingJobGraphGeneratorTest extends TestLogger {
@@ -169,5 +172,40 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
 		JobSnapshottingSettings snapshottingSettings = jobGraph.getSnapshotSettings();
 		assertEquals(Long.MAX_VALUE, snapshottingSettings.getCheckpointInterval());
+	}
+
+	/**
+	 * Verifies that the chain start/end is correctly set.
+	 */
+	@Test
+	public void testChainStartEndSetting() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		// fromElements -> CHAIN(Map -> Print)
+		env.fromElements(1, 2, 3)
+			.map(new MapFunction<Integer, Integer>() {
+				@Override
+				public Integer map(Integer value) throws Exception {
+					return value;
+				}
+			})
+			.print();
+		JobGraph jobGraph = new StreamingJobGraphGenerator(env.getStreamGraph()).createJobGraph();
+
+		JobVertex sourceVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
+		JobVertex mapPrintVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
+
+		StreamConfig sourceConfig = new StreamConfig(sourceVertex.getConfiguration());
+		StreamConfig mapConfig = new StreamConfig(mapPrintVertex.getConfiguration());
+		Map<Integer, StreamConfig> chainedConfigs = mapConfig.getTransitiveChainedTaskConfigs(getClass().getClassLoader());
+		StreamConfig printConfig = chainedConfigs.get(3);
+
+		assertTrue(sourceConfig.isChainStart());
+		assertTrue(sourceConfig.isChainEnd());
+
+		assertTrue(mapConfig.isChainStart());
+		assertFalse(mapConfig.isChainEnd());
+
+		assertFalse(printConfig.isChainStart());
+		assertTrue(printConfig.isChainEnd());
 	}
 }
