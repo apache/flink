@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -44,8 +45,14 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
@@ -55,11 +62,11 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.SerializedValue;
-
 import org.junit.Test;
 
 import java.io.EOFException;
@@ -68,7 +75,9 @@ import java.io.Serializable;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 
 import static org.junit.Assert.assertEquals;
@@ -89,17 +98,61 @@ public class InterruptSensitiveRestoreTest {
 
 	private static final OneShotLatch IN_RESTORE_LATCH = new OneShotLatch();
 
-	@Test
-	public void testRestoreWithInterrupt() throws Exception {
+	private static final int OPERATOR_MANAGED = 0;
+	private static final int OPERATOR_RAW = 1;
+	private static final int KEYED_MANAGED = 2;
+	private static final int KEYED_RAW = 3;
+	private static final int LEGACY = 4;
 
+	@Test
+	public void testRestoreWithInterruptLegacy() throws Exception {
+		testRestoreWithInterrupt(LEGACY);
+	}
+
+	@Test
+	public void testRestoreWithInterruptOperatorManaged() throws Exception {
+		testRestoreWithInterrupt(OPERATOR_MANAGED);
+	}
+
+	@Test
+	public void testRestoreWithInterruptOperatorRaw() throws Exception {
+		testRestoreWithInterrupt(OPERATOR_RAW);
+	}
+
+	@Test
+	public void testRestoreWithInterruptKeyedManaged() throws Exception {
+		testRestoreWithInterrupt(KEYED_MANAGED);
+	}
+
+	@Test
+	public void testRestoreWithInterruptKeyedRaw() throws Exception {
+		testRestoreWithInterrupt(KEYED_RAW);
+	}
+
+	private void testRestoreWithInterrupt(int mode) throws Exception {
+
+		IN_RESTORE_LATCH.reset();
 		Configuration taskConfig = new Configuration();
 		StreamConfig cfg = new StreamConfig(taskConfig);
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-		cfg.setStreamOperator(new StreamSource<>(new TestSource()));
+		switch (mode) {
+			case OPERATOR_MANAGED:
+			case OPERATOR_RAW:
+			case KEYED_MANAGED:
+			case KEYED_RAW:
+				cfg.setStateKeySerializer(IntSerializer.INSTANCE);
+				cfg.setStreamOperator(new StreamSource<>(new TestSource()));
+				break;
+			case LEGACY:
+				cfg.setStreamOperator(new StreamSource<>(new TestSourceLegacy()));
+				break;
+			default:
+				throw new IllegalArgumentException();
+		}
 
 		StreamStateHandle lockingHandle = new InterruptLockingStateHandle();
 
-		Task task = createTask(taskConfig, lockingHandle);
+		Task task = createTask(taskConfig, lockingHandle, mode);
 
 		// start the task and wait until it is in "restore"
 		task.startTaskThread();
@@ -124,17 +177,50 @@ public class InterruptSensitiveRestoreTest {
 
 	private static Task createTask(
 			Configuration taskConfig,
-			StreamStateHandle state) throws IOException {
+			StreamStateHandle state,
+			int mode) throws IOException {
 
 		NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
 		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
 
-		ChainedStateHandle<StreamStateHandle> operatorState = new ChainedStateHandle<>(Collections.singletonList(state));
+
+		ChainedStateHandle<StreamStateHandle> operatorState = null;
 		List<KeyGroupsStateHandle> keyGroupStateFromBackend = Collections.emptyList();
 		List<KeyGroupsStateHandle> keyGroupStateFromStream = Collections.emptyList();
 		List<Collection<OperatorStateHandle>> operatorStateBackend = Collections.emptyList();
 		List<Collection<OperatorStateHandle>> operatorStateStream = Collections.emptyList();
+
+		Map<String, long[]> operatorStateMetadata = new HashMap<>(1);
+		operatorStateMetadata.put(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, new long[]{0});
+
+		KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(new KeyGroupRange(0,0));
+
+		Collection<OperatorStateHandle> operatorStateHandles =
+				Collections.singletonList(new OperatorStateHandle(operatorStateMetadata, state));
+
+		List<KeyGroupsStateHandle> keyGroupsStateHandles =
+				Collections.singletonList(new KeyGroupsStateHandle(keyGroupRangeOffsets, state));
+
+		switch (mode) {
+			case OPERATOR_MANAGED:
+				operatorStateBackend = Collections.singletonList(operatorStateHandles);
+				break;
+			case OPERATOR_RAW:
+				operatorStateStream = Collections.singletonList(operatorStateHandles);
+				break;
+			case KEYED_MANAGED:
+				keyGroupStateFromBackend = keyGroupsStateHandles;
+				break;
+			case KEYED_RAW:
+				keyGroupStateFromStream = keyGroupsStateHandles;
+				break;
+			case LEGACY:
+				operatorState = new ChainedStateHandle<>(Collections.singletonList(state));
+				break;
+			default:
+				throw new IllegalArgumentException();
+		}
 
 		TaskStateHandles taskStateHandles = new TaskStateHandles(
 			operatorState,
@@ -258,7 +344,7 @@ public class InterruptSensitiveRestoreTest {
 
 	// ------------------------------------------------------------------------
 
-	private static class TestSource implements SourceFunction<Object>, Checkpointed<Serializable> {
+	private static class TestSourceLegacy implements SourceFunction<Object>, Checkpointed<Serializable> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -278,6 +364,29 @@ public class InterruptSensitiveRestoreTest {
 		@Override
 		public void restoreState(Serializable state) throws Exception {
 			fail("should never be called");
+		}
+	}
+
+	private static class TestSource implements SourceFunction<Object>, CheckpointedFunction {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void run(SourceContext<Object> ctx) throws Exception {
+			fail("should never be called");
+		}
+
+		@Override
+		public void cancel() {}
+
+
+		@Override
+		public void snapshotState(FunctionSnapshotContext context) throws Exception {
+			fail("should never be called");
+		}
+
+		@Override
+		public void initializeState(FunctionInitializationContext context) throws Exception {
+			((StateInitializationContext)context).getRawOperatorStateInputs().iterator().next().getStream().read();
 		}
 	}
 }

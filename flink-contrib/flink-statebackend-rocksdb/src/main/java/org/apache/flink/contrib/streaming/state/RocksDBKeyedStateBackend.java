@@ -180,51 +180,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		kvStateInformation = new HashMap<>();
 	}
 
-	public RocksDBKeyedStateBackend(
-			JobID jobId,
-			String operatorIdentifier,
-			ClassLoader userCodeClassLoader,
-			File instanceBasePath,
-			DBOptions dbOptions,
-			ColumnFamilyOptions columnFamilyOptions,
-			TaskKvStateRegistry kvStateRegistry,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			Collection<KeyGroupsStateHandle> restoreState
-	) throws Exception {
-
-		this(jobId,
-			operatorIdentifier,
-			userCodeClassLoader,
-			instanceBasePath,
-			dbOptions,
-			columnFamilyOptions,
-			kvStateRegistry,
-			keySerializer,
-			numberOfKeyGroups,
-			keyGroupRange);
-
-		LOG.info("Initializing RocksDB keyed state backend from snapshot.");
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Restoring snapshot from state handles: {}.", restoreState);
-		}
-
-		try {
-			if (MigrationUtil.isOldSavepointKeyedState(restoreState)) {
-				LOG.info("Converting RocksDB state from old savepoint.");
-				restoreOldSavepointKeyedState(restoreState);
-			} else {
-				RocksDBRestoreOperation restoreOperation = new RocksDBRestoreOperation(this);
-				restoreOperation.doRestore(restoreState);
-			}
-		} catch (Exception ex) {
-			dispose();
-			throw ex;
-		}
-	}
-
 	/**
 	 * Should only be called by one thread, and only after all accesses to the DB happened.
 	 */
@@ -628,6 +583,28 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			if(Thread.currentThread().isInterrupted()) {
 				throw new InterruptedException("RocksDB snapshot interrupted.");
 			}
+		}
+	}
+
+	@Override
+	public void restore(Collection<KeyGroupsStateHandle> restoreState) throws Exception {
+		LOG.info("Initializing RocksDB keyed state backend from snapshot.");
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Restoring snapshot from state handles: {}.", restoreState);
+		}
+
+		try {
+			if (MigrationUtil.isOldSavepointKeyedState(restoreState)) {
+				LOG.info("Converting RocksDB state from old savepoint.");
+				restoreOldSavepointKeyedState(restoreState);
+			} else {
+				RocksDBRestoreOperation restoreOperation = new RocksDBRestoreOperation(this);
+				restoreOperation.doRestore(restoreState);
+			}
+		} catch (Exception ex) {
+			dispose();
+			throw ex;
 		}
 	}
 
