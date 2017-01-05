@@ -274,24 +274,6 @@ public class Path implements IOReadableWritable, Serializable {
 	}
 
 	/**
-	 * Checks if the provided path string contains a windows drive letter.
-	 * 
-	 * @param path
-	 *        the path to check
-	 * @param slashed
-	 *        <code>true</code> to indicate the first character of the string is a slash, <code>false</code> otherwise
-	 * @return <code>true</code> if the path string contains a windows drive letter, <code>false</code> otherwise
-	 */
-	private boolean hasWindowsDrive(String path, boolean slashed) {
-		final int start = slashed ? 1 : 0;
-		return path.length() >= start + 2
-			&& (!slashed || path.charAt(0) == '/')
-			&& path.charAt(start + 1) == ':'
-			&& ((path.charAt(start) >= 'A' && path.charAt(start) <= 'Z') || (path.charAt(start) >= 'a' && path
-				.charAt(start) <= 'z'));
-	}
-
-	/**
 	 * Converts the path object to a {@link URI}.
 	 * 
 	 * @return the {@link URI} object converted from the path object
@@ -376,8 +358,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	@Override
 	public String toString() {
-		// we can't use uri.toString(), which escapes everything, because we
-		// want
+		// we can't use uri.toString(), which escapes everything, because we want
 		// illegal characters unescaped in the string, for glob processing, etc.
 		final StringBuilder buffer = new StringBuilder();
 		if (uri.getScheme() != null) {
@@ -390,9 +371,7 @@ public class Path implements IOReadableWritable, Serializable {
 		}
 		if (uri.getPath() != null) {
 			String path = uri.getPath();
-			if (path.indexOf('/') == 0 && hasWindowsDrive(path, true) && // has
-				// windows
-				// drive
+			if (path.indexOf('/') == 0 && hasWindowsDrive(path, true) && // has windows drive
 				uri.getScheme() == null && // but no scheme
 				uri.getAuthority() == null) { // or authority
 				path = path.substring(1); // remove slash before drive
@@ -476,10 +455,12 @@ public class Path implements IOReadableWritable, Serializable {
 		return new Path(scheme + ":" + "//" + authority + pathUri.getPath());
 	}
 
+	// ------------------------------------------------------------------------
+	//  Legacy Serialization
+	// ------------------------------------------------------------------------
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-
 		final boolean isNotNull = in.readBoolean();
 		if (isNotNull) {
 			final String scheme = StringUtils.readNullableString(in);
@@ -501,7 +482,6 @@ public class Path implements IOReadableWritable, Serializable {
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-
 		if (uri == null) {
 			out.writeBoolean(false);
 		} else {
@@ -514,6 +494,37 @@ public class Path implements IOReadableWritable, Serializable {
 			StringUtils.writeNullableString(uri.getQuery(), out);
 			StringUtils.writeNullableString(uri.getFragment(), out);
 		}
+	}
 
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Checks if the provided path string contains a windows drive letter.
+	 *
+	 * @return True, if the path string contains a windows drive letter, false otherwise.
+	 */
+	public boolean hasWindowsDrive() {
+		return hasWindowsDrive(uri.getPath(), true);
+	}
+
+	/**
+	 * Checks if the provided path string contains a windows drive letter.
+	 *
+	 * @param path
+	 *        the path to check
+	 * @param slashed
+	 *         true to indicate the first character of the string is a slash, false otherwise
+	 * 
+	 * @return <code>true</code> if the path string contains a windows drive letter, false otherwise
+	 */
+	private boolean hasWindowsDrive(String path, boolean slashed) {
+		final int start = slashed ? 1 : 0;
+		return path.length() >= start + 2
+				&& (!slashed || path.charAt(0) == '/')
+				&& path.charAt(start + 1) == ':'
+				&& ((path.charAt(start) >= 'A' && path.charAt(start) <= 'Z') || (path.charAt(start) >= 'a' && path
+				.charAt(start) <= 'z'));
 	}
 }
