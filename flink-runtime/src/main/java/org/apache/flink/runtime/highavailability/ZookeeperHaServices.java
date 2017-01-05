@@ -154,7 +154,21 @@ public class ZookeeperHaServices implements HighAvailabilityServices {
 
 	@Override
 	public BlobStore createBlobStore() throws IOException {
-		final String storagePath = configuration.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
+		return createBlobStore(configuration);
+	}
+
+	/**
+	 * Creates the BLOB store in which BLOBs are stored in a highly-available
+	 * fashion.
+	 *
+	 * @param configuration configuration to extract the storage path from
+	 * @return Blob store
+	 * @throws IOException if the blob store could not be created
+	 */
+	public static BlobStore createBlobStore(
+		final Configuration configuration) throws IOException {
+		final String storagePath = configuration.getValue(
+			HighAvailabilityOptions.HA_STORAGE_PATH);
 		if (isNullOrWhitespaceOnly(storagePath)) {
 			throw new IllegalConfigurationException("Configuration is missing the mandatory parameter: " +
 					HighAvailabilityOptions.HA_STORAGE_PATH);
