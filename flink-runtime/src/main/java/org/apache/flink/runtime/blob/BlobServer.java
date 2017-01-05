@@ -22,11 +22,9 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.ZookeeperHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.NetUtils;
@@ -49,7 +47,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
 
 /**
  * This class implements the BLOB server. The BLOB server is responsible for listening for incoming requests and
@@ -453,31 +450,9 @@ public class BlobServer extends Thread implements BlobService {
 		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
 
 		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
-		return new VoidBlobStore();
+			return new VoidBlobStore();
 		} else if (highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
-			final String storagePath = config.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
-			if (isNullOrWhitespaceOnly(storagePath)) {
-				throw new IllegalConfigurationException("Configuration is missing the mandatory parameter: " +
-						HighAvailabilityOptions.HA_STORAGE_PATH);
-			}
-
-			final Path path;
-			try {
-				path = new Path(storagePath);
-			} catch (Exception e) {
-				throw new IOException("Invalid path for highly available storage (" +
-						HighAvailabilityOptions.HA_STORAGE_PATH.key() + ')', e);
-			}
-
-			final FileSystem fileSystem;
-			try {
-				fileSystem = path.getFileSystem();
-			} catch (Exception e) {
-				throw new IOException("Could not create FileSystem for highly available storage (" +
-						HighAvailabilityOptions.HA_STORAGE_PATH.key() + ')', e);
-			}
-
-			return new FileSystemBlobStore(fileSystem, storagePath);
+			return ZookeeperHaServices.createBlobStore(config);
 		} else {
 			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + "'.");
 		}
