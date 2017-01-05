@@ -61,7 +61,8 @@ public class BlobRecoveryITCase {
 	}
 
 	public static void testBlobServerRecovery(final Configuration config) throws IOException {
-		String storagePath = config.getString(HighAvailabilityOptions.HA_STORAGE_PATH);
+		final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
+		String storagePath = config.getString(HighAvailabilityOptions.HA_STORAGE_PATH) + "/" + clusterId;
 		Random rand = new Random();
 
 		BlobServer[] server = new BlobServer[2];
@@ -69,7 +70,6 @@ public class BlobRecoveryITCase {
 		BlobClient client = null;
 
 		try {
-
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config);
 				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
