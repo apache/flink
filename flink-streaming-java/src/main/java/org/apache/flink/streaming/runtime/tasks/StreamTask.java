@@ -902,8 +902,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				List<OperatorStateHandle> operatorStatesStream = new ArrayList<>(snapshotInProgressList.size());
 
 				for (OperatorSnapshotResult snapshotInProgress : snapshotInProgressList) {
-					operatorStatesBackend.add(FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateManagedFuture()));
-					operatorStatesStream.add(FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateRawFuture()));
+					if (null != snapshotInProgress) {
+						operatorStatesBackend.add(
+								FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateManagedFuture()));
+						operatorStatesStream.add(
+								FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateRawFuture()));
+					} else {
+						operatorStatesBackend.add(null);
+						operatorStatesStream.add(null);
+					}
 				}
 
 				final long asyncEndNanos = System.nanoTime();
@@ -950,7 +957,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		public void close() {
 			// cleanup/release ongoing snapshot operations
 			for (OperatorSnapshotResult snapshotResult : snapshotInProgressList) {
-				snapshotResult.cancel();
+				if (null != snapshotResult) {
+					snapshotResult.cancel();
+				}
 			}
 		}
 	}
@@ -995,14 +1004,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			try {
 
 				for (StreamOperator<?> op : allOperators) {
-
-					createStreamFactory(op);
-					snapshotNonPartitionableState(op);
-
-					OperatorSnapshotResult snapshotInProgress =
-							op.snapshotState(checkpointMetaData.getCheckpointId(), checkpointMetaData.getTimestamp(), streamFactory);
-
-					snapshotInProgressList.add(snapshotInProgress);
+					checkpointStreamOperator(op);
 				}
 
 				if (LOG.isDebugEnabled()) {
@@ -1029,7 +1031,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				if (failed) {
 					// Cleanup to release resources
 					for (OperatorSnapshotResult operatorSnapshotResult : snapshotInProgressList) {
-						operatorSnapshotResult.cancel();
+						if (null != operatorSnapshotResult) {
+							operatorSnapshotResult.cancel();
+						}
 					}
 
 					if (LOG.isDebugEnabled()) {
@@ -1039,7 +1043,24 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					}
 				}
 			}
+		}
 
+		private void checkpointStreamOperator(StreamOperator<?> op) throws Exception {
+			if (null != op) {
+				createStreamFactory(op);
+				snapshotNonPartitionableState(op);
+
+				OperatorSnapshotResult snapshotInProgress = op.snapshotState(
+						checkpointMetaData.getCheckpointId(),
+						checkpointMetaData.getTimestamp(),
+						streamFactory);
+
+				snapshotInProgressList.add(snapshotInProgress);
+			} else {
+				nonPartitionedStates.add(null);
+				OperatorSnapshotResult emptySnapshotInProgress = new OperatorSnapshotResult();
+				snapshotInProgressList.add(emptySnapshotInProgress);
+			}
 		}
 
 		private void createStreamFactory(StreamOperator<?> operator) throws IOException {
