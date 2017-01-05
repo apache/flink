@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 /**
  * Default implementation of {@link StateInitializationContext}.
@@ -155,19 +156,21 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		public boolean hasNext() {
 			if (null != currentStateHandle && currentOffsetsIterator.hasNext()) {
 				return true;
-			} else {
-				while (stateHandleIterator.hasNext()) {
-					currentStateHandle = stateHandleIterator.next();
-					if (currentStateHandle.getNumberOfKeyGroups() > 0) {
-						currentOffsetsIterator = currentStateHandle.getGroupRangeOffsets().iterator();
-						closableRegistry.unregisterClosable(currentStream);
-						IOUtils.closeQuietly(currentStream);
-						currentStream = null;
-						return true;
-					}
-				}
-				return false;
 			}
+
+			while (stateHandleIterator.hasNext()) {
+				currentStateHandle = stateHandleIterator.next();
+				if (currentStateHandle.getNumberOfKeyGroups() > 0) {
+					currentOffsetsIterator = currentStateHandle.getGroupRangeOffsets().iterator();
+					closableRegistry.unregisterClosable(currentStream);
+					IOUtils.closeQuietly(currentStream);
+					currentStream = null;
+
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		private void openStream() throws IOException {
@@ -178,6 +181,11 @@ public class StateInitializationContextImpl implements StateInitializationContex
 
 		@Override
 		public KeyGroupStatePartitionStreamProvider next() {
+
+			if (!hasNext()) {
+				throw new NoSuchElementException("Iterator exhausted");
+			}
+
 			Tuple2<Integer, Long> keyGroupOffset = currentOffsetsIterator.next();
 			try {
 				if (null == currentStream) {
@@ -220,26 +228,28 @@ public class StateInitializationContextImpl implements StateInitializationContex
 
 		@Override
 		public boolean hasNext() {
-			if (null != currentStateHandle && offPos < offsets.length) {
+
+			if (null != offsets && offPos < offsets.length) {
 				return true;
-			} else {
-				while (stateHandleIterator.hasNext()) {
-					currentStateHandle = stateHandleIterator.next();
-					long[] offsets = currentStateHandle.getStateNameToPartitionOffsets().get(stateName);
-					if (null != offsets && offsets.length > 0) {
-
-						this.offsets = offsets;
-						this.offPos = 0;
-
-						closableRegistry.unregisterClosable(currentStream);
-						IOUtils.closeQuietly(currentStream);
-						currentStream = null;
-
-						return true;
-					}
-				}
-				return false;
 			}
+
+			while (stateHandleIterator.hasNext()) {
+				currentStateHandle = stateHandleIterator.next();
+				long[] offsets = currentStateHandle.getStateNameToPartitionOffsets().get(stateName);
+				if (null != offsets && offsets.length > 0) {
+
+					this.offsets = offsets;
+					this.offPos = 0;
+
+					closableRegistry.unregisterClosable(currentStream);
+					IOUtils.closeQuietly(currentStream);
+					currentStream = null;
+
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		private void openStream() throws IOException {
@@ -250,7 +260,13 @@ public class StateInitializationContextImpl implements StateInitializationContex
 
 		@Override
 		public StatePartitionStreamProvider next() {
+
+			if (!hasNext()) {
+				throw new NoSuchElementException("Iterator exhausted");
+			}
+
 			long offset = offsets[offPos++];
+
 			try {
 				if (null == currentStream) {
 					openStream();

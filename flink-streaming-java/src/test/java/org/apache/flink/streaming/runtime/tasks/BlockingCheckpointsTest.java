@@ -51,7 +51,6 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -63,12 +62,10 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.util.SerializedValue;
-
 import org.junit.Test;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.Collection;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
@@ -179,16 +176,6 @@ public class BlockingCheckpointsTest {
 				Environment env, JobID jobID, String operatorIdentifier,
 				TypeSerializer<K> keySerializer, int numberOfKeyGroups,
 				KeyGroupRange keyGroupRange, TaskKvStateRegistry kvStateRegistry) throws Exception {
-
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public <K> AbstractKeyedStateBackend<K> restoreKeyedStateBackend(
-				Environment env, JobID jobID, String operatorIdentifier,
-				TypeSerializer<K> keySerializer, int numberOfKeyGroups,
-				KeyGroupRange keyGroupRange, Collection<KeyGroupsStateHandle> restoredState,
-				TaskKvStateRegistry kvStateRegistry) throws Exception {
 
 			throw new UnsupportedOperationException();
 		}

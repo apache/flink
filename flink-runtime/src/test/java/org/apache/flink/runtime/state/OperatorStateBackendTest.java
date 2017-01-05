@@ -45,7 +45,9 @@ public class OperatorStateBackendTest {
 	}
 
 	private OperatorStateBackend createNewOperatorStateBackend() throws Exception {
-		return abstractStateBackend.createOperatorStateBackend(createMockEnvironment(), "test-operator");
+		return abstractStateBackend.createOperatorStateBackend(
+				createMockEnvironment(),
+				"test-operator");
 	}
 
 	@Test
@@ -131,8 +133,11 @@ public class OperatorStateBackendTest {
 
 			operatorStateBackend.dispose();
 
-			operatorStateBackend = abstractStateBackend.restoreOperatorStateBackend(
-					createMockEnvironment(), "testOperator", Collections.singletonList(stateHandle));
+			operatorStateBackend = abstractStateBackend.createOperatorStateBackend(
+					createMockEnvironment(),
+					"testOperator");
+
+			operatorStateBackend.restore(Collections.singletonList(stateHandle));
 
 			assertEquals(2, operatorStateBackend.getRegisteredStateNames().size());
 

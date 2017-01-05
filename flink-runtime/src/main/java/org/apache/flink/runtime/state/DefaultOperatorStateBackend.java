@@ -50,33 +50,16 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	public static final String DEFAULT_OPERATOR_STATE_NAME = "_default_";
 	
 	private final Map<String, PartitionableListState<?>> registeredStates;
-	private final Collection<OperatorStateHandle> restoreSnapshots;
 	private final CloseableRegistry closeStreamOnCancelRegistry;
 	private final JavaSerializer<Serializable> javaSerializer;
 	private final ClassLoader userClassloader;
 
-	/**
-	 * Restores a OperatorStateStore (lazily) using the provided snapshots.
-	 *
-	 * @param restoreSnapshots snapshots that are available to restore partitionable states on request.
-	 */
-	public DefaultOperatorStateBackend(
-			ClassLoader userClassLoader,
-			Collection<OperatorStateHandle> restoreSnapshots) throws IOException {
+	public DefaultOperatorStateBackend(ClassLoader userClassLoader) throws IOException {
 
+		this.closeStreamOnCancelRegistry = new CloseableRegistry();
 		this.userClassloader = Preconditions.checkNotNull(userClassLoader);
 		this.javaSerializer = new JavaSerializer<>();
 		this.registeredStates = new HashMap<>();
-		this.closeStreamOnCancelRegistry = new CloseableRegistry();
-		this.restoreSnapshots = restoreSnapshots;
-		restoreState();
-	}
-
-	/**
-	 * Creates an empty OperatorStateStore.
-	 */
-	public DefaultOperatorStateBackend(ClassLoader userClassLoader) throws IOException {
-		this(userClassLoader, null);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -109,69 +92,6 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		}
 
 		return partitionableListState;
-	}
-
-	private void restoreState() throws IOException {
-
-		if (null == restoreSnapshots) {
-			return;
-		}
-
-		for (OperatorStateHandle stateHandle : restoreSnapshots) {
-
-			if (stateHandle == null) {
-				continue;
-			}
-
-			FSDataInputStream in = stateHandle.openInputStream();
-			closeStreamOnCancelRegistry.registerClosable(in);
-
-			ClassLoader restoreClassLoader = Thread.currentThread().getContextClassLoader();
-
-			try {
-				Thread.currentThread().setContextClassLoader(userClassloader);
-				OperatorBackendSerializationProxy backendSerializationProxy =
-						new OperatorBackendSerializationProxy(userClassloader);
-
-				backendSerializationProxy.read(new DataInputViewStreamWrapper(in));
-
-				List<OperatorBackendSerializationProxy.StateMetaInfo<?>> metaInfoList =
-						backendSerializationProxy.getNamedStateSerializationProxies();
-
-				// Recreate all PartitionableListStates from the meta info
-				for (OperatorBackendSerializationProxy.StateMetaInfo<?> stateMetaInfo : metaInfoList) {
-					PartitionableListState<?> listState = registeredStates.get(stateMetaInfo.getName());
-
-					if (null == listState) {
-						listState = new PartitionableListState<>(
-								stateMetaInfo.getName(),
-								stateMetaInfo.getStateSerializer());
-
-						registeredStates.put(listState.getName(), listState);
-					} else {
-						Preconditions.checkState(listState.getPartitionStateSerializer().isCompatibleWith(
-								stateMetaInfo.getStateSerializer()), "Incompatible state serializers found: " +
-								listState.getPartitionStateSerializer() + " is not compatible with " +
-								stateMetaInfo.getStateSerializer());
-					}
-				}
-
-				// Restore all the state in PartitionableListStates
-				for (Map.Entry<String, long[]> nameToOffsets : stateHandle.getStateNameToPartitionOffsets().entrySet()) {
-					PartitionableListState<?> stateListForName = registeredStates.get(nameToOffsets.getKey());
-
-					Preconditions.checkState(null != stateListForName, "Found state without " +
-							"corresponding meta info: " + nameToOffsets.getKey());
-
-					deserializeStateValues(stateListForName, in, nameToOffsets.getValue());
-				}
-
-			} finally {
-				Thread.currentThread().setContextClassLoader(restoreClassLoader);
-				closeStreamOnCancelRegistry.unregisterClosable(in);
-				IOUtils.closeQuietly(in);
-			}
-		}
 	}
 
 	private static <S> void deserializeStateValues(
@@ -235,6 +155,70 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		} finally {
 			closeStreamOnCancelRegistry.unregisterClosable(out);
 			out.close();
+		}
+	}
+
+	@Override
+	public void restore(Collection<OperatorStateHandle> restoreSnapshots) throws Exception {
+
+		if (null == restoreSnapshots) {
+			return;
+		}
+
+		for (OperatorStateHandle stateHandle : restoreSnapshots) {
+
+			if (stateHandle == null) {
+				continue;
+			}
+
+			FSDataInputStream in = stateHandle.openInputStream();
+			closeStreamOnCancelRegistry.registerClosable(in);
+
+			ClassLoader restoreClassLoader = Thread.currentThread().getContextClassLoader();
+
+			try {
+				Thread.currentThread().setContextClassLoader(userClassloader);
+				OperatorBackendSerializationProxy backendSerializationProxy =
+						new OperatorBackendSerializationProxy(userClassloader);
+
+				backendSerializationProxy.read(new DataInputViewStreamWrapper(in));
+
+				List<OperatorBackendSerializationProxy.StateMetaInfo<?>> metaInfoList =
+						backendSerializationProxy.getNamedStateSerializationProxies();
+
+				// Recreate all PartitionableListStates from the meta info
+				for (OperatorBackendSerializationProxy.StateMetaInfo<?> stateMetaInfo : metaInfoList) {
+					PartitionableListState<?> listState = registeredStates.get(stateMetaInfo.getName());
+
+					if (null == listState) {
+						listState = new PartitionableListState<>(
+								stateMetaInfo.getName(),
+								stateMetaInfo.getStateSerializer());
+
+						registeredStates.put(listState.getName(), listState);
+					} else {
+						Preconditions.checkState(listState.getPartitionStateSerializer().isCompatibleWith(
+								stateMetaInfo.getStateSerializer()), "Incompatible state serializers found: " +
+								listState.getPartitionStateSerializer() + " is not compatible with " +
+								stateMetaInfo.getStateSerializer());
+					}
+				}
+
+				// Restore all the state in PartitionableListStates
+				for (Map.Entry<String, long[]> nameToOffsets : stateHandle.getStateNameToPartitionOffsets().entrySet()) {
+					PartitionableListState<?> stateListForName = registeredStates.get(nameToOffsets.getKey());
+
+					Preconditions.checkState(null != stateListForName, "Found state without " +
+							"corresponding meta info: " + nameToOffsets.getKey());
+
+					deserializeStateValues(stateListForName, in, nameToOffsets.getValue());
+				}
+
+			} finally {
+				Thread.currentThread().setContextClassLoader(restoreClassLoader);
+				closeStreamOnCancelRegistry.unregisterClosable(in);
+				IOUtils.closeQuietly(in);
+			}
 		}
 	}
 
@@ -315,4 +299,3 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		}
 	}
 }
-

@@ -101,28 +101,6 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		LOG.info("Initializing heap keyed state backend with stream factory.");
 	}
 
-	public HeapKeyedStateBackend(
-			TaskKvStateRegistry kvStateRegistry,
-			TypeSerializer<K> keySerializer,
-			ClassLoader userCodeClassLoader,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			Collection<KeyGroupsStateHandle> restoredState) throws Exception {
-		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange);
-
-		LOG.info("Initializing heap keyed state backend from snapshot.");
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Restoring snapshot from state handles: {}.", restoredState);
-		}
-
-		if (MigrationUtil.isOldSavepointKeyedState(restoredState)) {
-			restoreOldSavepointKeyedState(restoredState);
-		} else {
-			restorePartitionedState(restoredState);
-		}
-	}
-
 	// ------------------------------------------------------------------------
 	//  state backend operations
 	// ------------------------------------------------------------------------
@@ -248,6 +226,21 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			KeyGroupRangeOffsets offsets = new KeyGroupRangeOffsets(keyGroupRange, keyGroupRangeOffsets);
 			final KeyGroupsStateHandle keyGroupsStateHandle = new KeyGroupsStateHandle(offsets, streamStateHandle);
 			return new DoneFuture<>(keyGroupsStateHandle);
+		}
+	}
+
+	@Override
+	public void restore(Collection<KeyGroupsStateHandle> restoredState) throws Exception {
+		LOG.info("Initializing heap keyed state backend from snapshot.");
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Restoring snapshot from state handles: {}.", restoredState);
+		}
+
+		if (MigrationUtil.isOldSavepointKeyedState(restoredState)) {
+			restoreOldSavepointKeyedState(restoredState);
+		} else {
+			restorePartitionedState(restoredState);
 		}
 	}
 
