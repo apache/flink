@@ -167,7 +167,7 @@ public class ZookeeperHaServices implements HighAvailabilityServices {
 	 */
 	public static BlobStore createBlobStore(
 		final Configuration configuration) throws IOException {
-		final String storagePath = configuration.getValue(
+		String storagePath = configuration.getValue(
 			HighAvailabilityOptions.HA_STORAGE_PATH);
 		if (isNullOrWhitespaceOnly(storagePath)) {
 			throw new IllegalConfigurationException("Configuration is missing the mandatory parameter: " +
@@ -189,6 +189,10 @@ public class ZookeeperHaServices implements HighAvailabilityServices {
 			throw new IOException("Could not create FileSystem for highly available storage (" +
 					HighAvailabilityOptions.HA_STORAGE_PATH.key() + ')', e);
 		}
+
+		final String clusterId =
+			configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
+		storagePath += "/" + clusterId;
 
 		return new FileSystemBlobStore(fileSystem, storagePath);
 	}

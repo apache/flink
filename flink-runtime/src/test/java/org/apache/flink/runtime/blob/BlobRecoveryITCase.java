@@ -52,12 +52,12 @@ public class BlobRecoveryITCase {
 		InetSocketAddress[] serverAddress = new InetSocketAddress[2];
 		BlobClient client = null;
 
-		try {
-			Configuration config = new Configuration();
-			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-			config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
-			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, recoveryDir.getPath());
+		Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getPath());
 
+		try {
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config);
 				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
@@ -144,8 +144,10 @@ public class BlobRecoveryITCase {
 			}
 		}
 
-		// Verify everything is clean
-		File[] recoveryFiles = temporaryFolder.getRoot().listFiles();
+		// Verify everything is clean below recoveryDir/<cluster_id>
+		final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
+		File haBlobStoreDir = new File(temporaryFolder.getRoot(), clusterId);
+		File[] recoveryFiles = haBlobStoreDir.listFiles();
 		assertEquals("Unclean state backend: " + Arrays.toString(recoveryFiles), 0, recoveryFiles.length);
 	}
 }
