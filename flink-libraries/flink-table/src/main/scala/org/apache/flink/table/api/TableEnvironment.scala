@@ -22,6 +22,7 @@ import _root_.java.util.concurrent.atomic.AtomicInteger
 import _root_.java.lang.reflect.Modifier
 
 import org.apache.calcite.config.Lex
+import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.schema.SchemaPlus
@@ -37,7 +38,7 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
-import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
+import java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.codegen.ExpressionReducer
@@ -59,7 +60,9 @@ import _root_.scala.collection.JavaConverters._
 abstract class TableEnvironment(val config: TableConfig) {
 
   // the catalog to hold all registered and translated tables
-  private val tables: SchemaPlus = Frameworks.createRootSchema(true)
+  // we disable caching here to prevent side effects
+  private val internalSchema: CalciteSchema = CalciteSchema.createRootSchema(true, false)
+  private val tables: SchemaPlus = internalSchema.plus()
 
   // Table API/SQL function catalog
   private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuiltIns
@@ -197,7 +200,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * Registers a [[Table]] under a unique name in the TableEnvironment's catalog.
     * Registered tables can be referenced in SQL queries.
     *
-    * @param name The name under which the table is registered.
+    * @param name The name under which the table will be registered.
     * @param table The table to register.
     */
   def registerTable(name: String, table: Table): Unit = {
@@ -211,6 +214,22 @@ abstract class TableEnvironment(val config: TableConfig) {
     checkValidTableName(name)
     val tableTable = new RelTable(table.getRelNode)
     registerTableInternal(name, tableTable)
+  }
+
+  /**
+    * Unregisters a [[Table]] in the TableEnvironment's catalog.
+    * Unregistered tables cannot be referenced in SQL queries anymore.
+    *
+    * @param name The name under which the table is registered.
+    * @return true if table could be unregistered; false otherwise.
+    */
+  def unregisterTable(name: String): Boolean = {
+    if (isRegistered(name)) {
+      internalSchema.tableMap.remove(name)
+      true
+    } else {
+      false
+    }
   }
 
   /**
@@ -252,7 +271,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   /**
     * Registers a Calcite [[AbstractTable]] in the TableEnvironment's catalog.
     *
-    * @param name The name under which the table is registered.
+    * @param name The name under which the table will be registered.
     * @param table The table to register in the catalog
     * @throws TableException if another table is registered under the provided name.
     */
