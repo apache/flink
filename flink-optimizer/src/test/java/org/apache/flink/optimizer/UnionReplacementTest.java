@@ -18,9 +18,9 @@
 
 package org.apache.flink.optimizer;
 
-import junit.framework.Assert;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -36,7 +36,6 @@ import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.apache.flink.runtime.operators.Driver;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.junit.Test;
@@ -363,16 +362,79 @@ public class UnionReplacementTest extends CompilerTestBase {
 			ShipStrategyType.FORWARD, partitioner.getInput().getShipStrategy());
 
 		NAryUnionPlanNode union = (NAryUnionPlanNode)partitioner.getInput().getSource();
-		// all union inputs should be force rebalanced
+		// all union inputs should be range partitioned
 		for (Channel c : union.getInputs()) {
-			assertEquals("Union input should be force rebalanced",
+			assertEquals("Union input should be range partitioned",
 				PartitioningProperty.RANGE_PARTITIONED, c.getGlobalProperties().getPartitioning());
-			assertEquals("Union input channel should be rebalancing",
+			assertEquals("Union input channel should be forwarded",
 				ShipStrategyType.FORWARD, c.getShipStrategy());
 			// range partitioning is executed as custom partitioning with prior sampling
 			SingleInputPlanNode partitionMap = (SingleInputPlanNode)c.getSource();
 			assertEquals(DriverStrategy.MAP, partitionMap.getDriverStrategy());
 			assertEquals(ShipStrategyType.PARTITION_CUSTOM, partitionMap.getInput().getShipStrategy());
+		}
+	}
+
+	/**
+	 *
+	 * Checks that a plan with consecutive UNIONs followed by broadcast-fwd JOIN is correctly translated.
+	 *
+	 * The program can be illustrated as follows:
+	 *
+	 * Src1 -\
+	 *        >-> Union12--<
+	 * Src2 -/              \
+	 *                       >-> Union123 --> bc-fwd-Join -> Output
+	 * Src3 ----------------/             /
+	 *                                   /
+	 * Src4 ----------------------------/
+	 *
+	 * In the resulting plan, the broadcasting must be
+	 * pushed to the inputs of the unions (Src1, Src2, Src3).
+	 *
+	 */
+	@Test
+	public void testConsecutiveUnionsWithBroadcast() throws Exception {
+
+		// -----------------------------------------------------------------------------------------
+		// Build test program
+		// -----------------------------------------------------------------------------------------
+
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+
+		DataSet<Tuple2<Long, Long>> src1 = env.fromElements(new Tuple2<>(0L, 0L));
+		DataSet<Tuple2<Long, Long>> src2 = env.fromElements(new Tuple2<>(0L, 0L));
+		DataSet<Tuple2<Long, Long>> src3 = env.fromElements(new Tuple2<>(0L, 0L));
+		DataSet<Tuple2<Long, Long>> src4 = env.fromElements(new Tuple2<>(0L, 0L));
+
+		DataSet<Tuple2<Long, Long>> union12 = src1.union(src2);
+		DataSet<Tuple2<Long, Long>> union123 = union12.union(src3);
+		union123.join(src4, JoinOperatorBase.JoinHint.BROADCAST_HASH_FIRST)
+			.where(0).equalTo(0).name("join")
+			.output(new DiscardingOutputFormat<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>>()).name("out");
+
+		// -----------------------------------------------------------------------------------------
+		// Verify optimized plan
+		// -----------------------------------------------------------------------------------------
+
+		OptimizedPlan optimizedPlan = compileNoStats(env.createProgramPlan());
+
+		OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(optimizedPlan);
+
+		DualInputPlanNode join = resolver.getNode("join");
+
+		// check input of join is broadcasted
+		assertEquals("First join input should be fully replicated.",
+			PartitioningProperty.FULL_REPLICATION, join.getInput1().getGlobalProperties().getPartitioning());
+
+		NAryUnionPlanNode union = (NAryUnionPlanNode)join.getInput1().getSource();
+		// check that all union inputs are broadcasted
+		for (Channel c : union.getInputs()) {
+			assertEquals("Union input should be fully replicated",
+				PartitioningProperty.FULL_REPLICATION, c.getGlobalProperties().getPartitioning());
+			assertEquals("Union input channel should be broadcasting",
+				ShipStrategyType.BROADCAST, c.getShipStrategy());
 		}
 	}
 
