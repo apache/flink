@@ -258,7 +258,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
 		// comment (Stephan Ewen) this should be no longer relevant with the current Java/Scalal APIs.
 		if (filePath.isEmpty()) {
-			setFilePath(new Path());
+			setFilePath(new Path(""));
 			return;
 		}
 
