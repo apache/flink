@@ -280,6 +280,30 @@ class FieldProjectionTest extends TableTestBase {
     streamUtil.verifyTable(resultTable, expected)
   }
 
+  @Test
+  def testSelectFromAggregatedPojoTable(): Unit = {
+    val sourceTable = util.addTable[WC]("MyTable", 'word, 'frequency)
+    val resultTable = sourceTable
+      .groupBy('word)
+      .select('word, 'frequency.sum as 'frequency)
+      .filter('frequency === 2)
+
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetAggregate",
+          batchTableNode(0),
+          term("groupBy", "word"),
+          term("select", "word", "SUM(frequency) AS TMP_0")
+        ),
+        term("select", "word, frequency"),
+        term("where", "=(frequency, 2)")
+      )
+
+    util.verifyTable(resultTable, expected)
+  }
+
   @Test(expected = classOf[ValidationException])
   def testSelectFromBatchWindow1(): Unit = {
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
@@ -315,4 +339,5 @@ object FieldProjectionTest {
     def eval(s: String): Int = s.hashCode()
   }
 
+  case class WC(word: String, frequency: Long)
 }
