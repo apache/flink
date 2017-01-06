@@ -227,7 +227,9 @@ public class BlobUtils {
 	private static File getJobDirectory(File storageDir, JobID jobID) {
 		final File jobDirectory = new File(storageDir, JOB_DIR_PREFIX + jobID.toString());
 
-		if (!jobDirectory.exists() && !jobDirectory.mkdirs()) {
+		// note: thread-safe create should try to mkdir first and then ignore the case that the
+		//       directory already existed
+		if (!jobDirectory.mkdirs() && !jobDirectory.exists()) {
 			throw new RuntimeException("Could not create jobId directory '" + jobDirectory.getAbsolutePath() + "'.");
 		}
 

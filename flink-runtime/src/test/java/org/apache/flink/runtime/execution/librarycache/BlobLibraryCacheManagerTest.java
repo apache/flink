@@ -43,8 +43,12 @@ import java.util.List;
 
 public class BlobLibraryCacheManagerTest {
 
+	/**
+	 * Tests that the {@link BlobLibraryCacheManager} cleans up after calling {@link
+	 * BlobLibraryCacheManager#unregisterJob(JobID)}.
+	 */
 	@Test
-	public void testLibraryCacheManagerCleanup() throws IOException, InterruptedException {
+	public void testLibraryCacheManagerJobCleanup() throws IOException, InterruptedException {
 
 		JobID jid = new JobID();
 		List<BlobKey> keys = new ArrayList<BlobKey>();
@@ -67,14 +71,9 @@ public class BlobLibraryCacheManagerTest {
 			libraryCacheManager = new BlobLibraryCacheManager(server, cleanupInterval);
 			libraryCacheManager.registerJob(jid, keys, Collections.<URL>emptyList());
 
-			List<File> files = new ArrayList<File>();
-
-			for (BlobKey key : keys) {
-				files.add(libraryCacheManager.getFile(key));
-			}
-
-			assertEquals(2, files.size());
-			files.clear();
+			assertEquals(2, checkFilesExist(keys, libraryCacheManager, true));
+			assertEquals(2, libraryCacheManager.getNumberOfCachedLibraries());
+			assertEquals(1, libraryCacheManager.getNumberOfReferenceHolders(jid));
 
 			libraryCacheManager.unregisterJob(jid);
 
@@ -86,25 +85,137 @@ public class BlobLibraryCacheManagerTest {
 					Thread.sleep(500);
 				}
 				while (libraryCacheManager.getNumberOfCachedLibraries() > 0 &&
+					System.currentTimeMillis() < deadline);
+			}
+
+			// this fails if we exited via a timeout
+			assertEquals(0, libraryCacheManager.getNumberOfCachedLibraries());
+			assertEquals(0, libraryCacheManager.getNumberOfReferenceHolders(jid));
+
+			// the blob cache should no longer contain the files
+			assertEquals(0, checkFilesExist(keys, libraryCacheManager, false));
+
+			try {
+				bc.get(jid, "test");
+				fail("name-addressable BLOB should have been deleted");
+			} catch (IOException e) {
+				// expected
+			}
+
+			bc.close();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
+			if (server != null) {
+				server.close();
+			}
+
+			if (libraryCacheManager != null) {
+				try {
+					libraryCacheManager.shutdown();
+				}
+				catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+
+	/**
+	 * Checks how many of the files given by blob keys are accessible.
+	 *
+	 * @param keys
+	 * 		blob keys to check
+	 * @param libraryCacheManager
+	 * 		cache manager to use
+	 * @param doThrow
+	 * 		whether exceptions should be ignored (<tt>false</tt>), or throws (<tt>true</tt>)
+	 *
+	 * @return number of files we were able to retrieve via {@link BlobLibraryCacheManager#getFile(BlobKey)}
+	 */
+	private int checkFilesExist(
+			List<BlobKey> keys, BlobLibraryCacheManager libraryCacheManager, boolean doThrow)
+			throws IOException {
+		int numFiles = 0;
+
+		for (BlobKey key : keys) {
+			try {
+				libraryCacheManager.getFile(key);
+				++numFiles;
+			} catch (IOException e) {
+				if (doThrow) {
+					throw e;
+				}
+			}
+		}
+
+		return numFiles;
+	}
+
+	/**
+	 * Tests that the {@link BlobLibraryCacheManager} cleans up after calling {@link
+	 * BlobLibraryCacheManager#unregisterTask(JobID, ExecutionAttemptID)}.
+	 */
+	@Test
+	public void testLibraryCacheManagerTaskCleanup() throws IOException, InterruptedException {
+
+		JobID jid = new JobID();
+		ExecutionAttemptID executionId1 = new ExecutionAttemptID();
+		ExecutionAttemptID executionId2 = new ExecutionAttemptID();
+		List<BlobKey> keys = new ArrayList<BlobKey>();
+		BlobServer server = null;
+		BlobLibraryCacheManager libraryCacheManager = null;
+
+		final byte[] buf = new byte[128];
+
+		try {
+			Configuration config = new Configuration();
+			server = new BlobServer(config, new VoidBlobStore());
+			InetSocketAddress blobSocketAddress = new InetSocketAddress(server.getPort());
+			BlobClient bc = new BlobClient(blobSocketAddress, config);
+
+			keys.add(bc.put(buf));
+			buf[0] += 1;
+			keys.add(bc.put(buf));
+			bc.put(jid, "test", buf);
+
+			long cleanupInterval = 1000l;
+			libraryCacheManager = new BlobLibraryCacheManager(server, cleanupInterval);
+			libraryCacheManager.registerTask(jid, executionId1, keys, Collections.<URL>emptyList());
+			libraryCacheManager.registerTask(jid, executionId2, keys, Collections.<URL>emptyList());
+
+			assertEquals(2, checkFilesExist(keys, libraryCacheManager, true));
+			assertEquals(2, libraryCacheManager.getNumberOfCachedLibraries());
+			assertEquals(2, libraryCacheManager.getNumberOfReferenceHolders(jid));
+
+			libraryCacheManager.unregisterTask(jid, executionId1);
+
+			assertEquals(2, checkFilesExist(keys, libraryCacheManager, true));
+			assertEquals(2, libraryCacheManager.getNumberOfCachedLibraries());
+			assertEquals(1, libraryCacheManager.getNumberOfReferenceHolders(jid));
+
+			libraryCacheManager.unregisterTask(jid, executionId2);
+
+			// because we cannot guarantee that there are not thread races in the build system, we
+			// loop for a certain while until the references disappear
+			{
+				long deadline = System.currentTimeMillis() + 30000;
+				do {
+					Thread.sleep(100);
+				}
+				while (libraryCacheManager.getNumberOfCachedLibraries() > 0 &&
 						System.currentTimeMillis() < deadline);
 			}
 
 			// this fails if we exited via a timeout
 			assertEquals(0, libraryCacheManager.getNumberOfCachedLibraries());
+			assertEquals(0, libraryCacheManager.getNumberOfReferenceHolders(jid));
 
-			int caughtExceptions = 0;
-
-			for (BlobKey key : keys) {
-				// the blob cache should no longer contain the files
-				try {
-					files.add(libraryCacheManager.getFile(key));
-				}
-				catch (IOException ioe) {
-					caughtExceptions++;
-				}
-			}
-
-			assertEquals(2, caughtExceptions);
+			// the blob cache should no longer contain the files
+			assertEquals(0, checkFilesExist(keys, libraryCacheManager, false));
 
 			bc.close();
 		} finally {
