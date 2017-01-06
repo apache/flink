@@ -401,7 +401,7 @@ under the License.
 			<dependency>
 				<groupId>com.github.scopt</groupId>
 				<artifactId>scopt_${scala.binary.version}</artifactId>
-				<version>3.2.0</version>
+				<version>3.5.0</version>
 				<exclusions>
 					<exclusion>
 						<groupId>org.scala-lang</groupId>
