@@ -97,9 +97,8 @@ public class BlobServer extends Thread implements BlobService {
 	 * Instantiates a new BLOB server and binds it to a free network port.
 	 *
 	 * @throws IOException
-	 * 		thrown if the BLOB server cannot bind to a free network port or if, in
-	 * 		HA mode, the (distributed) file storage cannot be created or is not
-	 * 		usable
+	 * 		thrown if the BLOB server cannot bind to a free network port or if the
+	 * 		(local or distributed) file storage cannot be created or is not usable
 	 */
 	public BlobServer(Configuration config) throws IOException {
 		this(config, createBlobStoreFromConfig(config));
