@@ -214,13 +214,11 @@ public final class BlobCache implements BlobService {
 	 *         the BLOB server or if the BLOB server cannot delete the file
 	 */
 	public void deleteGlobal(BlobKey key) throws IOException {
-		BlobClient bc = createClient();
-		try {
-			delete(key);
+		// delete locally
+		delete(key);
+		// then delete on the BLOB server
+		try (BlobClient bc = createClient()) {
 			bc.delete(key);
-		}
-		finally {
-			bc.close();
 		}
 	}
 
