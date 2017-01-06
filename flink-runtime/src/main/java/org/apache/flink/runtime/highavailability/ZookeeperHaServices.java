@@ -23,11 +23,8 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobStore;
-import org.apache.flink.runtime.blob.FileSystemBlobStore;
+import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
@@ -39,7 +36,6 @@ import java.io.IOException;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
 
 /**
  * An implementation of the {@link HighAvailabilityServices} using Apache ZooKeeper.
@@ -154,47 +150,7 @@ public class ZookeeperHaServices implements HighAvailabilityServices {
 
 	@Override
 	public BlobStore createBlobStore() throws IOException {
-		return createBlobStore(configuration);
-	}
-
-	/**
-	 * Creates the BLOB store in which BLOBs are stored in a highly-available
-	 * fashion.
-	 *
-	 * @param configuration configuration to extract the storage path from
-	 * @return Blob store
-	 * @throws IOException if the blob store could not be created
-	 */
-	public static BlobStore createBlobStore(
-		final Configuration configuration) throws IOException {
-		String storagePath = configuration.getValue(
-			HighAvailabilityOptions.HA_STORAGE_PATH);
-		if (isNullOrWhitespaceOnly(storagePath)) {
-			throw new IllegalConfigurationException("Configuration is missing the mandatory parameter: " +
-					HighAvailabilityOptions.HA_STORAGE_PATH);
-		}
-
-		final Path path;
-		try {
-			path = new Path(storagePath);
-		} catch (Exception e) {
-			throw new IOException("Invalid path for highly available storage (" +
-					HighAvailabilityOptions.HA_STORAGE_PATH.key() + ')', e);
-		}
-
-		final FileSystem fileSystem;
-		try {
-			fileSystem = path.getFileSystem();
-		} catch (Exception e) {
-			throw new IOException("Could not create FileSystem for highly available storage (" +
-					HighAvailabilityOptions.HA_STORAGE_PATH.key() + ')', e);
-		}
-
-		final String clusterId =
-			configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
-		storagePath += "/" + clusterId;
-
-		return new FileSystemBlobStore(fileSystem, storagePath);
+		return BlobUtils.createHaBlobStore(configuration);
 	}
 
 	// ------------------------------------------------------------------------
