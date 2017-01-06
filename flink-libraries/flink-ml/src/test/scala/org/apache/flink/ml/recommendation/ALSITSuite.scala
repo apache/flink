@@ -25,10 +25,7 @@ import scala.language.postfixOps
 
 import org.apache.flink.api.scala._
 
-class ALSITSuite
-  extends FlatSpec
-  with Matchers
-  with FlinkTestBase {
+class ALSITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   override val parallelism = 2
 
@@ -49,7 +46,7 @@ class ALSITSuite
 
     als.fit(inputDS)
 
-    val testData = env.fromCollection(expectedResult.map{
+    val testData = env.fromCollection(expectedResult.map {
       case (userID, itemID, rating) => (userID, itemID)
     })
 
@@ -57,9 +54,9 @@ class ALSITSuite
 
     predictions.length should equal(expectedResult.length)
 
-    val resultMap = expectedResult map {
+    val resultMap = expectedResult.map {
       case (uID, iID, value) => (uID, iID) -> value
-    } toMap
+    }.toMap
 
     predictions foreach {
       case (uID, iID, value) => {

@@ -25,12 +25,8 @@ import scala.util.Sorting
 /** Sparse vector implementation storing the data in two arrays. One index contains the sorted
   * indices of the non-zero vector entries and the other the corresponding vector entries
   */
-case class SparseVector(
-    size: Int,
-    indices: Array[Int],
-    data: Array[Double])
-  extends Vector
-  with Serializable {
+case class SparseVector(size: Int, indices: Array[Int], data: Array[Double])
+  extends Vector with Serializable {
 
   /** Updates the element at the given index with the provided value
     *
@@ -41,8 +37,8 @@ case class SparseVector(
     val resolvedIndex = locate(index)
 
     if (resolvedIndex < 0) {
-      throw new IllegalArgumentException("Cannot update zero value of sparse vector at index " +
-        index)
+      throw new IllegalArgumentException("Cannot update zero value of sparse vector at " +
+        s"index $index")
     } else {
       data(resolvedIndex) = value
     }
@@ -50,7 +46,7 @@ case class SparseVector(
 
   /** Copies the vector instance
     *
-    * @return Copy of the vector instance
+    * @return Copy of the [[SparseVector]] instance
     */
   override def copy: SparseVector = {
     new SparseVector(size, indices.clone, data.clone)
@@ -86,13 +82,11 @@ case class SparseVector(
     }
   }
 
-  /** Returns the outer product (a.k.a. Kronecker product) of `this`
-    * with `other`. The result is given in [[org.apache.flink.ml.math.SparseMatrix]]
-    * representation.
+  /** Returns the outer product (a.k.a. Kronecker product) of `this` with `other`. The result is
+    * given in [[SparseMatrix]] representation.
     *
-    * @param other a Vector
-    * @return the [[org.apache.flink.ml.math.SparseMatrix]] which equals the outer product of `this`
-    *         with `other.`
+    * @param other a [[Vector]]
+    * @return the [[SparseMatrix]] which equals the outer product of `this` with `other.`
     */
   override def outer(other: Vector): SparseMatrix = {
     val numRows = size
@@ -121,7 +115,7 @@ case class SparseVector(
 
   /** Magnitude of a vector
     *
-    * @return
+    * @return The length of the vector
     */
   override def magnitude: Double = math.sqrt(data.map(x => x * x).sum)
 
@@ -140,6 +134,10 @@ case class SparseVector(
     }
   }
 
+  /** Converts the [[SparseVector]] to a [[DenseVector]]
+    *
+    * @return The DenseVector out of the SparseVector
+    */
   def toDenseVector: DenseVector = {
     val denseVector = DenseVector.zeros(size)
 
@@ -182,9 +180,9 @@ object SparseVector {
   /** Constructs a sparse vector from a coordinate list (COO) representation where each entry
     * is stored as a tuple of (index, value).
     *
-    * @param size
-    * @param entries
-    * @return
+    * @param size The number of elements in the vector
+    * @param entries The values in the vector
+    * @return a new [[SparseVector]]
     */
   def fromCOO(size: Int, entries: (Int, Double)*): SparseVector = {
     fromCOO(size, entries)
@@ -193,9 +191,9 @@ object SparseVector {
   /** Constructs a sparse vector from a coordinate list (COO) representation where each entry
     * is stored as a tuple of (index, value).
     *
-    * @param size
-    * @param entries
-    * @return
+    * @param size The number of elements in the vector
+    * @param entries An iterator supplying the values in the vector
+    * @return a new [[SparseVector]]
     */
   def fromCOO(size: Int, entries: Iterable[(Int, Double)]): SparseVector = {
     val entryArray = entries.toArray
@@ -255,9 +253,9 @@ object SparseVector {
     * type inference mechanism cannot infer that the second tuple value has to be of type Double
     * if only a single tuple is provided.
     *
-    * @param size
-    * @param entry
-    * @return
+    * @param size The number of elements in the vector
+    * @param entry The value in the vector
+    * @return a new [[SparseVector]]
     */
   def fromCOO(size: Int, entry: (Int, Int)): SparseVector = {
     fromCOO(size, (entry._1, entry._2.toDouble))

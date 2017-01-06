@@ -18,7 +18,7 @@
 
 package org.apache.flink.ml.math
 
-import breeze.linalg.{ Matrix => BreezeMatrix, DenseMatrix => BreezeDenseMatrix,
+import breeze.linalg.{Matrix => BreezeMatrix, DenseMatrix => BreezeDenseMatrix,
 CSCMatrix => BreezeCSCMatrix, DenseVector => BreezeDenseVector, SparseVector => BreezeSparseVector,
 Vector => BreezeVector}
 

@@ -131,7 +131,7 @@ class KNN extends Predictor[KNN] {
 
   /** Parameter a user can specify if one of the training or test sets are small
     *
-    * @param sizeHint
+    * @param sizeHint cross hint tells the system which sizes to expect from the data sets
     */
   def setSizeHint(sizeHint: CrossHint): KNN = {
     parameters.add(SizeHint, sizeHint)
