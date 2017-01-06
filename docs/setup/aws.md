@@ -140,7 +140,7 @@ You can specify the [Hadoop configuration]({{ site.baseurl }}/setup/config.html#
 fs.hdfs.hadoopconf: /path/to/etc/hadoop
 ```
 
-This registers `/path/to/etc/hadoop` as Hadoop's configuration directory with Flink. Flink will look for the "core-site.xml" and "hdfs-site.xml" files in the specified directory.  
+This registers `/path/to/etc/hadoop` as Hadoop's configuration directory with Flink. Flink will look for the `core-site.xml` and `hdfs-site.xml` files in the specified directory.  
 
 {% top %}
 
