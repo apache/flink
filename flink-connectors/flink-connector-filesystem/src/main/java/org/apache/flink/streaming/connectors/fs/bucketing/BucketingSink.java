@@ -58,7 +58,7 @@ import java.util.UUID;
 import java.util.Iterator;
 
 /**
- * Sink that emits its input elements to {@link org.apache.hadoop.fs.FileSystem} files within
+ * Sink that emits its input elements to {@link FileSystem} files within
  * buckets. This is integrated with the checkpointing mechanism to provide exactly once semantics.
  *
  * <p>
@@ -124,9 +124,9 @@ import java.util.Iterator;
  *     </li>
  *     <li>
  *         The part files are written using an instance of {@link Writer}. By default, a
- *         {@link org.apache.flink.streaming.connectors.fs.StringWriter} is used, which writes the result
- *         of {@code toString()} for every element, separated by newlines. You can configure the writer using  the
- *         {@link #setWriter(Writer)}. For example, {@link org.apache.flink.streaming.connectors.fs.SequenceFileWriter}
+ *         {@link StringWriter} is used, which writes the result of {@code toString()} for
+ *         every element, separated by newlines. You can configure the writer using the
+ *         {@link #setWriter(Writer)}. For example, {@link SequenceFileWriter}
  *         can be used to write Hadoop {@code SequenceFiles}.
  *     </li>
  * </ol>
