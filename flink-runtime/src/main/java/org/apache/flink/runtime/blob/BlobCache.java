@@ -70,8 +70,13 @@ public final class BlobCache implements BlobService {
 	 * 		address of the {@link BlobServer} to use for fetching files from
 	 * @param blobClientConfig
 	 * 		global configuration
+	 *
+	 * @throws IOException
+	 * 		thrown if the local file storage cannot be created or
+	 * 		is not usable
 	 */
-	public BlobCache(InetSocketAddress serverAddress, Configuration blobClientConfig) {
+	public BlobCache(InetSocketAddress serverAddress,
+		Configuration blobClientConfig) throws IOException {
 		this.serverAddress = checkNotNull(serverAddress);
 		this.blobClientConfig = checkNotNull(blobClientConfig);
 

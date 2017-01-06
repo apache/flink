@@ -66,8 +66,13 @@ public class BlobUtils {
 	 * Creates a storage directory for a blob service.
 	 *
 	 * @return the storage directory used by a BLOB service
+	 *
+	 * @throws IOException
+	 * 		thrown if the (local or distributed) file storage cannot be created or
+	 * 		is not usable
 	 */
-	static File initStorageDirectory(String storageDirectory) {
+	static File initStorageDirectory(String storageDirectory) throws
+		IOException {
 		File baseDir;
 		if (StringUtils.isNullOrWhitespaceOnly(storageDirectory)) {
 			baseDir = new File(System.getProperty("java.io.tmpdir"));
@@ -91,7 +96,7 @@ public class BlobUtils {
 		}
 
 		// max attempts exceeded to find a storage directory
-		throw new RuntimeException("Could not create storage directory for BLOB store in '" + baseDir + "'.");
+		throw new IOException("Could not create storage directory for BLOB store in '" + baseDir + "'.");
 	}
 
 	/**
