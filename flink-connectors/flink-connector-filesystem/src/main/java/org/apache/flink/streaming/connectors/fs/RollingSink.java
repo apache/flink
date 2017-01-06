@@ -905,30 +905,30 @@ public class RollingSink<T> extends RichSinkFunction<T>
 	 * This is used for keeping track of the current in-progress files and files that we mark
 	 * for moving from pending to final location after we get a checkpoint-complete notification.
 	 */
-	static final class BucketState implements Serializable {
+	public static final class BucketState implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		/**
 		 * The file that was in-progress when the last checkpoint occurred.
 		 */
-		String currentFile;
+		public String currentFile;
 
 		/**
 		 * The valid length of the in-progress file at the time of the last checkpoint.
 		 */
-		long currentFileValidLength = -1;
+		public long currentFileValidLength = -1;
 
 		/**
 		 * Pending files that accumulated since the last checkpoint.
 		 */
-		List<String> pendingFiles = new ArrayList<>();
+		public List<String> pendingFiles = new ArrayList<>();
 
 		/**
 		 * When doing a checkpoint we move the pending files since the last checkpoint to this map
 		 * with the id of the checkpoint. When we get the checkpoint-complete notification we move
 		 * pending files of completed checkpoints to their final location.
 		 */
-		final Map<Long, List<String>> pendingFilesPerCheckpoint = new HashMap<>();
+		public final Map<Long, List<String>> pendingFilesPerCheckpoint = new HashMap<>();
 
 		@Override
 		public String toString() {

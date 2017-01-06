@@ -34,8 +34,7 @@ import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
-@Deprecated
-public class RollingSinkMigrationTest {
+public class RollingToBucketingMigrationTest {
 
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
@@ -47,48 +46,9 @@ public class RollingSinkMigrationTest {
 
 	@Test
 	public void testMigration() throws Exception {
-
-		/*
-		* Code ran to get the snapshot:
-		*
-		* final File outDir = tempFolder.newFolder();
-
-		RollingSink<String> sink = new RollingSink<String>(outDir.getAbsolutePath())
-			.setWriter(new StringWriter<String>())
-			.setBatchSize(5)
-			.setPartPrefix(PART_PREFIX)
-			.setInProgressPrefix("")
-			.setPendingPrefix("")
-			.setValidLengthPrefix("")
-			.setInProgressSuffix(IN_PROGRESS_SUFFIX)
-			.setPendingSuffix(PENDING_SUFFIX)
-			.setValidLengthSuffix(VALID_LENGTH_SUFFIX);
-
-		OneInputStreamOperatorTestHarness<String, Object> testHarness1 =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
-
-		testHarness1.setup();
-		testHarness1.open();
-
-		testHarness1.processElement(new StreamRecord<>("test1", 0L));
-		testHarness1.processElement(new StreamRecord<>("test2", 0L));
-
-		checkFs(outDir, 1, 1, 0, 0);
-
-		testHarness1.processElement(new StreamRecord<>("test3", 0L));
-		testHarness1.processElement(new StreamRecord<>("test4", 0L));
-		testHarness1.processElement(new StreamRecord<>("test5", 0L));
-
-		checkFs(outDir, 1, 4, 0, 0);
-
-		StreamTaskState taskState = testHarness1.snapshot(0, 0);
-		testHarness1.snaphotToFile(taskState, "src/test/resources/rolling-sink-migration-test-flink1.1-snapshot");
-		testHarness1.close();
-		* */
-
 		final File outDir = tempFolder.newFolder();
 
-		RollingSink<String> sink = new ValidatingRollingSink<String>(outDir.getAbsolutePath())
+		BucketingSink<String> sink = new ValidatingBucketingSink<String>(outDir.getAbsolutePath())
 			.setWriter(new StringWriter<String>())
 			.setBatchSize(5)
 			.setPartPrefix(PART_PREFIX)
@@ -111,6 +71,12 @@ public class RollingSinkMigrationTest {
 		checkFs(outDir, 1, 1, 0, 0);
 
 		testHarness1.close();
+	}
+
+	private static String getResourceFilename(String filename) {
+		ClassLoader cl = RollingToBucketingMigrationTest.class.getClassLoader();
+		URL resource = cl.getResource(filename);
+		return resource.getFile();
 	}
 
 	private void checkFs(File outDir, int inprogress, int pending, int completed, int valid) throws IOException {
@@ -141,22 +107,16 @@ public class RollingSinkMigrationTest {
 		Assert.assertEquals(valid, val);
 	}
 
-	private static String getResourceFilename(String filename) {
-		ClassLoader cl = RollingSinkMigrationTest.class.getClassLoader();
-		URL resource = cl.getResource(filename);
-		return resource.getFile();
-	}
-
-	static class ValidatingRollingSink<T> extends RollingSink<T> {
+	static class ValidatingBucketingSink<T> extends BucketingSink<T> {
 
 		private static final long serialVersionUID = -4263974081712009141L;
 
-		ValidatingRollingSink(String basePath) {
+		ValidatingBucketingSink(String basePath) {
 			super(basePath);
 		}
 
 		@Override
-		public void restoreState(BucketState state) throws Exception {
+		public void restoreState(RollingSink.BucketState state) throws Exception {
 
 			/**
 			 * this validates that we read the state that was checkpointed by the previous version. We expect it to be:
@@ -194,6 +154,7 @@ public class RollingSinkMigrationTest {
 						files.get(i));
 				}
 			}
+
 			super.restoreState(state);
 		}
 	}
