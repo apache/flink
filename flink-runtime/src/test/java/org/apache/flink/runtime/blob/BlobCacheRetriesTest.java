@@ -51,6 +51,19 @@ public class BlobCacheRetriesTest {
 
 	/**
 	 * A test where the connection fails twice and then the get operation succeeds
+	 * (with a shared distributed storage path set).
+	 */
+	@Test
+	public void testBlobFetchRetriesDistributedFs() {
+		final Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+			temporaryFolder.getRoot().getPath());
+
+		testBlobFetchRetries(config);
+	}
+
+	/**
+	 * A test where the connection fails twice and then the get operation succeeds
 	 * (with high availability set).
 	 */
 	@Test
@@ -137,6 +150,19 @@ public class BlobCacheRetriesTest {
 	@Test
 	public void testBlobFetchWithTooManyFailures() {
 		final Configuration config = new Configuration();
+
+		testBlobFetchWithTooManyFailures(config);
+	}
+
+	/**
+	 * A test where the connection fails twice and then the get operation succeeds
+	 * (with a shared distributed storage path set).
+	 */
+	@Test
+	public void testBlobFetchWithTooManyFailuresDistributedFs() {
+		final Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+			temporaryFolder.getRoot().getPath());
 
 		testBlobFetchWithTooManyFailures(config);
 	}

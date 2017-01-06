@@ -55,6 +55,31 @@ public class BlobCacheSuccessTest {
 	}
 
 	/**
+	 * BlobCache with no HA mode but a distributed storage path. The cache can
+	 * thus download files from the file system directly and does not need to
+	 * download BLOBs from the BlobServer.
+	 */
+	@Test
+	public void testBlobCacheDistributedFs() {
+		Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+			temporaryFolder.getRoot().getPath());
+		uploadFileGetTest(config, true, true);
+	}
+
+	/**
+	 * BlobCache with no HA mode but a distributed storage path which is not
+	 * accessible. The cache must thus download files from the BlobServer.
+	 */
+	@Test
+	public void testBlobCacheDistributedFsFallback() {
+		Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+			temporaryFolder.getRoot().getPath());
+		uploadFileGetTest(config, false, false);
+	}
+
+	/**
 	 * BlobCache is configured in HA mode and the cache can download files from
 	 * the file system directly and does not need to download BLOBs from the
 	 * BlobServer.

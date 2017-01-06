@@ -29,6 +29,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.EOFException;
 import java.io.File;
@@ -48,6 +49,7 @@ import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
  * Utility class to work with blob data.
  */
 public class BlobUtils {
+	private static final Logger LOG = LoggerFactory.getLogger(BlobUtils.class);
 
 	/**
 	 * Algorithm to be used for calculating the BLOB keys.
@@ -84,7 +86,14 @@ public class BlobUtils {
 		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
 
 		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
-			return new VoidBlobStore();
+			try {
+				// try to create a high available storage back-end if available
+				return createHaBlobStore(config);
+			} catch (Exception e) {
+				// this is totally ok - it may not even be configured
+				LOG.debug("Unable to set up a highly available BLOB storage (maybe not configured). Falling back to local-only.", e);
+				return new VoidBlobStore();
+			}
 		} else if (highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
 			return createHaBlobStore(config);
 		} else {

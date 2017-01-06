@@ -273,6 +273,12 @@ The following parameters configure Flink's JobManager and TaskManagers.
 
 - `task.cancellation-interval`: Time interval between two successive task cancellation attempts in milliseconds (DEFAULT: **30000**).
 
+- `high-availability.storageDir`: Even if not configured for High Availability (HA)
+as mentioned below, this parameter may be used if a distributed file system is
+available to be used instead of serving BLOBs from the blob server only. We may
+thus leverage from the load balancing by the distributed file system.
+Also see the [High Availability (HA)](#high-availability-ha) section below.
+
 ### Distributed Coordination (via Akka)
 
 - `akka.ask.timeout`: Timeout used for all futures and blocking Akka calls. If Flink fails due to timeouts then you should try to increase this value. Timeouts can be caused by slow machines or a congested network. The timeout value requires a time-unit specifier (ms/s/min/h/d) (DEFAULT: **10 s**).
