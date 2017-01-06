@@ -113,7 +113,7 @@ object AggregateUtil {
         outputType,
         groupings)
 
-    val groupingSetsMapping = getGroupingSetsMapping(outputType)
+    val groupingSetsMapping = getGroupingSetsMapping(inputType, outputType)
 
     val allPartialAggregate: Boolean = aggregates.forall(_.supportPartial)
 
@@ -354,12 +354,32 @@ object AggregateUtil {
     (groupingOffsetMapping, aggOffsetMapping)
   }
 
-  private def getGroupingSetsMapping(outputType: RelDataType): Array[(Int, Int)] = {
-    val fields = outputType.getFieldList
+  private def getGroupingSetsMapping(
+    inputType: RelDataType,
+    outputType: RelDataType
+  ): Array[(Int, Int)] = {
+
+    val inputFields = inputType.getFieldList.map(_.getName)
+
+    val groupingFields = inputFields
+      .map(inputFieldName => {
+        val base = "i$" + inputFieldName
+        var name = base
+        var i = 0
+        while (inputFields.contains(name)) {
+          name = base + "_" + i
+          i = i + 1
+        }
+        inputFieldName -> name
+      }).toMap
+
+    val outputFields = outputType.getFieldList
     var mappingsBuffer = ArrayBuffer[(Int, Int)]()
-    for (i <- fields.indices) {
-      for (j <- fields.indices) {
-        if (fields(j).getName.equals("i$" + fields(i).getName)) {
+    for (i <- outputFields.indices) {
+      for (j <- outputFields.indices) {
+        if (outputFields(j).getName.equals(
+          groupingFields.getOrElse(outputFields(i).getName, null)
+        )) {
           mappingsBuffer += ((i, j))
         }
       }

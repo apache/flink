@@ -72,7 +72,8 @@ class DataSetAggregateRule
             new DataSetUnion(
               rel.getCluster,
               traitSet,
-              rel1, rel2,
+              rel1,
+              rel2,
               rel.getRowType
             )
           }

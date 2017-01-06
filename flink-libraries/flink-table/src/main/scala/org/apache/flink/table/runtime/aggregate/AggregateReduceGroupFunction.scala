@@ -91,13 +91,11 @@ class AggregateReduceGroupFunction(
     }
 
     // Evaluate grouping sets additional values
-    if (groupingSetsMapping != null && groupingSetsMapping.nonEmpty) {
-
+    if (!groupingSetsMapping.isEmpty) {
       val groupingFields = groupKeysMapping.map(_._1)
-      groupingSetsMapping.map {
-        case (inputIndex, outputIndex) => (outputIndex, groupingFields.contains(inputIndex))
-      }.foreach {
-        case (index, flag) => output.setField(index, !flag)
+      groupingSetsMapping.foreach {
+        case (inputIndex, outputIndex) =>
+          output.setField(outputIndex, !groupingFields.contains(inputIndex))
       }
     }
 
