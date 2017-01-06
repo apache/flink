@@ -21,6 +21,10 @@ package org.apache.flink.runtime.blob;
 import com.google.common.io.BaseEncoding;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.runtime.highavailability.ZookeeperHaServices;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 
@@ -61,6 +65,29 @@ public class BlobUtils {
 	 * The default character set to translate between characters and bytes.
 	 */
 	static final Charset DEFAULT_CHARSET = Charset.forName("utf-8");
+
+	/**
+	 * Creates a BlobStore based on the parameters set in the configuration.
+	 *
+	 * @param config
+	 * 		configuration to use
+	 *
+	 * @return a (distributed) blob store for high availability
+	 *
+	 * @throws IOException
+	 * 		thrown if the (distributed) file storage cannot be created
+	 */
+	static BlobStore createBlobStoreFromConfig(Configuration config) throws IOException {
+		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
+
+		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
+			return new VoidBlobStore();
+		} else if (highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
+			return ZookeeperHaServices.createBlobStore(config);
+		} else {
+			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + "'.");
+		}
+	}
 
 	/**
 	 * Creates a storage directory for a blob service.

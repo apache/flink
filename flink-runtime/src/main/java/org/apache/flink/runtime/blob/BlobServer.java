@@ -22,9 +22,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.ZookeeperHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.NetUtils;
@@ -100,7 +98,7 @@ public class BlobServer extends Thread implements BlobService {
 	 * 		(local or distributed) file storage cannot be created or is not usable
 	 */
 	public BlobServer(Configuration config) throws IOException {
-		this(config, createBlobStoreFromConfig(config));
+		this(config, BlobUtils.createBlobStoreFromConfig(config));
 	}
 
 	public BlobServer(Configuration config, HighAvailabilityServices haServices) throws IOException {
@@ -444,15 +442,4 @@ public class BlobServer extends Thread implements BlobService {
 		}
 	}
 
-	private static BlobStore createBlobStoreFromConfig(Configuration config) throws IOException {
-		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
-
-		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
-			return new VoidBlobStore();
-		} else if (highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
-			return ZookeeperHaServices.createBlobStore(config);
-		} else {
-			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + "'.");
-		}
-	}
 }
