@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -1064,7 +1065,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 					LOG.info("Try to restart or fail the job {} ({}) if no longer possible.", getJobName(), getJobID());
 				}
 
-				boolean isRestartable = !(failureCause instanceof SuppressRestartsException) && restartStrategy.canRestart();
+				final boolean isFailureCauseAllowingRestart = !(failureCause instanceof SuppressRestartsException);
+				final boolean isRestartStrategyAllowingRestart = restartStrategy.canRestart();
+				boolean isRestartable = isFailureCauseAllowingRestart && isRestartStrategyAllowingRestart;
 
 				if (isRestartable && transitionState(currentState, JobStatus.RESTARTING)) {
 					LOG.info("Restarting the job {} ({}).", getJobName(), getJobID());
@@ -1072,7 +1075,16 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 					return true;
 				} else if (!isRestartable && transitionState(currentState, JobStatus.FAILED, failureCause)) {
-					LOG.info("Could not restart the job {} ({}).", getJobName(), getJobID(), failureCause);
+					final List<String> reasonsForNoRestart = new ArrayList<>(2);
+					if (!isFailureCauseAllowingRestart) {
+						reasonsForNoRestart.add("a type of SuppressRestartsException was thrown");
+					}
+					if (!isRestartStrategyAllowingRestart) {
+						reasonsForNoRestart.add("the restart strategy prevented it");
+					}
+
+					LOG.info("Could not restart the job {} ({}) because {}.", getJobName(), getJobID(),
+						StringUtils.join(reasonsForNoRestart, " and "), failureCause);
 					postRunCleanup();
 
 					return true;
