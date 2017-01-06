@@ -25,13 +25,13 @@ trait Matrix {
 
   /** Number of rows
     *
-    * @return
+    * @return number of rows in the matrix
     */
   def numRows: Int
 
   /** Number of columns
     *
-    * @return
+    * @return number of columns in the matrix
     */
   def numCols: Int
 

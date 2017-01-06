@@ -22,7 +22,7 @@ import breeze.linalg.{Vector => BreezeVector}
 
 /** Type class which allows the conversion from Breeze vectors to Flink vectors
   *
-  * @tparam T Resulting type of the conversion
+  * @tparam T Resulting type of the conversion, subtype of [[Vector]]
   */
 trait BreezeVectorConverter[T <: Vector] extends Serializable {
   /** Converts a Breeze vector into a Flink vector of type T
