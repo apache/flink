@@ -35,6 +35,9 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * The BLOB cache implements a local cache for content-addressable BLOBs. When requesting BLOBs through the
  * {@link BlobCache#getURL} methods, the BLOB cache will first attempt serve the file from its local cache. Only if the
@@ -70,13 +73,8 @@ public final class BlobCache implements BlobService {
 	 * 		global configuration
 	 */
 	public BlobCache(InetSocketAddress serverAddress, Configuration blobClientConfig) {
-		if (serverAddress == null || blobClientConfig == null) {
-			throw new NullPointerException();
-		}
-
-		this.serverAddress = serverAddress;
-
-		this.blobClientConfig = blobClientConfig;
+		this.serverAddress = checkNotNull(serverAddress);
+		this.blobClientConfig = checkNotNull(blobClientConfig);
 
 		// configure and create the storage directory
 		String storageDirectory = blobClientConfig.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
@@ -109,9 +107,7 @@ public final class BlobCache implements BlobService {
 	 * @throws IOException Thrown if an I/O error occurs while downloading the BLOBs from the BLOB server.
 	 */
 	public URL getURL(final BlobKey requiredBlob) throws IOException {
-		if (requiredBlob == null) {
-			throw new IllegalArgumentException("BLOB key cannot be null.");
-		}
+		checkArgument(requiredBlob != null, "BLOB key cannot be null.");
 
 		final File localJarFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
 

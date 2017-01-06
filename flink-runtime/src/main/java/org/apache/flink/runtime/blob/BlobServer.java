@@ -47,6 +47,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -109,10 +110,8 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	private BlobServer(Configuration config, BlobStore blobStore) throws IOException {
-		checkNotNull(config);
+		this.blobServiceConfiguration = checkNotNull(config);
 		this.blobStore = checkNotNull(blobStore);
-
-		this.blobServiceConfiguration = config;
 
 		// configure and create the storage directory
 		String storageDirectory = config.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
@@ -357,9 +356,7 @@ public class BlobServer extends Thread implements BlobService {
 	 */
 	@Override
 	public URL getURL(BlobKey requiredBlob) throws IOException {
-		if (requiredBlob == null) {
-			throw new IllegalArgumentException("Required BLOB cannot be null.");
-		}
+		checkArgument(requiredBlob != null, "BLOB key cannot be null.");
 
 		final File localFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
 
