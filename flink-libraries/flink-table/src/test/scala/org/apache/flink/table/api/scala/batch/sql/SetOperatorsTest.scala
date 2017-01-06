@@ -27,6 +27,23 @@ import org.junit.Test
 class SetOperatorsTest extends TableTestBase {
 
   @Test
+  def testMinusWithNestedTypes(): Unit = {
+    val util = batchTestUtil()
+    val t = util.addTable[(Long, (Int, String), Array[Boolean])]("MyTable", 'a, 'b, 'c)
+
+    val expected = binaryNode(
+      "DataSetMinus",
+      batchTableNode(0),
+      batchTableNode(0),
+      term("minus", "a", "b", "c")
+    )
+
+    val result = t.minus(t)
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
   def testExists(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Long, Int, String)]("A", 'a_long, 'a_int, 'a_string)
