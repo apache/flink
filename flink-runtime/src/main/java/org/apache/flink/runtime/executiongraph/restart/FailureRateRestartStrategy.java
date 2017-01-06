@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.util.Preconditions;
+
 import scala.concurrent.duration.Duration;
 
 import java.util.ArrayDeque;
@@ -75,6 +76,15 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 
 	private boolean isRestartTimestampsQueueFull() {
 		return restartTimestampsDeque.size() == maxFailuresPerInterval;
+	}
+
+	@Override
+	public String toString() {
+		return "FailureRateRestartStrategy(" +
+			"failuresInterval=" + failuresInterval +
+			"delayInterval=" + delayInterval +
+			"maxFailuresPerInterval=" + maxFailuresPerInterval +
+			")";
 	}
 
 	public static FailureRateRestartStrategyFactory createFactory(Configuration configuration) throws Exception {
