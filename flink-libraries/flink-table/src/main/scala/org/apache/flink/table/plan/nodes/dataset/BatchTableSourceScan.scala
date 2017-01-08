@@ -39,7 +39,7 @@ class BatchTableSourceScan(
   override def deriveRowType() = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     flinkTypeFactory.buildRowDataType(
-      tableSource.getFieldsNames,
+      tableSource.getFieldNames,
       TableEnvironment.getFieldTypes(tableSource.getReturnType))
   }
 
@@ -59,7 +59,7 @@ class BatchTableSourceScan(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .item("fields", tableSource.getFieldsNames.mkString(", "))
+      .item("fields", tableSource.getFieldNames.mkString(", "))
   }
 
   override def translateToPlan(

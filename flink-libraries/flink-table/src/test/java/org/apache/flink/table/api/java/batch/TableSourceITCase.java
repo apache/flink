@@ -89,26 +89,4 @@ public class TableSourceITCase extends TableProgramsTestBase {
 
 		compareResultAsText(results, expected);
 	}
-
-	@Test
-	public void testNestedBatchTableSourceSQL() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
-		BatchTableSource nestedTable = CommonTestData.getNestedTableSource();
-
-		tableEnv.registerTableSource("NestedPersons", nestedTable);
-
-		Table result = tableEnv
-			.sql("SELECT NestedPersons.firstName, NestedPersons.lastName," +
-				"NestedPersons.address.street, NestedPersons.address.city AS city " +
-				"FROM NestedPersons " +
-				"WHERE NestedPersons.address.city LIKE 'Dublin'");
-
-		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = resultSet.collect();
-
-		String expected = "Bob,Taylor,Pearse Street,Dublin";
-
-		compareResultAsText(results, expected);
-	}
 }

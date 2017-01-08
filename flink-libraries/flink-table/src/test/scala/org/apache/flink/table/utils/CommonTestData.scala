@@ -24,7 +24,7 @@ import java.util
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo}
+import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.sources.{AbstractBatchTableSource, BatchTableSource, CsvTableSource, TableSource}
@@ -81,26 +81,7 @@ object CommonTestData {
         )
       }
 
-      /** Returns the [[TypeInformation]] for the return type of the [[TableSource]]. */
-      override def getReturnType: TypeInformation[Person] = new PojoTypeInfo[Person](
-        classOf[Person],
-        util.Arrays.asList(
-          new PojoField(classOf[Person].getDeclaredField("firstName"),
-                        BasicTypeInfo.STRING_TYPE_INFO),
-          new PojoField(classOf[Person].getDeclaredField("lastName"),
-                        BasicTypeInfo.STRING_TYPE_INFO),
-          new PojoField(classOf[Person].getDeclaredField("address"),
-                        new PojoTypeInfo[Address](
-            classOf[Address],
-            util.Arrays.asList(
-              new PojoField(classOf[Address].getDeclaredField("street"),
-                            BasicTypeInfo.STRING_TYPE_INFO),
-              new PojoField(classOf[Address].getDeclaredField("city"),
-                            BasicTypeInfo.STRING_TYPE_INFO)
-            )
-          ))
-        )
-      )
+      override def getReturnType: TypeInformation[Person] = TypeExtractor.getForClass(classOf[Person])
     }
   }
 

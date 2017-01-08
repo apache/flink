@@ -47,7 +47,7 @@ class PushProjectIntoBatchTableSourceScanRule extends RelOptRule(
     val usedFields: Array[Int] = extractRefInputFields(calc.calcProgram)
 
     // if no fields can be projected, we keep the original plan.
-    if (scan.tableSource.getFieldsNames.length != usedFields.length) {
+    if (scan.tableSource.getFieldNames.length != usedFields.length) {
       val originTableSource = scan.tableSource.asInstanceOf[ProjectableTableSource[_]]
       val newTableSource = originTableSource.projectFields(usedFields)
       val newScan = new BatchTableSourceScan(

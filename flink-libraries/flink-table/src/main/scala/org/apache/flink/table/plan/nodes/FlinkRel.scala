@@ -109,8 +109,8 @@ trait FlinkRel {
   private[flink] def estimateRowSize(rowType: RelDataType): Double = {
     val fieldList = rowType.getFieldList
 
-    fieldList.map(_.getType.getSqlTypeName).foldLeft(0) { (s, t) =>
-      t match {
+    fieldList.map(_.getType.getSqlTypeName).zipWithIndex.foldLeft(0) { (s, t) =>
+      t._1 match {
         case SqlTypeName.TINYINT => s + 1
         case SqlTypeName.SMALLINT => s + 2
         case SqlTypeName.INTEGER => s + 4
@@ -124,7 +124,7 @@ trait FlinkRel {
         case typeName if SqlTypeName.YEAR_INTERVAL_TYPES.contains(typeName) => s + 8
         case typeName if SqlTypeName.DAY_INTERVAL_TYPES.contains(typeName) => s + 4
         case SqlTypeName.TIME | SqlTypeName.TIMESTAMP | SqlTypeName.DATE => s + 12
-        case SqlTypeName.ROW => s + estimateRowSize(fieldList.get(0).getType()).asInstanceOf[Int]
+        case SqlTypeName.ROW => s + estimateRowSize(fieldList.get(t._2).getType()).asInstanceOf[Int]
         case _ => throw TableException(s"Unsupported data type encountered: $t")
       }
     }

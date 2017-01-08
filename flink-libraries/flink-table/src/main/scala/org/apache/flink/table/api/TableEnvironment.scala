@@ -515,13 +515,6 @@ object TableEnvironment {
   /**
     * Returns field names for a given [[TypeInformation]].
     *
-    * Field names are automatically extracted for
-    * [[org.apache.flink.api.common.typeutils.CompositeType]]
-    * or [[org.apache.flink.api.common.typeinfo.AtomicType]].
-    * The method fails if inputType is not a
-    * [[org.apache.flink.api.common.typeutils.CompositeType]]
-    * or [[org.apache.flink.api.common.typeinfo.AtomicType]].
-    *
     * @param inputType The TypeInformation extract the field names.
     * @tparam A The type of the TypeInformation.
     * @return A an array holding the field names
@@ -562,13 +555,6 @@ object TableEnvironment {
   /**
     * Returns field indexes for a given [[TypeInformation]].
     *
-    * Field indexes are automatically extracted for
-    * [[org.apache.flink.api.common.typeutils.CompositeType]]
-    * or [[org.apache.flink.api.common.typeinfo.AtomicType]].
-    * The method fails if inputType is not a
-    * [[org.apache.flink.api.common.typeutils.CompositeType]]
-    * or [[org.apache.flink.api.common.typeinfo.AtomicType]].
-    *
     * @param inputType The TypeInformation extract the field positions from.
     * @return A an array holding the field positions
     */
@@ -578,13 +564,6 @@ object TableEnvironment {
 
   /**
     * Returns field types for a given [[TypeInformation]].
-    *
-    * Field types are automatically extracted for
-    * [[org.apache.flink.api.common.typeutils.CompositeType]]
-    * or [[org.apache.flink.api.common.typeinfo.AtomicType]].
-    * The method fails if inputType is not a
-    * [[org.apache.flink.api.common.typeutils.CompositeType]]
-    * or [[org.apache.flink.api.common.typeinfo.AtomicType]].
     *
     * @param inputType The TypeInformation to extract field types from.
     * @return an holding the field types.

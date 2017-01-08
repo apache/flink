@@ -86,7 +86,7 @@ class CsvTableSource(
     execEnv.createInput(createCsvInput(), returnType)
   }
   /** Returns the names of the table fields. */
-  override def getFieldsNames: Array[String] = fieldNames
+  override def getFieldNames: Array[String] = fieldNames
 
   /** Returns the [[RowTypeInfo]] for the return type of the [[CsvTableSource]]. */
   override def getReturnType: RowTypeInfo = returnType

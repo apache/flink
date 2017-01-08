@@ -24,5 +24,5 @@ import org.apache.flink.table.sources.TableSource
 class TableSourceTable[T](val tableSource: TableSource[T])
   extends FlinkTable[T](
     typeInfo = tableSource.getReturnType,
-    fieldIndexes = tableSource.getFieldsIndices,
-    fieldNames = tableSource.getFieldsNames)
+    fieldIndexes = tableSource.getFieldIndices,
+    fieldNames = tableSource.getFieldNames)

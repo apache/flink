@@ -28,12 +28,12 @@ import org.apache.flink.table.api.TableEnvironment
 abstract class AbstractTableSource[T] extends TableSource[T] {
 
   /** Returns the names of the table fields. */
-  override def getFieldsNames: Array[String] = {
+  override def getFieldNames: Array[String] = {
     TableEnvironment.getFieldNames(getReturnType)
   }
 
   /** Returns the indices of the table fields. */
-  override def getFieldsIndices: Array[Int] = {
+  override def getFieldIndices: Array[Int] = {
     TableEnvironment.getFieldIndexes(getReturnType)
   }
 }
