@@ -16,19 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint.stats;
+package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
-public class DisabledCheckpointStatsTrackerTest {
-	
+public class CheckpointStatsStatusTest {
+
+	/**
+	 * Tests the getters of each status.
+	 */
 	@Test
-	public void testDisabled() throws Exception {
-		CheckpointStatsTracker tracker = new DisabledCheckpointStatsTracker();
-		assertFalse(tracker.getJobStats().isDefined());
-		assertFalse(tracker.getOperatorStats(new JobVertexID()).isDefined());
+	public void testStatusValues() throws Exception {
+		CheckpointStatsStatus inProgress = CheckpointStatsStatus.IN_PROGRESS;
+		assertTrue(inProgress.isInProgress());
+		assertFalse(inProgress.isCompleted());
+		assertFalse(inProgress.isFailed());
+
+		CheckpointStatsStatus completed = CheckpointStatsStatus.COMPLETED;
+		assertFalse(completed.isInProgress());
+		assertTrue(completed.isCompleted());
+		assertFalse(completed.isFailed());
+
+		CheckpointStatsStatus failed = CheckpointStatsStatus.FAILED;
+		assertFalse(failed.isInProgress());
+		assertFalse(failed.isCompleted());
+		assertTrue(failed.isFailed());
 	}
 }

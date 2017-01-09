@@ -126,7 +126,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 
 	private static void serializeSubtaskState(SubtaskState subtaskState, DataOutputStream dos) throws IOException {
 
-		dos.writeLong(subtaskState.getDuration());
+		dos.writeLong(-1);
 
 		ChainedStateHandle<StreamStateHandle> nonPartitionableState = subtaskState.getLegacyOperatorState();
 
@@ -160,12 +160,11 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 
 		KeyGroupsStateHandle keyedStateStream = subtaskState.getRawKeyedState();
 		serializeKeyGroupStateHandle(keyedStateStream, dos);
-
 	}
 
 	private static SubtaskState deserializeSubtaskState(DataInputStream dis) throws IOException {
-
-		long duration = dis.readLong();
+		// Duration field has been removed from SubtaskState
+		long ignoredDuration = dis.readLong();
 
 		int len = dis.readInt();
 		List<StreamStateHandle> nonPartitionableState = new ArrayList<>(len);
@@ -207,8 +206,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 				operatorStateBackendChain,
 				operatorStateStreamChain,
 				keyedStateBackend,
-				keyedStateStream,
-				duration);
+				keyedStateStream);
 	}
 
 	private static void serializeKeyGroupStateHandle(

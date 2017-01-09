@@ -524,11 +524,26 @@ public class StreamingJobGraphGenerator {
 			externalizedCheckpointSettings = ExternalizedCheckpointSettings.none();
 		}
 
+		CheckpointingMode mode = cfg.getCheckpointingMode();
+
+		boolean isExactlyOnce;
+		if (mode == CheckpointingMode.EXACTLY_ONCE) {
+			isExactlyOnce = true;
+		} else if (mode == CheckpointingMode.AT_LEAST_ONCE) {
+			isExactlyOnce = false;
+		} else {
+			throw new IllegalStateException("Unexpected checkpointing mode. " +
+				"Did not expect there to be another checkpointing mode besides " +
+				"exactly-once or at-least-once.");
+		}
+
 		JobSnapshottingSettings settings = new JobSnapshottingSettings(
 				triggerVertices, ackVertices, commitVertices, interval,
 				cfg.getCheckpointTimeout(), cfg.getMinPauseBetweenCheckpoints(),
 				cfg.getMaxConcurrentCheckpoints(),
-				externalizedCheckpointSettings);
+				externalizedCheckpointSettings,
+				isExactlyOnce);
+
 		jobGraph.setSnapshotSettings(settings);
 	}
 }

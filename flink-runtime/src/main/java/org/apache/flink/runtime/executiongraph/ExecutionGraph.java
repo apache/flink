@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
@@ -33,16 +34,12 @@ import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.checkpoint.ArchivedCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
-import org.apache.flink.runtime.checkpoint.stats.JobCheckpointStats;
-import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
-import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -63,8 +60,6 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import scala.Option;
-
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -77,7 +72,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
@@ -369,7 +363,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			LOG.error("Error while shutting down checkpointer.");
 		}
 
-		checkpointStatsTracker = Objects.requireNonNull(statsTracker, "Checkpoint stats tracker");
+		checkpointStatsTracker = checkNotNull(statsTracker, "CheckpointStatsTracker");
 
 		// create the coordinator that triggers and commits checkpoints and holds the state
 		checkpointCoordinator = new CheckpointCoordinator(
@@ -385,8 +379,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			checkpointIDCounter,
 			checkpointStore,
 			checkpointDir,
-			checkpointStatsTracker,
 			ioExecutor);
+
+		checkpointCoordinator.setCheckpointStatsTracker(checkpointStatsTracker);
 
 		// interval of max long value indicates disable periodic checkpoint,
 		// the CheckpointActivatorDeactivator should be created only if the interval is not max value
@@ -1306,27 +1301,13 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	@Override
 	public ArchivedExecutionGraph archive() {
-		Map<JobVertexID, OperatorCheckpointStats> operatorStats = new HashMap<>();
 		Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = new HashMap<>();
 		List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder = new ArrayList<>();
 		for (ExecutionJobVertex task : verticesInCreationOrder) {
 			ArchivedExecutionJobVertex archivedTask = task.archive();
 			archivedVerticesInCreationOrder.add(archivedTask);
 			archivedTasks.put(task.getJobVertexId(), archivedTask);
-			Option<OperatorCheckpointStats> statsOption = task.getCheckpointStats();
-			if (statsOption.isDefined()) {
-				operatorStats.put(task.getJobVertexId(), statsOption.get());
-			}
 		}
-
-		Option<JobCheckpointStats> jobStats;
-		if (getCheckpointStatsTracker() == null) {
-			jobStats = Option.empty();
-		} else {
-			jobStats = getCheckpointStatsTracker().getJobStats();
-		}
-
-		ArchivedCheckpointStatsTracker statsTracker = new ArchivedCheckpointStatsTracker(jobStats, operatorStats);
 
 		Map<String, SerializedValue<Object>> serializedUserAccumulators;
 		try {
@@ -1349,7 +1330,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			serializedUserAccumulators,
 			getArchivedExecutionConfig(),
 			isStoppable(),
-			statsTracker
-		);
+			getCheckpointStatsTracker());
 	}
 }
