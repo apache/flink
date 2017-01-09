@@ -272,15 +272,17 @@ public class KinesisProxy implements KinesisProxyInterface {
 	 *         <code>false</code>
 	 */
 	protected static boolean isRecoverableException(AmazonServiceException ex) {
-		if (ex.getErrorType() == null)
+		if (ex.getErrorType() == null) {
 			return false;
+		}
 
 		switch (ex.getErrorType()) {
 		case Client:
-			if (ex instanceof ProvisionedThroughputExceededException)
+			if (ex instanceof ProvisionedThroughputExceededException) {
 				return true;
-			else
+			} else {
 				return false;
+			}
 		case Service:
 		case Unknown:
 			return true;
