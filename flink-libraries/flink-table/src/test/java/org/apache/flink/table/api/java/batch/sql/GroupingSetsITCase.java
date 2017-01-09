@@ -27,23 +27,31 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.util.Comparator;
 import java.util.List;
 
-public class GroupingSetsTest {
+@RunWith(Parameterized.class)
+public class GroupingSetsITCase extends TableProgramsTestBase {
 
 	private final static String TABLE_NAME = "MyTable";
 	private final static String TABLE_WITH_NULLS_NAME = "MyTableWithNulls";
 	private BatchTableEnvironment tableEnv;
 
+	public GroupingSetsITCase(TestExecutionMode mode, TableConfigMode tableConfigMode) {
+		super(mode, tableConfigMode);
+	}
+
 	@Before
-	public void setup() {
+	public void setupTables() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		tableEnv = TableEnvironment.getTableEnvironment(env, new TableConfig());
 
@@ -67,18 +75,41 @@ public class GroupingSetsTest {
 	@Test
 	public void testGroupingSets() throws Exception {
 		String query =
-			"SELECT f1, f2, avg(f0) as a, GROUP_ID() as g FROM " + TABLE_NAME +
+			"SELECT f1, f2, avg(f0) as a, GROUP_ID() as g, " +
+				" GROUPING(f1) as gf1, GROUPING(f2) as gf2, " +
+				" GROUPING_ID(f1) as gif1, GROUPING_ID(f2) as gif2, " +
+				" GROUPING_ID(f1, f2) as gid " +
+				" FROM " + TABLE_NAME +
 				" GROUP BY GROUPING SETS (f1, f2)";
 
 		String expected =
-			"6,null,18,1\n5,null,13,1\n4,null,8,1\n3,null,5,1\n2,null,2,1\n1,null,1,1\n" +
-				"null,Luke Skywalker,6,2\nnull,I am fine.,5,2\nnull,Hi,1,2\n" +
-				"null,Hello world, how are you?,4,2\nnull,Hello world,3,2\nnull,Hello,2,2\n" +
-				"null,Comment#9,15,2\nnull,Comment#8,14,2\nnull,Comment#7,13,2\n" +
-				"null,Comment#6,12,2\nnull,Comment#5,11,2\nnull,Comment#4,10,2\n" +
-				"null,Comment#3,9,2\nnull,Comment#2,8,2\nnull,Comment#15,21,2\n" +
-				"null,Comment#14,20,2\nnull,Comment#13,19,2\nnull,Comment#12,18,2\n" +
-				"null,Comment#11,17,2\nnull,Comment#10,16,2\nnull,Comment#1,7,2";
+			"1,null,1,1,0,1,0,1,1\n" +
+			"6,null,18,1,0,1,0,1,1\n" +
+			"2,null,2,1,0,1,0,1,1\n" +
+			"4,null,8,1,0,1,0,1,1\n" +
+			"5,null,13,1,0,1,0,1,1\n" +
+			"3,null,5,1,0,1,0,1,1\n" +
+			"null,Comment#11,17,2,1,0,1,0,2\n" +
+			"null,Comment#8,14,2,1,0,1,0,2\n" +
+			"null,Comment#2,8,2,1,0,1,0,2\n" +
+			"null,Comment#1,7,2,1,0,1,0,2\n" +
+			"null,Comment#14,20,2,1,0,1,0,2\n" +
+			"null,Comment#7,13,2,1,0,1,0,2\n" +
+			"null,Comment#6,12,2,1,0,1,0,2\n" +
+			"null,Comment#3,9,2,1,0,1,0,2\n" +
+			"null,Comment#12,18,2,1,0,1,0,2\n" +
+			"null,Comment#5,11,2,1,0,1,0,2\n" +
+			"null,Comment#15,21,2,1,0,1,0,2\n" +
+			"null,Comment#4,10,2,1,0,1,0,2\n" +
+			"null,Hi,1,2,1,0,1,0,2\n" +
+			"null,Comment#10,16,2,1,0,1,0,2\n" +
+			"null,Hello world,3,2,1,0,1,0,2\n" +
+			"null,I am fine.,5,2,1,0,1,0,2\n" +
+			"null,Hello world, how are you?,4,2,1,0,1,0,2\n" +
+			"null,Comment#9,15,2,1,0,1,0,2\n" +
+			"null,Comment#13,19,2,1,0,1,0,2\n" +
+			"null,Luke Skywalker,6,2,1,0,1,0,2\n" +
+			"null,Hello,2,2,1,0,1,0,2";
 
 		checkSql(query, expected);
 	}
