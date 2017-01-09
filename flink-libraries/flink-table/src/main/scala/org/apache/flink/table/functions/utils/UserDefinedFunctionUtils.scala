@@ -269,7 +269,7 @@ object UserDefinedFunctionUtils {
     : (Array[String], Array[Int], Array[TypeInformation[_]]) = {
 
     (TableEnvironment.getFieldNames(inputType),
-    TableEnvironment.getFieldIndexes(inputType),
+    TableEnvironment.getFieldIndices(inputType),
     TableEnvironment.getFieldTypes(inputType))
   }
 

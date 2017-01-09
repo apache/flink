@@ -18,22 +18,18 @@
 
 package org.apache.flink.table.sources
 
-import org.apache.flink.table.api.TableEnvironment
-
 /**
-  * Partial implementation of the [[AbstractTableSource]] trait.
+  * Trait that defines custom field names and their indices in the underlying
+  * data type.
   *
-  * @tparam T Type of the [[org.apache.flink.api.java.DataSet]] created by this [[TableSource]].
+  * Should be extended together with [[TableSource]] trait.
   */
-abstract class AbstractTableSource[T] extends TableSource[T] {
+trait DefinedFieldNames {
 
   /** Returns the names of the table fields. */
-  override def getFieldNames: Array[String] = {
-    TableEnvironment.getFieldNames(getReturnType)
-  }
+  def getFieldNames: Array[String]
 
   /** Returns the indices of the table fields. */
-  override def getFieldIndices: Array[Int] = {
-    TableEnvironment.getFieldIndexes(getReturnType)
-  }
+  def getFieldIndices: Array[Int]
+
 }

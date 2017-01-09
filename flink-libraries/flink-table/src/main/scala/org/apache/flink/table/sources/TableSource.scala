@@ -29,18 +29,12 @@ import org.apache.flink.table.api.TableEnvironment
   * To define a TableSource one need to implement [[TableSource#getReturnType]]. In this case
   * field names and field indices are derived from the returned type.
   *
-  * In case if custom field names are required one need to implement both
-  * [[TableSource#getFieldsNames]] and [[TableSource#getFieldsIndices]].
+  * In case if custom field names are required one need to additionally implement
+  * the [[DefinedFieldNames]] trait.
   *
   * @tparam T The return type of the [[TableSource]].
   */
 trait TableSource[T] {
-
-  /** Returns the names of the table fields. */
-  def getFieldNames: Array[String]
-
-  /** Returns the indices of the table fields. */
-  def getFieldIndices: Array[Int]
 
   /** Returns the [[TypeInformation]] for the return type of the [[TableSource]]. */
   def getReturnType: TypeInformation[T]

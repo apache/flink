@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.table.sources.{AbstractBatchTableSource, BatchTableSource, CsvTableSource, TableSource}
+import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource, TableSource}
 import org.apache.flink.api.scala._
 
 object CommonTestData {
@@ -69,7 +69,7 @@ object CommonTestData {
   }
 
   def getNestedTableSource: BatchTableSource[Person] = {
-    new AbstractBatchTableSource[Person] {
+    new BatchTableSource[Person] {
       override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Person] = {
         val executionEnvironment = ExecutionEnvironment.getExecutionEnvironment
         executionEnvironment.fromCollection(
@@ -81,7 +81,9 @@ object CommonTestData {
         )
       }
 
-      override def getReturnType: TypeInformation[Person] = TypeExtractor.getForClass(classOf[Person])
+      override def getReturnType: TypeInformation[Person] = {
+        TypeExtractor.getForClass(classOf[Person])
+      }
     }
   }
 

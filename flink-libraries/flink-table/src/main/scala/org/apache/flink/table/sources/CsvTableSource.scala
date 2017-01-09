@@ -27,7 +27,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.fs.Path
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableEnvironment, TableException}
 
 /**
   * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
@@ -53,7 +53,9 @@ class CsvTableSource(
     ignoreFirstLine: Boolean = false,
     ignoreComments: String = null,
     lenient: Boolean = false)
-  extends AbstractBatchStreamTableSource[Row]
+  extends BatchTableSource[Row]
+  with StreamTableSource[Row]
+  with DefinedFieldNames
   with ProjectableTableSource[Row] {
 
   /**
@@ -87,6 +89,9 @@ class CsvTableSource(
   }
   /** Returns the names of the table fields. */
   override def getFieldNames: Array[String] = fieldNames
+
+  /** Returns the names of the table fields. */
+  override def getFieldIndices = TableEnvironment.getFieldIndices(getReturnType)
 
   /** Returns the [[RowTypeInfo]] for the return type of the [[CsvTableSource]]. */
   override def getReturnType: RowTypeInfo = returnType

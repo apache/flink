@@ -39,7 +39,7 @@ class StreamTableSourceScan(
   override def deriveRowType() = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     flinkTypeFactory.buildRowDataType(
-      tableSource.getFieldNames,
+      TableEnvironment.getFieldNames(tableSource),
       TableEnvironment.getFieldTypes(tableSource.getReturnType))
   }
 
@@ -59,7 +59,7 @@ class StreamTableSourceScan(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .item("fields", tableSource.getFieldNames.mkString(", "))
+      .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
   }
 
   override def translateToPlan(

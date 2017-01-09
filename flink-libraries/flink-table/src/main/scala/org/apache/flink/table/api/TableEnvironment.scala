@@ -48,6 +48,7 @@ import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.schema.RelTable
 import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.validate.FunctionCatalog
 
 import _root_.scala.collection.JavaConverters._
@@ -334,7 +335,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     */
   protected[flink] def getFieldInfo[A](inputType: TypeInformation[A]):
   (Array[String], Array[Int]) = {
-    (TableEnvironment.getFieldNames(inputType), TableEnvironment.getFieldIndexes(inputType))
+    (TableEnvironment.getFieldNames(inputType), TableEnvironment.getFieldIndices(inputType))
   }
 
   /**
@@ -517,7 +518,7 @@ object TableEnvironment {
     *
     * @param inputType The TypeInformation extract the field names.
     * @tparam A The type of the TypeInformation.
-    * @return A an array holding the field names
+    * @return An array holding the field names
     */
   def getFieldNames[A](inputType: TypeInformation[A]): Array[String] = {
     validateType(inputType)
@@ -556,9 +557,9 @@ object TableEnvironment {
     * Returns field indexes for a given [[TypeInformation]].
     *
     * @param inputType The TypeInformation extract the field positions from.
-    * @return A an array holding the field positions
+    * @return An array holding the field positions
     */
-  def getFieldIndexes(inputType: TypeInformation[_]): Array[Int] = {
+  def getFieldIndices(inputType: TypeInformation[_]): Array[Int] = {
     getFieldNames(inputType).indices.toArray
   }
 
@@ -566,7 +567,7 @@ object TableEnvironment {
     * Returns field types for a given [[TypeInformation]].
     *
     * @param inputType The TypeInformation to extract field types from.
-    * @return an holding the field types.
+    * @return An array holding the field types.
     */
   def getFieldTypes(inputType: TypeInformation[_]): Array[TypeInformation[_]] = {
     validateType(inputType)
@@ -577,5 +578,29 @@ object TableEnvironment {
       case tpe =>
         throw new TableException(s"Currently only CompositeType and AtomicType are supported.")
     }
+  }
+
+  /**
+    * Returns field names for a given [[TableSource]].
+    *
+    * @param tableSource The TableSource to extract field names from.
+    * @tparam A The type of the TableSource.
+    * @return An array holding the field names.
+    */
+  def getFieldNames[A](tableSource: TableSource[A]): Array[String] = tableSource match {
+      case d: DefinedFieldNames => d.getFieldNames
+      case _ => TableEnvironment.getFieldNames(tableSource.getReturnType)
+    }
+
+  /**
+    * Returns field indices for a given [[TableSource]].
+    *
+    * @param tableSource The TableSource to extract field indices from.
+    * @tparam A The type of the TableSource.
+    * @return An array holding the field indices.
+    */
+  def getFieldIndices[A](tableSource: TableSource[A]): Array[Int] = tableSource match {
+    case d: DefinedFieldNames => d.getFieldIndices
+    case _ => TableEnvironment.getFieldIndices(tableSource.getReturnType)
   }
 }
