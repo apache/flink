@@ -57,7 +57,7 @@ HADOOP_CONF_DIR=/etc/hadoop/conf bin/flink run -m yarn-cluster examples/streamin
 
 ## S3: Simple Storage Service
 
-[Amazon Simple Storage Service](http://aws.amazon.com/s3/) (Amazon S3) provides cloud object storage for a variety of use cases. You can use S3 with Flink for **reading** and **writing data** as well in conjunction with the [streaming **state backends**]({{ site.baseurl}}/dev/state_backends.html).
+[Amazon Simple Storage Service](http://aws.amazon.com/s3/) (Amazon S3) provides cloud object storage for a variety of use cases. You can use S3 with Flink for **reading** and **writing data** as well in conjunction with the [streaming **state backends**]({{ site.baseurl}}/ops/state_backends.html).
 
 You can use S3 objects like regular files by specifying paths in the following format:
 
@@ -78,7 +78,7 @@ stream.writeAsText("s3://<bucket>/<endpoint>");
 env.setStateBackend(new FsStateBackend("s3://<your-bucket>/<endpoint>"));
 ```
 
-Note that these examples are *not* exhaustive and you can use S3 in other places as well, including your [high availability setup]({{ site.baseurl }}/setup/jobmanager_high_availability.html) or the [RocksDBStateBackend]({{ site.baseurl }}/dev/state_backends.html#the-rocksdbstatebackend);  everywhere that Flink expects a FileSystem URI.
+Note that these examples are *not* exhaustive and you can use S3 in other places as well, including your [high availability setup]({{ site.baseurl }}/setup/jobmanager_high_availability.html) or the [RocksDBStateBackend]({{ site.baseurl }}/ops/state_backends.html#the-rocksdbstatebackend);  everywhere that Flink expects a FileSystem URI.
 
 ### Set S3 FileSystem
 

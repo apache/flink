@@ -40,7 +40,7 @@ Flink's state interface.
 By default state checkpoints will be stored in-memory at the JobManager. For proper persistence of large
 state, Flink supports storing the checkpoints on file systems (HDFS, S3, or any mounted POSIX file system),
 which can be configured in the `flink-conf.yaml` or via `StreamExecutionEnvironment.setStateBackend(…)`.
-See [state backends]({{ site.baseurl }}/dev/state_backends.html) for information
+See [state backends]({{ site.baseurl }}/ops/state_backends.html) for information
 about the available state backends and how to configure them.
 
 * ToC
@@ -52,7 +52,7 @@ Enabling Checkpointing
 Flink has a checkpointing mechanism that recovers streaming jobs after failures. The checkpointing mechanism requires a *persistent* (or *durable*) source that
 can be asked for prior records again (Apache Kafka is a good example of such a source).
 
-The checkpointing mechanism stores the progress in the data sources and data sinks, the state of windows, as well as the user-defined state (see [Working with State]({{ site.baseurl }}/dev/state.html)) consistently to provide *exactly once* processing semantics. Where the checkpoints are stored (e.g., JobManager memory, file system, database) depends on the configured [state backend]({{ site.baseurl }}/dev/state_backends.html).
+The checkpointing mechanism stores the progress in the data sources and data sinks, the state of windows, as well as the user-defined state (see [Working with State]({{ site.baseurl }}/dev/state.html)) consistently to provide *exactly once* processing semantics. Where the checkpoints are stored (e.g., JobManager memory, file system, database) depends on the configured [state backend]({{ site.baseurl }}/ops/state_backends.html).
 
 The [docs on streaming fault tolerance]({{ site.baseurl }}/internals/stream_checkpointing.html) describe in detail the technique behind Flink's streaming fault tolerance mechanism.
 

@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Programs written in the [Data Stream API](index.html) can resume execution from a **savepoint**. Savepoints allow both updating your programs and your Flink cluster without losing any state. This page covers all steps to trigger, restore, and dispose savepoints. For more details on how Flink handles state and failures, check out the [State in Streaming Programs]({{ site.baseurl }}/dev/state_backends.html) and [Fault Tolerance](fault_tolerance.html) pages.
+Programs written in the [Data Stream API](index.html) can resume execution from a **savepoint**. Savepoints allow both updating your programs and your Flink cluster without losing any state. This page covers all steps to trigger, restore, and dispose savepoints. For more details on how Flink handles state and failures, check out the [State in Streaming Programs]({{ site.baseurl }}/ops/state_backends.html) and [Fault Tolerance](fault_tolerance.html) pages.
 
 * toc
 {:toc}
