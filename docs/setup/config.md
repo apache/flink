@@ -171,11 +171,11 @@ will be used under the directory specified by jobmanager.web.tmpdir.
 - `restart-strategy`: Default [restart strategy]({{site.baseurl}}/dev/restart_strategies.html) to use in case no 
 restart strategy has been specified for the job.
 The options are:
-    - fixed delay strategy: "fixed-delay".
-    - failure rate strategy: "failure-rate".
-    - no restarts: "none"
+    - fixed delay strategy: `fixed-delay`.
+    - failure rate strategy: `failure-rate`.
+    - no restarts: `none`
 
-    Default value is "none" unless checkpointing is enabled for the job in which case the default is "fixed-delay".
+    Default value is `none` unless checkpointing is enabled for the job in which case the default is `fixed-delay` with `Integer.MAX_VALUE` restart attempts and `10s` delay.
 
 - `restart-strategy.fixed-delay.attempts`: Number of restart attempts, used if the default restart strategy is set to "fixed-delay".
 Default value is 1, unless "fixed-delay" was activated by enabling checkpoints, in which case the default is `Integer.MAX_VALUE`.
