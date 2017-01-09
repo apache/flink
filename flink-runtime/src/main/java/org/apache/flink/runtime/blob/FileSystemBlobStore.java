@@ -102,16 +102,25 @@ public class FileSystemBlobStore implements BlobStore {
 
 		final Path fromPath = new Path(fromBlobPath);
 
-		if (fileSystem.exists(fromPath)) {
-			try (InputStream is = fileSystem.open(fromPath);
-				FileOutputStream fos = new FileOutputStream(toFile))
-			{
-				LOG.debug("Copying from {} to {}.", fromBlobPath, toFile);
-				IOUtils.copyBytes(is, fos); // closes the streams
+		try {
+			if (fileSystem.exists(fromPath)) {
+				try (InputStream is = fileSystem.open(fromPath);
+					FileOutputStream fos = new FileOutputStream(toFile)) {
+					LOG.debug("Copying from {} to {}.", fromBlobPath, toFile);
+					IOUtils.copyBytes(is, fos); // closes the streams
+				}
+			} else {
+				throw new IOException(fromBlobPath + " does not exist.");
 			}
-		}
-		else {
-			throw new IOException(fromBlobPath + " does not exist.");
+		} catch (Exception e) {
+			// if the copy fails, we need to remove the target file because
+			// outside code relies on a correct file as long as it exists
+			try {
+				toFile.delete();
+			} catch (Exception e1) {
+				// ignore
+			}
+			throw e;
 		}
 	}
 
