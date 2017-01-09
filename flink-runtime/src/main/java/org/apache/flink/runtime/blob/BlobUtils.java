@@ -138,9 +138,13 @@ public class BlobUtils {
 				HighAvailabilityOptions.HA_STORAGE_PATH.key() + ')', e);
 		}
 
-		final String clusterId =
-			configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
-		storagePath += "/" + clusterId;
+		// only include the cluster ID in actual HA setups:
+		if (HighAvailabilityMode.fromConfig(configuration) !=
+			HighAvailabilityMode.NONE) {
+			final String clusterId =
+				configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
+			storagePath += "/" + clusterId;
+		}
 
 		return new FileSystemBlobStore(fileSystem, storagePath);
 	}
