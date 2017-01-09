@@ -61,6 +61,7 @@ import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -345,8 +346,25 @@ public class TypeExtractorTest {
 
 		Assert.assertFalse(TypeExtractor.getForClass(PojoWithNonPublicDefaultCtor.class) instanceof PojoTypeInfo);
 	}
-	
 
+	@Test
+	public void testRow() {
+		Row row = new Row(2);
+		row.setField(0, "string");
+		row.setField(1, 15);
+		TypeInformation<Row> rowInfo = TypeExtractor.getForObject(row);
+		Assert.assertEquals(rowInfo.getClass(), RowTypeInfo.class);
+		Assert.assertEquals(2, rowInfo.getArity());
+		Assert.assertEquals(
+			new RowTypeInfo(
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.INT_TYPE_INFO),
+			rowInfo);
+
+		Row nullRow = new Row(2);
+		TypeInformation<Row> genericRowInfo = TypeExtractor.getForObject(nullRow);
+		Assert.assertEquals(genericRowInfo, new GenericTypeInfo<>(Row.class));
+	}
 	
 	public static class CustomType {
 		public String myField1;
