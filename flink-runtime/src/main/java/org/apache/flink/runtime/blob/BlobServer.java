@@ -316,6 +316,12 @@ public class BlobServer extends Thread implements BlobService {
 				LOG.error("BLOB server failed to properly clean up its storage directory.");
 			}
 
+			// only if not in HA mode: also clean up the blobStorage and delete all files
+			if (HighAvailabilityMode.fromConfig(blobServiceConfiguration) ==
+				HighAvailabilityMode.NONE) {
+				blobStore.cleanUp();
+			}
+
 			// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
 			// shutdown hook itself
 			if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
