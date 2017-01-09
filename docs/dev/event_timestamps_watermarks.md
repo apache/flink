@@ -304,7 +304,7 @@ public class PunctuatedAssigner extends AssignerWithPunctuatedWatermarks<MyEvent
 
 	@Override
 	public Watermark checkAndGetNextWatermark(MyEvent lastElement, long extractedTimestamp) {
-		return element.hasWatermarkMarker() ? new Watermark(extractedTimestamp) : null;
+		return lastElement.hasWatermarkMarker() ? new Watermark(extractedTimestamp) : null;
 	}
 }
 {% endhighlight %}
@@ -318,7 +318,7 @@ class PunctuatedAssigner extends AssignerWithPunctuatedWatermarks[MyEvent] {
 	}
 
 	override def checkAndGetNextWatermark(lastElement: MyEvent, extractedTimestamp: Long): Watermark = {
-		if (element.hasWatermarkMarker()) new Watermark(extractedTimestamp) else null
+		if (lastElement.hasWatermarkMarker()) new Watermark(extractedTimestamp) else null
 	}
 }
 {% endhighlight %}
