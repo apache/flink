@@ -113,6 +113,18 @@ configured to enable checkpointing, so that the new shards due to resharding can
 Kinesis consumer after the job is restored. This is a temporary limitation that will be resolved in future versions.
 Please see [FLINK-4341](https://issues.apache.org/jira/browse/FLINK-4341) for more detail.
 
+#### Configuring Starting Position
+
+The Flink Kinesis Consumer currently provides the following options to configure where to start reading Kinesis streams, simply by setting `ConsumerConfigConstants.STREAM_INITIAL_POSITION` to
+one of the following values in the provided configuration properties (the naming of the options identically follows [the namings used by the AWS Kinesis Streams service](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html#API_GetShardIterator_RequestSyntax)):
+
+- `LATEST`: read all shards of all streams starting from the latest record.
+- `TRIM_HORIZON`: read all shards of all streams starting from the earliest record possible (data may be trimmed by Kinesis depending on the retention settings).
+- `AT_TIMESTAMP`: read all shards of all streams starting from a specified timestamp. The timestamp must also be specified in the configuration
+properties by providing a value for `ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP`, either in the date pattern
+`yyyy-MM-dd'T'HH:mm:ss.SSSXXX` (for example, `2016-04-04T19:58:46.480-00:00`), or a non-negative double value representing the number of seconds
+that has elapsed since the Unix epoch (for example, `1459799926.480`).
+
 #### Fault Tolerance for Exactly-Once User-Defined State Update Semantics
 
 With Flink's checkpointing enabled, the Flink Kinesis Consumer will consume records from shards in Kinesis streams and
