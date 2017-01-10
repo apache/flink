@@ -37,5 +37,6 @@ import java.io.Serializable;
  * {@link #snapshotState(long, long)} method is typically a copy or shadow copy
  * of the actual state.</p>
  */
+@Deprecated
 @PublicEvolving
 public interface CheckpointedAsynchronously<T extends Serializable> extends Checkpointed<T> {}
