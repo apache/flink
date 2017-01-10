@@ -2,7 +2,7 @@
 title: "Amazon Web Services (AWS)"
 nav-title: AWS
 nav-parent_id: deployment
-nav-pos: 4
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

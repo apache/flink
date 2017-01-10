@@ -1,8 +1,8 @@
 ---
-title: "Clusters & Deployment"
-nav-id: deployment
-nav-parent_id: setup
-nav-pos: 5
+title:  "Docker Setup"
+nav-title: Docker
+nav-parent_id: deployment
+nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,3 +22,8 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+
+* This will be replaced by the TOC
+{:toc}
+
+
