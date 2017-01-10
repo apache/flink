@@ -28,6 +28,7 @@ import org.apache.flink.types.Row
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.apache.flink.table.api.ValidationException
 
 import scala.collection.JavaConverters._
 
@@ -53,7 +54,8 @@ class DataSetWindowAggregateITCase(configMode: TableConfigMode)
 
     // Count tumbling non-grouping window on event-time are currently not supported
     table
-      .window(Tumble over 2.rows on 'long)
+      .window(Tumble over 2.rows on 'long as 'w)
+      .groupBy('w)
       .select('int.count)
       .toDataSet[Row]
   }
@@ -66,8 +68,8 @@ class DataSetWindowAggregateITCase(configMode: TableConfigMode)
     val table = env.fromCollection(data).toTable(tEnv, 'long, 'int, 'string)
 
     val windowedTable = table
-      .groupBy('string)
-      .window(Tumble over 2.rows on 'long)
+      .window(Tumble over 2.rows on 'long as 'w)
+      .groupBy('w, 'string)
       .select('string, 'int.sum)
 
     val expected = "Hello,7\n" + "Hello world,7\n"
@@ -83,8 +85,8 @@ class DataSetWindowAggregateITCase(configMode: TableConfigMode)
     val table = env.fromCollection(data).toTable(tEnv, 'long, 'int, 'string)
 
     val windowedTable = table
-      .groupBy('string)
       .window(Tumble over 5.milli on 'long as 'w)
+      .groupBy('w, 'string)
       .select('string, 'int.sum, 'w.start, 'w.end)
 
     val expected = "Hello world,3,1970-01-01 00:00:00.005,1970-01-01 00:00:00.01\n" +
@@ -107,6 +109,7 @@ class DataSetWindowAggregateITCase(configMode: TableConfigMode)
 
     val windowedTable = table
       .window(Tumble over 5.milli on 'long as 'w)
+      .groupBy('w)
       .select('int.sum, 'w.start, 'w.end)
 
     val expected = "10,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005\n" +
@@ -116,4 +119,21 @@ class DataSetWindowAggregateITCase(configMode: TableConfigMode)
     val results = windowedTable.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
+  @Test(expected = classOf[ValidationException])
+  def testMutilGroupWindow(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val table = env.fromCollection(data).toTable(tEnv, 'long, 'int, 'string)
+    table
+    .window(Tumble over 5.milli on 'long as 'w)
+    .groupBy('w, 'string)
+    .select('string, 'int.count)
+    .window( Slide over 5.milli every 1.milli on 'int as 'w2)
+    .groupBy('w2)
+    .select('string)
+    .toDataSet[Row]
+  }
+
 }

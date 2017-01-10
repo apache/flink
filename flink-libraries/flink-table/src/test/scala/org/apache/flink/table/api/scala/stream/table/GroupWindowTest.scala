@@ -30,26 +30,14 @@ import org.junit.{Ignore, Test}
 
 class GroupWindowTest extends TableTestBase {
 
-  // batch windows are not supported yet
-  @Test(expected = classOf[ValidationException])
-  def testInvalidBatchWindow(): Unit = {
-    val util = batchTestUtil()
-    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
-
-    table
-      .window(Session withGap 100.milli as 'string)
-      .groupBy('string)
-
-  }
-
   @Test(expected = classOf[ValidationException])
   def testInvalidWindowProperty(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     table
-      .groupBy('string)
-      .select('string, 'string.start) // property in non windowed table
+    .groupBy('string)
+    .select('string, 'string.start) // property in non windowed table
   }
 
   @Test(expected = classOf[TableException])
@@ -152,6 +140,50 @@ class GroupWindowTest extends TableTestBase {
       .window(Session withGap 100.milli as 'string) // field name "string" is already present
       .groupBy('string)
       .select('string, 'int.count)
+  }
+
+  @Test
+  def testMultiWindow(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+
+    val windowedTable = table
+      .window(Tumble over 50.milli as 'w1)
+      .groupBy('w1, 'string)
+      .select('string, 'int.count)
+      .window(Slide over 20.milli every 10.milli as 'w2)
+      .groupBy('w2)
+      .select('string.count)
+
+    val expected = unaryNode(
+      "DataStreamAggregate",
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "string", "int")
+          ),
+          term("groupBy", "string"),
+          term(
+            "window",
+            ProcessingTimeTumblingGroupWindow(
+              Some(WindowReference("w1")),
+              50.milli)),
+          term("select", "string", "COUNT(int) AS TMP_0")
+        ),
+        term("select", "string")
+      ),
+      term(
+        "window",
+        ProcessingTimeSlidingGroupWindow(
+          Some(WindowReference("w2")),
+          20.milli, 10.milli)),
+      term("select", "COUNT(string) AS TMP_2")
+    )
+    util.verifyTable(windowedTable, expected)
   }
 
   @Test
