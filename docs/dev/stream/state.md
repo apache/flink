@@ -1,8 +1,7 @@
 ---
-title:  "State and State Backends"
-nav-title: State Backends
-nav-parent_id: internals
-nav-pos: 4
+title: "Working with State"
+nav-parent_id: streaming
+nav-pos: 40
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,13 +22,21 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-* This will be replaced by the TOC
+* ToC
 {:toc}
 
-**NOTE** This document is only a sketch of some bullet points, to be fleshed out.
+Stateful functions and operators store data across the processing of individual elements/events, making state a critical building block for
+any type of more elaborate operation. For example: 
 
-**NOTE** The structure of State Backends changed heavily between version 1.1 and 1.2. This documentation is only applicable
-to Apache Flink version 1.2 and later.
+  - When an application searches for certain event patterns, the state will store the sequence of events encountered so far.
+  - When aggregating events per minute, the state holds the pending aggregates.
+  - When training a machine learning model over a stream of data points, the state holds the current verstion of the model parameters.
+
+In order to make state fault tolerant, Flink needs to be aware of the state and [checkpoint](checkpointing.html) it.
+In many cases, Flink can also *manage* the state for the application, meaning Flink deals with the memory management (possibly spilling to disk
+if necessary) to allow applications to hold very large state.
+
+This document explains how to use Flink's state abstractions when developing an application.
 
 
 ## Keyed State and Operator state
