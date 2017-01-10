@@ -96,4 +96,20 @@ public class SerializationProxiesTest {
 
 		Assert.assertEquals(name, metaInfo.getStateName());
 	}
+
+	/**
+	 * This test fixes the order of elements in the enum which is important for serialization. Do not modify this test
+	 * except if you are entirely sure what you are doing.
+	 */
+	@Test
+	public void testFixTypeOrder() {
+		// ensure all elements are covered
+		Assert.assertEquals(5, StateDescriptor.Type.values().length);
+		// fix the order of elements to keep serialization format stable
+		Assert.assertEquals(0, StateDescriptor.Type.UNKNOWN.ordinal());
+		Assert.assertEquals(1, StateDescriptor.Type.VALUE.ordinal());
+		Assert.assertEquals(2, StateDescriptor.Type.LIST.ordinal());
+		Assert.assertEquals(3, StateDescriptor.Type.REDUCING.ordinal());
+		Assert.assertEquals(4, StateDescriptor.Type.FOLDING.ordinal());
+	}
 }

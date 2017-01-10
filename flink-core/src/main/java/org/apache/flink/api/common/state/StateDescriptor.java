@@ -49,8 +49,9 @@ import static java.util.Objects.requireNonNull;
 @PublicEvolving
 public abstract class StateDescriptor<S extends State, T> implements Serializable {
 
+	// Do not change the order of the elements in this enum, ordinal is used in serialization
 	public enum Type {
-		VALUE, LIST, REDUCING, FOLDING, @Deprecated UNKNOWN
+		@Deprecated UNKNOWN, VALUE, LIST, REDUCING, FOLDING
 	}
 
 	private static final long serialVersionUID = 1L;
