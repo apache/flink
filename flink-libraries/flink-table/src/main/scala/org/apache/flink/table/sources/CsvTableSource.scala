@@ -55,7 +55,6 @@ class CsvTableSource(
     lenient: Boolean = false)
   extends BatchTableSource[Row]
   with StreamTableSource[Row]
-  with DefinedFieldNames
   with ProjectableTableSource[Row] {
 
   /**
@@ -74,7 +73,7 @@ class CsvTableSource(
     throw TableException("Number of field names and field types must be equal.")
   }
 
-  private val returnType = new RowTypeInfo(fieldTypes: _*)
+  private val returnType = new RowTypeInfo(fieldTypes, fieldNames)
 
   private var selectedFields: Array[Int] = fieldTypes.indices.toArray
 
@@ -87,11 +86,6 @@ class CsvTableSource(
   override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
     execEnv.createInput(createCsvInput(), returnType)
   }
-  /** Returns the names of the table fields. */
-  override def getFieldNames: Array[String] = fieldNames
-
-  /** Returns the names of the table fields. */
-  override def getFieldIndices = TableEnvironment.getFieldIndices(getReturnType)
 
   /** Returns the [[RowTypeInfo]] for the return type of the [[CsvTableSource]]. */
   override def getReturnType: RowTypeInfo = returnType
