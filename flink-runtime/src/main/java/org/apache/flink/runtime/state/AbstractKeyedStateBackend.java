@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.AggregatingState;
+import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
@@ -33,6 +35,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -159,6 +162,19 @@ public abstract class AbstractKeyedStateBackend<K>
 			ReducingStateDescriptor<T> stateDesc) throws Exception;
 
 	/**
+	 * Creates and returns a new {@link AggregatingState}.
+	 *
+	 * @param namespaceSerializer TypeSerializer for the state namespace.
+	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
+	 *
+	 * @param <N> The type of the namespace.
+	 * @param <T> The type of the values that the {@code ListState} can store.
+	 */
+	protected abstract <N, T, ACC, R> InternalAggregatingState<N, T, R> createAggregatingState(
+			TypeSerializer<N> namespaceSerializer,
+			AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception;
+
+	/**
 	 * Creates and returns a new {@link FoldingState}.
 	 *
 	 * @param namespaceSerializer TypeSerializer for the state namespace.
@@ -263,6 +279,13 @@ public abstract class AbstractKeyedStateBackend<K>
 			public <T> ReducingState<T> createReducingState(ReducingStateDescriptor<T> stateDesc) throws Exception {
 				return AbstractKeyedStateBackend.this.createReducingState(namespaceSerializer, stateDesc);
 			}
+
+			@Override
+			public <T, ACC, R> AggregatingState<T, R> createAggregatingState(
+					AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception {
+				return AbstractKeyedStateBackend.this.createAggregatingState(namespaceSerializer, stateDesc);
+			}
+			
 
 			@Override
 			public <T, ACC> FoldingState<T, ACC> createFoldingState(FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {

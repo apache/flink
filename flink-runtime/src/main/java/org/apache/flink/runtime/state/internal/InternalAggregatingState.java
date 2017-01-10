@@ -18,14 +18,16 @@
 
 package org.apache.flink.runtime.state.internal;
 
-import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.AggregatingState;
 
 /**
- * The peer to the {@link ReducingState} in the internal state type hierarchy.
+ * The peer to the {@link AggregatingState} in the internal state type hierarchy.
  * 
  * <p>See {@link InternalKvState} for a description of the internal state hierarchy.
  * 
- * @param <N> The type of the namespace
- * @param <T> The type of elements in the aggregated by the ReduceFunction
+ * @param <N>   The type of the namespace
+ * @param <IN>  Type of the value added to the state.
+ * @param <OUT> Type of the value extracted from the state.
  */
-public interface InternalReducingState<N, T> extends InternalMergingState<N, T, T>, ReducingState<T> {}
+public interface InternalAggregatingState<N, IN, OUT> 
+		extends InternalMergingState<N, IN, OUT>, AggregatingState<IN, OUT> {}

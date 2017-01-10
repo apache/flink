@@ -49,12 +49,18 @@ import static java.util.Objects.requireNonNull;
 @PublicEvolving
 public abstract class StateDescriptor<S extends State, T> implements Serializable {
 
-	// Do not change the order of the elements in this enum, ordinal is used in serialization
+	/**
+	 * An enumeration of the types of supported states. Used to identify the state type
+	 * when writing and restoring checkpoints and savepoints.
+	 */
+	// IMPORTANT: Do not change the order of the elements in this enum, ordinal is used in serialization
 	public enum Type {
-		@Deprecated UNKNOWN, VALUE, LIST, REDUCING, FOLDING
+		@Deprecated UNKNOWN, VALUE, LIST, REDUCING, FOLDING, AGGREGATING
 	}
 
 	private static final long serialVersionUID = 1L;
+
+	// ------------------------------------------------------------------------
 
 	/** Name that uniquely identifies state created from this StateDescriptor. */
 	protected final String name;

@@ -23,6 +23,7 @@ import org.apache.commons.lang3.ClassUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -186,6 +187,28 @@ public class TypeExtractor {
 	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<IN, OUT> foldInterface, TypeInformation<IN> inType, String functionName, boolean allowMissing)
 	{
 		return getUnaryOperatorReturnType((Function) foldInterface, FoldFunction.class, false, false, inType, functionName, allowMissing);
+	}
+
+	@PublicEvolving
+	public static <IN, ACC> TypeInformation<ACC> getAggregateFunctionAccumulatorType(
+			AggregateFunction<IN, ACC, ?> function,
+			TypeInformation<IN> inType,
+			String functionName,
+			boolean allowMissing)
+	{
+		return getUnaryOperatorReturnType(
+			function, AggregateFunction.class, 0, 1, inType, functionName, allowMissing);
+	}
+
+	@PublicEvolving
+	public static <IN, OUT> TypeInformation<OUT> getAggregateFunctionReturnType(
+			AggregateFunction<IN, ?, OUT> function,
+			TypeInformation<IN> inType,
+			String functionName,
+			boolean allowMissing)
+	{
+		return getUnaryOperatorReturnType(
+				function, AggregateFunction.class, 0, 2, inType, functionName, allowMissing);
 	}
 
 	@PublicEvolving
