@@ -115,7 +115,7 @@ public class MyMapper extends RichMapFunction[String,Int] {
   override def open(parameters: Configuration): Unit = {
     getRuntimeContext()
       .getMetricGroup()
-      .gauge("MyGauge", new ScalaGauge[Int](valueToExpose))
+      .gauge("MyGauge", ScalaGauge[Int]( () => valueToExpose ) )
   }
   ...
 }

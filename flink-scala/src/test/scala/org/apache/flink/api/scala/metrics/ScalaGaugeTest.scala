@@ -29,7 +29,7 @@ class ScalaGaugeTest extends TestLogger with JUnitSuiteLike {
 
   @Test
   def testGaugeCorrectValue(): Unit = {
-    val myGauge = new ScalaGauge[Long](4)
+    val myGauge = ScalaGauge[Long]( () => 4 )
     assert( myGauge.getValue == 4 )
   }
 
@@ -39,7 +39,7 @@ class ScalaGaugeTest extends TestLogger with JUnitSuiteLike {
     val registry = new MetricRegistry(conf)
     val metricGroup = new GenericMetricGroup(registry, null, "world")
 
-    val myGauge = new ScalaGauge[Long](4)
+    val myGauge = ScalaGauge[Long]( () => 4 )
     val gauge = metricGroup.gauge[Long, Gauge[Long]]("max", myGauge);
 
     assert( gauge == myGauge )
