@@ -19,7 +19,6 @@ package org.apache.flink.runtime.security;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Array;
 
 import javax.annotation.Nullable;
 import javax.security.auth.login.AppConfigurationEntry;
@@ -99,7 +98,7 @@ public class DynamicConfiguration extends Configuration {
 
 	private static AppConfigurationEntry[] merge(AppConfigurationEntry[] a, AppConfigurationEntry[] b) {
 		AppConfigurationEntry[] merged = Arrays.copyOf(a, a.length + b.length);
-		Array.copy(b, 0, merged, a.length, b.length);
+		System.arraycopy(b, 0, merged, a.length, b.length);
 		return merged;
 	}
 

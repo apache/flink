@@ -60,7 +60,7 @@ public class JaasModule implements SecurityModule {
 	private DynamicConfiguration currentConfig;
 
 	@Override
-	public void install(SecurityUtils.SecurityConfiguration securityConfig) {
+	public void install(SecurityUtils.SecurityConfiguration securityConfig) throws SecurityInstallException {
 
 		// ensure that a config file is always defined, for compatibility with
 		// ZK and Kafka which check for the system property and existence of the file
@@ -88,7 +88,7 @@ public class JaasModule implements SecurityModule {
 	}
 
 	@Override
-	public void uninstall() {
+	public void uninstall() throws SecurityInstallException {
 		if(priorConfigFile != null) {
 			System.setProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG, priorConfigFile);
 		} else {
@@ -130,7 +130,6 @@ public class JaasModule implements SecurityModule {
 	 * Generate the default JAAS config file.
 	 */
 	private static File generateDefaultConfigFile() {
-		// load Jaas config file to initialize SASL
 		final File jaasConfFile;
 		try {
 			Path jaasConfPath = Files.createTempFile("jaas-", ".conf");

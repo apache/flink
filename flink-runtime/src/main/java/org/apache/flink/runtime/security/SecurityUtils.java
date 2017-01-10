@@ -20,6 +20,7 @@ package org.apache.flink.runtime.security;
 
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -45,6 +46,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * 1. Java Authentication and Authorization Service (JAAS)
  * 2. Hadoop's User Group Information (UGI)
+ * 3. ZooKeeper's process-wide security settings.
  */
 public class SecurityUtils {
 
@@ -56,16 +58,20 @@ public class SecurityUtils {
 
 	public static SecurityContext getInstalledContext() { return installedContext; }
 
+	@VisibleForTesting
+	static List<SecurityModule> getInstalledModules() {
+		return installedModules;
+	}
+
 	/**
-	 * Performs a static initialization of the JAAS and Hadoop UGI security mechanism.
-	 * It creates the in-memory JAAS configuration object which will serve appropriate
-	 * ApplicationConfigurationEntry for the connector login module implementation that
-	 * authenticates Kerberos identity using SASL/JAAS based mechanism.
+	 * Installs a process-wide security configuration.
+	 *
+	 * Applies the configuration using the available security modules (i.e. Hadoop, JAAS).
 	 */
 	public static void install(SecurityConfiguration config) throws Exception {
 
 		// install the security modules
-		List<SecurityModule> modules = new ArrayList();
+		List<SecurityModule> modules = new ArrayList<>();
 		try {
 			for (Class<? extends SecurityModule> moduleClass : config.getSecurityModules()) {
 				SecurityModule module = moduleClass.newInstance();
@@ -93,7 +99,10 @@ public class SecurityUtils {
 				try {
 					module.uninstall();
 				}
-				catch(UnsupportedOperationException e) {
+				catch(UnsupportedOperationException ignored) {
+				}
+				catch(SecurityModule.SecurityInstallException e) {
+					LOG.warn("unable to uninstall a security module", e);
 				}
 			}
 			installedModules = null;
@@ -110,11 +119,9 @@ public class SecurityUtils {
 	public static class SecurityConfiguration {
 
 		private static final List<Class<? extends SecurityModule>> DEFAULT_MODULES = Collections.unmodifiableList(
-			new ArrayList<Class<? extends SecurityModule>>() {{
-				add(HadoopModule.class);
-				add(JaasModule.class);
-				add(ZooKeeperModule.class);
-			}});
+			Arrays.asList(HadoopModule.class, JaasModule.class, ZooKeeperModule.class));
+
+		private final List<Class<? extends SecurityModule>> securityModules;
 
 		private final org.apache.hadoop.conf.Configuration hadoopConf;
 
@@ -124,23 +131,38 @@ public class SecurityUtils {
 
 		private final String principal;
 
-		private List<String> loginContextNames;
+		private final List<String> loginContextNames;
 
-		private String zkServiceName;
+		private final String zkServiceName;
 
-		private String zkLoginContextName;
+		private final String zkLoginContextName;
 
 		/**
 		 * Create a security configuration from the global configuration.
 		 * @param flinkConf the Flink global configuration.
          */
 		public SecurityConfiguration(Configuration flinkConf) {
-			this(
-				flinkConf,
-				HadoopUtils.getHadoopConfiguration());
+			this(flinkConf, HadoopUtils.getHadoopConfiguration());
 		}
 
+		/**
+		 * Create a security configuration from the global configuration.
+		 * @param flinkConf the Flink global configuration.
+		 * @param hadoopConf the Hadoop configuration.
+		 */
 		public SecurityConfiguration(Configuration flinkConf, org.apache.hadoop.conf.Configuration hadoopConf) {
+			this(flinkConf, hadoopConf, DEFAULT_MODULES);
+		}
+
+		/**
+		 * Create a security configuration from the global configuration.
+		 * @param flinkConf the Flink global configuration.
+		 * @param hadoopConf the Hadoop configuration.
+		 * @param securityModules the security modules to apply.
+		 */
+		public SecurityConfiguration(Configuration flinkConf,
+				org.apache.hadoop.conf.Configuration hadoopConf,
+				List<? extends Class<? extends SecurityModule>> securityModules) {
 			this.hadoopConf = checkNotNull(hadoopConf);
 			this.keytab = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
 			this.principal = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
@@ -148,6 +170,7 @@ public class SecurityUtils {
 			this.loginContextNames = parseList(flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS));
 			this.zkServiceName = flinkConf.getString(SecurityOptions.ZOOKEEPER_SASL_SERVICE_NAME);
 			this.zkLoginContextName = flinkConf.getString(SecurityOptions.ZOOKEEPER_SASL_LOGIN_CONTEXT_NAME);
+			this.securityModules = Collections.unmodifiableList(securityModules);
 
 			validate();
 		}
@@ -169,7 +192,7 @@ public class SecurityUtils {
 		}
 
 		public List<Class<? extends SecurityModule>> getSecurityModules() {
-			return DEFAULT_MODULES;
+			return securityModules;
 		}
 
 		public List<String> getLoginContextNames() {

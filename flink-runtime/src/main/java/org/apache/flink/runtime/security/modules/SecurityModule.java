@@ -19,6 +19,8 @@ package org.apache.flink.runtime.security.modules;
 
 import org.apache.flink.runtime.security.SecurityUtils;
 
+import java.security.GeneralSecurityException;
+
 /**
  * An installable security module.
  */
@@ -27,12 +29,31 @@ public interface SecurityModule {
 	/**
 	 * Install the security module.
 	 *
-	 * @param configuration
+	 * @param configuration the security configuration.
+	 * @throws SecurityInstallException if the security module couldn't be installed.
 	 */
-	void install(SecurityUtils.SecurityConfiguration configuration);
+	void install(SecurityUtils.SecurityConfiguration configuration) throws SecurityInstallException;
 
 	/**
 	 * Uninstall the security module.
+	 *
+	 * @throws SecurityInstallException if the security module couldn't be uninstalled.
+	 * @throws UnsupportedOperationException if the security module doesn't support uninstallation.
 	 */
-	void uninstall();
+	void uninstall() throws SecurityInstallException;
+
+	/**
+	 * Indicates a problem with installing or uninstalling a security module.
+	 */
+	class SecurityInstallException extends GeneralSecurityException {
+		private static final long serialVersionUID = 1L;
+
+		public SecurityInstallException(String msg) {
+			super(msg);
+		}
+
+		public SecurityInstallException(String msg, Throwable cause) {
+			super(msg, cause);
+		}
+	}
 }

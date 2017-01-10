@@ -38,7 +38,9 @@ data sources throughout the life of the job.  Kerberos keytabs do not expire in 
 or ticket cache entry.
 
 The current implementation supports running Flink clusters (Job Manager/Task Manager/jobs) with either a configured keytab credential
-or with Hadoop delegation tokens.   Keep in mind that all jobs share the credential configured for a given cluster.
+or with Hadoop delegation tokens.   Keep in mind that all jobs share the credential configured for a given cluster.   To use a different keytab
+for for a certain job, simply launch a separate Flink cluster with a different configuration.   Numerous Flink clusters may run side-by-side in a YARN
+or Mesos environment.
 
 ## How Flink Security works
 In concept, a Flink program may use first- or third-party connectors (Kafka, HDFS, Cassandra, Flume, Kinesis etc.) necessitating arbitrary authentication methods (Kerberos, SSL/TLS, username/password, etc.).  While satisfying the security requirements for all connectors is an ongoing effort,
@@ -126,7 +128,19 @@ In YARN/Mesos mode, the keytab is automatically copied from the client to the Fl
 
 For more information, see <a href="https://github.com/apache/hadoop/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-site/src/site/markdown/YarnApplicationSecurity.md">YARN security</a> documentation.
 
+#### Using `kinit` (YARN only)
+
+In YARN mode, it is possible to deploy a secure Flink cluster without a keytab, using only the ticket cache (as managed by `kinit`).
+This avoids the complexity of generating a keytab and avoids entrusting the cluster manager with it.  The main drawback is
+that the cluster is necessarily short-lived since the generated delegation tokens will expire (typically within a week).
+
+Steps to run a secure Flink cluster using `kinit`:
+1. Add security-related configuration options to the Flink configuration file on the client.
+2. Login using the `kinit` command.
+3. Deploy Flink cluster as normal.
+
 ## Further Details
 ### Ticket Renewal
-Each component that uses Kerberos is independently responsible for renewing the Kerberos TGT.   Hadoop, ZooKeeper, and Kafka all do so, 
-and no further action is needed on the part of Flink.
+Each component that uses Kerberos is independently responsible for renewing the Kerberos ticket-granting-ticket (TGT).
+Hadoop, ZooKeeper, and Kafka all renew the TGT automatically when provided a keytab.  In the delegation token scenario,
+YARN itself renews the token (up to its maximum lifespan).

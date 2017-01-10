@@ -46,7 +46,7 @@ public class ZooKeeperModule implements SecurityModule {
 	private String priorLoginContextName;
 
 	@Override
-	public void install(SecurityUtils.SecurityConfiguration configuration) {
+	public void install(SecurityUtils.SecurityConfiguration configuration) throws SecurityInstallException {
 
 		priorServiceName = System.getProperty(ZK_SASL_CLIENT_USERNAME, null);
 		if (!"zookeeper".equals(configuration.getZooKeeperServiceName())) {
@@ -60,7 +60,7 @@ public class ZooKeeperModule implements SecurityModule {
 	}
 
 	@Override
-	public void uninstall() {
+	public void uninstall() throws SecurityInstallException {
 		if(priorServiceName != null) {
 			System.setProperty(ZK_SASL_CLIENT_USERNAME, priorServiceName);
 		} else {

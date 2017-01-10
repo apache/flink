@@ -40,7 +40,7 @@ public class HadoopModule implements SecurityModule {
 	UserGroupInformation loginUser;
 
 	@Override
-	public void install(SecurityUtils.SecurityConfiguration securityConfig) {
+	public void install(SecurityUtils.SecurityConfiguration securityConfig) throws SecurityInstallException {
 
 		UserGroupInformation.setConfiguration(securityConfig.getHadoopConfiguration());
 
@@ -83,8 +83,7 @@ public class HadoopModule implements SecurityModule {
 					//Use reflection API to get the login user object
 					//UserGroupInformation.loginUserFromSubject(null);
 					Method loginUserFromSubjectMethod = UserGroupInformation.class.getMethod("loginUserFromSubject", Subject.class);
-					Subject subject = null;
-					loginUserFromSubjectMethod.invoke(null, subject);
+					loginUserFromSubjectMethod.invoke(null, (Subject) null);
 				} catch (NoSuchMethodException e) {
 					LOG.warn("Could not find method implementations in the shaded jar. Exception: {}", e);
 				} catch (InvocationTargetException e) {
@@ -109,12 +108,12 @@ public class HadoopModule implements SecurityModule {
 			LOG.info("Hadoop user set to {}", loginUser);
 
 		} catch (Throwable ex) {
-			throw new RuntimeException("Hadoop login failure", ex);
+			throw new SecurityInstallException("Unable to set the Hadoop login user", ex);
 		}
 	}
 
 	@Override
-	public void uninstall() {
+	public void uninstall() throws SecurityInstallException {
 		throw new UnsupportedOperationException();
 	}
 }
