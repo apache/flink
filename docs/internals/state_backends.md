@@ -69,15 +69,3 @@ Examples are "ValueState", "ListState", etc. Flink's runtime encodes the states 
 *Raw State* is state that users and operators keep in their own data structures. When checkpointed, they only write a sequence of bytes into
 the checkpoint. Flink knows nothing about the state's data structures and sees only the raw bytes.
 
-
-## Checkpointing Procedure
-
-When operator snapshots are taken, there are two parts: the **synchronous** and the **asynchronous** parts.
-
-Operators and state backends provide their snapshots as a Java `FutureTask`. That task contains the state where the *synchronous* part
-is completed and the *asynchronous* part is pending. The asynchronous part is then executed by a background thread for that checkpoint.
-
-Operators that checkpoint purely synchronously return an already completed `FutureTask`.
-If an asynchronous operation needs to be performed, it is executed in the `run()` method of that `FutureTask`.
-
-The tasks are cancelable, in order to release streams and other resource consuming handles.
