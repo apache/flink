@@ -1395,20 +1395,6 @@ public final class ConfigConstants {
 	/** The environment variable name which contains the Flink installation root directory */
 	public static final String ENV_FLINK_HOME_DIR = "FLINK_HOME";
 
-	// -------------------------------- Security -------------------------------
-
-	/**
-	 * The config parameter defining security credentials required
-	 * for securing Flink cluster.
-	 */
-
-	/** Keytab file key name to be used in flink configuration file */
-	public static final String SECURITY_KEYTAB_KEY = "security.keytab";
-
-	/** Kerberos security principal key name to be used in flink configuration file */
-	public static final String SECURITY_PRINCIPAL_KEY = "security.principal";
-
-
 	/**
 	 * Not instantiable.
 	 */

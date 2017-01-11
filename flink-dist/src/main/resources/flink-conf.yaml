@@ -162,21 +162,24 @@ jobmanager.web.port: 8081
 # Flink Cluster Security Configuration (optional configuration)
 #==============================================================================
 
-# Kerberos security for the connectors can be enabled by providing below configurations
-# Security works in two modes - keytab/principal combination or using the Kerberos token cache
-# If keytab and principal are not provided, token cache (manual kinit) will be used
+# Kerberos authentication for various components - Hadoop, ZooKeeper, and connectors -
+# may be enabled in four steps:
+# 1. configure the local krb5.conf file
+# 2. provide Kerberos credentials (either a keytab or a ticket cache w/ kinit)
+# 3. make the credentials available to various JAAS login contexts
+# 4. configure the connector to use JAAS/SASL
 
-#security.keytab: /path/to/kerberos/keytab
-#security.principal: flink-user
+#security.kerberos.login.keytab: /path/to/kerberos/keytab
+#security.kerberos.login.principal: flink-user
+#security.kerberos.login.use-ticket-cache: true
+
+#security.kerberos.login.contexts: Client,KafkaClient
 
 #==============================================================================
 # ZK Security Configuration (optional configuration)
 #==============================================================================
-# Below configurations are applicable if ZK quorum is configured for Kerberos security
 
-# SASL authentication is disabled by default and can be enabled by changig the value to false
-#
-# zookeeper.sasl.disable: true
+# Below configurations are applicable if ZK ensemble is configured for security
 
 # Override below configuration to provide custom ZK service name if configured
 #
