@@ -18,18 +18,16 @@
 
 package org.apache.flink.table
 
-import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
-import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment, TableException}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.expressions.{Alias, UnresolvedFieldReference}
-import org.apache.flink.table.sinks.TableSink
-import org.apache.flink.table.sources.TableSource
-import org.apache.flink.table.utils.TableTestBase
-import org.apache.flink.table.utils.TableTestUtil.{batchTableNode, term, unaryNode, binaryNode, streamTableNode}
+import org.apache.flink.table.utils.{MockTableEnvironment, TableTestBase}
+import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
 import org.junit.Assert.assertEquals
 
@@ -348,19 +346,6 @@ class TableEnvironmentTest extends TableTestBase {
     util.verifyTable(sqlTable2, expected2)
   }
 
-}
-
-class MockTableEnvironment extends TableEnvironment(new TableConfig) {
-
-  override private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit = ???
-
-  override protected def checkValidTableName(name: String): Unit = ???
-
-  override protected def getBuiltInNormRuleSet: RuleSet = ???
-
-  override protected def getBuiltInOptRuleSet: RuleSet = ???
-
-  override def registerTableSource(name: String, tableSource: TableSource[_]) = ???
 }
 
 case class CClass(cf1: Int, cf2: String, cf3: Double)

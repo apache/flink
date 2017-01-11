@@ -842,6 +842,18 @@ object TableEnvironment {
   }
 
   /**
+    * Returns field types for a given [[TableSource]].
+    *
+    * @param tableSource The TableSource to extract field types from.
+    * @tparam A The type of the TableSource.
+    * @return An array holding the field types.
+    */
+  def getFieldTypes[A](tableSource: TableSource[A]): Array[TypeInformation[_]] = {
+    val returnType = tableSource.getReturnType
+    TableEnvironment.getFieldTypes(returnType)
+  }
+
+  /**
     * Returns field names for a given [[TableSource]].
     *
     * @param tableSource The TableSource to extract field names from.

@@ -21,20 +21,21 @@ package org.apache.flink.table.plan.nodes.dataset
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.{BatchTableEnvironment, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.schema.TableSourceTable
-import org.apache.flink.table.sources.BatchTableSource
 import org.apache.flink.types.Row
+import org.apache.flink.table.sources.BatchTableSource
 
 /** Flink RelNode to read data from an external source defined by a [[BatchTableSource]]. */
 class BatchTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    val tableSource: BatchTableSource[_])
+    val tableSource: BatchTableSource[_],
+    filterCondition: RexNode = null)
   extends BatchScan(cluster, traitSet, table) {
 
   override def deriveRowType() = {
@@ -54,13 +55,20 @@ class BatchTableSourceScan(
       cluster,
       traitSet,
       getTable,
-      tableSource
+      tableSource,
+      filterCondition
     )
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
+    val terms = super.explainTerms(pw)
       .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
+      if (filterCondition != null) {
+        import scala.collection.JavaConverters._
+        val fieldNames = getTable.getRowType.getFieldNames.asScala.toList
+        terms.item("filter", getExpressionString(filterCondition, fieldNames, None))
+      }
+    terms
   }
 
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
@@ -68,6 +76,6 @@ class BatchTableSourceScan(
     val config = tableEnv.getConfig
     val inputDataSet = tableSource.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
 
-    convertToInternalRow(inputDataSet, new TableSourceTable(tableSource), config)
+    convertToInternalRow(inputDataSet, new TableSourceTable(tableSource, tableEnv), config)
   }
 }

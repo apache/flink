@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.rules.util
+package org.apache.flink.table.plan.util
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
