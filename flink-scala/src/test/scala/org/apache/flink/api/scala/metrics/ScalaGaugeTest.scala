@@ -33,16 +33,4 @@ class ScalaGaugeTest extends TestLogger with JUnitSuiteLike {
     assert(myGauge.getValue == 4)
   }
 
-  @Test
-  def testRegister(): Unit = {
-    val conf = MetricRegistryConfiguration.defaultMetricRegistryConfiguration()
-    val registry = new MetricRegistry(conf)
-    val metricGroup = new GenericMetricGroup(registry, null, "world")
-
-    val myGauge = ScalaGauge[Long]( () => 4 )
-    val gauge = metricGroup.gauge[Long, Gauge[Long]]("max", myGauge);
-
-    assert( gauge == myGauge )
-  }
-
 }
