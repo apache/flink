@@ -42,6 +42,50 @@ import org.junit.{Ignore, Test}
 class TimeWindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
   /**
+    * Verifies that calls to timeWindow() in Flink 1.2 instantiate a regular
+    * windowOperator instead of an aligned one.
+    */
+  @Test
+  def testAlignedWindowDeprecation(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
+
+    val source = env.fromElements(("hello", 1), ("hello", 2))
+
+    val reducer = new DummyReducer
+
+    val window1 = source
+      .keyBy(0)
+      .timeWindow(Time.seconds(1), Time.milliseconds(100))
+      .reduce(reducer)
+
+    val transform1 = window1.javaStream.getTransformation
+      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
+
+    val operator1 = transform1.getOperator
+
+    assertTrue(operator1.isInstanceOf[WindowOperator[_, _, _, _, _]])
+
+    val window2 = source
+      .keyBy(0)
+      .timeWindow(Time.minutes(1))
+      .apply(new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
+        def apply(
+                   key: Tuple,
+                   window: TimeWindow,
+                   values: Iterable[(String, Int)],
+                   out: Collector[(String, Int)]) { }
+      })
+
+    val transform2 = window2.javaStream.getTransformation
+      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
+
+    val operator2 = transform2.getOperator
+
+    assertTrue(operator2.isInstanceOf[WindowOperator[_, _, _, _, _]])
+  }
+
+  /**
     * These tests ensure that the fast aligned time windows operator is used if the
     * conditions are right.
     */

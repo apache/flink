@@ -53,9 +53,14 @@ import java.util.concurrent.TimeUnit;
  */
 public class TimeWindowTranslationTest {
 
+	/**
+	 * Verifies that calls to timeWindow() in Flink 1.2 instantiate a regular
+	 * windowOperator instead of an aligned one.
+	 */
 	@Test
-	public void testTimeWindows() throws Exception {
+	public void testAlignedWindowDeprecation() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
