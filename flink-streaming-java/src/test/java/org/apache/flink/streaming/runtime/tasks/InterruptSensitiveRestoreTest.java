@@ -138,12 +138,10 @@ public class InterruptSensitiveRestoreTest {
 		switch (mode) {
 			case OPERATOR_MANAGED:
 			case OPERATOR_RAW:
-				cfg.setStreamOperator(new StreamSource<>(new TestSourceOperator()));
-				break;
 			case KEYED_MANAGED:
 			case KEYED_RAW:
 				cfg.setStateKeySerializer(IntSerializer.INSTANCE);
-				cfg.setStreamOperator(new StreamSource<>(new TestSourceKeyed()));
+				cfg.setStreamOperator(new StreamSource<>(new TestSource()));
 				break;
 			case LEGACY:
 				cfg.setStreamOperator(new StreamSource<>(new TestSourceLegacy()));
@@ -369,7 +367,7 @@ public class InterruptSensitiveRestoreTest {
 		}
 	}
 
-	private static class TestSourceOperator implements SourceFunction<Object>, CheckpointedFunction {
+	private static class TestSource implements SourceFunction<Object>, CheckpointedFunction {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -389,29 +387,6 @@ public class InterruptSensitiveRestoreTest {
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
 			((StateInitializationContext)context).getRawOperatorStateInputs().iterator().next().getStream().read();
-		}
-	}
-
-	private static class TestSourceKeyed implements SourceFunction<Object>, CheckpointedFunction {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void run(SourceContext<Object> ctx) throws Exception {
-			fail("should never be called");
-		}
-
-		@Override
-		public void cancel() {}
-
-
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			fail("should never be called");
-		}
-
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
-			((StateInitializationContext)context).getRawKeyedStateInputs().iterator().next().getStream().read();
 		}
 	}
 }
